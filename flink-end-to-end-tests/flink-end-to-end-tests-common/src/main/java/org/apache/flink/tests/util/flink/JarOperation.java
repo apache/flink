@@ -17,41 +17,43 @@
 
 package org.apache.flink.tests.util.flink;
 
-/**
- * Represents a move/copy operation for a jar.
- */
+/** Represents a move/copy operation for a jar. */
 class JarOperation {
 
-	private final String jarNamePrefix;
-	private final JarLocation source;
-	private final JarLocation target;
-	private final OperationType operationType;
+    private final String jarNamePrefix;
+    private final JarLocation source;
+    private final JarLocation target;
+    private final OperationType operationType;
 
-	JarOperation(String jarNamePrefix, JarLocation source, JarLocation target, OperationType operationType) {
-		this.jarNamePrefix = jarNamePrefix;
-		this.source = source;
-		this.target = target;
-		this.operationType = operationType;
-	}
+    JarOperation(
+            String jarNamePrefix,
+            JarLocation source,
+            JarLocation target,
+            OperationType operationType) {
+        this.jarNamePrefix = jarNamePrefix;
+        this.source = source;
+        this.target = target;
+        this.operationType = operationType;
+    }
 
-	public String getJarNamePrefix() {
-		return jarNamePrefix;
-	}
+    public String getJarNamePrefix() {
+        return jarNamePrefix;
+    }
 
-	public JarLocation getSource() {
-		return source;
-	}
+    public JarLocation getSource() {
+        return source;
+    }
 
-	public JarLocation getTarget() {
-		return target;
-	}
+    public JarLocation getTarget() {
+        return target;
+    }
 
-	public OperationType getOperationType() {
-		return operationType;
-	}
+    public OperationType getOperationType() {
+        return operationType;
+    }
 
-	public enum OperationType {
-		COPY,
-		MOVE;
-	}
+    public enum OperationType {
+        COPY,
+        MOVE;
+    }
 }

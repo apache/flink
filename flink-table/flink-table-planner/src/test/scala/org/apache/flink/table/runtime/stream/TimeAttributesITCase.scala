@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.stream
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
@@ -33,12 +32,12 @@ import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestTableSourceWithTime}
+import org.apache.flink.table.utils.{LegacyRowResource, MemoryTableSourceSinkUtil, TestTableSourceWithTime}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.BigDecimal
@@ -52,6 +51,9 @@ import scala.collection.mutable
   */
 class TimeAttributesITCase extends AbstractTestBase {
 
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
     (2L, 2, 2d, 2f, new BigDecimal("2"), "Hallo"),
@@ -62,7 +64,6 @@ class TimeAttributesITCase extends AbstractTestBase {
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(
     env,
     EnvironmentSettings.newInstance().useOldPlanner().build())
@@ -598,7 +599,6 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testMaterializedRowtimeFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val tEnv = StreamTableEnvironment.create(
       env, EnvironmentSettings.newInstance().useOldPlanner().build())
 

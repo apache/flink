@@ -68,7 +68,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(RuleSets.ofList(
               AggregateReduceGroupingRule.INSTANCE,
-              AggregateProjectMergeRule.INSTANCE,
+              CoreRules.AGGREGATE_PROJECT_MERGE,
               FlinkAggregateJoinTransposeRule.EXTENDED
             )).build(), "aggregate join transpose")
         .build()

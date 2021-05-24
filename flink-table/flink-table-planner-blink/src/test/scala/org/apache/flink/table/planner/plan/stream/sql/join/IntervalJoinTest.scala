@@ -36,6 +36,33 @@ class IntervalJoinTest extends TableTestBase {
   util.addDataStream[(Int, String, Long)](
     "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable3 (
+       |  a int,
+       |  b bigint,
+       |  c string,
+       |  rowtime as TO_TIMESTAMP_LTZ(b, 3),
+       |  watermark for rowtime as rowtime
+       |) WITH (
+       |  'connector' = 'values',
+       |  'bounded' = 'false'
+       |)
+       """.stripMargin)
+  util.tableEnv.executeSql(
+    s"""
+       |CREATE TABLE MyTable4 (
+       |  a int,
+       |  b bigint,
+       |  c string,
+       |  rowtime as TO_TIMESTAMP_LTZ(b, 3),
+       |  watermark for rowtime as rowtime
+       |) WITH (
+       |  'connector' = 'values',
+       |  'bounded' = 'false'
+       |)
+       """.stripMargin)
+
   /** There should exist exactly two time conditions **/
   @Test(expected = classOf[TableException])
   def testInteravlJoinSingleTimeCondition(): Unit = {
@@ -44,7 +71,7 @@ class IntervalJoinTest extends TableTestBase {
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /** Both time attributes in a join condition must be of the same type **/
@@ -57,7 +84,24 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
         |  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
+  }
+
+
+  /** Both rowtime types in a join condition must be of the same type **/
+  @Test
+  def testIntervalJoinOnDiffRowTimeType(): Unit = {
+    expectedException.expectMessage(
+      "Interval join with rowtime attribute requires same rowtime types," +
+        " but the types are TIMESTAMP(3) *ROWTIME* and TIMESTAMP_LTZ(3) *ROWTIME*")
+    val sql =
+      """
+        |SELECT t2.a FROM MyTable2 t1 JOIN MyTable3 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime > t2.rowtime - INTERVAL '5' SECOND AND
+        |  t1.rowtime < t2.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyExecPlan(sql)
   }
 
   /** The time conditions should be an And condition **/
@@ -70,7 +114,7 @@ class IntervalJoinTest extends TableTestBase {
         |  (t1.proctime > t2.proctime - INTERVAL '5' SECOND OR
         |   t1.proctime < t2.rowtime + INTERVAL '5' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /** Validates that no rowtime attribute is in the output schema **/
@@ -83,7 +127,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND t2.proctime
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /**
@@ -99,7 +143,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.a = t2.a AND pyFunc(t1.a, t2.a) = t1.a + t2.a AND
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -111,7 +155,7 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -123,7 +167,18 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testProcessingTimeInnerJoinWithoutEqualCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
+        |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -135,7 +190,30 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testIntervalJoinOnTimestampLtzRowtime(): Unit = {
+       val sql =
+      """
+        |SELECT t2.a FROM MyTable3 t1 JOIN MyTable4 t2 ON
+        |  t1.a = t2.a AND
+        |  t1.rowtime > t2.rowtime - INTERVAL '5' SECOND AND
+        |  t1.rowtime < t2.rowtime + INTERVAL '5' SECOND
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testRowTimeInnerJoinWithoutEqualCondition(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT t1.a, t2.b FROM MyTable t1 JOIN MyTable2 t2 ON
+        |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
+      """.stripMargin
+
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -147,7 +225,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' MINUTE AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -159,7 +237,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.a = t2.a AND t1.proctime = t2.proctime
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -171,7 +249,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.a = t2.a AND t1.rowtime = t2.rowtime
         """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -188,7 +266,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t2.proctime + INTERVAL '5' SECOND
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -202,7 +280,7 @@ class IntervalJoinTest extends TableTestBase {
         |GROUP BY TUMBLE(t1.rowtime, INTERVAL '6' HOUR), t1.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -216,7 +294,7 @@ class IntervalJoinTest extends TableTestBase {
         |GROUP BY TUMBLE(t2.rowtime, INTERVAL '6' HOUR), t2.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for left outer join
@@ -230,7 +308,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -243,7 +321,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for right outer join
@@ -257,7 +335,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -271,7 +349,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Tests for full outer join
@@ -285,7 +363,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -298,7 +376,7 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.rowtime BETWEEN t2.rowtime - INTERVAL '10' SECOND AND t2.rowtime + INTERVAL '1' HOUR
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Test for outer join optimization
@@ -313,7 +391,7 @@ class IntervalJoinTest extends TableTestBase {
         |  WHERE t1.b LIKE t2.b
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   // Other tests
@@ -441,8 +519,8 @@ class IntervalJoinTest extends TableTestBase {
       util.tableEnv.getConfig)
 
     val timeTypeStr = if (windowBounds.get.isEventTime) "rowtime" else "proctime"
-    assertEquals(expLeftSize, windowBounds.get.leftLowerBound)
-    assertEquals(expRightSize, windowBounds.get.leftUpperBound)
+    assertEquals(expLeftSize, windowBounds.get.getLeftLowerBound)
+    assertEquals(expRightSize, windowBounds.get.getLeftUpperBound)
     assertEquals(expTimeType, timeTypeStr)
   }
 

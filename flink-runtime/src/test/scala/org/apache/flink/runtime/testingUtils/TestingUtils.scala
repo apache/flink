@@ -59,6 +59,7 @@ object TestingUtils {
       |akka.stdout-loglevel = OFF
       |akka.jvm-exit-on-fatal-error = off
       |akka.log-config-on-start = off
+      |akka.logger-startup-timeout = 30s
     """.stripMargin
   }
 

@@ -42,87 +42,87 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 
-/**
- * Utility class for writing an archive file to a {@link FileSystem} and reading it back.
- */
+/** Utility class for writing an archive file to a {@link FileSystem} and reading it back. */
 public class FsJobArchivist {
 
-	private static final Logger LOG = LoggerFactory.getLogger(FsJobArchivist.class);
-	private static final JsonFactory jacksonFactory = new JsonFactory();
-	private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger LOG = LoggerFactory.getLogger(FsJobArchivist.class);
+    private static final JsonFactory jacksonFactory = new JsonFactory();
+    private static final ObjectMapper mapper = new ObjectMapper();
 
-	private static final String ARCHIVE = "archive";
-	private static final String PATH = "path";
-	private static final String JSON = "json";
+    private static final String ARCHIVE = "archive";
+    private static final String PATH = "path";
+    private static final String JSON = "json";
 
-	private FsJobArchivist() {
-	}
+    private FsJobArchivist() {}
 
-	/**
-	 * Writes the given {@link AccessExecutionGraph} to the {@link FileSystem} pointed to by
-	 * {@link JobManagerOptions#ARCHIVE_DIR}.
-	 *
-	 * @param rootPath directory to which the archive should be written to
-	 * @param jobId  job id
-	 * @param jsonToArchive collection of json-path pairs to that should be archived
-	 * @return path to where the archive was written, or null if no archive was created
-	 * @throws IOException
-	 */
-	public static Path archiveJob(Path rootPath, JobID jobId, Collection<ArchivedJson> jsonToArchive) throws IOException {
-		try {
-			FileSystem fs = rootPath.getFileSystem();
-			Path path = new Path(rootPath, jobId.toString());
-			OutputStream out = fs.create(path, FileSystem.WriteMode.NO_OVERWRITE);
+    /**
+     * Writes the given {@link AccessExecutionGraph} to the {@link FileSystem} pointed to by {@link
+     * JobManagerOptions#ARCHIVE_DIR}.
+     *
+     * @param rootPath directory to which the archive should be written to
+     * @param jobId job id
+     * @param jsonToArchive collection of json-path pairs to that should be archived
+     * @return path to where the archive was written, or null if no archive was created
+     * @throws IOException
+     */
+    public static Path archiveJob(
+            Path rootPath, JobID jobId, Collection<ArchivedJson> jsonToArchive) throws IOException {
+        try {
+            FileSystem fs = rootPath.getFileSystem();
+            Path path = new Path(rootPath, jobId.toString());
+            OutputStream out = fs.create(path, FileSystem.WriteMode.NO_OVERWRITE);
 
-			try (JsonGenerator gen = jacksonFactory.createGenerator(out, JsonEncoding.UTF8)) {
-				gen.writeStartObject();
-				gen.writeArrayFieldStart(ARCHIVE);
-				for (ArchivedJson archive : jsonToArchive) {
-					gen.writeStartObject();
-					gen.writeStringField(PATH, archive.getPath());
-					gen.writeStringField(JSON, archive.getJson());
-					gen.writeEndObject();
-				}
-				gen.writeEndArray();
-				gen.writeEndObject();
-			} catch (Exception e) {
-				fs.delete(path, false);
-				throw e;
-			}
-			LOG.info("Job {} has been archived at {}.", jobId, path);
-			return path;
-		} catch (IOException e) {
-			LOG.error("Failed to archive job.", e);
-			throw e;
-		}
-	}
+            try (JsonGenerator gen = jacksonFactory.createGenerator(out, JsonEncoding.UTF8)) {
+                gen.writeStartObject();
+                gen.writeArrayFieldStart(ARCHIVE);
+                for (ArchivedJson archive : jsonToArchive) {
+                    gen.writeStartObject();
+                    gen.writeStringField(PATH, archive.getPath());
+                    gen.writeStringField(JSON, archive.getJson());
+                    gen.writeEndObject();
+                }
+                gen.writeEndArray();
+                gen.writeEndObject();
+            } catch (Exception e) {
+                fs.delete(path, false);
+                throw e;
+            }
+            LOG.info("Job {} has been archived at {}.", jobId, path);
+            return path;
+        } catch (IOException e) {
+            LOG.error("Failed to archive job.", e);
+            throw e;
+        }
+    }
 
-	/**
-	 * Reads the given archive file and returns a {@link Collection} of contained {@link ArchivedJson}.
-	 *
-	 * @param file archive to extract
-	 * @return collection of archived jsons
-	 * @throws IOException if the file can't be opened, read or doesn't contain valid json
-	 */
-	public static Collection<ArchivedJson> getArchivedJsons(Path file) throws IOException {
-		try (FSDataInputStream input = file.getFileSystem().open(file);
-			ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-			IOUtils.copyBytes(input, output);
+    /**
+     * Reads the given archive file and returns a {@link Collection} of contained {@link
+     * ArchivedJson}.
+     *
+     * @param file archive to extract
+     * @return collection of archived jsons
+     * @throws IOException if the file can't be opened, read or doesn't contain valid json
+     */
+    public static Collection<ArchivedJson> getArchivedJsons(Path file) throws IOException {
+        try (FSDataInputStream input = file.getFileSystem().open(file);
+                ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            IOUtils.copyBytes(input, output);
 
-			try {
-				JsonNode archive = mapper.readTree(output.toByteArray());
+            try {
+                JsonNode archive = mapper.readTree(output.toByteArray());
 
-				Collection<ArchivedJson> archives = new ArrayList<>();
-				for (JsonNode archivePart : archive.get(ARCHIVE)) {
-					String path = archivePart.get(PATH).asText();
-					String json = archivePart.get(JSON).asText();
-					archives.add(new ArchivedJson(path, json));
-				}
-				return archives;
-			} catch (NullPointerException npe) {
-				// occurs if the archive is empty or any of the expected fields are not present
-				throw new IOException("Job archive (" + file.getPath() + ") did not conform to expected format.");
-			}
-		}
-	}
+                Collection<ArchivedJson> archives = new ArrayList<>();
+                for (JsonNode archivePart : archive.get(ARCHIVE)) {
+                    String path = archivePart.get(PATH).asText();
+                    String json = archivePart.get(JSON).asText();
+                    archives.add(new ArchivedJson(path, json));
+                }
+                return archives;
+            } catch (NullPointerException npe) {
+                // occurs if the archive is empty or any of the expected fields are not present
+                throw new IOException(
+                        "Job archive (" + file.getPath() + ") did not conform to expected format.");
+            }
+        }
+    }
 }

@@ -36,62 +36,62 @@ import java.io.Serializable;
  */
 @TypeInfo(ValueArrayTypeInfoFactory.class)
 public interface ValueArray<T>
-extends Iterable<T>, IOReadableWritable, Serializable, NormalizableKey<ValueArray<T>>, ResettableValue<ValueArray<T>>, CopyableValue<ValueArray<T>> {
+        extends Iterable<T>,
+                IOReadableWritable,
+                Serializable,
+                NormalizableKey<ValueArray<T>>,
+                ResettableValue<ValueArray<T>>,
+                CopyableValue<ValueArray<T>> {
 
-	/**
-	 * Returns the number of elements stored in the array.
-	 *
-	 * @return the number of elements stored in the array
-	 */
-	int size();
+    /**
+     * Returns the number of elements stored in the array.
+     *
+     * @return the number of elements stored in the array
+     */
+    int size();
 
-	/**
-	 * An bounded array fills when the allocated capacity has been fully used.
-	 * An unbounded array will only fill when the underlying data structure has
-	 * reached capacity, for example the ~2^31 element limit for Java arrays.
-	 *
-	 * @return whether the array is full
-	 */
-	boolean isFull();
+    /**
+     * An bounded array fills when the allocated capacity has been fully used. An unbounded array
+     * will only fill when the underlying data structure has reached capacity, for example the ~2^31
+     * element limit for Java arrays.
+     *
+     * @return whether the array is full
+     */
+    boolean isFull();
 
-	/**
-	 * Appends the value to this array if and only if the array capacity would
-	 * not be exceeded.
-	 *
-	 * @param value the value to add to this array
-	 * @return whether the value was added to the array
-	 */
-	boolean add(T value);
+    /**
+     * Appends the value to this array if and only if the array capacity would not be exceeded.
+     *
+     * @param value the value to add to this array
+     * @return whether the value was added to the array
+     */
+    boolean add(T value);
 
-	/**
-	 * Appends all of the values in the specified array to the end of this
-	 * array. If the combined array would exceed capacity then no values are
-	 * appended.
-	 *
-	 * @param source array containing values to be added to this array
-	 * @return whether the values were added to the array
-	 */
-	boolean addAll(ValueArray<T> source);
+    /**
+     * Appends all of the values in the specified array to the end of this array. If the combined
+     * array would exceed capacity then no values are appended.
+     *
+     * @param source array containing values to be added to this array
+     * @return whether the values were added to the array
+     */
+    boolean addAll(ValueArray<T> source);
 
-	/**
-	 * Saves the array index, which can be restored by calling {@code reset()}.
-	 *
-	 * <p>This is not serialized and is not part of the contract for
-	 * {@link #equals(Object)}.
-	 */
-	void mark();
+    /**
+     * Saves the array index, which can be restored by calling {@code reset()}.
+     *
+     * <p>This is not serialized and is not part of the contract for {@link #equals(Object)}.
+     */
+    void mark();
 
-	/**
-	 * Restores the array index to when {@code mark()} was last called.
-	 */
-	void reset();
+    /** Restores the array index to when {@code mark()} was last called. */
+    void reset();
 
-	/**
-	 * Resets the array to the empty state. The implementation is *not*
-	 * expected to release the underlying data structure. This allows the array
-	 * to be reused with minimal impact on the garbage collector.
-	 *
-	 * <p>This may reset the {@link #mark()} in order to allow arrays be shrunk.
-	 */
-	void clear();
+    /**
+     * Resets the array to the empty state. The implementation is *not* expected to release the
+     * underlying data structure. This allows the array to be reused with minimal impact on the
+     * garbage collector.
+     *
+     * <p>This may reset the {@link #mark()} in order to allow arrays be shrunk.
+     */
+    void clear();
 }

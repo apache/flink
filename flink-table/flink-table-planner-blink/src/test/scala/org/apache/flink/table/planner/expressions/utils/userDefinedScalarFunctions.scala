@@ -211,6 +211,9 @@ class RichFunc1 extends ScalarFunction {
 
   override def open(context: FunctionContext): Unit = {
     added = context.getJobParameter("int.value", "0").toInt
+    if (context.getJobParameter("fail-for-cached-file", "false").toBoolean) {
+      context.getCachedFile("FAIL")
+    }
   }
 
   def eval(index: Int): Int = {

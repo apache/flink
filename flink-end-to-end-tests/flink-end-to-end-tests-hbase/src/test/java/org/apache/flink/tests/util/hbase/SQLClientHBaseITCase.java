@@ -36,10 +36,13 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,141 +54,190 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 
-/**
- * End-to-end test for the HBase connectors.
- */
+/** End-to-end test for the HBase connectors. */
+@RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
+@Ignore("FLINK-21519")
 public class SQLClientHBaseITCase extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SQLClientHBaseITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SQLClientHBaseITCase.class);
 
-	private static final String HBASE_E2E_SQL = "hbase_e2e.sql";
+    private static final String HBASE_E2E_SQL = "hbase_e2e.sql";
 
-	@Rule
-	public final HBaseResource hbase;
+    @Parameterized.Parameters(name = "{index}: hbase-version:{0}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(
+                new Object[][] {
+                    {"1.4.3", "hbase-1.4"},
+                    {"2.2.3", "hbase-2.2"}
+                });
+    }
 
-	@Rule
-	public final FlinkResource flink = new LocalStandaloneFlinkResourceFactory()
-		.create(FlinkResourceSetup.builder().build());
+    @Rule public final HBaseResource hbase;
 
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
+    @Rule
+    public final FlinkResource flink =
+            new LocalStandaloneFlinkResourceFactory().create(FlinkResourceSetup.builder().build());
 
-	@ClassRule
-	public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
-	private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
-	private static final Path sqlConnectorHBaseJar = TestUtils.getResource(".*hbase.jar");
-	private static final Path hadoopClasspath = TestUtils.getResource(".*hadoop.classpath");
-	private List<Path> hadoopClasspathJars;
+    private final String hbaseConnector;
+    private final Path sqlConnectorHBaseJar;
 
-	public SQLClientHBaseITCase() {
-		this.hbase = HBaseResource.get();
-	}
+    @ClassRule public static final DownloadCache DOWNLOAD_CACHE = DownloadCache.get();
 
-	@Before
-	public void before() throws Exception {
-		DOWNLOAD_CACHE.before();
-		Path tmpPath = tmp.getRoot().toPath();
-		LOG.info("The current temporary path: {}", tmpPath);
+    private static final Path sqlToolBoxJar = TestUtils.getResource(".*SqlToolbox.jar");
+    private static final Path hadoopClasspath = TestUtils.getResource(".*hadoop.classpath");
+    private List<Path> hadoopClasspathJars;
 
-		// Prepare all hadoop jars to mock HADOOP_CLASSPATH, use hadoop.classpath which contains all hadoop jars
-		File hadoopClasspathFile = new File(hadoopClasspath.toAbsolutePath().toString());
+    public SQLClientHBaseITCase(String hbaseVersion, String hbaseConnector) {
+        this.hbase = HBaseResource.get(hbaseVersion);
+        this.hbaseConnector = hbaseConnector;
+        this.sqlConnectorHBaseJar = TestUtils.getResource(".*sql-" + hbaseConnector + ".jar");
+    }
 
-		if (!hadoopClasspathFile.exists()) {
-			throw new FileNotFoundException("File that contains hadoop classpath " + hadoopClasspath.toString()
-				+ " does not exist.");
-		}
+    @Before
+    public void before() throws Exception {
+        DOWNLOAD_CACHE.before();
+        Path tmpPath = tmp.getRoot().toPath();
+        LOG.info("The current temporary path: {}", tmpPath);
 
-		String classPathContent = FileUtils.readFileUtf8(hadoopClasspathFile);
-		hadoopClasspathJars = Arrays.stream(classPathContent.split(":"))
-			.map(jar -> Paths.get(jar))
-			.collect(Collectors.toList());
-	}
+        // Prepare all hadoop jars to mock HADOOP_CLASSPATH, use hadoop.classpath which contains all
+        // hadoop jars
+        File hadoopClasspathFile = new File(hadoopClasspath.toAbsolutePath().toString());
 
-	@Test
-	public void testHBase() throws Exception {
-		try (ClusterController clusterController = flink.startCluster(2)) {
-			// Create table and put data
-			hbase.createTable("source", "family1", "family2");
-			hbase.createTable("sink", "family1", "family2");
-			hbase.putData("source", "row1", "family1", "f1c1", "v1");
-			hbase.putData("source", "row1", "family2", "f2c1", "v2");
-			hbase.putData("source", "row1", "family2", "f2c2", "v3");
-			hbase.putData("source", "row2", "family1", "f1c1", "v4");
-			hbase.putData("source", "row2", "family2", "f2c1", "v5");
-			hbase.putData("source", "row2", "family2", "f2c2", "v6");
+        if (!hadoopClasspathFile.exists()) {
+            throw new FileNotFoundException(
+                    "File that contains hadoop classpath "
+                            + hadoopClasspath.toString()
+                            + " does not exist.");
+        }
 
-			// Initialize the SQL statements from "hbase_e2e.sql" file
-			List<String> sqlLines = initializeSqlLines();
+        String classPathContent = FileUtils.readFileUtf8(hadoopClasspathFile);
+        hadoopClasspathJars =
+                Arrays.stream(classPathContent.split(":"))
+                        .map(jar -> Paths.get(jar))
+                        .collect(Collectors.toList());
+    }
 
-			// Execute SQL statements in "hbase_e2e.sql" file
-			executeSqlStatements(clusterController, sqlLines);
+    @Test
+    public void testHBase() throws Exception {
+        try (ClusterController clusterController = flink.startCluster(2)) {
+            // Create table and put data
+            hbase.createTable("source", "family1", "family2");
+            hbase.createTable("sink", "family1", "family2");
+            hbase.putData("source", "row1", "family1", "f1c1", "v1");
+            hbase.putData("source", "row1", "family2", "f2c1", "v2");
+            hbase.putData("source", "row1", "family2", "f2c2", "v3");
+            hbase.putData("source", "row2", "family1", "f1c1", "v4");
+            hbase.putData("source", "row2", "family2", "f2c1", "v5");
+            hbase.putData("source", "row2", "family2", "f2c2", "v6");
 
-			LOG.info("Verify the sink table result.");
-			// Wait until all the results flushed to the HBase sink table.
-			checkHBaseSinkResult();
-			LOG.info("The HBase SQL client test run successfully.");
-		}
+            // Initialize the SQL statements from "hbase_e2e.sql" file
+            Map<String, String> varsMap = new HashMap<>();
+            varsMap.put("$HBASE_CONNECTOR", hbaseConnector);
+            List<String> sqlLines = initializeSqlLines(varsMap);
 
-	}
+            // Execute SQL statements in "hbase_e2e.sql" file
+            executeSqlStatements(clusterController, sqlLines);
 
-	private void checkHBaseSinkResult() throws Exception {
-		boolean success = false;
-		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
-		while (deadline.hasTimeLeft()) {
-			final List<String> lines = hbase.scanTable("sink");
-			if (lines.size() == 6) {
-				success = true;
-				assertThat(
-					lines.toArray(new String[0]),
-					arrayContainingInAnyOrder(
-						CoreMatchers.allOf(containsString("row1"), containsString("family1"),
-							containsString("f1c1"), containsString("value1")),
-						CoreMatchers.allOf(containsString("row1"), containsString("family2"),
-							containsString("f2c1"), containsString("v2")),
-						CoreMatchers.allOf(containsString("row1"), containsString("family2"),
-							containsString("f2c2"), containsString("v3")),
-						CoreMatchers.allOf(containsString("row2"), containsString("family1"),
-							containsString("f1c1"), containsString("value4")),
-						CoreMatchers.allOf(containsString("row2"), containsString("family2"),
-							containsString("f2c1"), containsString("v5")),
-						CoreMatchers.allOf(containsString("row2"), containsString("family2"),
-							containsString("f2c2"), containsString("v6"))
-					)
-				);
-				break;
-			} else {
-				LOG.info("The HBase sink table does not contain enough records, current {} records, left time: {}s",
-					lines.size(), deadline.timeLeft().getSeconds());
-			}
-			Thread.sleep(500);
-		}
-		Assert.assertTrue("Did not get expected results before timeout.", success);
-	}
+            LOG.info("Verify the sink table result.");
+            // Wait until all the results flushed to the HBase sink table.
+            checkHBaseSinkResult();
+            LOG.info("The HBase SQL client test run successfully.");
+        }
+    }
 
-	private List<String> initializeSqlLines() throws IOException {
-		URL url = SQLClientHBaseITCase.class.getClassLoader().getResource(HBASE_E2E_SQL);
-		if (url == null) {
-			throw new FileNotFoundException(HBASE_E2E_SQL);
-		}
-		return Files.readAllLines(new File(url.getFile()).toPath());
-	}
+    private void checkHBaseSinkResult() throws Exception {
+        boolean success = false;
+        final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(120));
+        while (deadline.hasTimeLeft()) {
+            final List<String> lines = hbase.scanTable("sink");
+            if (lines.size() == 6) {
+                success = true;
+                assertThat(
+                        lines.toArray(new String[0]),
+                        arrayContainingInAnyOrder(
+                                CoreMatchers.allOf(
+                                        containsString("row1"),
+                                        containsString("family1"),
+                                        containsString("f1c1"),
+                                        containsString("value1")),
+                                CoreMatchers.allOf(
+                                        containsString("row1"),
+                                        containsString("family2"),
+                                        containsString("f2c1"),
+                                        containsString("v2")),
+                                CoreMatchers.allOf(
+                                        containsString("row1"),
+                                        containsString("family2"),
+                                        containsString("f2c2"),
+                                        containsString("v3")),
+                                CoreMatchers.allOf(
+                                        containsString("row2"),
+                                        containsString("family1"),
+                                        containsString("f1c1"),
+                                        containsString("value4")),
+                                CoreMatchers.allOf(
+                                        containsString("row2"),
+                                        containsString("family2"),
+                                        containsString("f2c1"),
+                                        containsString("v5")),
+                                CoreMatchers.allOf(
+                                        containsString("row2"),
+                                        containsString("family2"),
+                                        containsString("f2c2"),
+                                        containsString("v6"))));
+                break;
+            } else {
+                LOG.info(
+                        "The HBase sink table does not contain enough records, current {} records, left time: {}s",
+                        lines.size(),
+                        deadline.timeLeft().getSeconds());
+            }
+            Thread.sleep(500);
+        }
+        Assert.assertTrue("Did not get expected results before timeout.", success);
+    }
 
-	private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines) throws IOException {
-		LOG.info("Executing SQL: HBase source table -> HBase sink table");
-		clusterController.submitSQLJob(new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
-			.addJar(sqlToolBoxJar)
-			.addJar(sqlConnectorHBaseJar)
-			.addJars(hadoopClasspathJars)
-			.build());
-	}
+    private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {
+        URL url = SQLClientHBaseITCase.class.getClassLoader().getResource(HBASE_E2E_SQL);
+        if (url == null) {
+            throw new FileNotFoundException(HBASE_E2E_SQL);
+        }
+        List<String> lines = Files.readAllLines(new File(url.getFile()).toPath());
+        List<String> result = new ArrayList<>();
+        for (String line : lines) {
+            for (Map.Entry<String, String> var : vars.entrySet()) {
+                line = line.replace(var.getKey(), var.getValue());
+            }
+            result.add(line);
+        }
+
+        return result;
+    }
+
+    private void executeSqlStatements(ClusterController clusterController, List<String> sqlLines)
+            throws IOException {
+        LOG.info("Executing SQL: HBase source table -> HBase sink table");
+        clusterController.submitSQLJob(
+                new SQLJobSubmission.SQLJobSubmissionBuilder(sqlLines)
+                        .addJar(sqlToolBoxJar)
+                        .addJar(sqlConnectorHBaseJar)
+                        .addJars(hadoopClasspathJars)
+                        .build(),
+                Duration.ofMinutes(2L));
+    }
 }

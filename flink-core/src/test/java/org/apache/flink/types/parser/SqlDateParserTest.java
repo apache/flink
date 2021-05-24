@@ -16,49 +16,54 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 import java.sql.Date;
 
 public class SqlDateParserTest extends ParserTestBase<Date> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"1970-01-01", "1990-10-14", "2013-08-12", "2040-05-12", "2040-5-12", "1970-1-1",
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "1970-01-01", "1990-10-14", "2013-08-12", "2040-05-12", "2040-5-12", "1970-1-1",
+        };
+    }
 
-	@Override
-	public Date[] getValidTestResults() {
-		return new Date[] {
-			Date.valueOf("1970-01-01"), Date.valueOf("1990-10-14"), Date.valueOf("2013-08-12"),
-			Date.valueOf("2040-05-12"), Date.valueOf("2040-05-12"), Date.valueOf("1970-01-01")
-		};
-	}
+    @Override
+    public Date[] getValidTestResults() {
+        return new Date[] {
+            Date.valueOf("1970-01-01"), Date.valueOf("1990-10-14"), Date.valueOf("2013-08-12"),
+            Date.valueOf("2040-05-12"), Date.valueOf("2040-05-12"), Date.valueOf("1970-01-01")
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			" 2013-08-12", "2013-08-12 ", "2013-08--12", "13-08-12", "2013/08/12", " ", "\t",
-			"2013-XX-XX", "2000-02-35"
-		};
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {
+            " 2013-08-12",
+            "2013-08-12 ",
+            "2013-08--12",
+            "13-08-12",
+            "2013/08/12",
+            " ",
+            "\t",
+            "2013-XX-XX",
+            "2000-02-35"
+        };
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public FieldParser<Date> getParser() {
-		return new SqlDateParser();
-	}
+    @Override
+    public FieldParser<Date> getParser() {
+        return new SqlDateParser();
+    }
 
-	@Override
-	public Class<Date> getTypeClass() {
-		return Date.class;
-	}
+    @Override
+    public Class<Date> getTypeClass() {
+        return Date.class;
+    }
 }

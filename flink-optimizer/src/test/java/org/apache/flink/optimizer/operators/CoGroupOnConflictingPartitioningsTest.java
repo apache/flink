@@ -18,51 +18,58 @@
 
 package org.apache.flink.optimizer.operators;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupOnConflictingPartitioningsTest extends CompilerTestBase {
 
-	@Test
-	public void testRejectCoGroupOnHashAndRangePartitioning() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			DataSet<Tuple2<Long, Long>> input = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
-			
-			Configuration cfg = new Configuration();
-			cfg.setString(Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT, Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH);
-			cfg.setString(Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT, Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE);
-			
-			input.coGroup(input).where(0).equalTo(0)
-				.with(new DummyCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>())
-				.withParameters(cfg)
-				.output(new DiscardingOutputFormat<Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>());
-			
-			Plan p = env.createProgramPlan();
-			try {
-				compileNoStats(p);
-				fail("This should fail with an exception");
-			}
-			catch (CompilerException e) {
-				// expected
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    public void testRejectCoGroupOnHashAndRangePartitioning() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            DataSet<Tuple2<Long, Long>> input = env.fromElements(new Tuple2<Long, Long>(0L, 0L));
+
+            Configuration cfg = new Configuration();
+            cfg.setString(
+                    Optimizer.HINT_SHIP_STRATEGY_FIRST_INPUT,
+                    Optimizer.HINT_SHIP_STRATEGY_REPARTITION_HASH);
+            cfg.setString(
+                    Optimizer.HINT_SHIP_STRATEGY_SECOND_INPUT,
+                    Optimizer.HINT_SHIP_STRATEGY_REPARTITION_RANGE);
+
+            input.coGroup(input)
+                    .where(0)
+                    .equalTo(0)
+                    .with(new DummyCoGroupFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>())
+                    .withParameters(cfg)
+                    .output(
+                            new DiscardingOutputFormat<
+                                    Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>>>());
+
+            Plan p = env.createProgramPlan();
+            try {
+                compileNoStats(p);
+                fail("This should fail with an exception");
+            } catch (CompilerException e) {
+                // expected
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

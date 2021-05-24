@@ -22,11 +22,10 @@ import org.apache.flink.api.common.JobStatus
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.planner.utils.TestTableSourceSinks
 import org.apache.flink.types.{Row, RowKind}
-import org.apache.flink.util.TestLogger
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, TestLogger}
 
 import org.junit.Assert.{assertEquals, assertNotEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
@@ -84,18 +83,20 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("id", DataTypes.INT())
-        .field("full name", DataTypes.STRING())
-        .build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("id", DataTypes.INT()),
+        Column.physical("full name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Bob Taylor"),
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
+    // wait for data ready
+    // this is just for testing, because iterator will also wait for data ready
+    tableResult.await()
     val it = tableResult.collect()
-    val actual = Lists.newArrayList(it)
+    val actual = CollectionUtil.iteratorToList(it)
     // actively close the job even it is finished
     it.close()
     actual.sort(new util.Comparator[Row]() {
@@ -137,8 +138,8 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("c", DataTypes.BIGINT().notNull()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("c", DataTypes.BIGINT().notNull())),
+      tableResult.getResolvedSchema)
     val expected = if (isStreaming) {
       util.Arrays.asList(
         Row.ofKind(RowKind.INSERT, JLong.valueOf(1)),
@@ -160,7 +161,7 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     } else {
       util.Arrays.asList(Row.of(JLong.valueOf(8)))
     }
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     assertEquals(expected, actual)
   }
 

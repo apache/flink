@@ -37,8 +37,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -48,8 +47,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         'string,
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start,
         'w.end)
 
@@ -77,8 +76,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -88,8 +86,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         'string,
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start,
         'w.end)
 
@@ -117,8 +115,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -128,8 +125,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
         'string,
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start)
 
     // String / Java API
@@ -155,8 +152,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -165,8 +161,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
       .select(
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start,
         'w.end)
 
@@ -193,8 +189,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -203,8 +198,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
       .select(
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start,
         'w.end)
 
@@ -231,8 +226,7 @@ class GroupWindowStringExpressionTest extends TableTestBase {
 
     val myCountFun = new CountAggFunction
     util.addFunction("myCountFun", myCountFun)
-    val weightAvgFun = new WeightedAvg
-    util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
@@ -241,8 +235,8 @@ class GroupWindowStringExpressionTest extends TableTestBase {
       .select(
         myCountFun('string),
         'int.sum,
-        weightAvgFun('long, 'int),
-        weightAvgFun('int, 'int) * 2,
+        call("weightAvgFun", 'long, 'int),
+        call("weightAvgFun", 'int, 'int) * 2,
         'w.start,
         'w.end)
 

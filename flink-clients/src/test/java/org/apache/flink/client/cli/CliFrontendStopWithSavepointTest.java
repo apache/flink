@@ -40,190 +40,194 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the STOP command.
- */
+/** Tests for the STOP command. */
 public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 
-	@BeforeClass
-	public static void setup() {
-		CliFrontendTestUtils.pipeSystemOutToNull();
-	}
+    @BeforeClass
+    public static void setup() {
+        CliFrontendTestUtils.pipeSystemOutToNull();
+    }
 
-	@AfterClass
-	public static void shutdown() {
-		CliFrontendTestUtils.restoreSystemOut();
-	}
+    @AfterClass
+    public static void shutdown() {
+        CliFrontendTestUtils.restoreSystemOut();
+    }
 
-	@Test
-	public void testStopWithOnlyJobId() throws Exception {
-		// test stop properly
-		JobID jid = new JobID();
-		String jidString = jid.toString();
+    @Test
+    public void testStopWithOnlyJobId() throws Exception {
+        // test stop properly
+        JobID jid = new JobID();
+        String jidString = jid.toString();
 
-		String[] parameters = { jidString };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(false));
-			assertNull(savepointDirectory);
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        String[] parameters = {jidString};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(false));
+                    assertNull(savepointDirectory);
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		testFrontend.stop(parameters);
+        testFrontend.stop(parameters);
 
-		stopWithSavepointLatch.await();
-	}
+        stopWithSavepointLatch.await();
+    }
 
-	@Test
-	public void testStopWithDefaultSavepointDir() throws Exception {
-		JobID jid = new JobID();
+    @Test
+    public void testStopWithDefaultSavepointDir() throws Exception {
+        JobID jid = new JobID();
 
-		String[] parameters = {jid.toString() };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(false));
-			assertNull(savepointDirectory);
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+        String[] parameters = {jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(false));
+                    assertNull(savepointDirectory);
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
 
-		stopWithSavepointLatch.await();
-	}
+        stopWithSavepointLatch.await();
+    }
 
-	@Test
-	public void testStopWithExplicitSavepointDir() throws Exception {
-		JobID jid = new JobID();
+    @Test
+    public void testStopWithExplicitSavepointDir() throws Exception {
+        JobID jid = new JobID();
 
-		String[] parameters = { "-p", "test-target-dir", jid.toString() };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(false));
-			assertThat(savepointDirectory, is("test-target-dir"));
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
-		stopWithSavepointLatch.await();
-	}
+        String[] parameters = {"-p", "test-target-dir", jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(false));
+                    assertThat(savepointDirectory, is("test-target-dir"));
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
+        stopWithSavepointLatch.await();
+    }
 
-	@Test
-	public void testStopOnlyWithMaxWM() throws Exception {
-		JobID jid = new JobID();
+    @Test
+    public void testStopOnlyWithMaxWM() throws Exception {
+        JobID jid = new JobID();
 
-		String[] parameters = { "-d", jid.toString() };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(true));
-			assertNull(savepointDirectory);
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+        String[] parameters = {"-d", jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(true));
+                    assertNull(savepointDirectory);
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
 
-		stopWithSavepointLatch.await();
-	}
+        stopWithSavepointLatch.await();
+    }
 
-	@Test
-	public void testStopWithMaxWMAndDefaultSavepointDir() throws Exception {
-		JobID jid = new JobID();
+    @Test
+    public void testStopWithMaxWMAndDefaultSavepointDir() throws Exception {
+        JobID jid = new JobID();
 
-		String[] parameters = { "-p", "-d", jid.toString() };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(true));
-			assertNull(savepointDirectory);
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+        String[] parameters = {"-p", "-d", jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(true));
+                    assertNull(savepointDirectory);
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
 
-		stopWithSavepointLatch.await();
-	}
+        stopWithSavepointLatch.await();
+    }
 
-	@Test
-	public void testStopWithMaxWMAndExplicitSavepointDir() throws Exception {
-		JobID jid = new JobID();
+    @Test
+    public void testStopWithMaxWMAndExplicitSavepointDir() throws Exception {
+        JobID jid = new JobID();
 
-		String[] parameters = { "-d", "-p", "test-target-dir", jid.toString() };
-		OneShotLatch stopWithSavepointLatch = new OneShotLatch();
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> {
-			assertThat(jobID, is(jid));
-			assertThat(advanceToEndOfEventTime, is(true));
-			assertThat(savepointDirectory, is("test-target-dir"));
-			stopWithSavepointLatch.trigger();
-			return CompletableFuture.completedFuture(savepointDirectory);
-		});
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
-		testFrontend.stop(parameters);
+        String[] parameters = {"-d", "-p", "test-target-dir", jid.toString()};
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(true));
+                    assertThat(savepointDirectory, is("test-target-dir"));
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
 
-		stopWithSavepointLatch.await();
-	}
+        stopWithSavepointLatch.await();
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testUnrecognizedOption() throws Exception {
-		// test unrecognized option
-		String[] parameters = { "-v", "-l" };
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.stop(parameters);
-	}
+    @Test(expected = CliArgsException.class)
+    public void testUnrecognizedOption() throws Exception {
+        // test unrecognized option
+        String[] parameters = {"-v", "-l"};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.stop(parameters);
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testMissingJobId() throws Exception {
-		// test missing job id
-		String[] parameters = {};
-		Configuration configuration = getConfiguration();
-		CliFrontend testFrontend = new CliFrontend(
-			configuration,
-			Collections.singletonList(getCli(configuration)));
-		testFrontend.stop(parameters);
-	}
+    @Test(expected = CliArgsException.class)
+    public void testMissingJobId() throws Exception {
+        // test missing job id
+        String[] parameters = {};
+        Configuration configuration = getConfiguration();
+        CliFrontend testFrontend =
+                new CliFrontend(configuration, Collections.singletonList(getCli()));
+        testFrontend.stop(parameters);
+    }
 
-	@Test(expected = CliArgsException.class)
-	public void testWrongSavepointDirOrder() throws Exception {
-		JobID jid = new JobID();
-		String[] parameters = { "-s", "-d", "test-target-dir", jid.toString() };
-		MockedCliFrontend testFrontend = new MockedCliFrontend(new TestingClusterClient());
-		testFrontend.stop(parameters);
-	}
+    @Test(expected = CliArgsException.class)
+    public void testWrongSavepointDirOrder() throws Exception {
+        JobID jid = new JobID();
+        String[] parameters = {"-s", "-d", "test-target-dir", jid.toString()};
+        MockedCliFrontend testFrontend = new MockedCliFrontend(new TestingClusterClient());
+        testFrontend.stop(parameters);
+    }
 
-	@Test
-	public void testUnknownJobId() throws Exception {
-		// test unknown job Id
-		JobID jid = new JobID();
+    @Test
+    public void testUnknownJobId() throws Exception {
+        // test unknown job Id
+        JobID jid = new JobID();
 
-		String[] parameters = { "-p", "test-target-dir", jid.toString() };
-		String expectedMessage = "Test exception";
-		FlinkException testException = new FlinkException(expectedMessage);
-		TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
-		clusterClient.setStopWithSavepointFunction((jobID, advanceToEndOfEventTime, savepointDirectory) -> FutureUtils.completedExceptionally(testException));
-		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        String[] parameters = {"-p", "test-target-dir", jid.toString()};
+        String expectedMessage = "Test exception";
+        FlinkException testException = new FlinkException(expectedMessage);
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory) ->
+                        FutureUtils.completedExceptionally(testException));
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 
-		try {
-			testFrontend.stop(parameters);
-			fail("Should have failed.");
-		} catch (FlinkException e) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());
-		}
-	}
+        try {
+            testFrontend.stop(parameters);
+            fail("Should have failed.");
+        } catch (FlinkException e) {
+            assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedMessage).isPresent());
+        }
+    }
 }

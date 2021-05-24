@@ -25,34 +25,34 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
- * Local {@link FencedMessage} implementation. This message is used when the communication
- * is local and thus does not require its payload to be serializable.
+ * Local {@link FencedMessage} implementation. This message is used when the communication is local
+ * and thus does not require its payload to be serializable.
  *
  * @param <F> type of the fencing token
  * @param <P> type of the payload
  */
 public class LocalFencedMessage<F extends Serializable, P> implements FencedMessage<F, P> {
 
-	private final F fencingToken;
-	private final P payload;
+    private final F fencingToken;
+    private final P payload;
 
-	public LocalFencedMessage(@Nullable F fencingToken, P payload) {
-		this.fencingToken = fencingToken;
-		this.payload = Preconditions.checkNotNull(payload);
-	}
+    public LocalFencedMessage(@Nullable F fencingToken, P payload) {
+        this.fencingToken = fencingToken;
+        this.payload = Preconditions.checkNotNull(payload);
+    }
 
-	@Override
-	public F getFencingToken() {
-		return fencingToken;
-	}
+    @Override
+    public F getFencingToken() {
+        return fencingToken;
+    }
 
-	@Override
-	public P getPayload() {
-		return payload;
-	}
+    @Override
+    public P getPayload() {
+        return payload;
+    }
 
-	@Override
-	public String toString() {
-		return "LocalFencedMessage(" + fencingToken + ", " + payload + ')';
-	}
+    @Override
+    public String toString() {
+        return "LocalFencedMessage(" + fencingToken + ", " + payload + ')';
+    }
 }

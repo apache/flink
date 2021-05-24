@@ -23,10 +23,10 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.GetShardListResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
+import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
@@ -45,85 +45,98 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Function;
 
 /**
- * Simple client to publish and retrieve messages, using the AWS Kinesis SDK and the
- * Flink Kinesis Connectos classes.
+ * Simple client to publish and retrieve messages, using the AWS Kinesis SDK and the Flink Kinesis
+ * Connectos classes.
  */
 public class KinesisPubsubClient {
-	private static final Logger LOG = LoggerFactory.getLogger(KinesisPubsubClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KinesisPubsubClient.class);
 
-	private final AmazonKinesis kinesisClient;
-	private final Properties properties;
+    private final AmazonKinesis kinesisClient;
+    private final Properties properties;
 
-	public KinesisPubsubClient(Properties properties) {
-		this.kinesisClient = createClientWithCredentials(properties);
-		this.properties = properties;
-	}
+    public KinesisPubsubClient(Properties properties) {
+        this.kinesisClient = createClientWithCredentials(properties);
+        this.properties = properties;
+    }
 
-	public void createTopic(String stream, int shards, Properties props) throws Exception {
-		try {
-			kinesisClient.describeStream(stream);
-			kinesisClient.deleteStream(stream);
-		} catch (ResourceNotFoundException rnfe) {
-			// expected when stream doesn't exist
-		}
+    public void createTopic(String stream, int shards, Properties props) throws Exception {
+        try {
+            kinesisClient.describeStream(stream);
+            kinesisClient.deleteStream(stream);
+        } catch (ResourceNotFoundException rnfe) {
+            // expected when stream doesn't exist
+        }
 
-		kinesisClient.createStream(stream, shards);
-		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(5));
-		while (deadline.hasTimeLeft()) {
-			try {
-				Thread.sleep(250); // sleep for a bit for stream to be created
-				if (kinesisClient.describeStream(stream).getStreamDescription()
-					.getShards().size() != shards) {
-					// not fully created yet
-					continue;
-				}
-				break;
-			} catch (ResourceNotFoundException rnfe) {
-				// not ready yet
-			}
-		}
-	}
+        kinesisClient.createStream(stream, shards);
+        Deadline deadline = Deadline.fromNow(Duration.ofSeconds(5));
+        while (deadline.hasTimeLeft()) {
+            try {
+                Thread.sleep(250); // sleep for a bit for stream to be created
+                if (kinesisClient.describeStream(stream).getStreamDescription().getShards().size()
+                        != shards) {
+                    // not fully created yet
+                    continue;
+                }
+                break;
+            } catch (ResourceNotFoundException rnfe) {
+                // not ready yet
+            }
+        }
+    }
 
-	public void sendMessage(String topic, String msg) {
-		PutRecordRequest putRecordRequest = new PutRecordRequest();
-		putRecordRequest.setStreamName(topic);
-		putRecordRequest.setPartitionKey("fakePartitionKey");
-		putRecordRequest.withData(ByteBuffer.wrap(msg.getBytes()));
-		PutRecordResult putRecordResult = kinesisClient.putRecord(putRecordRequest);
-		LOG.info("added record: {}", putRecordResult.getSequenceNumber());
-	}
+    public void sendMessage(String topic, String msg) {
+        sendMessage(topic, msg.getBytes());
+    }
 
-	public List<String> readAllMessages(String streamName) throws Exception {
-		KinesisProxyInterface kinesisProxy = KinesisProxy.create(properties);
-		Map<String, String> streamNamesWithLastSeenShardIds = new HashMap<>();
-		streamNamesWithLastSeenShardIds.put(streamName, null);
+    public void sendMessage(String topic, byte[] data) {
+        PutRecordRequest putRecordRequest = new PutRecordRequest();
+        putRecordRequest.setStreamName(topic);
+        putRecordRequest.setPartitionKey("fakePartitionKey");
+        putRecordRequest.withData(ByteBuffer.wrap(data));
+        PutRecordResult putRecordResult = kinesisClient.putRecord(putRecordRequest);
+        LOG.info("added record: {}", putRecordResult.getSequenceNumber());
+    }
 
-		GetShardListResult shardListResult = kinesisProxy.getShardList(streamNamesWithLastSeenShardIds);
-		int maxRecordsToFetch = 10;
+    public List<String> readAllMessages(String streamName) throws Exception {
+        return readAllMessages(streamName, String::new);
+    }
 
-		List<String> messages = new ArrayList<>();
-		// retrieve records from all shards
-		for (StreamShardHandle ssh : shardListResult.getRetrievedShardListOfStream(streamName)) {
-			String shardIterator = kinesisProxy.getShardIterator(ssh, "TRIM_HORIZON", null);
-			GetRecordsResult getRecordsResult = kinesisProxy.getRecords(shardIterator, maxRecordsToFetch);
-			List<Record> aggregatedRecords = getRecordsResult.getRecords();
-			for (Record record : aggregatedRecords) {
-				messages.add(new String(record.getData().array()));
-			}
-		}
-		return messages;
-	}
+    public <T> List<T> readAllMessages(String streamName, Function<byte[], T> deserialiser)
+            throws Exception {
+        KinesisProxyInterface kinesisProxy = KinesisProxy.create(properties);
+        Map<String, String> streamNamesWithLastSeenShardIds = new HashMap<>();
+        streamNamesWithLastSeenShardIds.put(streamName, null);
 
-	private static AmazonKinesis createClientWithCredentials(Properties props) throws AmazonClientException {
-		AWSCredentialsProvider credentialsProvider = new EnvironmentVariableCredentialsProvider();
-		return AmazonKinesisClientBuilder.standard()
-			.withCredentials(credentialsProvider)
-			.withEndpointConfiguration(
-				new AwsClientBuilder.EndpointConfiguration(
-					props.getProperty(ConsumerConfigConstants.AWS_ENDPOINT), "us-east-1"))
-			.build();
-	}
+        GetShardListResult shardListResult =
+                kinesisProxy.getShardList(streamNamesWithLastSeenShardIds);
+        int maxRecordsToFetch = 10;
 
+        List<T> messages = new ArrayList<>();
+        // retrieve records from all shards
+        for (StreamShardHandle ssh : shardListResult.getRetrievedShardListOfStream(streamName)) {
+            String shardIterator = kinesisProxy.getShardIterator(ssh, "TRIM_HORIZON", null);
+            GetRecordsResult getRecordsResult =
+                    kinesisProxy.getRecords(shardIterator, maxRecordsToFetch);
+            List<Record> aggregatedRecords = getRecordsResult.getRecords();
+            for (Record record : aggregatedRecords) {
+                messages.add(deserialiser.apply(record.getData().array()));
+            }
+        }
+        return messages;
+    }
+
+    private static AmazonKinesis createClientWithCredentials(Properties props)
+            throws AmazonClientException {
+        AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(props);
+        return AmazonKinesisClientBuilder.standard()
+                .withCredentials(credentialsProvider)
+                .withEndpointConfiguration(
+                        new AwsClientBuilder.EndpointConfiguration(
+                                props.getProperty(ConsumerConfigConstants.AWS_ENDPOINT),
+                                "us-east-1"))
+                .build();
+    }
 }

@@ -23,21 +23,18 @@ import org.apache.flink.mesos.util.MesosResourceAllocation;
 import com.netflix.fenzo.TaskRequest;
 import org.apache.mesos.Protos;
 
-/**
- * Specifies the task requirements and produces a Mesos TaskInfo description.
- */
+/** Specifies the task requirements and produces a Mesos TaskInfo description. */
 public interface LaunchableTask {
 
-	/**
-	 * Get a representation of the task requirements as understood by Fenzo.
-     */
-	TaskRequest taskRequest();
+    /** Get a representation of the task requirements as understood by Fenzo. */
+    TaskRequest taskRequest();
 
-	/**
-	 * Prepare to launch the task by producing a Mesos TaskInfo record.
-	 * @param slaveId the slave assigned to the task.
-	 * @param allocation the resource allocation to take from.
+    /**
+     * Prepare to launch the task by producing a Mesos TaskInfo record.
+     *
+     * @param slaveId the slave assigned to the task.
+     * @param allocation the resource allocation to take from.
      * @return a TaskInfo.
      */
-	Protos.TaskInfo launch(Protos.SlaveID slaveId, MesosResourceAllocation allocation);
+    Protos.TaskInfo launch(Protos.SlaveID slaveId, MesosResourceAllocation allocation);
 }

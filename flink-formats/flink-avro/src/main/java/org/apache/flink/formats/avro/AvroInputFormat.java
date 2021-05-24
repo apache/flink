@@ -45,168 +45,174 @@ import java.io.IOException;
 /**
  * Provides a {@link FileInputFormat} for Avro records.
  *
- * @param <E>
- *            the type of the result Avro record. If you specify
- *            {@link GenericRecord} then the result will be returned as a
- *            {@link GenericRecord}, so you do not have to know the schema ahead
- *            of time.
+ * @param <E> the type of the result Avro record. If you specify {@link GenericRecord} then the
+ *     result will be returned as a {@link GenericRecord}, so you do not have to know the schema
+ *     ahead of time.
  */
-public class AvroInputFormat<E> extends FileInputFormat<E> implements ResultTypeQueryable<E>,
-	CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
+public class AvroInputFormat<E> extends FileInputFormat<E>
+        implements ResultTypeQueryable<E>,
+                CheckpointableInputFormat<FileInputSplit, Tuple2<Long, Long>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(AvroInputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AvroInputFormat.class);
 
-	private final Class<E> avroValueType;
+    private final Class<E> avroValueType;
 
-	private boolean reuseAvroValue = true;
+    private boolean reuseAvroValue = true;
 
-	private transient DataFileReader<E> dataFileReader;
+    private transient DataFileReader<E> dataFileReader;
 
-	private transient long end;
+    private transient long end;
 
-	private transient long recordsReadSinceLastSync;
+    private transient long recordsReadSinceLastSync;
 
-	private long lastSync = -1L;
+    private long lastSync = -1L;
 
-	public AvroInputFormat(Path filePath, Class<E> type) {
-		super(filePath);
-		this.avroValueType = type;
-	}
+    public AvroInputFormat(Path filePath, Class<E> type) {
+        super(filePath);
+        this.avroValueType = type;
+    }
 
-	/**
-	 * Sets the flag whether to reuse the Avro value instance for all records.
-	 * By default, the input format reuses the Avro value.
-	 *
-	 * @param reuseAvroValue True, if the input format should reuse the Avro value instance, false otherwise.
-	 */
-	public void setReuseAvroValue(boolean reuseAvroValue) {
-		this.reuseAvroValue = reuseAvroValue;
-	}
+    /**
+     * Sets the flag whether to reuse the Avro value instance for all records. By default, the input
+     * format reuses the Avro value.
+     *
+     * @param reuseAvroValue True, if the input format should reuse the Avro value instance, false
+     *     otherwise.
+     */
+    public void setReuseAvroValue(boolean reuseAvroValue) {
+        this.reuseAvroValue = reuseAvroValue;
+    }
 
-	/**
-	 * If set, the InputFormat will only read entire files.
-	 */
-	public void setUnsplittable(boolean unsplittable) {
-		this.unsplittable = unsplittable;
-	}
+    /** If set, the InputFormat will only read entire files. */
+    public void setUnsplittable(boolean unsplittable) {
+        this.unsplittable = unsplittable;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Typing
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Typing
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public TypeInformation<E> getProducedType() {
-		return TypeExtractor.getForClass(this.avroValueType);
-	}
+    @Override
+    public TypeInformation<E> getProducedType() {
+        return TypeExtractor.getForClass(this.avroValueType);
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Input Format Methods
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Input Format Methods
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void open(FileInputSplit split) throws IOException {
-		super.open(split);
-		dataFileReader = initReader(split);
-		dataFileReader.sync(split.getStart());
-		lastSync = dataFileReader.previousSync();
-	}
+    @Override
+    public void open(FileInputSplit split) throws IOException {
+        super.open(split);
+        dataFileReader = initReader(split);
+        dataFileReader.sync(split.getStart());
+        lastSync = dataFileReader.previousSync();
+    }
 
-	private DataFileReader<E> initReader(FileInputSplit split) throws IOException {
-		DatumReader<E> datumReader;
+    private DataFileReader<E> initReader(FileInputSplit split) throws IOException {
+        DatumReader<E> datumReader;
 
-		if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
-			datumReader = new GenericDatumReader<E>();
-		} else {
-			datumReader = org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(avroValueType)
-				? new SpecificDatumReader<E>(avroValueType) : new ReflectDatumReader<E>(avroValueType);
-		}
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Opening split {}", split);
-		}
+        if (org.apache.avro.generic.GenericRecord.class == avroValueType) {
+            datumReader = new GenericDatumReader<E>();
+        } else {
+            datumReader =
+                    org.apache.avro.specific.SpecificRecordBase.class.isAssignableFrom(
+                                    avroValueType)
+                            ? new SpecificDatumReader<E>(avroValueType)
+                            : new ReflectDatumReader<E>(avroValueType);
+        }
+        if (LOG.isInfoEnabled()) {
+            LOG.info("Opening split {}", split);
+        }
 
-		SeekableInput in = new FSDataInputStreamWrapper(stream, split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
-		DataFileReader<E> dataFileReader = (DataFileReader) DataFileReader.openReader(in, datumReader);
+        SeekableInput in =
+                new FSDataInputStreamWrapper(
+                        stream,
+                        split.getPath().getFileSystem().getFileStatus(split.getPath()).getLen());
+        DataFileReader<E> dataFileReader =
+                (DataFileReader) DataFileReader.openReader(in, datumReader);
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Loaded SCHEMA: {}", dataFileReader.getSchema());
-		}
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Loaded SCHEMA: {}", dataFileReader.getSchema());
+        }
 
-		end = split.getStart() + split.getLength();
-		recordsReadSinceLastSync = 0;
-		return dataFileReader;
-	}
+        end = split.getStart() + split.getLength();
+        recordsReadSinceLastSync = 0;
+        return dataFileReader;
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return !dataFileReader.hasNext() || dataFileReader.pastSync(end);
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return !dataFileReader.hasNext() || dataFileReader.pastSync(end);
+    }
 
-	public long getRecordsReadFromBlock() {
-		return this.recordsReadSinceLastSync;
-	}
+    public long getRecordsReadFromBlock() {
+        return this.recordsReadSinceLastSync;
+    }
 
-	@Override
-	public E nextRecord(E reuseValue) throws IOException {
-		if (reachedEnd()) {
-			return null;
-		}
+    @Override
+    public E nextRecord(E reuseValue) throws IOException {
+        if (reachedEnd()) {
+            return null;
+        }
 
-		// if we start a new block, then register the event, and
-		// restart the counter.
-		if (dataFileReader.previousSync() != lastSync) {
-			lastSync = dataFileReader.previousSync();
-			recordsReadSinceLastSync = 0;
-		}
-		recordsReadSinceLastSync++;
+        // if we start a new block, then register the event, and
+        // restart the counter.
+        if (dataFileReader.previousSync() != lastSync) {
+            lastSync = dataFileReader.previousSync();
+            recordsReadSinceLastSync = 0;
+        }
+        recordsReadSinceLastSync++;
 
-		if (reuseAvroValue) {
-			return dataFileReader.next(reuseValue);
-		} else {
-			if (GenericRecord.class == avroValueType) {
-				return dataFileReader.next();
-			} else {
-				return dataFileReader.next(InstantiationUtil.instantiate(avroValueType, Object.class));
-			}
-		}
-	}
+        if (reuseAvroValue) {
+            return dataFileReader.next(reuseValue);
+        } else {
+            if (GenericRecord.class == avroValueType) {
+                return dataFileReader.next();
+            } else {
+                return dataFileReader.next(
+                        InstantiationUtil.instantiate(avroValueType, Object.class));
+            }
+        }
+    }
 
-	@Override
-	public boolean supportsMultiPaths() {
-		return true;
-	}
+    @Override
+    public boolean supportsMultiPaths() {
+        return true;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Checkpointing
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Checkpointing
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public Tuple2<Long, Long> getCurrentState() throws IOException {
-		return new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
-	}
+    @Override
+    public Tuple2<Long, Long> getCurrentState() throws IOException {
+        return new Tuple2<>(this.lastSync, this.recordsReadSinceLastSync);
+    }
 
-	@Override
-	public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
-		Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
-		Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
+    @Override
+    public void reopen(FileInputSplit split, Tuple2<Long, Long> state) throws IOException {
+        Preconditions.checkNotNull(split, "reopen() cannot be called on a null split.");
+        Preconditions.checkNotNull(state, "reopen() cannot be called with a null initial state.");
 
-		try {
-			this.open(split);
-		} finally {
-			if (state.f0 != -1) {
-				lastSync = state.f0;
-				recordsReadSinceLastSync = state.f1;
-			}
-		}
+        try {
+            this.open(split);
+        } finally {
+            if (state.f0 != -1) {
+                lastSync = state.f0;
+                recordsReadSinceLastSync = state.f1;
+            }
+        }
 
-		if (lastSync != -1) {
-			// open and read until the record we were before
-			// the checkpoint and discard the values
-			dataFileReader.seek(lastSync);
-			for (int i = 0; i < recordsReadSinceLastSync; i++) {
-				dataFileReader.next(null);
-			}
-		}
-	}
+        if (lastSync != -1) {
+            // open and read until the record we were before
+            // the checkpoint and discard the values
+            dataFileReader.seek(lastSync);
+            for (int i = 0; i < recordsReadSinceLastSync; i++) {
+                dataFileReader.next(null);
+            }
+        }
+    }
 }

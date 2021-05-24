@@ -33,56 +33,62 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Record merger for sort of BinaryRowData.
- */
+/** Record merger for sort of BinaryRowData. */
 public class BinaryExternalMerger extends AbstractBinaryExternalMerger<BinaryRowData> {
 
-	private final BinaryRowDataSerializer serializer;
-	private final RecordComparator comparator;
+    private final BinaryRowDataSerializer serializer;
+    private final RecordComparator comparator;
 
-	public BinaryExternalMerger(
-			IOManager ioManager,
-			int pageSize,
-			int maxFanIn,
-			SpillChannelManager channelManager,
-			BinaryRowDataSerializer serializer,
-			RecordComparator comparator,
-			boolean compressionEnable,
-			BlockCompressionFactory compressionCodecFactory,
-			int compressionBlockSize) {
-		super(ioManager, pageSize, maxFanIn, channelManager, compressionEnable, compressionCodecFactory, compressionBlockSize);
-		this.serializer = serializer;
-		this.comparator = comparator;
-	}
+    public BinaryExternalMerger(
+            IOManager ioManager,
+            int pageSize,
+            int maxFanIn,
+            SpillChannelManager channelManager,
+            BinaryRowDataSerializer serializer,
+            RecordComparator comparator,
+            boolean compressionEnable,
+            BlockCompressionFactory compressionCodecFactory,
+            int compressionBlockSize) {
+        super(
+                ioManager,
+                pageSize,
+                maxFanIn,
+                channelManager,
+                compressionEnable,
+                compressionCodecFactory,
+                compressionBlockSize);
+        this.serializer = serializer;
+        this.comparator = comparator;
+    }
 
-	@Override
-	protected MutableObjectIterator<BinaryRowData> channelReaderInputViewIterator(AbstractChannelReaderInputView inView) {
-		return new ChannelReaderInputViewIterator<>(inView, null, serializer.duplicate());
-	}
+    @Override
+    protected MutableObjectIterator<BinaryRowData> channelReaderInputViewIterator(
+            AbstractChannelReaderInputView inView) {
+        return new ChannelReaderInputViewIterator<>(inView, null, serializer.duplicate());
+    }
 
-	@Override
-	protected Comparator<BinaryRowData> mergeComparator() {
-		return comparator::compare;
-	}
+    @Override
+    protected Comparator<BinaryRowData> mergeComparator() {
+        return comparator::compare;
+    }
 
-	@Override
-	protected List<BinaryRowData> mergeReusedEntries(int size) {
-		ArrayList<BinaryRowData> reused = new ArrayList<>(size);
-		for (int i = 0; i < size; i++) {
-			reused.add(serializer.createInstance());
-		}
-		return reused;
-	}
+    @Override
+    protected List<BinaryRowData> mergeReusedEntries(int size) {
+        ArrayList<BinaryRowData> reused = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            reused.add(serializer.createInstance());
+        }
+        return reused;
+    }
 
-	@Override
-	protected void writeMergingOutput(
-			MutableObjectIterator<BinaryRowData> mergeIterator,
-			AbstractPagedOutputView output) throws IOException {
-		// read the merged stream and write the data back
-		BinaryRowData rec = serializer.createInstance();
-		while ((rec = mergeIterator.next(rec)) != null) {
-			serializer.serialize(rec, output);
-		}
-	}
+    @Override
+    protected void writeMergingOutput(
+            MutableObjectIterator<BinaryRowData> mergeIterator, AbstractPagedOutputView output)
+            throws IOException {
+        // read the merged stream and write the data back
+        BinaryRowData rec = serializer.createInstance();
+        while ((rec = mergeIterator.next(rec)) != null) {
+            serializer.serialize(rec, output);
+        }
+    }
 }

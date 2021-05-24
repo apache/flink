@@ -36,135 +36,132 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for selective reading of {@code TwoInputStreamTask}.
- */
+/** Tests for selective reading of {@code TwoInputStreamTask}. */
 public class StreamTaskSelectiveReadingITCase {
-	@Test
-	public void testSequentialReading() throws Exception {
+    @Test
+    public void testSequentialReading() throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataStream<String> source0 = env.addSource(
-			new TestStringSource("Source0",
-				new String[] {
-					"Hello-1", "Hello-2", "Hello-3", "Hello-4", "Hello-5", "Hello-6"
-			}));
-		DataStream<Integer> source1 = env.addSource(
-			new TestIntegerSource("Source1",
-				new Integer[] {
-					1, 2, 3
-				}))
-			.setParallelism(2);
-		TestListResultSink<String> resultSink = new TestListResultSink<>();
+        DataStream<String> source0 =
+                env.addSource(
+                        new TestStringSource(
+                                "Source0",
+                                new String[] {
+                                    "Hello-1", "Hello-2", "Hello-3", "Hello-4", "Hello-5", "Hello-6"
+                                }));
+        DataStream<Integer> source1 =
+                env.addSource(new TestIntegerSource("Source1", new Integer[] {1, 2, 3}))
+                        .setParallelism(2);
+        TestListResultSink<String> resultSink = new TestListResultSink<>();
 
-		TestSequentialReadingStreamOperator twoInputStreamOperator = new TestSequentialReadingStreamOperator("Operator0");
-		twoInputStreamOperator.setChainingStrategy(ChainingStrategy.NEVER);
+        TestSequentialReadingStreamOperator twoInputStreamOperator =
+                new TestSequentialReadingStreamOperator("Operator0");
+        twoInputStreamOperator.setChainingStrategy(ChainingStrategy.NEVER);
 
-		source0.connect(source1)
-			.transform(
-				"Custom Operator",
-				BasicTypeInfo.STRING_TYPE_INFO,
-				twoInputStreamOperator
-			)
-			.addSink(resultSink);
+        source0.connect(source1)
+                .transform(
+                        "Custom Operator", BasicTypeInfo.STRING_TYPE_INFO, twoInputStreamOperator)
+                .addSink(resultSink);
 
-		env.execute("Selective reading test");
+        env.execute("Selective reading test");
 
-		List<String> result = resultSink.getResult();
+        List<String> result = resultSink.getResult();
 
-		List<String> expected1 = Arrays.asList(
-			"[Operator0-1]: [Source0-0]: Hello-1",
-			"[Operator0-1]: [Source0-0]: Hello-2",
-			"[Operator0-1]: [Source0-0]: Hello-3",
-			"[Operator0-1]: [Source0-0]: Hello-4",
-			"[Operator0-1]: [Source0-0]: Hello-5",
-			"[Operator0-1]: [Source0-0]: Hello-6"
-		);
+        List<String> expected1 =
+                Arrays.asList(
+                        "[Operator0-1]: [Source0-0]: Hello-1",
+                        "[Operator0-1]: [Source0-0]: Hello-2",
+                        "[Operator0-1]: [Source0-0]: Hello-3",
+                        "[Operator0-1]: [Source0-0]: Hello-4",
+                        "[Operator0-1]: [Source0-0]: Hello-5",
+                        "[Operator0-1]: [Source0-0]: Hello-6");
 
-		List<String> expected2 = Arrays.asList(
-			"[Operator0-2]: 1",
-			"[Operator0-2]: 2",
-			"[Operator0-2]: 3",
-			"[Operator0-2]: 2",
-			"[Operator0-2]: 4",
-			"[Operator0-2]: 6"
-		);
-		Collections.sort(expected2);
+        List<String> expected2 =
+                Arrays.asList(
+                        "[Operator0-2]: 1",
+                        "[Operator0-2]: 2",
+                        "[Operator0-2]: 3",
+                        "[Operator0-2]: 2",
+                        "[Operator0-2]: 4",
+                        "[Operator0-2]: 6");
+        Collections.sort(expected2);
 
-		assertEquals(expected1.size() + expected2.size(), result.size());
-		assertEquals(expected1, result.subList(0, expected1.size()));
+        assertEquals(expected1.size() + expected2.size(), result.size());
+        assertEquals(expected1, result.subList(0, expected1.size()));
 
-		List<String> result2 = result.subList(expected1.size(), expected1.size() + expected2.size());
-		Collections.sort(result2);
-		assertEquals(expected2, result2);
-	}
+        List<String> result2 =
+                result.subList(expected1.size(), expected1.size() + expected2.size());
+        Collections.sort(result2);
+        assertEquals(expected2, result2);
+    }
 
-	private abstract static class TestSource<T> extends RichParallelSourceFunction<T> {
-		private static final long serialVersionUID = 1L;
+    private abstract static class TestSource<T> extends RichParallelSourceFunction<T> {
+        private static final long serialVersionUID = 1L;
 
-		protected final String name;
+        protected final String name;
 
-		private volatile boolean running = true;
-		private transient RuntimeContext context;
+        private volatile boolean running = true;
+        private transient RuntimeContext context;
 
-		private final T[] elements;
+        private final T[] elements;
 
-		public TestSource(String name, T[] elements) {
-			this.name = name;
-			this.elements = elements;
-		}
+        public TestSource(String name, T[] elements) {
+            this.name = name;
+            this.elements = elements;
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			this.context = getRuntimeContext();
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            this.context = getRuntimeContext();
+        }
 
-		@Override
-		public void run(SourceContext<T> ctx) throws Exception {
-			int elementIndex = 0;
-			while (running) {
-				if (elementIndex < elements.length) {
-					synchronized (ctx.getCheckpointLock()) {
-						ctx.collect(outValue(elements[elementIndex], context.getIndexOfThisSubtask()));
-						elementIndex++;
-					}
-				} else {
-					break;
-				}
-			}
-		}
+        @Override
+        public void run(SourceContext<T> ctx) throws Exception {
+            int elementIndex = 0;
+            while (running) {
+                if (elementIndex < elements.length) {
+                    synchronized (ctx.getCheckpointLock()) {
+                        ctx.collect(
+                                outValue(elements[elementIndex], context.getIndexOfThisSubtask()));
+                        elementIndex++;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
+        @Override
+        public void cancel() {
+            running = false;
+        }
 
-		protected abstract T outValue(T inValue, int subTaskIndex);
-	}
+        protected abstract T outValue(T inValue, int subTaskIndex);
+    }
 
-	private static class TestStringSource extends TestSource<String> {
+    private static class TestStringSource extends TestSource<String> {
 
-		public TestStringSource(String name, String[] elements) {
-			super(name, elements);
-		}
+        public TestStringSource(String name, String[] elements) {
+            super(name, elements);
+        }
 
-		@Override
-		protected String outValue(String inValue, int subTaskIndex) {
-			return "[" + name + "-" + subTaskIndex + "]: " + inValue;
-		}
-	}
+        @Override
+        protected String outValue(String inValue, int subTaskIndex) {
+            return "[" + name + "-" + subTaskIndex + "]: " + inValue;
+        }
+    }
 
-	private static class TestIntegerSource extends TestSource<Integer> {
+    private static class TestIntegerSource extends TestSource<Integer> {
 
-		public TestIntegerSource(String name, Integer[] elements) {
-			super(name, elements);
-		}
+        public TestIntegerSource(String name, Integer[] elements) {
+            super(name, elements);
+        }
 
-		@Override
-		protected Integer outValue(Integer inValue, int subTaskIndex) {
-			return inValue * (subTaskIndex + 1);
-		}
-	}
+        @Override
+        protected Integer outValue(Integer inValue, int subTaskIndex) {
+            return inValue * (subTaskIndex + 1);
+        }
+    }
 }

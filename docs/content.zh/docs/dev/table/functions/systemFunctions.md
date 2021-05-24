@@ -1,0 +1,207 @@
+---
+title: "系统（内置）函数"
+weight: 32
+type: docs
+aliases:
+  - /zh/dev/table/functions/systemFunctions.html
+---
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+
+# System (Built-in) Functions
+
+Flink Table API & SQL provides users with a set of built-in functions for data transformations. This page gives a brief overview of them.
+If a function that you need is not supported yet, you can implement a [user-defined function]({{< ref "docs/dev/table/functions/udfs" >}}).
+If you think that the function is general enough, please <a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa">open a Jira issue</a> for it with a detailed description.
+
+Scalar Functions
+----------------
+
+The scalar functions take zero, one or more values as the input and return a single value as the result.
+
+### Comparison Functions
+
+{{< sql_functions "comparison" >}}
+
+### Logical Functions
+
+{{< sql_functions "logical" >}}
+
+### Arithmetic Functions
+
+{{< sql_functions "arithmetic" >}}
+
+### String Functions
+
+{{< sql_functions "string" >}}
+
+### Temporal Functions
+
+{{< sql_functions "temporal" >}}
+
+### Conditional Functions
+
+{{< sql_functions "conditional" >}}
+
+### Type Conversion Functions
+
+{{< sql_functions "conversion" >}}
+
+### Collection Functions
+
+{{< sql_functions "collection" >}}
+
+### Value Construction Functions
+
+{{< sql_functions "valueconstruction" >}}
+
+### Value Access Functions
+
+{{< sql_functions "valueaccess" >}}
+
+### Grouping Functions
+
+{{< sql_functions "grouping" >}}
+
+### Hash Functions
+
+{{< sql_functions "hashfunctions" >}}
+
+### Auxiliary Functions
+
+{{< sql_functions "auxilary" >}}
+
+Aggregate Functions
+-------------------
+
+The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
+
+{{< sql_functions "aggregate" >}}
+
+Time Interval and Point Unit Specifiers
+---------------------------------------
+
+The following table lists specifiers for time interval and time point units. 
+
+For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
+
+| Time Interval Unit       | Time Point Unit                |
+| :----------------------- | :----------------------------- |
+| `MILLENIUM` _(SQL-only)_ |                                |
+| `CENTURY` _(SQL-only)_   |                                |
+| `YEAR`                   | `YEAR`                         |
+| `YEAR TO MONTH`          |                                |
+| `QUARTER`                | `QUARTER`                      |
+| `MONTH`                  | `MONTH`                        |
+| `WEEK`                   | `WEEK`                         |
+| `DAY`                    | `DAY`                          |
+| `DAY TO HOUR`            |                                |
+| `DAY TO MINUTE`          |                                |
+| `DAY TO SECOND`          |                                |
+| `HOUR`                   | `HOUR`                         |
+| `HOUR TO MINUTE`         |                                |
+| `HOUR TO SECOND`         |                                |
+| `MINUTE`                 | `MINUTE`                       |
+| `MINUTE TO SECOND`       |                                |
+| `SECOND`                 | `SECOND`                       |
+|                          | `MILLISECOND`                  |
+|                          | `MICROSECOND`                  |
+| `DOY` _(SQL-only)_       |                                |
+| `DOW` _(SQL-only)_       |                                |
+|                          | `SQL_TSI_YEAR` _(SQL-only)_    |
+|                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
+|                          | `SQL_TSI_MONTH` _(SQL-only)_   |
+|                          | `SQL_TSI_WEEK` _(SQL-only)_    |
+|                          | `SQL_TSI_DAY` _(SQL-only)_     |
+|                          | `SQL_TSI_HOUR` _(SQL-only)_    |
+|                          | `SQL_TSI_MINUTE` _(SQL-only)_  |
+|                          | `SQL_TSI_SECOND ` _(SQL-only)_ |
+
+{{< top >}}
+
+Column Functions
+---------------------------------------
+
+The column functions are used to select or deselect table columns.
+
+{{< hint info >}}
+Column functions are only used in Table API.
+{{< /hint >}}
+
+| SYNTAX              | DESC                         |
+| :--------------------- | :-------------------------- |
+| withColumns(...)         | select the specified columns                  |
+| withoutColumns(...)        | deselect the columns specified                  |
+
+The detailed syntax is as follows:
+
+```text
+columnFunction:
+    withColumns(columnExprs)
+    withoutColumns(columnExprs)
+
+columnExprs:
+    columnExpr [, columnExpr]*
+
+columnExpr:
+    columnRef | columnIndex to columnIndex | columnName to columnName
+
+columnRef:
+    columnName(The field name that exists in the table) | columnIndex(a positive integer starting from 1)
+```
+
+The usage of the column function is illustrated in the following table. (Suppose we have a table with 5 columns: `(a: Int, b: Long, c: String, d:String, e: String)`):
+
+| API | Usage | Description |
+|-|-|-|
+| withColumns(*)| select("withColumns(*)") | select("*") = select("a, b, c, d, e") | all the columns |
+| withColumns(m to n) | select("withColumns(2 to 4)") = select("b, c, d") | columns from m to n |
+|  withColumns(m, n, k)  | select("withColumns(1, 3, e)") = select("a, c, e") |  columns m, n, k |
+|  withColumns(m, n to k)  | select("withColumns(1, 3 to 5)") = select("a, c, d ,e") |  mixing of the above two representation |
+|  withoutColumns(m to n) | select("withoutColumns(2 to 4)") = select("a, e") |  deselect columns from m to n |
+|  withoutColumns(m, n, k) | select("withoutColumns(1, 3, 5)") = select("b, d") |  deselect columns m, n, k |
+|  withoutColumns(m, n to k) | select("withoutColumns(1, 3 to 5)") = select("b") |  mixing of the above two representation |
+
+The column functions can be used in all places where column fields are expected, such as `select, groupBy, orderBy, UDFs etc.` e.g.:
+
+{{< tabs "402fe551-5fb9-4b17-bd64-e05cbd56b4cc" >}}
+{{< tab "Java" >}}
+```java
+table
+   .groupBy("withColumns(1 to 3)")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+table
+   .groupBy(withColumns(1 to 3))
+   .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+table \
+    .group_by("withColumns(1 to 3)") \
+    .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< top >}}

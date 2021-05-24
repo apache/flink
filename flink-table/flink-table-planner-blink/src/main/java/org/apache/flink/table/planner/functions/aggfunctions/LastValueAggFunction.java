@@ -18,209 +18,107 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.typeutils.StringDataTypeInfo;
-import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
+import java.util.Collections;
+import java.util.List;
 
-/**
- * built-in LastValue aggregate function.
- */
-public class LastValueAggFunction<T> extends AggregateFunction<T, RowData> {
+import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-	@Override
-	public boolean isDeterministic() {
-		return false;
-	}
+/** Built-in LAST_VALUE aggregate function. */
+@Internal
+public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, RowData> {
 
-	@Override
-	public RowData createAccumulator() {
-		// The accumulator schema:
-		// lastValue: T
-		// lastOrder: Long
-		GenericRowData acc = new GenericRowData(2);
-		acc.setField(0, null);
-		acc.setField(1, Long.MIN_VALUE);
-		return acc;
-	}
+    private transient DataType valueDataType;
 
-	public void accumulate(RowData rowData, Object value) {
-		GenericRowData acc = (GenericRowData) rowData;
-		if (value != null) {
-			acc.setField(0, value);
-		}
-	}
+    public LastValueAggFunction(LogicalType valueType) {
+        this.valueDataType = toInternalDataType(valueType);
+    }
 
-	public void accumulate(RowData rowData, Object value, Long order) {
-		GenericRowData acc = (GenericRowData) rowData;
-		if (value != null && acc.getLong(1) < order) {
-			acc.setField(0, value);
-			acc.setField(1, order);
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Planning
+    // --------------------------------------------------------------------------------------------
 
-	public void resetAccumulator(RowData rowData) {
-		GenericRowData acc = (GenericRowData) rowData;
-		acc.setField(0, null);
-		acc.setField(1, Long.MIN_VALUE);
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(valueDataType);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public T getValue(RowData rowData) {
-		GenericRowData acc = (GenericRowData) rowData;
-		return (T) acc.getField(0);
-	}
+    @Override
+    public DataType getAccumulatorDataType() {
+        return DataTypes.ROW(
+                        DataTypes.FIELD("lastValue", valueDataType.nullable()),
+                        DataTypes.FIELD("lastOrder", DataTypes.BIGINT()))
+                .bridgedTo(RowData.class);
+    }
 
-	@Override
-	public TypeInformation<RowData> getAccumulatorType() {
-		LogicalType[] fieldTypes = new LogicalType[] {
-				fromTypeInfoToLogicalType(getResultType()),
-				new BigIntType()
-		};
+    @Override
+    public DataType getOutputDataType() {
+        return valueDataType;
+    }
 
-		String[] fieldNames = new String[] {
-				"value",
-				"time"
-		};
+    @Override
+    public boolean isDeterministic() {
+        return false;
+    }
 
-		return InternalTypeInfo.ofFields(fieldTypes, fieldNames);
-	}
+    // --------------------------------------------------------------------------------------------
+    // Runtime
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Built-in Byte LastValue aggregate function.
-	 */
-	public static class ByteLastValueAggFunction extends LastValueAggFunction<Byte> {
+    @Override
+    public RowData createAccumulator() {
+        GenericRowData acc = new GenericRowData(2);
+        acc.setField(0, null);
+        acc.setField(1, Long.MIN_VALUE);
+        return acc;
+    }
 
-		@Override
-		public TypeInformation<Byte> getResultType() {
-			return Types.BYTE;
-		}
-	}
+    public void accumulate(RowData rowData, Object value) {
+        GenericRowData acc = (GenericRowData) rowData;
+        if (value != null) {
+            acc.setField(0, value);
+        }
+    }
 
-	/**
-	 * Built-in Short LastValue aggregate function.
-	 */
-	public static class ShortLastValueAggFunction extends LastValueAggFunction<Short> {
+    public void accumulate(RowData rowData, Object value, Long order) {
+        GenericRowData acc = (GenericRowData) rowData;
+        if (value != null && acc.getLong(1) < order) {
+            acc.setField(0, value);
+            acc.setField(1, order);
+        }
+    }
 
-		@Override
-		public TypeInformation<Short> getResultType() {
-			return Types.SHORT;
-		}
-	}
+    public void accumulate(GenericRowData acc, StringData value) {
+        if (value != null) {
+            accumulate(acc, (Object) ((BinaryStringData) value).copy());
+        }
+    }
 
-	/**
-	 * Built-in Int LastValue aggregate function.
-	 */
-	public static class IntLastValueAggFunction extends LastValueAggFunction<Integer> {
+    public void accumulate(GenericRowData acc, StringData value, Long order) {
+        if (value != null) {
+            accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
+        }
+    }
 
-		@Override
-		public TypeInformation<Integer> getResultType() {
-			return Types.INT;
-		}
-	}
+    public void resetAccumulator(RowData rowData) {
+        GenericRowData acc = (GenericRowData) rowData;
+        acc.setField(0, null);
+        acc.setField(1, Long.MIN_VALUE);
+    }
 
-	/**
-	 * Built-in Long LastValue aggregate function.
-	 */
-	public static class LongLastValueAggFunction extends LastValueAggFunction<Long> {
-
-		@Override
-		public TypeInformation<Long> getResultType() {
-			return Types.LONG;
-		}
-	}
-
-	/**
-	 * Built-in Float LastValue aggregate function.
-	 */
-	public static class FloatLastValueAggFunction extends LastValueAggFunction<Float> {
-
-		@Override
-		public TypeInformation<Float> getResultType() {
-			return Types.FLOAT;
-		}
-	}
-
-	/**
-	 * Built-in Double LastValue aggregate function.
-	 */
-	public static class DoubleLastValueAggFunction extends LastValueAggFunction<Double> {
-
-		@Override
-		public TypeInformation<Double> getResultType() {
-			return Types.DOUBLE;
-		}
-	}
-
-	/**
-	 * Built-in Boolean LastValue aggregate function.
-	 */
-	public static class BooleanLastValueAggFunction extends LastValueAggFunction<Boolean> {
-
-		@Override
-		public TypeInformation<Boolean> getResultType() {
-			return Types.BOOLEAN;
-		}
-	}
-
-	/**
-	 * Built-in DecimalData LastValue aggregate function.
-	 */
-	public static class DecimalLastValueAggFunction extends LastValueAggFunction<DecimalData> {
-
-		private DecimalDataTypeInfo decimalTypeInfo;
-
-		public DecimalLastValueAggFunction(DecimalDataTypeInfo decimalTypeInfo) {
-			this.decimalTypeInfo = decimalTypeInfo;
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value) {
-			super.accumulate(acc, value);
-		}
-
-		public void accumulate(GenericRowData acc, DecimalData value, Long order) {
-			super.accumulate(acc, value, order);
-		}
-
-		@Override
-		public TypeInformation<DecimalData> getResultType() {
-			return decimalTypeInfo;
-		}
-	}
-
-	/**
-	 * Built-in String LastValue aggregate function.
-	 */
-	public static class StringLastValueAggFunction extends LastValueAggFunction<StringData> {
-
-		@Override
-		public TypeInformation<StringData> getResultType() {
-			return StringDataTypeInfo.INSTANCE;
-		}
-
-		public void accumulate(GenericRowData acc, StringData value) {
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy());
-			}
-		}
-
-		public void accumulate(GenericRowData acc, StringData value, Long order) {
-			// just ignore nulls values and orders
-			if (value != null) {
-				super.accumulate(acc, ((BinaryStringData) value).copy(), order);
-			}
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public T getValue(RowData rowData) {
+        GenericRowData acc = (GenericRowData) rowData;
+        return (T) acc.getField(0);
+    }
 }

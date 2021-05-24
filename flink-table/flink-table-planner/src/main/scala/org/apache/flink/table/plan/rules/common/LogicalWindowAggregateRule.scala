@@ -94,7 +94,7 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
 
     val newProject = builder
       .push(project.getInput)
-      .project(project.getChildExps.updated(windowExprIdx, inAggGroupExpression))
+      .project(project.getProjects.updated(windowExprIdx, inAggGroupExpression))
       .build()
 
     // Currently, this rule removes the window from GROUP BY operation which may lead to changes
@@ -177,14 +177,14 @@ abstract class LogicalWindowAggregateRule(ruleName: String)
     if (!projectInput.isInstanceOf[Project]) {
       return project
     }
-    val inputProjects = projectInput.asInstanceOf[Project].getChildExps
+    val inputProjects = projectInput.asInstanceOf[Project].getProjects
     var hasWindowCallWithFuncOperands: Boolean = false
     var lastIdx = projectInput.getRowType.getFieldCount - 1;
     val pushDownCalls = new JArrayList[RexNode]()
     0 until projectInput.getRowType.getFieldCount foreach {
       idx => pushDownCalls.add(RexInputRef.of(idx, projectInput.getRowType))
     }
-    val newProjectExprs = project.getChildExps.map {
+    val newProjectExprs = project.getProjects.map {
       case call: RexCall if isWindowCall(call) &&
         isTimeAttributeCall(call.getOperands.head, inputProjects) =>
         hasWindowCallWithFuncOperands = true

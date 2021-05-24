@@ -38,7 +38,7 @@ resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-bcef226
+    image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -49,6 +49,7 @@ resources:
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
+  E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
@@ -56,17 +57,39 @@ variables:
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
   SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
   SECRET_S3_SECRET_KEY: $[variables.IT_CASE_S3_SECRET_KEY]
+  SECRET_GLUE_SCHEMA_ACCESS_KEY: $[variables.IT_CASE_GLUE_SCHEMA_ACCESS_KEY]
+  SECRET_GLUE_SCHEMA_SECRET_KEY: $[variables.IT_CASE_GLUE_SCHEMA_SECRET_KEY]
 
 
-jobs:
-  - template: tools/azure-pipelines/jobs-template.yml
-    parameters: # see template file for a definition of the parameters.
-      stage_name: ci_build
-      test_pool_definition:
-        vmImage: 'ubuntu-16.04'
-      e2e_pool_definition:
-        vmImage: 'ubuntu-16.04'
-      environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-      run_end_to_end: false
-      container: flink-build-container
-      jdk: jdk8
+stages:
+  # CI / PR triggered stage:
+  - stage: ci
+    displayName: "CI build (custom builders)"
+    condition: not(eq(variables['MODE'], 'release'))
+    jobs:
+      - template: tools/azure-pipelines/jobs-template.yml
+        parameters: # see template file for a definition of the parameters.
+          stage_name: ci_build
+          test_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          e2e_pool_definition:
+            vmImage: 'ubuntu-16.04'
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          run_end_to_end: false
+          container: flink-build-container
+          jdk: jdk8
+      - job: docs_404_check # run on a MSFT provided machine
+        pool:
+          vmImage: 'ubuntu-16.04'
+        steps:
+          - script: ./tools/ci/docs.sh
+  # CI / Special stage for release, e.g. building PyFlink wheel packages, etc:
+  - stage: ci_release
+    displayName: "CI build (release)"
+    condition: and(eq(variables['Build.Reason'], 'Manual'), eq(variables['MODE'], 'release'))
+    jobs:
+      - template: tools/azure-pipelines/build-python-wheels.yml
+        parameters:
+          stage_name: cron_python_wheels
+          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          container: flink-build-container

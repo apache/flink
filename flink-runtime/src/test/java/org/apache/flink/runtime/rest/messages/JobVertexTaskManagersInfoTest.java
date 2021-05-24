@@ -30,36 +30,47 @@ import java.util.Random;
 
 import static org.apache.flink.runtime.rest.messages.JobVertexTaskManagersInfo.TaskManagersInfo;
 
-/**
- * Tests that the {@link JobVertexTaskManagersInfo} can be marshalled and unmarshalled.
- */
-public class JobVertexTaskManagersInfoTest extends RestResponseMarshallingTestBase<JobVertexTaskManagersInfo> {
-	@Override
-	protected Class<JobVertexTaskManagersInfo> getTestResponseClass() {
-		return JobVertexTaskManagersInfo.class;
-	}
+/** Tests that the {@link JobVertexTaskManagersInfo} can be marshalled and unmarshalled. */
+public class JobVertexTaskManagersInfoTest
+        extends RestResponseMarshallingTestBase<JobVertexTaskManagersInfo> {
+    @Override
+    protected Class<JobVertexTaskManagersInfo> getTestResponseClass() {
+        return JobVertexTaskManagersInfo.class;
+    }
 
-	@Override
-	protected JobVertexTaskManagersInfo getTestResponseInstance() throws Exception {
-		final Random random = new Random();
-		List<TaskManagersInfo> taskManagersInfoList = new ArrayList<>();
+    @Override
+    protected JobVertexTaskManagersInfo getTestResponseInstance() throws Exception {
+        final Random random = new Random();
+        List<TaskManagersInfo> taskManagersInfoList = new ArrayList<>();
 
-		final Map<ExecutionState, Integer> statusCounts = new HashMap<>(ExecutionState.values().length);
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean());
-		int count = 100;
-		for (ExecutionState executionState : ExecutionState.values()) {
-			statusCounts.put(executionState, count++);
-		}
-		taskManagersInfoList.add(new TaskManagersInfo("host1", ExecutionState.CANCELING, 1L, 2L, 3L, jobVertexMetrics, statusCounts, "taskmanagerId"));
+        final Map<ExecutionState, Integer> statusCounts =
+                new HashMap<>(ExecutionState.values().length);
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean());
+        int count = 100;
+        for (ExecutionState executionState : ExecutionState.values()) {
+            statusCounts.put(executionState, count++);
+        }
+        taskManagersInfoList.add(
+                new TaskManagersInfo(
+                        "host1",
+                        ExecutionState.CANCELING,
+                        1L,
+                        2L,
+                        3L,
+                        jobVertexMetrics,
+                        statusCounts,
+                        "taskmanagerId"));
 
-		return new JobVertexTaskManagersInfo(new JobVertexID(), "test", System.currentTimeMillis(), taskManagersInfoList);
-	}
+        return new JobVertexTaskManagersInfo(
+                new JobVertexID(), "test", System.currentTimeMillis(), taskManagersInfoList);
+    }
 }

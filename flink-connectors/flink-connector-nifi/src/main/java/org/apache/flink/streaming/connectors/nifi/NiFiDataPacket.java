@@ -20,19 +20,14 @@ package org.apache.flink.streaming.connectors.nifi;
 import java.util.Map;
 
 /**
- * The NiFiDataPacket provides a packaging around a NiFi FlowFile. It wraps both
- * a FlowFile's content and its attributes so that they can be processed by Flink.
+ * The NiFiDataPacket provides a packaging around a NiFi FlowFile. It wraps both a FlowFile's
+ * content and its attributes so that they can be processed by Flink.
  */
 public interface NiFiDataPacket {
 
-	/**
-	 * @return the contents of a NiFi FlowFile
-	 */
-	byte[] getContent();
+    /** @return the contents of a NiFi FlowFile */
+    byte[] getContent();
 
-	/**
-	 * @return a Map of attributes that are associated with the NiFi FlowFile
-	 */
-	Map<String, String> getAttributes();
-
+    /** @return a Map of attributes that are associated with the NiFi FlowFile */
+    Map<String, String> getAttributes();
 }

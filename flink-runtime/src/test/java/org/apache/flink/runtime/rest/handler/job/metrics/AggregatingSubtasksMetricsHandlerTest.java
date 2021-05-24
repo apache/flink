@@ -39,53 +39,59 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Tests for the {@link AggregatingSubtasksMetricsHandler}.
- */
-public class AggregatingSubtasksMetricsHandlerTest extends AggregatingMetricsHandlerTestBase<AggregatingSubtasksMetricsHandler, AggregatedSubtaskMetricsParameters> {
+/** Tests for the {@link AggregatingSubtasksMetricsHandler}. */
+public class AggregatingSubtasksMetricsHandlerTest
+        extends AggregatingMetricsHandlerTestBase<
+                AggregatingSubtasksMetricsHandler, AggregatedSubtaskMetricsParameters> {
 
-	private static final JobID JOB_ID = JobID.generate();
-	private static final JobVertexID TASK_ID = new JobVertexID();
+    private static final JobID JOB_ID = JobID.generate();
+    private static final JobVertexID TASK_ID = new JobVertexID();
 
-	@Override
-	protected Tuple2<String, List<String>> getFilter() {
-		return Tuple2.of("subtasks", Arrays.asList("1", "3"));
-	}
+    @Override
+    protected Tuple2<String, List<String>> getFilter() {
+        return Tuple2.of("subtasks", Arrays.asList("1", "3"));
+    }
 
-	@Override
-	protected Map<String, String> getPathParameters() {
-		Map<String, String> pathParameters = new HashMap<>(4);
-		pathParameters.put(JobIDPathParameter.KEY, JOB_ID.toString());
-		pathParameters.put(JobVertexIdPathParameter.KEY, TASK_ID.toString());
-		return pathParameters;
-	}
+    @Override
+    protected Map<String, String> getPathParameters() {
+        Map<String, String> pathParameters = new HashMap<>(4);
+        pathParameters.put(JobIDPathParameter.KEY, JOB_ID.toString());
+        pathParameters.put(JobVertexIdPathParameter.KEY, TASK_ID.toString());
+        return pathParameters;
+    }
 
-	@Override
-	protected Collection<MetricDump> getMetricDumps() {
-		Collection<MetricDump> dumps = new ArrayList<>(3);
-		QueryScopeInfo.TaskQueryScopeInfo task1 = new QueryScopeInfo.TaskQueryScopeInfo(JOB_ID.toString(), TASK_ID.toString(), 1, "abc");
-		MetricDump.CounterDump cd1 = new MetricDump.CounterDump(task1, "metric1", 1);
-		dumps.add(cd1);
+    @Override
+    protected Collection<MetricDump> getMetricDumps() {
+        Collection<MetricDump> dumps = new ArrayList<>(3);
+        QueryScopeInfo.TaskQueryScopeInfo task1 =
+                new QueryScopeInfo.TaskQueryScopeInfo(
+                        JOB_ID.toString(), TASK_ID.toString(), 1, "abc");
+        MetricDump.CounterDump cd1 = new MetricDump.CounterDump(task1, "metric1", 1);
+        dumps.add(cd1);
 
-		QueryScopeInfo.TaskQueryScopeInfo task2 = new QueryScopeInfo.TaskQueryScopeInfo(JOB_ID.toString(), TASK_ID.toString(), 2, "abc");
-		MetricDump.CounterDump cd2 = new MetricDump.CounterDump(task2, "metric1", 3);
-		dumps.add(cd2);
+        QueryScopeInfo.TaskQueryScopeInfo task2 =
+                new QueryScopeInfo.TaskQueryScopeInfo(
+                        JOB_ID.toString(), TASK_ID.toString(), 2, "abc");
+        MetricDump.CounterDump cd2 = new MetricDump.CounterDump(task2, "metric1", 3);
+        dumps.add(cd2);
 
-		QueryScopeInfo.TaskQueryScopeInfo task3 = new QueryScopeInfo.TaskQueryScopeInfo(JOB_ID.toString(), TASK_ID.toString(), 3, "abc");
-		MetricDump.CounterDump cd3 = new MetricDump.CounterDump(task3, "metric2", 5);
-		dumps.add(cd3);
+        QueryScopeInfo.TaskQueryScopeInfo task3 =
+                new QueryScopeInfo.TaskQueryScopeInfo(
+                        JOB_ID.toString(), TASK_ID.toString(), 3, "abc");
+        MetricDump.CounterDump cd3 = new MetricDump.CounterDump(task3, "metric2", 5);
+        dumps.add(cd3);
 
-		return dumps;
-	}
+        return dumps;
+    }
 
-	@Override
-	protected AggregatingSubtasksMetricsHandler getHandler(GatewayRetriever<? extends RestfulGateway> leaderRetriever, Time timeout, Map<String, String> responseHeaders, Executor executor, MetricFetcher fetcher) {
-		return new AggregatingSubtasksMetricsHandler(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			executor,
-			fetcher
-		);
-	}
+    @Override
+    protected AggregatingSubtasksMetricsHandler getHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            Executor executor,
+            MetricFetcher fetcher) {
+        return new AggregatingSubtasksMetricsHandler(
+                leaderRetriever, timeout, responseHeaders, executor, fetcher);
+    }
 }

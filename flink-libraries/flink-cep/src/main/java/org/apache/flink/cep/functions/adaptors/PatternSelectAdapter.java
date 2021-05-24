@@ -30,34 +30,31 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Adapter that expresses {@link PatternSelectFunction} with {@link PatternProcessFunction}.
- */
+/** Adapter that expresses {@link PatternSelectFunction} with {@link PatternProcessFunction}. */
 @Internal
 public class PatternSelectAdapter<IN, OUT> extends PatternProcessFunction<IN, OUT> {
 
-	private final PatternSelectFunction<IN, OUT> selectFunction;
+    private final PatternSelectFunction<IN, OUT> selectFunction;
 
-	public PatternSelectAdapter(final PatternSelectFunction<IN, OUT> selectFunction) {
-		this.selectFunction = checkNotNull(selectFunction);
-	}
+    public PatternSelectAdapter(final PatternSelectFunction<IN, OUT> selectFunction) {
+        this.selectFunction = checkNotNull(selectFunction);
+    }
 
-	@Override
-	public void open(final Configuration parameters) throws Exception {
-		FunctionUtils.setFunctionRuntimeContext(selectFunction, getRuntimeContext());
-		FunctionUtils.openFunction(selectFunction, parameters);
-	}
+    @Override
+    public void open(final Configuration parameters) throws Exception {
+        FunctionUtils.setFunctionRuntimeContext(selectFunction, getRuntimeContext());
+        FunctionUtils.openFunction(selectFunction, parameters);
+    }
 
-	@Override
-	public void close() throws Exception {
-		FunctionUtils.closeFunction(selectFunction);
-	}
+    @Override
+    public void close() throws Exception {
+        FunctionUtils.closeFunction(selectFunction);
+    }
 
-	@Override
-	public void processMatch(
-			final Map<String, List<IN>> match,
-			final Context ctx,
-			final Collector<OUT> out) throws Exception {
-		out.collect(selectFunction.select(match));
-	}
+    @Override
+    public void processMatch(
+            final Map<String, List<IN>> match, final Context ctx, final Collector<OUT> out)
+            throws Exception {
+        out.collect(selectFunction.select(match));
+    }
 }

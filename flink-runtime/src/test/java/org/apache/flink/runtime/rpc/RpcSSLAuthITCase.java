@@ -40,113 +40,118 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * This test validates that the RPC service gives a good message when it cannot
- * connect to an RpcEndpoint.
+ * This test validates that the RPC service gives a good message when it cannot connect to an
+ * RpcEndpoint.
  */
 public class RpcSSLAuthITCase extends TestLogger {
 
-	private static final String KEY_STORE_FILE = RpcSSLAuthITCase.class.getResource("/local127.keystore").getFile();
-	private static final String TRUST_STORE_FILE = RpcSSLAuthITCase.class.getResource("/local127.truststore").getFile();
-	private static final String UNTRUSTED_KEY_STORE_FILE = RpcSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
+    private static final String KEY_STORE_FILE =
+            RpcSSLAuthITCase.class.getResource("/local127.keystore").getFile();
+    private static final String TRUST_STORE_FILE =
+            RpcSSLAuthITCase.class.getResource("/local127.truststore").getFile();
+    private static final String UNTRUSTED_KEY_STORE_FILE =
+            RpcSSLAuthITCase.class.getResource("/untrusted.keystore").getFile();
 
-	@Test
-	public void testConnectFailure() throws Exception {
-		final Configuration baseConfig = new Configuration();
-		baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
+    @Test
+    public void testConnectFailure() throws Exception {
+        final Configuration baseConfig = new Configuration();
+        baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
 
-		// !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
-		Configuration sslConfig1 = new Configuration(baseConfig);
-		sslConfig1.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig1.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        // !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
+        Configuration sslConfig1 = new Configuration(baseConfig);
+        sslConfig1.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, KEY_STORE_FILE);
+        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
+        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
+        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
+        sslConfig1.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
+        sslConfig1.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
 
-		// !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
-		// If this is presented by a client, it will trust the server, but the server will
-		// not trust this client in case client auth is enabled.
-		Configuration sslConfig2 = new Configuration(baseConfig);
-		sslConfig2.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
-		sslConfig2.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        // !!! This config has KEY_STORE_FILE / UNTRUSTED_KEY_STORE_FILE !!!
+        // If this is presented by a client, it will trust the server, but the server will
+        // not trust this client in case client auth is enabled.
+        Configuration sslConfig2 = new Configuration(baseConfig);
+        sslConfig2.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE, UNTRUSTED_KEY_STORE_FILE);
+        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE, TRUST_STORE_FILE);
+        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "password");
+        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_KEY_PASSWORD, "password");
+        sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
+        sslConfig2.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
 
-		ActorSystem actorSystem1 = null;
-		ActorSystem actorSystem2 = null;
-		RpcService rpcService1 = null;
-		RpcService rpcService2 = null;
+        ActorSystem actorSystem1 = null;
+        ActorSystem actorSystem2 = null;
+        RpcService rpcService1 = null;
+        RpcService rpcService2 = null;
 
-		try {
-			actorSystem1 = AkkaUtils.createActorSystem(sslConfig1, "localhost", 0);
-			actorSystem2 = AkkaUtils.createActorSystem(sslConfig2, "localhost", 0);
+        try {
+            actorSystem1 = AkkaUtils.createActorSystem(sslConfig1, "localhost", 0);
+            actorSystem2 = AkkaUtils.createActorSystem(sslConfig2, "localhost", 0);
 
-			// to test whether the test is still good:
-			//   - create actorSystem2 with sslConfig1 (same as actorSystem1) and see that both can connect
-			//   - set 'require-mutual-authentication = off' in the AkkaUtils ssl config section
+            // to test whether the test is still good:
+            //   - create actorSystem2 with sslConfig1 (same as actorSystem1) and see that both can
+            // connect
+            //   - set 'require-mutual-authentication = off' in the AkkaUtils ssl config section
 
-			// we start the RPC service with a very long timeout to ensure that the test
-			// can only pass if the connection problem is not recognized merely via a timeout
-			Configuration configuration = new Configuration();
-			configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
-			AkkaRpcServiceConfiguration akkaRpcServiceConfig = AkkaRpcServiceConfiguration.fromConfiguration(configuration);
-			rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
-			rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+            // we start the RPC service with a very long timeout to ensure that the test
+            // can only pass if the connection problem is not recognized merely via a timeout
+            Configuration configuration = new Configuration();
+            configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
+            AkkaRpcServiceConfiguration akkaRpcServiceConfig =
+                    AkkaRpcServiceConfiguration.fromConfiguration(configuration);
+            rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
+            rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
 
-			TestEndpoint endpoint = new TestEndpoint(rpcService1);
-			endpoint.start();
+            TestEndpoint endpoint = new TestEndpoint(rpcService1);
+            endpoint.start();
 
-			CompletableFuture<TestGateway> future = rpcService2.connect(endpoint.getAddress(), TestGateway.class);
-			TestGateway gateway = future.get(10000000, TimeUnit.SECONDS);
+            CompletableFuture<TestGateway> future =
+                    rpcService2.connect(endpoint.getAddress(), TestGateway.class);
+            TestGateway gateway = future.get(10000000, TimeUnit.SECONDS);
 
-			CompletableFuture<String> fooFuture = gateway.foo();
-			fooFuture.get();
+            CompletableFuture<String> fooFuture = gateway.foo();
+            fooFuture.get();
 
-			fail("should never complete normally");
-		}
-		catch (ExecutionException e) {
-			// that is what we want
-			assertTrue(e.getCause() instanceof RpcConnectionException);
-		}
-		finally {
-			final CompletableFuture<Void> rpcTerminationFuture1 = rpcService1 != null ?
-					rpcService1.stopService() :
-					CompletableFuture.completedFuture(null);
+            fail("should never complete normally");
+        } catch (ExecutionException e) {
+            // that is what we want
+            assertTrue(e.getCause() instanceof RpcConnectionException);
+        } finally {
+            final CompletableFuture<Void> rpcTerminationFuture1 =
+                    rpcService1 != null
+                            ? rpcService1.stopService()
+                            : CompletableFuture.completedFuture(null);
 
-			final CompletableFuture<Void> rpcTerminationFuture2 = rpcService2 != null ?
-					rpcService2.stopService() :
-					CompletableFuture.completedFuture(null);
+            final CompletableFuture<Void> rpcTerminationFuture2 =
+                    rpcService2 != null
+                            ? rpcService2.stopService()
+                            : CompletableFuture.completedFuture(null);
 
-			FutureUtils
-				.waitForAll(Arrays.asList(rpcTerminationFuture1, rpcTerminationFuture2))
-				.get();
-		}
-	}
+            FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture1, rpcTerminationFuture2))
+                    .get();
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Test RPC endpoint
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Test RPC endpoint
+    // ------------------------------------------------------------------------
 
-	/** doc. */
-	public interface TestGateway extends RpcGateway {
+    /** doc. */
+    public interface TestGateway extends RpcGateway {
 
-		CompletableFuture<String> foo();
-	}
+        CompletableFuture<String> foo();
+    }
 
-	/** doc. */
-	public static class TestEndpoint extends RpcEndpoint implements TestGateway {
+    /** doc. */
+    public static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
-		public TestEndpoint(RpcService rpcService) {
-			super(rpcService);
-		}
+        public TestEndpoint(RpcService rpcService) {
+            super(rpcService);
+        }
 
-		@Override
-		public CompletableFuture<String> foo() {
-			return CompletableFuture.completedFuture("bar");
-		}
-	}
+        @Override
+        public CompletableFuture<String> foo() {
+            return CompletableFuture.completedFuture("bar");
+        }
+    }
 }

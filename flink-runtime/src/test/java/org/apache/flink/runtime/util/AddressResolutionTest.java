@@ -32,59 +32,57 @@ import java.net.UnknownHostException;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Unit tests for respecting {@link HighAvailabilityServicesUtils.AddressResolution}.
- */
+/** Unit tests for respecting {@link HighAvailabilityServicesUtils.AddressResolution}. */
 public class AddressResolutionTest extends TestLogger {
 
-	private static final String ENDPOINT_NAME = "endpoint";
-	private static final String NON_EXISTING_HOSTNAME = "foo.bar.com.invalid";
-	private static final int PORT = 17234;
+    private static final String ENDPOINT_NAME = "endpoint";
+    private static final String NON_EXISTING_HOSTNAME = "foo.bar.com.invalid";
+    private static final int PORT = 17234;
 
-	@BeforeClass
-	public static void check() {
-		checkPreconditions();
-	}
+    @BeforeClass
+    public static void check() {
+        checkPreconditions();
+    }
 
-	private static void checkPreconditions() {
-		// the test can only work if the invalid URL cannot be resolves
-		// some internet providers resolve unresolvable URLs to navigational aid servers,
-		// voiding this test.
-		boolean throwsException;
+    private static void checkPreconditions() {
+        // the test can only work if the invalid URL cannot be resolves
+        // some internet providers resolve unresolvable URLs to navigational aid servers,
+        // voiding this test.
+        boolean throwsException;
 
-		try {
-			//noinspection ResultOfMethodCallIgnored
-			InetAddress.getByName(NON_EXISTING_HOSTNAME);
-			throwsException = false;
-		} catch (UnknownHostException e) {
-			throwsException = true;
-		}
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            InetAddress.getByName(NON_EXISTING_HOSTNAME);
+            throwsException = false;
+        } catch (UnknownHostException e) {
+            throwsException = true;
+        }
 
-		assumeTrue(throwsException);
-	}
+        assumeTrue(throwsException);
+    }
 
-	@Test
-	public void testNoAddressResolution() throws UnknownHostException {
-		AkkaRpcServiceUtils.getRpcUrl(
-			NON_EXISTING_HOSTNAME,
-			PORT,
-			ENDPOINT_NAME,
-			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
-			new Configuration());
-	}
+    @Test
+    public void testNoAddressResolution() throws UnknownHostException {
+        AkkaRpcServiceUtils.getRpcUrl(
+                NON_EXISTING_HOSTNAME,
+                PORT,
+                ENDPOINT_NAME,
+                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+                new Configuration());
+    }
 
-	@Test
-	public void testTryAddressResolution() {
-		try {
-			AkkaRpcServiceUtils.getRpcUrl(
-				NON_EXISTING_HOSTNAME,
-				PORT,
-				ENDPOINT_NAME,
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION,
-				new Configuration());
-			fail("This should fail with an UnknownHostException");
-		} catch (UnknownHostException ignore) {
-			// expected
-		}
-	}
+    @Test
+    public void testTryAddressResolution() {
+        try {
+            AkkaRpcServiceUtils.getRpcUrl(
+                    NON_EXISTING_HOSTNAME,
+                    PORT,
+                    ENDPOINT_NAME,
+                    HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION,
+                    new Configuration());
+            fail("This should fail with an UnknownHostException");
+        } catch (UnknownHostException ignore) {
+            // expected
+        }
+    }
 }

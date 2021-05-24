@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a, b DESC FETCH FIRST 10 ROWS ONLY]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], changelogMode=[I,UA,D])
 +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], strategy=[AppendFastStrategy], changelogMode=[I,UA,D])
@@ -40,14 +40,14 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], chan
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a, b DESC LIMIT 10]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], changelogMode=[I,UA,D])
 +- SortLimit(orderBy=[a ASC, b DESC], offset=[0], fetch=[10], strategy=[AppendFastStrategy], changelogMode=[I,UA,D])
@@ -60,7 +60,7 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime], chan
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
@@ -68,7 +68,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -81,7 +81,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime LIMIT 1 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[1])
@@ -89,7 +89,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -102,7 +102,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[1])
@@ -110,7 +110,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -123,7 +123,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc, c LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], fetch=[2])
@@ -131,7 +131,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC, c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -144,7 +144,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc, c OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
@@ -152,7 +152,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -165,7 +165,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime DESC LIMIT 1 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[1])
@@ -173,7 +173,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -186,7 +186,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[1])
@@ -194,7 +194,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -207,7 +207,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
@@ -215,7 +215,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -225,7 +225,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
@@ -233,7 +233,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -246,7 +246,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
@@ -254,7 +254,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -264,7 +264,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[1])
@@ -272,7 +272,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c ASC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -285,7 +285,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[0])
@@ -293,7 +293,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -303,7 +303,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime DESC LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[1])
@@ -311,7 +311,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -324,7 +324,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c desc LIMIT 1 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[0], fetch=[1])
@@ -332,7 +332,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -345,7 +345,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c desc LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[1])
@@ -353,7 +353,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -366,7 +366,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
@@ -374,7 +374,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -387,7 +387,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime desc LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[2])
@@ -395,7 +395,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime DESC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -408,7 +408,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime desc LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[0])
@@ -416,7 +416,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -426,7 +426,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime desc LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[1])
@@ -434,7 +434,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -447,7 +447,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime desc OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[2])
@@ -455,7 +455,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime DESC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -468,7 +468,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
@@ -476,7 +476,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -489,7 +489,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
@@ -497,7 +497,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, proctime ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -510,7 +510,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
@@ -518,7 +518,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -531,7 +531,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime, c OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
@@ -539,7 +539,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime ASC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -552,7 +552,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[0])
@@ -560,7 +560,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -570,7 +570,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[1])
@@ -578,7 +578,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -591,7 +591,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 0 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[0])
@@ -599,7 +599,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -609,7 +609,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 1 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[0], fetch=[1])
@@ -617,7 +617,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -630,7 +630,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[0])
@@ -638,7 +638,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -648,7 +648,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[1], fetch=[1])
@@ -656,7 +656,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -669,7 +669,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime desc LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[2])
@@ -677,7 +677,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime DESC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -690,7 +690,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime desc OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[2])
@@ -698,7 +698,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime DESC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -711,7 +711,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], fetch=[2])
@@ -719,7 +719,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC, c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -732,7 +732,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
@@ -740,7 +740,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -753,7 +753,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc LIMIT 0 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[0])
@@ -761,7 +761,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -771,7 +771,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 1 OFFSET 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[0], fetch=[1])
@@ -779,7 +779,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -792,7 +792,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[0])
@@ -800,7 +800,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -810,7 +810,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], offset=[1], fetch=[1])
@@ -818,7 +818,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -831,7 +831,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
@@ -839,7 +839,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -849,7 +849,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
@@ -857,7 +857,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -870,7 +870,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
@@ -878,7 +878,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -888,7 +888,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[1], fetch=[1])
@@ -896,7 +896,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c ASC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -909,7 +909,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[0])
@@ -917,7 +917,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -927,7 +927,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime DESC LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[DESC-nulls-last], fetch=[1])
@@ -935,7 +935,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -948,7 +948,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c desc LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[0])
@@ -956,7 +956,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -966,7 +966,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c desc LIMIT 1 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], offset=[1], fetch=[1])
@@ -974,7 +974,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
@@ -987,7 +987,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[0])
@@ -995,7 +995,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -1005,7 +1005,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[1])
@@ -1013,7 +1013,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime ASC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -1026,7 +1026,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime DESC LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[0])
@@ -1034,7 +1034,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -1044,7 +1044,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime DESC LIMIT 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last], fetch=[1])
@@ -1052,7 +1052,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime DESC], offset=[0], fetch=[1], strategy=[AppendFastStrategy])
@@ -1065,7 +1065,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
@@ -1073,7 +1073,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -1086,7 +1086,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
@@ -1094,7 +1094,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC, rowtime ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -1107,7 +1107,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[2])
@@ -1115,7 +1115,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -1128,7 +1128,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], fetch=[2])
@@ -1136,7 +1136,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
@@ -1149,7 +1149,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first], offset=[2])
@@ -1157,7 +1157,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
@@ -1170,7 +1170,7 @@ Calc(select=[a])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[0])
@@ -1178,7 +1178,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]])
 ]]>
@@ -1188,7 +1188,7 @@ Values(tuples=[[]])
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c OFFSET 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], offset=[2])
@@ -1196,7 +1196,7 @@ LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])

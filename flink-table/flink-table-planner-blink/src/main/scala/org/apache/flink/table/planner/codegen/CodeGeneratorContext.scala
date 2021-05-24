@@ -22,20 +22,23 @@ import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.GenericRowData
-import org.apache.flink.table.data.conversion.DataStructureConverter
+import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
+import org.apache.flink.table.planner.utils.InternalConfigOptions
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.typeutils.InternalSerializers
+import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil
 
-import org.apache.calcite.avatica.util.DateTimeUtils
-
 import java.util.TimeZone
+import java.util.function.{Supplier => JSupplier}
+import java.time.ZoneId
 
 import scala.collection.mutable
 
@@ -101,6 +104,16 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // LogicalType -> reused_term
   private val reusableTypeSerializers: mutable.Map[LogicalType, String] =
     mutable.Map[LogicalType,  String]()
+
+  // map of data structure converters that will be added only once
+  // DataType -> reused_term
+  private val reusableConverters: mutable.Map[DataType, String] =
+    mutable.Map[DataType,  String]()
+
+  // map of external serializer that will be added only once
+  // DataType -> reused_term
+  private val reusableExternalSerializers: mutable.Map[DataType, String] =
+    mutable.Map[DataType,  String]()
 
   /**
     * The current method name for [[reusableLocalVariableStatements]]. You can start a new
@@ -430,9 +443,12 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable timestamp to the beginning of the SAM of the generated class.
-    */
-  def addReusableTimestamp(): String = {
+   * Adds a reusable record-level timestamp to the beginning of the SAM of the generated class.
+   *
+   * <p> The timestamp value is evaluated for per record, this
+   * function is generally used in stream job.
+   */
+  def addReusableRecordLevelCurrentTimestamp(): String = {
     val fieldTerm = s"timestamp"
 
     reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
@@ -447,36 +463,44 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable time to the beginning of the SAM of the generated [[Function]].
-    */
-  def addReusableTime(): String = {
-    val fieldTerm = s"time"
+   * Adds a reusable query-level timestamp to the beginning of the SAM of the generated class.
+   *
+   * <p> The timestamp value is evaluated once at query-start, this
+   * function is generally used in batch job.
+   */
+  def addReusableQueryLevelCurrentTimestamp(): String = {
+    val fieldTerm = s"queryStartTimestamp"
 
-    val timestamp = addReusableTimestamp()
+    val queryStartEpoch = tableConfig.getConfiguration
+      .getOptional(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME)
+      .orElseThrow(
+        new JSupplier[Throwable] {
+          override def get() = new CodeGenException(
+            "Try to obtain epoch time of query-start fail." +
+              " This is a bug, please file an issue.")
+        }
+      )
 
-    // declaration
-    reusableMemberStatements.add(s"private int $fieldTerm;")
-
-    // assignment
-    // adopted from org.apache.calcite.runtime.SqlFunctions.currentTime()
-    val field =
+    reusableMemberStatements.add(
       s"""
-         |$fieldTerm = (int) ($timestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
-         |if (time < 0) {
-         |  time += ${DateTimeUtils.MILLIS_PER_DAY};
-         |}
-         |""".stripMargin
-    reusablePerRecordStatements.add(field)
+          |private static final $TIMESTAMP_DATA $fieldTerm =
+          |$TIMESTAMP_DATA.fromEpochMillis(${queryStartEpoch}L);
+          |""".stripMargin)
     fieldTerm
   }
 
   /**
-    * Adds a reusable local date time to the beginning of the SAM of the generated class.
-    */
-  def addReusableLocalDateTime(): String = {
-    val fieldTerm = s"localtimestamp"
+   * Adds a reusable record-level local date time to the beginning of the
+   * SAM of the generated class.
+   *
+   * <p> The timestamp value is evaluated for per record, this
+   * function is generally used in stream job.
+   */
+  def addReusableRecordLevelLocalDateTime(): String = {
+    val fieldTerm = s"localTimestamp"
 
-    val timestamp = addReusableTimestamp()
+    val sessionTimeZone = addReusableSessionTimeZone()
+    val timestamp = addReusableRecordLevelCurrentTimestamp()
 
     // declaration
     reusableMemberStatements.add(s"private $TIMESTAMP_DATA $fieldTerm;")
@@ -486,55 +510,112 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       s"""
          |$fieldTerm = $TIMESTAMP_DATA.fromEpochMillis(
          |  $timestamp.getMillisecond() +
-         |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
+         |  $sessionTimeZone.getOffset($timestamp.getMillisecond()));
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
   /**
-    * Adds a reusable local time to the beginning of the SAM of the generated class.
-    */
-  def addReusableLocalTime(): String = {
-    val fieldTerm = s"localtime"
+   * Adds a reusable query-level local date time to the beginning of
+   * the SAM of the generated class.
+   *
+   * <p> The timestamp value is evaluated once at query-start, this
+   * function is generally used in batch job.
+   */
+  def addReusableQueryLevelLocalDateTime(): String = {
+    val fieldTerm = s"queryStartLocaltimestamp"
 
-    val localtimestamp = addReusableLocalDateTime()
+    val queryStartLocalTimestamp = tableConfig.getConfiguration
+      .getOptional(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME)
+      .orElseThrow(
+        new JSupplier[Throwable] {
+          override def get() = new CodeGenException(
+            "Try to obtain local time of query-start fail." +
+              " This is a bug, please file an issue.")
+        }
+      )
+
+    reusableMemberStatements.add(
+      s"""
+         |private static final $TIMESTAMP_DATA $fieldTerm =
+         |$TIMESTAMP_DATA.fromEpochMillis(${queryStartLocalTimestamp}L);
+         |""".stripMargin)
+    fieldTerm
+  }
+
+  /**
+   * Adds a reusable record-level local time to the beginning of the SAM of the generated class.
+   */
+  def addReusableRecordLevelLocalTime(): String = {
+    val fieldTerm = s"localTime"
+
+    val localtimestamp = addReusableRecordLevelLocalDateTime()
 
     // declaration
     reusableMemberStatements.add(s"private int $fieldTerm;")
+    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
 
     // assignment
-    // adopted from org.apache.calcite.runtime.SqlFunctions.localTime()
     val field =
     s"""
-       |$fieldTerm = (int) ($localtimestamp.getMillisecond() % ${DateTimeUtils.MILLIS_PER_DAY});
+       |$fieldTerm = $utilsName.getTimeInMills($localtimestamp.getMillisecond());
        |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
   }
 
   /**
-    * Adds a reusable date to the beginning of the SAM of the generated class.
+   * Adds a reusable query-level local time to the beginning of
+   * the SAM of the generated class.
+   */
+  def addReusableQueryLevelLocalTime(): String = {
+    val fieldTerm = s"queryStartLocaltime"
+
+    val queryStartLocalTimestamp = addReusableQueryLevelLocalDateTime()
+    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+    // declaration
+    reusableMemberStatements.add(
+      s"""
+          |private static final int $fieldTerm =
+          | $utilsName.getTimeInMills($queryStartLocalTimestamp.getMillisecond());
+          | """.stripMargin)
+    fieldTerm
+  }
+
+  /**
+    * Adds a reusable record-level date to the beginning of the SAM of the generated class.
     */
-  def addReusableDate(): String = {
+  def addReusableRecordLevelCurrentDate(): String = {
     val fieldTerm = s"date"
 
-    val timestamp = addReusableTimestamp()
-    val time = addReusableTime()
+    val timestamp = addReusableRecordLevelLocalDateTime()
+    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
 
     // declaration
     reusableMemberStatements.add(s"private int $fieldTerm;")
 
     // assignment
-    // adopted from org.apache.calcite.runtime.SqlFunctions.currentDate()
-    val field =
-      s"""
-         |$fieldTerm = (int) ($timestamp.getMillisecond() / ${DateTimeUtils.MILLIS_PER_DAY});
-         |if ($time < 0) {
-         |  $fieldTerm -= 1;
-         |}
-         |""".stripMargin
+    val field = s"$fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());"
+
     reusablePerRecordStatements.add(field)
+    fieldTerm
+  }
+
+  /**
+   * Adds a reusable query-level date to the beginning of the SAM of the generated class.
+   */
+  def addReusableQueryLevelCurrentDate(): String = {
+    val fieldTerm = s"queryStartDate"
+    val utilsName = classOf[SqlDateTimeUtils].getCanonicalName
+
+    val timestamp = addReusableQueryLevelLocalDateTime()
+    reusableMemberStatements.add(
+    s"""
+       |private static final int $fieldTerm =
+       | $fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());
+       |""".stripMargin)
+
     fieldTerm
   }
 
@@ -548,6 +629,18 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin
     addReusableMember(stmt)
     DEFAULT_TIMEZONE_TERM
+  }
+
+  /**
+   * Adds a reusable shift TimeZone of window to the member area of the generated class.
+   */
+  def addReusableShiftTimeZone(zoneId: ZoneId): String = {
+    val fieldTerm = s"shiftTimeZone"
+    val stmt =
+      s"""private static final java.time.ZoneId $fieldTerm =
+         |                 java.time.ZoneId.of("${zoneId.toString}");""".stripMargin
+    addReusableMember(stmt)
+    fieldTerm
   }
 
   /**
@@ -671,28 +764,33 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
    * Adds a reusable [[DataStructureConverter]] to the member area of the generated class.
    *
-   * @param converter converter to be added
+   * @param dataType converter to be added
    * @param classLoaderTerm term to access the [[ClassLoader]] for user-defined classes
    */
   def addReusableConverter(
-      converter: DataStructureConverter[_, _],
+      dataType: DataType,
       classLoaderTerm: String = null)
     : String = {
+    reusableConverters.get(dataType) match {
+      case Some(term) =>
+        term
 
-    val converterTerm = addReusableObject(converter, "converter")
-
-    val openConverter = if (classLoaderTerm != null) {
-      s"""
-         |$converterTerm.open($classLoaderTerm);
-       """.stripMargin
-    } else {
-      s"""
-         |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
-       """.stripMargin
+      case None =>
+        val converter = DataStructureConverters.getConverter(dataType)
+        val converterTerm = addReusableObject(converter, "converter")
+        val openConverter = if (classLoaderTerm != null) {
+          s"""
+             |$converterTerm.open($classLoaderTerm);
+           """.stripMargin
+        } else {
+          s"""
+             |$converterTerm.open(getRuntimeContext().getUserCodeClassLoader());
+           """.stripMargin
+        }
+        reusableOpenStatements.add(openConverter)
+        reusableConverters(dataType) = converterTerm
+        converterTerm
     }
-    reusableOpenStatements.add(openConverter)
-
-    converterTerm
   }
 
   /**
@@ -713,6 +811,25 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
         addReusableObjectInternal(ser, term, ser.getClass.getCanonicalName)
         reusableTypeSerializers(t) = term
         term
+    }
+  }
+
+  /**
+    * Adds a reusable [[ExternalSerializer]] to the member area of the generated class.
+    *
+    * @param t the internal type which used to generate internal type serializer
+    * @return member variable term
+    */
+  def addReusableExternalSerializer(t: DataType): String = {
+    reusableExternalSerializers.get(t) match {
+      case Some(term) =>
+        term
+
+      case None =>
+        val serializer = ExternalSerializer.of(t)
+        val serializerTerm = addReusableObject(serializer, "externalSerializer")
+        reusableExternalSerializers(t) = serializerTerm
+        serializerTerm
     }
   }
 

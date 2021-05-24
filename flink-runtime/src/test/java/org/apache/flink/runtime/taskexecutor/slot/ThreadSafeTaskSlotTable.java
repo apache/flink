@@ -40,167 +40,185 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Testing implementation of {@link TaskSlotTable}.
- * This class wraps a given {@link TaskSlotTable}, guarantees all the accesses are invoked on the given {@link MainThreadExecutable}.
+ * Testing implementation of {@link TaskSlotTable}. This class wraps a given {@link TaskSlotTable},
+ * guarantees all the accesses are invoked on the given {@link MainThreadExecutable}.
  */
 public class ThreadSafeTaskSlotTable<T extends TaskSlotPayload> implements TaskSlotTable<T> {
 
-	private final TaskSlotTable<T> taskSlotTable;
-	private final MainThreadExecutable mainThreadExecutable;
+    private final TaskSlotTable<T> taskSlotTable;
+    private final MainThreadExecutable mainThreadExecutable;
 
-	public ThreadSafeTaskSlotTable(
-			final TaskSlotTable<T> taskSlotTable,
-			final MainThreadExecutable mainThreadExecutable) {
-		this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
-		this.mainThreadExecutable = Preconditions.checkNotNull(mainThreadExecutable);
-	}
+    public ThreadSafeTaskSlotTable(
+            final TaskSlotTable<T> taskSlotTable, final MainThreadExecutable mainThreadExecutable) {
+        this.taskSlotTable = Preconditions.checkNotNull(taskSlotTable);
+        this.mainThreadExecutable = Preconditions.checkNotNull(mainThreadExecutable);
+    }
 
-	private void runAsync(Runnable runnable) {
-		mainThreadExecutable.runAsync(runnable);
-	}
+    private void runAsync(Runnable runnable) {
+        mainThreadExecutable.runAsync(runnable);
+    }
 
-	private <V> V callAsync(Callable<V> callable) {
-		try {
-			return mainThreadExecutable.callAsync(
-				callable,
-				Time.days(1) // practically infinite timeout
-			).get();
-		} catch (InterruptedException | ExecutionException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    private <V> V callAsync(Callable<V> callable) {
+        try {
+            return mainThreadExecutable
+                    .callAsync(
+                            callable, Time.days(1) // practically infinite timeout
+                            )
+                    .get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public void start(SlotActions initialSlotActions, ComponentMainThreadExecutor mainThreadExecutor) {
-		runAsync(() -> taskSlotTable.start(initialSlotActions, mainThreadExecutor));
-	}
+    @Override
+    public void start(
+            SlotActions initialSlotActions, ComponentMainThreadExecutor mainThreadExecutor) {
+        runAsync(() -> taskSlotTable.start(initialSlotActions, mainThreadExecutor));
+    }
 
-	@Override
-	public Set<AllocationID> getAllocationIdsPerJob(JobID jobId) {
-		return callAsync(() -> taskSlotTable.getAllocationIdsPerJob(jobId));
-	}
+    @Override
+    public Set<AllocationID> getAllocationIdsPerJob(JobID jobId) {
+        return callAsync(() -> taskSlotTable.getAllocationIdsPerJob(jobId));
+    }
 
-	@Override
-	public SlotReport createSlotReport(ResourceID resourceId) {
-		return callAsync(() -> taskSlotTable.createSlotReport(resourceId));
-	}
+    @Override
+    public Set<AllocationID> getActiveTaskSlotAllocationIds() {
+        return callAsync(taskSlotTable::getActiveTaskSlotAllocationIds);
+    }
 
-	@Override
-	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
-		return callAsync(() -> taskSlotTable.allocateSlot(index, jobId, allocationId, slotTimeout));
-	}
+    @Override
+    public Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId) {
+        return callAsync(() -> taskSlotTable.getActiveTaskSlotAllocationIdsPerJob(jobId));
+    }
 
-	@Override
-	public boolean allocateSlot(int index, JobID jobId, AllocationID allocationId, ResourceProfile resourceProfile, Time slotTimeout) {
-		return callAsync(() -> taskSlotTable.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout));
-	}
+    @Override
+    public SlotReport createSlotReport(ResourceID resourceId) {
+        return callAsync(() -> taskSlotTable.createSlotReport(resourceId));
+    }
 
-	@Override
-	public boolean markSlotActive(AllocationID allocationId) throws SlotNotFoundException {
-		return callAsync(() -> taskSlotTable.markSlotActive(allocationId));
-	}
+    @Override
+    public boolean allocateSlot(
+            int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
+        return callAsync(() -> taskSlotTable.allocateSlot(index, jobId, allocationId, slotTimeout));
+    }
 
-	@Override
-	public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout) throws SlotNotFoundException {
-		return callAsync(() -> taskSlotTable.markSlotInactive(allocationId, slotTimeout));
-	}
+    @Override
+    public boolean allocateSlot(
+            int index,
+            JobID jobId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            Time slotTimeout) {
+        return callAsync(
+                () ->
+                        taskSlotTable.allocateSlot(
+                                index, jobId, allocationId, resourceProfile, slotTimeout));
+    }
 
-	@Override
-	public int freeSlot(AllocationID allocationId) throws SlotNotFoundException {
-		return callAsync(() -> taskSlotTable.freeSlot(allocationId));
-	}
+    @Override
+    public boolean markSlotActive(AllocationID allocationId) throws SlotNotFoundException {
+        return callAsync(() -> taskSlotTable.markSlotActive(allocationId));
+    }
 
-	@Override
-	public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
-		return callAsync(() -> taskSlotTable.freeSlot(allocationId, cause));
-	}
+    @Override
+    public boolean markSlotInactive(AllocationID allocationId, Time slotTimeout)
+            throws SlotNotFoundException {
+        return callAsync(() -> taskSlotTable.markSlotInactive(allocationId, slotTimeout));
+    }
 
-	@Override
-	public boolean isValidTimeout(AllocationID allocationId, UUID ticket) {
-		return callAsync(() -> taskSlotTable.isValidTimeout(allocationId, ticket));
-	}
+    @Override
+    public int freeSlot(AllocationID allocationId) throws SlotNotFoundException {
+        return callAsync(() -> taskSlotTable.freeSlot(allocationId));
+    }
 
-	@Override
-	public boolean isAllocated(int index, JobID jobId, AllocationID allocationId) {
-		return callAsync(() -> taskSlotTable.isAllocated(index, jobId, allocationId));
-	}
+    @Override
+    public int freeSlot(AllocationID allocationId, Throwable cause) throws SlotNotFoundException {
+        return callAsync(() -> taskSlotTable.freeSlot(allocationId, cause));
+    }
 
-	@Override
-	public boolean tryMarkSlotActive(JobID jobId, AllocationID allocationId) {
-		return callAsync(() -> taskSlotTable.tryMarkSlotActive(jobId, allocationId));
-	}
+    @Override
+    public boolean isValidTimeout(AllocationID allocationId, UUID ticket) {
+        return callAsync(() -> taskSlotTable.isValidTimeout(allocationId, ticket));
+    }
 
-	@Override
-	public boolean isSlotFree(int index) {
-		return callAsync(() -> taskSlotTable.isSlotFree(index));
-	}
+    @Override
+    public boolean isAllocated(int index, JobID jobId, AllocationID allocationId) {
+        return callAsync(() -> taskSlotTable.isAllocated(index, jobId, allocationId));
+    }
 
-	@Override
-	public boolean hasAllocatedSlots(JobID jobId) {
-		return callAsync(() -> taskSlotTable.hasAllocatedSlots(jobId));
-	}
+    @Override
+    public boolean tryMarkSlotActive(JobID jobId, AllocationID allocationId) {
+        return callAsync(() -> taskSlotTable.tryMarkSlotActive(jobId, allocationId));
+    }
 
-	@Override
-	public Iterator<TaskSlot<T>> getAllocatedSlots(JobID jobId) {
-		return callAsync(() -> taskSlotTable.getAllocatedSlots(jobId));
-	}
+    @Override
+    public boolean isSlotFree(int index) {
+        return callAsync(() -> taskSlotTable.isSlotFree(index));
+    }
 
-	@Override
-	public Iterator<AllocationID> getActiveSlots(JobID jobId) {
-		return callAsync(() -> taskSlotTable.getActiveSlots(jobId));
-	}
+    @Override
+    public boolean hasAllocatedSlots(JobID jobId) {
+        return callAsync(() -> taskSlotTable.hasAllocatedSlots(jobId));
+    }
 
-	@Nullable
-	@Override
-	public JobID getOwningJob(AllocationID allocationId) {
-		return callAsync(() -> taskSlotTable.getOwningJob(allocationId));
-	}
+    @Override
+    public Iterator<TaskSlot<T>> getAllocatedSlots(JobID jobId) {
+        return callAsync(() -> taskSlotTable.getAllocatedSlots(jobId));
+    }
 
-	@Override
-	public boolean addTask(T task) throws SlotNotFoundException, SlotNotActiveException {
-		return callAsync(() -> taskSlotTable.addTask(task));
-	}
+    @Nullable
+    @Override
+    public JobID getOwningJob(AllocationID allocationId) {
+        return callAsync(() -> taskSlotTable.getOwningJob(allocationId));
+    }
 
-	@Override
-	public T removeTask(ExecutionAttemptID executionAttemptID) {
-		return callAsync(() -> taskSlotTable.removeTask(executionAttemptID));
-	}
+    @Override
+    public boolean addTask(T task) throws SlotNotFoundException, SlotNotActiveException {
+        return callAsync(() -> taskSlotTable.addTask(task));
+    }
 
-	@Override
-	public T getTask(ExecutionAttemptID executionAttemptID) {
-		return callAsync(() -> taskSlotTable.getTask(executionAttemptID));
-	}
+    @Override
+    public T removeTask(ExecutionAttemptID executionAttemptID) {
+        return callAsync(() -> taskSlotTable.removeTask(executionAttemptID));
+    }
 
-	@Override
-	public Iterator<T> getTasks(JobID jobId) {
-		return callAsync(() -> taskSlotTable.getTasks(jobId));
-	}
+    @Override
+    public T getTask(ExecutionAttemptID executionAttemptID) {
+        return callAsync(() -> taskSlotTable.getTask(executionAttemptID));
+    }
 
-	@Override
-	public AllocationID getCurrentAllocation(int index) {
-		return callAsync(() -> taskSlotTable.getCurrentAllocation(index));
-	}
+    @Override
+    public Iterator<T> getTasks(JobID jobId) {
+        return callAsync(() -> taskSlotTable.getTasks(jobId));
+    }
 
-	@Override
-	public MemoryManager getTaskMemoryManager(AllocationID allocationID) throws SlotNotFoundException {
-		return callAsync(() -> taskSlotTable.getTaskMemoryManager(allocationID));
-	}
+    @Override
+    public AllocationID getCurrentAllocation(int index) {
+        return callAsync(() -> taskSlotTable.getCurrentAllocation(index));
+    }
 
-	@Override
-	public void notifyTimeout(AllocationID key, UUID ticket) {
-		runAsync(() -> taskSlotTable.notifyTimeout(key, ticket));
-	}
+    @Override
+    public MemoryManager getTaskMemoryManager(AllocationID allocationID)
+            throws SlotNotFoundException {
+        return callAsync(() -> taskSlotTable.getTaskMemoryManager(allocationID));
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		return callAsync(taskSlotTable::closeAsync);
-	}
+    @Override
+    public void notifyTimeout(AllocationID key, UUID ticket) {
+        runAsync(() -> taskSlotTable.notifyTimeout(key, ticket));
+    }
 
-	@Override
-	public void close() throws Exception {
-		callAsync(() -> {
-			taskSlotTable.close();
-			return null;
-		});
-	}
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        return callAsync(taskSlotTable::closeAsync);
+    }
+
+    @Override
+    public void close() throws Exception {
+        callAsync(
+                () -> {
+                    taskSlotTable.close();
+                    return null;
+                });
+    }
 }

@@ -20,9 +20,11 @@ from abc import ABCMeta
 from collections import OrderedDict
 
 from py4j.java_gateway import get_method
+from typing import Dict, Union
 
 from pyflink.java_gateway import get_gateway
-from pyflink.table.types import _to_java_type
+from pyflink.table.table_schema import TableSchema
+from pyflink.table.types import _to_java_type, DataType
 
 __all__ = [
     'Rowtime',
@@ -31,7 +33,6 @@ __all__ = [
     'FileSystem',
     'Kafka',
     'Elasticsearch',
-    'HBase',
     'Csv',
     'Avro',
     'Json',
@@ -43,7 +44,7 @@ __all__ = [
 ]
 
 
-class Descriptor(object):
+class Descriptor(object, metaclass=ABCMeta):
     """
     Base class of the descriptors that adds a set of string-based, normalized properties for
     describing DDL information.
@@ -57,12 +58,10 @@ class Descriptor(object):
     properties.
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, j_descriptor):
         self._j_descriptor = j_descriptor
 
-    def to_properties(self):
+    def to_properties(self) -> Dict:
         """
         Converts this descriptor into a dict of properties.
 
@@ -81,7 +80,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = gateway.jvm.Rowtime()
         super(Rowtime, self).__init__(self._j_rowtime)
 
-    def timestamps_from_field(self, field_name):
+    def timestamps_from_field(self, field_name: str):
         """
         Sets a built-in timestamp extractor that converts an existing LONG or TIMESTAMP field into
         the rowtime attribute.
@@ -92,7 +91,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.timestampsFromField(field_name)
         return self
 
-    def timestamps_from_source(self):
+    def timestamps_from_source(self) -> 'Rowtime':
         """
         Sets a built-in timestamp extractor that converts the assigned timestamps from a DataStream
         API record into the rowtime attribute and thus preserves the assigned timestamps from the
@@ -107,7 +106,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.timestampsFromSource()
         return self
 
-    def timestamps_from_extractor(self, extractor):
+    def timestamps_from_extractor(self, extractor: str) -> 'Rowtime':
         """
         Sets a custom timestamp extractor to be used for the rowtime attribute.
 
@@ -123,7 +122,7 @@ class Rowtime(Descriptor):
                    .newInstance())
         return self
 
-    def watermarks_periodic_ascending(self):
+    def watermarks_periodic_ascending(self) -> 'Rowtime':
         """
         Sets a built-in watermark strategy for ascending rowtime attributes.
 
@@ -135,7 +134,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksPeriodicAscending()
         return self
 
-    def watermarks_periodic_bounded(self, delay):
+    def watermarks_periodic_bounded(self, delay: int) -> 'Rowtime':
         """
         Sets a built-in watermark strategy for rowtime attributes which are out-of-order by a
         bounded time interval.
@@ -148,7 +147,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksPeriodicBounded(delay)
         return self
 
-    def watermarks_from_source(self):
+    def watermarks_from_source(self) -> 'Rowtime':
         """
         Sets a built-in watermark strategy which indicates the watermarks should be preserved from
         the underlying DataStream API and thus preserves the assigned watermarks from the source.
@@ -158,7 +157,7 @@ class Rowtime(Descriptor):
         self._j_rowtime = self._j_rowtime.watermarksFromSource()
         return self
 
-    def watermarks_from_strategy(self, strategy):
+    def watermarks_from_strategy(self, strategy: str) -> 'Rowtime':
         """
         Sets a custom watermark strategy to be used for the rowtime attribute.
 
@@ -193,7 +192,7 @@ class Schema(Descriptor):
                         event-time attribute.
         """
         gateway = get_gateway()
-        self._j_schema = gateway.jvm.Schema()
+        self._j_schema = gateway.jvm.org.apache.flink.table.descriptors.Schema()
         super(Schema, self).__init__(self._j_schema)
 
         if schema is not None:
@@ -205,7 +204,7 @@ class Schema(Descriptor):
         if rowtime is not None:
             self.rowtime(rowtime)
 
-    def schema(self, table_schema):
+    def schema(self, table_schema: 'TableSchema') -> 'Schema':
         """
         Sets the schema with field names and the types. Required.
 
@@ -218,7 +217,7 @@ class Schema(Descriptor):
         self._j_schema = self._j_schema.schema(table_schema._j_table_schema)
         return self
 
-    def field(self, field_name, field_type):
+    def field(self, field_name: str, field_type: Union[DataType, str]) -> 'Schema':
         """
         Adds a field with the field name and the data type or type string. Required.
         This method can be called multiple times. The call order of this method defines
@@ -235,7 +234,7 @@ class Schema(Descriptor):
             self._j_schema = self._j_schema.field(field_name, _to_java_type(field_type))
         return self
 
-    def fields(self, fields):
+    def fields(self, fields: Dict[str, Union[DataType, str]]) -> 'Schema':
         """
         Adds a set of fields with the field name and the data type or type string stored in a
         list.
@@ -257,7 +256,7 @@ class Schema(Descriptor):
             self.field(field_name=field_name, field_type=field_type)
         return self
 
-    def from_origin_field(self, origin_field_name):
+    def from_origin_field(self, origin_field_name: str) -> 'Schema':
         """
         Specifies the origin of the previously defined field. The origin field is defined by a
         connector or format.
@@ -274,18 +273,18 @@ class Schema(Descriptor):
         self._j_schema = get_method(self._j_schema, "from")(origin_field_name)
         return self
 
-    def proctime(self):
+    def proctime(self) -> 'Schema':
         """
         Specifies the previously defined field as a processing-time attribute.
 
-        E.g. field("proctime", Types.SQL_TIMESTAMP).proctime()
+        E.g. field("proctime", Types.SQL_TIMESTAMP_LTZ).proctime()
 
         :return: This schema object.
         """
         self._j_schema = self._j_schema.proctime()
         return self
 
-    def rowtime(self, rowtime):
+    def rowtime(self, rowtime: Rowtime) -> 'Schema':
         """
         Specifies the previously defined field as an event-time attribute.
 
@@ -298,12 +297,10 @@ class Schema(Descriptor):
         return self
 
 
-class FormatDescriptor(Descriptor):
+class FormatDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Describes the format of data.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_format_descriptor):
         self._j_format_descriptor = j_format_descriptor
@@ -365,7 +362,7 @@ class OldCsv(FormatDescriptor):
         if ignore_first_line:
             self.ignore_first_line()
 
-    def field_delimiter(self, delimiter):
+    def field_delimiter(self, delimiter: str) -> 'OldCsv':
         """
         Sets the field delimiter, "," by default.
 
@@ -375,7 +372,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.fieldDelimiter(delimiter)
         return self
 
-    def line_delimiter(self, delimiter):
+    def line_delimiter(self, delimiter: str) -> 'OldCsv':
         r"""
         Sets the line delimiter, "\\n" by default.
 
@@ -385,7 +382,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.lineDelimiter(delimiter)
         return self
 
-    def schema(self, table_schema):
+    def schema(self, table_schema: 'TableSchema') -> 'OldCsv':
         """
         Sets the schema with field names and the types. Required.
 
@@ -398,7 +395,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.schema(table_schema._j_table_schema)
         return self
 
-    def field(self, field_name, field_type):
+    def field(self, field_name: str, field_type: Union[DataType, str]) -> 'OldCsv':
         """
         Adds a format field with the field name and the data type or type string. Required.
         This method can be called multiple times. The call order of this method defines
@@ -414,7 +411,7 @@ class OldCsv(FormatDescriptor):
             self._j_csv = self._j_csv.field(field_name, _to_java_type(field_type))
         return self
 
-    def quote_character(self, quote_character):
+    def quote_character(self, quote_character: str) -> 'OldCsv':
         """
         Sets a quote character for String values, null by default.
 
@@ -424,7 +421,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.quoteCharacter(quote_character)
         return self
 
-    def comment_prefix(self, prefix):
+    def comment_prefix(self, prefix: str) -> 'OldCsv':
         """
         Sets a prefix to indicate comments, null by default.
 
@@ -434,7 +431,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.commentPrefix(prefix)
         return self
 
-    def ignore_parse_errors(self):
+    def ignore_parse_errors(self) -> 'OldCsv':
         """
         Skip records with parse error instead to fail. Throw an exception by default.
 
@@ -443,7 +440,7 @@ class OldCsv(FormatDescriptor):
         self._j_csv = self._j_csv.ignoreParseErrors()
         return self
 
-    def ignore_first_line(self):
+    def ignore_first_line(self) -> 'OldCsv':
         """
         Ignore the first line. Not skip the first line by default.
 
@@ -516,7 +513,7 @@ class Csv(FormatDescriptor):
         if null_literal is not None:
             self.null_literal(null_literal)
 
-    def field_delimiter(self, delimiter):
+    def field_delimiter(self, delimiter: str) -> 'Csv':
         """
         Sets the field delimiter character (',' by default).
 
@@ -528,7 +525,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.fieldDelimiter(delimiter)
         return self
 
-    def line_delimiter(self, delimiter):
+    def line_delimiter(self, delimiter: str) -> 'Csv':
         r"""
         Sets the line delimiter ("\\n" by default; otherwise "\\r" or "\\r\\n" are allowed).
 
@@ -538,7 +535,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.lineDelimiter(delimiter)
         return self
 
-    def quote_character(self, quote_character):
+    def quote_character(self, quote_character: str) -> 'Csv':
         """
         Sets the field delimiter character (',' by default).
 
@@ -550,7 +547,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.quoteCharacter(quote_character)
         return self
 
-    def allow_comments(self):
+    def allow_comments(self) -> 'Csv':
         """
         Ignores comment lines that start with '#' (disabled by default). If enabled, make sure to
         also ignore parse errors to allow empty rows.
@@ -560,7 +557,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.allowComments()
         return self
 
-    def ignore_parse_errors(self):
+    def ignore_parse_errors(self) -> 'Csv':
         """
         Skip records with parse error instead to fail. Throw an exception by default.
 
@@ -569,7 +566,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.ignoreParseErrors()
         return self
 
-    def array_element_delimiter(self, delimiter):
+    def array_element_delimiter(self, delimiter: str) -> 'Csv':
         """
         Sets the array element delimiter string for separating array or row element
         values (";" by default).
@@ -580,7 +577,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.arrayElementDelimiter(delimiter)
         return self
 
-    def escape_character(self, escape_character):
+    def escape_character(self, escape_character: str) -> 'Csv':
         """
         Sets the escape character for escaping values (disabled by default).
 
@@ -592,7 +589,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.escapeCharacter(escape_character)
         return self
 
-    def null_literal(self, null_literal):
+    def null_literal(self, null_literal: str) -> 'Csv':
         """
         Sets the null literal string that is interpreted as a null value (disabled by default).
 
@@ -602,7 +599,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.nullLiteral(null_literal)
         return self
 
-    def schema(self, schema_data_type):
+    def schema(self, schema_data_type: DataType) -> 'Csv':
         """
         Sets the format schema with field names and the types. Required if schema is not derived.
 
@@ -612,7 +609,7 @@ class Csv(FormatDescriptor):
         self._j_csv = self._j_csv.schema(_to_java_type(schema_data_type))
         return self
 
-    def derive_schema(self):
+    def derive_schema(self) -> 'Csv':
         """
         Derives the format schema from the table's schema. Required if no format schema is defined.
 
@@ -650,7 +647,7 @@ class Avro(FormatDescriptor):
         if avro_schema is not None:
             self.avro_schema(avro_schema)
 
-    def record_class(self, record_class):
+    def record_class(self, record_class: str) -> 'Avro':
         """
         Sets the class of the Avro specific record.
 
@@ -662,7 +659,7 @@ class Avro(FormatDescriptor):
         self._j_avro = self._j_avro.recordClass(clz)
         return self
 
-    def avro_schema(self, avro_schema):
+    def avro_schema(self, avro_schema: str) -> 'Avro':
         """
         Sets the Avro schema for specific or generic Avro records.
 
@@ -699,7 +696,7 @@ class Json(FormatDescriptor):
         if derive_schema:
             self.derive_schema()
 
-    def fail_on_missing_field(self, fail_on_missing_field):
+    def fail_on_missing_field(self, fail_on_missing_field: bool) -> 'Json':
         """
         Sets flag whether to fail if a field is missing or not.
 
@@ -713,7 +710,7 @@ class Json(FormatDescriptor):
         self._j_json = self._j_json.failOnMissingField(fail_on_missing_field)
         return self
 
-    def ignore_parse_errors(self, ignore_parse_errors):
+    def ignore_parse_errors(self, ignore_parse_errors: bool) -> 'Json':
         """
         Sets flag whether to fail when parsing json fails.
 
@@ -726,7 +723,7 @@ class Json(FormatDescriptor):
         self._j_json = self._j_json.ignoreParseErrors(ignore_parse_errors)
         return self
 
-    def json_schema(self, json_schema):
+    def json_schema(self, json_schema: str) -> 'Json':
         """
         Sets the JSON schema string with field names and the types according to the JSON schema
         specification: http://json-schema.org/specification.html
@@ -739,7 +736,7 @@ class Json(FormatDescriptor):
         self._j_json = self._j_json.jsonSchema(json_schema)
         return self
 
-    def schema(self, schema_data_type):
+    def schema(self, schema_data_type: DataType) -> 'Json':
         """
         Sets the schema using :class:`DataTypes`.
 
@@ -753,7 +750,7 @@ class Json(FormatDescriptor):
         self._j_json = self._j_json.schema(_to_java_type(schema_data_type))
         return self
 
-    def derive_schema(self):
+    def derive_schema(self) -> 'Json':
         """
         Derives the format schema from the table's schema described.
 
@@ -790,7 +787,7 @@ class CustomFormatDescriptor(FormatDescriptor):
         super(CustomFormatDescriptor, self).__init__(
             gateway.jvm.CustomFormatDescriptor(type, version))
 
-    def property(self, key, value):
+    def property(self, key: str, value: str) -> 'CustomFormatDescriptor':
         """
         Adds a configuration property for the format.
 
@@ -806,7 +803,7 @@ class CustomFormatDescriptor(FormatDescriptor):
         self._j_format_descriptor = self._j_format_descriptor.property(key, value)
         return self
 
-    def properties(self, property_dict):
+    def properties(self, property_dict: Dict[str, str]) -> 'CustomFormatDescriptor':
         """
         Adds a set of properties for the format.
 
@@ -821,12 +818,10 @@ class CustomFormatDescriptor(FormatDescriptor):
         return self
 
 
-class ConnectorDescriptor(Descriptor):
+class ConnectorDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Describes a connector to an other system.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_connector_descriptor):
         self._j_connector_descriptor = j_connector_descriptor
@@ -851,7 +846,7 @@ class FileSystem(ConnectorDescriptor):
         if path is not None:
             self.path(path)
 
-    def path(self, path_str):
+    def path(self, path_str: str) -> 'FileSystem':
         """
         Sets the path to a file or directory in a file system.
 
@@ -933,7 +928,7 @@ class Kafka(ConnectorDescriptor):
         if custom_partitioner_class_name is not None:
             self.sink_partitioner_custom(custom_partitioner_class_name)
 
-    def version(self, version):
+    def version(self, version: str) -> 'Kafka':
         """
         Sets the Kafka version to be used.
 
@@ -945,7 +940,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.version(version)
         return self
 
-    def topic(self, topic):
+    def topic(self, topic: str) -> 'Kafka':
         """
         Sets the topic from which the table is read.
 
@@ -955,7 +950,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.topic(topic)
         return self
 
-    def properties(self, property_dict):
+    def properties(self, property_dict: Dict[str, str]) -> 'Kafka':
         """
         Sets the configuration properties for the Kafka consumer. Resets previously set properties.
 
@@ -970,7 +965,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.properties(properties)
         return self
 
-    def property(self, key, value):
+    def property(self, key: str, value: str) -> 'Kafka':
         """
         Adds a configuration properties for the Kafka consumer.
 
@@ -981,7 +976,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.property(key, value)
         return self
 
-    def start_from_earliest(self):
+    def start_from_earliest(self) -> 'Kafka':
         """
         Specifies the consumer to start reading from the earliest offset for all partitions.
         This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
@@ -995,7 +990,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromEarliest()
         return self
 
-    def start_from_latest(self):
+    def start_from_latest(self) -> 'Kafka':
         """
         Specifies the consumer to start reading from the latest offset for all partitions.
         This lets the consumer ignore any committed group offsets in Zookeeper / Kafka brokers.
@@ -1009,7 +1004,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromLatest()
         return self
 
-    def start_from_group_offsets(self):
+    def start_from_group_offsets(self) -> 'Kafka':
         """
         Specifies the consumer to start reading from any committed group offsets found
         in Zookeeper / Kafka brokers. The "group.id" property must be set in the configuration
@@ -1025,7 +1020,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromGroupOffsets()
         return self
 
-    def start_from_specific_offsets(self, specific_offsets_dict):
+    def start_from_specific_offsets(self, specific_offsets_dict: Dict[int, int]) -> 'Kafka':
         """
         Specifies the consumer to start reading partitions from specific offsets, set independently
         for each partition. The specified offset should be the offset of the next record that will
@@ -1055,7 +1050,7 @@ class Kafka(ConnectorDescriptor):
             self.start_from_specific_offset(key, specific_offsets_dict[key])
         return self
 
-    def start_from_specific_offset(self, partition, specific_offset):
+    def start_from_specific_offset(self, partition: int, specific_offset: int) -> 'Kafka':
         """
         Configures to start reading partitions from specific offsets and specifies the given offset
         for the given partition.
@@ -1069,7 +1064,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromSpecificOffset(int(partition), int(specific_offset))
         return self
 
-    def start_from_timestamp(self, timestamp):
+    def start_from_timestamp(self, timestamp: int) -> 'Kafka':
         """
         Specifies the consumer to start reading partitions from a specified timestamp.
         The specified timestamp must be before the current timestamp.
@@ -1091,7 +1086,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.startFromTimestamp(int(timestamp))
         return self
 
-    def sink_partitioner_fixed(self):
+    def sink_partitioner_fixed(self) -> 'Kafka':
         """
         Configures how to partition records from Flink's partitions into Kafka's partitions.
 
@@ -1124,7 +1119,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.sinkPartitionerFixed()
         return self
 
-    def sink_partitioner_round_robin(self):
+    def sink_partitioner_round_robin(self) -> 'Kafka':
         """
         Configures how to partition records from Flink's partitions into Kafka's partitions.
 
@@ -1141,7 +1136,7 @@ class Kafka(ConnectorDescriptor):
         self._j_kafka = self._j_kafka.sinkPartitionerRoundRobin()
         return self
 
-    def sink_partitioner_custom(self, partitioner_class_name):
+    def sink_partitioner_custom(self, partitioner_class_name: str) -> 'Kafka':
         """
         Configures how to partition records from Flink's partitions into Kafka's partitions.
 
@@ -1273,7 +1268,7 @@ class Elasticsearch(ConnectorDescriptor):
         if connection_path_prefix is not None:
             self.connection_path_prefix(connection_path_prefix)
 
-    def version(self, version):
+    def version(self, version: str) -> 'Elasticsearch':
         """
         Sets the Elasticsearch version to be used. Required.
 
@@ -1285,7 +1280,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.version(version)
         return self
 
-    def host(self, hostname, port, protocol):
+    def host(self, hostname: str, port: Union[int, str], protocol: str) -> 'Elasticsearch':
         """
         Adds an Elasticsearch host to connect to. Required.
 
@@ -1299,7 +1294,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.host(hostname, int(port), protocol)
         return self
 
-    def index(self, index):
+    def index(self, index: str) -> 'Elasticsearch':
         """
         Declares the Elasticsearch index for every record. Required.
 
@@ -1309,7 +1304,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.index(index)
         return self
 
-    def document_type(self, document_type):
+    def document_type(self, document_type: str) -> 'Elasticsearch':
         """
         Declares the Elasticsearch document type for every record. Required.
 
@@ -1319,7 +1314,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.documentType(document_type)
         return self
 
-    def key_delimiter(self, key_delimiter):
+    def key_delimiter(self, key_delimiter: str) -> 'Elasticsearch':
         """
         Sets a custom key delimiter in case the Elasticsearch ID needs to be constructed from
         multiple fields. Optional.
@@ -1330,7 +1325,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.keyDelimiter(key_delimiter)
         return self
 
-    def key_null_literal(self, key_null_literal):
+    def key_null_literal(self, key_null_literal: str) -> 'Elasticsearch':
         """
         Sets a custom representation for null fields in keys. Optional.
 
@@ -1341,7 +1336,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.keyNullLiteral(key_null_literal)
         return self
 
-    def failure_handler_fail(self):
+    def failure_handler_fail(self) -> 'Elasticsearch':
         """
         Configures a failure handling strategy in case a request to Elasticsearch fails.
 
@@ -1352,7 +1347,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.failureHandlerFail()
         return self
 
-    def failure_handler_ignore(self):
+    def failure_handler_ignore(self) -> 'Elasticsearch':
         """
         Configures a failure handling strategy in case a request to Elasticsearch fails.
 
@@ -1363,7 +1358,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.failureHandlerIgnore()
         return self
 
-    def failure_handler_retry_rejected(self):
+    def failure_handler_retry_rejected(self) -> 'Elasticsearch':
         """
         Configures a failure handling strategy in case a request to Elasticsearch fails.
 
@@ -1374,7 +1369,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.failureHandlerRetryRejected()
         return self
 
-    def failure_handler_custom(self, failure_handler_class_name):
+    def failure_handler_custom(self, failure_handler_class_name: str) -> 'Elasticsearch':
         """
         Configures a failure handling strategy in case a request to Elasticsearch fails.
 
@@ -1389,7 +1384,7 @@ class Elasticsearch(ConnectorDescriptor):
                    .loadClass(failure_handler_class_name))
         return self
 
-    def disable_flush_on_checkpoint(self):
+    def disable_flush_on_checkpoint(self) -> 'Elasticsearch':
         """
         Disables flushing on checkpoint. When disabled, a sink will not wait for all pending action
         requests to be acknowledged by Elasticsearch on checkpoints.
@@ -1404,7 +1399,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.disableFlushOnCheckpoint()
         return self
 
-    def bulk_flush_max_actions(self, max_actions_num):
+    def bulk_flush_max_actions(self, max_actions_num: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1417,7 +1412,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushMaxActions(int(max_actions_num))
         return self
 
-    def bulk_flush_max_size(self, max_size):
+    def bulk_flush_max_size(self, max_size: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1431,7 +1426,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushMaxSize(max_size)
         return self
 
-    def bulk_flush_interval(self, interval):
+    def bulk_flush_interval(self, interval: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1444,7 +1439,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushInterval(int(interval))
         return self
 
-    def bulk_flush_backoff_constant(self):
+    def bulk_flush_backoff_constant(self) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1456,7 +1451,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffConstant()
         return self
 
-    def bulk_flush_backoff_exponential(self):
+    def bulk_flush_backoff_exponential(self) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1468,7 +1463,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffExponential()
         return self
 
-    def bulk_flush_backoff_max_retries(self, max_retries):
+    def bulk_flush_backoff_max_retries(self, max_retries: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1485,7 +1480,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffMaxRetries(int(max_retries))
         return self
 
-    def bulk_flush_backoff_delay(self, delay):
+    def bulk_flush_backoff_delay(self, delay: int) -> 'Elasticsearch':
         """
         Configures how to buffer elements before sending them in bulk to the cluster for
         efficiency.
@@ -1503,7 +1498,7 @@ class Elasticsearch(ConnectorDescriptor):
         self._j_elasticsearch = self._j_elasticsearch.bulkFlushBackoffDelay(int(delay))
         return self
 
-    def connection_max_retry_timeout(self, max_retry_timeout):
+    def connection_max_retry_timeout(self, max_retry_timeout: int) -> 'Elasticsearch':
         """
         Sets connection properties to be used during REST communication to Elasticsearch.
 
@@ -1516,7 +1511,7 @@ class Elasticsearch(ConnectorDescriptor):
             int(max_retry_timeout))
         return self
 
-    def connection_path_prefix(self, path_prefix):
+    def connection_path_prefix(self, path_prefix: str) -> 'Elasticsearch':
         """
         Sets connection properties to be used during REST communication to Elasticsearch.
 
@@ -1526,156 +1521,6 @@ class Elasticsearch(ConnectorDescriptor):
         :return: This object.
         """
         self._j_elasticsearch = self._j_elasticsearch.connectionPathPrefix(path_prefix)
-        return self
-
-
-class HBase(ConnectorDescriptor):
-    """
-    Connector descriptor for Apache HBase.
-
-    .. versionadded:: 1.11.0
-    """
-
-    def __init__(self, version=None, table_name=None, zookeeper_quorum=None,
-                 zookeeper_node_parent=None, write_buffer_flush_max_size=None,
-                 write_buffer_flush_max_rows=None, write_buffer_flush_interval=None):
-        """
-        Constructor of HBase descriptor.
-
-        :param version: HBase version. E.g., "1.4.3".
-        :param table_name: Name of HBase table. E.g., "testNamespace:testTable", "testDefaultTable"
-        :param zookeeper_quorum: zookeeper quorum address to connect the HBase cluster. E.g.,
-                                 "localhost:2181,localhost:2182,localhost:2183"
-        :param zookeeper_node_parent: zookeeper node path of hbase cluster. E.g,
-                                      "/hbase/example-root-znode".
-        :param write_buffer_flush_max_size: the maximum size.
-        :param write_buffer_flush_max_rows: number of added rows when begin the request flushing.
-        :param write_buffer_flush_interval: flush interval. The string should be in format
-                                            "{length value}{time unit label}" E.g, "123ms", "1 s",
-                                            if not time unit label is specified, it will be
-                                            considered as milliseconds.
-        """
-        gateway = get_gateway()
-        self._j_hbase = gateway.jvm.HBase()
-        super(HBase, self).__init__(self._j_hbase)
-
-        if version is not None:
-            self.version(version)
-
-        if table_name is not None:
-            self.table_name(table_name)
-
-        if zookeeper_quorum is not None:
-            self.zookeeper_quorum(zookeeper_quorum)
-
-        if zookeeper_node_parent is not None:
-            self.zookeeper_node_parent(zookeeper_node_parent)
-
-        if write_buffer_flush_max_size is not None:
-            self.write_buffer_flush_max_size(write_buffer_flush_max_size)
-
-        if write_buffer_flush_max_rows is not None:
-            self.write_buffer_flush_max_rows(write_buffer_flush_max_rows)
-
-        if write_buffer_flush_interval is not None:
-            self.write_buffer_flush_interval(write_buffer_flush_interval)
-
-    def version(self, version):
-        """
-        Set the Apache HBase version to be used, Required.
-
-        :param version: HBase version. E.g., "1.4.3".
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        if not isinstance(version, str):
-            version = str(version)
-        self._j_hbase = self._j_hbase.version(version)
-        return self
-
-    def table_name(self, table_name):
-        """
-        Set the HBase table name, Required.
-
-        :param table_name: Name of HBase table. E.g., "testNamespace:testTable", "testDefaultTable"
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        self._j_hbase = self._j_hbase.tableName(table_name)
-        return self
-
-    def zookeeper_quorum(self, zookeeper_quorum):
-        """
-        Set the zookeeper quorum address to connect the HBase cluster, Required.
-
-        :param zookeeper_quorum: zookeeper quorum address to connect the HBase cluster. E.g.,
-                                 "localhost:2181,localhost:2182,localhost:2183"
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        self._j_hbase = self._j_hbase.zookeeperQuorum(zookeeper_quorum)
-        return self
-
-    def zookeeper_node_parent(self, zookeeper_node_parent):
-        """
-        Set the zookeeper node parent path of HBase cluster. Default to use "/hbase", Optional.
-
-        :param zookeeper_node_parent: zookeeper node path of hbase cluster. E.g,
-                                      "/hbase/example-root-znode".
-        :return: This object
-
-        .. versionadded:: 1.11.0
-        """
-        self._j_hbase = self._j_hbase.zookeeperNodeParent(zookeeper_node_parent)
-        return self
-
-    def write_buffer_flush_max_size(self, max_size):
-        """
-        Set threshold when to flush buffered request based on the memory byte size of rows currently
-        added.
-
-        :param max_size: the maximum size.
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        if not isinstance(max_size, str):
-            max_size = str(max_size)
-        self._j_hbase = self._j_hbase.writeBufferFlushMaxSize(max_size)
-        return self
-
-    def write_buffer_flush_max_rows(self, write_buffer_flush_max_rows):
-        """
-        Set threshold when to flush buffered request based on the number of rows currently added.
-        Defaults to not set, i.e. won;t flush based on the number of buffered rows, Optional.
-
-        :param write_buffer_flush_max_rows: number of added rows when begin the request flushing.
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        self._j_hbase = self._j_hbase.writeBufferFlushMaxRows(write_buffer_flush_max_rows)
-        return self
-
-    def write_buffer_flush_interval(self, interval):
-        """
-        Set an interval when to flushing buffered requesting if the interval passes, in
-        milliseconds.
-        Defaults to not set, i.e. won't flush based on flush interval, Optional.
-
-        :param interval: flush interval. The string should be in format
-                         "{length value}{time unit label}" E.g, "123ms", "1 s", if not time unit
-                         label is specified, it will be considered as milliseconds.
-        :return: This object.
-
-        .. versionadded:: 1.11.0
-        """
-        if not isinstance(interval, str):
-            interval = str(interval)
-        self._j_hbase = self._j_hbase.writeBufferFlushInterval(interval)
         return self
 
 
@@ -1703,7 +1548,7 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         super(CustomConnectorDescriptor, self).__init__(
             gateway.jvm.CustomConnectorDescriptor(type, version, format_needed))
 
-    def property(self, key, value):
+    def property(self, key: str, value: str) -> 'CustomConnectorDescriptor':
         """
         Adds a configuration property for the connector.
 
@@ -1719,7 +1564,7 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         self._j_connector_descriptor = self._j_connector_descriptor.property(key, value)
         return self
 
-    def properties(self, property_dict):
+    def properties(self, property_dict: Dict[str, str]) -> 'CustomConnectorDescriptor':
         """
         Adds a set of properties for the connector.
 
@@ -1734,18 +1579,16 @@ class CustomConnectorDescriptor(ConnectorDescriptor):
         return self
 
 
-class ConnectTableDescriptor(Descriptor):
+class ConnectTableDescriptor(Descriptor, metaclass=ABCMeta):
     """
     Common class for table's created with :class:`pyflink.table.TableEnvironment.connect`.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_connect_table_descriptor):
         self._j_connect_table_descriptor = j_connect_table_descriptor
         super(ConnectTableDescriptor, self).__init__(self._j_connect_table_descriptor)
 
-    def with_format(self, format_descriptor):
+    def with_format(self, format_descriptor: FormatDescriptor) -> 'ConnectTableDescriptor':
         """
         Specifies the format that defines how to read data from a connector.
 
@@ -1757,7 +1600,7 @@ class ConnectTableDescriptor(Descriptor):
             self._j_connect_table_descriptor.withFormat(format_descriptor._j_format_descriptor)
         return self
 
-    def with_schema(self, schema):
+    def with_schema(self, schema: Schema) -> 'ConnectTableDescriptor':
         """
         Specifies the resulting table schema.
 
@@ -1768,7 +1611,7 @@ class ConnectTableDescriptor(Descriptor):
             self._j_connect_table_descriptor.withSchema(schema._j_schema)
         return self
 
-    def create_temporary_table(self, path):
+    def create_temporary_table(self, path: str) -> 'ConnectTableDescriptor':
         """
         Registers the table described by underlying properties in a given path.
 
@@ -1822,7 +1665,7 @@ class StreamTableDescriptor(ConnectTableDescriptor):
         if in_upsert_mode:
             self.in_upsert_mode()
 
-    def in_append_mode(self):
+    def in_append_mode(self) -> 'StreamTableDescriptor':
         """
         Declares how to perform the conversion between a dynamic table and an external connector.
 
@@ -1833,7 +1676,7 @@ class StreamTableDescriptor(ConnectTableDescriptor):
         self._j_stream_table_descriptor = self._j_stream_table_descriptor.inAppendMode()
         return self
 
-    def in_retract_mode(self):
+    def in_retract_mode(self) -> 'StreamTableDescriptor':
         """
         Declares how to perform the conversion between a dynamic table and an external connector.
 
@@ -1852,7 +1695,7 @@ class StreamTableDescriptor(ConnectTableDescriptor):
         self._j_stream_table_descriptor = self._j_stream_table_descriptor.inRetractMode()
         return self
 
-    def in_upsert_mode(self):
+    def in_upsert_mode(self) -> 'StreamTableDescriptor':
         """
         Declares how to perform the conversion between a dynamic table and an external connector.
 

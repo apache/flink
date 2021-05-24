@@ -39,7 +39,7 @@ ENTRYPOINT=standalonesession
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # Add JobManager-specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
-    parseJmJvmArgsAndExportLogs "${ARGS[@]}"
+    parseJmArgsAndExportLogs "${ARGS[@]}"
 
     args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster")
     if [ ! -z $HOST ]; then
@@ -50,6 +50,10 @@ if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     if [ ! -z $WEBUIPORT ]; then
         args+=("--webui-port")
         args+=("${WEBUIPORT}")
+    fi
+
+    if [ ! -z "${DYNAMIC_PARAMETERS}" ]; then
+        args+=(${DYNAMIC_PARAMETERS[@]})
     fi
 fi
 

@@ -71,11 +71,6 @@ abstract class SumAggFunction[T: Numeric] extends AggregateFunction[T, SumAccumu
     }
   }
 
-  def resetAccumulator(acc: SumAccumulator[T]): Unit = {
-    acc.f0 = numeric.zero
-    acc.f1 = false
-  }
-
   override def getAccumulatorType: TypeInformation[SumAccumulator[T]] = {
     new TupleTypeInfo(
       classOf[SumAccumulator[T]],
@@ -168,11 +163,6 @@ class DecimalSumAggFunction extends AggregateFunction[BigDecimal, DecimalSumAccu
         acc.f1 = true
       }
     }
-  }
-
-  def resetAccumulator(acc: DecimalSumAccumulator): Unit = {
-    acc.f0 = BigDecimal.ZERO
-    acc.f1 = false
   }
 
   override def getAccumulatorType: TypeInformation[DecimalSumAccumulator] = {

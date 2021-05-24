@@ -31,21 +31,19 @@ import java.util.List;
  *
  * @param <K> graph ID type
  */
-public abstract class GeneratedGraph<K>
-extends InputBase<K, NullValue, NullValue>
-implements Transformable {
+public abstract class GeneratedGraph<K> extends InputBase<K, NullValue, NullValue>
+        implements Transformable {
 
-	@Override
-	public List<Transform> getTransformers() {
-		return Arrays.<Transform>asList(new GraphKeyTypeTransform(vertexCount()));
-	}
+    @Override
+    public List<Transform> getTransformers() {
+        return Arrays.<Transform>asList(new GraphKeyTypeTransform(vertexCount()));
+    }
 
-	/**
-	 * The vertex count is verified to be no greater than the capacity of the
-	 * selected data type. All vertices must be counted even if skipped or
-	 * unused when generating graph edges.
-	 *
-	 * @return number of vertices configured for the graph
-	 */
-	protected abstract long vertexCount();
+    /**
+     * The vertex count is verified to be no greater than the capacity of the selected data type.
+     * All vertices must be counted even if skipped or unused when generating graph edges.
+     *
+     * @return number of vertices configured for the graph
+     */
+    protected abstract long vertexCount();
 }

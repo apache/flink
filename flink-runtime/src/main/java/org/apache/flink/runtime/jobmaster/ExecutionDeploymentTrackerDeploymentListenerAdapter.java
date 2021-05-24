@@ -22,22 +22,25 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 
 /**
- * An adapter for using an {@link ExecutionDeploymentTracker} as an {@link ExecutionDeploymentListener}.
+ * An adapter for using an {@link ExecutionDeploymentTracker} as an {@link
+ * ExecutionDeploymentListener}.
  */
-public class ExecutionDeploymentTrackerDeploymentListenerAdapter implements ExecutionDeploymentListener {
-	private final ExecutionDeploymentTracker executionDeploymentTracker;
+public class ExecutionDeploymentTrackerDeploymentListenerAdapter
+        implements ExecutionDeploymentListener {
+    private final ExecutionDeploymentTracker executionDeploymentTracker;
 
-	public ExecutionDeploymentTrackerDeploymentListenerAdapter(ExecutionDeploymentTracker executionDeploymentTracker) {
-		this.executionDeploymentTracker = executionDeploymentTracker;
-	}
+    public ExecutionDeploymentTrackerDeploymentListenerAdapter(
+            ExecutionDeploymentTracker executionDeploymentTracker) {
+        this.executionDeploymentTracker = executionDeploymentTracker;
+    }
 
-	@Override
-	public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {
-		executionDeploymentTracker.startTrackingPendingDeploymentOf(execution, host);
-	}
+    @Override
+    public void onStartedDeployment(ExecutionAttemptID execution, ResourceID host) {
+        executionDeploymentTracker.startTrackingPendingDeploymentOf(execution, host);
+    }
 
-	@Override
-	public void onCompletedDeployment(ExecutionAttemptID execution) {
-		executionDeploymentTracker.completeDeploymentOf(execution);
-	}
+    @Override
+    public void onCompletedDeployment(ExecutionAttemptID execution) {
+        executionDeploymentTracker.completeDeploymentOf(execution);
+    }
 }

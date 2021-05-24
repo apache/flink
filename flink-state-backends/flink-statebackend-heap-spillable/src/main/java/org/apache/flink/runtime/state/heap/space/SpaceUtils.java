@@ -21,16 +21,14 @@ package org.apache.flink.runtime.state.heap.space;
 import static org.apache.flink.runtime.state.heap.space.Constants.FOUR_BYTES_BITS;
 import static org.apache.flink.runtime.state.heap.space.Constants.FOUR_BYTES_MARK;
 
-/**
- * Utils.
- */
+/** Utils. */
 public class SpaceUtils {
 
-	public static int getChunkIdByAddress(long offset) {
-		return (int) ((offset >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
-	}
+    public static int getChunkIdByAddress(long offset) {
+        return (int) ((offset >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
+    }
 
-	public static int getChunkOffsetByAddress(long offset) {
-		return (int) (offset & FOUR_BYTES_MARK);
-	}
+    public static int getChunkOffsetByAddress(long offset) {
+        return (int) (offset & FOUR_BYTES_MARK);
+    }
 }

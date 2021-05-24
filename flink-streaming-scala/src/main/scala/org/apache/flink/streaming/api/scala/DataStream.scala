@@ -27,12 +27,12 @@ import org.apache.flink.api.common.operators.ResourceSpec
 import org.apache.flink.api.common.serialization.SerializationSchema
 import org.apache.flink.api.common.state.MapStateDescriptor
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.connector.sink.Sink
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.{Tuple => JavaTuple}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
-import org.apache.flink.streaming.api.collector.selector.OutputSelector
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.{AscendingTimestampExtractor, BoundedOutOfOrdernessTimestampExtractor}
@@ -41,7 +41,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.util.Collector
+import org.apache.flink.util.{CloseableIterator, Collector}
 
 import scala.collection.JavaConverters._
 
@@ -559,7 +559,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * stepfunction: initialStream => (feedback, output)
    *
    * A common pattern is to use output splitting to create feedback and output DataStream.
-   * Please refer to the [[split]] method of the DataStream
+   * Please see the side outputs of [[ProcessFunction]] method of the DataStream
    *
    * By default a DataStream with iteration will never terminate, but the user
    * can use the maxWaitTime parameter to set a max waiting time for the iteration head.
@@ -742,7 +742,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[TumblingEventTimeWindows]] or
+   *             [[TumblingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size))
   }
@@ -760,7 +765,12 @@ class DataStream[T](stream: JavaStream[T]) {
    * it possible to perform this operation in parallel).
    *
    * @param size The size of the window.
+   *
+   * @deprecated Please use [[windowAll()]] with either [[SlidingEventTimeWindows]] or
+   *             [[SlidingProcessingTimeWindows]]. For more information, see the deprecation
+   *             notice on [[org.apache.flink.streaming.api.TimeCharacteristic]].
    */
+  @deprecated
   def timeWindowAll(size: Time, slide: Time): AllWindowedStream[T, TimeWindow] = {
     new AllWindowedStream(javaStream.timeWindowAll(size, slide))
 
@@ -895,37 +905,6 @@ class DataStream[T](stream: JavaStream[T]) {
       }
     }
     asScalaStream(stream.assignTimestampsAndWatermarks(extractorFunction))
-  }
-
-  /**
-   *
-   * Operator used for directing tuples to specific named outputs using an
-   * OutputSelector. Calling this method on an operator creates a new
-   * [[SplitStream]].
-   *
-   * @deprecated Please use side output instead.
-   */
-  @deprecated
-  def split(selector: OutputSelector[T]): SplitStream[T] = asScalaStream(stream.split(selector))
-
-  /**
-   * Creates a new [[SplitStream]] that contains only the elements satisfying the
-   *  given output selector predicate.
-   *
-   * @deprecated Please use side output instead.
-   */
-  @deprecated
-  def split(fun: T => TraversableOnce[String]): SplitStream[T] = {
-    if (fun == null) {
-      throw new NullPointerException("OutputSelector must not be null.")
-    }
-    val cleanFun = clean(fun)
-    val selector = new OutputSelector[T] {
-      def select(in: T): java.lang.Iterable[String] = {
-        cleanFun(in).toIterable.asJava
-      }
-    }
-    split(selector)
   }
 
   /**
@@ -1146,6 +1125,61 @@ class DataStream[T](stream: JavaStream[T]) {
     }
     this.addSink(sinkFunction)
   }
+
+  /**
+   * Adds the given sink to this DataStream. Only streams with sinks added
+   * will be executed once the StreamExecutionEnvironment.execute(...)
+   * method is called.
+   */
+  def sinkTo(sink: Sink[T, _, _, _]): DataStreamSink[T] = stream.sinkTo(sink)
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect())
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   *
+   * <p><b>IMPORTANT</b> The returned iterator must be closed to free all cluster resources.
+   */
+  def executeAndCollect(jobExecutionName: String): CloseableIterator[T] =
+    CloseableIterator.fromJava(stream.executeAndCollect(jobExecutionName))
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(limit: Int): List[T] =
+    stream.executeAndCollect(limit).asScala.toList
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+   * elements of the given DataStream.
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollect(jobExecutionName: String, limit: Int): List[T] =
+    stream.executeAndCollect(jobExecutionName, limit).asScala.toList
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning

@@ -23,59 +23,59 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * Base class for broadcast stream operator test harnesses.
- */
-public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT> extends AbstractStreamOperatorTestHarness<OUT>{
+/** Base class for broadcast stream operator test harnesses. */
+public abstract class AbstractBroadcastStreamOperatorTestHarness<IN1, IN2, OUT>
+        extends AbstractStreamOperatorTestHarness<OUT> {
 
-	public AbstractBroadcastStreamOperatorTestHarness(StreamOperator<OUT> operator, int maxParallelism, int parallelism, int subtaskIndex) throws Exception {
-		super(operator, maxParallelism, parallelism, subtaskIndex);
-	}
+    public AbstractBroadcastStreamOperatorTestHarness(
+            StreamOperator<OUT> operator, int maxParallelism, int parallelism, int subtaskIndex)
+            throws Exception {
+        super(operator, maxParallelism, parallelism, subtaskIndex);
+    }
 
-	public TwoInputStreamOperator<IN1, IN2, OUT>  getTwoInputOperator() {
-		return (TwoInputStreamOperator<IN1, IN2, OUT>) operator;
-	}
+    public TwoInputStreamOperator<IN1, IN2, OUT> getTwoInputOperator() {
+        return (TwoInputStreamOperator<IN1, IN2, OUT>) operator;
+    }
 
-	public void processElement(StreamRecord<IN1> element) throws Exception {
-		getTwoInputOperator().setKeyContextElement1(element);
-		getTwoInputOperator().processElement1(element);
-	}
+    public void processElement(StreamRecord<IN1> element) throws Exception {
+        getTwoInputOperator().setKeyContextElement1(element);
+        getTwoInputOperator().processElement1(element);
+    }
 
-	public void processElement(IN1 value, long timestamp) throws Exception {
-		processElement(new StreamRecord<>(value, timestamp));
-	}
+    public void processElement(IN1 value, long timestamp) throws Exception {
+        processElement(new StreamRecord<>(value, timestamp));
+    }
 
-	public void processBroadcastElement(StreamRecord<IN2> element) throws Exception {
-		getTwoInputOperator().setKeyContextElement2(element);
-		getTwoInputOperator().processElement2(element);
-	}
+    public void processBroadcastElement(StreamRecord<IN2> element) throws Exception {
+        getTwoInputOperator().setKeyContextElement2(element);
+        getTwoInputOperator().processElement2(element);
+    }
 
-	public void processBroadcastElement(IN2 value, long timestamp) throws Exception {
-		StreamRecord<IN2> element = new StreamRecord<>(value, timestamp);
-		processBroadcastElement(element);
-	}
+    public void processBroadcastElement(IN2 value, long timestamp) throws Exception {
+        StreamRecord<IN2> element = new StreamRecord<>(value, timestamp);
+        processBroadcastElement(element);
+    }
 
-	public void processWatermark(Watermark mark) throws Exception {
-		getOperator().processWatermark1(mark);
-	}
+    public void processWatermark(Watermark mark) throws Exception {
+        getOperator().processWatermark1(mark);
+    }
 
-	public void processBroadcastWatermark(Watermark mark) throws Exception {
-		getOperator().processWatermark2(mark);
-	}
+    public void processBroadcastWatermark(Watermark mark) throws Exception {
+        getOperator().processWatermark2(mark);
+    }
 
-	public void processWatermark(long timestamp) throws Exception {
-		Watermark mark = new Watermark(timestamp);
-		getOperator().processWatermark1(mark);
-	}
+    public void processWatermark(long timestamp) throws Exception {
+        Watermark mark = new Watermark(timestamp);
+        getOperator().processWatermark1(mark);
+    }
 
-	public void processBroadcastWatermark(long timestamp) throws Exception {
-		Watermark mark = new Watermark(timestamp);
-		getOperator().processWatermark2(mark);
-	}
+    public void processBroadcastWatermark(long timestamp) throws Exception {
+        Watermark mark = new Watermark(timestamp);
+        getOperator().processWatermark2(mark);
+    }
 
-	public void watermark(long timestamp) throws Exception {
-		processWatermark(new Watermark(timestamp));
-		processBroadcastWatermark(new Watermark(timestamp));
-	}
-
+    public void watermark(long timestamp) throws Exception {
+        processWatermark(new Watermark(timestamp));
+        processBroadcastWatermark(new Watermark(timestamp));
+    }
 }

@@ -58,27 +58,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--id", default="", help="Local identifier (required).")
-    parser.add_argument("--logging_endpoint", default="",
-                        help="Logging endpoint (required).")
     parser.add_argument("--provision_endpoint", default="",
                         help="Provision endpoint (required).")
-    parser.add_argument("--control_endpoint", default="",
-                        help="Control endpoint (required).")
     parser.add_argument("--semi_persist_dir", default="/tmp",
                         help="Local semi-persistent directory (optional).")
 
     args = parser.parse_known_args()[0]
 
     worker_id = args.id
-    logging_endpoint = args.logging_endpoint
     provision_endpoint = args.provision_endpoint
-    control_endpoint = args.control_endpoint
     semi_persist_dir = args.semi_persist_dir
 
     check_not_empty(worker_id, "No id provided.")
-    check_not_empty(logging_endpoint, "No logging endpoint provided.")
     check_not_empty(provision_endpoint, "No provision endpoint provided.")
-    check_not_empty(control_endpoint, "No control endpoint provided.")
 
     logging.info("Initializing python harness: %s" % " ".join(sys.argv))
 
@@ -89,6 +81,8 @@ if __name__ == "__main__":
         client = ProvisionServiceStub(channel=channel)
         info = client.GetProvisionInfo(GetProvisionInfoRequest(), metadata=metadata).info
         options = json_format.MessageToJson(info.pipeline_options)
+        logging_endpoint = info.logging_endpoint.url
+        control_endpoint = info.control_endpoint.url
 
     os.environ["WORKER_ID"] = worker_id
     os.environ["PIPELINE_OPTIONS"] = options

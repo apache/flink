@@ -33,57 +33,54 @@ import org.junit.Test;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Tests for the {@link akka.actor.ActorSystem} instantiated through {@link AkkaUtils}.
- */
+/** Tests for the {@link akka.actor.ActorSystem} instantiated through {@link AkkaUtils}. */
 public class AkkaActorSystemTest extends TestLogger {
 
-	@Test
-	public void shutsDownOnActorFailure() {
-		final ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
+    @Test
+    public void shutsDownOnActorFailure() {
+        final ActorSystem actorSystem = AkkaUtils.createLocalActorSystem(new Configuration());
 
-		try {
-			final CompletableFuture<Terminated> terminationFuture = actorSystem.getWhenTerminated().toCompletableFuture();
-			final ActorRef actorRef = actorSystem.actorOf(Props.create(SimpleActor.class));
+        try {
+            final CompletableFuture<Terminated> terminationFuture =
+                    actorSystem.getWhenTerminated().toCompletableFuture();
+            final ActorRef actorRef = actorSystem.actorOf(Props.create(SimpleActor.class));
 
-			final FlinkException cause = new FlinkException("Flink test exception");
+            final FlinkException cause = new FlinkException("Flink test exception");
 
-			actorRef.tell(Fail.exceptionally(cause), ActorRef.noSender());
+            actorRef.tell(Fail.exceptionally(cause), ActorRef.noSender());
 
-			// make sure that the ActorSystem shuts down
-			terminationFuture.join();
-		} finally {
-			AkkaUtils.terminateActorSystem(actorSystem).join();
-		}
-	}
+            // make sure that the ActorSystem shuts down
+            terminationFuture.join();
+        } finally {
+            AkkaUtils.terminateActorSystem(actorSystem).join();
+        }
+    }
 
-	private static final class SimpleActor extends AbstractActor {
+    private static final class SimpleActor extends AbstractActor {
 
-		@Override
-		public Receive createReceive() {
-			return ReceiveBuilder.create()
-				.match(Fail.class, this::handleFail)
-				.build();
-		}
+        @Override
+        public Receive createReceive() {
+            return ReceiveBuilder.create().match(Fail.class, this::handleFail).build();
+        }
 
-		private void handleFail(Fail fail) {
-			throw new RuntimeException(fail.getErrorCause());
-		}
-	}
+        private void handleFail(Fail fail) {
+            throw new RuntimeException(fail.getErrorCause());
+        }
+    }
 
-	private static final class Fail {
-		private final Throwable errorCause;
+    private static final class Fail {
+        private final Throwable errorCause;
 
-		private Fail(Throwable errorCause) {
-			this.errorCause = errorCause;
-		}
+        private Fail(Throwable errorCause) {
+            this.errorCause = errorCause;
+        }
 
-		private Throwable getErrorCause() {
-			return errorCause;
-		}
+        private Throwable getErrorCause() {
+            return errorCause;
+        }
 
-		private static Fail exceptionally(Throwable errorCause) {
-			return new Fail(errorCause);
-		}
-	}
+        private static Fail exceptionally(Throwable errorCause) {
+            return new Fail(errorCause);
+        }
+    }
 }

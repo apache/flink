@@ -20,11 +20,15 @@ package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
-import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase
+import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 class TableSinkTest extends TableTestBase {
 
@@ -46,7 +50,7 @@ class TableSinkTest extends TableTestBase {
          |""".stripMargin)
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
-    util.verifyPlan(stmtSet)
+    util.verifyRelPlan(stmtSet)
   }
 
   @Test
@@ -76,6 +80,61 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql("INSERT INTO sink1 SELECT SUM(sum_a) AS total_sum FROM table1")
     stmtSet.addInsertSql("INSERT INTO sink2 SELECT MIN(sum_a) AS total_min FROM table1")
 
-    util.verifyPlan(stmtSet)
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testDynamicPartWithOrderBy(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT
+         |) PARTITIONED BY (
+         |  `b`
+         |) WITH (
+         |  'connector' = 'values'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT a,b FROM MyTable ORDER BY a")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testTableHints(): Unit = {
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MyTable (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin)
+
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED, true)
+    util.tableEnv.executeSql(
+      s"""
+         |CREATE TABLE MySink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH (
+         |  'connector' = 'filesystem',
+         |  'format' = 'testcsv',
+         |  'path' = '/tmp/test'
+         |)
+       """.stripMargin)
+    val stmtSet= util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "insert into MySink /*+ OPTIONS('path' = '/tmp1') */ select * from MyTable")
+    stmtSet.addInsertSql(
+      "insert into MySink /*+ OPTIONS('path' = '/tmp2') */ select * from MyTable")
+
+    util.verifyExecPlan(stmtSet)
   }
 }

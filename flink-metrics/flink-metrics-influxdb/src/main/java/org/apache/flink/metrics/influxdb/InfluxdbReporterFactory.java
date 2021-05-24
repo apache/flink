@@ -24,14 +24,13 @@ import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
-/**
- * {@link MetricReporterFactory} for {@link InfluxdbReporter}.
- */
-@InterceptInstantiationViaReflection(reporterClassName = "org.apache.flink.metrics.influxdb.InfluxdbReporter")
+/** {@link MetricReporterFactory} for {@link InfluxdbReporter}. */
+@InterceptInstantiationViaReflection(
+        reporterClassName = "org.apache.flink.metrics.influxdb.InfluxdbReporter")
 public class InfluxdbReporterFactory implements MetricReporterFactory {
 
-	@Override
-	public MetricReporter createMetricReporter(Properties properties) {
-		return new InfluxdbReporter();
-	}
+    @Override
+    public MetricReporter createMetricReporter(Properties properties) {
+        return new InfluxdbReporter();
+    }
 }

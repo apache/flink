@@ -22,11 +22,13 @@ if [[ -z $TEST_DATA_DIR ]]; then
   exit 1
 fi
 
+source "$(dirname "$0")"/common_artifact_download_cacher.sh
+
 KAFKA_VERSION="$1"
 CONFLUENT_VERSION="$2"
 CONFLUENT_MAJOR_VERSION="$3"
 
-KAFKA_DIR=$TEST_DATA_DIR/kafka_2.11-$KAFKA_VERSION
+KAFKA_DIR=$TEST_DATA_DIR/kafka_2.12-$KAFKA_VERSION
 CONFLUENT_DIR=$TEST_DATA_DIR/confluent-$CONFLUENT_VERSION
 SCHEMA_REGISTRY_PORT=8082
 SCHEMA_REGISTRY_URL=http://localhost:${SCHEMA_REGISTRY_PORT}
@@ -35,9 +37,10 @@ MAX_RETRY_SECONDS=120
 function setup_kafka_dist {
   # download Kafka
   mkdir -p $TEST_DATA_DIR
-  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.11-$KAFKA_VERSION.tgz"
+  KAFKA_URL="https://archive.apache.org/dist/kafka/$KAFKA_VERSION/kafka_2.12-$KAFKA_VERSION.tgz"
   echo "Downloading Kafka from $KAFKA_URL"
-  curl ${KAFKA_URL} --retry 10 --retry-max-time 120 --output ${TEST_DATA_DIR}/kafka.tgz
+  cache_path=$(get_artifact $KAFKA_URL)
+  ln "$cache_path" "${TEST_DATA_DIR}/kafka.tgz"
 
   tar xzf $TEST_DATA_DIR/kafka.tgz -C $TEST_DATA_DIR/
 
@@ -51,12 +54,32 @@ function setup_confluent_dist {
   mkdir -p $TEST_DATA_DIR
   CONFLUENT_URL="http://packages.confluent.io/archive/$CONFLUENT_MAJOR_VERSION/confluent-oss-$CONFLUENT_VERSION-2.11.tar.gz"
   echo "Downloading confluent from $CONFLUENT_URL"
-  curl ${CONFLUENT_URL} --retry 10 --retry-max-time 120 --output ${TEST_DATA_DIR}/confluent.tgz
+  cache_path=$(get_artifact $CONFLUENT_URL)
+  ln "$cache_path" "${TEST_DATA_DIR}/confluent.tgz"
 
   tar xzf $TEST_DATA_DIR/confluent.tgz -C $TEST_DATA_DIR/
 
   # fix confluent config
   sed -i -e "s#listeners=http://0.0.0.0:8081#listeners=http://0.0.0.0:${SCHEMA_REGISTRY_PORT}#" $CONFLUENT_DIR/etc/schema-registry/schema-registry.properties
+}
+
+function wait_for_zookeeper_running {
+  start_time=$(date +%s)
+  while ! [[ $($KAFKA_DIR/bin/zookeeper-shell.sh localhost:2181 get /testnonexistent 2>&1 | grep -e "Node does not exist" -e "NoNode for") ]] ; do
+    current_time=$(date +%s)
+    time_diff=$((current_time - start_time))
+
+    if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+        echo "Zookeeper did not start after $MAX_RETRY_SECONDS seconds. Printing logs:"
+        debug_error
+        exit 1
+    else
+        echo "waiting for Zookeeper to start."
+        sleep 1
+    fi
+  done
+
+  echo "Zookeeper Server has been started ..."
 }
 
 function start_kafka_cluster {
@@ -66,6 +89,8 @@ function start_kafka_cluster {
   fi
 
   $KAFKA_DIR/bin/zookeeper-server-start.sh -daemon $KAFKA_DIR/config/zookeeper.properties
+  # we wait for Zk to be up to make sure the broker can start
+  wait_for_zookeeper_running
   $KAFKA_DIR/bin/kafka-server-start.sh -daemon $KAFKA_DIR/config/server.properties
 
   start_time=$(date +%s)

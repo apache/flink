@@ -27,32 +27,32 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 
-/**
- * Test utils of {@link PhysicalSlot}.
- */
+/** Test utils of {@link PhysicalSlot}. */
 public class PhysicalSlotTestUtils {
 
-	public static PhysicalSlot createPhysicalSlot() {
-		return new AllocatedSlot(
-			new AllocationID(),
-			new LocalTaskManagerLocation(),
-			0,
-			ResourceProfile.ANY,
-			new SimpleAckingTaskManagerGateway());
-	}
+    public static PhysicalSlot createPhysicalSlot() {
+        return createPhysicalSlot(ResourceProfile.ANY);
+    }
 
-	public static LogicalSlot occupyPhysicalSlot(
-			final PhysicalSlot physicalSlot,
-			final boolean slotWillBeOccupiedIndefinitely) {
+    public static PhysicalSlot createPhysicalSlot(ResourceProfile resourceProfile) {
+        return new AllocatedSlot(
+                new AllocationID(),
+                new LocalTaskManagerLocation(),
+                0,
+                resourceProfile,
+                new SimpleAckingTaskManagerGateway());
+    }
 
-		return SingleLogicalSlot.allocateFromPhysicalSlot(
-			new SlotRequestId(),
-			physicalSlot,
-			Locality.UNKNOWN,
-			new TestingSlotOwner(),
-			slotWillBeOccupiedIndefinitely);
-	}
+    public static LogicalSlot occupyPhysicalSlot(
+            final PhysicalSlot physicalSlot, final boolean slotWillBeOccupiedIndefinitely) {
 
-	private PhysicalSlotTestUtils() {
-	}
+        return SingleLogicalSlot.allocateFromPhysicalSlot(
+                new SlotRequestId(),
+                physicalSlot,
+                Locality.UNKNOWN,
+                new TestingSlotOwner(),
+                slotWillBeOccupiedIndefinitely);
+    }
+
+    private PhysicalSlotTestUtils() {}
 }

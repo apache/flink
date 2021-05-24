@@ -24,19 +24,16 @@ import org.apache.flink.types.Row;
 
 import java.io.Serializable;
 
-/**
- * This interface is responsible to generate index name from given {@link Row} record.
- */
+/** This interface is responsible to generate index name from given {@link Row} record. */
 @Internal
 interface IndexGenerator extends Serializable {
 
-	/**
-	 * Initialize the index generator, this will be called only once before {@link #generate(RowData)} is called.
-	 */
-	default void open() {}
+    /**
+     * Initialize the index generator, this will be called only once before {@link
+     * #generate(RowData)} is called.
+     */
+    default void open() {}
 
-	/**
-	 * Generate index name according the the given row.
-	 */
-	String generate(RowData row);
+    /** Generate index name according the the given row. */
+    String generate(RowData row);
 }

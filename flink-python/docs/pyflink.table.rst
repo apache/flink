@@ -27,6 +27,12 @@ Module contents
     :undoc-members:
     :show-inheritance:
 
+pyflink.table.expressions module
+--------------------------------
+.. automodule:: pyflink.table.expressions
+    :members:
+    :undoc-members:
+
 pyflink.table.window module
 ---------------------------
 .. automodule:: pyflink.table.window

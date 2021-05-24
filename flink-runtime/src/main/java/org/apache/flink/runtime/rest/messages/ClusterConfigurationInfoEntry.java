@@ -25,57 +25,55 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.Objects;
 
-/**
- * A single key-value pair entry in the {@link ClusterConfigurationInfo} response.
- */
+/** A single key-value pair entry in the {@link ClusterConfigurationInfo} response. */
 public class ClusterConfigurationInfoEntry {
 
-	public static final String FIELD_NAME_CONFIG_KEY = "key";
-	public static final String FIELD_NAME_CONFIG_VALUE = "value";
+    public static final String FIELD_NAME_CONFIG_KEY = "key";
+    public static final String FIELD_NAME_CONFIG_VALUE = "value";
 
-	@JsonProperty(FIELD_NAME_CONFIG_KEY)
-	private final String key;
+    @JsonProperty(FIELD_NAME_CONFIG_KEY)
+    private final String key;
 
-	@JsonProperty(FIELD_NAME_CONFIG_VALUE)
-	private final String value;
+    @JsonProperty(FIELD_NAME_CONFIG_VALUE)
+    private final String value;
 
-	@JsonCreator
-	public ClusterConfigurationInfoEntry(
-			@JsonProperty(FIELD_NAME_CONFIG_KEY) String key,
-			@JsonProperty(FIELD_NAME_CONFIG_VALUE) String value) {
-		this.key = Preconditions.checkNotNull(key);
-		this.value = Preconditions.checkNotNull(value);
-	}
+    @JsonCreator
+    public ClusterConfigurationInfoEntry(
+            @JsonProperty(FIELD_NAME_CONFIG_KEY) String key,
+            @JsonProperty(FIELD_NAME_CONFIG_VALUE) String value) {
+        this.key = Preconditions.checkNotNull(key);
+        this.value = Preconditions.checkNotNull(value);
+    }
 
-	public String getKey() {
-		return key;
-	}
+    public String getKey() {
+        return key;
+    }
 
-	public String getValue() {
-		return value;
-	}
+    public String getValue() {
+        return value;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		ClusterConfigurationInfoEntry that = (ClusterConfigurationInfoEntry) o;
-		return key.equals(that.key) && value.equals(that.value);
-	}
+        ClusterConfigurationInfoEntry that = (ClusterConfigurationInfoEntry) o;
+        return key.equals(that.key) && value.equals(that.value);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(key, value);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(key, value);
+    }
 
-	@Override
-	public String toString() {
-		return "(" + key + "," + value + ")";
-	}
+    @Override
+    public String toString() {
+        return "(" + key + "," + value + ")";
+    }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FlinkDistribution
-import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
+import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.rel._
@@ -73,7 +73,7 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
   def flinkDistribution(sort: Sort, mq: RelMetadataQuery): FlinkRelDistribution = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(sort)
     val enableRangeSort = tableConfig.getConfiguration.getBoolean(
-      BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED)
+      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     if ((sort.getCollation.getFieldCollations.nonEmpty &&
       sort.fetch == null && sort.offset == null) && enableRangeSort) {
       //If Sort is global sort, and the table config allows the range partition.

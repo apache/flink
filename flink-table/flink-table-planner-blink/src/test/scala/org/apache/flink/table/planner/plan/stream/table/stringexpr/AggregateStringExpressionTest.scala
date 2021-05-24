@@ -27,7 +27,6 @@ import org.junit.Test
 
 class AggregateStringExpressionTest extends TableTestBase {
 
-
   @Test
   def testDistinctNonGroupedAggregate(): Unit = {
     val util = streamTestUtil()
@@ -60,11 +59,13 @@ class AggregateStringExpressionTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myCnt = new CountAggFunction
-   util.addFunction("myCnt", myCnt)
-    val myWeightedAvg = new WeightedAvgWithMergeAndReset
-   util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addFunction("myCnt", myCnt)
+    util.addTemporarySystemFunction("myWeightedAvg", classOf[WeightedAvgWithMergeAndReset])
 
-    val t1 = t.select(myCnt.distinct('a) as 'aCnt, myWeightedAvg.distinct('b, 'a) as 'wAvg)
+    val t1 = t.select(
+      myCnt.distinct('a) as 'aCnt,
+      call("myWeightedAvg", 'b, 'a).distinct() as 'wAvg
+    )
     val t2 = t.select("myCnt.distinct(a) as aCnt, myWeightedAvg.distinct(b, a) as wAvg")
 
     verifyTableEquals(t1, t2)
@@ -75,18 +76,16 @@ class AggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
-
     val myCnt = new CountAggFunction
-   util.addFunction("myCnt", myCnt)
-    val myWeightedAvg = new WeightedAvgWithMergeAndReset
-   util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addFunction("myCnt", myCnt)
+    util.addTemporarySystemFunction("myWeightedAvg", classOf[WeightedAvgWithMergeAndReset])
 
     val t1 = t.groupBy('b)
       .select('b,
         myCnt.distinct('a) + 9 as 'aCnt,
-        myWeightedAvg.distinct('b, 'a) * 2 as 'wAvg,
-        myWeightedAvg.distinct('a, 'a) as 'distAgg,
-        myWeightedAvg('a, 'a) as 'agg)
+        call("myWeightedAvg", 'b, 'a).distinct() * 2 as 'wAvg,
+        call("myWeightedAvg", 'a, 'a).distinct() as 'distAgg,
+        call("myWeightedAvg", 'a, 'a) as 'agg)
     val t2 = t.groupBy("b")
       .select("b, myCnt.distinct(a) + 9 as aCnt, myWeightedAvg.distinct(b, a) * 2 as wAvg, " +
         "myWeightedAvg.distinct(a, a) as distAgg, myWeightedAvg(a, a) as agg")
@@ -99,13 +98,12 @@ class AggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string)
 
-    val weightAvgFun = new WeightedAvg
-   util.addFunction("weightAvgFun", weightAvgFun)
+    util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     // Expression / Scala API
     val resScala = t
       .groupBy('string)
-      .select('int.count as 'cnt, weightAvgFun('long, 'int))
+      .select('int.count as 'cnt, call("weightAvgFun", 'long, 'int))
 
     // String / Java API
     val resJava = t

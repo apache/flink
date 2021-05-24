@@ -25,54 +25,54 @@ import java.net.URLClassLoader;
 
 import static org.junit.Assert.assertSame;
 
-/**
- * Tests for the {@link LambdaUtil}.
- */
+/** Tests for the {@link LambdaUtil}. */
 public class LambdaUtilTest {
 
-	@Test
-	public void testRunWithContextClassLoaderRunnable() throws Exception {
-		final ClassLoader aPrioriContextClassLoader = Thread.currentThread().getContextClassLoader();
+    @Test
+    public void testRunWithContextClassLoaderRunnable() throws Exception {
+        final ClassLoader aPrioriContextClassLoader =
+                Thread.currentThread().getContextClassLoader();
 
-		try {
-			final ClassLoader original = new URLClassLoader(new URL[0]);
-			final ClassLoader temp = new URLClassLoader(new URL[0]);
+        try {
+            final ClassLoader original = new URLClassLoader(new URL[0]);
+            final ClassLoader temp = new URLClassLoader(new URL[0]);
 
-			// set the original context class loader
-			Thread.currentThread().setContextClassLoader(original);
+            // set the original context class loader
+            Thread.currentThread().setContextClassLoader(original);
 
-			LambdaUtil.withContextClassLoader(temp, () ->
-					assertSame(temp, Thread.currentThread().getContextClassLoader()));
+            LambdaUtil.withContextClassLoader(
+                    temp, () -> assertSame(temp, Thread.currentThread().getContextClassLoader()));
 
-			// make sure the method restored the the original context class loader
-			assertSame(original, Thread.currentThread().getContextClassLoader());
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
-		}
-	}
+            // make sure the method restored the the original context class loader
+            assertSame(original, Thread.currentThread().getContextClassLoader());
+        } finally {
+            Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
+        }
+    }
 
-	@Test
-	public void testRunWithContextClassLoaderSupplier() throws Exception {
-		final ClassLoader aPrioriContextClassLoader = Thread.currentThread().getContextClassLoader();
+    @Test
+    public void testRunWithContextClassLoaderSupplier() throws Exception {
+        final ClassLoader aPrioriContextClassLoader =
+                Thread.currentThread().getContextClassLoader();
 
-		try {
-			final ClassLoader original = new URLClassLoader(new URL[0]);
-			final ClassLoader temp = new URLClassLoader(new URL[0]);
+        try {
+            final ClassLoader original = new URLClassLoader(new URL[0]);
+            final ClassLoader temp = new URLClassLoader(new URL[0]);
 
-			// set the original context class loader
-			Thread.currentThread().setContextClassLoader(original);
+            // set the original context class loader
+            Thread.currentThread().setContextClassLoader(original);
 
-			LambdaUtil.withContextClassLoader(temp, () -> {
-				assertSame(temp, Thread.currentThread().getContextClassLoader());
-				return true;
-			});
+            LambdaUtil.withContextClassLoader(
+                    temp,
+                    () -> {
+                        assertSame(temp, Thread.currentThread().getContextClassLoader());
+                        return true;
+                    });
 
-			// make sure the method restored the the original context class loader
-			assertSame(original, Thread.currentThread().getContextClassLoader());
-		}
-		finally {
-			Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
-		}
-	}
+            // make sure the method restored the the original context class loader
+            assertSame(original, Thread.currentThread().getContextClassLoader());
+        } finally {
+            Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
+        }
+    }
 }

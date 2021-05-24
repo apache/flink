@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContex
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.apache.calcite.rel.rules.{PruneEmptyRules, ReduceExpressionsRule}
+import org.apache.calcite.rel.rules.{CoreRules, PruneEmptyRules}
 import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
@@ -45,8 +45,8 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(
           FlinkSubQueryRemoveRule.FILTER,
-          ReduceExpressionsRule.FILTER_INSTANCE,
-          ReduceExpressionsRule.PROJECT_INSTANCE,
+          CoreRules.FILTER_REDUCE_EXPRESSIONS,
+          CoreRules.PROJECT_REDUCE_EXPRESSIONS,
           PruneEmptyRules.FILTER_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
           FlinkPruneEmptyRules.JOIN_RIGHT_INSTANCE))
@@ -60,12 +60,12 @@ class FlinkPruneEmptyRulesTest extends TableTestBase {
 
   @Test
   def testSemiJoinRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)")
+    util.verifyRelPlan("SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)")
   }
 
   @Test
   def testAntiJoinRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)")
+    util.verifyRelPlan("SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)")
   }
 
 }

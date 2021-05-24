@@ -21,68 +21,100 @@ package org.apache.flink.runtime.io.network.partition;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * The type of the BoundedBlockingSubpartition. Also doubles as the factory.
- */
+/** The type of the BoundedBlockingSubpartition. Also doubles as the factory. */
 public enum BoundedBlockingSubpartitionType {
 
-	/**
-	 * A BoundedBlockingSubpartition type that simply stores the partition data in a file.
-	 * Data is eagerly spilled (written to disk) and readers directly read from the file.
-	 */
-	FILE {
+    /**
+     * A BoundedBlockingSubpartition type that simply stores the partition data in a file. Data is
+     * eagerly spilled (written to disk) and readers directly read from the file.
+     */
+    FILE {
 
-		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
-			return BoundedBlockingSubpartition.createWithFileChannel(index, parent, tempFile, readBufferSize);
-		}
-	},
+        @Override
+        public BoundedBlockingSubpartition create(
+                int index,
+                ResultPartition parent,
+                File tempFile,
+                int readBufferSize,
+                boolean sslEnabled)
+                throws IOException {
 
-	/**
-	 * A BoundedBlockingSubpartition type that stores the partition data in memory mapped file.
-	 * Data is written to and read from the mapped memory region.
-	 * Disk spilling happens lazily, when the OS swaps out the pages from the memory mapped file.
-	 */
-	MMAP {
+            return BoundedBlockingSubpartition.createWithFileChannel(
+                    index, parent, tempFile, readBufferSize, sslEnabled);
+        }
+    },
 
-		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
-			return BoundedBlockingSubpartition.createWithMemoryMappedFile(index, parent, tempFile);
-		}
-	},
+    /**
+     * A BoundedBlockingSubpartition type that stores the partition data in memory mapped file. Data
+     * is written to and read from the mapped memory region. Disk spilling happens lazily, when the
+     * OS swaps out the pages from the memory mapped file.
+     */
+    MMAP {
 
-	/**
-	 * Creates a BoundedBlockingSubpartition that stores the partition data in a file and
-	 * memory maps that file for reading.
-	 * Data is eagerly spilled (written to disk) and then mapped into memory. The main
-	 * difference to the {@link BoundedBlockingSubpartitionType#MMAP} variant
-	 * is that no I/O is necessary when pages from the memory mapped file are evicted.
-	 */
-	FILE_MMAP {
+        @Override
+        public BoundedBlockingSubpartition create(
+                int index,
+                ResultPartition parent,
+                File tempFile,
+                int readBufferSize,
+                boolean sslEnabled)
+                throws IOException {
 
-		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
-			return BoundedBlockingSubpartition.createWithFileAndMemoryMappedReader(index, parent, tempFile);
-		}
-	},
+            return BoundedBlockingSubpartition.createWithMemoryMappedFile(index, parent, tempFile);
+        }
+    },
 
-	/**
-	 * Selects the BoundedBlockingSubpartition type based on the current memory architecture. If 64-bit,
-	 * the type of {@link BoundedBlockingSubpartitionType#FILE_MMAP} is recommended. Otherwise, the type
-	 * of {@link BoundedBlockingSubpartitionType#FILE} is by default.
-	 */
-	AUTO {
+    /**
+     * Creates a BoundedBlockingSubpartition that stores the partition data in a file and memory
+     * maps that file for reading. Data is eagerly spilled (written to disk) and then mapped into
+     * memory. The main difference to the {@link BoundedBlockingSubpartitionType#MMAP} variant is
+     * that no I/O is necessary when pages from the memory mapped file are evicted.
+     */
+    FILE_MMAP {
 
-		@Override
-		public BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException {
-			return ResultPartitionFactory.getBoundedBlockingType().create(index, parent, tempFile, readBufferSize);
-		}
-	};
+        @Override
+        public BoundedBlockingSubpartition create(
+                int index,
+                ResultPartition parent,
+                File tempFile,
+                int readBufferSize,
+                boolean sslEnabled)
+                throws IOException {
 
-	// ------------------------------------------------------------------------
+            return BoundedBlockingSubpartition.createWithFileAndMemoryMappedReader(
+                    index, parent, tempFile);
+        }
+    },
 
-	/**
-	 * Creates BoundedBlockingSubpartition of this type.
-	 */
-	public abstract BoundedBlockingSubpartition create(int index, ResultPartition parent, File tempFile, int readBufferSize) throws IOException;
+    /**
+     * Selects the BoundedBlockingSubpartition type based on the current memory architecture. If
+     * 64-bit, the type of {@link BoundedBlockingSubpartitionType#FILE_MMAP} is recommended.
+     * Otherwise, the type of {@link BoundedBlockingSubpartitionType#FILE} is by default.
+     */
+    AUTO {
+
+        @Override
+        public BoundedBlockingSubpartition create(
+                int index,
+                ResultPartition parent,
+                File tempFile,
+                int readBufferSize,
+                boolean sslEnabled)
+                throws IOException {
+
+            return ResultPartitionFactory.getBoundedBlockingType()
+                    .create(index, parent, tempFile, readBufferSize, sslEnabled);
+        }
+    };
+
+    // ------------------------------------------------------------------------
+
+    /** Creates BoundedBlockingSubpartition of this type. */
+    public abstract BoundedBlockingSubpartition create(
+            int index,
+            ResultPartition parent,
+            File tempFile,
+            int readBufferSize,
+            boolean sslEnabled)
+            throws IOException;
 }

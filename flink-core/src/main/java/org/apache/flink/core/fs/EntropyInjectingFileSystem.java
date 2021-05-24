@@ -23,27 +23,25 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * An interface to be implemented by a {@link FileSystem} that is aware of entropy injection.
  *
- * <p>Entropy injection is a technique to spread files/objects across more parallel shards of
- * a distributed storage (typically object store) by adding random characters to the beginning
- * of the path/key and hence spearing the keys across a wider domain of prefixes.
+ * <p>Entropy injection is a technique to spread files/objects across more parallel shards of a
+ * distributed storage (typically object store) by adding random characters to the beginning of the
+ * path/key and hence spearing the keys across a wider domain of prefixes.
  *
- * <p>Entropy injection typically works by having a recognized marker string in paths
- * and replacing that marker with random characters.
+ * <p>Entropy injection typically works by having a recognized marker string in paths and replacing
+ * that marker with random characters.
  *
- * <p>This interface is used in conjunction with the {@link EntropyInjector} (as a poor man's
- * way to build a mix-in in Java).
+ * <p>This interface is used in conjunction with the {@link EntropyInjector} (as a poor man's way to
+ * build a mix-in in Java).
  */
 @PublicEvolving
 public interface EntropyInjectingFileSystem {
 
-	/**
-	 * Gets the marker string that represents the substring of a path to be replaced
-	 * by the entropy characters.
-	 */
-	String getEntropyInjectionKey();
+    /**
+     * Gets the marker string that represents the substring of a path to be replaced by the entropy
+     * characters.
+     */
+    String getEntropyInjectionKey();
 
-	/**
-	 * Creates a string with random entropy to be injected into a path.
-	 */
-	String generateEntropy();
+    /** Creates a string with random entropy to be injected into a path. */
+    String generateEntropy();
 }

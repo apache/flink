@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -29,90 +30,128 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link FlinkKafkaProducer}.
- */
+/** Tests for {@link FlinkKafkaProducer}. */
 public class FlinkKafkaProducerTest {
-	@Test
-	public void testOpenSerializationSchemaProducer() throws Exception {
+    @Test
+    public void testOpenSerializationSchemaProducer() throws Exception {
+        OpenTestingSerializationSchema schema = new OpenTestingSerializationSchema();
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>("localhost:9092", "test-topic", schema);
 
-		OpenTestingSerializationSchema schema = new OpenTestingSerializationSchema();
-		FlinkKafkaProducer<Integer> kafkaProducer = new FlinkKafkaProducer<>(
-			"localhost:9092",
-			"test-topic",
-			schema
-		);
+        OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(kafkaProducer),
+                        1,
+                        1,
+                        0,
+                        IntSerializer.INSTANCE,
+                        new OperatorID(1, 1));
 
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			1,
-			1,
-			0,
-			IntSerializer.INSTANCE,
-			new OperatorID(1, 1));
+        testHarness.open();
 
-		testHarness.open();
+        assertThat(schema.openCalled, equalTo(true));
+    }
 
-		assertThat(schema.openCalled, equalTo(true));
-	}
+    @Test
+    public void testOpenKafkaSerializationSchemaProducer() throws Exception {
+        OpenTestingKafkaSerializationSchema schema = new OpenTestingKafkaSerializationSchema();
+        Properties properties = new Properties();
+        properties.put("bootstrap.servers", "localhost:9092");
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>(
+                        "test-topic",
+                        schema,
+                        properties,
+                        FlinkKafkaProducer.Semantic.AT_LEAST_ONCE);
 
-	@Test
-	public void testOpenKafkaSerializationSchemaProducer() throws Exception {
-		OpenTestingKafkaSerializationSchema schema = new OpenTestingKafkaSerializationSchema();
-		Properties properties = new Properties();
-		properties.put("bootstrap.servers", "localhost:9092");
-		FlinkKafkaProducer<Integer> kafkaProducer = new FlinkKafkaProducer<>(
-			"test-topic",
-			schema,
-			properties,
-			FlinkKafkaProducer.Semantic.AT_LEAST_ONCE
-		);
+        OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(kafkaProducer),
+                        1,
+                        1,
+                        0,
+                        IntSerializer.INSTANCE,
+                        new OperatorID(1, 1));
 
-		OneInputStreamOperatorTestHarness<Integer, Object> testHarness = new OneInputStreamOperatorTestHarness<>(
-			new StreamSink<>(kafkaProducer),
-			1,
-			1,
-			0,
-			IntSerializer.INSTANCE,
-			new OperatorID(1, 1));
+        testHarness.open();
 
-		testHarness.open();
+        assertThat(schema.openCalled, equalTo(true));
+    }
 
-		assertThat(schema.openCalled, equalTo(true));
-	}
+    @Test
+    public void testOpenKafkaCustomPartitioner() throws Exception {
+        CustomPartitioner<Integer> partitioner = new CustomPartitioner<>();
+        Properties properties = new Properties();
+        properties.put("bootstrap.servers", "localhost:9092");
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>(
+                        "test-topic",
+                        new OpenTestingSerializationSchema(),
+                        properties,
+                        Optional.of(partitioner));
 
-	private static class OpenTestingKafkaSerializationSchema implements KafkaSerializationSchema<Integer> {
-		private boolean openCalled;
+        OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(kafkaProducer),
+                        1,
+                        1,
+                        0,
+                        IntSerializer.INSTANCE,
+                        new OperatorID(1, 1));
 
-		@Override
-		public void open(SerializationSchema.InitializationContext context) throws Exception {
-			openCalled = true;
-		}
+        testHarness.open();
 
-		@Override
-		public ProducerRecord<byte[], byte[]> serialize(
-			Integer element,
-			@Nullable Long timestamp) {
-			return null;
-		}
-	}
+        assertThat(partitioner.openCalled, equalTo(true));
+    }
 
-	private static class OpenTestingSerializationSchema implements SerializationSchema<Integer> {
-		private boolean openCalled;
+    private static class CustomPartitioner<T> extends FlinkKafkaPartitioner<T> {
+        private boolean openCalled;
 
-		@Override
-		public void open(SerializationSchema.InitializationContext context) throws Exception {
-			openCalled = true;
-		}
+        @Override
+        public void open(int parallelInstanceId, int parallelInstances) {
+            super.open(parallelInstanceId, parallelInstances);
+            openCalled = true;
+        }
 
-		@Override
-		public byte[] serialize(Integer element) {
-			return new byte[0];
-		}
-	}
+        @Override
+        public int partition(
+                T record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
+            return 0;
+        }
+    }
+
+    private static class OpenTestingKafkaSerializationSchema
+            implements KafkaSerializationSchema<Integer> {
+        private boolean openCalled;
+
+        @Override
+        public void open(SerializationSchema.InitializationContext context) throws Exception {
+            openCalled = true;
+        }
+
+        @Override
+        public ProducerRecord<byte[], byte[]> serialize(Integer element, @Nullable Long timestamp) {
+            return null;
+        }
+    }
+
+    private static class OpenTestingSerializationSchema implements SerializationSchema<Integer> {
+        private boolean openCalled;
+
+        @Override
+        public void open(SerializationSchema.InitializationContext context) throws Exception {
+            openCalled = true;
+        }
+
+        @Override
+        public byte[] serialize(Integer element) {
+            return new byte[0];
+        }
+    }
 }

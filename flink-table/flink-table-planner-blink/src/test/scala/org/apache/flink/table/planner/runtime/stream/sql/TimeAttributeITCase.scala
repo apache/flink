@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
@@ -30,7 +29,7 @@ import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 import java.sql.Timestamp
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneId}
 import java.util.TimeZone
 
 /**
@@ -48,6 +47,17 @@ class TimeAttributeITCase extends StreamingTestBase {
     rowOf("1970-01-01 00:00:00.016", localDateTime(16L), 1, 4d))
 
   val dataId: String = TestValuesTableFactory.registerData(data)
+
+  val ltzData = List(
+    rowOf("1970-01-01 08:00:00.001", 1L, 1, 1d),
+    rowOf("1970-01-01 08:00:00.002", 2L, 1, 2d),
+    rowOf("1970-01-01 08:00:00.003", 3L, 1, 2d),
+    rowOf("1970-01-01 08:00:00.004", 4L, 1, 5d),
+    rowOf("1970-01-01 08:00:00.007", 7L, 1, 3d),
+    rowOf("1970-01-01 08:00:00.008", 8L, 1, 3d),
+    rowOf("1970-01-01 08:00:00.016", 16L, 1, 4d))
+
+  val ltzDataId: String = TestValuesTableFactory.registerData(ltzData)
 
   @Test
   def testWindowAggregateOnWatermark(): Unit = {
@@ -84,10 +94,47 @@ class TimeAttributeITCase extends StreamingTestBase {
   }
 
   @Test
+  def testWindowAggregateOnTimestampLtzWatermark(): Unit = {
+    val zoneId = "Asia/Shanghai"
+    tEnv.getConfig.setLocalTimeZone(ZoneId.of(zoneId))
+    val ddl =
+      s"""
+         |CREATE TABLE src1 (
+         |  log_ts STRING,
+         |  ts BIGINT,
+         |  a INT,
+         |  b DOUBLE,
+         |  ltz_ts AS TO_TIMESTAMP_LTZ(ts, 3),
+         |  WATERMARK FOR ltz_ts AS ltz_ts - INTERVAL '0.001' SECOND
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$ltzDataId'
+         |)
+      """.stripMargin
+    val query =
+      """
+        |SELECT TUMBLE_END(ltz_ts, INTERVAL '0.003' SECOND), COUNT(ts), SUM(b)
+        |FROM src1
+        |GROUP BY TUMBLE(ltz_ts, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    tEnv.executeSql(ddl)
+    val sink = new TestingAppendSink(TimeZone.getTimeZone(zoneId))
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute("SQL JOB")
+
+    val expected = Seq(
+      "1970-01-01T08:00:00.003,2,3.0",
+      "1970-01-01T08:00:00.006,2,7.0",
+      "1970-01-01T08:00:00.009,2,6.0",
+      "1970-01-01T08:00:00.018,1,4.0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testWindowAggregateOnCustomizedWatermark(): Unit = {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
-    tEnv.registerFunction("myFunc", new JavaFunc5)
+    tEnv.createTemporaryFunction("myFunc", new JavaFunc5)
     val ddl =
       s"""
         |CREATE TABLE src (
@@ -155,34 +202,6 @@ class TimeAttributeITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.009,2,6.0",
       "1970-01-01T00:00:00.018,1,4.0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
-  }
-
-  @Test
-  def testWindowAggregateOnNestedRowtime(): Unit = {
-    val ddl =
-      s"""
-        |CREATE TABLE src (
-        |  col ROW<
-        |    ts TIMESTAMP(3),
-        |    a INT,
-        |    b DOUBLE>,
-        |  WATERMARK FOR col.ts AS col.ts - INTERVAL '0.001' SECOND
-        |) WITH (
-        |  'connector' = 'values',
-        |  'data-id' = '$dataId'
-        |)
-      """.stripMargin
-    val query =
-      """
-        |SELECT TUMBLE_END(col.ts, INTERVAL '0.003' SECOND), COUNT(*)
-        |FROM src
-        |GROUP BY TUMBLE(col.ts, INTERVAL '0.003' SECOND)
-      """.stripMargin
-    tEnv.executeSql(ddl)
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "Nested field 'col.ts' as rowtime attribute is not supported right now.")
-    tEnv.sqlQuery(query)
   }
 
   // ------------------------------------------------------------------------------------------

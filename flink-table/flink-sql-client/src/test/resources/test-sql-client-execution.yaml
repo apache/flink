@@ -1,0 +1,35 @@
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+
+#==============================================================================
+# TEST ENVIRONMENT FILE
+# General purpose default environment file.
+#==============================================================================
+
+# this file has variables that can be filled with content by replacing $VAR_XXX
+
+execution:
+  planner: "$VAR_PLANNER"
+  type: "$VAR_EXECUTION_TYPE"
+  time-characteristic: event-time
+  periodic-watermarks-interval: 99
+  max-parallelism: 16
+  min-idle-state-retention: 1000
+  max-idle-state-retention: 600000
+  result-mode: "$VAR_RESULT_MODE"
+  max-table-result-rows: "$VAR_MAX_ROWS"

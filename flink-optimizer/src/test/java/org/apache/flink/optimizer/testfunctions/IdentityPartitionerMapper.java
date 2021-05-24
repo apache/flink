@@ -23,12 +23,12 @@ import org.apache.flink.util.Collector;
 
 public class IdentityPartitionerMapper<T> extends RichMapPartitionFunction<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void mapPartition(Iterable<T> values, Collector<T> out) {
-		for (T in : values) {
-			out.collect(in);
-		}
-	}
+    @Override
+    public void mapPartition(Iterable<T> values, Collector<T> out) {
+        for (T in : values) {
+            out.collect(in);
+        }
+    }
 }

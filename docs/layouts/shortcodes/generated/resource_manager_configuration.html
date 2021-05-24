@@ -1,0 +1,66 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>resourcemanager.job.timeout</h5></td>
+            <td style="word-wrap: break-word;">"5 minutes"</td>
+            <td>String</td>
+            <td>Timeout for jobs which don't have a job manager as leader assigned.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.rpc.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>Defines the network port to connect to for communication with the resource manager. By default, the port of the JobManager, because the same ActorSystem is used. Its not possible to use this configuration key to define port ranges.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.standalone.start-up-time</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Long</td>
+            <td>Time in milliseconds of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, 'slotmanager.request-timeout' will be used by default.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.start-worker.max-failure-rate</h5></td>
+            <td style="word-wrap: break-word;">10.0</td>
+            <td>Double</td>
+            <td>The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute before pausing requesting new workers. Once the threshold is reached, subsequent worker requests will be postponed to after a configured retry interval ('resourcemanager.start-worker.retry-interval').</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.start-worker.retry-interval</h5></td>
+            <td style="word-wrap: break-word;">3 s</td>
+            <td>Duration</td>
+            <td>The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the max failure rate of starting workers ('resourcemanager.start-worker.max-failure-rate') is reached.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.taskmanager-registration.timeout</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Timeout for TaskManagers to register at the active resource managers. If exceeded, active resource manager will release and try to re-request the resource for the worker. If not configured, fallback to 'taskmanager.registration.timeout'.</td>
+        </tr>
+        <tr>
+            <td><h5>resourcemanager.taskmanager-timeout</h5></td>
+            <td style="word-wrap: break-word;">30000</td>
+            <td>Long</td>
+            <td>The timeout for an idle task manager to be released.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.number-of-slots.max</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>Defines the maximum number of slots that the Flink cluster allocates. This configuration option is meant for limiting the resource consumption for batch workloads. It is not recommended to configure this option for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take effect for standalone clusters, where how many slots are allocated is not controlled by Flink.</td>
+        </tr>
+        <tr>
+            <td><h5>slotmanager.redundant-taskmanager-num</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).</td>
+        </tr>
+    </tbody>
+</table>

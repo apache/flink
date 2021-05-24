@@ -18,38 +18,70 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.ProgramInvocationException;
-import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.client.JobInitializationException;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.util.ExceptionUtils;
+
+import java.util.Optional;
 
 import static org.junit.Assert.fail;
 
-/**
- * Test utilities.
- */
+/** Test utilities. */
 public class TestUtils {
 
-	public static JobExecutionResult tryExecute(StreamExecutionEnvironment see, String name) throws Exception {
-		try {
-			return see.execute(name);
-		}
-		catch (ProgramInvocationException | JobExecutionException root) {
-			Throwable cause = root.getCause();
+    /**
+     * Execute the job and wait for the job result synchronously.
+     *
+     * @throws Exception If executing the environment throws an exception which does not have {@link
+     *     SuccessException} as a cause.
+     */
+    public static void tryExecute(StreamExecutionEnvironment see, String name) throws Exception {
+        JobClient jobClient = null;
+        try {
+            StreamGraph graph = see.getStreamGraph(name);
+            jobClient = see.executeAsync(graph);
+            jobClient.getJobExecutionResult().get();
+        } catch (Throwable root) {
+            if (jobClient != null) {
+                try {
+                    jobClient.cancel().get();
+                } catch (Exception e) {
+                    // Exception could be thrown if the job has already finished.
+                    // Ignore the exception.
+                }
+            }
 
-			// search for nested SuccessExceptions
-			int depth = 0;
-			while (!(cause instanceof SuccessException)) {
-				if (cause == null || depth++ == 20) {
-					root.printStackTrace();
-					fail("Test failed: " + root.getMessage());
-				}
-				else {
-					cause = cause.getCause();
-				}
-			}
-		}
+            Optional<SuccessException> successAsCause =
+                    ExceptionUtils.findThrowable(root, SuccessException.class);
 
-		return null;
-	}
+            if (!successAsCause.isPresent()) {
+                root.printStackTrace();
+                fail("Test failed: " + root.getMessage());
+            }
+        }
+    }
+
+    public static void submitJobAndWaitForResult(
+            ClusterClient<?> client, JobGraph jobGraph, ClassLoader classLoader) throws Exception {
+        client.submitJob(jobGraph)
+                .thenCompose(client::requestJobResult)
+                .get()
+                .toJobExecutionResult(classLoader);
+    }
+
+    public static void waitUntilJobInitializationFinished(
+            JobID id, MiniClusterWithClientResource miniCluster, ClassLoader userCodeClassloader)
+            throws JobInitializationException {
+        ClusterClient<?> clusterClient = miniCluster.getClusterClient();
+        ClientUtils.waitUntilJobInitializationFinished(
+                () -> clusterClient.getJobStatus(id).get(),
+                () -> clusterClient.requestJobResult(id).get(),
+                userCodeClassloader);
+    }
 }

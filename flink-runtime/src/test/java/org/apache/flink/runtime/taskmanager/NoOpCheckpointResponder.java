@@ -19,19 +19,26 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
-/**
- * NoOp {@link CheckpointResponder} implementation.
- */
+/** NoOp {@link CheckpointResponder} implementation. */
 public enum NoOpCheckpointResponder implements CheckpointResponder {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public void acknowledgeCheckpoint(JobID j, ExecutionAttemptID e, long i, CheckpointMetrics c, TaskStateSnapshot s) {}
+    @Override
+    public void acknowledgeCheckpoint(
+            JobID j, ExecutionAttemptID e, long i, CheckpointMetrics c, TaskStateSnapshot s) {}
 
-	@Override
-	public void declineCheckpoint(JobID j, ExecutionAttemptID e, long l, Throwable t) {}
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
+
+    @Override
+    public void declineCheckpoint(JobID j, ExecutionAttemptID e, long l, CheckpointException c) {}
 }

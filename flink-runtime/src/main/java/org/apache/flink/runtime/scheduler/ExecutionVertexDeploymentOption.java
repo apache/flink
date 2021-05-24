@@ -22,25 +22,24 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Component that stores the task need to be scheduled and the option for deployment.
- */
+/** Component that stores the task need to be scheduled and the option for deployment. */
 public class ExecutionVertexDeploymentOption {
 
-	private final ExecutionVertexID executionVertexId;
+    private final ExecutionVertexID executionVertexId;
 
-	private final DeploymentOption deploymentOption;
+    private final DeploymentOption deploymentOption;
 
-	public ExecutionVertexDeploymentOption(ExecutionVertexID executionVertexId, DeploymentOption deploymentOption) {
-		this.executionVertexId = checkNotNull(executionVertexId);
-		this.deploymentOption = checkNotNull(deploymentOption);
-	}
+    public ExecutionVertexDeploymentOption(
+            ExecutionVertexID executionVertexId, DeploymentOption deploymentOption) {
+        this.executionVertexId = checkNotNull(executionVertexId);
+        this.deploymentOption = checkNotNull(deploymentOption);
+    }
 
-	public ExecutionVertexID getExecutionVertexId() {
-		return executionVertexId;
-	}
+    public ExecutionVertexID getExecutionVertexId() {
+        return executionVertexId;
+    }
 
-	public DeploymentOption getDeploymentOption() {
-		return deploymentOption;
-	}
+    public DeploymentOption getDeploymentOption() {
+        return deploymentOption;
+    }
 }

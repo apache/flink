@@ -35,6 +35,9 @@ function containers_health_check() {
 
 function build_image() {
     local image_name=${1:-flink-job}
+    local default_file_server_address="localhost"
+    [[ "${OS_TYPE}" != "linux" ]] && default_file_server_address="host.docker.internal"
+    local file_server_address=${2:-${default_file_server_address}}
 
     echo "Starting fileserver for Flink distribution"
     pushd ${FLINK_DIR}/..
@@ -47,10 +50,10 @@ function build_image() {
     echo "Preparing Dockeriles"
     git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
     cd flink-docker
-    ./add-custom.sh -u localhost:9999/flink.tgz -n ${image_name}
+    ./add-custom.sh -u ${file_server_address}:9999/flink.tgz -n ${image_name}
 
     echo "Building images"
-    docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
+    run_with_timeout 600 docker build --no-cache --network="host" -t ${image_name} dev/${image_name}-debian
     popd
 }
 
@@ -63,7 +66,7 @@ function start_file_server() {
 
     command -v python3 >/dev/null 2>&1
     if [[ $? -eq 0 ]]; then
-      python ${TEST_INFRA_DIR}/python3_fileserver.py &
+      python3 ${TEST_INFRA_DIR}/python3_fileserver.py &
       return
     fi
 

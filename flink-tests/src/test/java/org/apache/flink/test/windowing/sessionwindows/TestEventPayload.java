@@ -20,87 +20,91 @@ package org.apache.flink.test.windowing.sessionwindows;
 
 import org.apache.flink.util.Preconditions;
 
-/**
- * Test payload that contains useful information for the correctness checks in our test.
- */
+/** Test payload that contains useful information for the correctness checks in our test. */
 public final class TestEventPayload {
 
-	// id of the session w.r.t the key
-	private int sessionId;
+    // id of the session w.r.t the key
+    private int sessionId;
 
-	// id of the event w.r.t. tje session id
-	private int eventId;
+    // id of the event w.r.t. tje session id
+    private int eventId;
 
-	// the watermark under which the event was emitted
-	private long watermark;
+    // the watermark under which the event was emitted
+    private long watermark;
 
-	// the timing characteristic of the event w.r.t. the watermark
-	private SessionEventGeneratorImpl.Timing timing;
+    // the timing characteristic of the event w.r.t. the watermark
+    private SessionEventGeneratorImpl.Timing timing;
 
-	public TestEventPayload(long watermark, int sessionId, int eventSequenceNumber, SessionEventGeneratorImpl.Timing timing) {
-		setWatermark(watermark);
-		setSessionId(sessionId);
-		setEventId(eventSequenceNumber);
-		setTiming(timing);
-	}
+    public TestEventPayload(
+            long watermark,
+            int sessionId,
+            int eventSequenceNumber,
+            SessionEventGeneratorImpl.Timing timing) {
+        setWatermark(watermark);
+        setSessionId(sessionId);
+        setEventId(eventSequenceNumber);
+        setTiming(timing);
+    }
 
-	/**
-	 * @return global watermark at the time this event was generated
-	 */
-	public long getWatermark() {
-		return watermark;
-	}
+    /** @return global watermark at the time this event was generated */
+    public long getWatermark() {
+        return watermark;
+    }
 
-	public void setWatermark(long watermark) {
-		this.watermark = watermark;
-	}
+    public void setWatermark(long watermark) {
+        this.watermark = watermark;
+    }
 
-	/**
-	 * @return id of the session to identify a sessions in the sequence of all sessions for the same key
-	 */
-	public int getSessionId() {
-		return sessionId;
-	}
+    /**
+     * @return id of the session to identify a sessions in the sequence of all sessions for the same
+     *     key
+     */
+    public int getSessionId() {
+        return sessionId;
+    }
 
-	public void setSessionId(int sessionId) {
-		this.sessionId = sessionId;
-	}
+    public void setSessionId(int sessionId) {
+        this.sessionId = sessionId;
+    }
 
-	/**
-	 * @return a sequence number that acts as an id for the even inside the session
-	 */
-	public int getEventId() {
-		return eventId;
-	}
+    /** @return a sequence number that acts as an id for the even inside the session */
+    public int getEventId() {
+        return eventId;
+    }
 
-	public void setEventId(int eventId) {
-		this.eventId = eventId;
-	}
+    public void setEventId(int eventId) {
+        this.eventId = eventId;
+    }
 
-	/**
-	 * @return indicates whether the event is on time, late within the timing, or late after the timing
-	 */
-	public SessionEventGeneratorImpl.Timing getTiming() {
-		return timing;
-	}
+    /**
+     * @return indicates whether the event is on time, late within the timing, or late after the
+     *     timing
+     */
+    public SessionEventGeneratorImpl.Timing getTiming() {
+        return timing;
+    }
 
-	public void setTiming(SessionEventGeneratorImpl.Timing timing) {
-		Preconditions.checkNotNull(timing);
-		this.timing = timing;
-	}
+    public void setTiming(SessionEventGeneratorImpl.Timing timing) {
+        Preconditions.checkNotNull(timing);
+        this.timing = timing;
+    }
 
-	@Override
-	public String toString() {
-		return "TestEventPayload{" +
-				"sessionId=" + sessionId +
-				", eventId=" + eventId +
-				", watermark=" + watermark +
-				", timing=" + timing +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "TestEventPayload{"
+                + "sessionId="
+                + sessionId
+                + ", eventId="
+                + eventId
+                + ", watermark="
+                + watermark
+                + ", timing="
+                + timing
+                + '}';
+    }
 
-	public static TestEventPayload of(long watermark, int sessionId, int eventId, SessionEventGeneratorImpl.Timing timing) {
-		return new TestEventPayload(watermark, sessionId, eventId, timing);
-	}
-
+    public static TestEventPayload of(
+            long watermark, int sessionId, int eventId, SessionEventGeneratorImpl.Timing timing) {
+        return new TestEventPayload(watermark, sessionId, eventId, timing);
+    }
 }

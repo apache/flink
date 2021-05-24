@@ -19,14 +19,10 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Interface for the one-input operators that can process EndOfInput event.
- */
+/** Interface for the one-input operators that can process EndOfInput event. */
 @PublicEvolving
 public interface BoundedOneInput {
 
-	/**
-	 * It is notified that no more data will arrive on the input.
-	 */
-	void endInput() throws Exception;
+    /** It is notified that no more data will arrive on the input. */
+    void endInput() throws Exception;
 }

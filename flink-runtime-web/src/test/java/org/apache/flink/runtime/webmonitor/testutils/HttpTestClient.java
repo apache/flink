@@ -68,281 +68,290 @@ import java.util.concurrent.TimeoutException;
  *
  * <p>This code is based on Netty's HttpSnoopClient.
  *
- * @see <a href="https://github.com/netty/netty/blob/master/example/src/main/java/io/netty/example/http/snoop/HttpSnoopClient.java">HttpSnoopClient</a>
+ * @see <a
+ *     href="https://github.com/netty/netty/blob/master/example/src/main/java/io/netty/example/http/snoop/HttpSnoopClient.java">HttpSnoopClient</a>
  */
 public class HttpTestClient implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HttpTestClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HttpTestClient.class);
 
-	/** Target host to connect to. */
-	private final String host;
+    /** Target host to connect to. */
+    private final String host;
 
-	/** Target port to connect to. */
-	private final int port;
+    /** Target port to connect to. */
+    private final int port;
 
-	/** Netty's thread group for the client. */
-	private final EventLoopGroup group;
+    /** Netty's thread group for the client. */
+    private final EventLoopGroup group;
 
-	/** Client bootstrap. */
-	private final Bootstrap bootstrap;
+    /** Client bootstrap. */
+    private final Bootstrap bootstrap;
 
-	/** Responses received by the client. */
-	private final BlockingQueue<SimpleHttpResponse> responses = new LinkedBlockingQueue<>();
+    /** Responses received by the client. */
+    private final BlockingQueue<SimpleHttpResponse> responses = new LinkedBlockingQueue<>();
 
-	/**
-	 * Creates a client instance for the server at the target host and port.
-	 *
-	 * @param host Host of the HTTP server
-	 * @param port Port of the HTTP server
-	 */
-	public HttpTestClient(String host, int port) {
-		this.host = host;
-		this.port = port;
+    /**
+     * Creates a client instance for the server at the target host and port.
+     *
+     * @param host Host of the HTTP server
+     * @param port Port of the HTTP server
+     */
+    public HttpTestClient(String host, int port) {
+        this.host = host;
+        this.port = port;
 
-		this.group = new NioEventLoopGroup();
+        this.group = new NioEventLoopGroup();
 
-		this.bootstrap = new Bootstrap();
-		this.bootstrap.group(group)
-				.channel(NioSocketChannel.class)
-				.handler(new ChannelInitializer<SocketChannel>() {
+        this.bootstrap = new Bootstrap();
+        this.bootstrap
+                .group(group)
+                .channel(NioSocketChannel.class)
+                .handler(
+                        new ChannelInitializer<SocketChannel>() {
 
-					@Override
-					protected void initChannel(SocketChannel ch) throws Exception {
-						ChannelPipeline p = ch.pipeline();
-						p.addLast(new HttpClientCodec());
-						p.addLast(new HttpContentDecompressor());
-						p.addLast(new ClientHandler(responses));
-					}
-				});
-	}
+                            @Override
+                            protected void initChannel(SocketChannel ch) throws Exception {
+                                ChannelPipeline p = ch.pipeline();
+                                p.addLast(new HttpClientCodec());
+                                p.addLast(new HttpContentDecompressor());
+                                p.addLast(new ClientHandler(responses));
+                            }
+                        });
+    }
 
-	/**
-	 * Sends a request to to the server.
-	 *
-	 * <pre>
-	 * HttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overview");
-	 * request.headers().set(HttpHeaders.Names.HOST, host);
-	 * request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
-	 *
-	 * sendRequest(request);
-	 * </pre>
-	 *
-	 * @param request The {@link HttpRequest} to send to the server
-	 */
-	public void sendRequest(HttpRequest request, Duration timeout) throws InterruptedException, TimeoutException {
-		LOG.debug("Writing {}.", request);
+    /**
+     * Sends a request to to the server.
+     *
+     * <pre>
+     * HttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/overview");
+     * request.headers().set(HttpHeaders.Names.HOST, host);
+     * request.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+     *
+     * sendRequest(request);
+     * </pre>
+     *
+     * @param request The {@link HttpRequest} to send to the server
+     */
+    public void sendRequest(HttpRequest request, Duration timeout)
+            throws InterruptedException, TimeoutException {
+        LOG.debug("Writing {}.", request);
 
-		// Make the connection attempt.
-		ChannelFuture connect = bootstrap.connect(host, port);
+        // Make the connection attempt.
+        ChannelFuture connect = bootstrap.connect(host, port);
 
-		Channel channel;
-		if (connect.await(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-			channel = connect.channel();
-		}
-		else {
-			throw new TimeoutException("Connection failed");
-		}
+        Channel channel;
+        if (connect.await(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+            channel = connect.channel();
+        } else {
+            throw new TimeoutException("Connection failed");
+        }
 
-		channel.writeAndFlush(request);
-	}
+        channel.writeAndFlush(request);
+    }
 
-	/**
-	 * Sends a simple GET request to the given path. You only specify the $path part of
-	 * http://$host:$host/$path.
-	 *
-	 * @param path The $path to GET (http://$host:$host/$path)
-	 */
-	public void sendGetRequest(String path, Duration timeout) throws TimeoutException, InterruptedException {
-		if (!path.startsWith("/")) {
-			path = "/" + path;
-		}
+    /**
+     * Sends a simple GET request to the given path. You only specify the $path part of
+     * http://$host:$host/$path.
+     *
+     * @param path The $path to GET (http://$host:$host/$path)
+     */
+    public void sendGetRequest(String path, Duration timeout)
+            throws TimeoutException, InterruptedException {
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
 
-		HttpRequest getRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-				HttpMethod.GET, path);
-		getRequest.headers().set(HttpHeaders.Names.HOST, host);
-		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        HttpRequest getRequest =
+                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, path);
+        getRequest.headers().set(HttpHeaders.Names.HOST, host);
+        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		sendRequest(getRequest, timeout);
-	}
+        sendRequest(getRequest, timeout);
+    }
 
-	/**
-	 * Sends a simple DELETE request to the given path. You only specify the $path part of
-	 * http://$host:$host/$path.
-	 *
-	 * @param path The $path to DELETE (http://$host:$host/$path)
-	 */
-	public void sendDeleteRequest(String path, Duration timeout) throws TimeoutException, InterruptedException {
-		if (!path.startsWith("/")) {
-			path = "/" + path;
-		}
+    /**
+     * Sends a simple DELETE request to the given path. You only specify the $path part of
+     * http://$host:$host/$path.
+     *
+     * @param path The $path to DELETE (http://$host:$host/$path)
+     */
+    public void sendDeleteRequest(String path, Duration timeout)
+            throws TimeoutException, InterruptedException {
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
 
-		HttpRequest getRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-				HttpMethod.DELETE, path);
-		getRequest.headers().set(HttpHeaders.Names.HOST, host);
-		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        HttpRequest getRequest =
+                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.DELETE, path);
+        getRequest.headers().set(HttpHeaders.Names.HOST, host);
+        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		sendRequest(getRequest, timeout);
-	}
+        sendRequest(getRequest, timeout);
+    }
 
-	/**
-	 * Sends a simple PATCH request to the given path. You only specify the $path part of
-	 * http://$host:$host/$path.
-	 *
-	 * @param path The $path to PATCH (http://$host:$host/$path)
-	 */
-	public void sendPatchRequest(String path, Duration timeout) throws TimeoutException, InterruptedException {
-		if (!path.startsWith("/")) {
-			path = "/" + path;
-		}
+    /**
+     * Sends a simple PATCH request to the given path. You only specify the $path part of
+     * http://$host:$host/$path.
+     *
+     * @param path The $path to PATCH (http://$host:$host/$path)
+     */
+    public void sendPatchRequest(String path, Duration timeout)
+            throws TimeoutException, InterruptedException {
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
 
-		HttpRequest getRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1,
-			HttpMethod.PATCH, path);
-		getRequest.headers().set(HttpHeaders.Names.HOST, host);
-		getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+        HttpRequest getRequest =
+                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.PATCH, path);
+        getRequest.headers().set(HttpHeaders.Names.HOST, host);
+        getRequest.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
 
-		sendRequest(getRequest, timeout);
-	}
+        sendRequest(getRequest, timeout);
+    }
 
-	/**
-	 * Returns the next available HTTP response. A call to this method blocks until a response
-	 * becomes available.
-	 *
-	 * @return The next available {@link SimpleHttpResponse}
-	 */
-	public SimpleHttpResponse getNextResponse() throws InterruptedException {
-		return responses.take();
-	}
+    /**
+     * Returns the next available HTTP response. A call to this method blocks until a response
+     * becomes available.
+     *
+     * @return The next available {@link SimpleHttpResponse}
+     */
+    public SimpleHttpResponse getNextResponse() throws InterruptedException {
+        return responses.take();
+    }
 
-	/**
-	 * Returns the next available HTTP response . A call to this method blocks until a response
-	 * becomes available or throws an Exception if the timeout fires.
-	 *
-	 * @param timeout Timeout in milliseconds for the next response to become available
-	 * @return The next available {@link SimpleHttpResponse}
-	 */
-	public SimpleHttpResponse getNextResponse(Duration timeout) throws InterruptedException,
-			TimeoutException {
+    /**
+     * Returns the next available HTTP response . A call to this method blocks until a response
+     * becomes available or throws an Exception if the timeout fires.
+     *
+     * @param timeout Timeout in milliseconds for the next response to become available
+     * @return The next available {@link SimpleHttpResponse}
+     */
+    public SimpleHttpResponse getNextResponse(Duration timeout)
+            throws InterruptedException, TimeoutException {
 
-		SimpleHttpResponse response = responses.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        SimpleHttpResponse response = responses.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
-		if (response == null) {
-			throw new TimeoutException("No response within timeout of " + timeout + " ms");
-		}
-		else {
-			return response;
-		}
-	}
+        if (response == null) {
+            throw new TimeoutException("No response within timeout of " + timeout + " ms");
+        } else {
+            return response;
+        }
+    }
 
-	/**
-	 * Closes the client.
-	 */
-	@Override
-	public void close() throws InterruptedException {
-		if (group != null) {
-			group.shutdownGracefully();
-		}
+    /** Closes the client. */
+    @Override
+    public void close() throws InterruptedException {
+        if (group != null) {
+            group.shutdownGracefully();
+        }
 
-		LOG.debug("Closed");
-	}
+        LOG.debug("Closed");
+    }
 
-	/**
-	 * A simple HTTP response.
-	 */
-	public static class SimpleHttpResponse {
+    /** A simple HTTP response. */
+    public static class SimpleHttpResponse {
 
-		private final HttpResponseStatus status;
+        private final HttpResponseStatus status;
 
-		private final String type;
+        private final String type;
 
-		private final String content;
+        private final String content;
 
-		private final String location;
+        private final String location;
 
-		public SimpleHttpResponse(HttpResponseStatus status, String type, String content, String location) {
-			this.status = status;
-			this.type = type;
-			this.content = content;
-			this.location = location;
-		}
+        public SimpleHttpResponse(
+                HttpResponseStatus status, String type, String content, String location) {
+            this.status = status;
+            this.type = type;
+            this.content = content;
+            this.location = location;
+        }
 
-		public HttpResponseStatus getStatus() {
-			return status;
-		}
+        public HttpResponseStatus getStatus() {
+            return status;
+        }
 
-		public String getType() {
-			return type;
-		}
+        public String getType() {
+            return type;
+        }
 
-		public final String getLocation() {
-			return location;
-		}
+        public final String getLocation() {
+            return location;
+        }
 
-		public String getContent() {
-			return content;
-		}
+        public String getContent() {
+            return content;
+        }
 
-		@Override
-		public String toString() {
-			return "HttpResponse(status=" + status + ", type='" + type + "'" + ", content='" +
-					content + ", location = " + location + "')";
-		}
-	}
+        @Override
+        public String toString() {
+            return "HttpResponse(status="
+                    + status
+                    + ", type='"
+                    + type
+                    + "'"
+                    + ", content='"
+                    + content
+                    + ", location = "
+                    + location
+                    + "')";
+        }
+    }
 
-	/**
-	 * The response handler. Responses from the server are handled here.
-	 */
-	@ChannelHandler.Sharable
-	private static class ClientHandler extends SimpleChannelInboundHandler<HttpObject> {
+    /** The response handler. Responses from the server are handled here. */
+    @ChannelHandler.Sharable
+    private static class ClientHandler extends SimpleChannelInboundHandler<HttpObject> {
 
-		private final BlockingQueue<SimpleHttpResponse> responses;
+        private final BlockingQueue<SimpleHttpResponse> responses;
 
-		private HttpResponseStatus currentStatus;
+        private HttpResponseStatus currentStatus;
 
-		private String currentType;
+        private String currentType;
 
-		private String currentLocation;
+        private String currentLocation;
 
-		private String currentContent = "";
+        private String currentContent = "";
 
-		public ClientHandler(BlockingQueue<SimpleHttpResponse> responses) {
-			this.responses = responses;
-		}
+        public ClientHandler(BlockingQueue<SimpleHttpResponse> responses) {
+            this.responses = responses;
+        }
 
-		@Override
-		protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
-			LOG.debug("Received {}", msg);
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg) throws Exception {
+            LOG.debug("Received {}", msg);
 
-			if (msg instanceof HttpResponse) {
-				HttpResponse response = (HttpResponse) msg;
+            if (msg instanceof HttpResponse) {
+                HttpResponse response = (HttpResponse) msg;
 
-				currentStatus = response.getStatus();
-				currentType = response.headers().get(HttpHeaders.Names.CONTENT_TYPE);
-				currentLocation = response.headers().get(HttpHeaders.Names.LOCATION);
+                currentStatus = response.getStatus();
+                currentType = response.headers().get(HttpHeaders.Names.CONTENT_TYPE);
+                currentLocation = response.headers().get(HttpHeaders.Names.LOCATION);
 
-				if (HttpHeaders.isTransferEncodingChunked(response)) {
-					LOG.debug("Content is chunked");
-				}
-			}
+                if (HttpHeaders.isTransferEncodingChunked(response)) {
+                    LOG.debug("Content is chunked");
+                }
+            }
 
-			if (msg instanceof HttpContent) {
-				HttpContent content = (HttpContent) msg;
+            if (msg instanceof HttpContent) {
+                HttpContent content = (HttpContent) msg;
 
-				// Add the content
-				currentContent += content.content().toString(CharsetUtil.UTF_8);
+                // Add the content
+                currentContent += content.content().toString(CharsetUtil.UTF_8);
 
-				// Finished with this
-				if (content instanceof LastHttpContent) {
-					responses.add(new SimpleHttpResponse(currentStatus, currentType,
-							currentContent, currentLocation));
+                // Finished with this
+                if (content instanceof LastHttpContent) {
+                    responses.add(
+                            new SimpleHttpResponse(
+                                    currentStatus, currentType, currentContent, currentLocation));
 
-					currentStatus = null;
-					currentType = null;
-					currentLocation = null;
-					currentContent = "";
+                    currentStatus = null;
+                    currentType = null;
+                    currentLocation = null;
+                    currentContent = "";
 
-					ctx.close();
-				}
-			}
-		}
-	}
+                    ctx.close();
+                }
+            }
+        }
+    }
 }

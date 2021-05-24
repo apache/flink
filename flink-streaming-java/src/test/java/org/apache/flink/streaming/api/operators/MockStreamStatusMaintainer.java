@@ -21,21 +21,19 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 
-/**
- * A testing implementation of {@link StreamStatusMaintainer}.
- */
+/** A testing implementation of {@link StreamStatusMaintainer}. */
 public class MockStreamStatusMaintainer implements StreamStatusMaintainer {
-	private StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
+    private StreamStatus currentStreamStatus = StreamStatus.ACTIVE;
 
-	@Override
-	public void toggleStreamStatus(StreamStatus streamStatus) {
-		if (!currentStreamStatus.equals(streamStatus)) {
-			currentStreamStatus = streamStatus;
-		}
-	}
+    @Override
+    public void toggleStreamStatus(StreamStatus streamStatus) {
+        if (!currentStreamStatus.equals(streamStatus)) {
+            currentStreamStatus = streamStatus;
+        }
+    }
 
-	@Override
-	public StreamStatus getStreamStatus() {
-		return currentStreamStatus;
-	}
+    @Override
+    public StreamStatus getStreamStatus() {
+        return currentStreamStatus;
+    }
 }

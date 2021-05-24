@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api.bridge.java.internal;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -35,87 +34,71 @@ import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link StreamTableEnvironmentImpl}.
- */
+/** Tests for {@link StreamTableEnvironmentImpl}. */
 public class StreamTableEnvironmentImplTest {
-	@Test
-	public void testAppendStreamDoesNotOverwriteTableConfig() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+    @Test
+    public void testAppendStreamDoesNotOverwriteTableConfig() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
-		StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
+        StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
 
-		Time minRetention = Time.minutes(1);
-		Time maxRetention = Time.minutes(10);
-		tEnv.getConfig().setIdleStateRetentionTime(minRetention, maxRetention);
-		Table table = tEnv.fromDataStream(elements);
-		tEnv.toAppendStream(table, Row.class);
+        Duration minRetention = Duration.ofMinutes(1);
+        tEnv.getConfig().setIdleStateRetention(minRetention);
+        Table table = tEnv.fromDataStream(elements);
+        tEnv.toAppendStream(table, Row.class);
 
-		assertThat(
-			tEnv.getConfig().getMinIdleStateRetentionTime(),
-			equalTo(minRetention.toMilliseconds()));
-		assertThat(
-			tEnv.getConfig().getMaxIdleStateRetentionTime(),
-			equalTo(maxRetention.toMilliseconds()));
-	}
+        assertEquals(minRetention, tEnv.getConfig().getIdleStateRetention());
+    }
 
-	@Test
-	public void testRetractStreamDoesNotOverwriteTableConfig() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+    @Test
+    public void testRetractStreamDoesNotOverwriteTableConfig() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
 
-		StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
+        StreamTableEnvironmentImpl tEnv = getStreamTableEnvironment(env, elements);
 
-		Time minRetention = Time.minutes(1);
-		Time maxRetention = Time.minutes(10);
-		tEnv.getConfig().setIdleStateRetentionTime(minRetention, maxRetention);
-		Table table = tEnv.fromDataStream(elements);
-		tEnv.toRetractStream(table, Row.class);
+        Duration minRetention = Duration.ofMinutes(1);
+        tEnv.getConfig().setIdleStateRetention(minRetention);
+        Table table = tEnv.fromDataStream(elements);
+        tEnv.toRetractStream(table, Row.class);
 
-		assertThat(
-			tEnv.getConfig().getMinIdleStateRetentionTime(),
-			equalTo(minRetention.toMilliseconds()));
-		assertThat(
-			tEnv.getConfig().getMaxIdleStateRetentionTime(),
-			equalTo(maxRetention.toMilliseconds()));
-	}
+        assertEquals(minRetention, tEnv.getConfig().getIdleStateRetention());
+    }
 
-	private StreamTableEnvironmentImpl getStreamTableEnvironment(
-			StreamExecutionEnvironment env,
-			DataStreamSource<Integer> elements) {
-		TableConfig config = new TableConfig();
-		CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-		ModuleManager moduleManager = new ModuleManager();
-		return new StreamTableEnvironmentImpl(
-			catalogManager,
-			moduleManager,
-			new FunctionCatalog(config, catalogManager, moduleManager),
-			config,
-			env,
-			new TestPlanner(elements.getTransformation()),
-			new ExecutorMock(),
-			true,
-			this.getClass().getClassLoader()
-		);
-	}
+    private StreamTableEnvironmentImpl getStreamTableEnvironment(
+            StreamExecutionEnvironment env, DataStreamSource<Integer> elements) {
+        TableConfig config = new TableConfig();
+        CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
+        ModuleManager moduleManager = new ModuleManager();
+        return new StreamTableEnvironmentImpl(
+                catalogManager,
+                moduleManager,
+                new FunctionCatalog(config, catalogManager, moduleManager),
+                config,
+                env,
+                new TestPlanner(elements.getTransformation()),
+                new ExecutorMock(),
+                true,
+                this.getClass().getClassLoader());
+    }
 
-	private static class TestPlanner extends PlannerMock {
-		private final Transformation<?> transformation;
+    private static class TestPlanner extends PlannerMock {
+        private final Transformation<?> transformation;
 
-		private TestPlanner(Transformation<?> transformation) {
-			this.transformation = transformation;
-		}
+        private TestPlanner(Transformation<?> transformation) {
+            this.transformation = transformation;
+        }
 
-		@Override
-		public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
-			return Collections.singletonList(transformation);
-		}
-	}
+        @Override
+        public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+            return Collections.singletonList(transformation);
+        }
+    }
 }

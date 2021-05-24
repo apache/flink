@@ -30,22 +30,23 @@ import javax.annotation.Nullable;
  */
 public class BoundedOutOfOrderWatermarkGenerator extends WatermarkGenerator {
 
-	private static final long serialVersionUID = 1L;
-	private final long delay;
-	private final int rowtimeIndex;
+    private static final long serialVersionUID = 1L;
+    private final long delay;
+    private final int rowtimeIndex;
 
-	/**
-	 * @param rowtimeIndex the field index of rowtime attribute, the value of rowtime should never be null.
-	 * @param delay The delay by which watermarks are behind the observed timestamp.
-	 */
-	public BoundedOutOfOrderWatermarkGenerator(int rowtimeIndex, long delay) {
-		this.delay = delay;
-		this.rowtimeIndex = rowtimeIndex;
-	}
+    /**
+     * @param rowtimeIndex the field index of rowtime attribute, the value of rowtime should never
+     *     be null.
+     * @param delay The delay by which watermarks are behind the observed timestamp.
+     */
+    public BoundedOutOfOrderWatermarkGenerator(int rowtimeIndex, long delay) {
+        this.delay = delay;
+        this.rowtimeIndex = rowtimeIndex;
+    }
 
-	@Nullable
-	@Override
-	public Long currentWatermark(RowData row) {
-		return row.getLong(rowtimeIndex) - delay;
-	}
+    @Nullable
+    @Override
+    public Long currentWatermark(RowData row) {
+        return row.getLong(rowtimeIndex) - delay;
+    }
 }

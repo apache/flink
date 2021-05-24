@@ -1,0 +1,152 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCannotPushDownWithOrderBy">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable ORDER BY c LIMIT 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(sort0=[$2], dir0=[ASC-nulls-first], fetch=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownWithoutFetch">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(offset=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCannotPushDownWithoutLimit">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable OFFSET 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(offset=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushdownFetchWithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(fetch=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 10]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushdownFetchWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(offset=[10], fetch=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 20]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushdownLimitWithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[5])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(fetch=[5])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 5]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCanPushdownLimitWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[1], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- FlinkLogicalSort(offset=[1], fetch=[10])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LimitTable, source: [limit: 11]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

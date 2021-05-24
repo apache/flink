@@ -29,50 +29,49 @@ import org.apache.flink.runtime.metrics.MetricNames;
  */
 public class OperatorIOMetricGroup extends ProxyMetricGroup<OperatorMetricGroup> {
 
-	private final Counter numRecordsIn;
-	private final Counter numRecordsOut;
+    private final Counter numRecordsIn;
+    private final Counter numRecordsOut;
 
-	private final Meter numRecordsInRate;
-	private final Meter numRecordsOutRate;
+    private final Meter numRecordsInRate;
+    private final Meter numRecordsOutRate;
 
-	public OperatorIOMetricGroup(OperatorMetricGroup parentMetricGroup) {
-		super(parentMetricGroup);
-		numRecordsIn = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_IN);
-		numRecordsOut = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_OUT);
-		numRecordsInRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
-		numRecordsOutRate = parentMetricGroup.meter(MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
-	}
+    public OperatorIOMetricGroup(OperatorMetricGroup parentMetricGroup) {
+        super(parentMetricGroup);
+        numRecordsIn = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_IN);
+        numRecordsOut = parentMetricGroup.counter(MetricNames.IO_NUM_RECORDS_OUT);
+        numRecordsInRate =
+                parentMetricGroup.meter(
+                        MetricNames.IO_NUM_RECORDS_IN_RATE, new MeterView(numRecordsIn));
+        numRecordsOutRate =
+                parentMetricGroup.meter(
+                        MetricNames.IO_NUM_RECORDS_OUT_RATE, new MeterView(numRecordsOut));
+    }
 
-	public Counter getNumRecordsInCounter() {
-		return numRecordsIn;
-	}
+    public Counter getNumRecordsInCounter() {
+        return numRecordsIn;
+    }
 
-	public Counter getNumRecordsOutCounter() {
-		return numRecordsOut;
-	}
+    public Counter getNumRecordsOutCounter() {
+        return numRecordsOut;
+    }
 
-	public Meter getNumRecordsInRateMeter() {
-		return numRecordsInRate;
-	}
+    public Meter getNumRecordsInRateMeter() {
+        return numRecordsInRate;
+    }
 
-	public Meter getNumRecordsOutRate() {
-		return numRecordsOutRate;
-	}
+    public Meter getNumRecordsOutRate() {
+        return numRecordsOutRate;
+    }
 
-	/**
-	 * Causes the containing task to use this operators input record counter.
-	 */
-	public void reuseInputMetricsForTask() {
-		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
-		taskIO.reuseRecordsInputCounter(this.numRecordsIn);
+    /** Causes the containing task to use this operators input record counter. */
+    public void reuseInputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+        taskIO.reuseRecordsInputCounter(this.numRecordsIn);
+    }
 
-	}
-
-	/**
-	 * Causes the containing task to use this operators output record counter.
-	 */
-	public void reuseOutputMetricsForTask() {
-		TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
-		taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
-	}
+    /** Causes the containing task to use this operators output record counter. */
+    public void reuseOutputMetricsForTask() {
+        TaskIOMetricGroup taskIO = parentMetricGroup.parent().getIOMetricGroup();
+        taskIO.reuseRecordsOutputCounter(this.numRecordsOut);
+    }
 }

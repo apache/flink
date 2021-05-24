@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
@@ -33,13 +32,13 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.utils.{LegacyRowResource, MemoryTableSourceSinkUtil}
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
-import org.apache.flink.types.Row
+import org.apache.flink.types.{Row, RowKind, RowUtils}
 import org.apache.flink.util.Collector
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.io.File
 import java.lang.{Boolean => JBool}
@@ -49,9 +48,11 @@ import scala.collection.mutable
 
 class TableSinkITCase extends AbstractTestBase {
 
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
   env.getConfig.enableObjectReuse()
-  env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
@@ -95,7 +96,6 @@ class TableSinkITCase extends AbstractTestBase {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(4)
 
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()

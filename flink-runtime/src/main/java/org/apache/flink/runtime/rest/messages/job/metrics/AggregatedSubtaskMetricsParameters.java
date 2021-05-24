@@ -26,23 +26,19 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Parameters for aggregating subtask metrics.
- */
-public class AggregatedSubtaskMetricsParameters extends AbstractAggregatedMetricsParameters<SubtasksFilterQueryParameter> {
+/** Parameters for aggregating subtask metrics. */
+public class AggregatedSubtaskMetricsParameters
+        extends AbstractAggregatedMetricsParameters<SubtasksFilterQueryParameter> {
 
-	private final JobIDPathParameter jobId = new JobIDPathParameter();
-	private final JobVertexIdPathParameter vertexId = new JobVertexIdPathParameter();
+    private final JobIDPathParameter jobId = new JobIDPathParameter();
+    private final JobVertexIdPathParameter vertexId = new JobVertexIdPathParameter();
 
-	public AggregatedSubtaskMetricsParameters() {
-		super(new SubtasksFilterQueryParameter());
-	}
+    public AggregatedSubtaskMetricsParameters() {
+        super(new SubtasksFilterQueryParameter());
+    }
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			jobId,
-			vertexId
-		));
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.unmodifiableCollection(Arrays.asList(jobId, vertexId));
+    }
 }

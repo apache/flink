@@ -25,35 +25,33 @@ import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
-/**
- * Dummy implementation of the {@link CustomCommandLine} for testing purposes.
- */
+/** Dummy implementation of the {@link CustomCommandLine} for testing purposes. */
 public class DummyCustomCommandLine implements CustomCommandLine {
 
-	@Override
-	public boolean isActive(CommandLine commandLine) {
-		return true;
-	}
+    @Override
+    public boolean isActive(CommandLine commandLine) {
+        return true;
+    }
 
-	@Override
-	public String getId() {
-		return DummyClusterClientFactory.ID;
-	}
+    @Override
+    public String getId() {
+        return DummyClusterClientFactory.ID;
+    }
 
-	@Override
-	public void addRunOptions(Options baseOptions) {
-		// nothing to add
-	}
+    @Override
+    public void addRunOptions(Options baseOptions) {
+        // nothing to add
+    }
 
-	@Override
-	public void addGeneralOptions(Options baseOptions) {
-		// nothing to add
-	}
+    @Override
+    public void addGeneralOptions(Options baseOptions) {
+        // nothing to add
+    }
 
-	@Override
-	public Configuration applyCommandLineOptionsToConfiguration(CommandLine commandLine) {
-		final Configuration configuration = new Configuration();
-		configuration.setString(DeploymentOptions.TARGET, DummyClusterClientFactory.ID);
-		return configuration;
-	}
+    @Override
+    public Configuration toConfiguration(CommandLine commandLine) {
+        final Configuration configuration = new Configuration();
+        configuration.setString(DeploymentOptions.TARGET, DummyClusterClientFactory.ID);
+        return configuration;
+    }
 }

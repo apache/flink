@@ -28,15 +28,14 @@ import org.apache.flink.table.api.TableEnvironmentITCase.getPersonCsvTableSource
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnvironment}
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.runtime.utils.StreamITCase
 import org.apache.flink.table.sinks.CsvTableSink
 import org.apache.flink.table.sources.CsvTableSource
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId}
-import org.apache.flink.table.utils.{TestTableSourceWithTime, TestingOverwritableTableSink}
+import org.apache.flink.table.utils.{LegacyRowResource, TestTableSourceWithTime, TestingOverwritableTableSink}
 import org.apache.flink.types.{Row, RowKind}
-import org.apache.flink.util.FileUtils
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists
+import org.apache.flink.util.{CollectionUtil, FileUtils}
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
@@ -52,6 +51,9 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class TableEnvironmentITCase(tableEnvName: String) {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()
@@ -271,10 +273,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkEmptyFile(sinkPath)
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
   }
 
@@ -289,18 +287,10 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult1.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
 
     val tableResult2 = tEnv.executeSql("insert overwrite MySink select first from MyTable")
     checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult2.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
   }
 
@@ -313,10 +303,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     val tableResult = tEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
 
     assertFirstValues(sink1Path)
     checkEmptyFile(sink2Path)
@@ -351,10 +337,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
 
     val tableResult = streamTableEnv.executeSql("insert into MySink1 select first from MyTable")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink1")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sink1Path)
 
     // the DataStream program is not executed
@@ -375,10 +357,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
     val table = tEnv.sqlQuery("select first from MyTable")
     val tableResult = table.executeInsert("MySink")
     checkInsertTableResult(tableResult, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
   }
 
@@ -393,18 +371,10 @@ class TableEnvironmentITCase(tableEnvName: String) {
     checkEmptyFile(sinkPath)
     val tableResult1 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult1, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult1.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
 
     val tableResult2 = tEnv.sqlQuery("select first from MyTable").executeInsert("MySink", true)
     checkInsertTableResult(tableResult2, "default_catalog.default_database.MySink")
-    // wait job finished
-    tableResult2.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
     assertFirstValues(sinkPath)
   }
 
@@ -426,10 +396,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
       tableResult,
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
-    // wait job finished
-    tableResult.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
@@ -460,10 +426,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
       tableResult1,
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
-    // wait job finished
-    tableResult1.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
@@ -477,10 +439,6 @@ class TableEnvironmentITCase(tableEnvName: String) {
       tableResult2,
       "default_catalog.default_database.MySink1",
       "default_catalog.default_database.MySink2")
-    // wait job finished
-    tableResult2.getJobClient.get()
-      .getJobExecutionResult(Thread.currentThread().getContextClassLoader)
-      .get()
 
     assertFirstValues(sink1Path)
     assertLastValues(sink2Path)
@@ -497,17 +455,16 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("id", DataTypes.INT())
-        .field("full name", DataTypes.STRING())
-        .build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("id", DataTypes.INT()),
+        Column.physical("full name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.of(Integer.valueOf(2), "Bob Taylor"),
       Row.of(Integer.valueOf(4), "Peter Smith"),
       Row.of(Integer.valueOf(6), "Sally Miller"),
       Row.of(Integer.valueOf(8), "Kelly Williams"))
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     actual.sort(new util.Comparator[Row]() {
       override def compare(o1: Row, o2: Row): Int = {
         o1.getField(0).asInstanceOf[Int].compareTo(o2.getField(0).asInstanceOf[Int])
@@ -522,8 +479,9 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("c", DataTypes.BIGINT().notNull()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(
+        Column.physical("c", DataTypes.BIGINT().notNull())),
+      tableResult.getResolvedSchema)
     val expected = util.Arrays.asList(
       Row.ofKind(RowKind.INSERT, JLong.valueOf(1)),
       Row.ofKind(RowKind.DELETE, JLong.valueOf(1)),
@@ -541,7 +499,7 @@ class TableEnvironmentITCase(tableEnvName: String) {
       Row.ofKind(RowKind.DELETE, JLong.valueOf(7)),
       Row.ofKind(RowKind.INSERT, JLong.valueOf(8))
     )
-    val actual = Lists.newArrayList(tableResult.collect())
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
     assertEquals(expected, actual)
   }
 
@@ -557,11 +515,11 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertTrue(tableResult.getJobClient.isPresent)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder()
-        .field("name", DataTypes.STRING())
-        .field("pt", Types.SQL_TIMESTAMP())
-        .build(),
-      tableResult.getTableSchema)
+      s"""(
+         |  `name` STRING,
+         |  `pt` TIMESTAMP_LTZ(3) *PROCTIME*
+         |)""".stripMargin,
+      tableResult.getResolvedSchema.toString)
     val it = tableResult.collect()
     assertTrue(it.hasNext)
     val row = it.next()
@@ -618,7 +576,8 @@ class TableEnvironmentITCase(tableEnvName: String) {
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
       util.Arrays.asList(fieldNames: _*),
-      util.Arrays.asList(tableResult.getTableSchema.getFieldNames: _*))
+      tableResult.getResolvedSchema.getColumnNames)
+    // return the result until the job is finished
     val it = tableResult.collect()
     assertTrue(it.hasNext)
     val affectedRowCounts = fieldNames.map(_ => JLong.valueOf(-1L))

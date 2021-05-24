@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -87,7 +87,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
-			<version>${hive.connector.orc.version}</version>
+			<version>${orc.version}</version>
 			<classifier>nohive</classifier>
 			<exclusions>
 				<exclusion>
@@ -107,9 +107,21 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>org.apache.orc</groupId>
+			<artifactId>orc-shims</artifactId>
+			<version>${orc.version}</version>
+		</dependency>
+
+		<dependency>
 			<groupId>io.airlift</groupId>
 			<artifactId>aircompressor</artifactId>
 			<version>0.8</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>3.5.2</version>
 		</dependency>
 	</dependencies>
 
@@ -133,7 +145,9 @@ under the License.
 									<include>org.apache.hive:hive-metastore</include>
 									<include>org.apache.thrift:libfb303</include>
 									<include>org.apache.orc:orc-core</include>
+									<include>org.apache.orc:orc-shims</include>
 									<include>io.airlift:aircompressor</include>
+									<include>org.antlr:antlr-runtime</include>
 								</includes>
 							</artifactSet>
 							<filters>

@@ -23,24 +23,22 @@ import org.apache.flink.table.descriptors.FormatDescriptor;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Mocking {@link FormatDescriptor} for tests.
- */
+/** Mocking {@link FormatDescriptor} for tests. */
 public class FormatDescriptorMock extends FormatDescriptor {
 
-	private Map<String, String> formatProperties = new HashMap<>();
+    private Map<String, String> formatProperties = new HashMap<>();
 
-	public FormatDescriptorMock(String type, int version) {
-		super(type, version);
-	}
+    public FormatDescriptorMock(String type, int version) {
+        super(type, version);
+    }
 
-	public FormatDescriptorMock property(String key, String value) {
-		formatProperties.put(key, value);
-		return this;
-	}
+    public FormatDescriptorMock property(String key, String value) {
+        formatProperties.put(key, value);
+        return this;
+    }
 
-	@Override
-	protected Map<String, String> toFormatProperties() {
-		return formatProperties;
-	}
+    @Override
+    protected Map<String, String> toFormatProperties() {
+        return formatProperties;
+    }
 }

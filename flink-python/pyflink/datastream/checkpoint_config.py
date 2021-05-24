@@ -15,6 +15,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+from typing import Optional
+
+from pyflink.common import Duration
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.java_gateway import get_gateway
 
@@ -53,7 +57,7 @@ class CheckpointConfig(object):
     def __init__(self, j_checkpoint_config):
         self._j_checkpoint_config = j_checkpoint_config
 
-    def is_checkpointing_enabled(self):
+    def is_checkpointing_enabled(self) -> bool:
         """
         Checks whether checkpointing is enabled.
 
@@ -61,7 +65,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isCheckpointingEnabled()
 
-    def get_checkpointing_mode(self):
+    def get_checkpointing_mode(self) -> CheckpointingMode:
         """
         Gets the checkpointing mode (exactly-once vs. at-least-once).
 
@@ -72,7 +76,7 @@ class CheckpointConfig(object):
         return CheckpointingMode._from_j_checkpointing_mode(
             self._j_checkpoint_config.getCheckpointingMode())
 
-    def set_checkpointing_mode(self, checkpointing_mode):
+    def set_checkpointing_mode(self, checkpointing_mode: CheckpointingMode) -> 'CheckpointConfig':
         """
         Sets the checkpointing mode (:data:`CheckpointingMode.EXACTLY_ONCE` vs.
         :data:`CheckpointingMode.AT_LEAST_ONCE`).
@@ -86,8 +90,9 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.setCheckpointingMode(
             CheckpointingMode._to_j_checkpointing_mode(checkpointing_mode))
+        return self
 
-    def get_checkpoint_interval(self):
+    def get_checkpoint_interval(self) -> int:
         """
         Gets the interval in which checkpoints are periodically scheduled.
 
@@ -98,7 +103,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointInterval()
 
-    def set_checkpoint_interval(self, checkpoint_interval):
+    def set_checkpoint_interval(self, checkpoint_interval: int) -> 'CheckpointConfig':
         """
         Sets the interval in which checkpoints are periodically scheduled.
 
@@ -108,8 +113,9 @@ class CheckpointConfig(object):
         :param checkpoint_interval: The checkpoint interval, in milliseconds.
         """
         self._j_checkpoint_config.setCheckpointInterval(checkpoint_interval)
+        return self
 
-    def get_checkpoint_timeout(self):
+    def get_checkpoint_timeout(self) -> int:
         """
         Gets the maximum time that a checkpoint may take before being discarded.
 
@@ -117,15 +123,16 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getCheckpointTimeout()
 
-    def set_checkpoint_timeout(self, checkpoint_timeout):
+    def set_checkpoint_timeout(self, checkpoint_timeout: int) -> 'CheckpointConfig':
         """
         Sets the maximum time that a checkpoint may take before being discarded.
 
         :param checkpoint_timeout: The checkpoint timeout, in milliseconds.
         """
         self._j_checkpoint_config.setCheckpointTimeout(checkpoint_timeout)
+        return self
 
-    def get_min_pause_between_checkpoints(self):
+    def get_min_pause_between_checkpoints(self) -> int:
         """
         Gets the minimal pause between checkpointing attempts. This setting defines how soon the
         checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
@@ -136,7 +143,8 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMinPauseBetweenCheckpoints()
 
-    def set_min_pause_between_checkpoints(self, min_pause_between_checkpoints):
+    def set_min_pause_between_checkpoints(self,
+                                          min_pause_between_checkpoints: int) -> 'CheckpointConfig':
         """
         Sets the minimal pause between checkpointing attempts. This setting defines how soon the
         checkpoint coordinator may trigger another checkpoint after it becomes possible to trigger
@@ -151,8 +159,9 @@ class CheckpointConfig(object):
                                               triggered.
         """
         self._j_checkpoint_config.setMinPauseBetweenCheckpoints(min_pause_between_checkpoints)
+        return self
 
-    def get_max_concurrent_checkpoints(self):
+    def get_max_concurrent_checkpoints(self) -> int:
         """
         Gets the maximum number of checkpoint attempts that may be in progress at the same time.
         If this value is *n*, then no checkpoints will be triggered while *n* checkpoint attempts
@@ -163,7 +172,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.getMaxConcurrentCheckpoints()
 
-    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints):
+    def set_max_concurrent_checkpoints(self, max_concurrent_checkpoints: int) -> 'CheckpointConfig':
         """
         Sets the maximum number of checkpoint attempts that may be in progress at the same time.
         If this value is *n*, then no checkpoints will be triggered while *n* checkpoint attempts
@@ -173,8 +182,9 @@ class CheckpointConfig(object):
         :param max_concurrent_checkpoints: The maximum number of concurrent checkpoint attempts.
         """
         self._j_checkpoint_config.setMaxConcurrentCheckpoints(max_concurrent_checkpoints)
+        return self
 
-    def is_fail_on_checkpointing_errors(self):
+    def is_fail_on_checkpointing_errors(self) -> bool:
         """
         This determines the behaviour of tasks if there is an error in their local checkpointing.
         If this returns true, tasks will fail as a reaction. If this returns false, task will only
@@ -184,7 +194,8 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isFailOnCheckpointingErrors()
 
-    def set_fail_on_checkpointing_errors(self, fail_on_checkpointing_errors):
+    def set_fail_on_checkpointing_errors(self,
+                                         fail_on_checkpointing_errors: bool) -> 'CheckpointConfig':
         """
         Sets the expected behaviour for tasks in case that they encounter an error in their
         checkpointing procedure. If this is set to true, the task will fail on checkpointing error.
@@ -200,8 +211,11 @@ class CheckpointConfig(object):
                                              false otherwise.
         """
         self._j_checkpoint_config.setFailOnCheckpointingErrors(fail_on_checkpointing_errors)
+        return self
 
-    def enable_externalized_checkpoints(self, cleanup_mode):
+    def enable_externalized_checkpoints(
+            self,
+            cleanup_mode: 'ExternalizedCheckpointCleanup') -> 'CheckpointConfig':
         """
         Enables checkpoints to be persisted externally.
 
@@ -230,8 +244,9 @@ class CheckpointConfig(object):
         """
         self._j_checkpoint_config.enableExternalizedCheckpoints(
             ExternalizedCheckpointCleanup._to_j_externalized_checkpoint_cleanup(cleanup_mode))
+        return self
 
-    def is_externalized_checkpoints_enabled(self):
+    def is_externalized_checkpoints_enabled(self) -> bool:
         """
         Returns whether checkpoints should be persisted externally.
 
@@ -239,7 +254,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isExternalizedCheckpointsEnabled()
 
-    def is_prefer_checkpoint_for_recovery(self):
+    def is_prefer_checkpoint_for_recovery(self) -> bool:
         """
         Returns whether a job recovery should fallback to checkpoint when there is a more recent
         savepoint.
@@ -248,7 +263,9 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isPreferCheckpointForRecovery()
 
-    def set_prefer_checkpoint_for_recovery(self, prefer_checkpoint_for_recovery):
+    def set_prefer_checkpoint_for_recovery(
+            self,
+            prefer_checkpoint_for_recovery: bool) -> 'CheckpointConfig':
         """
         Sets whether a job recovery should fallback to checkpoint when there is a more recent
         savepoint.
@@ -257,8 +274,9 @@ class CheckpointConfig(object):
                                                checkpoint, false otherwise.
         """
         self._j_checkpoint_config.setPreferCheckpointForRecovery(prefer_checkpoint_for_recovery)
+        return self
 
-    def get_externalized_checkpoint_cleanup(self):
+    def get_externalized_checkpoint_cleanup(self) -> Optional['ExternalizedCheckpointCleanup']:
         """
         Returns the cleanup behaviour for externalized checkpoints.
 
@@ -266,9 +284,13 @@ class CheckpointConfig(object):
                  configured.
         """
         cleanup_mode = self._j_checkpoint_config.getExternalizedCheckpointCleanup()
-        return ExternalizedCheckpointCleanup._from_j_externalized_checkpoint_cleanup(cleanup_mode)
+        if cleanup_mode is None:
+            return None
+        else:
+            return ExternalizedCheckpointCleanup._from_j_externalized_checkpoint_cleanup(
+                cleanup_mode)
 
-    def is_unaligned_checkpoints_enabled(self):
+    def is_unaligned_checkpoints_enabled(self) -> bool:
         """
         Returns whether unaligned checkpoints are enabled.
 
@@ -276,7 +298,7 @@ class CheckpointConfig(object):
         """
         return self._j_checkpoint_config.isUnalignedCheckpointsEnabled()
 
-    def enable_unaligned_checkpoints(self, enabled=True):
+    def enable_unaligned_checkpoints(self, enabled: bool = True) -> 'CheckpointConfig':
         """
         Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
 
@@ -291,8 +313,9 @@ class CheckpointConfig(object):
         :param enabled: ``True`` if a checkpoints should be taken in unaligned mode.
         """
         self._j_checkpoint_config.enableUnalignedCheckpoints(enabled)
+        return self
 
-    def disable_unaligned_checkpoints(self):
+    def disable_unaligned_checkpoints(self) -> 'CheckpointConfig':
         """
         Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure
         (experimental).
@@ -306,9 +329,55 @@ class CheckpointConfig(object):
         :data:`CheckpointingMode.EXACTLY_ONCE`.
         """
         self.enable_unaligned_checkpoints(False)
+        return self
+
+    def set_alignment_timeout(self, alignment_timeout: Duration) -> 'CheckpointConfig':
+        """
+        Only relevant if :func:`enable_unaligned_checkpoints` is enabled.
+
+        If ``alignment_timeout`` has value equal to ``0``, checkpoints will always start unaligned.
+        If ``alignment_timeout`` has value greater then ``0``, checkpoints will start aligned. If
+        during checkpointing, checkpoint start delay exceeds this ``alignment_timeout``, alignment
+        will timeout and checkpoint will start working as unaligned checkpoint.
+
+        :param alignment_timeout: The duration until the aligned checkpoint will be converted into
+                                  an unaligned checkpoint.
+        """
+        self._j_checkpoint_config.setAlignmentTimeout(alignment_timeout._j_duration)
+        return self
+
+    def get_alignment_timeout(self) -> 'Duration':
+        """
+        Returns the alignment timeout, as configured via :func:`set_alignment_timeout` or
+        ``org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT``.
+
+        :return: the alignment timeout.
+        """
+        return Duration(self._j_checkpoint_config.getAlignmentTimeout())
+
+    def set_force_unaligned_checkpoints(
+            self,
+            force_unaligned_checkpoints: bool = True) -> 'CheckpointConfig':
+        """
+        Checks whether unaligned checkpoints are forced, despite currently non-checkpointable
+        iteration feedback or custom partitioners.
+
+        :param force_unaligned_checkpoints: The flag to force unaligned checkpoints.
+        """
+        self._j_checkpoint_config.setForceUnalignedCheckpoints(force_unaligned_checkpoints)
+        return self
+
+    def is_force_unaligned_checkpoints(self) -> 'bool':
+        """
+        Checks whether unaligned checkpoints are forced, despite iteration feedback or custom
+        partitioners.
+
+        :return: True, if unaligned checkpoints are forced, false otherwise.
+        """
+        return self._j_checkpoint_config.isForceUnalignedCheckpoints()
 
 
-class ExternalizedCheckpointCleanup(object):
+class ExternalizedCheckpointCleanup(Enum):
     """
     Cleanup behaviour for externalized checkpoints when the job is cancelled.
 
@@ -341,32 +410,13 @@ class ExternalizedCheckpointCleanup(object):
     RETAIN_ON_CANCELLATION = 1
 
     @staticmethod
-    def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode):
-        gateway = get_gateway()
-        JExternalizedCheckpointCleanup = \
-            gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
-            .ExternalizedCheckpointCleanup
-        if j_cleanup_mode == JExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
-            return ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
-        elif j_cleanup_mode == JExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
-            return ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
-        elif j_cleanup_mode is None:
-            return None
-        else:
-            raise Exception("Unsupported java externalized checkpoint cleanup mode: %s"
-                            % j_cleanup_mode)
+    def _from_j_externalized_checkpoint_cleanup(j_cleanup_mode) \
+            -> 'ExternalizedCheckpointCleanup':
+        return ExternalizedCheckpointCleanup[j_cleanup_mode.name()]
 
-    @staticmethod
-    def _to_j_externalized_checkpoint_cleanup(cleanup_mode):
+    def _to_j_externalized_checkpoint_cleanup(self):
         gateway = get_gateway()
         JExternalizedCheckpointCleanup = \
             gateway.jvm.org.apache.flink.streaming.api.environment.CheckpointConfig \
             .ExternalizedCheckpointCleanup
-        if cleanup_mode == ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION:
-            return JExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
-        elif cleanup_mode == ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION:
-            return JExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
-        else:
-            raise TypeError("Unsupported cleanup mode: %s, supported cleanup modes are: "
-                            "ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION and"
-                            "ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION." % cleanup_mode)
+        return getattr(JExternalizedCheckpointCleanup, self.name)

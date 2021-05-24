@@ -40,196 +40,197 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
 public class TestTaskContext<S, T> implements TaskContext<S, T> {
-	
-	private final AbstractInvokable owner = new DummyInvokable();
-	
-	private MutableObjectIterator<?> input1;
-	
-	private MutableObjectIterator<?> input2;
-	
-	private TypeSerializerFactory<?> serializer1;
-	
-	private TypeSerializerFactory<?> serializer2;
-	
-	private TypeComparator<?> comparator1;
-	
-	private TypeComparator<?> comparator2;
-	
-	private TaskConfig config = new TaskConfig(new Configuration());
-	
-	private S udf;
-	
-	private Collector<T> outputCollector;
-	
-	private MemoryManager memoryManager;
 
-	private ExecutionConfig executionConfig = new ExecutionConfig();
+    private final AbstractInvokable owner = new DummyInvokable();
 
-	private TaskManagerRuntimeInfo taskManageInfo;
+    private MutableObjectIterator<?> input1;
 
-	// --------------------------------------------------------------------------------------------
-	//  Constructors
-	// --------------------------------------------------------------------------------------------
-	
-	public TestTaskContext() {}
-	
-	public TestTaskContext(long memoryInBytes) {
-		this.memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(memoryInBytes)
-			.build();
-		this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Setters
-	// --------------------------------------------------------------------------------------------
-	
-	public <X> void setInput1(MutableObjectIterator<X> input, TypeSerializerFactory<X> serializer) {
-		this.input1 = input;
-		this.serializer1 = serializer;
-	}
+    private MutableObjectIterator<?> input2;
 
-	public <X> void setInput2(MutableObjectIterator<X> input, TypeSerializerFactory<X> serializer) {
-		this.input2 = input;
-		this.serializer2 = serializer;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public <X> void setInput1(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
-		this.input1 = input;
-		this.serializer1 = new RuntimeSerializerFactory<X>(serializer, (Class<X>) serializer.createInstance().getClass());
-	}
+    private TypeSerializerFactory<?> serializer1;
 
-	@SuppressWarnings("unchecked")
-	public <X> void setInput2(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
-		this.input2 = input;
-		this.serializer2 = new RuntimeSerializerFactory<X>(serializer, (Class<X>) serializer.createInstance().getClass());
-	}
-	
-	public void setComparator1(TypeComparator<?> comparator) {
-		this.comparator1 = comparator;
-	}
+    private TypeSerializerFactory<?> serializer2;
 
-	public void setComparator2(TypeComparator<?> comparator) {
-		this.comparator2 = comparator;
-	}
-	
-	public void setConfig(TaskConfig config) {
-		this.config = config;
-	}
-	
-	public void setUdf(S udf) {
-		this.udf = udf;
-	}
-	
-	public void setCollector(Collector<T> collector) {
-		this.outputCollector = collector;
-	}
-	
-	public void setDriverStrategy(DriverStrategy strategy) {
-		this.config.setDriverStrategy(strategy);
-	}
-	
-	public void setMutableObjectMode(boolean mutableObjectMode) {
-		this.config.setMutableObjectMode(mutableObjectMode);
-	}
-	
-	// --------------------------------------------------------------------------------------------
-	//  Context Methods
-	// --------------------------------------------------------------------------------------------
-	
-	@Override
-	public TaskConfig getTaskConfig() {
-		return this.config;
-	}
+    private TypeComparator<?> comparator1;
 
-	@Override
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
-	}
+    private TypeComparator<?> comparator2;
 
-	@Override
-	public ClassLoader getUserCodeClassLoader() {
-		return getClass().getClassLoader();
-	}
+    private TaskConfig config = new TaskConfig(new Configuration());
 
-	@Override
-	public MemoryManager getMemoryManager() {
-		return this.memoryManager;
-	}
+    private S udf;
 
-	@Override
-	public IOManager getIOManager() {
-		return null;
-	}
+    private Collector<T> outputCollector;
 
-	@Override
-	public TaskManagerRuntimeInfo getTaskManagerInfo() {
-		return this.taskManageInfo;
-	}
+    private MemoryManager memoryManager;
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <X> MutableObjectIterator<X> getInput(int index) {
-		switch (index) {
-		case 0:
-			return (MutableObjectIterator<X>) this.input1;
-		case 1:
-			return (MutableObjectIterator<X>) this.input2;
-		default:
-			throw new RuntimeException();
-		}
-	}
+    private ExecutionConfig executionConfig = new ExecutionConfig();
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <X> TypeSerializerFactory<X> getInputSerializer(int index) {
-		switch (index) {
-		case 0:
-			return (TypeSerializerFactory<X>) this.serializer1;
-		case 1:
-			return (TypeSerializerFactory<X>) this.serializer2;
-		default:
-			throw new RuntimeException();
-		}
-	}
+    private TaskManagerRuntimeInfo taskManageInfo;
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <X> TypeComparator<X> getDriverComparator(int index) {
-		switch (index) {
-		case 0:
-			return (TypeComparator<X>) this.comparator1;
-		case 1:
-			return (TypeComparator<X>) this.comparator2;
-		default:
-			throw new RuntimeException();
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    //  Constructors
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public S getStub() {
-		return this.udf;
-	}
+    public TestTaskContext() {}
 
-	@Override
-	public Collector<T> getOutputCollector() {
-		return this.outputCollector;
-	}
+    public TestTaskContext(long memoryInBytes) {
+        this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(memoryInBytes).build();
+        this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
+    }
 
-	@Override
-	public AbstractInvokable getContainingTask() {
-		return this.owner;
-	}
+    // --------------------------------------------------------------------------------------------
+    //  Setters
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public String formatLogString(String message) {
-		return message;
-	}
+    public <X> void setInput1(MutableObjectIterator<X> input, TypeSerializerFactory<X> serializer) {
+        this.input1 = input;
+        this.serializer1 = serializer;
+    }
 
-	@Override
-	public OperatorMetricGroup getMetricGroup() {
-		return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-	}
+    public <X> void setInput2(MutableObjectIterator<X> input, TypeSerializerFactory<X> serializer) {
+        this.input2 = input;
+        this.serializer2 = serializer;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <X> void setInput1(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
+        this.input1 = input;
+        this.serializer1 =
+                new RuntimeSerializerFactory<X>(
+                        serializer, (Class<X>) serializer.createInstance().getClass());
+    }
+
+    @SuppressWarnings("unchecked")
+    public <X> void setInput2(MutableObjectIterator<X> input, TypeSerializer<X> serializer) {
+        this.input2 = input;
+        this.serializer2 =
+                new RuntimeSerializerFactory<X>(
+                        serializer, (Class<X>) serializer.createInstance().getClass());
+    }
+
+    public void setComparator1(TypeComparator<?> comparator) {
+        this.comparator1 = comparator;
+    }
+
+    public void setComparator2(TypeComparator<?> comparator) {
+        this.comparator2 = comparator;
+    }
+
+    public void setConfig(TaskConfig config) {
+        this.config = config;
+    }
+
+    public void setUdf(S udf) {
+        this.udf = udf;
+    }
+
+    public void setCollector(Collector<T> collector) {
+        this.outputCollector = collector;
+    }
+
+    public void setDriverStrategy(DriverStrategy strategy) {
+        this.config.setDriverStrategy(strategy);
+    }
+
+    public void setMutableObjectMode(boolean mutableObjectMode) {
+        this.config.setMutableObjectMode(mutableObjectMode);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    //  Context Methods
+    // --------------------------------------------------------------------------------------------
+
+    @Override
+    public TaskConfig getTaskConfig() {
+        return this.config;
+    }
+
+    @Override
+    public ExecutionConfig getExecutionConfig() {
+        return executionConfig;
+    }
+
+    @Override
+    public ClassLoader getUserCodeClassLoader() {
+        return getClass().getClassLoader();
+    }
+
+    @Override
+    public MemoryManager getMemoryManager() {
+        return this.memoryManager;
+    }
+
+    @Override
+    public IOManager getIOManager() {
+        return null;
+    }
+
+    @Override
+    public TaskManagerRuntimeInfo getTaskManagerInfo() {
+        return this.taskManageInfo;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <X> MutableObjectIterator<X> getInput(int index) {
+        switch (index) {
+            case 0:
+                return (MutableObjectIterator<X>) this.input1;
+            case 1:
+                return (MutableObjectIterator<X>) this.input2;
+            default:
+                throw new RuntimeException();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <X> TypeSerializerFactory<X> getInputSerializer(int index) {
+        switch (index) {
+            case 0:
+                return (TypeSerializerFactory<X>) this.serializer1;
+            case 1:
+                return (TypeSerializerFactory<X>) this.serializer2;
+            default:
+                throw new RuntimeException();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <X> TypeComparator<X> getDriverComparator(int index) {
+        switch (index) {
+            case 0:
+                return (TypeComparator<X>) this.comparator1;
+            case 1:
+                return (TypeComparator<X>) this.comparator2;
+            default:
+                throw new RuntimeException();
+        }
+    }
+
+    @Override
+    public S getStub() {
+        return this.udf;
+    }
+
+    @Override
+    public Collector<T> getOutputCollector() {
+        return this.outputCollector;
+    }
+
+    @Override
+    public AbstractInvokable getContainingTask() {
+        return this.owner;
+    }
+
+    @Override
+    public String formatLogString(String message) {
+        return message;
+    }
+
+    @Override
+    public OperatorMetricGroup getMetricGroup() {
+        return UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+    }
 }

@@ -23,13 +23,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-/**
- * Tests for the {@link DatadogHttpReporterFactory}.
- */
+/** Tests for the {@link DatadogHttpReporterFactory}. */
 public class DatadogHttpReporterFactoryTest extends TestLogger {
 
-	@Test
-	public void testMetricReporterSetupViaSPI() {
-		MetricReporterTestUtils.testMetricReporterSetupViaSPI(DatadogHttpReporterFactory.class);
-	}
+    @Test
+    public void testMetricReporterSetupViaSPI() {
+        MetricReporterTestUtils.testMetricReporterSetupViaSPI(DatadogHttpReporterFactory.class);
+    }
 }

@@ -28,63 +28,62 @@ import java.util.Set;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A report about the current status of all cluster partitions of the TaskExecutor, describing
- * which partitions are available.
+ * A report about the current status of all cluster partitions of the TaskExecutor, describing which
+ * partitions are available.
  */
 public class ClusterPartitionReport implements Serializable {
 
-	private static final long serialVersionUID = -3150175198722481689L;
+    private static final long serialVersionUID = -3150175198722481689L;
 
-	private final Collection<ClusterPartitionReportEntry> entries;
+    private final Collection<ClusterPartitionReportEntry> entries;
 
-	public ClusterPartitionReport(final Collection<ClusterPartitionReportEntry> entries) {
-		this.entries = checkNotNull(entries);
-	}
+    public ClusterPartitionReport(final Collection<ClusterPartitionReportEntry> entries) {
+        this.entries = checkNotNull(entries);
+    }
 
-	public Collection<ClusterPartitionReportEntry> getEntries() {
-		return entries;
-	}
+    public Collection<ClusterPartitionReportEntry> getEntries() {
+        return entries;
+    }
 
-	@Override
-	public String toString() {
-		return "PartitionReport{" +
-			"entries=" + entries +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "PartitionReport{" + "entries=" + entries + '}';
+    }
 
-	/**
-	 * An entry describing all partitions belonging to one dataset.
-	 */
-	public static class ClusterPartitionReportEntry implements Serializable {
+    /** An entry describing all partitions belonging to one dataset. */
+    public static class ClusterPartitionReportEntry implements Serializable {
 
-		private static final long serialVersionUID = -666517548300250601L;
+        private static final long serialVersionUID = -666517548300250601L;
 
-		private final IntermediateDataSetID dataSetId;
-		private final Set<ResultPartitionID> hostedPartitions;
-		private final int numTotalPartitions;
+        private final IntermediateDataSetID dataSetId;
+        private final Set<ResultPartitionID> hostedPartitions;
+        private final int numTotalPartitions;
 
-		public ClusterPartitionReportEntry(IntermediateDataSetID dataSetId, Set<ResultPartitionID> hostedPartitions, int numTotalPartitions) {
-			Preconditions.checkNotNull(dataSetId);
-			Preconditions.checkNotNull(hostedPartitions);
-			Preconditions.checkArgument(!hostedPartitions.isEmpty());
-			Preconditions.checkArgument(numTotalPartitions > 0);
-			Preconditions.checkState(hostedPartitions.size() <= numTotalPartitions);
+        public ClusterPartitionReportEntry(
+                IntermediateDataSetID dataSetId,
+                Set<ResultPartitionID> hostedPartitions,
+                int numTotalPartitions) {
+            Preconditions.checkNotNull(dataSetId);
+            Preconditions.checkNotNull(hostedPartitions);
+            Preconditions.checkArgument(!hostedPartitions.isEmpty());
+            Preconditions.checkArgument(numTotalPartitions > 0);
+            Preconditions.checkState(hostedPartitions.size() <= numTotalPartitions);
 
-			this.dataSetId = dataSetId;
-			this.hostedPartitions = hostedPartitions;
-			this.numTotalPartitions = numTotalPartitions;
-		}
+            this.dataSetId = dataSetId;
+            this.hostedPartitions = hostedPartitions;
+            this.numTotalPartitions = numTotalPartitions;
+        }
 
-		public IntermediateDataSetID getDataSetId() {
-			return dataSetId;
-		}
+        public IntermediateDataSetID getDataSetId() {
+            return dataSetId;
+        }
 
-		public Set<ResultPartitionID> getHostedPartitions() {
-			return hostedPartitions;
-		}
+        public Set<ResultPartitionID> getHostedPartitions() {
+            return hostedPartitions;
+        }
 
-		public int getNumTotalPartitions() {
-			return numTotalPartitions;
-		}
-	}
+        public int getNumTotalPartitions() {
+            return numTotalPartitions;
+        }
+    }
 }

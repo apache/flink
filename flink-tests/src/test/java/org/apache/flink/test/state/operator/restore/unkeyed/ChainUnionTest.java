@@ -35,25 +35,28 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
  */
 public class ChainUnionTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-	public ChainUnionTest(MigrationVersion migrationVersion) {
-		super(migrationVersion);
-	}
+    public ChainUnionTest(MigrationVersion migrationVersion) {
+        super(migrationVersion);
+    }
 
-	@Override
-	public void createRestoredJob(StreamExecutionEnvironment env) {
-		/**
-		 * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
-		 * Modified job: Source -> CHAIN(StatefulMap1 -> StatefulMap2 -> Map -> StatefulMap3)
-		 */
-		DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
+    @Override
+    public void createRestoredJob(StreamExecutionEnvironment env) {
+        /**
+         * Original job: Source -> StatefulMap1 -> CHAIN(StatefulMap2 -> Map -> StatefulMap3)
+         * Modified job: Source -> CHAIN(StatefulMap1 -> StatefulMap2 -> Map -> StatefulMap3)
+         */
+        DataStream<Integer> source = createSource(env, ExecutionMode.RESTORE);
 
-		SingleOutputStreamOperator<Integer> first = createFirstStatefulMap(ExecutionMode.RESTORE, source);
-		first.startNewChain();
+        SingleOutputStreamOperator<Integer> first =
+                createFirstStatefulMap(ExecutionMode.RESTORE, source);
+        first.startNewChain();
 
-		SingleOutputStreamOperator<Integer> second = createSecondStatefulMap(ExecutionMode.RESTORE, first);
+        SingleOutputStreamOperator<Integer> second =
+                createSecondStatefulMap(ExecutionMode.RESTORE, first);
 
-		SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
+        SingleOutputStreamOperator<Integer> stateless = createStatelessMap(second);
 
-		SingleOutputStreamOperator<Integer> third = createThirdStatefulMap(ExecutionMode.RESTORE, stateless);
-	}
+        SingleOutputStreamOperator<Integer> third =
+                createThirdStatefulMap(ExecutionMode.RESTORE, stateless);
+    }
 }

@@ -24,15 +24,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 
-/**
- * A builder to create an {@link AvroBulkWriter} from an {@link OutputStream}.
- */
+/** A builder to create an {@link AvroBulkWriter} from an {@link OutputStream}. */
 @FunctionalInterface
 public interface AvroBuilder<T> extends Serializable {
 
-	/**
-	 * Creates and configures an Avro writer to the given output file.
-	 */
-	DataFileWriter<T> createWriter(OutputStream outputStream) throws IOException;
-
+    /** Creates and configures an Avro writer to the given output file. */
+    DataFileWriter<T> createWriter(OutputStream outputStream) throws IOException;
 }

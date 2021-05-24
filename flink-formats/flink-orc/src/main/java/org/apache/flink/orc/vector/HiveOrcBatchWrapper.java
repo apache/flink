@@ -20,24 +20,22 @@ package org.apache.flink.orc.vector;
 
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 
-/**
- * Wrap {@link VectorizedRowBatch} hive orc batch.
- */
+/** Wrap {@link VectorizedRowBatch} hive orc batch. */
 public class HiveOrcBatchWrapper implements OrcVectorizedBatchWrapper<VectorizedRowBatch> {
 
-	private final VectorizedRowBatch batch;
+    private final VectorizedRowBatch batch;
 
-	public HiveOrcBatchWrapper(VectorizedRowBatch batch) {
-		this.batch = batch;
-	}
+    public HiveOrcBatchWrapper(VectorizedRowBatch batch) {
+        this.batch = batch;
+    }
 
-	@Override
-	public VectorizedRowBatch getBatch() {
-		return batch;
-	}
+    @Override
+    public VectorizedRowBatch getBatch() {
+        return batch;
+    }
 
-	@Override
-	public int size() {
-		return batch.size;
-	}
+    @Override
+    public int size() {
+        return batch.size;
+    }
 }

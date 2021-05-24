@@ -36,37 +36,37 @@ import java.util.UUID;
  */
 public class PrestoS3FileSystemBehaviorITCase extends FileSystemBehaviorTestSuite {
 
-	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
+    private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	@BeforeClass
-	public static void checkCredentialsAndSetup() throws IOException {
-		// check whether credentials exist
-		S3TestCredentials.assumeCredentialsAvailable();
+    @BeforeClass
+    public static void checkCredentialsAndSetup() throws IOException {
+        // check whether credentials exist
+        S3TestCredentials.assumeCredentialsAvailable();
 
-		// initialize configuration with valid credentials
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-		FileSystem.initialize(conf);
-	}
+        // initialize configuration with valid credentials
+        final Configuration conf = new Configuration();
+        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        FileSystem.initialize(conf);
+    }
 
-	@AfterClass
-	public static void clearFsConfig() throws IOException {
-		FileSystem.initialize(new Configuration());
-	}
+    @AfterClass
+    public static void clearFsConfig() throws IOException {
+        FileSystem.initialize(new Configuration());
+    }
 
-	@Override
-	public FileSystem getFileSystem() throws Exception {
-		return getBasePath().getFileSystem();
-	}
+    @Override
+    public FileSystem getFileSystem() throws Exception {
+        return getBasePath().getFileSystem();
+    }
 
-	@Override
-	public Path getBasePath() throws Exception {
-		return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
-	}
+    @Override
+    public Path getBasePath() throws Exception {
+        return new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+    }
 
-	@Override
-	public FileSystemKind getFileSystemKind() {
-		return FileSystemKind.OBJECT_STORE;
-	}
+    @Override
+    public FileSystemKind getFileSystemKind() {
+        return FileSystemKind.OBJECT_STORE;
+    }
 }

@@ -19,79 +19,176 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Testing implementation of the {@link JobManagerRunner}.
- */
+/** Testing implementation of the {@link JobManagerRunner}. */
 public class TestingJobManagerRunner implements JobManagerRunner {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private final boolean blockingTermination;
+    private final boolean blockingTermination;
 
-	private final CompletableFuture<ArchivedExecutionGraph> resultFuture;
+    private final CompletableFuture<Void> terminationFuture;
 
-	private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
+    private final CompletableFuture<JobMasterGateway> jobMasterGatewayFuture;
 
-	private final CompletableFuture<Void> terminationFuture;
+    private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
-	public TestingJobManagerRunner(JobID jobId) {
-		this(jobId, false);
-	}
+    private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
-	public TestingJobManagerRunner(JobID jobId, boolean blockingTermination) {
-		this.jobId = jobId;
-		this.blockingTermination = blockingTermination;
-		this.resultFuture = new CompletableFuture<>();
-		this.jobMasterGatewayFuture = new CompletableFuture<>();
-		this.terminationFuture = new CompletableFuture<>();
+    private JobStatus jobStatus = JobStatus.INITIALIZING;
 
-		terminationFuture.whenComplete((ignored, ignoredThrowable) -> resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
-	}
+    private TestingJobManagerRunner(
+            JobID jobId,
+            boolean blockingTermination,
+            CompletableFuture<JobMasterGateway> jobMasterGatewayFuture,
+            CompletableFuture<JobManagerRunnerResult> resultFuture) {
+        this.jobId = jobId;
+        this.blockingTermination = blockingTermination;
+        this.jobMasterGatewayFuture = jobMasterGatewayFuture;
+        this.resultFuture = resultFuture;
+        this.terminationFuture = new CompletableFuture<>();
 
-	@Override
-	public void start() throws Exception {}
+        final ExecutionGraphInfo suspendedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        ArchivedExecutionGraph.createFromInitializingJob(
+                                jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
+                        null);
+        terminationFuture.whenComplete(
+                (ignored, ignoredThrowable) ->
+                        resultFuture.complete(
+                                JobManagerRunnerResult.forSuccess(suspendedExecutionGraphInfo)));
+    }
 
-	@Override
-	public CompletableFuture<JobMasterGateway> getJobMasterGateway() {
-		return jobMasterGatewayFuture;
-	}
+    @Override
+    public void start() throws Exception {}
 
-	@Override
-	public CompletableFuture<ArchivedExecutionGraph> getResultFuture() {
-		return resultFuture;
-	}
+    @Override
+    public CompletableFuture<JobMasterGateway> getJobMasterGateway() {
+        return jobMasterGatewayFuture;
+    }
 
-	@Override
-	public JobID getJobID() {
-		return jobId;
-	}
+    @Override
+    public CompletableFuture<JobManagerRunnerResult> getResultFuture() {
+        return resultFuture;
+    }
 
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		if (!blockingTermination) {
-			terminationFuture.complete(null);
-		}
+    @Override
+    public JobID getJobID() {
+        return jobId;
+    }
 
-		return terminationFuture;
-	}
+    @Override
+    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
 
-	public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
-		resultFuture.complete(archivedExecutionGraph);
-	}
+    @Override
+    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+        return CompletableFuture.completedFuture(jobStatus);
+    }
 
-	public void completeResultFutureExceptionally(Exception e) {
-		resultFuture.completeExceptionally(e);
-	}
+    @Override
+    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
 
-	public void completeTerminationFuture() {
-		terminationFuture.complete(null);
-	}
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
 
-	public CompletableFuture<Void> getTerminationFuture() {
-		return terminationFuture;
-	}
+    @Override
+    public boolean isInitialized() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        if (!blockingTermination) {
+            terminationFuture.complete(null);
+        }
+
+        closeAsyncCalledLatch.trigger();
+        return terminationFuture;
+    }
+
+    public void setJobStatus(JobStatus newStatus) {
+        this.jobStatus = newStatus;
+    }
+
+    public OneShotLatch getCloseAsyncCalledLatch() {
+        return closeAsyncCalledLatch;
+    }
+
+    public void completeResultFuture(ExecutionGraphInfo executionGraphInfo) {
+        resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraphInfo));
+    }
+
+    public void completeResultFuture(JobManagerRunnerResult jobManagerRunnerResult) {
+        resultFuture.complete(jobManagerRunnerResult);
+    }
+
+    public void completeResultFutureExceptionally(Exception e) {
+        resultFuture.completeExceptionally(e);
+    }
+
+    public void completeTerminationFuture() {
+        terminationFuture.complete(null);
+    }
+
+    public CompletableFuture<Void> getTerminationFuture() {
+        return terminationFuture;
+    }
+
+    public void completeJobMasterGatewayFuture(JobMasterGateway testingJobMasterGateway) {
+        this.jobMasterGatewayFuture.complete(testingJobMasterGateway);
+    }
+
+    /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
+    public static class Builder {
+        private JobID jobId = null;
+        private boolean blockingTermination = false;
+        private CompletableFuture<JobMasterGateway> jobMasterGatewayFuture =
+                new CompletableFuture<>();
+        private CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
+
+        public Builder setJobId(JobID jobId) {
+            this.jobId = jobId;
+            return this;
+        }
+
+        public Builder setBlockingTermination(boolean blockingTermination) {
+            this.blockingTermination = blockingTermination;
+            return this;
+        }
+
+        public Builder setJobMasterGatewayFuture(
+                CompletableFuture<JobMasterGateway> jobMasterGatewayFuture) {
+            Preconditions.checkNotNull(jobMasterGatewayFuture);
+            this.jobMasterGatewayFuture = jobMasterGatewayFuture;
+            return this;
+        }
+
+        public Builder setResultFuture(CompletableFuture<JobManagerRunnerResult> resultFuture) {
+            Preconditions.checkNotNull(resultFuture);
+            this.resultFuture = resultFuture;
+            return this;
+        }
+
+        public TestingJobManagerRunner build() {
+            Preconditions.checkNotNull(jobId);
+            return new TestingJobManagerRunner(
+                    jobId, blockingTermination, jobMasterGatewayFuture, resultFuture);
+        }
+    }
 }

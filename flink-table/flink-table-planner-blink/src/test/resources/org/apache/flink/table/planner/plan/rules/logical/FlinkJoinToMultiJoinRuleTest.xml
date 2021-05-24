@@ -23,7 +23,7 @@ SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t
 WHERE NOT EXISTS (SELECT e FROM T3  WHERE a = e)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalFilter(condition=[NOT(EXISTS({
@@ -36,7 +36,7 @@ LogicalFilter(condition=[=($cor0.a, $0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[anti])
@@ -53,7 +53,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT * FROM T1 JOIN T2 ON a = c) t WHERE a IN (SELECT e FROM T3)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalFilter(condition=[IN($0, {
@@ -66,7 +66,7 @@ LogicalProject(e=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
 +- LogicalJoin(condition=[=($0, $4)], joinType=[semi])

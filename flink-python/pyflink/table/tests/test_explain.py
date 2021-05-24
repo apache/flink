@@ -16,15 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
 from pyflink.table.explain_detail import ExplainDetail
 
 
-class StreamTableExplainTests(PyFlinkStreamTableTestCase):
+class StreamTableExplainTests(PyFlinkBlinkStreamTableTestCase):
 
     def test_explain(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])
-        result = t.group_by("c").select("a.sum, c as b").explain(ExplainDetail.CHANGELOG_MODE)
+        result = t.group_by("c").select(t.a.sum, t.c.alias('b')).explain(
+            ExplainDetail.CHANGELOG_MODE)
 
         assert isinstance(result, str)
 

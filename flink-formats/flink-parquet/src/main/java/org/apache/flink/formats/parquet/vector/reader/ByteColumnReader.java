@@ -27,73 +27,70 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Byte {@link ColumnReader}. Using INT32 to store byte, so just cast int to byte.
- */
+/** Byte {@link ColumnReader}. Using INT32 to store byte, so just cast int to byte. */
 public class ByteColumnReader extends AbstractColumnReader<WritableByteVector> {
 
-	public ByteColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
-	}
+    public ByteColumnReader(ColumnDescriptor descriptor, PageReader pageReader) throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.INT32);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableByteVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						readBytes(n, column, rowId);
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setByte(rowId + i, readByte());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableByteVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        readBytes(n, column, rowId);
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setByte(rowId + i, readByte());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableByteVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setByte(i, (byte) dictionary.decodeToInt(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableByteVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setByte(i, (byte) dictionary.decodeToInt(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	private byte readByte() {
-		return (byte) readDataBuffer(4).getInt();
-	}
+    private byte readByte() {
+        return (byte) readDataBuffer(4).getInt();
+    }
 
-	private void readBytes(int total, WritableByteVector c, int rowId) {
-		// Bytes are stored as a 4-byte little endian int. Just read the first byte.
-		int requiredBytes = total * 4;
-		ByteBuffer buffer = readDataBuffer(requiredBytes);
+    private void readBytes(int total, WritableByteVector c, int rowId) {
+        // Bytes are stored as a 4-byte little endian int. Just read the first byte.
+        int requiredBytes = total * 4;
+        ByteBuffer buffer = readDataBuffer(requiredBytes);
 
-		for (int i = 0; i < total; i += 1) {
-			c.setByte(rowId + i, buffer.get());
-			// skip the next 3 bytes
-			buffer.position(buffer.position() + 3);
-		}
-	}
+        for (int i = 0; i < total; i += 1) {
+            c.setByte(rowId + i, buffer.get());
+            // skip the next 3 bytes
+            buffer.position(buffer.position() + 3);
+        }
+    }
 }

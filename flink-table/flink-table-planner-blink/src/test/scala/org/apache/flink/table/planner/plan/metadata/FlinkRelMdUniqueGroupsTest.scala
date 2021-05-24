@@ -183,12 +183,9 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
   def testGetUniqueGroupsOnExpand(): Unit = {
     // column 0 is unique key
     val ts = studentLogicalScan
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      ts.getCluster.getTypeFactory, ts.getRowType, Array.empty[Integer])
     val expandProjects1 = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2, 3),
       ImmutableList.of(
         ImmutableBitSet.of(0),
@@ -197,7 +194,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(3)
       ), Array.empty[Integer])
     val expand1 = new FlinkLogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects1, 7)
+      ts.getCluster, ts.getTraitSet, ts, expandProjects1, 7)
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(expand1, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(1), mq.getUniqueGroups(expand1, ImmutableBitSet.of(1)))
     assertEquals(ImmutableBitSet.of(2), mq.getUniqueGroups(expand1, ImmutableBitSet.of(2)))
@@ -211,7 +208,6 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     val expandProjects2 = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2, 3),
       ImmutableList.of(
         ImmutableBitSet.of(0, 1),
@@ -219,7 +215,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(0, 3)
       ), Array.empty[Integer])
     val expand2 = new FlinkLogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects2, 7)
+      ts.getCluster, ts.getTraitSet, ts, expandProjects2, 7)
     assertEquals(ImmutableSet.of(ImmutableBitSet.of(0, 7)), mq.getUniqueKeys(expand2))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(expand2, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(1), mq.getUniqueGroups(expand2, ImmutableBitSet.of(1)))
@@ -236,14 +232,13 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
     val expandProjects3 = ExpandUtil.createExpandProjects(
       ts.getCluster.getRexBuilder,
       ts.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2, 3),
       ImmutableList.of(
         ImmutableBitSet.of(0, 1, 2),
         ImmutableBitSet.of(0, 1, 3)
       ), Array.empty[Integer])
     val expand3 = new FlinkLogicalExpand(
-      ts.getCluster, ts.getTraitSet, ts, expandOutputType, expandProjects3, 7)
+      ts.getCluster, ts.getTraitSet, ts, expandProjects3, 7)
     assertEquals(ImmutableSet.of(ImmutableBitSet.of(0, 7)), mq.getUniqueKeys(expand2))
     assertEquals(ImmutableBitSet.of(0), mq.getUniqueGroups(expand3, ImmutableBitSet.of(0)))
     assertEquals(ImmutableBitSet.of(1), mq.getUniqueGroups(expand3, ImmutableBitSet.of(1)))

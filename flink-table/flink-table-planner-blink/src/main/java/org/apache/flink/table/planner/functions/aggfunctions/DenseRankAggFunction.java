@@ -34,53 +34,60 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.liter
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.not;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 
-/**
- * built-in dense_rank aggregate function.
- */
+/** built-in dense_rank aggregate function. */
 public class DenseRankAggFunction extends RankLikeAggFunctionBase {
 
-	public DenseRankAggFunction(LogicalType[] orderKeyTypes) {
-		super(orderKeyTypes);
-	}
+    public DenseRankAggFunction(LogicalType[] orderKeyTypes) {
+        super(orderKeyTypes);
+    }
 
-	@Override
-	public UnresolvedReferenceExpression[] aggBufferAttributes() {
-		UnresolvedReferenceExpression[] aggBufferAttrs = new UnresolvedReferenceExpression[1 + lastValues.length];
-		aggBufferAttrs[0] = sequence;
-		System.arraycopy(lastValues, 0, aggBufferAttrs, 1, lastValues.length);
-		return aggBufferAttrs;
-	}
+    @Override
+    public UnresolvedReferenceExpression[] aggBufferAttributes() {
+        UnresolvedReferenceExpression[] aggBufferAttrs =
+                new UnresolvedReferenceExpression[1 + lastValues.length];
+        aggBufferAttrs[0] = sequence;
+        System.arraycopy(lastValues, 0, aggBufferAttrs, 1, lastValues.length);
+        return aggBufferAttrs;
+    }
 
-	@Override
-	public DataType[] getAggBufferTypes() {
-		DataType[] aggBufferTypes = new DataType[1 + orderKeyTypes.length];
-		aggBufferTypes[0] = DataTypes.BIGINT();
-		System.arraycopy(Arrays.stream(orderKeyTypes)
-				.map(LogicalTypeDataTypeConverter::toDataType).toArray(DataType[]::new),
-				0, aggBufferTypes, 1, orderKeyTypes.length);
-		return aggBufferTypes;
-	}
+    @Override
+    public DataType[] getAggBufferTypes() {
+        DataType[] aggBufferTypes = new DataType[1 + orderKeyTypes.length];
+        aggBufferTypes[0] = DataTypes.BIGINT();
+        System.arraycopy(
+                Arrays.stream(orderKeyTypes)
+                        .map(LogicalTypeDataTypeConverter::toDataType)
+                        .toArray(DataType[]::new),
+                0,
+                aggBufferTypes,
+                1,
+                orderKeyTypes.length);
+        return aggBufferTypes;
+    }
 
-	@Override
-	public Expression[] initialValuesExpressions() {
-		Expression[] initExpressions = new Expression[1 + orderKeyTypes.length];
-		// sequence = 0L
-		initExpressions[0] = literal(0L);
-		for (int i = 0; i < orderKeyTypes.length; ++i) {
-			// lastValue_i = init value
-			initExpressions[i + 1] = generateInitLiteral(orderKeyTypes[i]);
-		}
-		return initExpressions;
-	}
+    @Override
+    public Expression[] initialValuesExpressions() {
+        Expression[] initExpressions = new Expression[1 + orderKeyTypes.length];
+        // sequence = 0L
+        initExpressions[0] = literal(0L);
+        for (int i = 0; i < orderKeyTypes.length; ++i) {
+            // lastValue_i = init value
+            initExpressions[i + 1] = generateInitLiteral(orderKeyTypes[i]);
+        }
+        return initExpressions;
+    }
 
-	@Override
-	public Expression[] accumulateExpressions() {
-		Expression[] accExpressions = new Expression[1 + operands().length];
-		// sequence = if (lastValues equalTo orderKeys and sequence != 0) sequence else sequence + 1
-		accExpressions[0] = ifThenElse(and(orderKeyEqualsExpression(), not(equalTo(sequence, literal(0L)))), sequence, plus(sequence, literal(1L)));
-		Expression[] operands = operands();
-		System.arraycopy(operands, 0, accExpressions, 1, operands.length);
-		return accExpressions;
-	}
-
+    @Override
+    public Expression[] accumulateExpressions() {
+        Expression[] accExpressions = new Expression[1 + operands().length];
+        // sequence = if (lastValues equalTo orderKeys and sequence != 0) sequence else sequence + 1
+        accExpressions[0] =
+                ifThenElse(
+                        and(orderKeyEqualsExpression(), not(equalTo(sequence, literal(0L)))),
+                        sequence,
+                        plus(sequence, literal(1L)));
+        Expression[] operands = operands();
+        System.arraycopy(operands, 0, accExpressions, 1, operands.length);
+        return accExpressions;
+    }
 }

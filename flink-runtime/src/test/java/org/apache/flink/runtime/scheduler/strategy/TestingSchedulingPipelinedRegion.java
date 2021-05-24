@@ -18,49 +18,67 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * A simple implementation of {@link SchedulingPipelinedRegion} for testing.
- */
+/** A simple implementation of {@link SchedulingPipelinedRegion} for testing. */
 public class TestingSchedulingPipelinedRegion implements SchedulingPipelinedRegion {
 
-	private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices = new HashMap<>();
+    private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> regionVertices =
+            new HashMap<>();
 
-	private final Set<TestingSchedulingResultPartition> consumedPartitions = new HashSet<>();
+    private final Set<ConsumedPartitionGroup> consumedPartitionGroups =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
-	public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
-		for (TestingSchedulingExecutionVertex vertex : vertices) {
-			regionVertices.put(vertex.getId(), vertex);
+    public TestingSchedulingPipelinedRegion(final Set<TestingSchedulingExecutionVertex> vertices) {
+        final Map<IntermediateResultPartitionID, TestingSchedulingResultPartition>
+                resultPartitionsById = new HashMap<>();
 
-			for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
-				if (!vertices.contains(consumedPartition.getProducer())) {
-					consumedPartitions.add(consumedPartition);
-				}
-			}
-		}
-	}
+        for (TestingSchedulingExecutionVertex vertex : vertices) {
+            regionVertices.put(vertex.getId(), vertex);
 
-	@Override
-	public Iterable<TestingSchedulingExecutionVertex> getVertices() {
-		return Collections.unmodifiableCollection(regionVertices.values());
-	}
+            for (TestingSchedulingResultPartition consumedPartition : vertex.getConsumedResults()) {
+                resultPartitionsById.putIfAbsent(consumedPartition.getId(), consumedPartition);
+            }
 
-	@Override
-	public TestingSchedulingExecutionVertex getVertex(ExecutionVertexID vertexId) {
-		final TestingSchedulingExecutionVertex executionVertex = regionVertices.get(vertexId);
-		if (executionVertex == null) {
-			throw new IllegalArgumentException(String.format("Execution vertex %s not found in pipelined region", vertexId));
-		}
-		return executionVertex;
-	}
+            for (ConsumedPartitionGroup consumedGroup : vertex.getConsumedPartitionGroups()) {
+                for (IntermediateResultPartitionID consumerId : consumedGroup) {
+                    if (!vertices.contains(resultPartitionsById.get(consumerId).getProducer())) {
+                        consumedPartitionGroups.add(consumedGroup);
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
-	@Override
-	public Iterable<TestingSchedulingResultPartition> getConsumedResults() {
-		return Collections.unmodifiableSet(consumedPartitions);
-	}
+    @Override
+    public Iterable<TestingSchedulingExecutionVertex> getVertices() {
+        return Collections.unmodifiableCollection(regionVertices.values());
+    }
+
+    @Override
+    public TestingSchedulingExecutionVertex getVertex(ExecutionVertexID vertexId) {
+        final TestingSchedulingExecutionVertex executionVertex = regionVertices.get(vertexId);
+        if (executionVertex == null) {
+            throw new IllegalArgumentException(
+                    String.format("Execution vertex %s not found in pipelined region", vertexId));
+        }
+        return executionVertex;
+    }
+
+    @Override
+    public Iterable<ConsumedPartitionGroup> getAllBlockingConsumedPartitionGroups() {
+        return Collections.unmodifiableSet(consumedPartitionGroups);
+    }
+
+    @Override
+    public boolean contains(ExecutionVertexID vertexId) {
+        return regionVertices.containsKey(vertexId);
+    }
 }

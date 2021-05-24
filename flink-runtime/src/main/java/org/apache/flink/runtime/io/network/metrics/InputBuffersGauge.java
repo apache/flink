@@ -21,25 +21,23 @@ package org.apache.flink.runtime.io.network.metrics;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 
-/**
- * Gauge metric measuring the number of queued input buffers for {@link SingleInputGate}s.
- */
+/** Gauge metric measuring the number of queued input buffers for {@link SingleInputGate}s. */
 public class InputBuffersGauge implements Gauge<Integer> {
 
-	private final SingleInputGate[] inputGates;
+    private final SingleInputGate[] inputGates;
 
-	public InputBuffersGauge(SingleInputGate[] inputGates) {
-		this.inputGates = inputGates;
-	}
+    public InputBuffersGauge(SingleInputGate[] inputGates) {
+        this.inputGates = inputGates;
+    }
 
-	@Override
-	public Integer getValue() {
-		int totalBuffers = 0;
+    @Override
+    public Integer getValue() {
+        int totalBuffers = 0;
 
-		for (SingleInputGate inputGate : inputGates) {
-			totalBuffers += inputGate.getNumberOfQueuedBuffers();
-		}
+        for (SingleInputGate inputGate : inputGates) {
+            totalBuffers += inputGate.getNumberOfQueuedBuffers();
+        }
 
-		return totalBuffers;
-	}
+        return totalBuffers;
+    }
 }

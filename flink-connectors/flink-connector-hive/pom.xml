@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,6 +39,7 @@ under the License.
 		<hiverunner.version>4.0.0</hiverunner.version>
 		<reflections.version>0.9.8</reflections.version>
 		<derby.version>10.10.2.0</derby.version>
+		<hive.avro.version>1.8.2</hive.avro.version>
 	</properties>
 
 	<!-- Overwrite hadoop dependency management from flink-parent to use locally defined Hadoop version -->
@@ -170,6 +171,12 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- format dependencies -->
 
 		<dependency>
@@ -200,6 +207,17 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-parquet_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!--We downgrade the version of avro for tests. We do that because we test Hive's built-in
+			formats, which do not work with newer avro versions. We do not downgrade the version
+			permanently, because it should be safe to use hive as a catalog with newer avro
+			versions. -->
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>${hive.avro.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -853,6 +871,27 @@ under the License.
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr3-maven-plugin</artifactId>
+				<version>3.5.2</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>antlr</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<sourceDirectory>${basedir}/src/main/java</sourceDirectory>
+					<includes>
+						<include>**/HiveASTLexer.g</include>
+						<include>**/HiveASTParser.g</include>
+						<include>**/HiveASTHintParser.g</include>
+					</includes>
+				</configuration>
+			</plugin>
+
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
@@ -902,6 +941,8 @@ under the License.
 									<include>org.apache.parquet:parquet-column</include>
 									<include>org.apache.parquet:parquet-common</include>
 									<include>org.apache.parquet:parquet-encoding</include>
+									<include>org.apache.parquet:parquet-format-structures</include>
+									<include>org.apache.parquet:parquet-jackson</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -963,7 +1004,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${hive.connector.orc.version}</version>
+					<version>${orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -991,7 +1032,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${hive.connector.orc.version}</version>
+					<version>${orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -1017,7 +1058,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${hive.connector.orc.version}</version>
+					<version>${orc.version}</version>
 					<classifier>nohive</classifier>
 					<exclusions>
 						<exclusion>
@@ -1053,7 +1094,7 @@ under the License.
 				<dependency>
 					<groupId>org.apache.orc</groupId>
 					<artifactId>orc-core</artifactId>
-					<version>${hive.connector.orc.version}</version>
+					<version>${hive-2.2.0-orc-version}</version>
 					<exclusions>
 						<exclusion>
 							<groupId>org.apache.hadoop</groupId>
@@ -1068,6 +1109,8 @@ under the License.
 			<properties>
 				<hive.version>3.1.1</hive.version>
 				<derby.version>10.14.1.0</derby.version>
+                <!-- need a hadoop version that fixes HADOOP-14683 -->
+				<hivemetastore.hadoop.version>2.8.2</hivemetastore.hadoop.version>
 			</properties>
 
 			<dependencyManagement>
@@ -1098,7 +1141,7 @@ under the License.
 					<!-- Bump arrow netty dependency -->
 					<groupId>io.netty</groupId>
 					<artifactId>netty-buffer</artifactId>
-					<version>4.1.44.Final</version>
+					<version>4.1.46.Final</version>
 					<scope>provided</scope>
 				</dependency>
 
@@ -1106,7 +1149,7 @@ under the License.
 					<!-- Bump arrow netty dependency -->
 					<groupId>io.netty</groupId>
 					<artifactId>netty-common</artifactId>
-					<version>4.1.44.Final</version>
+					<version>4.1.46.Final</version>
 					<scope>provided</scope>
 				</dependency>
 

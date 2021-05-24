@@ -24,31 +24,34 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
- * Defines an external {@link TableSink} to emit a streaming {@link Table} with insert, update,
- * and delete changes.
+ * Defines an external {@link TableSink} to emit a streaming {@link Table} with insert, update, and
+ * delete changes.
  *
  * <p>The table will be converted into a stream of accumulate and retraction messages which are
- * encoded as {@link Tuple2}. The first field is a {@link Boolean} flag to indicate the message type.
- * The second field holds the record of the requested type {@link T}.
+ * encoded as {@link Tuple2}. The first field is a {@link Boolean} flag to indicate the message
+ * type. The second field holds the record of the requested type {@link T}.
  *
  * <p>A message with true {@link Boolean} flag is an accumulate (or add) message.
  *
  * <p>A message with false flag is a retract message.
  *
  * @param <T> Type of records that this {@link TableSink} expects and supports.
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
+ *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @PublicEvolving
 public interface RetractStreamTableSink<T> extends StreamTableSink<Tuple2<Boolean, T>> {
 
-	/**
-	 * Returns the requested record type.
-	 */
-	TypeInformation<T> getRecordType();
+    /** Returns the requested record type. */
+    TypeInformation<T> getRecordType();
 
-	@Override
-	default TypeInformation<Tuple2<Boolean, T>> getOutputType() {
-		return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
-	}
+    @Override
+    default TypeInformation<Tuple2<Boolean, T>> getOutputType() {
+        return new TupleTypeInfo<>(Types.BOOLEAN, getRecordType());
+    }
 }

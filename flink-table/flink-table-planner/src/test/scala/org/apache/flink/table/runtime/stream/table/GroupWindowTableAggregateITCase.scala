@@ -19,18 +19,17 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.stream.table.GroupWindowITCase._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
-import org.apache.flink.table.utils.Top3
+import org.apache.flink.table.utils.{LegacyRowResource, Top3}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.math.BigDecimal
 
@@ -39,6 +38,9 @@ import java.math.BigDecimal
   * programs is possible.
   */
 class GroupWindowTableAggregateITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val data = List(
     (1L, 1, "Hi"),
@@ -103,7 +105,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
       (16L, 16, "Hello"))
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     env.setParallelism(1)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
@@ -157,7 +158,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   @Test
   def testEventTimeTumblingWindow(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -238,7 +238,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
     // please keep this test in sync with the DataSet variant
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -287,7 +286,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataSet variant
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -333,7 +331,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataSet variant
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -375,7 +372,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataSet variant
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -409,7 +405,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataSet variant
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -440,7 +435,6 @@ class GroupWindowTableAggregateITCase extends AbstractTestBase {
   @Test
   def testEventTimeGroupWindowWithoutExplicitTimeField(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 

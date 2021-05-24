@@ -22,13 +22,14 @@ import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId, ZoneOffset}
 import java.util.{Locale, TimeZone}
+import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
 
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 import org.junit.Test
@@ -184,82 +185,247 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testTimePointCasting(): Unit = {
+    // DATE -> TIMESTAMP
     testAllApis(
       'f0.cast(DataTypes.TIMESTAMP(3)),
       "CAST(f0 AS TIMESTAMP(3))",
       "1990-10-14 00:00:00.000")
 
+    // TIME -> TIMESTAMP
     testAllApis(
       'f1.cast(DataTypes.TIMESTAMP(3)),
       "CAST(f1 AS TIMESTAMP(3))",
       "1970-01-01 10:20:45.000")
 
+    // TIMESTAMP -> DATE
     testAllApis(
       'f2.cast(DataTypes.DATE),
       "CAST(f2 AS DATE)",
       "1990-10-14")
 
+    // TIMESTAMP -> TIME
     testAllApis(
       'f2.cast(DataTypes.TIME),
       "CAST(f2 AS TIME)",
       "10:20:45")
+  }
 
-    testAllApis(
-      'f2.cast(DataTypes.TIME),
-      "CAST(f2 AS TIME)",
-      "10:20:45")
+  @Test
+  def testTimestampLtzCastInUTC(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("UTC"))
 
+    //DATE -> TIMESTAMP_LTZ
     testSqlApi(
-      "CAST(CAST('123' as DECIMAL(5, 2)) AS TIMESTAMP)",
-      "1970-01-01 00:02:03.000000")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DECIMAL(5, 2))",
-      "123.00")
-
-    testSqlApi(
-      "CAST(CAST('123' AS FLOAT) AS TIMESTAMP)",
-      "1970-01-01 00:02:03.000000")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS FLOAT)",
-      "123.0")
-
-    testSqlApi(
-      "CAST(CAST('123' AS DOUBLE) AS TIMESTAMP)",
-      "1970-01-01 00:02:03.000000")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DOUBLE)",
-      "123.0")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS TINYINT)",
-      "123")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS SMALLINT)",
-      "123")
-
-    testSqlApi(
-      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS INT)",
-      "123")
-
-    testSqlApi(
-      "CAST(f0 AS TIMESTAMP(3) WITH LOCAL TIME ZONE)",
+      "CAST(f0 AS TIMESTAMP_LTZ(3))",
       "1990-10-14 00:00:00.000")
 
+    //TIME -> TIMESTAMP_LTZ
     testSqlApi(
-      "CAST(f1 AS TIMESTAMP(3) WITH LOCAL TIME ZONE)",
+      "CAST(f1 AS TIMESTAMP_LTZ(3))",
       "1970-01-01 10:20:45.000")
 
+    //TIMESTAMP_LTZ -> TIME
     testSqlApi(
-      s"CAST(${timestampTz("2018-03-14 01:02:03")} AS TIME)",
+      s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS TIME)",
       "01:02:03")
 
+    //TIMESTAMP_LTZ -> DATE
     testSqlApi(
-      s"CAST(${timestampTz("2018-03-14 01:02:03")} AS DATE)",
+      s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS DATE)",
       "2018-03-14")
+  }
+
+  @Test
+  def testTimestampLtzCastInShanghai(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    // DATE -> TIMESTAMP_LTZ
+    testSqlApi(
+      "CAST(f0 AS TIMESTAMP_LTZ(3))",
+      "1990-10-14 00:00:00.000")
+
+    // TIME -> TIMESTAMP_LTZ
+    testSqlApi(
+      "CAST(f1 AS TIMESTAMP_LTZ(3))",
+      "1970-01-01 10:20:45.000")
+
+    // TIMESTAMP -> TIMESTAMP_LTZ
+    testSqlApi(
+      "CAST(f2 AS TIMESTAMP_LTZ(3))",
+      "1990-10-14 10:20:45.123")
+
+    // TIMESTAMP_LTZ -> TIME
+    testSqlApi(
+      s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS TIME)",
+      "01:02:03")
+
+    // TIMESTAMP_LTZ -> DATE
+    testSqlApi(
+      s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS DATE)",
+      "2018-03-14")
+
+    // TIMESTAMP_LTZ -> TIMESTAMP
+    testSqlApi(
+      s"CAST(${timestampLtz("2018-03-14 01:02:03")} AS TIMESTAMP(3))",
+      "2018-03-14 01:02:03.000")
+
+    // test precision when cast between TIMESTAMP_LTZ and TIMESTAMP_LTZ
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(3))",
+      "1970-01-01 08:00:01.123")
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(6))",
+      "1970-01-01 08:00:01.123456")
+    testSqlApi(
+      s"CAST(${timestampLtz("1970-01-01 08:00:01.123456")} AS TIMESTAMP_LTZ(9))",
+      "1970-01-01 08:00:01.123456000")
+  }
+
+  @Test
+  def tesInvalidCastBetweenNumericAndTimestampLtz(): Unit = {
+    val castFromTimestampLtzExceptionMsg = "The cast conversion from TIMESTAMP_LTZ type to" +
+      " NUMERIC type is not allowed."
+
+    val castToTimestampLtzExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP_LTZ" +
+      " type is not allowed, it's recommended to use" +
+      " TO_TIMESTAMP_LTZ(numeric_col, precision) instead."
+
+    // TINYINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS TINYINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // SMALLINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS SMALLINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // INT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(100 AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // BIGINT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100 AS BIGINT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // FLOAT -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.01 AS FLOAT) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // DOUBLE -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.123 AS DOUBLE) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // DECIMAL -> TIMESTAMP_LTZ
+    testExpectedSqlException(
+      "CAST(CAST(100.1234 as DECIMAL(38, 18)) AS TIMESTAMP_LTZ(3))",
+      castToTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> TINYINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS TINYINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> SMALLINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS SMALLINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> INT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS INT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> BIGINT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS BIGINT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> FLOAT
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS FLOAT)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> DOUBLE
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DOUBLE)",
+      castFromTimestampLtzExceptionMsg)
+
+    // TIMESTAMP_LTZ -> DECIMAL
+    testExpectedSqlException(
+      s"CAST(${timestampLtz("1970-01-01 08:02:03.123")} AS DECIMAL(38, 3))",
+      castFromTimestampLtzExceptionMsg)
+  }
+
+  @Test
+  def tesInvalidCastBetweenNumericAndTimestamp(): Unit = {
+    val castFromTimestampExceptionMsg = "The cast conversion from TIMESTAMP type to NUMERIC type" +
+      " is not allowed, it's recommended to use" +
+      " UNIX_TIMESTAMP(CAST(timestamp_col AS STRING)) instead."
+
+    val castToTimestampExceptionMsg = "The cast conversion from NUMERIC type to TIMESTAMP type" +
+      " is not allowed, it's recommended to use TO_TIMESTAMP(FROM_UNIXTIME(numeric_col))" +
+      " instead, note the numeric is in seconds."
+
+    testExpectedSqlException(
+      "CAST(CAST(123 as TINYINT) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(CAST(123 AS SMALLINT) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(CAST(123 AS INT) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(CAST(123 AS BIGINT) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(CAST(123 AS FLOAT) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(CAST(123 AS DOUBLE) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+    "CAST(CAST(123 as DECIMAL(5, 2)) AS TIMESTAMP)",
+        castToTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS TINYINT)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS SMALLINT)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS INT)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS BIGINT)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS FLOAT)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DOUBLE)",
+      castFromTimestampExceptionMsg)
+
+    testExpectedSqlException(
+      "CAST(TIMESTAMP '1970-01-01 00:02:03' AS DECIMAL(5, 2))",
+      castFromTimestampExceptionMsg)
   }
 
   @Test
@@ -588,11 +754,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2018/03/14 01:02:03.123456")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
       "2018-03-14 01:02:03.123456")
   }
 
@@ -609,11 +775,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2018/03/14 01:02:03.123456")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
       "2018-03-14 01:02:03.123456")
 
   }
@@ -631,11 +797,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2018/03/14 01:02:03.123456")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03.123456")}, 'yyyy-MM-dd HH:mm:ss.SSSSSS')",
       "2018-03-14 01:02:03.123456")
 
   }
@@ -674,44 +840,23 @@ class TemporalTypesTest extends ExpressionTestBase {
     //testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:10:31' TO HOUR)", "2018-03-20 07:00:00.000")
   }
 
-  private def timestampTz(str: String): String = {
-    val precision = extractPrecision(str)
-    timestampTz(str, precision)
-  }
-
-  private def timestampTz(str: String, precision: Int): String = {
-    s"CAST(TIMESTAMP '$str' AS TIMESTAMP($precision) WITH LOCAL TIME ZONE)"
-  }
-
-  // According to SQL standard, the length of second fraction is
-  // the precision of the Timestamp literal
-  private def extractPrecision(str: String): Int = {
-    val dot = str.indexOf('.')
-    if (dot == -1) {
-      0
-    } else {
-      str.length - dot - 1
-    }
-  }
-
-
   @Test
   def testTemporalShanghai(): Unit = {
     config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
 
-    testSqlApi(timestampTz("2018-03-14 19:01:02.123"), "2018-03-14 19:01:02.123")
-    testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
+    testSqlApi(timestampLtz("2018-03-14 19:01:02.123"), "2018-03-14 19:01:02.123")
+    testSqlApi(timestampLtz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
 
     testSqlApi(
-      timestampTz("2018-03-14 19:00:00.010") + " > " + "f25",
+      timestampLtz("2018-03-14 19:00:00.010") + " > " + "f25",
       "true")
 
     testSqlApi(
-      s"${timestampTz("2018-03-14 01:02:03.123456789", 9)}",
+      s"${timestampLtz("2018-03-14 01:02:03.123456789", 9)}",
       "2018-03-14 01:02:03.123456789")
 
     testSqlApi(
-      s"${timestampTz("2018-03-14 01:02:03.123456", 6)}",
+      s"${timestampLtz("2018-03-14 01:02:03.123456", 6)}",
       "2018-03-14 01:02:03.123456")
 
 
@@ -721,11 +866,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2018/03/14 01:02:03")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     // EXTRACT
-    val extractT1 = timestampTz("2018-03-20 07:59:59")
+    val extractT1 = timestampLtz("2018-03-20 07:59:59")
     testSqlApi(s"EXTRACT(DAY FROM $extractT1)", "20")
     testSqlApi(s"EXTRACT(HOUR FROM $extractT1)", "7")
     testSqlApi(s"EXTRACT(MONTH FROM $extractT1)", "3")
@@ -740,9 +885,16 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("CEIL(TIME '12:44:31' TO HOUR)", "13:00:00")
 
+    testSqlApi("FLOOR( DATE '2021-02-27' TO WEEK)", "2021-02-21")
+    testSqlApi("FLOOR( DATE '2021-03-01' TO WEEK)", "2021-02-28")
+    testSqlApi("CEIL( DATE '2021-02-27' TO WEEK)", "2021-02-28")
+    testSqlApi("CEIL( DATE '2021-03-01' TO WEEK)", "2021-03-07")
+
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 06:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-20 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-03-20 00:00:00' TO DAY)", "2018-03-20 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2021-02-27 00:00:00' TO WEEK)", "2021-02-21 00:00:00")
+    testSqlApi("FLOOR(TIMESTAMP '2021-03-01 00:00:00' TO WEEK)", "2021-02-28 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-04-01 06:44:31' TO MONTH)", "2018-04-01 00:00:00")
     testSqlApi("FLOOR(TIMESTAMP '2018-01-01 06:44:31' TO MONTH)", "2018-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO HOUR)", "2018-03-20 07:00:00")
@@ -750,27 +902,33 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("CEIL(TIMESTAMP '2018-03-20 06:44:31' TO DAY)", "2018-03-21 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO DAY)", "2018-03-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-31 00:00:01' TO DAY)", "2018-04-01 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2021-02-27 00:00:00' TO WEEK)", "2021-02-28 00:00:00")
+    testSqlApi("CEIL(TIMESTAMP '2021-03-01 00:00:00' TO WEEK)", "2021-03-07 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-01 21:00:01' TO MONTH)", "2018-03-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-03-01 00:00:00' TO MONTH)", "2018-03-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-12-02 00:00:00' TO MONTH)", "2019-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-01-01 21:00:01' TO YEAR)", "2018-01-01 00:00:00")
     testSqlApi("CEIL(TIMESTAMP '2018-01-02 21:00:01' TO YEAR)", "2019-01-01 00:00:00")
 
-    testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 06:00:00")
-    testSqlApi(s"FLOOR(${timestampTz("2018-03-20 06:44:31")} TO DAY)", "2018-03-20 00:00:00")
-    testSqlApi(s"FLOOR(${timestampTz("2018-03-20 00:00:00")} TO DAY)", "2018-03-20 00:00:00")
-    testSqlApi(s"FLOOR(${timestampTz("2018-04-01 06:44:31")} TO MONTH)", "2018-04-01 00:00:00")
-    testSqlApi(s"FLOOR(${timestampTz("2018-01-01 06:44:31")} TO MONTH)", "2018-01-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 07:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:00:00")} TO HOUR)", "2018-03-20 06:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-20 06:44:31")} TO DAY)", "2018-03-21 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-1 00:00:00")} TO DAY)", "2018-03-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-31 00:00:01")} TO DAY)", "2018-04-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-01 21:00:01")} TO MONTH)", "2018-03-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-03-01 00:00:00")} TO MONTH)", "2018-03-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-12-02 00:00:00")} TO MONTH)", "2019-01-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-01-01 21:00:01")} TO YEAR)", "2018-01-01 00:00:00")
-    testSqlApi(s"CEIL(${timestampTz("2018-01-02 21:00:01")} TO YEAR)", "2019-01-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-03-20 06:44:31")} TO DAY)", "2018-03-20 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-03-20 00:00:00")} TO DAY)", "2018-03-20 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2021-02-27 00:00:00")} TO WEEK)", "2021-02-21 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2021-03-01 00:00:00")} TO WEEK)", "2021-02-28 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-04-01 06:44:31")} TO MONTH)", "2018-04-01 00:00:00")
+    testSqlApi(s"FLOOR(${timestampLtz("2018-01-01 06:44:31")} TO MONTH)", "2018-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:44:31")} TO HOUR)", "2018-03-20 07:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:00:00")} TO HOUR)", "2018-03-20 06:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-20 06:44:31")} TO DAY)", "2018-03-21 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-1 00:00:00")} TO DAY)", "2018-03-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-31 00:00:01")} TO DAY)", "2018-04-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2021-02-27 00:00:00")} TO WEEK)", "2021-02-28 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2021-03-01 00:00:00")} TO WEEK)", "2021-03-07 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-01 21:00:01")} TO MONTH)", "2018-03-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-03-01 00:00:00")} TO MONTH)", "2018-03-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-12-02 00:00:00")} TO MONTH)", "2019-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-01 21:00:01")} TO YEAR)", "2018-01-01 00:00:00")
+    testSqlApi(s"CEIL(${timestampLtz("2018-01-02 21:00:01")} TO YEAR)", "2019-01-01 00:00:00")
 
     // others
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
@@ -790,14 +948,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     // 1520960523000  "2018-03-14T01:02:03+0800"
     testSqlApi("TIMESTAMPADD(HOUR, +8, TIMESTAMP '2017-11-29 10:58:58.998')",
       "2017-11-29 18:58:58.998")
-
-    val sdf = new SimpleDateFormat("yyyy-MM-dd")
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-    val currMillis = System.currentTimeMillis()
-    val ts = new Timestamp(currMillis)
-    val currDateStr = sdf.format(ts)
-    testSqlApi("CURRENT_DATE", currDateStr)
-    //testSqlApi("CURRENT_TIME", "")
   }
 
   @Test
@@ -819,8 +969,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     // Asia/Rangoon UTC Offset 6.5
     config.setLocalTimeZone(ZoneId.of("Asia/Rangoon"))
 
-    val t1 = timestampTz("2018-03-20 06:10:31")
-    val t2 = timestampTz("2018-03-20 06:00:00")
+    val t1 = timestampLtz("2018-03-20 06:10:31")
+    val t2 = timestampLtz("2018-03-20 06:00:00")
     // 1521502831000,  2018-03-19 23:40:31 UTC,  2018-03-20 06:10:31 +06:30
     testSqlApi(s"EXTRACT(HOUR FROM $t1)", "6")
     testSqlApi(s"FLOOR($t1 TO HOUR)", "2018-03-20 06:00:00")
@@ -839,6 +989,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
 
     testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
+
+    // test null value input
+    testAllApis(
+      toTimestampLtz(nullOf(DataTypes.BIGINT()), 0),
+      "TO_TIMESTAMP_LTZ(cast(NULL as BIGINT), 0)",
+      nullable)
   }
 
   @Test
@@ -900,6 +1056,13 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       s"from_unixtime(f22, '$fmt3')",
       sdf3.format(new Timestamp(3000)))
+
+    testSqlApi(
+      s"from_unixtime(f26, '$fmt2')",
+      sdf2.format(new Timestamp(124000)))
+    testSqlApi(
+      s"from_unixtime(f26, '$fmt3')",
+      sdf3.format(new Timestamp(124000)))
 
     // test with null input
     testSqlApi(
@@ -967,15 +1130,15 @@ class TemporalTypesTest extends ExpressionTestBase {
       "123456789")
 
     testSqlApi(
-      s"EXTRACT(MILLISECOND FROM ${timestampTz("1970-01-01 00:00:00.123456789", 9)})",
+      s"EXTRACT(MILLISECOND FROM ${timestampLtz("1970-01-01 00:00:00.123456789", 9)})",
       "123")
 
     testSqlApi(
-      s"EXTRACT(MICROSECOND FROM ${timestampTz("1970-01-01 00:00:00.123456789", 9)})",
+      s"EXTRACT(MICROSECOND FROM ${timestampLtz("1970-01-01 00:00:00.123456789", 9)})",
       "123456")
 
     testSqlApi(
-      s"EXTRACT(NANOSECOND FROM ${timestampTz("1970-01-01 00:00:00.123456789", 9)})",
+      s"EXTRACT(NANOSECOND FROM ${timestampLtz("1970-01-01 00:00:00.123456789", 9)})",
       "123456789")
 
 
@@ -1046,7 +1209,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1970-01-01 00:00:00")
 
     testSqlApi(
-      s"CAST(${timestampTz("1970-01-01 00:00:00.123456789", 9)} " +
+      s"CAST(${timestampLtz("1970-01-01 00:00:00.123456789", 9)} " +
         "AS TIMESTAMP(6) WITH LOCAL TIME ZONE)",
       "1970-01-01 00:00:00.123456"
     )
@@ -1100,13 +1263,13 @@ class TemporalTypesTest extends ExpressionTestBase {
 
 
     testSqlApi(
-      s"${timestampTz("1970-01-01 00:00:00.123456789", 9)} > " +
-        s"${timestampTz("1970-01-01 00:00:00.123456788", 9)}",
+      s"${timestampLtz("1970-01-01 00:00:00.123456789", 9)} > " +
+        s"${timestampLtz("1970-01-01 00:00:00.123456788", 9)}",
       "true")
 
     testSqlApi(
-      s"${timestampTz("1970-01-01 00:00:00.123456788", 9)} < " +
-        s"${timestampTz("1970-01-01 00:00:00.123456789", 9)}",
+      s"${timestampLtz("1970-01-01 00:00:00.123456788", 9)} < " +
+        s"${timestampLtz("1970-01-01 00:00:00.123456789", 9)}",
       "true")
 
 
@@ -1116,10 +1279,224 @@ class TemporalTypesTest extends ExpressionTestBase {
       "1970/01/01 00:00:00.123456789")
 
     testSqlApi(
-      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03.123456789", 9)}, " +
+      s"DATE_FORMAT(${timestampLtz("2018-03-14 01:02:03.123456789", 9)}, " +
         "'yyyy-MM-dd HH:mm:ss.SSSSSSSSS')",
       "2018-03-14 01:02:03.123456789")
 
+  }
+
+  @Test
+  def testToTimestampLtzShanghai(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Shanghai"))
+
+    // INT -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100, 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 08:01:40.000")
+
+    // TINYINT -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100.cast(DataTypes.TINYINT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100 AS TINYINT), 0)",
+      "1970-01-01 08:01:40.000")
+
+    // BIGINT -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100.cast(DataTypes.BIGINT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100 AS BIGINT), 0)",
+      "1970-01-01 08:01:40.000")
+
+    // FLOAT -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100.01.cast(DataTypes.FLOAT()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100.01 AS FLOAT), 0)",
+      "1970-01-01 08:01:40.010")
+
+    // DOUBLE -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100.123.cast(DataTypes.DOUBLE()), 0),
+      "TO_TIMESTAMP_LTZ(CAST(100.123 AS DOUBLE), 0)",
+      "1970-01-01 08:01:40.123")
+
+    // DECIMAL -> TIMESTAMP_LTZ
+    testAllApis(
+      toTimestampLtz(100.cast(DataTypes.DECIMAL(38, 18)), 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 08:01:40.000")
+    testAllApis(
+      toTimestampLtz(-100.cast(DataTypes.DECIMAL(38, 18)), 0),
+      "TO_TIMESTAMP_LTZ(-100, 0)",
+      "1970-01-01 07:58:20.000")
+
+    // keep scale
+    testAllApis(
+      toTimestampLtz(1234, 3),
+      "TO_TIMESTAMP_LTZ(1234, 3)",
+      "1970-01-01 08:00:01.234")
+    // drop scale
+    testAllApis(
+      toTimestampLtz(0.01, 3),
+      "TO_TIMESTAMP_LTZ(0.01, 3)",
+      "1970-01-01 08:00:00.000")
+  }
+
+  @Test
+  def testToTimestampLtzUTC(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("UTC"))
+    testAllApis(
+      toTimestampLtz(100, 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 00:01:40.000")
+
+    testAllApis(
+      toTimestampLtz(100, 0),
+      "TO_TIMESTAMP_LTZ(100, 0)",
+      "1970-01-01 00:01:40.000")
+
+    testAllApis(
+      toTimestampLtz(1234, 3),
+      "TO_TIMESTAMP_LTZ(1234, 3)",
+      "1970-01-01 00:00:01.234")
+
+    testAllApis(
+      toTimestampLtz(-100, 0),
+      "TO_TIMESTAMP_LTZ(-100, 0)",
+      "1969-12-31 23:58:20.000")
+  }
+
+  @Test
+  def testBoundaryForToTimestampLtz(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("UTC"))
+
+    // INT
+    testAllApis(
+      toTimestampLtz(JInt.MIN_VALUE.cast(DataTypes.INT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MIN_VALUE} AS INTEGER), 0)",
+      "1901-12-13 20:45:52.000")
+    testAllApis(
+      toTimestampLtz(JInt.MAX_VALUE.cast(DataTypes.INT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JInt.MAX_VALUE} AS INTEGER), 0)",
+      "2038-01-19 03:14:07.000")
+
+    // TINYINT
+    testAllApis(
+      toTimestampLtz(-128.cast(DataTypes.TINYINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-128 AS TINYINT), 0)",
+      "1969-12-31 23:57:52.000")
+    testAllApis(
+      toTimestampLtz(127.cast(DataTypes.TINYINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(127 AS TINYINT), 0)",
+      "1970-01-01 00:02:07.000")
+
+    // BIGINT
+    testAllApis(
+      toTimestampLtz(JLong.MIN_VALUE.cast(DataTypes.BIGINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MIN_VALUE} AS BIGINT), 0)",
+      "null")
+    testAllApis(
+      toTimestampLtz(JLong.MAX_VALUE.cast(DataTypes.BIGINT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JLong.MAX_VALUE} AS BIGINT), 0)",
+      "null")
+
+    // FLOAT
+    testAllApis(
+      toTimestampLtz((-JFloat.MAX_VALUE).cast(DataTypes.FLOAT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-${JFloat.MAX_VALUE} AS FLOAT), 0)",
+      "null")
+    testAllApis(
+      toTimestampLtz(JFloat.MAX_VALUE.cast(DataTypes.FLOAT()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JFloat.MAX_VALUE} AS FLOAT), 0)",
+      "null")
+
+    // DOUBLE
+    testAllApis(
+      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DOUBLE()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(-${JDouble.MAX_VALUE} AS DOUBLE), 0)",
+      "null")
+    testAllApis(
+      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DOUBLE()), 0),
+      s"TO_TIMESTAMP_LTZ(CAST(${JDouble.MAX_VALUE} AS DOUBLE), 0)",
+      "null")
+
+    // DECIMAL
+    testAllApis(
+      toTimestampLtz((-JDouble.MAX_VALUE).cast(DataTypes.DECIMAL(38, 18)), 0),
+      s"TO_TIMESTAMP_LTZ(-${JDouble.MAX_VALUE}, 0)",
+      "null")
+    testAllApis(
+      toTimestampLtz(JDouble.MAX_VALUE.cast(DataTypes.DECIMAL(38, 18)), 0),
+      s"TO_TIMESTAMP_LTZ(${JDouble.MAX_VALUE}, 0)",
+      "null")
+
+    // test valid min/max epoch mills
+    testAllApis(
+      toTimestampLtz(-62167219200000L, 3),
+      s"TO_TIMESTAMP_LTZ(-62167219200000, 3)",
+      "0000-01-01 00:00:00.000")
+    testAllApis(
+      toTimestampLtz(253402300799999L, 3),
+      s"TO_TIMESTAMP_LTZ(253402300799999, 3)",
+      "9999-12-31 23:59:59.999")
+  }
+
+  @Test
+  def testInvalidToTimestampLtz(): Unit = {
+
+    // test exceeds valid min/max epoch mills
+    testAllApis(
+      toTimestampLtz(-62167219200001L, 3),
+      s"TO_TIMESTAMP_LTZ(-62167219200001, 3)",
+      "null")
+    testAllApis(
+      toTimestampLtz(253402300800000L, 3),
+      s"TO_TIMESTAMP_LTZ(253402300800000, 3)",
+      "null")
+
+    // test invalid number of arguments
+    testExpectedSqlException(
+      "TO_TIMESTAMP_LTZ(123)",
+      "Invalid number of arguments to function 'TO_TIMESTAMP_LTZ'. Was expecting 2 arguments")
+
+    // invalid precision
+    testExpectedAllApisException(
+      toTimestampLtz(12, 1),
+      "TO_TIMESTAMP_LTZ(12, 1)",
+      "The precision value '1' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
+        " the supported value is '0' for second or '3' for millisecond.",
+      classOf[TableException])
+
+    // invalid precision
+    testExpectedAllApisException(
+      toTimestampLtz(1000000000, 9),
+      "TO_TIMESTAMP_LTZ(1000000000, 9)",
+      "The precision value '9' for function TO_TIMESTAMP_LTZ(numeric, precision) is unsupported," +
+        " the supported value is '0' for second or '3' for millisecond.",
+      classOf[TableException])
+
+    // invalid type for the first input
+    testExpectedSqlException(
+      "TO_TIMESTAMP_LTZ('test_string_type', 0)",
+      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
+        " 'TO_TIMESTAMP_LTZ(<CHAR(16)>, <INTEGER>)'. Supported form(s):" +
+        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'",
+      classOf[ValidationException])
+    testExpectedTableApiException(
+      toTimestampLtz("test_string_type", 0),
+      "toTimestampLtz(test_string_type, 0) requires numeric type for the first input," +
+        " but the actual type 'String'.")
+
+    // invalid type for the second input
+    testExpectedSqlException(
+      "TO_TIMESTAMP_LTZ(123, 'test_string_type')",
+      "Cannot apply 'TO_TIMESTAMP_LTZ' to arguments of type" +
+        " 'TO_TIMESTAMP_LTZ(<INTEGER>, <CHAR(16)>)'. Supported form(s):" +
+        " 'TO_TIMESTAMP_LTZ(<NUMERIC>, <INTEGER>)'")
+
+    testExpectedTableApiException(
+      toTimestampLtz(123, "test_string_type"),
+      "toTimestampLtz(123, test_string_type) requires numeric type for the second input," +
+        " but the actual type 'String'.")
   }
 
   @Test
@@ -1136,12 +1513,130 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       "TIMESTAMPDIFF(MONTH, DATE '2019-09-01', DATE '2016-08-01')",
       "-37")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2021-01-04 00:00:00', DATE '2021-02-04')",
+      "1")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2020-01-04', TIMESTAMP '2021-02-04 12:00:00')",
+      "13")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIMESTAMP '2021-01-04 00:00:00', TIME '00:00:00')",
+      "-612")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIME '00:00:00', TIMESTAMP '2021-02-04 12:00:00')",
+      "613")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, DATE '2021-01-04', TIME '00:00:00')",
+      "-612")
+    testSqlApi(
+      "TIMESTAMPDIFF(MONTH, TIME '00:00:00', DATE '2021-02-04')",
+      "613")
+  }
+
+  @Test
+  def testTimestampLtzArithmetic(): Unit = {
+    // TIMESTAMP_LTZ +/- INTERVAL should support nanosecond
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' YEAR",
+      "1971-02-01 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' MONTH",
+      "1970-01-01 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' DAY",
+      "1970-02-02 00:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' HOUR",
+      "1970-01-31 23:00:00.123456789")
+
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} + INTERVAL '1' MINUTE",
+      "1970-02-01 00:01:00.123456789")
+
+    testSqlApi(
+      s"${timestampLtz("1970-02-01 00:00:00.123456789")} - INTERVAL '1' SECOND",
+      "1970-01-31 23:59:59.123456789")
+
+    // test TIMESTAMPDIFF for TIMESTAMP_LTZ type
+    testSqlApi(
+      s"TIMESTAMPDIFF(YEAR, ${timestampLtz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123456789")})",
+      "1")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123456789")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123456789")})",
+      "12")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(DAY, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1971-01-02 01:02:03.123")})",
+      "366")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(HOUR, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1970-01-01 01:02:03.123")})",
+      "1")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(MINUTE, ${timestampLtz("1970-01-01 01:02:03.123")}," +
+        s" ${timestampLtz("1970-01-01 00:00:00")})",
+      "-62")
+
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" ${timestampLtz("1970-01-01 00:02:03.234")})",
+      "123")
+
+    // test null input
+    testSqlApi(
+      s"TIMESTAMPDIFF(SECOND, CAST(null AS TIMESTAMP_LTZ)," +
+        s" ${timestampLtz("1970-01-01 00:02:03.234")})",
+      "null")
+  }
+
+  @Test
+  def testInvalidTimestampLtzArithmetic(): Unit = {
+    val exceptionMsg = "TIMESTAMP_LTZ only supports diff between the same type."
+
+    // unsupported operand type
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}, TIME '00:00:01')",
+      exceptionMsg,
+      classOf[CodeGenException])
+
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}, DATE '1970-01-01')",
+      exceptionMsg,
+      classOf[CodeGenException])
+
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(MONTH, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" TIMESTAMP '1970-01-01 00:00:00.123')",
+      exceptionMsg,
+      classOf[CodeGenException])
+
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}," +
+        s" TIME '00:00:00.123')",
+      exceptionMsg,
+      classOf[CodeGenException])
+
+    // invalid operand type
+    testExpectedSqlException(
+      s"TIMESTAMPDIFF(SECOND, ${timestampLtz("1970-01-01 00:00:00.123")}, 'test_string_type')",
+      "Cannot apply 'TIMESTAMPDIFF' to arguments of type" +
+        " 'TIMESTAMPDIFF(<SYMBOL>, <TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)>, <CHAR(16)>)'." +
+        " Supported form(s): 'TIMESTAMPDIFF(<ANY>, <DATETIME>, <DATETIME>)'")
   }
 
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(26)
+    val testData = new Row(27)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))
@@ -1174,6 +1669,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789")
       .atZone(config.getLocalTimeZone).toInstant)
     testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
+    testData setField(26, new Integer(124).byteValue())
     testData
   }
 
@@ -1203,7 +1699,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     DataTypes.FIELD("f22", DataTypes.INT()),
     DataTypes.FIELD("f23", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
     DataTypes.FIELD("f24", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
-    DataTypes.FIELD("f25", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9))
+    DataTypes.FIELD("f25", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(9)),
+    DataTypes.FIELD("f26", DataTypes.TINYINT())
   )
 
   override def containsLegacyTypes: Boolean = false

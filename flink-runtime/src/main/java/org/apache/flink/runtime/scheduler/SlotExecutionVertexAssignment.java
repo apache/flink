@@ -26,27 +26,24 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * The slot assignment for a {@link ExecutionVertex}.
- */
+/** The slot assignment for a {@link ExecutionVertex}. */
 class SlotExecutionVertexAssignment {
 
-	private final ExecutionVertexID executionVertexId;
+    private final ExecutionVertexID executionVertexId;
 
-	private final CompletableFuture<LogicalSlot> logicalSlotFuture;
+    private final CompletableFuture<LogicalSlot> logicalSlotFuture;
 
-	SlotExecutionVertexAssignment(
-			ExecutionVertexID executionVertexId,
-			CompletableFuture<LogicalSlot> logicalSlotFuture) {
-		this.executionVertexId = checkNotNull(executionVertexId);
-		this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
-	}
+    SlotExecutionVertexAssignment(
+            ExecutionVertexID executionVertexId, CompletableFuture<LogicalSlot> logicalSlotFuture) {
+        this.executionVertexId = checkNotNull(executionVertexId);
+        this.logicalSlotFuture = checkNotNull(logicalSlotFuture);
+    }
 
-	ExecutionVertexID getExecutionVertexId() {
-		return executionVertexId;
-	}
+    ExecutionVertexID getExecutionVertexId() {
+        return executionVertexId;
+    }
 
-	CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
-		return logicalSlotFuture;
-	}
+    CompletableFuture<LogicalSlot> getLogicalSlotFuture() {
+        return logicalSlotFuture;
+    }
 }

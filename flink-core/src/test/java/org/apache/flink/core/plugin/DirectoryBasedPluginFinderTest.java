@@ -41,97 +41,95 @@ import java.util.stream.Stream;
 
 import static org.junit.Assert.fail;
 
-/**
- * Test for {@link DirectoryBasedPluginFinder}.
- */
+/** Test for {@link DirectoryBasedPluginFinder}. */
 public class DirectoryBasedPluginFinderTest {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void createPluginDescriptorsForDirectory() throws Exception {
-		File rootFolder = temporaryFolder.newFolder();
-		PluginFinder descriptorsFactory =
-			new DirectoryBasedPluginFinder(rootFolder.toPath());
-		Collection<PluginDescriptor> actual = descriptorsFactory.findPlugins();
+    @Test
+    public void createPluginDescriptorsForDirectory() throws Exception {
+        File rootFolder = temporaryFolder.newFolder();
+        PluginFinder descriptorsFactory = new DirectoryBasedPluginFinder(rootFolder.toPath());
+        Collection<PluginDescriptor> actual = descriptorsFactory.findPlugins();
 
-		Assert.assertTrue("empty root dir -> expected no actual", actual.isEmpty());
+        Assert.assertTrue("empty root dir -> expected no actual", actual.isEmpty());
 
-		List<File> subDirs = Stream.of("A", "B", "C")
-			.map(s -> new File(rootFolder, s))
-			.collect(Collectors.toList());
+        List<File> subDirs =
+                Stream.of("A", "B", "C")
+                        .map(s -> new File(rootFolder, s))
+                        .collect(Collectors.toList());
 
-		for (File subDir : subDirs) {
-			Preconditions.checkState(subDir.mkdirs());
-		}
+        for (File subDir : subDirs) {
+            Preconditions.checkState(subDir.mkdirs());
+        }
 
-		try {
-			descriptorsFactory.findPlugins();
-			fail("all empty plugin sub-dirs");
-		} catch (RuntimeException expected) {
-			Assert.assertTrue(expected.getCause() instanceof IOException);
-		}
+        try {
+            descriptorsFactory.findPlugins();
+            fail("all empty plugin sub-dirs");
+        } catch (RuntimeException expected) {
+            Assert.assertTrue(expected.getCause() instanceof IOException);
+        }
 
-		for (File subDir : subDirs) {
-			// we create a file and another subfolder to check that they are ignored
-			Preconditions.checkState(new File(subDir, "ignore-test.zip").createNewFile());
-			Preconditions.checkState(new File(subDir, "ignore-dir").mkdirs());
-		}
+        for (File subDir : subDirs) {
+            // we create a file and another subfolder to check that they are ignored
+            Preconditions.checkState(new File(subDir, "ignore-test.zip").createNewFile());
+            Preconditions.checkState(new File(subDir, "ignore-dir").mkdirs());
+        }
 
-		try {
-			descriptorsFactory.findPlugins();
-			fail("still no jars in plugin sub-dirs");
-		} catch (RuntimeException expected) {
-			Assert.assertTrue(expected.getCause() instanceof IOException);
-		}
+        try {
+            descriptorsFactory.findPlugins();
+            fail("still no jars in plugin sub-dirs");
+        } catch (RuntimeException expected) {
+            Assert.assertTrue(expected.getCause() instanceof IOException);
+        }
 
-		List<PluginDescriptor> expected = new ArrayList<>(3);
+        List<PluginDescriptor> expected = new ArrayList<>(3);
 
-		for (int i = 0; i < subDirs.size(); ++i) {
-			File subDir = subDirs.get(i);
-			URL[] jarURLs = new URL[i + 1];
+        for (int i = 0; i < subDirs.size(); ++i) {
+            File subDir = subDirs.get(i);
+            URL[] jarURLs = new URL[i + 1];
 
-			for (int j = 0; j <= i; ++j) {
-				File file = new File(subDir, "jar-file-" + j + ".jar");
-				Preconditions.checkState(file.createNewFile());
-				jarURLs[j] = file.toURI().toURL();
-			}
+            for (int j = 0; j <= i; ++j) {
+                File file = new File(subDir, "jar-file-" + j + ".jar");
+                Preconditions.checkState(file.createNewFile());
+                jarURLs[j] = file.toURI().toURL();
+            }
 
-			Arrays.sort(jarURLs, Comparator.comparing(URL::toString));
-			expected.add(new PluginDescriptor(subDir.getName(), jarURLs, new String[0]));
-		}
+            Arrays.sort(jarURLs, Comparator.comparing(URL::toString));
+            expected.add(new PluginDescriptor(subDir.getName(), jarURLs, new String[0]));
+        }
 
-		actual = descriptorsFactory.findPlugins();
+        actual = descriptorsFactory.findPlugins();
 
-		Assert.assertTrue(equalsIgnoreOrder(expected, new ArrayList<>(actual)));
-	}
+        Assert.assertTrue(equalsIgnoreOrder(expected, new ArrayList<>(actual)));
+    }
 
-	private boolean equalsIgnoreOrder(List<PluginDescriptor> a, List<PluginDescriptor> b) {
+    private boolean equalsIgnoreOrder(List<PluginDescriptor> a, List<PluginDescriptor> b) {
 
-		if (a.size() != b.size()) {
-			return false;
-		}
+        if (a.size() != b.size()) {
+            return false;
+        }
 
-		final Comparator<PluginDescriptor> comparator = Comparator.comparing(PluginDescriptor::getPluginId);
+        final Comparator<PluginDescriptor> comparator =
+                Comparator.comparing(PluginDescriptor::getPluginId);
 
-		a.sort(comparator);
-		b.sort(comparator);
+        a.sort(comparator);
+        b.sort(comparator);
 
-		final Iterator<PluginDescriptor> iterA = a.iterator();
-		final Iterator<PluginDescriptor> iterB = b.iterator();
+        final Iterator<PluginDescriptor> iterA = a.iterator();
+        final Iterator<PluginDescriptor> iterB = b.iterator();
 
-		while (iterA.hasNext()) {
-			if (!equals(iterA.next(), iterB.next())) {
-				return false;
-			}
-		}
-		return true;
-	}
+        while (iterA.hasNext()) {
+            if (!equals(iterA.next(), iterB.next())) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	private static boolean equals(@Nonnull PluginDescriptor a, @Nonnull PluginDescriptor b) {
-		return a.getPluginId().equals(b.getPluginId())
-			&& Arrays.deepEquals(a.getPluginResourceURLs(), b.getPluginResourceURLs())
-			&& Arrays.deepEquals(a.getLoaderExcludePatterns(), b.getLoaderExcludePatterns());
-	}
+    private static boolean equals(@Nonnull PluginDescriptor a, @Nonnull PluginDescriptor b) {
+        return a.getPluginId().equals(b.getPluginId())
+                && Arrays.deepEquals(a.getPluginResourceURLs(), b.getPluginResourceURLs())
+                && Arrays.deepEquals(a.getLoaderExcludePatterns(), b.getLoaderExcludePatterns());
+    }
 }

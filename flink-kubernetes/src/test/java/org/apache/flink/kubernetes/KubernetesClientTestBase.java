@@ -22,6 +22,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.utils.Constants;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.Service;
@@ -30,95 +31,136 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
+import io.fabric8.mockwebserver.dsl.DelayPathable;
+import io.fabric8.mockwebserver.dsl.HttpMethodable;
+import io.fabric8.mockwebserver.dsl.MockServerExpectation;
+import io.fabric8.mockwebserver.dsl.ReturnOrWebsocketable;
+import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.function.Function;
 
 /**
- * Base class for {@link KubernetesClusterDescriptorTest} and
- * {@link org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientTest}.
+ * Base class for {@link KubernetesClusterDescriptorTest} and {@link
+ * org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientTest}.
  */
 public class KubernetesClientTestBase extends KubernetesTestBase {
 
-	protected static final int REST_PORT = 9021;
-	protected static final int NODE_PORT = 31234;
+    protected static final int REST_PORT = 9021;
+    protected static final int NODE_PORT = 31234;
 
-	protected void mockExpectedServiceFromServerSide(Service expectedService) {
-		final String serviceName = expectedService.getMetadata().getName();
-		final String path = String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, serviceName);
-		server.expect()
-			.get()
-			.withPath(path)
-			.andReturn(200, expectedService)
-			.always();
-	}
+    protected void mockExpectedServiceFromServerSide(Service expectedService) {
+        final String serviceName = expectedService.getMetadata().getName();
+        final String path =
+                String.format("/api/v1/namespaces/%s/services/%s", NAMESPACE, serviceName);
+        server.expect().get().withPath(path).andReturn(200, expectedService).always();
+    }
 
-	protected Service buildExternalServiceWithLoadBalancer(@Nullable String hostname, @Nullable String ip) {
-		final ServicePort servicePort = new ServicePortBuilder()
-			.withName(Constants.REST_PORT_NAME)
-			.withPort(REST_PORT)
-			.withNewTargetPort(REST_PORT)
-			.build();
-		final ServiceStatus serviceStatus = new ServiceStatusBuilder()
-			.withLoadBalancer(new LoadBalancerStatus(Collections.singletonList(new LoadBalancerIngress(hostname, ip))))
-			.build();
+    protected void mockCreateConfigMapAlreadyExisting(ConfigMap configMap) {
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps",
+                        configMap.getApiVersion(), configMap.getMetadata().getNamespace());
+        server.expect().post().withPath(path).andReturn(500, configMap).always();
+    }
 
-		return buildExternalService(
-			KubernetesConfigOptions.ServiceExposedType.LoadBalancer,
-			servicePort,
-			serviceStatus);
-	}
+    protected void mockGetConfigMapFailed(ConfigMap configMap) {
+        mockConfigMapRequest(configMap, HttpMethodable::get);
+    }
 
-	protected Service buildExternalServiceWithNodePort() {
-		final ServicePort servicePort = new ServicePortBuilder()
-			.withName(Constants.REST_PORT_NAME)
-			.withPort(REST_PORT)
-			.withNodePort(NODE_PORT)
-			.withNewTargetPort(REST_PORT)
-			.build();
+    protected void mockReplaceConfigMapFailed(ConfigMap configMap) {
+        mockConfigMapRequest(configMap, HttpMethodable::put);
+    }
 
-		final ServiceStatus serviceStatus = new ServiceStatusBuilder()
-			.withLoadBalancer(new LoadBalancerStatus(Collections.emptyList()))
-			.build();
+    private void mockConfigMapRequest(
+            ConfigMap configMap,
+            Function<
+                            MockServerExpectation,
+                            DelayPathable<
+                                    ReturnOrWebsocketable<TimesOnceableOrHttpHeaderable<Void>>>>
+                    methodTypeSetter) {
+        final String path =
+                String.format(
+                        "/api/%s/namespaces/%s/configmaps/%s",
+                        configMap.getApiVersion(),
+                        configMap.getMetadata().getNamespace(),
+                        configMap.getMetadata().getName());
+        methodTypeSetter.apply(server.expect()).withPath(path).andReturn(500, configMap).always();
+    }
 
-		return buildExternalService(
-			KubernetesConfigOptions.ServiceExposedType.NodePort,
-			servicePort,
-			serviceStatus);
-	}
+    protected Service buildExternalServiceWithLoadBalancer(
+            @Nullable String hostname, @Nullable String ip) {
+        final ServicePort servicePort =
+                new ServicePortBuilder()
+                        .withName(Constants.REST_PORT_NAME)
+                        .withPort(REST_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .build();
+        final ServiceStatus serviceStatus =
+                new ServiceStatusBuilder()
+                        .withLoadBalancer(
+                                new LoadBalancerStatus(
+                                        Collections.singletonList(
+                                                new LoadBalancerIngress(hostname, ip))))
+                        .build();
 
-	protected Service buildExternalServiceWithClusterIP() {
-		final ServicePort servicePort = new ServicePortBuilder()
-			.withName(Constants.REST_PORT_NAME)
-			.withPort(REST_PORT)
-			.withNewTargetPort(REST_PORT)
-			.build();
+        return buildExternalService(
+                KubernetesConfigOptions.ServiceExposedType.LoadBalancer,
+                servicePort,
+                serviceStatus);
+    }
 
-		return buildExternalService(
-			KubernetesConfigOptions.ServiceExposedType.ClusterIP,
-			servicePort,
-			null);
-	}
+    protected Service buildExternalServiceWithNodePort() {
+        final ServicePort servicePort =
+                new ServicePortBuilder()
+                        .withName(Constants.REST_PORT_NAME)
+                        .withPort(REST_PORT)
+                        .withNodePort(NODE_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .build();
 
-	private Service buildExternalService(
-			KubernetesConfigOptions.ServiceExposedType serviceExposedType,
-			ServicePort servicePort,
-			@Nullable ServiceStatus serviceStatus) {
-		final ServiceBuilder serviceBuilder = new ServiceBuilder()
-			.editOrNewMetadata()
-				.withName(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID))
-				.endMetadata()
-			.editOrNewSpec()
-				.withType(serviceExposedType.name())
-				.addNewPortLike(servicePort)
-					.endPort()
-				.endSpec();
+        final ServiceStatus serviceStatus =
+                new ServiceStatusBuilder()
+                        .withLoadBalancer(new LoadBalancerStatus(Collections.emptyList()))
+                        .build();
 
-		if (serviceStatus != null) {
-			serviceBuilder.withStatus(serviceStatus);
-		}
+        return buildExternalService(
+                KubernetesConfigOptions.ServiceExposedType.NodePort, servicePort, serviceStatus);
+    }
 
-		return serviceBuilder.build();
-	}
+    protected Service buildExternalServiceWithClusterIP() {
+        final ServicePort servicePort =
+                new ServicePortBuilder()
+                        .withName(Constants.REST_PORT_NAME)
+                        .withPort(REST_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .build();
+
+        return buildExternalService(
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP, servicePort, null);
+    }
+
+    private Service buildExternalService(
+            KubernetesConfigOptions.ServiceExposedType serviceExposedType,
+            ServicePort servicePort,
+            @Nullable ServiceStatus serviceStatus) {
+        final ServiceBuilder serviceBuilder =
+                new ServiceBuilder()
+                        .editOrNewMetadata()
+                        .withName(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID))
+                        .endMetadata()
+                        .editOrNewSpec()
+                        .withType(serviceExposedType.name())
+                        .addNewPortLike(servicePort)
+                        .endPort()
+                        .endSpec();
+
+        if (serviceStatus != null) {
+            serviceBuilder.withStatus(serviceStatus);
+        }
+
+        return serviceBuilder.build();
+    }
 }

@@ -25,14 +25,13 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * A factory class to create a {@link SubscriberStub}.
- * This allows for customized Subscribers with for instance tweaked configurations.
- * Note: this class needs to be serializable.
+ * A factory class to create a {@link SubscriberStub}. This allows for customized Subscribers with
+ * for instance tweaked configurations. Note: this class needs to be serializable.
  */
 public interface PubSubSubscriberFactory extends Serializable {
-	/**
-	 * Creates a new SubscriberStub using the EventLoopGroup and credentials.
-	 * If the SubscriberStub uses a EventLoopGroup, as many Grpc classes do, this EventLoopGroup should be used.
-	 */
-	PubSubSubscriber getSubscriber(Credentials credentials) throws IOException;
+    /**
+     * Creates a new SubscriberStub using the EventLoopGroup and credentials. If the SubscriberStub
+     * uses a EventLoopGroup, as many Grpc classes do, this EventLoopGroup should be used.
+     */
+    PubSubSubscriber getSubscriber(Credentials credentials) throws IOException;
 }

@@ -24,64 +24,79 @@ import org.apache.flink.runtime.topology.ResultID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-/**
- * Id identifying {@link IntermediateResultPartition}.
- */
+/** Id identifying {@link IntermediateResultPartition}. */
 public class IntermediateResultPartitionID implements ResultID {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
+    // Represent the number of bytes occupied when writes IntermediateResultPartitionID to the
+    // ByteBuf.
+    // It is the sum of two long types(lowerPart and upperPart of the intermediateDataSetID) and one
+    // int type(partitionNum).
+    private static final int BYTEBUF_LEN = 20;
 
-	private final IntermediateDataSetID intermediateDataSetID;
-	private final int partitionNum;
+    private final IntermediateDataSetID intermediateDataSetID;
+    private final int partitionNum;
 
-	/**
-	 * Creates an new random intermediate result partition ID for testing.
-	 */
-	@VisibleForTesting
-	public IntermediateResultPartitionID() {
-		this.partitionNum = -1;
-		this.intermediateDataSetID = new IntermediateDataSetID();
-	}
+    /** Creates an new random intermediate result partition ID for testing. */
+    @VisibleForTesting
+    public IntermediateResultPartitionID() {
+        this.partitionNum = -1;
+        this.intermediateDataSetID = new IntermediateDataSetID();
+    }
 
-	/**
-	 * Creates an new intermediate result partition ID with {@link IntermediateDataSetID} and the partitionNum.
-	 */
-	public IntermediateResultPartitionID(IntermediateDataSetID intermediateDataSetID, int partitionNum) {
-		this.intermediateDataSetID = intermediateDataSetID;
-		this.partitionNum = partitionNum;
-	}
+    /**
+     * Creates an new intermediate result partition ID with {@link IntermediateDataSetID} and the
+     * partitionNum.
+     */
+    public IntermediateResultPartitionID(
+            IntermediateDataSetID intermediateDataSetID, int partitionNum) {
+        this.intermediateDataSetID = intermediateDataSetID;
+        this.partitionNum = partitionNum;
+    }
 
-	public void writeTo(ByteBuf buf) {
-		intermediateDataSetID.writeTo(buf);
-		buf.writeInt(partitionNum);
-	}
+    public int getPartitionNumber() {
+        return partitionNum;
+    }
 
-	public static IntermediateResultPartitionID fromByteBuf(ByteBuf buf) {
-		final IntermediateDataSetID intermediateDataSetID = IntermediateDataSetID.fromByteBuf(buf);
-		final int partitionNum = buf.readInt();
-		return new IntermediateResultPartitionID(intermediateDataSetID, partitionNum);
-	}
+    public IntermediateDataSetID getIntermediateDataSetID() {
+        return intermediateDataSetID;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == getClass()) {
-			IntermediateResultPartitionID that = (IntermediateResultPartitionID) obj;
-			return that.intermediateDataSetID.equals(this.intermediateDataSetID)
-				&& that.partitionNum == this.partitionNum;
-		} else {
-			return false;
-		}
-	}
+    public void writeTo(ByteBuf buf) {
+        intermediateDataSetID.writeTo(buf);
+        buf.writeInt(partitionNum);
+    }
 
-	@Override
-	public int hashCode() {
-		return this.intermediateDataSetID.hashCode() ^ this.partitionNum;
-	}
+    public static IntermediateResultPartitionID fromByteBuf(ByteBuf buf) {
+        final IntermediateDataSetID intermediateDataSetID = IntermediateDataSetID.fromByteBuf(buf);
+        final int partitionNum = buf.readInt();
+        return new IntermediateResultPartitionID(intermediateDataSetID, partitionNum);
+    }
 
-	@Override
-	public String toString() {
-		return intermediateDataSetID.toString() + "#" + partitionNum;
-	}
+    public static int getByteBufLength() {
+        return BYTEBUF_LEN;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == getClass()) {
+            IntermediateResultPartitionID that = (IntermediateResultPartitionID) obj;
+            return that.intermediateDataSetID.equals(this.intermediateDataSetID)
+                    && that.partitionNum == this.partitionNum;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return this.intermediateDataSetID.hashCode() ^ this.partitionNum;
+    }
+
+    @Override
+    public String toString() {
+        return intermediateDataSetID.toString() + "#" + partitionNum;
+    }
 }

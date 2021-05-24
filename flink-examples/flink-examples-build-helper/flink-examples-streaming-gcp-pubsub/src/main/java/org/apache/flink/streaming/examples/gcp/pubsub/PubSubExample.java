@@ -30,56 +30,61 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Before starting a flink job it will publish 10 messages on the input topic.
  *
- * Then a flink job is started to read these 10 messages from the input-subscription,
- * it will print them to stdout
- * and then write them to a the output-topic.</p>
+ * <p>Then a flink job is started to read these 10 messages from the input-subscription, it will
+ * print them to stdout and then write them to a the output-topic.
  */
 public class PubSubExample {
-	private static final Logger LOG = LoggerFactory.getLogger(PubSubExample.class);
+    private static final Logger LOG = LoggerFactory.getLogger(PubSubExample.class);
 
-	public static void main(String[] args) throws Exception {
-		// parse input arguments
-		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
+    public static void main(String[] args) throws Exception {
+        // parse input arguments
+        final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 3) {
-			System.out.println("Missing parameters!\n" +
-								"Usage: flink run PubSub.jar --input-subscription <subscription> --input-topicName <topic> --output-topicName <output-topic> " +
-								"--google-project <google project name> ");
-			return;
-		}
+        if (parameterTool.getNumberOfParameters() < 3) {
+            System.out.println(
+                    "Missing parameters!\n"
+                            + "Usage: flink run PubSub.jar --input-subscription <subscription> --input-topicName <topic> --output-topicName <output-topic> "
+                            + "--google-project <google project name> ");
+            return;
+        }
 
-		String projectName = parameterTool.getRequired("google-project");
-		String inputTopicName = parameterTool.getRequired("input-topicName");
-		String subscriptionName = parameterTool.getRequired("input-subscription");
-		String outputTopicName = parameterTool.getRequired("output-topicName");
+        String projectName = parameterTool.getRequired("google-project");
+        String inputTopicName = parameterTool.getRequired("input-topicName");
+        String subscriptionName = parameterTool.getRequired("input-subscription");
+        String outputTopicName = parameterTool.getRequired("output-topicName");
 
-		PubSubPublisher pubSubPublisher = new PubSubPublisher(projectName, inputTopicName);
-		pubSubPublisher.publish(10);
+        PubSubPublisher pubSubPublisher = new PubSubPublisher(projectName, inputTopicName);
+        pubSubPublisher.publish(10);
 
-		runFlinkJob(projectName, subscriptionName, outputTopicName);
-	}
+        runFlinkJob(projectName, subscriptionName, outputTopicName);
+    }
 
-	private static void runFlinkJob(String projectName, String subscriptionName, String outputTopicName) throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.enableCheckpointing(1000L);
+    private static void runFlinkJob(
+            String projectName, String subscriptionName, String outputTopicName) throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(1000L);
 
-		env.addSource(PubSubSource.newBuilder()
-								.withDeserializationSchema(new IntegerSerializer())
-								.withProjectName(projectName)
-								.withSubscriptionName(subscriptionName)
-								.withMessageRateLimit(1)
-								.build())
-			.map(PubSubExample::printAndReturn).disableChaining()
-			.addSink(PubSubSink.newBuilder()
-								.withSerializationSchema(new IntegerSerializer())
-								.withProjectName(projectName)
-								.withTopicName(outputTopicName).build());
+        env.addSource(
+                        PubSubSource.newBuilder()
+                                .withDeserializationSchema(new IntegerSerializer())
+                                .withProjectName(projectName)
+                                .withSubscriptionName(subscriptionName)
+                                .withMessageRateLimit(1)
+                                .build())
+                .map(PubSubExample::printAndReturn)
+                .disableChaining()
+                .addSink(
+                        PubSubSink.newBuilder()
+                                .withSerializationSchema(new IntegerSerializer())
+                                .withProjectName(projectName)
+                                .withTopicName(outputTopicName)
+                                .build());
 
-		env.execute("Flink Streaming PubSubReader");
-	}
+        env.execute("Flink Streaming PubSubReader");
+    }
 
-	private static Integer printAndReturn(Integer i) {
-		LOG.info("Processed message with payload: " + i);
-		return i;
-	}
+    private static Integer printAndReturn(Integer i) {
+        LOG.info("Processed message with payload: " + i);
+        return i;
+    }
 }

@@ -24,40 +24,40 @@ package org.apache.flink.runtime.operators.testutils;
  * @see MatchRemovingJoiner
  */
 public class Match {
-	private final String left;
+    private final String left;
 
-	private final String right;
+    private final String right;
 
-	public Match(String left, String right) {
-		this.left = left;
-		this.right = right;
-	}
+    public Match(String left, String right) {
+        this.left = left;
+        this.right = right;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		Match o = (Match) obj;
-		if (left == null && o.left == null && right.equals(o.right)) {
-			return true;
-		} else if (right == null && o.right == null && left.equals(o.left)) {
-			return true;
-		} else {
-			return this.left.equals(o.left) && this.right.equals(o.right);
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        Match o = (Match) obj;
+        if (left == null && o.left == null && right.equals(o.right)) {
+            return true;
+        } else if (right == null && o.right == null && left.equals(o.left)) {
+            return true;
+        } else {
+            return this.left.equals(o.left) && this.right.equals(o.right);
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		if (left == null) {
-			return right.hashCode();
-		} else if (right == null) {
-			return left.hashCode();
-		} else {
-			return this.left.hashCode() ^ this.right.hashCode();
-		}
-	}
+    @Override
+    public int hashCode() {
+        if (left == null) {
+            return right.hashCode();
+        } else if (right == null) {
+            return left.hashCode();
+        } else {
+            return this.left.hashCode() ^ this.right.hashCode();
+        }
+    }
 
-	@Override
-	public String toString() {
-		return left + ", " + right;
-	}
+    @Override
+    public String toString() {
+        return left + ", " + right;
+    }
 }

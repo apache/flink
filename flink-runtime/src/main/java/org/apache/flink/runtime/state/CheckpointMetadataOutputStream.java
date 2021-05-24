@@ -25,33 +25,33 @@ import java.io.IOException;
 /**
  * An output stream for checkpoint metadata.
  *
- * <p>This stream is similar to the {@link CheckpointStreamFactory.CheckpointStateOutputStream},
- * but for metadata files rather thancdata files.
+ * <p>This stream is similar to the {@link CheckpointStreamFactory.CheckpointStateOutputStream}, but
+ * for metadata files rather thancdata files.
  *
  * <p>This stream always creates a file, regardless of the amount of data written.
  */
 public abstract class CheckpointMetadataOutputStream extends FSDataOutputStream {
 
-	/**
-	 * Closes the stream after all metadata was written and finalizes the checkpoint location.
-	 *
-	 * @return An object representing a finalized checkpoint storage location.
-	 *
-	 * @throws IOException Thrown, if the stream cannot be closed or the finalization fails.
-	 */
-	public abstract CompletedCheckpointStorageLocation closeAndFinalizeCheckpoint() throws IOException;
+    /**
+     * Closes the stream after all metadata was written and finalizes the checkpoint location.
+     *
+     * @return An object representing a finalized checkpoint storage location.
+     * @throws IOException Thrown, if the stream cannot be closed or the finalization fails.
+     */
+    public abstract CompletedCheckpointStorageLocation closeAndFinalizeCheckpoint()
+            throws IOException;
 
-	/**
-	 * This method should close the stream, if has not been closed before.
-	 * If this method actually closes the stream, it should delete/release the
-	 * resource behind the stream, such as the file that the stream writes to.
-	 *
-	 * <p>The above implies that this method is intended to be the "unsuccessful close",
-	 * such as when cancelling the stream writing, or when an exception occurs.
-	 * Closing the stream for the successful case must go through {@link #closeAndFinalizeCheckpoint()}.
-	 *
-	 * @throws IOException Thrown, if the stream cannot be closed.
-	 */
-	@Override
-	public abstract void close() throws IOException;
+    /**
+     * This method should close the stream, if has not been closed before. If this method actually
+     * closes the stream, it should delete/release the resource behind the stream, such as the file
+     * that the stream writes to.
+     *
+     * <p>The above implies that this method is intended to be the "unsuccessful close", such as
+     * when cancelling the stream writing, or when an exception occurs. Closing the stream for the
+     * successful case must go through {@link #closeAndFinalizeCheckpoint()}.
+     *
+     * @throws IOException Thrown, if the stream cannot be closed.
+     */
+    @Override
+    public abstract void close() throws IOException;
 }

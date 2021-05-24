@@ -21,14 +21,15 @@ package org.apache.flink.table.api.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.catalog.{Column, GenericInMemoryCatalog, ObjectPath, ResolvedSchema}
 import org.apache.flink.table.runtime.stream.sql.FunctionITCase.{SimpleScalarFunction, TestUDF}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId, _}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.{Assert, Test}
 
 import java.util
 
@@ -99,7 +100,7 @@ class BatchTableEnvironmentTest extends TableTestBase {
     assertEquals(
       Map("connector" -> "COLLECTION", "is-bounded" -> "true", "k1" -> "a", "k2" -> "b").asJava,
       util.tableEnv.getCatalog(util.tableEnv.getCurrentCatalog).get()
-        .getTable(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")).getProperties)
+        .getTable(ObjectPath.fromString(s"${util.tableEnv.getCurrentDatabase}.tbl1")).getOptions)
 
     val tableResult3 = util.tableEnv.executeSql("DROP TABLE tbl1")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
@@ -222,8 +223,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult = testUtil.tableEnv.executeSql("SHOW CATALOGS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("catalog name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("catalog name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
       tableResult.collect())
@@ -238,8 +239,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = testUtil.tableEnv.executeSql("SHOW DATABASES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("database name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
       tableResult2.collect())
@@ -265,8 +266,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult2 = testUtil.tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("table name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
@@ -278,8 +279,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult = util.tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
@@ -342,8 +343,8 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult4 = util.tableEnv.executeSql("SHOW VIEWS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
     assertEquals(
-      TableSchema.builder().field("view name", DataTypes.STRING()).build(),
-      tableResult4.getTableSchema)
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult4.getResolvedSchema)
     checkData(
       util.tableEnv.listViews().map(Row.of(_)).toList.asJava.iterator(),
       tableResult4.collect())
@@ -539,8 +540,9 @@ class BatchTableEnvironmentTest extends TableTestBase {
       tableEnv.executeSql(explain)
       fail("This should not happen")
     } catch {
-      case e: TableException =>
-        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+            .contains("Was expecting:\n    \"FOR\" ..."))
       case e =>
         fail("This should not happen, " + e.getMessage)
     }
@@ -563,15 +565,47 @@ class BatchTableEnvironmentTest extends TableTestBase {
     val tableResult1 = testUtil.tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
+    val expectedResult = java.util.Arrays.asList(
+      Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("b", "INT", Boolean.box(true), null, null, null),
+      Row.of("c", "STRING", Boolean.box(true), null, null, null))
     val tableResult2 = testUtil.tableEnv.executeSql("DESCRIBE tbl1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    checkData(
-      java.util.Arrays.asList(
-        Row.of("a", "BIGINT", Boolean.box(true), null, null, null),
-        Row.of("b", "INT", Boolean.box(true), null, null, null),
-        Row.of("c", "STRING", Boolean.box(true), null, null, null)
-      ).iterator(),
-      tableResult2.collect())
+    checkData(expectedResult.iterator(), tableResult2.collect())
+    val tableResult3 = testUtil.tableEnv.executeSql("DESC tbl1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(expectedResult.iterator(), tableResult3.collect())
+  }
+
+  @Test
+  def testSettingPlanner(): Unit = {
+    val util = batchTestUtil()
+    val createTableStmt =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = util.tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    util.tableEnv.getConfig.getConfiguration
+      .set(TableConfigOptions.TABLE_PLANNER, PlannerType.BLINK)
+
+    thrown.expect(classOf[IllegalArgumentException])
+    thrown.expectMessage(
+      "Mismatch between configured planner and actual planner. " +
+        "Currently, the 'execution.runtime-mode' and 'table.planner' can only be set " +
+        "when instantiating the table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary."
+    )
+
+    util.tableEnv.sqlQuery("select * from MyTable where a > 10").explain()
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {

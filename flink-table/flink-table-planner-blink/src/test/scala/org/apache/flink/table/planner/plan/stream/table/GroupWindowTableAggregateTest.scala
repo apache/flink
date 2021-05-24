@@ -38,7 +38,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('a, 'b))
       .select('f0, 'f1 + 1, 'w.start, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -53,7 +53,7 @@ class GroupWindowTableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('f0))
       .select('w2.start, 'f1)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -64,6 +64,6 @@ class GroupWindowTableAggregateTest extends TableTestBase {
       .flatAggregate(emptyFunc('a, 'b))
       .select('f0, 'f1 + 1, 'w.start, 'w.end)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 }

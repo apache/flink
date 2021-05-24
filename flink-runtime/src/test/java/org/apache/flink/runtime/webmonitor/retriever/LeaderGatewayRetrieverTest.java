@@ -36,69 +36,70 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-/**
- * Test cases for the {@link LeaderGatewayRetriever}.
- */
+/** Test cases for the {@link LeaderGatewayRetriever}. */
 public class LeaderGatewayRetrieverTest extends TestLogger {
 
-	/**
-	 * Tests that the gateway retrieval is retried in case of a failure.
-	 */
-	@Test
-	public void testGatewayRetrievalFailures() throws Exception {
-		final String address = "localhost";
-		final UUID leaderId = UUID.randomUUID();
+    /** Tests that the gateway retrieval is retried in case of a failure. */
+    @Test
+    public void testGatewayRetrievalFailures() throws Exception {
+        final String address = "localhost";
+        final UUID leaderId = UUID.randomUUID();
 
-		RpcGateway rpcGateway = mock(RpcGateway.class);
+        RpcGateway rpcGateway = mock(RpcGateway.class);
 
-		TestingLeaderGatewayRetriever leaderGatewayRetriever = new TestingLeaderGatewayRetriever(rpcGateway);
-		SettableLeaderRetrievalService settableLeaderRetrievalService = new SettableLeaderRetrievalService();
+        TestingLeaderGatewayRetriever leaderGatewayRetriever =
+                new TestingLeaderGatewayRetriever(rpcGateway);
+        SettableLeaderRetrievalService settableLeaderRetrievalService =
+                new SettableLeaderRetrievalService();
 
-		settableLeaderRetrievalService.start(leaderGatewayRetriever);
+        settableLeaderRetrievalService.start(leaderGatewayRetriever);
 
-		CompletableFuture<RpcGateway> gatewayFuture = leaderGatewayRetriever.getFuture();
+        CompletableFuture<RpcGateway> gatewayFuture = leaderGatewayRetriever.getFuture();
 
-		// this triggers the first gateway retrieval attempt
-		settableLeaderRetrievalService.notifyListener(address, leaderId);
+        // this triggers the first gateway retrieval attempt
+        settableLeaderRetrievalService.notifyListener(address, leaderId);
 
-		// check that the first future has been failed
-		try {
-			gatewayFuture.get();
+        // check that the first future has been failed
+        try {
+            gatewayFuture.get();
 
-			fail("The first future should have been failed.");
-		} catch (ExecutionException ignored) {
-			// that's what we expect
-		}
+            fail("The first future should have been failed.");
+        } catch (ExecutionException ignored) {
+            // that's what we expect
+        }
 
-		// the second attempt should fail as well
-		assertFalse((leaderGatewayRetriever.getNow().isPresent()));
+        // the second attempt should fail as well
+        assertFalse((leaderGatewayRetriever.getNow().isPresent()));
 
-		// the third attempt should succeed
-		assertEquals(rpcGateway, leaderGatewayRetriever.getNow().get());
-	}
+        // the third attempt should succeed
+        assertEquals(rpcGateway, leaderGatewayRetriever.getNow().get());
+    }
 
-	private static class TestingLeaderGatewayRetriever extends LeaderGatewayRetriever<RpcGateway> {
+    private static class TestingLeaderGatewayRetriever extends LeaderGatewayRetriever<RpcGateway> {
 
-		private final RpcGateway rpcGateway;
-		private int retrievalAttempt = 0;
+        private final RpcGateway rpcGateway;
+        private int retrievalAttempt = 0;
 
-		private TestingLeaderGatewayRetriever(RpcGateway rpcGateway) {
-			this.rpcGateway = rpcGateway;
-		}
+        private TestingLeaderGatewayRetriever(RpcGateway rpcGateway) {
+            this.rpcGateway = rpcGateway;
+        }
 
-		@Override
-		protected CompletableFuture<RpcGateway> createGateway(CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
-			CompletableFuture<RpcGateway> result;
+        @Override
+        protected CompletableFuture<RpcGateway> createGateway(
+                CompletableFuture<Tuple2<String, UUID>> leaderFuture) {
+            CompletableFuture<RpcGateway> result;
 
-			if (retrievalAttempt < 2) {
-				result = FutureUtils.completedExceptionally(new FlinkException("Could not resolve the leader gateway."));
-			} else {
-				result = CompletableFuture.completedFuture(rpcGateway);
-			}
+            if (retrievalAttempt < 2) {
+                result =
+                        FutureUtils.completedExceptionally(
+                                new FlinkException("Could not resolve the leader gateway."));
+            } else {
+                result = CompletableFuture.completedFuture(rpcGateway);
+            }
 
-			retrievalAttempt++;
+            retrievalAttempt++;
 
-			return result;
-		}
-	}
+            return result;
+        }
+    }
 }

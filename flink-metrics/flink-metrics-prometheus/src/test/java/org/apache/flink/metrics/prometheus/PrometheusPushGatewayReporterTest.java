@@ -25,30 +25,28 @@ import org.junit.Test;
 
 import java.util.Map;
 
-/**
- * Test for {@link PrometheusPushGatewayReporter}.
- */
+/** Test for {@link PrometheusPushGatewayReporter}. */
 public class PrometheusPushGatewayReporterTest extends TestLogger {
 
-	@Test
-	public void testParseGroupingKey() {
-		PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
-		Map<String, String> groupingKey = reporter.parseGroupingKey("k1=v1;k2=v2");
-		Assert.assertNotNull(groupingKey);
-		Assert.assertEquals("v1", groupingKey.get("k1"));
-		Assert.assertEquals("v2", groupingKey.get("k2"));
-	}
+    @Test
+    public void testParseGroupingKey() {
+        Map<String, String> groupingKey =
+                PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=v1;k2=v2");
+        Assert.assertNotNull(groupingKey);
+        Assert.assertEquals("v1", groupingKey.get("k1"));
+        Assert.assertEquals("v2", groupingKey.get("k2"));
+    }
 
-	@Test
-	public void testParseIncompleteGroupingKey() {
-		PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
-		Map<String, String> groupingKey = reporter.parseGroupingKey("k1=");
-		Assert.assertTrue(groupingKey.isEmpty());
+    @Test
+    public void testParseIncompleteGroupingKey() {
+        Map<String, String> groupingKey =
+                PrometheusPushGatewayReporterFactory.parseGroupingKey("k1=");
+        Assert.assertTrue(groupingKey.isEmpty());
 
-		groupingKey = reporter.parseGroupingKey("=v1");
-		Assert.assertTrue(groupingKey.isEmpty());
+        groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("=v1");
+        Assert.assertTrue(groupingKey.isEmpty());
 
-		groupingKey = reporter.parseGroupingKey("k1");
-		Assert.assertTrue(groupingKey.isEmpty());
-	}
+        groupingKey = PrometheusPushGatewayReporterFactory.parseGroupingKey("k1");
+        Assert.assertTrue(groupingKey.isEmpty());
+    }
 }

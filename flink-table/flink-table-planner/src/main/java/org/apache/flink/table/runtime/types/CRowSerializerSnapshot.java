@@ -22,43 +22,38 @@ import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.Row;
 
-/**
- * Snapshot class for {@link CRowSerializer}.
- */
+/** Snapshot class for {@link CRowSerializer}. */
 public class CRowSerializerSnapshot extends CompositeTypeSerializerSnapshot<CRow, CRowSerializer> {
 
-	private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 1;
 
-	/**
-	 * Constructor for read instantiation.
-	 */
-	public CRowSerializerSnapshot() {
-		super(CRowSerializer.class);
-	}
+    /** Constructor for read instantiation. */
+    public CRowSerializerSnapshot() {
+        super(CRowSerializer.class);
+    }
 
-	/**
-	 * Constructor to create the snapshot for writing.
-	 */
-	public CRowSerializerSnapshot(CRowSerializer serializerInstance) {
-		super(serializerInstance);
-	}
+    /** Constructor to create the snapshot for writing. */
+    public CRowSerializerSnapshot(CRowSerializer serializerInstance) {
+        super(serializerInstance);
+    }
 
-	@Override
-	protected int getCurrentOuterSnapshotVersion() {
-		return CURRENT_VERSION;
-	}
+    @Override
+    protected int getCurrentOuterSnapshotVersion() {
+        return CURRENT_VERSION;
+    }
 
-	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(CRowSerializer outerSerializer) {
-		return new TypeSerializer[]{outerSerializer.rowSerializer()};
-	}
+    @Override
+    protected TypeSerializer<?>[] getNestedSerializers(CRowSerializer outerSerializer) {
+        return new TypeSerializer[] {outerSerializer.rowSerializer()};
+    }
 
-	@Override
-	protected CRowSerializer createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+    @Override
+    protected CRowSerializer createOuterSerializerWithNestedSerializers(
+            TypeSerializer<?>[] nestedSerializers) {
 
-		@SuppressWarnings("unchecked")
-		TypeSerializer<Row> rowSerializer = (TypeSerializer<Row>) nestedSerializers[0];
+        @SuppressWarnings("unchecked")
+        TypeSerializer<Row> rowSerializer = (TypeSerializer<Row>) nestedSerializers[0];
 
-		return new CRowSerializer(rowSerializer);
-	}
+        return new CRowSerializer(rowSerializer);
+    }
 }

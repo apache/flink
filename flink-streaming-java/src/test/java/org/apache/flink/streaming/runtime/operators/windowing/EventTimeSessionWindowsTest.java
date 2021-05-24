@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -55,147 +55,184 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
-/**
- * Tests for {@link EventTimeSessionWindows}.
- */
+/** Tests for {@link EventTimeSessionWindows}. */
 public class EventTimeSessionWindowsTest extends TestLogger {
 
-	@Test
-	public void testWindowAssignment() {
-		final int sessionGap = 5000;
+    @Test
+    public void testWindowAssignment() {
+        final int sessionGap = 5000;
 
-		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+        WindowAssigner.WindowAssignerContext mockContext =
+                mock(WindowAssigner.WindowAssignerContext.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(sessionGap));
+        EventTimeSessionWindows assigner =
+                EventTimeSessionWindows.withGap(Time.milliseconds(sessionGap));
 
-		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(0, 0 + sessionGap)));
-		assertThat(assigner.assignWindows("String", 4999L, mockContext), contains(timeWindow(4999, 4999 + sessionGap)));
-		assertThat(assigner.assignWindows("String", 5000L, mockContext), contains(timeWindow(5000, 5000 + sessionGap)));
-	}
+        assertThat(
+                assigner.assignWindows("String", 0L, mockContext),
+                contains(timeWindow(0, 0 + sessionGap)));
+        assertThat(
+                assigner.assignWindows("String", 4999L, mockContext),
+                contains(timeWindow(4999, 4999 + sessionGap)));
+        assertThat(
+                assigner.assignWindows("String", 5000L, mockContext),
+                contains(timeWindow(5000, 5000 + sessionGap)));
+    }
 
-	@Test
-	public void testMergeSinglePointWindow() {
-		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
+    @Test
+    public void testMergeSinglePointWindow() {
+        MergingWindowAssigner.MergeCallback callback =
+                mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+        EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
-		assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 0)), callback);
+        assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 0)), callback);
 
-		verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
-	}
+        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+    }
 
-	@Test
-	public void testMergeSingleWindow() {
-		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
+    @Test
+    public void testMergeSingleWindow() {
+        MergingWindowAssigner.MergeCallback callback =
+                mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+        EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
-		assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 1)), callback);
+        assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 1)), callback);
 
-		verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
-	}
+        verify(callback, never()).merge(anyCollection(), Matchers.anyObject());
+    }
 
-	@Test
-	public void testMergeConsecutiveWindows() {
-		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
+    @Test
+    public void testMergeConsecutiveWindows() {
+        MergingWindowAssigner.MergeCallback callback =
+                mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+        EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
-		assigner.mergeWindows(
-				Lists.newArrayList(
-						new TimeWindow(0, 1),
-						new TimeWindow(1, 2),
-						new TimeWindow(2, 3),
-						new TimeWindow(4, 5),
-						new TimeWindow(5, 6)),
-				callback);
+        assigner.mergeWindows(
+                Lists.newArrayList(
+                        new TimeWindow(0, 1),
+                        new TimeWindow(1, 2),
+                        new TimeWindow(2, 3),
+                        new TimeWindow(4, 5),
+                        new TimeWindow(5, 6)),
+                callback);
 
-		verify(callback, times(1)).merge(
-				(Collection<TimeWindow>) argThat(containsInAnyOrder(new TimeWindow(0, 1), new TimeWindow(1, 2), new TimeWindow(2, 3))),
-				eq(new TimeWindow(0, 3)));
+        verify(callback, times(1))
+                .merge(
+                        (Collection<TimeWindow>)
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(0, 1),
+                                                new TimeWindow(1, 2),
+                                                new TimeWindow(2, 3))),
+                        eq(new TimeWindow(0, 3)));
 
-		verify(callback, times(1)).merge(
-				(Collection<TimeWindow>) argThat(containsInAnyOrder(new TimeWindow(4, 5), new TimeWindow(5, 6))),
-				eq(new TimeWindow(4, 6)));
+        verify(callback, times(1))
+                .merge(
+                        (Collection<TimeWindow>)
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(4, 5), new TimeWindow(5, 6))),
+                        eq(new TimeWindow(4, 6)));
 
-		verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
-	}
+        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+    }
 
-	@Test
-	public void testMergeCoveringWindow() {
-		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
+    @Test
+    public void testMergeCoveringWindow() {
+        MergingWindowAssigner.MergeCallback callback =
+                mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+        EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
-		assigner.mergeWindows(
-				Lists.newArrayList(
-						new TimeWindow(1, 1),
-						new TimeWindow(0, 2),
-						new TimeWindow(4, 7),
-						new TimeWindow(5, 6)),
-				callback);
+        assigner.mergeWindows(
+                Lists.newArrayList(
+                        new TimeWindow(1, 1),
+                        new TimeWindow(0, 2),
+                        new TimeWindow(4, 7),
+                        new TimeWindow(5, 6)),
+                callback);
 
-		verify(callback, times(1)).merge(
-				(Collection<TimeWindow>) argThat(containsInAnyOrder(new TimeWindow(1, 1), new TimeWindow(0, 2))),
-				eq(new TimeWindow(0, 2)));
+        verify(callback, times(1))
+                .merge(
+                        (Collection<TimeWindow>)
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(1, 1), new TimeWindow(0, 2))),
+                        eq(new TimeWindow(0, 2)));
 
-		verify(callback, times(1)).merge(
-				(Collection<TimeWindow>) argThat(containsInAnyOrder(new TimeWindow(5, 6), new TimeWindow(4, 7))),
-				eq(new TimeWindow(4, 7)));
+        verify(callback, times(1))
+                .merge(
+                        (Collection<TimeWindow>)
+                                argThat(
+                                        containsInAnyOrder(
+                                                new TimeWindow(5, 6), new TimeWindow(4, 7))),
+                        eq(new TimeWindow(4, 7)));
 
-		verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
-	}
+        verify(callback, times(2)).merge(anyCollection(), Matchers.anyObject());
+    }
 
-	@Test
-	public void testTimeUnits() {
-		// sanity check with one other time unit
+    @Test
+    public void testTimeUnits() {
+        // sanity check with one other time unit
 
-		final int sessionGap = 5000;
+        final int sessionGap = 5000;
 
-		WindowAssigner.WindowAssignerContext mockContext =
-				mock(WindowAssigner.WindowAssignerContext.class);
+        WindowAssigner.WindowAssignerContext mockContext =
+                mock(WindowAssigner.WindowAssignerContext.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.seconds(sessionGap / 1000));
+        EventTimeSessionWindows assigner =
+                EventTimeSessionWindows.withGap(Time.seconds(sessionGap / 1000));
 
-		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(0, 0 + sessionGap)));
-		assertThat(assigner.assignWindows("String", 4999L, mockContext), contains(timeWindow(4999, 4999 + sessionGap)));
-		assertThat(assigner.assignWindows("String", 5000L, mockContext), contains(timeWindow(5000, 5000 + sessionGap)));
-	}
+        assertThat(
+                assigner.assignWindows("String", 0L, mockContext),
+                contains(timeWindow(0, 0 + sessionGap)));
+        assertThat(
+                assigner.assignWindows("String", 4999L, mockContext),
+                contains(timeWindow(4999, 4999 + sessionGap)));
+        assertThat(
+                assigner.assignWindows("String", 5000L, mockContext),
+                contains(timeWindow(5000, 5000 + sessionGap)));
+    }
 
-	@Test
-	public void testInvalidParameters() {
-		try {
-			EventTimeSessionWindows.withGap(Time.seconds(-1));
-			fail("should fail");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 < size"));
-		}
+    @Test
+    public void testInvalidParameters() {
+        try {
+            EventTimeSessionWindows.withGap(Time.seconds(-1));
+            fail("should fail");
+        } catch (IllegalArgumentException e) {
+            assertThat(e.toString(), containsString("0 < size"));
+        }
 
-		try {
-			EventTimeSessionWindows.withGap(Time.seconds(0));
-			fail("should fail");
-		} catch (IllegalArgumentException e) {
-			assertThat(e.toString(), containsString("0 < size"));
-		}
+        try {
+            EventTimeSessionWindows.withGap(Time.seconds(0));
+            fail("should fail");
+        } catch (IllegalArgumentException e) {
+            assertThat(e.toString(), containsString("0 < size"));
+        }
+    }
 
-	}
+    @Test
+    public void testProperties() {
+        EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.seconds(5));
 
-	@Test
-	public void testProperties() {
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.seconds(5));
+        assertTrue(assigner.isEventTime());
+        assertEquals(
+                new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
+        assertThat(
+                assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)),
+                instanceOf(EventTimeTrigger.class));
+    }
 
-		assertTrue(assigner.isEventTime());
-		assertEquals(new TimeWindow.Serializer(), assigner.getWindowSerializer(new ExecutionConfig()));
-		assertThat(assigner.getDefaultTrigger(mock(StreamExecutionEnvironment.class)), instanceOf(EventTimeTrigger.class));
-	}
+    @Test
+    public void testDynamicGapProperties() {
+        SessionWindowTimeGapExtractor<String> extractor = mock(SessionWindowTimeGapExtractor.class);
+        DynamicEventTimeSessionWindows<String> assigner =
+                EventTimeSessionWindows.withDynamicGap(extractor);
 
-	@Test
-	public void testDynamicGapProperties() {
-		SessionWindowTimeGapExtractor<String> extractor = mock(SessionWindowTimeGapExtractor.class);
-		DynamicEventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withDynamicGap(extractor);
-
-		assertNotNull(assigner);
-		assertTrue(assigner.isEventTime());
-	}
+        assertNotNull(assigner);
+        assertTrue(assigner.isEventTime());
+    }
 }

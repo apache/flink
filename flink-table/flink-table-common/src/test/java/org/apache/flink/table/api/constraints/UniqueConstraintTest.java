@@ -29,22 +29,19 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link UniqueConstraint}.
- */
+/** Tests for {@link UniqueConstraint}. */
 public class UniqueConstraintTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testCreatingPrimaryKey() {
-		String keyName = "pk";
-		List<String> columns = Collections.singletonList("f0");
-		UniqueConstraint primaryKey = UniqueConstraint.primaryKey(keyName, columns);
+    @Test
+    public void testCreatingPrimaryKey() {
+        String keyName = "pk";
+        List<String> columns = Collections.singletonList("f0");
+        UniqueConstraint primaryKey = UniqueConstraint.primaryKey(keyName, columns);
 
-		assertThat(primaryKey.getType(), is(Constraint.ConstraintType.PRIMARY_KEY));
-		assertThat(primaryKey.getName(), is(keyName));
-		assertThat(primaryKey.getColumns(), equalTo(columns));
-	}
+        assertThat(primaryKey.getType(), is(Constraint.ConstraintType.PRIMARY_KEY));
+        assertThat(primaryKey.getName(), is(keyName));
+        assertThat(primaryKey.getColumns(), equalTo(columns));
+    }
 }

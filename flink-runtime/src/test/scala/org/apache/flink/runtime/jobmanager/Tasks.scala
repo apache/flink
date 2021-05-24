@@ -20,7 +20,7 @@ package org.apache.flink.runtime.jobmanager
 
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.io.network.api.reader.RecordReader
-import org.apache.flink.runtime.io.network.api.writer.{RecordWriter, RecordWriterBuilder}
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable
 import org.apache.flink.types.IntValue
 
@@ -34,7 +34,7 @@ object Tasks {
         getEnvironment.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val writer = new RecordWriterBuilder[IntValue]().build(
         getEnvironment.getWriter(0))
 
@@ -51,7 +51,7 @@ object Tasks {
 
         writer.flushAll()
       } finally {
-        writer.clearBuffers()
+        writer.close()
       }
     }
   }
@@ -77,7 +77,7 @@ object Tasks {
         getEnvironment.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader2 = new RecordReader[IntValue](
         getEnvironment.getInputGate(1),
         classOf[IntValue],
@@ -98,12 +98,12 @@ object Tasks {
         env.getInputGate(0),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader2 = new RecordReader[IntValue](
         env.getInputGate(1),
         classOf[IntValue],
         getEnvironment.getTaskManagerInfo.getTmpDirectories)
-      
+
       val reader3 = new RecordReader[IntValue](
         env.getInputGate(2),
         classOf[IntValue],

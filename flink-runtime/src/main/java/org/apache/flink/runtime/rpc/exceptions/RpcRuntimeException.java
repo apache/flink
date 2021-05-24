@@ -18,20 +18,18 @@
 
 package org.apache.flink.runtime.rpc.exceptions;
 
-/**
- * Base class for RPC related runtime exceptions.
- */
+/** Base class for RPC related runtime exceptions. */
 public class RpcRuntimeException extends RuntimeException {
 
-	public RpcRuntimeException(String message) {
-		super(message);
-	}
+    public RpcRuntimeException(String message) {
+        super(message);
+    }
 
-	public RpcRuntimeException(Throwable cause) {
-		super(cause);
-	}
+    public RpcRuntimeException(Throwable cause) {
+        super(cause);
+    }
 
-	public RpcRuntimeException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public RpcRuntimeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

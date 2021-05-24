@@ -194,8 +194,8 @@ class ScalaShellITCase extends TestLogger {
     Assert.assertFalse(output.toLowerCase.contains("failed"))
     Assert.assertFalse(output.toLowerCase.contains("error"))
     Assert.assertFalse(output.toLowerCase.contains("exception"))
-    Assert.assertTrue(output.contains("1,Hi"))
-    Assert.assertTrue(output.contains("3,Hello world"))
+    Assert.assertTrue(output.contains("+I[1, Hi]"))
+    Assert.assertTrue(output.contains("+I[3, Hello world]"))
   }
 
   @Test
@@ -223,9 +223,9 @@ class ScalaShellITCase extends TestLogger {
         | senv.execute
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("6,1"))
-    Assert.assertTrue(output.contains("1,2"))
-    Assert.assertTrue(output.contains("2,1"))
+    Assert.assertTrue(output.contains("+I[6, 1]"))
+    Assert.assertTrue(output.contains("+I[1, 2]"))
+    Assert.assertTrue(output.contains("+I[2, 1]"))
     Assert.assertFalse(output.toLowerCase.contains("failed"))
     Assert.assertFalse(output.toLowerCase.contains("error"))
     Assert.assertFalse(output.toLowerCase.contains("exception"))

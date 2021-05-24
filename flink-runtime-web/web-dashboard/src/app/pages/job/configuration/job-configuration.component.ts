@@ -44,7 +44,7 @@ export class JobConfigurationComponent implements OnInit {
           value: userConfig[key]
         });
       }
-      this.listOfUserConfig = array;
+      this.listOfUserConfig = array.sort((pre, next) => (pre.key > next.key ? 1 : -1));
       this.cdr.markForCheck();
     });
   }

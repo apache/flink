@@ -16,53 +16,71 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class FloatParserTest extends ParserTestBase<Float> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"0", "0.0", "123.4", "0.124", ".623", "1234", "-12.34", 
-			String.valueOf(Float.MAX_VALUE), String.valueOf(Float.MIN_VALUE),
-			String.valueOf(Float.NEGATIVE_INFINITY), String.valueOf(Float.POSITIVE_INFINITY),
-			String.valueOf(Float.NaN),
-			"1.234E2", "1.234e3", "1.234E-2", "1239"
-		};
-	}
-	
-	@Override
-	public Float[] getValidTestResults() {
-		return new Float[] {
-			0f, 0.0f, 123.4f, 0.124f, .623f, 1234f, -12.34f, 
-			Float.MAX_VALUE, Float.MIN_VALUE,
-			Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY,
-			Float.NaN,
-			1.234E2f, 1.234e3f, 1.234E-2f, 1239f
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "0",
+            "0.0",
+            "123.4",
+            "0.124",
+            ".623",
+            "1234",
+            "-12.34",
+            String.valueOf(Float.MAX_VALUE),
+            String.valueOf(Float.MIN_VALUE),
+            String.valueOf(Float.NEGATIVE_INFINITY),
+            String.valueOf(Float.POSITIVE_INFINITY),
+            String.valueOf(Float.NaN),
+            "1.234E2",
+            "1.234e3",
+            "1.234E-2",
+            "1239"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"a", "123abc4", "-57-6", "7-877678", " 1", "2 ", " ", "\t"
-		};
-	}
+    @Override
+    public Float[] getValidTestResults() {
+        return new Float[] {
+            0f,
+            0.0f,
+            123.4f,
+            0.124f,
+            .623f,
+            1234f,
+            -12.34f,
+            Float.MAX_VALUE,
+            Float.MIN_VALUE,
+            Float.NEGATIVE_INFINITY,
+            Float.POSITIVE_INFINITY,
+            Float.NaN,
+            1.234E2f,
+            1.234e3f,
+            1.234E-2f,
+            1239f
+        };
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {"a", "123abc4", "-57-6", "7-877678", " 1", "2 ", " ", "\t"};
+    }
 
-	@Override
-	public FieldParser<Float> getParser() {
-		return new FloatParser();
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public Class<Float> getTypeClass() {
-		return Float.class;
-	}
+    @Override
+    public FieldParser<Float> getParser() {
+        return new FloatParser();
+    }
+
+    @Override
+    public Class<Float> getTypeClass() {
+        return Float.class;
+    }
 }

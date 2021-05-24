@@ -33,82 +33,82 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-/**
- * Tests for {@link FileUploads}.
- */
+/** Tests for {@link FileUploads}. */
 public class FileUploadsTest extends TestLogger {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testRelativePathRejection() throws IOException {
-		Path relative = Paths.get("root");
-		try {
-			new FileUploads(relative);
-			Assert.fail();
-		} catch (IllegalArgumentException iae) {
-			// expected
-		}
-	}
+    @Test
+    public void testRelativePathRejection() throws IOException {
+        Path relative = Paths.get("root");
+        try {
+            new FileUploads(relative);
+            Assert.fail();
+        } catch (IllegalArgumentException iae) {
+            // expected
+        }
+    }
 
-	@Test
-	public void testDirectoryScan() throws IOException {
-		Path rootDir = Paths.get("root");
-		Path rootFile = rootDir.resolve("rootFile");
-		Path subDir = rootDir.resolve("sub");
-		Path subFile = subDir.resolve("subFile");
+    @Test
+    public void testDirectoryScan() throws IOException {
+        Path rootDir = Paths.get("root");
+        Path rootFile = rootDir.resolve("rootFile");
+        Path subDir = rootDir.resolve("sub");
+        Path subFile = subDir.resolve("subFile");
 
-		Path tmp = temporaryFolder.getRoot().toPath();
-		Files.createDirectory(tmp.resolve(rootDir));
-		Files.createDirectory(tmp.resolve(subDir));
-		Files.createFile(tmp.resolve(rootFile));
-		Files.createFile(tmp.resolve(subFile));
+        Path tmp = temporaryFolder.getRoot().toPath();
+        Files.createDirectory(tmp.resolve(rootDir));
+        Files.createDirectory(tmp.resolve(subDir));
+        Files.createFile(tmp.resolve(rootFile));
+        Files.createFile(tmp.resolve(subFile));
 
-		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
-			Collection<Path> detectedFiles = fileUploads.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
+        try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
+            Collection<Path> detectedFiles =
+                    fileUploads.getUploadedFiles().stream()
+                            .map(File::toPath)
+                            .collect(Collectors.toList());
 
-			Assert.assertEquals(2, detectedFiles.size());
-			Assert.assertTrue(detectedFiles.contains(tmp.resolve(rootFile)));
-			Assert.assertTrue(detectedFiles.contains(tmp.resolve(subFile)));
-		}
-	}
+            Assert.assertEquals(2, detectedFiles.size());
+            Assert.assertTrue(detectedFiles.contains(tmp.resolve(rootFile)));
+            Assert.assertTrue(detectedFiles.contains(tmp.resolve(subFile)));
+        }
+    }
 
-	@Test
-	public void testEmptyDirectory() throws IOException {
-		Path rootDir = Paths.get("root");
+    @Test
+    public void testEmptyDirectory() throws IOException {
+        Path rootDir = Paths.get("root");
 
-		Path tmp = temporaryFolder.getRoot().toPath();
-		Files.createDirectory(tmp.resolve(rootDir));
+        Path tmp = temporaryFolder.getRoot().toPath();
+        Files.createDirectory(tmp.resolve(rootDir));
 
-		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
-			Collection<File> detectedFiles = fileUploads.getUploadedFiles();
-			Assert.assertEquals(0, detectedFiles.size());
-		}
-	}
+        try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
+            Collection<File> detectedFiles = fileUploads.getUploadedFiles();
+            Assert.assertEquals(0, detectedFiles.size());
+        }
+    }
 
-	@Test
-	public void testCleanup() throws IOException {
-		Path rootDir = Paths.get("root");
-		Path rootFile = rootDir.resolve("rootFile");
-		Path subDir = rootDir.resolve("sub");
-		Path subFile = subDir.resolve("subFile");
+    @Test
+    public void testCleanup() throws IOException {
+        Path rootDir = Paths.get("root");
+        Path rootFile = rootDir.resolve("rootFile");
+        Path subDir = rootDir.resolve("sub");
+        Path subFile = subDir.resolve("subFile");
 
-		Path tmp = temporaryFolder.getRoot().toPath();
-		Files.createDirectory(tmp.resolve(rootDir));
-		Files.createDirectory(tmp.resolve(subDir));
-		Files.createFile(tmp.resolve(rootFile));
-		Files.createFile(tmp.resolve(subFile));
+        Path tmp = temporaryFolder.getRoot().toPath();
+        Files.createDirectory(tmp.resolve(rootDir));
+        Files.createDirectory(tmp.resolve(subDir));
+        Files.createFile(tmp.resolve(rootFile));
+        Files.createFile(tmp.resolve(subFile));
 
-		try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
-			Assert.assertTrue(Files.exists(tmp.resolve(rootDir)));
-			Assert.assertTrue(Files.exists(tmp.resolve(subDir)));
-			Assert.assertTrue(Files.exists(tmp.resolve(rootFile)));
-			Assert.assertTrue(Files.exists(tmp.resolve(subFile)));
-		}
-		Assert.assertFalse(Files.exists(tmp.resolve(rootDir)));
-		Assert.assertFalse(Files.exists(tmp.resolve(subDir)));
-		Assert.assertFalse(Files.exists(tmp.resolve(rootFile)));
-		Assert.assertFalse(Files.exists(tmp.resolve(subFile)));
-	}
+        try (FileUploads fileUploads = new FileUploads(tmp.resolve(rootDir))) {
+            Assert.assertTrue(Files.exists(tmp.resolve(rootDir)));
+            Assert.assertTrue(Files.exists(tmp.resolve(subDir)));
+            Assert.assertTrue(Files.exists(tmp.resolve(rootFile)));
+            Assert.assertTrue(Files.exists(tmp.resolve(subFile)));
+        }
+        Assert.assertFalse(Files.exists(tmp.resolve(rootDir)));
+        Assert.assertFalse(Files.exists(tmp.resolve(subDir)));
+        Assert.assertFalse(Files.exists(tmp.resolve(rootFile)));
+        Assert.assertFalse(Files.exists(tmp.resolve(subFile)));
+    }
 }

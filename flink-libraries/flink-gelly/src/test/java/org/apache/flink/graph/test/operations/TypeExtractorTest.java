@@ -36,92 +36,114 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-/**
- * Test output types from {@link Graph} methods.
- */
+/** Test output types from {@link Graph} methods. */
 public class TypeExtractorTest {
 
-	private Graph<Long, Long, Long> inputGraph;
-	private DataSet<Vertex<Long, Long>> vertices;
-	private DataSet<Edge<Long, Long>> edges;
-	private ExecutionEnvironment env;
+    private Graph<Long, Long, Long> inputGraph;
+    private DataSet<Vertex<Long, Long>> vertices;
+    private DataSet<Edge<Long, Long>> edges;
+    private ExecutionEnvironment env;
 
-	@Before
-	public void setUp() throws Exception {
-		env = ExecutionEnvironment.getExecutionEnvironment();
-		vertices = TestGraphUtils.getLongLongVertexData(env);
-		edges = TestGraphUtils.getLongLongEdgeData(env);
-		inputGraph = Graph.fromDataSet(vertices, edges, env);
-	}
+    @Before
+    public void setUp() throws Exception {
+        env = ExecutionEnvironment.getExecutionEnvironment();
+        vertices = TestGraphUtils.getLongLongVertexData(env);
+        edges = TestGraphUtils.getLongLongEdgeData(env);
+        inputGraph = Graph.fromDataSet(vertices, edges, env);
+    }
 
-	@Test
-	public void testMapVerticesType() throws Exception {
+    @Test
+    public void testMapVerticesType() throws Exception {
 
-		// test type extraction in mapVertices
-		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = inputGraph.mapVertices(new VertexMapper<>()).getVertices();
-		Assert.assertTrue(new TupleTypeInfo(Vertex.class, BasicTypeInfo.LONG_TYPE_INFO,
-			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
-			.equals(outVertices.getType()));
-	}
+        // test type extraction in mapVertices
+        DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices =
+                inputGraph.mapVertices(new VertexMapper<>()).getVertices();
+        Assert.assertTrue(
+                new TupleTypeInfo(
+                                Vertex.class,
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                new TupleTypeInfo<Tuple2<Long, Integer>>(
+                                        BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
+                        .equals(outVertices.getType()));
+    }
 
-	@Test
-	public void testMapEdgesType() throws Exception {
+    @Test
+    public void testMapEdgesType() throws Exception {
 
-		// test type extraction in mapEdges
-		DataSet<Edge<Long, Tuple2<Long, Integer>>> outEdges = inputGraph.mapEdges(new EdgeMapper<>()).getEdges();
-		Assert.assertTrue(new TupleTypeInfo(Edge.class, BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO,
-			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
-			.equals(outEdges.getType()));
-	}
+        // test type extraction in mapEdges
+        DataSet<Edge<Long, Tuple2<Long, Integer>>> outEdges =
+                inputGraph.mapEdges(new EdgeMapper<>()).getEdges();
+        Assert.assertTrue(
+                new TupleTypeInfo(
+                                Edge.class,
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                new TupleTypeInfo<Tuple2<Long, Integer>>(
+                                        BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
+                        .equals(outEdges.getType()));
+    }
 
-	@Test
-	public void testFromDataSet() throws Exception {
-		DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices = Graph.fromDataSet(edges, new VertexInitializer<>(), env)
-			.getVertices();
-		Assert.assertTrue(new TupleTypeInfo(Vertex.class, BasicTypeInfo.LONG_TYPE_INFO,
-			new TupleTypeInfo<Tuple2<Long, Integer>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
-			.equals(outVertices.getType()));
-	}
+    @Test
+    public void testFromDataSet() throws Exception {
+        DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices =
+                Graph.fromDataSet(edges, new VertexInitializer<>(), env).getVertices();
+        Assert.assertTrue(
+                new TupleTypeInfo(
+                                Vertex.class,
+                                BasicTypeInfo.LONG_TYPE_INFO,
+                                new TupleTypeInfo<Tuple2<Long, Integer>>(
+                                        BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO))
+                        .equals(outVertices.getType()));
+    }
 
-	@Test
-	public void testGroupReduceOnEdges() throws Exception {
-		DataSet<Tuple2<Long, Long>> output = inputGraph.groupReduceOnEdges(new EdgesGroupFunction<>(), EdgeDirection.OUT);
-		Assert.assertTrue((new TupleTypeInfo<Tuple2<Long, Long>>(BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO)).equals(output.getType()));
-	}
+    @Test
+    public void testGroupReduceOnEdges() throws Exception {
+        DataSet<Tuple2<Long, Long>> output =
+                inputGraph.groupReduceOnEdges(new EdgesGroupFunction<>(), EdgeDirection.OUT);
+        Assert.assertTrue(
+                (new TupleTypeInfo<Tuple2<Long, Long>>(
+                                BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO))
+                        .equals(output.getType()));
+    }
 
-	private static final class VertexMapper<K> implements MapFunction<Vertex<K, Long>, Tuple2<K, Integer>> {
+    private static final class VertexMapper<K>
+            implements MapFunction<Vertex<K, Long>, Tuple2<K, Integer>> {
 
-		private final Tuple2<K, Integer> outTuple = new Tuple2<>();
+        private final Tuple2<K, Integer> outTuple = new Tuple2<>();
 
-		@Override
-		public Tuple2<K, Integer> map(Vertex<K, Long> inputVertex) throws Exception {
-			return outTuple;
-		}
-	}
+        @Override
+        public Tuple2<K, Integer> map(Vertex<K, Long> inputVertex) throws Exception {
+            return outTuple;
+        }
+    }
 
-	private static final class EdgeMapper<K> implements MapFunction<Edge<K, Long>, Tuple2<K, Integer>> {
+    private static final class EdgeMapper<K>
+            implements MapFunction<Edge<K, Long>, Tuple2<K, Integer>> {
 
-		private final Tuple2<K, Integer> outTuple = new Tuple2<>();
+        private final Tuple2<K, Integer> outTuple = new Tuple2<>();
 
-		@Override
-		public Tuple2<K, Integer> map(Edge<K, Long> inputEdge) throws Exception {
-			return outTuple;
-		}
-	}
+        @Override
+        public Tuple2<K, Integer> map(Edge<K, Long> inputEdge) throws Exception {
+            return outTuple;
+        }
+    }
 
-	private static final class EdgesGroupFunction<K, EV> implements EdgesFunction<K, EV, Tuple2<K, EV>> {
+    private static final class EdgesGroupFunction<K, EV>
+            implements EdgesFunction<K, EV, Tuple2<K, EV>> {
 
-		@Override
-		public void iterateEdges(Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<Tuple2<K, EV>> out) throws Exception {
-			out.collect(new Tuple2<>());
-		}
-	}
+        @Override
+        public void iterateEdges(
+                Iterable<Tuple2<K, Edge<K, EV>>> edges, Collector<Tuple2<K, EV>> out)
+                throws Exception {
+            out.collect(new Tuple2<>());
+        }
+    }
 
-	private static final class VertexInitializer<K> implements MapFunction<K, Tuple2<K, Integer>> {
+    private static final class VertexInitializer<K> implements MapFunction<K, Tuple2<K, Integer>> {
 
-		@Override
-		public Tuple2<K, Integer> map(K value) throws Exception {
-			return null;
-		}
-	}
+        @Override
+        public Tuple2<K, Integer> map(K value) throws Exception {
+            return null;
+        }
+    }
 }

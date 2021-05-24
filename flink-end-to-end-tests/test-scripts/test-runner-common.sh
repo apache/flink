@@ -99,22 +99,24 @@ function post_test_validation {
         log_environment_info
     else
         log_environment_info
-        # make logs available if ARTIFACTS_DIR is set
-        if [[ ${ARTIFACTS_DIR} != "" ]]; then
-            mkdir ${ARTIFACTS_DIR}/e2e-flink-logs 
-            cp $FLINK_DIR/log/* ${ARTIFACTS_DIR}/e2e-flink-logs/
-            echo "Published e2e logs into debug logs artifact:"
-            ls ${ARTIFACTS_DIR}/e2e-flink-logs/
-        fi
         exit "${exit_code}"
     fi
 }
 
 function log_environment_info {
+    echo "##[group]Environment Information"
     echo "Jps"
     jps
+
     echo "Disk information"
     df -hH
+
+    echo "Allocated ports"
+    sudo netstat -tulpn
+
+    echo "Running docker containers"
+    docker ps -a
+    echo "##[endgroup]"
 }
 
 # Shuts down cluster and reverts changes to cluster configs
@@ -125,8 +127,8 @@ function cleanup_proc {
 
 # Cleans up all temporary folders and files
 function cleanup_tmp_files {
-    rm -f ${FLINK_DIR}/log/*
-    echo "Deleted all files under ${FLINK_DIR}/log/"
+    rm -f $FLINK_LOG_DIR/*
+    echo "Deleted all files under $FLINK_LOG_DIR/"
 
     rm -rf ${TEST_DATA_DIR} 2> /dev/null
     echo "Deleted ${TEST_DATA_DIR}"

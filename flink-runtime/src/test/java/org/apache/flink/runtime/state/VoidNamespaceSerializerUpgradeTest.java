@@ -33,70 +33,74 @@ import java.util.Collection;
 
 import static org.hamcrest.Matchers.is;
 
-/**
- * A {@link TypeSerializerUpgradeTestBase} for {@link VoidNamespaceSerializer}.
- */
+/** A {@link TypeSerializerUpgradeTestBase} for {@link VoidNamespaceSerializer}. */
 @RunWith(Parameterized.class)
-public class VoidNamespaceSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<VoidNamespace, VoidNamespace> {
+public class VoidNamespaceSerializerUpgradeTest
+        extends TypeSerializerUpgradeTestBase<VoidNamespace, VoidNamespace> {
 
-	private static final String SPEC_NAME = "void-namespace-serializer";
+    private static final String SPEC_NAME = "void-namespace-serializer";
 
-	public VoidNamespaceSerializerUpgradeTest(TestSpecification<VoidNamespace, VoidNamespace> testSpecification) {
-		super(testSpecification);
-	}
+    public VoidNamespaceSerializerUpgradeTest(
+            TestSpecification<VoidNamespace, VoidNamespace> testSpecification) {
+        super(testSpecification);
+    }
 
-	@Parameterized.Parameters(name = "Test Specification = {0}")
-	public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
+    @Parameterized.Parameters(name = "Test Specification = {0}")
+    public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
-		ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-		for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
-			testSpecifications.add(
-				new TestSpecification<>(
-					SPEC_NAME,
-					migrationVersion,
-					VoidNamespaceSerializerSetup.class,
-					VoidNamespaceSerializerVerifier.class));
-		}
-		return testSpecifications;
-	}
+        ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
+        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+            testSpecifications.add(
+                    new TestSpecification<>(
+                            SPEC_NAME,
+                            migrationVersion,
+                            VoidNamespaceSerializerSetup.class,
+                            VoidNamespaceSerializerVerifier.class));
+        }
+        return testSpecifications;
+    }
 
-	// ----------------------------------------------------------------------------------------------
-	//  Specification for "voidnamespace-serializer"
-	// ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
+    //  Specification for "voidnamespace-serializer"
+    // ----------------------------------------------------------------------------------------------
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class VoidNamespaceSerializerSetup implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<VoidNamespace> {
-		@Override
-		public TypeSerializer<VoidNamespace> createPriorSerializer() {
-			return VoidNamespaceSerializer.INSTANCE;
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class VoidNamespaceSerializerSetup
+            implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<VoidNamespace> {
+        @Override
+        public TypeSerializer<VoidNamespace> createPriorSerializer() {
+            return VoidNamespaceSerializer.INSTANCE;
+        }
 
-		@Override
-		public VoidNamespace createTestData() {
-			return VoidNamespace.INSTANCE;
-		}
-	}
+        @Override
+        public VoidNamespace createTestData() {
+            return VoidNamespace.INSTANCE;
+        }
+    }
 
-	/**
-	 * This class is only public to work with {@link org.apache.flink.api.common.typeutils.ClassRelocator}.
-	 */
-	public static final class VoidNamespaceSerializerVerifier implements TypeSerializerUpgradeTestBase.UpgradeVerifier<VoidNamespace> {
-		@Override
-		public TypeSerializer<VoidNamespace> createUpgradedSerializer() {
-			return VoidNamespaceSerializer.INSTANCE;
-		}
+    /**
+     * This class is only public to work with {@link
+     * org.apache.flink.api.common.typeutils.ClassRelocator}.
+     */
+    public static final class VoidNamespaceSerializerVerifier
+            implements TypeSerializerUpgradeTestBase.UpgradeVerifier<VoidNamespace> {
+        @Override
+        public TypeSerializer<VoidNamespace> createUpgradedSerializer() {
+            return VoidNamespaceSerializer.INSTANCE;
+        }
 
-		@Override
-		public Matcher<VoidNamespace> testDataMatcher() {
-			return is(VoidNamespace.INSTANCE);
-		}
+        @Override
+        public Matcher<VoidNamespace> testDataMatcher() {
+            return is(VoidNamespace.INSTANCE);
+        }
 
-		@Override
-		public Matcher<TypeSerializerSchemaCompatibility<VoidNamespace>> schemaCompatibilityMatcher(MigrationVersion version) {
-			return TypeSerializerMatchers.isCompatibleAsIs();
-		}
-	}
-
+        @Override
+        public Matcher<TypeSerializerSchemaCompatibility<VoidNamespace>> schemaCompatibilityMatcher(
+                MigrationVersion version) {
+            return TypeSerializerMatchers.isCompatibleAsIs();
+        }
+    }
 }

@@ -65,6 +65,6 @@ class SplitPythonConditionFromCorrelateRuleTest extends TableTestBase {
   def testPythonFunctionInCorrelateCondition(): Unit = {
     val sqlQuery = "SELECT a, b, c, s, l FROM MyTable, LATERAL TABLE(func(c)) AS T(s, l) " +
       "WHERE l = a and c = s and pyFunc(l, l) = 2 and l + 1 = l * l"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

@@ -49,61 +49,106 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link FieldsFromTuple}.
- */
+/** Tests for {@link FieldsFromTuple}. */
 public class FieldsFromTupleTest {
 
-	private double[] testDouble;
+    private double[] testDouble;
 
-	@Before
-	public void init() {
-		testDouble = new double[Tuple.MAX_ARITY];
-		for (int i = 0; i < Tuple.MAX_ARITY; i++) {
-			testDouble[i] = i;
-		}
-	}
+    @Before
+    public void init() {
+        testDouble = new double[Tuple.MAX_ARITY];
+        for (int i = 0; i < Tuple.MAX_ARITY; i++) {
+            testDouble[i] = i;
+        }
+    }
 
-	@Test
-	public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
-		Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
-		for (int i = 0; i < Tuple.MAX_ARITY; i++) {
-			currentTuple.setField(testDouble[i], i);
-		}
+    @Test
+    public void testUserSpecifiedOrder() throws InstantiationException, IllegalAccessException {
+        Tuple currentTuple = (Tuple) CLASSES[Tuple.MAX_ARITY - 1].newInstance();
+        for (int i = 0; i < Tuple.MAX_ARITY; i++) {
+            currentTuple.setField(testDouble[i], i);
+        }
 
-		double[] expected = { testDouble[5], testDouble[3], testDouble[6], testDouble[7],
-				testDouble[0] };
-		arrayEqualityCheck(expected, new FieldsFromTuple(5, 3, 6, 7, 0).extract(currentTuple));
+        double[] expected = {
+            testDouble[5], testDouble[3], testDouble[6], testDouble[7], testDouble[0]
+        };
+        arrayEqualityCheck(expected, new FieldsFromTuple(5, 3, 6, 7, 0).extract(currentTuple));
 
-		double[] expected2 = { testDouble[0], testDouble[Tuple.MAX_ARITY - 1] };
-		arrayEqualityCheck(expected2,
-				new FieldsFromTuple(0, Tuple.MAX_ARITY - 1).extract(currentTuple));
+        double[] expected2 = {testDouble[0], testDouble[Tuple.MAX_ARITY - 1]};
+        arrayEqualityCheck(
+                expected2, new FieldsFromTuple(0, Tuple.MAX_ARITY - 1).extract(currentTuple));
 
-		double[] expected3 = { testDouble[Tuple.MAX_ARITY - 1], testDouble[0] };
-		arrayEqualityCheck(expected3,
-				new FieldsFromTuple(Tuple.MAX_ARITY - 1, 0).extract(currentTuple));
+        double[] expected3 = {testDouble[Tuple.MAX_ARITY - 1], testDouble[0]};
+        arrayEqualityCheck(
+                expected3, new FieldsFromTuple(Tuple.MAX_ARITY - 1, 0).extract(currentTuple));
 
-		double[] expected4 = { testDouble[13], testDouble[4], testDouble[5], testDouble[4],
-				testDouble[2], testDouble[8], testDouble[6], testDouble[2], testDouble[8],
-				testDouble[3], testDouble[5], testDouble[2], testDouble[16], testDouble[4],
-				testDouble[3], testDouble[2], testDouble[6], testDouble[4], testDouble[7],
-				testDouble[4], testDouble[2], testDouble[8], testDouble[7], testDouble[2] };
-		arrayEqualityCheck(expected4, new FieldsFromTuple(13, 4, 5, 4, 2, 8, 6, 2, 8, 3, 5, 2, 16,
-				4, 3, 2, 6, 4, 7, 4, 2, 8, 7, 2).extract(currentTuple));
-	}
+        double[] expected4 = {
+            testDouble[13],
+            testDouble[4],
+            testDouble[5],
+            testDouble[4],
+            testDouble[2],
+            testDouble[8],
+            testDouble[6],
+            testDouble[2],
+            testDouble[8],
+            testDouble[3],
+            testDouble[5],
+            testDouble[2],
+            testDouble[16],
+            testDouble[4],
+            testDouble[3],
+            testDouble[2],
+            testDouble[6],
+            testDouble[4],
+            testDouble[7],
+            testDouble[4],
+            testDouble[2],
+            testDouble[8],
+            testDouble[7],
+            testDouble[2]
+        };
+        arrayEqualityCheck(
+                expected4,
+                new FieldsFromTuple(
+                                13, 4, 5, 4, 2, 8, 6, 2, 8, 3, 5, 2, 16, 4, 3, 2, 6, 4, 7, 4, 2, 8,
+                                7, 2)
+                        .extract(currentTuple));
+    }
 
-	private void arrayEqualityCheck(double[] array1, double[] array2) {
-		assertEquals("The result arrays must have the same length", array1.length, array2.length);
-		for (int i = 0; i < array1.length; i++) {
-			assertEquals("Unequal fields at position " + i, array1[i], array2[i], 0d);
-		}
-	}
+    private void arrayEqualityCheck(double[] array1, double[] array2) {
+        assertEquals("The result arrays must have the same length", array1.length, array2.length);
+        for (int i = 0; i < array1.length; i++) {
+            assertEquals("Unequal fields at position " + i, array1[i], array2[i], 0d);
+        }
+    }
 
-	private static final Class<?>[] CLASSES = new Class<?>[] { Tuple1.class, Tuple2.class,
-			Tuple3.class, Tuple4.class, Tuple5.class, Tuple6.class, Tuple7.class, Tuple8.class,
-			Tuple9.class, Tuple10.class, Tuple11.class, Tuple12.class, Tuple13.class,
-			Tuple14.class, Tuple15.class, Tuple16.class, Tuple17.class, Tuple18.class,
-			Tuple19.class, Tuple20.class, Tuple21.class, Tuple22.class, Tuple23.class,
-			Tuple24.class, Tuple25.class };
-
+    private static final Class<?>[] CLASSES =
+            new Class<?>[] {
+                Tuple1.class,
+                Tuple2.class,
+                Tuple3.class,
+                Tuple4.class,
+                Tuple5.class,
+                Tuple6.class,
+                Tuple7.class,
+                Tuple8.class,
+                Tuple9.class,
+                Tuple10.class,
+                Tuple11.class,
+                Tuple12.class,
+                Tuple13.class,
+                Tuple14.class,
+                Tuple15.class,
+                Tuple16.class,
+                Tuple17.class,
+                Tuple18.class,
+                Tuple19.class,
+                Tuple20.class,
+                Tuple21.class,
+                Tuple22.class,
+                Tuple23.class,
+                Tuple24.class,
+                Tuple25.class
+            };
 }

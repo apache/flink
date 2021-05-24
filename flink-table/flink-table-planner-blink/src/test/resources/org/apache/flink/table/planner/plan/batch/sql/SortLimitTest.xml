@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
 +- Exchange(distribution=[single])
@@ -40,14 +40,14 @@ SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]], values=[a, b, c])
 ]]>
@@ -57,14 +57,14 @@ Values(tuples=[[]], values=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
 +- Exchange(distribution=[single])
@@ -76,14 +76,14 @@ SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]], values=[a, b, c])
 ]]>
@@ -93,14 +93,14 @@ Values(tuples=[[]], values=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC LIMIT 5]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
@@ -113,14 +113,14 @@ SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
 +- Exchange(distribution=[single])
@@ -132,14 +132,14 @@ SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC LIMIT 0]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]], values=[a, b, c])
 ]]>
@@ -149,14 +149,14 @@ Values(tuples=[[]], values=[a, b, c])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC LIMIT 5]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
@@ -169,14 +169,14 @@ SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
 +- Exchange(distribution=[single])
@@ -189,14 +189,14 @@ SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Values(tuples=[[]], values=[a, b, c])
 ]]>

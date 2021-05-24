@@ -65,7 +65,9 @@ def get_gateway():
             callback_server_listening_address = callback_server.get_listening_address()
             callback_server_listening_port = callback_server.get_listening_port()
             _gateway.jvm.org.apache.flink.client.python.PythonEnvUtils.resetCallbackClient(
-                callback_server_listening_address, callback_server_listening_port)
+                _gateway.java_gateway_server,
+                callback_server_listening_address,
+                callback_server_listening_port)
             # import the flink view
             import_flink_view(_gateway)
             install_exception_handler()
@@ -136,6 +138,7 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.python.*")
+    java_import(gateway.jvm, "org.apache.flink.table.expressions.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
@@ -152,6 +155,9 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.python.util.PythonDependencyUtils")
     java_import(gateway.jvm, "org.apache.flink.python.PythonOptions")
     java_import(gateway.jvm, "org.apache.flink.client.python.PythonGatewayServer")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.functions.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.operators.python.*")
+    java_import(gateway.jvm, "org.apache.flink.streaming.api.typeinfo.python.*")
 
 
 class PythonFunctionFactory(object):
@@ -161,7 +167,7 @@ class PythonFunctionFactory(object):
 
     def getPythonFunction(self, moduleName, objectName):
         udf_wrapper = getattr(importlib.import_module(moduleName), objectName)
-        return udf_wrapper._create_judf()
+        return udf_wrapper._java_user_defined_function()
 
     class Java:
         implements = ["org.apache.flink.client.python.PythonFunctionFactory"]

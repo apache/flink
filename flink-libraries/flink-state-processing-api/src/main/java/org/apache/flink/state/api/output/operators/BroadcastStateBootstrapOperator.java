@@ -38,70 +38,71 @@ import org.apache.flink.util.FlinkRuntimeException;
  */
 @Internal
 public class BroadcastStateBootstrapOperator<IN>
-	extends AbstractUdfStreamOperator<TaggedOperatorSubtaskState, BroadcastStateBootstrapFunction<IN>>
-	implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>,
-	BoundedOneInput {
+        extends AbstractUdfStreamOperator<
+                TaggedOperatorSubtaskState, BroadcastStateBootstrapFunction<IN>>
+        implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long timestamp;
+    private final long timestamp;
 
-	private final Path savepointPath;
+    private final Path savepointPath;
 
-	private transient ContextImpl context;
+    private transient ContextImpl context;
 
-	public BroadcastStateBootstrapOperator(long timestamp, Path savepointPath, BroadcastStateBootstrapFunction<IN> function) {
-		super(function);
-		this.timestamp = timestamp;
+    public BroadcastStateBootstrapOperator(
+            long timestamp, Path savepointPath, BroadcastStateBootstrapFunction<IN> function) {
+        super(function);
+        this.timestamp = timestamp;
 
-		this.savepointPath = savepointPath;
-	}
+        this.savepointPath = savepointPath;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		context = new ContextImpl(getProcessingTimeService());
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        context = new ContextImpl(getProcessingTimeService());
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		userFunction.processElement(element.getValue(), context);
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        userFunction.processElement(element.getValue(), context);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		TaggedOperatorSubtaskState state = SnapshotUtils.snapshot(
-			this,
-			getRuntimeContext().getIndexOfThisSubtask(),
-			timestamp,
-			getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
-			getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
-			getContainingTask().getCheckpointStorage(),
-			savepointPath);
+    @Override
+    public void endInput() throws Exception {
+        TaggedOperatorSubtaskState state =
+                SnapshotUtils.snapshot(
+                        this,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        timestamp,
+                        getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
+                        getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
+                        getContainingTask().getCheckpointStorage(),
+                        savepointPath);
 
-		output.collect(new StreamRecord<>(state));
-	}
+        output.collect(new StreamRecord<>(state));
+    }
 
-	private class ContextImpl implements BroadcastStateBootstrapFunction.Context {
-		private final ProcessingTimeService processingTimeService;
+    private class ContextImpl implements BroadcastStateBootstrapFunction.Context {
+        private final ProcessingTimeService processingTimeService;
 
-		ContextImpl(ProcessingTimeService processingTimeService) {
-			this.processingTimeService = processingTimeService;
-		}
+        ContextImpl(ProcessingTimeService processingTimeService) {
+            this.processingTimeService = processingTimeService;
+        }
 
-		@Override
-		public long currentProcessingTime() {
-			return processingTimeService.getCurrentProcessingTime();
-		}
+        @Override
+        public long currentProcessingTime() {
+            return processingTimeService.getCurrentProcessingTime();
+        }
 
-		@Override
-		public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> descriptor) {
-			try {
-				return getOperatorStateBackend().getBroadcastState(descriptor);
-			} catch (Exception e) {
-				throw new FlinkRuntimeException(e);
-			}
-		}
-	}
+        @Override
+        public <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> descriptor) {
+            try {
+                return getOperatorStateBackend().getBroadcastState(descriptor);
+            } catch (Exception e) {
+                throw new FlinkRuntimeException(e);
+            }
+        }
+    }
 }
-

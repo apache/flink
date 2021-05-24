@@ -23,32 +23,30 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.types.StringValue;
 
-/**
- * Tests for {@link StringValueArrayComparator}.
- */
+/** Tests for {@link StringValueArrayComparator}. */
 public class StringValueArrayComparatorTest extends ComparatorTestBase<StringValueArray> {
 
-	@Override
-	protected TypeComparator<StringValueArray> createComparator(boolean ascending) {
-		return new StringValueArrayComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<StringValueArray> createComparator(boolean ascending) {
+        return new StringValueArrayComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<StringValueArray> createSerializer() {
-		return new StringValueArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<StringValueArray> createSerializer() {
+        return new StringValueArraySerializer();
+    }
 
-	@Override
-	protected StringValueArray[] getSortedTestData() {
-		StringValueArray sva0 = new StringValueArray();
+    @Override
+    protected StringValueArray[] getSortedTestData() {
+        StringValueArray sva0 = new StringValueArray();
 
-		StringValueArray sva1 = new StringValueArray();
-		sva1.add(new StringValue("abc"));
+        StringValueArray sva1 = new StringValueArray();
+        sva1.add(new StringValue("abc"));
 
-		StringValueArray sva2 = new StringValueArray();
-		sva2.add(new StringValue("qrs"));
-		sva2.add(new StringValue("xyz"));
+        StringValueArray sva2 = new StringValueArray();
+        sva2.add(new StringValue("qrs"));
+        sva2.add(new StringValue("xyz"));
 
-		return new StringValueArray[]{ sva0, sva1, sva2 };
-	}
+        return new StringValueArray[] {sva0, sva1, sva2};
+    }
 }

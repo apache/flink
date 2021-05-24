@@ -22,28 +22,25 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Exception which signals that a slot is already occupied by the given
- * {@link AllocationID}.
- */
+/** Exception which signals that a slot is already occupied by the given {@link AllocationID}. */
 public class SlotOccupiedException extends SlotAllocationException {
-	private static final long serialVersionUID = -3986333914244338888L;
+    private static final long serialVersionUID = -3986333914244338888L;
 
-	private final AllocationID allocationId;
+    private final AllocationID allocationId;
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	public SlotOccupiedException(String message, AllocationID allocationId, JobID jobId) {
-		super(message);
-		this.allocationId = Preconditions.checkNotNull(allocationId);
-		this.jobId = Preconditions.checkNotNull(jobId);
-	}
+    public SlotOccupiedException(String message, AllocationID allocationId, JobID jobId) {
+        super(message);
+        this.allocationId = Preconditions.checkNotNull(allocationId);
+        this.jobId = Preconditions.checkNotNull(jobId);
+    }
 
-	public AllocationID getAllocationId() {
-		return allocationId;
-	}
+    public AllocationID getAllocationId() {
+        return allocationId;
+    }
 
-	public JobID getJobId() {
-		return jobId;
-	}
+    public JobID getJobId() {
+        return jobId;
+    }
 }

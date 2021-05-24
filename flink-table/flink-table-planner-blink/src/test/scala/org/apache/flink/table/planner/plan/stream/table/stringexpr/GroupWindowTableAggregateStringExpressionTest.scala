@@ -31,14 +31,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Slide over 4.hours every 2.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'string,
         'x,
@@ -66,14 +65,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, Long, String)]('int, 'long, 'rowtime.rowtime, 'string)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Tumble over 4.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'string,
         'x,
@@ -101,14 +99,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'rowtime.rowtime)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Session withGap 4.hours on 'rowtime as 'w)
       .groupBy('w, 'string)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'string,
         'x,
@@ -135,14 +132,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Slide over 4.hours every 2.hours on 'proctime as 'w)
       .groupBy('w)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'x,
         'y + 1,
@@ -168,14 +164,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long,'string, 'proctime.proctime)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Tumble over 4.hours on 'proctime as 'w)
       .groupBy('w)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'x,
         'y + 1,
@@ -201,14 +196,13 @@ class GroupWindowTableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('int, 'long, 'string, 'proctime.proctime)
 
-    val top3 = new Top3
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[Top3])
 
     // Expression / Scala API
     val resScala = t
       .window(Session withGap 4.hours on 'proctime as 'w)
       .groupBy('w)
-      .flatAggregate(top3('int) as ('x, 'y))
+      .flatAggregate(call("top3", 'int) as ('x, 'y))
       .select(
         'x,
         'y + 1,

@@ -32,91 +32,95 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Tests for the parameter handling of the {@link JarPlanHandler}.
- */
-public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
-	private static JarPlanHandler handler;
+/** Tests for the parameter handling of the {@link JarPlanHandler}. */
+public class JarPlanHandlerParameterTest
+        extends JarHandlerParameterTest<JarPlanRequestBody, JarPlanMessageParameters> {
+    private static JarPlanHandler handler;
 
-	@BeforeClass
-	public static void setup() throws Exception {
-		init();
-		handler = new JarPlanHandler(
-			gatewayRetriever,
-			timeout,
-			responseHeaders,
-			JarPlanGetHeaders.getInstance(),
-			jarDir,
-			new Configuration(),
-			executor,
-			jobGraph -> {
-				LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
-				return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
-			});
-	}
+    @BeforeClass
+    public static void setup() throws Exception {
+        init();
+        handler =
+                new JarPlanHandler(
+                        gatewayRetriever,
+                        timeout,
+                        responseHeaders,
+                        JarPlanGetHeaders.getInstance(),
+                        jarDir,
+                        new Configuration(),
+                        executor,
+                        jobGraph -> {
+                            LAST_SUBMITTED_JOB_GRAPH_REFERENCE.set(jobGraph);
+                            return new JobPlanInfo(JsonPlanGenerator.generatePlan(jobGraph));
+                        });
+    }
 
-	@Override
-	JarPlanMessageParameters getUnresolvedJarMessageParameters() {
-		return handler.getMessageHeaders().getUnresolvedMessageParameters();
-	}
+    @Override
+    JarPlanMessageParameters getUnresolvedJarMessageParameters() {
+        return handler.getMessageHeaders().getUnresolvedMessageParameters();
+    }
 
-	@Override
-	JarPlanMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
-		final JarPlanMessageParameters parameters = getUnresolvedJarMessageParameters();
-		parameters.entryClassQueryParameter.resolve(Collections.singletonList(ParameterProgram.class.getCanonicalName()));
-		parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
-		if (programArgsParType == ProgramArgsParType.String ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgsQueryParameter.resolve(Collections.singletonList(String.join(" ", PROG_ARGS)));
-		}
-		if (programArgsParType == ProgramArgsParType.List ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
-		}
-		return parameters;
-	}
+    @Override
+    JarPlanMessageParameters getJarMessageParameters(ProgramArgsParType programArgsParType) {
+        final JarPlanMessageParameters parameters = getUnresolvedJarMessageParameters();
+        parameters.entryClassQueryParameter.resolve(
+                Collections.singletonList(ParameterProgram.class.getCanonicalName()));
+        parameters.parallelismQueryParameter.resolve(Collections.singletonList(PARALLELISM));
+        if (programArgsParType == ProgramArgsParType.String
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgsQueryParameter.resolve(
+                    Collections.singletonList(String.join(" ", PROG_ARGS)));
+        }
+        if (programArgsParType == ProgramArgsParType.List
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgQueryParameter.resolve(Arrays.asList(PROG_ARGS));
+        }
+        return parameters;
+    }
 
-	@Override
-	JarPlanMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
-		List<String> wrongArgs = Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
-		String argsWrongStr = String.join(" ", wrongArgs);
-		final JarPlanMessageParameters parameters = getUnresolvedJarMessageParameters();
-		parameters.entryClassQueryParameter.resolve(Collections.singletonList("please.dont.run.me"));
-		parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
-		if (programArgsParType == ProgramArgsParType.String || programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
-		}
-		if (programArgsParType == ProgramArgsParType.List ||
-			programArgsParType == ProgramArgsParType.Both) {
-			parameters.programArgQueryParameter.resolve(wrongArgs);
-		}
-		return parameters;
-	}
+    @Override
+    JarPlanMessageParameters getWrongJarMessageParameters(ProgramArgsParType programArgsParType) {
+        List<String> wrongArgs =
+                Arrays.stream(PROG_ARGS).map(a -> a + "wrong").collect(Collectors.toList());
+        String argsWrongStr = String.join(" ", wrongArgs);
+        final JarPlanMessageParameters parameters = getUnresolvedJarMessageParameters();
+        parameters.entryClassQueryParameter.resolve(
+                Collections.singletonList("please.dont.run.me"));
+        parameters.parallelismQueryParameter.resolve(Collections.singletonList(64));
+        if (programArgsParType == ProgramArgsParType.String
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgsQueryParameter.resolve(Collections.singletonList(argsWrongStr));
+        }
+        if (programArgsParType == ProgramArgsParType.List
+                || programArgsParType == ProgramArgsParType.Both) {
+            parameters.programArgQueryParameter.resolve(wrongArgs);
+        }
+        return parameters;
+    }
 
-	@Override
-	JarPlanRequestBody getDefaultJarRequestBody() {
-		return new JarPlanRequestBody();
-	}
+    @Override
+    JarPlanRequestBody getDefaultJarRequestBody() {
+        return new JarPlanRequestBody();
+    }
 
-	@Override
-	JarPlanRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
-		return new JarPlanRequestBody(
-			ParameterProgram.class.getCanonicalName(),
-			getProgramArgsString(programArgsParType),
-			getProgramArgsList(programArgsParType),
-			PARALLELISM,
-			null);
-	}
+    @Override
+    JarPlanRequestBody getJarRequestBody(ProgramArgsParType programArgsParType) {
+        return new JarPlanRequestBody(
+                ParameterProgram.class.getCanonicalName(),
+                getProgramArgsString(programArgsParType),
+                getProgramArgsList(programArgsParType),
+                PARALLELISM,
+                null);
+    }
 
-	@Override
-	JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-		return new JarPlanRequestBody(null, null, null, null, jobId);
-	}
+    @Override
+    JarPlanRequestBody getJarRequestBodyWithJobId(JobID jobId) {
+        return new JarPlanRequestBody(null, null, null, null, jobId);
+    }
 
-	@Override
-	void handleRequest(HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request)
-		throws Exception {
-		handler.handleRequest(request, restfulGateway).get();
-	}
+    @Override
+    void handleRequest(HandlerRequest<JarPlanRequestBody, JarPlanMessageParameters> request)
+            throws Exception {
+        handler.handleRequest(request, restfulGateway).get();
+    }
 }
-

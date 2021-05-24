@@ -26,25 +26,24 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.GZIPInputStream;
 
-/**
- * Factory for input streams that decompress the GZIP compression format.
- */
+/** Factory for input streams that decompress the GZIP compression format. */
 @Internal
 public class GzipInflaterInputStreamFactory implements InflaterInputStreamFactory<GZIPInputStream> {
 
-	private static final GzipInflaterInputStreamFactory INSTANCE = new GzipInflaterInputStreamFactory();
+    private static final GzipInflaterInputStreamFactory INSTANCE =
+            new GzipInflaterInputStreamFactory();
 
-	public static GzipInflaterInputStreamFactory getInstance() {
-		return INSTANCE;
-	}
+    public static GzipInflaterInputStreamFactory getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public GZIPInputStream create(InputStream in) throws IOException {
-		return new GZIPInputStream(in);
-	}
+    @Override
+    public GZIPInputStream create(InputStream in) throws IOException {
+        return new GZIPInputStream(in);
+    }
 
-	@Override
-	public Collection<String> getCommonFileExtensions() {
-		return Arrays.asList("gz", "gzip");
-	}
+    @Override
+    public Collection<String> getCommonFileExtensions() {
+        return Arrays.asList("gz", "gzip");
+    }
 }

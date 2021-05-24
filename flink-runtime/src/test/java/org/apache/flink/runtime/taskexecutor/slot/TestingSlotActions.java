@@ -26,29 +26,27 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * {@link SlotActions} implementation for testing purposes.
- */
+/** {@link SlotActions} implementation for testing purposes. */
 public class TestingSlotActions implements SlotActions {
 
-	@Nonnull
-	private final Consumer<AllocationID> freeSlotConsumer;
+    @Nonnull private final Consumer<AllocationID> freeSlotConsumer;
 
-	@Nonnull
-	private final BiConsumer<AllocationID, UUID> timeoutSlotConsumer;
+    @Nonnull private final BiConsumer<AllocationID, UUID> timeoutSlotConsumer;
 
-	public TestingSlotActions(@Nonnull Consumer<AllocationID> freeSlotConsumer, @Nonnull BiConsumer<AllocationID, UUID> timeoutSlotConsumer) {
-		this.freeSlotConsumer = freeSlotConsumer;
-		this.timeoutSlotConsumer = timeoutSlotConsumer;
-	}
+    public TestingSlotActions(
+            @Nonnull Consumer<AllocationID> freeSlotConsumer,
+            @Nonnull BiConsumer<AllocationID, UUID> timeoutSlotConsumer) {
+        this.freeSlotConsumer = freeSlotConsumer;
+        this.timeoutSlotConsumer = timeoutSlotConsumer;
+    }
 
-	@Override
-	public void freeSlot(AllocationID allocationId) {
-		freeSlotConsumer.accept(allocationId);
-	}
+    @Override
+    public void freeSlot(AllocationID allocationId) {
+        freeSlotConsumer.accept(allocationId);
+    }
 
-	@Override
-	public void timeoutSlot(AllocationID allocationId, UUID ticket) {
-		timeoutSlotConsumer.accept(allocationId, ticket);
-	}
+    @Override
+    public void timeoutSlot(AllocationID allocationId, UUID ticket) {
+        timeoutSlotConsumer.accept(allocationId, ticket);
+    }
 }

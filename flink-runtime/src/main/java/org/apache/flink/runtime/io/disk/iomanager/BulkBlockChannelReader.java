@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.io.disk.iomanager;
 
-import java.util.List;
-
 import org.apache.flink.core.memory.MemorySegment;
 
-/**
- *
- */
+import java.util.List;
+
+/** */
 public interface BulkBlockChannelReader extends FileIOChannel {
-	
-	List<MemorySegment> getFullSegments();
+
+    List<MemorySegment> getFullSegments();
 }

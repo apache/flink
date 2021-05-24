@@ -27,56 +27,53 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link SingletonEdgeGraph}.
- */
+/** Tests for {@link SingletonEdgeGraph}. */
 public class SingletonEdgeGraphTest extends GraphGeneratorTestBase {
 
-	@Test
-	public void testGraph() throws Exception {
-		int vertexPairCount = 5;
+    @Test
+    public void testGraph() throws Exception {
+        int vertexPairCount = 5;
 
-		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new SingletonEdgeGraph(env, vertexPairCount).generate();
 
-		String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
-		String edges = "0,1; 1,0; 2,3; 3,2; 4,5; 5,4; 6,7; 7,6; 8,9; 9,8";
+        String vertices = "0; 1; 2; 3; 4; 5; 6; 7; 8; 9";
+        String edges = "0,1; 1,0; 2,3; 3,2; 4,5; 5,4; 6,7; 7,6; 8,9; 9,8";
 
-		TestUtils.compareGraph(graph, vertices, edges);
-	}
+        TestUtils.compareGraph(graph, vertices, edges);
+    }
 
-	@Test
-	public void testGraphMetrics() throws Exception {
-		int vertexPairCount = 10;
+    @Test
+    public void testGraphMetrics() throws Exception {
+        int vertexPairCount = 10;
 
-		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new SingletonEdgeGraph(env, vertexPairCount).generate();
 
-		assertEquals(2 * vertexPairCount, graph.numberOfVertices());
-		assertEquals(2 * vertexPairCount, graph.numberOfEdges());
+        assertEquals(2 * vertexPairCount, graph.numberOfVertices());
+        assertEquals(2 * vertexPairCount, graph.numberOfEdges());
 
-		long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
-		long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
-		long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
-		long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
+        long minInDegree = graph.inDegrees().min(1).collect().get(0).f1.getValue();
+        long minOutDegree = graph.outDegrees().min(1).collect().get(0).f1.getValue();
+        long maxInDegree = graph.inDegrees().max(1).collect().get(0).f1.getValue();
+        long maxOutDegree = graph.outDegrees().max(1).collect().get(0).f1.getValue();
 
-		assertEquals(1, minInDegree);
-		assertEquals(1, minOutDegree);
-		assertEquals(1, maxInDegree);
-		assertEquals(1, maxOutDegree);
-	}
+        assertEquals(1, minInDegree);
+        assertEquals(1, minOutDegree);
+        assertEquals(1, maxInDegree);
+        assertEquals(1, maxOutDegree);
+    }
 
-	@Test
-	public void testParallelism() throws Exception {
-		int parallelism = 2;
+    @Test
+    public void testParallelism() throws Exception {
+        int parallelism = 2;
 
-		Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, 10)
-			.setParallelism(parallelism)
-			.generate();
+        Graph<LongValue, NullValue, NullValue> graph =
+                new SingletonEdgeGraph(env, 10).setParallelism(parallelism).generate();
 
-		graph.getVertices().output(new DiscardingOutputFormat<>());
-		graph.getEdges().output(new DiscardingOutputFormat<>());
+        graph.getVertices().output(new DiscardingOutputFormat<>());
+        graph.getEdges().output(new DiscardingOutputFormat<>());
 
-		TestUtils.verifyParallelism(env, parallelism);
-	}
+        TestUtils.verifyParallelism(env, parallelism);
+    }
 }

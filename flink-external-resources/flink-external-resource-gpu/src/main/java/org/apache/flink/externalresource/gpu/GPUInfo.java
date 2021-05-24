@@ -26,52 +26,50 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 
-/**
- * Information for GPU resource. Currently only including the GPU index.
- */
+/** Information for GPU resource. Currently only including the GPU index. */
 public class GPUInfo implements ExternalResourceInfo {
 
-	private static final String PROPERTY_KEY_INDEX = "index";
+    private static final String PROPERTY_KEY_INDEX = "index";
 
-	private final String index;
+    private final String index;
 
-	GPUInfo(String index) {
-		Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(index));
-		this.index = index;
-	}
+    GPUInfo(String index) {
+        Preconditions.checkArgument(!StringUtils.isNullOrWhitespaceOnly(index));
+        this.index = index;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("GPU Device(%s)", index);
-	}
+    @Override
+    public String toString() {
+        return String.format("GPU Device(%s)", index);
+    }
 
-	@Override
-	public int hashCode() {
-		return index.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return index.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj instanceof GPUInfo) {
-			final GPUInfo other = (GPUInfo) obj;
-			return this.index.equals(other.index);
-		}
-		return false;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj instanceof GPUInfo) {
+            final GPUInfo other = (GPUInfo) obj;
+            return this.index.equals(other.index);
+        }
+        return false;
+    }
 
-	@Override
-	public Optional<String> getProperty(String key) {
-		if (key.equals(PROPERTY_KEY_INDEX)) {
-			return Optional.of(index);
-		} else {
-			return Optional.empty();
-		}
-	}
+    @Override
+    public Optional<String> getProperty(String key) {
+        if (key.equals(PROPERTY_KEY_INDEX)) {
+            return Optional.of(index);
+        } else {
+            return Optional.empty();
+        }
+    }
 
-	@Override
-	public Collection<String> getKeys() {
-		return Collections.singleton(PROPERTY_KEY_INDEX);
-	}
+    @Override
+    public Collection<String> getKeys() {
+        return Collections.singleton(PROPERTY_KEY_INDEX);
+    }
 }

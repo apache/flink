@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.TableColumn.ComputedColumn
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
@@ -28,12 +29,12 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, Fl
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampKind, TimestampType}
 
 import org.apache.calcite.plan.{RelOptSchema, RelOptTable}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.flink.table.types.logical.{TimestampKind, TimestampType}
 
 import java.util.{List => JList}
 
@@ -63,8 +64,12 @@ class LegacyCatalogSourceTable[T](
   lazy val columnExprs: Map[String, String] = {
     catalogTable.getSchema
       .getTableColumns
-      .filter(column => column.isGenerated)
-      .map(column => (column.getName, column.getExpr.get()))
+      .flatMap {
+        case computedColumn: ComputedColumn =>
+          Some((computedColumn.getName, computedColumn.getExpression))
+        case _ =>
+          None
+      }
       .toMap
   }
 
@@ -130,7 +135,7 @@ class LegacyCatalogSourceTable[T](
             s"`$name`"
           }
         }.toArray
-      val rexNodes = toRexFactory.create(newRelTable.getRowType).convertToRexNodes(fieldExprs)
+      val rexNodes = toRexFactory.create(newRelTable.getRowType, null).convertToRexNodes(fieldExprs)
       relBuilder.projectNamed(rexNodes.toList, fieldNames, true)
     }
 
@@ -153,7 +158,7 @@ class LegacyCatalogSourceTable[T](
       }
       val rowtimeIndex = fieldNames.indexOf(rowtime)
       val watermarkRexNode = toRexFactory
-        .create(actualRowType)
+        .create(actualRowType, null)
         .convertToRexNode(watermarkSpec.get.getWatermarkExpr)
       relBuilder.watermark(rowtimeIndex, watermarkRexNode)
     }
@@ -171,14 +176,12 @@ class LegacyCatalogSourceTable[T](
       catalogTable.copy(
         FlinkHints.mergeTableOptions(
           hintedOptions,
-          catalogTable.getProperties))
+          catalogTable.getOptions))
     } else {
       catalogTable
     }
     val context = new TableSourceFactoryContextImpl(
-      schemaTable.getTableIdentifier,
-      tableToFind,
-      conf)
+      schemaTable.getTableIdentifier, tableToFind, conf, schemaTable.isTemporary)
     val tableSource = if (tableFactoryOpt.isPresent) {
       tableFactoryOpt.get() match {
         case tableSourceFactory: TableSourceFactory[_] =>
@@ -231,16 +234,25 @@ class LegacyCatalogSourceTable[T](
       val fieldNames = logicalRowType.getFieldNames
       val fieldTypes = logicalRowType.getFields.map { f =>
         if (FlinkTypeFactory.isTimeIndicatorType(f.getType)) {
-          val timeIndicatorType = f.getType.asInstanceOf[TimestampType]
-          new TimestampType(
-            timeIndicatorType.isNullable,
-            TimestampKind.REGULAR,
-            timeIndicatorType.getPrecision)
+          f.getType match {
+            case ts: TimestampType =>
+              new TimestampType(
+                ts.isNullable,
+                TimestampKind.REGULAR,
+                ts.getPrecision)
+            case ltz: LocalZonedTimestampType =>
+              new LocalZonedTimestampType(
+                ltz.isNullable,
+                TimestampKind.REGULAR,
+                ltz.getPrecision)
+            case _ => throw new ValidationException("The supported time indicator type" +
+              " are TIMESTAMP and TIMESTAMP_LTZ, but is " + f.getType + ".")
+           }
         } else {
           f.getType
         }
       }
-      factory.buildRelNodeRowType(fieldNames, fieldTypes)
+      factory.buildRelNodeRowType(fieldNames.asScala, fieldTypes)
     }
   }
 }

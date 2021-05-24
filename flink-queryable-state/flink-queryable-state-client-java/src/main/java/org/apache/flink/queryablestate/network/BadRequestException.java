@@ -21,15 +21,13 @@ package org.apache.flink.queryablestate.network;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Base class for exceptions thrown during querying Flink's managed state.
- */
+/** Base class for exceptions thrown during querying Flink's managed state. */
 @Internal
 public class BadRequestException extends Exception {
 
-	private static final long serialVersionUID = 3458743952407632903L;
+    private static final long serialVersionUID = 3458743952407632903L;
 
-	public BadRequestException(String serverName, String message) {
-		super(Preconditions.checkNotNull(serverName) + " : " + message);
-	}
+    public BadRequestException(String serverName, String message) {
+        super(Preconditions.checkNotNull(serverName) + " : " + message);
+    }
 }

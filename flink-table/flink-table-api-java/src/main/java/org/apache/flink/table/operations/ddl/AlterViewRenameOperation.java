@@ -20,25 +20,25 @@ package org.apache.flink.table.operations.ddl;
 
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
-/**
- * Operation to describe a ALTER VIEW .. RENAME to .. statement.
- */
+/** Operation to describe a ALTER VIEW .. RENAME to .. statement. */
 public class AlterViewRenameOperation extends AlterViewOperation {
 
-	private final ObjectIdentifier newViewIdentifier;
+    private final ObjectIdentifier newViewIdentifier;
 
-	public AlterViewRenameOperation(ObjectIdentifier viewIdentifier, ObjectIdentifier newViewIdentifier) {
-		super(viewIdentifier);
-		this.newViewIdentifier = newViewIdentifier;
-	}
+    public AlterViewRenameOperation(
+            ObjectIdentifier viewIdentifier, ObjectIdentifier newViewIdentifier) {
+        super(viewIdentifier);
+        this.newViewIdentifier = newViewIdentifier;
+    }
 
-	public ObjectIdentifier getNewViewIdentifier() {
-		return newViewIdentifier;
-	}
+    public ObjectIdentifier getNewViewIdentifier() {
+        return newViewIdentifier;
+    }
 
-	@Override
-	public String asSummaryString() {
-		return String.format("ALTER VIEW %s RENAME TO %s",
-				viewIdentifier.asSummaryString(), newViewIdentifier.asSummaryString());
-	}
+    @Override
+    public String asSummaryString() {
+        return String.format(
+                "ALTER VIEW %s RENAME TO %s",
+                viewIdentifier.asSummaryString(), newViewIdentifier.asSummaryString());
+    }
 }

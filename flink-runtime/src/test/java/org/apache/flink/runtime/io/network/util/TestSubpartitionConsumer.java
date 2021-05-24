@@ -36,101 +36,100 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A test subpartition viewQueue consumer.
  *
- * <p> The behaviour of the consumer is customizable by specifying a callback.
+ * <p>The behaviour of the consumer is customizable by specifying a callback.
  *
  * @see TestConsumerCallback
  */
 @Deprecated
 public class TestSubpartitionConsumer implements Callable<Boolean>, BufferAvailabilityListener {
 
-	private static final int MAX_SLEEP_TIME_MS = 20;
+    private static final int MAX_SLEEP_TIME_MS = 20;
 
-	/** The subpartition viewQueue to consume. */
-	private volatile ResultSubpartitionView subpartitionView;
+    /** The subpartition viewQueue to consume. */
+    private volatile ResultSubpartitionView subpartitionView;
 
-	private BlockingQueue<ResultSubpartitionView> viewQueue = new ArrayBlockingQueue<>(1);
+    private BlockingQueue<ResultSubpartitionView> viewQueue = new ArrayBlockingQueue<>(1);
 
-	/**
-	 * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
-	 * number of milliseconds between returned buffers.
-	 */
-	private final boolean isSlowConsumer;
+    /**
+     * Flag indicating whether the consumer is slow. If true, the consumer will sleep a random
+     * number of milliseconds between returned buffers.
+     */
+    private final boolean isSlowConsumer;
 
-	/** The callback to handle a notifyNonEmpty buffer. */
-	private final TestConsumerCallback callback;
+    /** The callback to handle a notifyNonEmpty buffer. */
+    private final TestConsumerCallback callback;
 
-	/** Random source for sleeps. */
-	private final Random random;
+    /** Random source for sleeps. */
+    private final Random random;
 
-	private final AtomicBoolean dataAvailableNotification = new AtomicBoolean(false);
+    private final AtomicBoolean dataAvailableNotification = new AtomicBoolean(false);
 
-	public TestSubpartitionConsumer(
-		boolean isSlowConsumer,
-		TestConsumerCallback callback) {
+    public TestSubpartitionConsumer(boolean isSlowConsumer, TestConsumerCallback callback) {
 
-		this.isSlowConsumer = isSlowConsumer;
-		this.random = isSlowConsumer ? new Random() : null;
-		this.callback = checkNotNull(callback);
-	}
+        this.isSlowConsumer = isSlowConsumer;
+        this.random = isSlowConsumer ? new Random() : null;
+        this.callback = checkNotNull(callback);
+    }
 
-	public void setSubpartitionView(ResultSubpartitionView subpartitionView) {
-		this.subpartitionView = checkNotNull(subpartitionView);
-	}
+    public void setSubpartitionView(ResultSubpartitionView subpartitionView) {
+        this.subpartitionView = checkNotNull(subpartitionView);
+    }
 
-	@Override
-	public Boolean call() throws Exception {
-		try {
-			while (true) {
-				if (Thread.interrupted()) {
-					throw new InterruptedException();
-				}
+    @Override
+    public Boolean call() throws Exception {
+        try {
+            while (true) {
+                if (Thread.interrupted()) {
+                    throw new InterruptedException();
+                }
 
-				synchronized (dataAvailableNotification) {
-					while (!dataAvailableNotification.getAndSet(false)) {
-						dataAvailableNotification.wait();
-					}
-				}
+                synchronized (dataAvailableNotification) {
+                    while (!dataAvailableNotification.getAndSet(false)) {
+                        dataAvailableNotification.wait();
+                    }
+                }
 
-				final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer();
+                final BufferAndBacklog bufferAndBacklog = subpartitionView.getNextBuffer();
 
-				if (isSlowConsumer) {
-					Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
-				}
+                if (isSlowConsumer) {
+                    Thread.sleep(random.nextInt(MAX_SLEEP_TIME_MS + 1));
+                }
 
-				if (bufferAndBacklog != null) {
-					if (bufferAndBacklog.isDataAvailable()) {
-						dataAvailableNotification.set(true);
-					}
-					if (bufferAndBacklog.buffer().isBuffer()) {
-						callback.onBuffer(bufferAndBacklog.buffer());
-					} else {
-						final AbstractEvent event = EventSerializer.fromBuffer(bufferAndBacklog.buffer(),
-							getClass().getClassLoader());
+                if (bufferAndBacklog != null) {
+                    if (bufferAndBacklog.isDataAvailable()) {
+                        dataAvailableNotification.set(true);
+                    }
+                    if (bufferAndBacklog.buffer().isBuffer()) {
+                        callback.onBuffer(bufferAndBacklog.buffer());
+                    } else {
+                        final AbstractEvent event =
+                                EventSerializer.fromBuffer(
+                                        bufferAndBacklog.buffer(), getClass().getClassLoader());
 
-						callback.onEvent(event);
+                        callback.onEvent(event);
 
-						bufferAndBacklog.buffer().recycleBuffer();
+                        bufferAndBacklog.buffer().recycleBuffer();
 
-						if (event.getClass() == EndOfPartitionEvent.class) {
-							subpartitionView.releaseAllResources();
+                        if (event.getClass() == EndOfPartitionEvent.class) {
+                            subpartitionView.releaseAllResources();
 
-							return true;
-						}
-					}
-				} else if (subpartitionView.isReleased()) {
-					return true;
-				}
-			}
-		} finally {
-			subpartitionView.releaseAllResources();
-		}
-	}
+                            return true;
+                        }
+                    }
+                } else if (subpartitionView.isReleased()) {
+                    return true;
+                }
+            }
+        } finally {
+            subpartitionView.releaseAllResources();
+        }
+    }
 
-	@Override
-	public void notifyDataAvailable() {
-		synchronized (dataAvailableNotification) {
-			dataAvailableNotification.set(true);
-			dataAvailableNotification.notifyAll();
-		}
-	}
+    @Override
+    public void notifyDataAvailable() {
+        synchronized (dataAvailableNotification) {
+            dataAvailableNotification.set(true);
+            dataAvailableNotification.notifyAll();
+        }
+    }
 }

@@ -25,34 +25,35 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Factory of dummy FileSystem. See documentation of {@link DummyFSFileSystem}.
- */
+/** Factory of dummy FileSystem. See documentation of {@link DummyFSFileSystem}. */
 public class DummyFSFactory implements FileSystemFactory {
 
-	private final FileSystem fileSystem = new DummyFSFileSystem(getData());
+    private final FileSystem fileSystem = new DummyFSFileSystem(getData());
 
-	@Override
-	public String getScheme() {
-		return DummyFSFileSystem.FS_URI.getScheme();
-	}
+    @Override
+    public String getScheme() {
+        return DummyFSFileSystem.FS_URI.getScheme();
+    }
 
-	@Override
-	public FileSystem create(URI fsUri) {
-		String anotherFileSystemClassName = "org.apache.flink.fs.anotherdummy.AnotherDummyFSFileSystem";
-		try {
-			this.getClassLoader().loadClass(anotherFileSystemClassName);
-			throw new RuntimeException(String.format("Class %s should not be visible for classloader of %s",
-				anotherFileSystemClassName, this.getClass().getCanonicalName()));
-		} catch (ClassNotFoundException e) {
-			// Expected exception.
-		}
-		return fileSystem;
-	}
+    @Override
+    public FileSystem create(URI fsUri) {
+        String anotherFileSystemClassName =
+                "org.apache.flink.fs.anotherdummy.AnotherDummyFSFileSystem";
+        try {
+            this.getClassLoader().loadClass(anotherFileSystemClassName);
+            throw new RuntimeException(
+                    String.format(
+                            "Class %s should not be visible for classloader of %s",
+                            anotherFileSystemClassName, this.getClass().getCanonicalName()));
+        } catch (ClassNotFoundException e) {
+            // Expected exception.
+        }
+        return fileSystem;
+    }
 
-	private static Map<String, String> getData() {
-		Map<String, String> data = new HashMap<>();
-		data.put("/words", "Hello World how are you, my dear dear world\n");
-		return data;
-	}
+    private static Map<String, String> getData() {
+        Map<String, String> data = new HashMap<>();
+        data.put("/words", "Hello World how are you, my dear dear world\n");
+        return data;
+    }
 }

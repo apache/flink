@@ -21,8 +21,10 @@ import {
   CheckPointCompletedStatisticsInterface,
   CheckPointDetailInterface,
   JobDetailCorrectInterface,
-  VerticesItemInterface
+  VerticesItemInterface,
+  CheckPointConfigInterface
 } from 'interfaces';
+import { forkJoin } from 'rxjs';
 import { first } from 'rxjs/operators';
 import { JobService } from 'services';
 
@@ -35,6 +37,7 @@ import { JobService } from 'services';
 export class JobCheckpointsDetailComponent implements OnInit {
   innerCheckPoint: CheckPointCompletedStatisticsInterface;
   jobDetail: JobDetailCorrectInterface;
+  checkPointType: string;
 
   @Input()
   set checkPoint(value) {
@@ -47,6 +50,7 @@ export class JobCheckpointsDetailComponent implements OnInit {
   }
 
   checkPointDetail: CheckPointDetailInterface;
+  checkPointConfig: CheckPointConfigInterface;
   listOfVertex: VerticesItemInterface[] = [];
   isLoading = true;
 
@@ -57,9 +61,26 @@ export class JobCheckpointsDetailComponent implements OnInit {
   refresh() {
     this.isLoading = true;
     if (this.jobDetail && this.jobDetail.jid) {
-      this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id).subscribe(
-        data => {
-          this.checkPointDetail = data;
+      forkJoin([
+        this.jobService.loadCheckpointConfig(this.jobDetail.jid),
+        this.jobService.loadCheckpointDetails(this.jobDetail.jid, this.checkPoint.id)
+      ]).subscribe(
+        ([config, detail]) => {
+          this.checkPointConfig = config;
+          this.checkPointDetail = detail;
+          if (this.checkPointDetail.checkpoint_type === 'CHECKPOINT') {
+            if (this.checkPointConfig.unaligned_checkpoints) {
+              this.checkPointType = 'unaligned checkpoint';
+            } else {
+              this.checkPointType = 'aligned checkpoint';
+            }
+          } else if (this.checkPointDetail.checkpoint_type === 'SYNC_SAVEPOINT') {
+            this.checkPointType = 'savepoint on cancel';
+          } else if (this.checkPointDetail.checkpoint_type === 'SAVEPOINT') {
+            this.checkPointType = 'savepoint';
+          } else {
+            this.checkPointType = '-';
+          }
           this.isLoading = false;
           this.cdr.markForCheck();
         },

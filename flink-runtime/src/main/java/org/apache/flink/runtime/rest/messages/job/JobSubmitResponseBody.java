@@ -26,36 +26,34 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Objects;
 
 /**
- * Response to the submission of a job, containing a URL from which the status of the job can be retrieved from.
+ * Response to the submission of a job, containing a URL from which the status of the job can be
+ * retrieved from.
  */
 public final class JobSubmitResponseBody implements ResponseBody {
 
-	public static final String FIELD_NAME_JOB_URL = "jobUrl";
+    public static final String FIELD_NAME_JOB_URL = "jobUrl";
 
-	/**
-	 * The URL under which the job status can monitored.
-	 */
-	@JsonProperty(FIELD_NAME_JOB_URL)
-	public final String jobUrl;
+    /** The URL under which the job status can monitored. */
+    @JsonProperty(FIELD_NAME_JOB_URL)
+    public final String jobUrl;
 
-	@JsonCreator
-	public JobSubmitResponseBody(
-		@JsonProperty(FIELD_NAME_JOB_URL) String jobUrl) {
+    @JsonCreator
+    public JobSubmitResponseBody(@JsonProperty(FIELD_NAME_JOB_URL) String jobUrl) {
 
-		this.jobUrl = jobUrl;
-	}
+        this.jobUrl = jobUrl;
+    }
 
-	@Override
-	public int hashCode() {
-		return 73 * jobUrl.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return 73 * jobUrl.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object object) {
-		if (object instanceof JobSubmitResponseBody) {
-			JobSubmitResponseBody other = (JobSubmitResponseBody) object;
-			return Objects.equals(this.jobUrl, other.jobUrl);
-		}
-		return false;
-	}
+    @Override
+    public boolean equals(Object object) {
+        if (object instanceof JobSubmitResponseBody) {
+            JobSubmitResponseBody other = (JobSubmitResponseBody) object;
+            return Objects.equals(this.jobUrl, other.jobUrl);
+        }
+        return false;
+    }
 }

@@ -25,40 +25,40 @@ import org.apache.flink.util.Preconditions;
 import akka.actor.ActorSystem;
 import org.junit.rules.ExternalResource;
 
-/**
- * External resource which starts an {@link akka.actor.ActorSystem}.
- */
+/** External resource which starts an {@link akka.actor.ActorSystem}. */
 public class ActorSystemResource extends ExternalResource {
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private ActorSystem actorSystem;
+    private ActorSystem actorSystem;
 
-	private ActorSystemResource(Configuration configuration) {
-		this.configuration = configuration;
-	}
+    private ActorSystemResource(Configuration configuration) {
+        this.configuration = configuration;
+    }
 
-	@Override
-	protected void before() throws Throwable {
-		Preconditions.checkState(actorSystem == null, "ActorSystem must not be initialized when calling before.");
-		actorSystem = AkkaUtils.createLocalActorSystem(configuration);
-	}
+    @Override
+    protected void before() throws Throwable {
+        Preconditions.checkState(
+                actorSystem == null, "ActorSystem must not be initialized when calling before.");
+        actorSystem = AkkaUtils.createLocalActorSystem(configuration);
+    }
 
-	@Override
-	protected void after() {
-		Preconditions.checkState(actorSystem != null, "ActorSystem must be initialized when calling after.");
-		AkkaUtils.terminateActorSystem(actorSystem).join();
-	}
+    @Override
+    protected void after() {
+        Preconditions.checkState(
+                actorSystem != null, "ActorSystem must be initialized when calling after.");
+        AkkaUtils.terminateActorSystem(actorSystem).join();
+    }
 
-	public ActorSystem getActorSystem() {
-		return actorSystem;
-	}
+    public ActorSystem getActorSystem() {
+        return actorSystem;
+    }
 
-	public static ActorSystemResource defaultConfiguration() {
-		return new ActorSystemResource(new Configuration());
-	}
+    public static ActorSystemResource defaultConfiguration() {
+        return new ActorSystemResource(new Configuration());
+    }
 
-	public static ActorSystemResource withConfiguration(Configuration configuration) {
-		return new ActorSystemResource(configuration);
-	}
+    public static ActorSystemResource withConfiguration(Configuration configuration) {
+        return new ActorSystemResource(configuration);
+    }
 }

@@ -27,38 +27,39 @@ import java.util.Random;
 
 public class IntValueComparatorTest extends ComparatorTestBase<IntValue> {
 
-	@Override
-	protected TypeComparator<IntValue> createComparator(boolean ascending) {
-		return new IntValueComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<IntValue> createComparator(boolean ascending) {
+        return new IntValueComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<IntValue> createSerializer() {
-		return new IntValueSerializer();
-	}
+    @Override
+    protected TypeSerializer<IntValue> createSerializer() {
+        return new IntValueSerializer();
+    }
 
-	@Override
-	protected IntValue[] getSortedTestData() {
+    @Override
+    protected IntValue[] getSortedTestData() {
 
-		Random rnd = new Random(874597969123412338L);
-		int rndInt = rnd.nextInt();
-		if (rndInt < 0) {
-			rndInt = -rndInt;
-		}
-		if (rndInt == Integer.MAX_VALUE) {
-			rndInt -= 3;
-		}
-		if (rndInt <= 2) {
-			rndInt += 3;
-		}
-		return new IntValue[]{
-			new IntValue(Integer.MIN_VALUE),
-			new IntValue(-rndInt),
-			new IntValue(-1),
-			new IntValue(0),
-			new IntValue(1),
-			new IntValue(2),
-			new IntValue(rndInt),
-			new IntValue(Integer.MAX_VALUE)};
-	}
+        Random rnd = new Random(874597969123412338L);
+        int rndInt = rnd.nextInt();
+        if (rndInt < 0) {
+            rndInt = -rndInt;
+        }
+        if (rndInt == Integer.MAX_VALUE) {
+            rndInt -= 3;
+        }
+        if (rndInt <= 2) {
+            rndInt += 3;
+        }
+        return new IntValue[] {
+            new IntValue(Integer.MIN_VALUE),
+            new IntValue(-rndInt),
+            new IntValue(-1),
+            new IntValue(0),
+            new IntValue(1),
+            new IntValue(2),
+            new IntValue(rndInt),
+            new IntValue(Integer.MAX_VALUE)
+        };
+    }
 }

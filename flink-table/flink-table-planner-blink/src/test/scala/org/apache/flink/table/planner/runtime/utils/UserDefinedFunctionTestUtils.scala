@@ -25,8 +25,10 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.types.Row
 
 import com.google.common.base.Charsets
@@ -76,10 +78,6 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): CountAccumulator = {
       new CountAccumulator
     }
-
-    def resetAccumulator(acc: CountAccumulator): Unit = {
-      acc.f0 = 0L
-    }
   }
 
   /** The initial accumulator for count aggregate function */
@@ -116,10 +114,6 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): CountAccumulator = {
       new CountAccumulator
     }
-
-    def resetAccumulator(acc: CountAccumulator): Unit = {
-      acc.f0 = 0L
-    }
   }
 
 
@@ -139,13 +133,13 @@ object UserDefinedFunctionTestUtils {
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
   }
 
-  class CountNullNonNull extends AggregateFunction[String, Tuple2[Long, Long]] {
+  class CountNullNonNull extends AggregateFunction[String, Tuple2[JLong, JLong]] {
 
-    override def createAccumulator(): Tuple2[Long, Long] = Tuple2.of(0L, 0L)
+    override def createAccumulator(): Tuple2[JLong, JLong] = Tuple2.of(0L, 0L)
 
-    override def getValue(acc: Tuple2[Long, Long]): String = s"${acc.f0}|${acc.f1}"
+    override def getValue(acc: Tuple2[JLong, JLong]): String = s"${acc.f0}|${acc.f1}"
 
-    def accumulate(acc: Tuple2[Long, Long], v: String): Unit = {
+    def accumulate(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 += 1
       } else {
@@ -153,7 +147,7 @@ object UserDefinedFunctionTestUtils {
       }
     }
 
-    def retract(acc: Tuple2[Long, Long], v: String): Unit = {
+    def retract(acc: Tuple2[JLong, JLong], v: String): Unit = {
       if (v == null) {
         acc.f1 -= 1
       } else {
@@ -194,6 +188,11 @@ object UserDefinedFunctionTestUtils {
   @SerialVersionUID(1L)
   object StringFunction extends ScalarFunction {
     def eval(s: String): String = s
+  }
+
+  @SerialVersionUID(1L)
+  object AnyToStringFunction extends ScalarFunction {
+    def eval(@DataTypeHint(inputGroup = InputGroup.ANY) any: AnyRef): String = any.toString
   }
 
   @SerialVersionUID(1L)
@@ -297,11 +296,11 @@ object UserDefinedFunctionTestUtils {
 
   @SerialVersionUID(1L)
   object ToCompositeObj extends ScalarFunction {
-    def eval(id: Int, name: String, age: Int): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt): CompositeObj = {
       CompositeObj(id, name, age, "0.0")
     }
 
-    def eval(id: Int, name: String, age: Int, point: String): CompositeObj = {
+    def eval(id: JInt, name: String, age: JInt, point: String): CompositeObj = {
       CompositeObj(id, name, age, point)
     }
   }
@@ -470,9 +469,5 @@ class GenericAggregateFunction extends AggregateFunction[java.lang.Integer, Rand
 
   def retract(acc: RandomClass, value: Int): Unit = {
     acc.i = value
-  }
-
-  def resetAccumulator(acc: RandomClass): Unit = {
-    acc.i = 0
   }
 }

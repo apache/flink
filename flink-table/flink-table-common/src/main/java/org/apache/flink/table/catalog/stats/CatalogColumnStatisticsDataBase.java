@@ -21,39 +21,34 @@ package org.apache.flink.table.catalog.stats;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Column statistics value base class.
- */
+/** Column statistics value base class. */
 public abstract class CatalogColumnStatisticsDataBase {
-	/**
-	 * number of null values.
-	 */
-	private final Long nullCount;
+    /** number of null values. */
+    private final Long nullCount;
 
-	private final Map<String, String> properties;
+    private final Map<String, String> properties;
 
-	public CatalogColumnStatisticsDataBase(Long nullCount) {
-		this(nullCount, new HashMap<>());
-	}
+    public CatalogColumnStatisticsDataBase(Long nullCount) {
+        this(nullCount, new HashMap<>());
+    }
 
-	public CatalogColumnStatisticsDataBase(Long nullCount, Map<String, String> properties) {
-		this.nullCount = nullCount;
-		this.properties = properties;
-	}
+    public CatalogColumnStatisticsDataBase(Long nullCount, Map<String, String> properties) {
+        this.nullCount = nullCount;
+        this.properties = properties;
+    }
 
-	public Long getNullCount() {
-		return nullCount;
-	}
+    public Long getNullCount() {
+        return nullCount;
+    }
 
-	public Map<String, String> getProperties() {
-		return this.properties;
-	}
+    public Map<String, String> getProperties() {
+        return this.properties;
+    }
 
-	/**
-	 * Create a deep copy of "this" instance.
-	 *
-	 * @return a deep copy
-	 */
-	public abstract CatalogColumnStatisticsDataBase copy();
-
+    /**
+     * Create a deep copy of "this" instance.
+     *
+     * @return a deep copy
+     */
+    public abstract CatalogColumnStatisticsDataBase copy();
 }

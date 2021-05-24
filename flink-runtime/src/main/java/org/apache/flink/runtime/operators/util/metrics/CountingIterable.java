@@ -23,16 +23,16 @@ import java.util.Iterator;
 
 public class CountingIterable<IN> implements Iterable<IN> {
 
-	private final Iterable<IN> iterable;
-	private final Counter numRecordsIn;
+    private final Iterable<IN> iterable;
+    private final Counter numRecordsIn;
 
-	public CountingIterable(Iterable<IN> iterable, Counter numRecordsIn) {
-		this.iterable = iterable;
-		this.numRecordsIn = numRecordsIn;
-	}
+    public CountingIterable(Iterable<IN> iterable, Counter numRecordsIn) {
+        this.iterable = iterable;
+        this.numRecordsIn = numRecordsIn;
+    }
 
-	@Override
-	public Iterator<IN> iterator() {
-		return new CountingIterator<>(this.iterable.iterator(), this.numRecordsIn);
-	}
+    @Override
+    public Iterator<IN> iterator() {
+        return new CountingIterator<>(this.iterable.iterator(), this.numRecordsIn);
+    }
 }

@@ -21,22 +21,21 @@ package org.apache.flink.runtime.util;
 import java.util.List;
 
 public class StartupUtils {
-	
-	/**
-	 * A utility method to analyze the exceptions and collect the clauses
-	 * 
-	 * @param e  the root exception (Throwable) object
-	 * @param causes  the list of exceptions that caused the root exceptions
-	 * @return  a list of Throwable
-	 */
-	public static List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes) {
-		if (e.getCause() == null) {
-			return causes;
-		} else {
-			causes.add(e.getCause());
-			getExceptionCauses(e.getCause(), causes);
-		}
-		return causes;
-	}
 
+    /**
+     * A utility method to analyze the exceptions and collect the clauses
+     *
+     * @param e the root exception (Throwable) object
+     * @param causes the list of exceptions that caused the root exceptions
+     * @return a list of Throwable
+     */
+    public static List<Throwable> getExceptionCauses(Throwable e, List<Throwable> causes) {
+        if (e.getCause() == null) {
+            return causes;
+        } else {
+            causes.add(e.getCause());
+            getExceptionCauses(e.getCause(), causes);
+        }
+        return causes;
+    }
 }

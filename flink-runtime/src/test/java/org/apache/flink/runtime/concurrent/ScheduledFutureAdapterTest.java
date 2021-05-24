@@ -29,174 +29,170 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Unit tests for {@link ScheduledFutureAdapter}.
- */
+/** Unit tests for {@link ScheduledFutureAdapter}. */
 public class ScheduledFutureAdapterTest extends TestLogger {
 
-	private ScheduledFutureAdapter<Integer> objectUnderTest;
-	private TestFuture innerDelegate;
+    private ScheduledFutureAdapter<Integer> objectUnderTest;
+    private TestFuture innerDelegate;
 
-	@Before
-	public void before() {
-		this.innerDelegate = new TestFuture();
-		this.objectUnderTest = new ScheduledFutureAdapter<>(innerDelegate, 4200000321L, TimeUnit.NANOSECONDS);
-	}
+    @Before
+    public void before() {
+        this.innerDelegate = new TestFuture();
+        this.objectUnderTest =
+                new ScheduledFutureAdapter<>(innerDelegate, 4200000321L, TimeUnit.NANOSECONDS);
+    }
 
-	@Test
-	public void testForwardedMethods() throws Exception {
+    @Test
+    public void testForwardedMethods() throws Exception {
 
-		Assert.assertEquals((Integer) 4711, objectUnderTest.get());
-		Assert.assertEquals(1, innerDelegate.getGetInvocationCount());
+        Assert.assertEquals((Integer) 4711, objectUnderTest.get());
+        Assert.assertEquals(1, innerDelegate.getGetInvocationCount());
 
-		Assert.assertEquals((Integer) 4711, objectUnderTest.get(42L, TimeUnit.SECONDS));
-		Assert.assertEquals(1, innerDelegate.getGetTimeoutInvocationCount());
+        Assert.assertEquals((Integer) 4711, objectUnderTest.get(42L, TimeUnit.SECONDS));
+        Assert.assertEquals(1, innerDelegate.getGetTimeoutInvocationCount());
 
-		Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
-		Assert.assertEquals(1, innerDelegate.getCancelInvocationCount());
+        Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
+        Assert.assertEquals(1, innerDelegate.getCancelInvocationCount());
 
-		innerDelegate.setCancelResult(!innerDelegate.isCancelExpected());
-		Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
-		Assert.assertEquals(2, innerDelegate.getCancelInvocationCount());
+        innerDelegate.setCancelResult(!innerDelegate.isCancelExpected());
+        Assert.assertEquals(innerDelegate.isCancelExpected(), objectUnderTest.cancel(true));
+        Assert.assertEquals(2, innerDelegate.getCancelInvocationCount());
 
-		Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
-		Assert.assertEquals(1, innerDelegate.getIsCancelledInvocationCount());
+        Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
+        Assert.assertEquals(1, innerDelegate.getIsCancelledInvocationCount());
 
-		innerDelegate.setIsCancelledResult(!innerDelegate.isCancelledExpected());
-		Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
-		Assert.assertEquals(2, innerDelegate.getIsCancelledInvocationCount());
+        innerDelegate.setIsCancelledResult(!innerDelegate.isCancelledExpected());
+        Assert.assertEquals(innerDelegate.isCancelledExpected(), objectUnderTest.isCancelled());
+        Assert.assertEquals(2, innerDelegate.getIsCancelledInvocationCount());
 
-		Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
-		Assert.assertEquals(1, innerDelegate.getIsDoneInvocationCount());
+        Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
+        Assert.assertEquals(1, innerDelegate.getIsDoneInvocationCount());
 
-		innerDelegate.setIsDoneExpected(!innerDelegate.isDoneExpected());
-		Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
-		Assert.assertEquals(2, innerDelegate.getIsDoneInvocationCount());
-	}
+        innerDelegate.setIsDoneExpected(!innerDelegate.isDoneExpected());
+        Assert.assertEquals(innerDelegate.isDoneExpected(), objectUnderTest.isDone());
+        Assert.assertEquals(2, innerDelegate.getIsDoneInvocationCount());
+    }
 
-	@Test
-	public void testCompareToEqualsHashCode() {
+    @Test
+    public void testCompareToEqualsHashCode() {
 
-		Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
-		Assert.assertEquals(objectUnderTest, objectUnderTest);
+        Assert.assertEquals(0, objectUnderTest.compareTo(objectUnderTest));
+        Assert.assertEquals(objectUnderTest, objectUnderTest);
 
-		ScheduledFutureAdapter<?> other = getDeepCopyWithAdjustedTime(0L , objectUnderTest.getTieBreakerUid());
+        ScheduledFutureAdapter<?> other =
+                getDeepCopyWithAdjustedTime(0L, objectUnderTest.getTieBreakerUid());
 
-		Assert.assertEquals(0, objectUnderTest.compareTo(other));
-		Assert.assertEquals(0, other.compareTo(objectUnderTest));
-		Assert.assertEquals(objectUnderTest, other);
-		Assert.assertEquals(objectUnderTest.hashCode(), other.hashCode());
+        Assert.assertEquals(0, objectUnderTest.compareTo(other));
+        Assert.assertEquals(0, other.compareTo(objectUnderTest));
+        Assert.assertEquals(objectUnderTest, other);
+        Assert.assertEquals(objectUnderTest.hashCode(), other.hashCode());
 
-		other = getDeepCopyWithAdjustedTime(0L , objectUnderTest.getTieBreakerUid() + 1L);
-		Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
-		Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
-		Assert.assertNotEquals(objectUnderTest, other);
+        other = getDeepCopyWithAdjustedTime(0L, objectUnderTest.getTieBreakerUid() + 1L);
+        Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
+        Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
+        Assert.assertNotEquals(objectUnderTest, other);
 
-		other = getDeepCopyWithAdjustedTime(+1L, objectUnderTest.getTieBreakerUid());
-		Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
-		Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
-		Assert.assertNotEquals(objectUnderTest, other);
+        other = getDeepCopyWithAdjustedTime(+1L, objectUnderTest.getTieBreakerUid());
+        Assert.assertEquals(-1, Integer.signum(objectUnderTest.compareTo(other)));
+        Assert.assertEquals(+1, Integer.signum(other.compareTo(objectUnderTest)));
+        Assert.assertNotEquals(objectUnderTest, other);
 
-		other = getDeepCopyWithAdjustedTime(-1L, objectUnderTest.getTieBreakerUid());
-		Assert.assertEquals(+1, Integer.signum(objectUnderTest.compareTo(other)));
-		Assert.assertEquals(-1, Integer.signum(other.compareTo(objectUnderTest)));
-		Assert.assertNotEquals(objectUnderTest, other);
-	}
+        other = getDeepCopyWithAdjustedTime(-1L, objectUnderTest.getTieBreakerUid());
+        Assert.assertEquals(+1, Integer.signum(objectUnderTest.compareTo(other)));
+        Assert.assertEquals(-1, Integer.signum(other.compareTo(objectUnderTest)));
+        Assert.assertNotEquals(objectUnderTest, other);
+    }
 
-	private ScheduledFutureAdapter<Integer> getDeepCopyWithAdjustedTime(long nanoAdjust, long uid) {
-		return new ScheduledFutureAdapter<>(
-			innerDelegate,
-			objectUnderTest.getScheduleTimeNanos() + nanoAdjust,
-			uid);
-	}
+    private ScheduledFutureAdapter<Integer> getDeepCopyWithAdjustedTime(long nanoAdjust, long uid) {
+        return new ScheduledFutureAdapter<>(
+                innerDelegate, objectUnderTest.getScheduleTimeNanos() + nanoAdjust, uid);
+    }
 
-	/**
-	 * Implementation of {@link Future} for the unit tests in this class.
-	 */
-	static class TestFuture implements Future<Integer> {
+    /** Implementation of {@link Future} for the unit tests in this class. */
+    static class TestFuture implements Future<Integer> {
 
-		private boolean cancelExpected = false;
-		private boolean isCancelledExpected = false;
-		private boolean isDoneExpected = false;
+        private boolean cancelExpected = false;
+        private boolean isCancelledExpected = false;
+        private boolean isDoneExpected = false;
 
-		private int cancelInvocationCount = 0;
-		private int isCancelledInvocationCount = 0;
-		private int isDoneInvocationCount = 0;
-		private int getInvocationCount = 0;
-		private int getTimeoutInvocationCount = 0;
+        private int cancelInvocationCount = 0;
+        private int isCancelledInvocationCount = 0;
+        private int isDoneInvocationCount = 0;
+        private int getInvocationCount = 0;
+        private int getTimeoutInvocationCount = 0;
 
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			++cancelInvocationCount;
-			return cancelExpected;
-		}
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            ++cancelInvocationCount;
+            return cancelExpected;
+        }
 
-		@Override
-		public boolean isCancelled() {
-			++isCancelledInvocationCount;
-			return isCancelledExpected;
-		}
+        @Override
+        public boolean isCancelled() {
+            ++isCancelledInvocationCount;
+            return isCancelledExpected;
+        }
 
-		@Override
-		public boolean isDone() {
-			++isDoneInvocationCount;
-			return isDoneExpected;
-		}
+        @Override
+        public boolean isDone() {
+            ++isDoneInvocationCount;
+            return isDoneExpected;
+        }
 
-		@Override
-		public Integer get() {
-			++getInvocationCount;
-			return 4711;
-		}
+        @Override
+        public Integer get() {
+            ++getInvocationCount;
+            return 4711;
+        }
 
-		@Override
-		public Integer get(long timeout, @Nonnull TimeUnit unit) {
-			++getTimeoutInvocationCount;
-			return 4711;
-		}
+        @Override
+        public Integer get(long timeout, @Nonnull TimeUnit unit) {
+            ++getTimeoutInvocationCount;
+            return 4711;
+        }
 
-		boolean isCancelExpected() {
-			return cancelExpected;
-		}
+        boolean isCancelExpected() {
+            return cancelExpected;
+        }
 
-		boolean isCancelledExpected() {
-			return isCancelledExpected;
-		}
+        boolean isCancelledExpected() {
+            return isCancelledExpected;
+        }
 
-		boolean isDoneExpected() {
-			return isDoneExpected;
-		}
+        boolean isDoneExpected() {
+            return isDoneExpected;
+        }
 
-		void setCancelResult(boolean resultCancel) {
-			this.cancelExpected = resultCancel;
-		}
+        void setCancelResult(boolean resultCancel) {
+            this.cancelExpected = resultCancel;
+        }
 
-		void setIsCancelledResult(boolean resultIsCancelled) {
-			this.isCancelledExpected = resultIsCancelled;
-		}
+        void setIsCancelledResult(boolean resultIsCancelled) {
+            this.isCancelledExpected = resultIsCancelled;
+        }
 
-		void setIsDoneExpected(boolean resultIsDone) {
-			this.isDoneExpected = resultIsDone;
-		}
+        void setIsDoneExpected(boolean resultIsDone) {
+            this.isDoneExpected = resultIsDone;
+        }
 
-		int getCancelInvocationCount() {
-			return cancelInvocationCount;
-		}
+        int getCancelInvocationCount() {
+            return cancelInvocationCount;
+        }
 
-		int getIsCancelledInvocationCount() {
-			return isCancelledInvocationCount;
-		}
+        int getIsCancelledInvocationCount() {
+            return isCancelledInvocationCount;
+        }
 
-		int getIsDoneInvocationCount() {
-			return isDoneInvocationCount;
-		}
+        int getIsDoneInvocationCount() {
+            return isDoneInvocationCount;
+        }
 
-		int getGetInvocationCount() {
-			return getInvocationCount;
-		}
+        int getGetInvocationCount() {
+            return getInvocationCount;
+        }
 
-		int getGetTimeoutInvocationCount() {
-			return getTimeoutInvocationCount;
-		}
-	}
+        int getGetTimeoutInvocationCount() {
+            return getTimeoutInvocationCount;
+        }
+    }
 }

@@ -20,22 +20,20 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Exception which is thrown if an input cannot be converted into the requested type.
- */
+/** Exception which is thrown if an input cannot be converted into the requested type. */
 public class ConversionException extends FlinkException {
 
-	private static final long serialVersionUID = -3994595267407963335L;
+    private static final long serialVersionUID = -3994595267407963335L;
 
-	public ConversionException(String message) {
-		super(message);
-	}
+    public ConversionException(String message) {
+        super(message);
+    }
 
-	public ConversionException(Throwable cause) {
-		super(cause);
-	}
+    public ConversionException(Throwable cause) {
+        super(cause);
+    }
 
-	public ConversionException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ConversionException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

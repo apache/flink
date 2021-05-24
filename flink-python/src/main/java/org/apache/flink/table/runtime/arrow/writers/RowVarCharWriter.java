@@ -24,23 +24,23 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * {@link ArrowFieldWriter} for VarChar.
- */
+/** {@link ArrowFieldWriter} for VarChar. */
 @Internal
 public final class RowVarCharWriter extends ArrowFieldWriter<Row> {
 
-	public RowVarCharWriter(VarCharVector varCharVector) {
-		super(varCharVector);
-	}
+    public RowVarCharWriter(VarCharVector varCharVector) {
+        super(varCharVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((VarCharVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarCharVector) getValueVector()).setSafe(
-				getCount(), StringUtf8Utils.encodeUTF8(((String) value.getField(ordinal))));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((VarCharVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarCharVector) getValueVector())
+                    .setSafe(
+                            getCount(),
+                            StringUtf8Utils.encodeUTF8(((String) value.getField(ordinal))));
+        }
+    }
 }

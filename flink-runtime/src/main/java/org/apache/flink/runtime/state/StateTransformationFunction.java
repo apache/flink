@@ -21,8 +21,9 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Interface for a binary function that is used for push-down of state transformation into state backends. The
- * function takes as inputs the old state and an element. From those inputs, the function computes the new state.
+ * Interface for a binary function that is used for push-down of state transformation into state
+ * backends. The function takes as inputs the old state and an element. From those inputs, the
+ * function computes the new state.
  *
  * @param <S> type of the previous state that is the bases for the computation of the new state.
  * @param <T> type of the element value that is used to compute the change of state.
@@ -30,13 +31,14 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface StateTransformationFunction<S, T> {
 
-	/**
-	 * Binary function that applies a given value to the given old state to compute the new state.
-	 *
-	 * @param previousState the previous state that is the basis for the transformation.
-	 * @param value         the value that the implementation applies to the old state to obtain the new state.
-	 * @return the new state, computed by applying the given value on the given old state.
-	 * @throws Exception if something goes wrong in applying the transformation function.
-	 */
-	S apply(S previousState, T value) throws Exception;
+    /**
+     * Binary function that applies a given value to the given old state to compute the new state.
+     *
+     * @param previousState the previous state that is the basis for the transformation.
+     * @param value the value that the implementation applies to the old state to obtain the new
+     *     state.
+     * @return the new state, computed by applying the given value on the given old state.
+     * @throws Exception if something goes wrong in applying the transformation function.
+     */
+    S apply(S previousState, T value) throws Exception;
 }

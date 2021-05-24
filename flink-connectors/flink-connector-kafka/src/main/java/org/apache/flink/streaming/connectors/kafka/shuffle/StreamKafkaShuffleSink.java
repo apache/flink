@@ -24,20 +24,20 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * A customized {@link StreamOperator} for executing {@link FlinkKafkaShuffleProducer} that handle
- * both elements and watermarks. If the shuffle sink is determined to be useful to other sinks in the future,
- * we should abstract this operator to data stream api. For now, we keep the operator this way to avoid
- * public interface change.
+ * both elements and watermarks. If the shuffle sink is determined to be useful to other sinks in
+ * the future, we should abstract this operator to data stream api. For now, we keep the operator
+ * this way to avoid public interface change.
  */
 @Internal
 class StreamKafkaShuffleSink<IN> extends StreamSink<IN> {
 
-	public StreamKafkaShuffleSink(FlinkKafkaShuffleProducer flinkKafkaShuffleProducer) {
-		super(flinkKafkaShuffleProducer);
-	}
+    public StreamKafkaShuffleSink(FlinkKafkaShuffleProducer flinkKafkaShuffleProducer) {
+        super(flinkKafkaShuffleProducer);
+    }
 
-	@Override
-	public void processWatermark(Watermark mark) throws Exception {
-		super.processWatermark(mark);
-		((FlinkKafkaShuffleProducer) userFunction).invoke(mark);
-	}
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        super.processWatermark(mark);
+        ((FlinkKafkaShuffleProducer) userFunction).invoke(mark);
+    }
 }

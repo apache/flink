@@ -17,30 +17,28 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-/**
- * Encapsulates all information that a {@link PartitionTracker} keeps for a partition.
- */
+/** Encapsulates all information that a {@link PartitionTracker} keeps for a partition. */
 public class PartitionTrackerEntry<K, M> {
 
-	private final ResultPartitionID resultPartitionId;
-	private final K key;
-	private final M metaInfo;
+    private final ResultPartitionID resultPartitionId;
+    private final K key;
+    private final M metaInfo;
 
-	PartitionTrackerEntry(ResultPartitionID resultPartitionId, K key, M metaInfo) {
-		this.resultPartitionId = resultPartitionId;
-		this.key = key;
-		this.metaInfo = metaInfo;
-	}
+    PartitionTrackerEntry(ResultPartitionID resultPartitionId, K key, M metaInfo) {
+        this.resultPartitionId = resultPartitionId;
+        this.key = key;
+        this.metaInfo = metaInfo;
+    }
 
-	public ResultPartitionID getResultPartitionId() {
-		return resultPartitionId;
-	}
+    public ResultPartitionID getResultPartitionId() {
+        return resultPartitionId;
+    }
 
-	public K getKey() {
-		return key;
-	}
+    public K getKey() {
+        return key;
+    }
 
-	public M getMetaInfo() {
-		return metaInfo;
-	}
+    public M getMetaInfo() {
+        return metaInfo;
+    }
 }

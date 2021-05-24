@@ -25,15 +25,14 @@ import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * Message parameters for subtask REST handlers.
- */
+/** Message parameters for subtask REST handlers. */
 public class SubtaskMessageParameters extends JobVertexMessageParameters {
 
-	protected final SubtaskIndexPathParameter subtaskIndexPathParameter = new SubtaskIndexPathParameter();
+    protected final SubtaskIndexPathParameter subtaskIndexPathParameter =
+            new SubtaskIndexPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, jobVertexIdPathParameter, subtaskIndexPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(jobPathParameter, jobVertexIdPathParameter, subtaskIndexPathParameter);
+    }
 }

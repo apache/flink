@@ -27,47 +27,45 @@ import java.io.File;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-/**
- * {@link BlobStore} implementation for testing purposes.
- */
+/** {@link BlobStore} implementation for testing purposes. */
 public class TestingBlobStore implements BlobStore {
 
-	@Nonnull
-	private final Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction;
+    @Nonnull private final Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction;
 
-	@Nonnull
-	private final BiFunction<JobID, BlobKey, Boolean> deleteFunction;
+    @Nonnull private final BiFunction<JobID, BlobKey, Boolean> deleteFunction;
 
-	@Nonnull
-	private final Function<JobID, Boolean> deleteAllFunction;
+    @Nonnull private final Function<JobID, Boolean> deleteAllFunction;
 
-	@Nonnull
-	private final Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction;
+    @Nonnull private final Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction;
 
-	public TestingBlobStore(@Nonnull Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction, @Nonnull BiFunction<JobID, BlobKey, Boolean> deleteFunction, @Nonnull Function<JobID, Boolean> deleteAllFunction, @Nonnull Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction) {
-		this.putFunction = putFunction;
-		this.deleteFunction = deleteFunction;
-		this.deleteAllFunction = deleteAllFunction;
-		this.getFunction = getFunction;
-	}
+    public TestingBlobStore(
+            @Nonnull Function<Tuple3<File, JobID, BlobKey>, Boolean> putFunction,
+            @Nonnull BiFunction<JobID, BlobKey, Boolean> deleteFunction,
+            @Nonnull Function<JobID, Boolean> deleteAllFunction,
+            @Nonnull Function<Tuple3<JobID, BlobKey, File>, Boolean> getFunction) {
+        this.putFunction = putFunction;
+        this.deleteFunction = deleteFunction;
+        this.deleteAllFunction = deleteAllFunction;
+        this.getFunction = getFunction;
+    }
 
-	@Override
-	public boolean put(File localFile, JobID jobId, BlobKey blobKey) {
-		return putFunction.apply(Tuple3.of(localFile, jobId, blobKey));
-	}
+    @Override
+    public boolean put(File localFile, JobID jobId, BlobKey blobKey) {
+        return putFunction.apply(Tuple3.of(localFile, jobId, blobKey));
+    }
 
-	@Override
-	public boolean delete(JobID jobId, BlobKey blobKey) {
-		return deleteFunction.apply(jobId, blobKey);
-	}
+    @Override
+    public boolean delete(JobID jobId, BlobKey blobKey) {
+        return deleteFunction.apply(jobId, blobKey);
+    }
 
-	@Override
-	public boolean deleteAll(JobID jobId) {
-		return deleteAllFunction.apply(jobId);
-	}
+    @Override
+    public boolean deleteAll(JobID jobId) {
+        return deleteAllFunction.apply(jobId);
+    }
 
-	@Override
-	public boolean get(JobID jobId, BlobKey blobKey, File localFile) {
-		return getFunction.apply(Tuple3.of(jobId, blobKey, localFile));
-	}
+    @Override
+    public boolean get(JobID jobId, BlobKey blobKey, File localFile) {
+        return getFunction.apply(Tuple3.of(jobId, blobKey, localFile));
+    }
 }

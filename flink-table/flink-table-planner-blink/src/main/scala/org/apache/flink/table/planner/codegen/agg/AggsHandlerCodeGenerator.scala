@@ -17,31 +17,36 @@
  */
 package org.apache.flink.table.planner.codegen.agg
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.table.functions.ImperativeAggregateFunction
+import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
-import org.apache.flink.table.planner.dataview.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
+import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated._
+import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
+
+import java.util.Optional
+import java.time.ZoneId
 
 /**
   * A code generator for generating [[AggsHandleFunction]].
@@ -65,6 +70,8 @@ class AggsHandlerCodeGenerator(
   private var namespaceClassName: String = _
   private var windowProperties: Seq[PlannerWindowProperty] = Seq()
   private var hasNamespace: Boolean = false
+  private var sliceAssignerTerm: String = _
+  private var shiftTimeZone: ZoneId = _
 
   /** Aggregates informations */
   private var accTypeInfo: RowType = _
@@ -189,10 +196,12 @@ class AggsHandlerCodeGenerator(
     */
   private def initialWindowProperties(
       windowProperties: Seq[PlannerWindowProperty],
-      windowClass: Class[_]): Unit = {
+      windowClass: Class[_],
+      shiftTimeZone: ZoneId): Unit = {
     this.windowProperties = windowProperties
     this.namespaceClassName = windowClass.getCanonicalName
     this.hasNamespace = true
+    this.shiftTimeZone = shiftTimeZone
   }
 
   /**
@@ -227,7 +236,7 @@ class AggsHandlerCodeGenerator(
             inputFieldTypes,
             constants,
             relBuilder)
-        case _: UserDefinedAggregateFunction[_, _] =>
+        case _: ImperativeAggregateFunction[_, _] =>
           new ImperativeAggCodeGen(
             ctx,
             aggInfo,
@@ -563,6 +572,27 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
+   * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
+   * and window properties.
+   */
+  def generateNamespaceAggsHandler(
+      name: String,
+      aggInfoList: AggregateInfoList,
+      windowProperties: Seq[PlannerWindowProperty],
+      sliceAssigner: SliceAssigner,
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[JLong] = {
+    this.sliceAssignerTerm = newName("sliceAssigner")
+    ctx.addReusableObjectWithName(sliceAssigner, sliceAssignerTerm)
+    // we use window end timestamp to indicate a window, see SliceAssigner
+    generateNamespaceAggsHandler(
+      name,
+      aggInfoList,
+      windowProperties,
+      classOf[JLong],
+      shiftTimeZone)
+  }
+
+  /**
     * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
     * and window properties.
     */
@@ -570,9 +600,10 @@ class AggsHandlerCodeGenerator(
       name: String,
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[PlannerWindowProperty],
-      windowClass: Class[N]): GeneratedNamespaceAggsHandleFunction[N] = {
+      windowClass: Class[N],
+      shiftTimeZone: ZoneId): GeneratedNamespaceAggsHandleFunction[N] = {
 
-    initialWindowProperties(windowProperties, windowClass)
+    initialWindowProperties(windowProperties, windowClass, shiftTimeZone)
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
@@ -674,9 +705,10 @@ class AggsHandlerCodeGenerator(
       name: String,
       aggInfoList: AggregateInfoList,
       windowProperties: Seq[PlannerWindowProperty],
-      windowClass: Class[N]): GeneratedNamespaceTableAggsHandleFunction[N] = {
+      windowClass: Class[N],
+      shiftedTimeZone: ZoneId): GeneratedNamespaceTableAggsHandleFunction[N] = {
 
-    initialWindowProperties(windowProperties, windowClass)
+    initialWindowProperties(windowProperties, windowClass, shiftedTimeZone)
     initialAggregateInformation(aggInfoList)
 
     // generates all methods body first to add necessary reuse code to context
@@ -1004,32 +1036,79 @@ class AggsHandlerCodeGenerator(
 
   private def getWindowExpressions(
       windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
-    windowProperties.map {
-      case w: PlannerWindowStart =>
-        // return a Timestamp(Internal is TimestampData)
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
-          "false",
-          "",
-          w.resultType)
-      case w: PlannerWindowEnd =>
-        // return a Timestamp(Internal is TimestampData)
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
-          "false",
-          "",
-          w.resultType)
-      case r: PlannerRowtimeAttribute =>
-        // return a rowtime, use TimestampData as internal type
-        GeneratedExpression(
-          s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd() - 1)",
-          "false",
-          "",
-          r.resultType)
-      case p: PlannerProctimeAttribute =>
-        // ignore this property, it will be null at the position later
-        GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.resultType)
+    if (namespaceClassName.equals(classOf[JLong].getCanonicalName)) {
+      // slicing optimization, we are using window end timestamp to indicate a window
+      windowProperties.map {
+        case w: PlannerWindowStart =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($sliceAssignerTerm.getWindowStart($NAMESPACE_TERM))",
+            "false",
+            "",
+            w.getResultType)
+        case w: PlannerWindowEnd =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM)",
+            "false",
+            "",
+            w.getResultType)
+        case r: PlannerRowtimeAttribute =>
+          // return a rowtime, use TimestampData as internal type
+          GeneratedExpression(
+            s"""
+               |$TIMESTAMP_DATA.fromEpochMillis(
+               |${getShiftEpochMills(s"$NAMESPACE_TERM - 1")})
+                """.stripMargin,
+            "false",
+            "",
+            r.getResultType)
+        case p: PlannerProctimeAttribute =>
+          // ignore this property, it will be null at the position later
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
+      }
+    } else {
+      windowProperties.map {
+        case w: PlannerWindowStart =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getStart())",
+            "false",
+            "",
+            w.getResultType)
+        case w: PlannerWindowEnd =>
+          // return a Timestamp(Internal is TimestampData)
+          GeneratedExpression(
+            s"$TIMESTAMP_DATA.fromEpochMillis($NAMESPACE_TERM.getEnd())",
+            "false",
+            "",
+            w.getResultType)
+        case r: PlannerRowtimeAttribute =>
+          // return a rowtime, use TimestampData as internal type
+          GeneratedExpression(
+            s"""
+               |$TIMESTAMP_DATA.fromEpochMillis(
+               |${getShiftEpochMills(s"$NAMESPACE_TERM.getEnd() - 1")})
+                """.stripMargin,
+            "false",
+            "",
+            r.getResultType)
+        case p: PlannerProctimeAttribute =>
+          // ignore this property, it will be null at the position later
+          GeneratedExpression(s"$TIMESTAMP_DATA.fromEpochMillis(-1L)", "true", "", p.getResultType)
+      }
     }
+  }
+
+  private def getShiftEpochMills(itemExpr: String): String = {
+     if ("UTC".equals(shiftTimeZone.getId)) {
+       itemExpr
+     } else {
+       val timeZoneId = ctx.addReusableShiftTimeZone(shiftTimeZone)
+       s"""
+          |$TIME_WINDOW_UTIL.toEpochMills($itemExpr, $timeZoneId)
+          """.stripMargin
+     }
   }
 
   private def genGetValue(): String = {
@@ -1082,7 +1161,7 @@ class AggsHandlerCodeGenerator(
       if (isWindow) {
         // no need to bind input
         val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        var valueExprs = getWindowExpressions(windowProperties)
+        val valueExprs = getWindowExpressions(windowProperties)
 
         val aggValueTerm = newName("windowProperties")
         valueType = RowType.of(valueExprs.map(_.resultType): _*)
@@ -1109,7 +1188,7 @@ class AggsHandlerCodeGenerator(
 
   private def genRecordToRowData(aggExternalType: DataType, recordInputName: String): String = {
     val resultType = fromDataTypeToLogicalType(aggExternalType)
-    val resultRowType = PlannerTypeUtils.toRowType(resultType)
+    val resultRowType = LogicalTypeUtils.toRowType(resultType)
 
     val newCtx = CodeGeneratorContext(ctx.tableConfig)
     val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
@@ -1172,7 +1251,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access MapView or ListView
     */
   def createDataViewTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview"
+    s"${spec.getStateId}_dataview"
   }
 
   /**
@@ -1190,7 +1269,7 @@ object AggsHandlerCodeGenerator {
     * @return term to access backup MapView or ListView
     */
   def createDataViewBackupTerm(spec: DataViewSpec): String = {
-    s"${spec.stateId}_dataview_backup"
+    s"${spec.getStateId}_dataview_backup"
   }
 
   /**
@@ -1207,23 +1286,46 @@ object AggsHandlerCodeGenerator {
       enableBackupDataView: Boolean): Unit = {
     // add reusable dataviews to context
     viewSpecs.foreach { spec =>
-      val (viewTypeTerm, registerCall) = spec match {
-        case ListViewSpec(_, _, _) => (className[StateListView[_, _]], "getStateListView")
-        case MapViewSpec(_, _, _) => (className[StateMapView[_, _, _]], "getStateMapView")
+      val stateId = '"' + spec.getStateId + '"'
+      val (viewTypeTerm, stateStoreCall) = spec match {
+
+        case spec: ListViewSpec =>
+          val viewTypeTerm = className[StateListView[_, _]]
+          val elementSerializerTerm = addReusableDataViewSerializer(
+            ctx,
+            spec.getElementSerializer,
+            () => spec.getElementDataType)
+          val stateStoreCall =
+            s"getStateListView($stateId, $elementSerializerTerm)"
+          (viewTypeTerm, stateStoreCall)
+
+        case spec: MapViewSpec =>
+          val viewTypeTerm = className[StateMapView[_, _, _]]
+          val withNullKey = spec.containsNullKey()
+          val keySerializerTerm = addReusableDataViewSerializer(
+            ctx,
+            spec.getKeySerializer,
+            () => spec.getKeyDataType
+           )
+          val valueSerializerTerm = addReusableDataViewSerializer(
+            ctx,
+            spec.getValueSerializer,
+            () => spec.getValueDataType)
+          val stateStoreCall =
+            s"getStateMapView($stateId, $withNullKey, $keySerializerTerm, $valueSerializerTerm)"
+          (viewTypeTerm, stateStoreCall)
       }
+
       val viewFieldTerm = createDataViewTerm(spec)
       val viewFieldInternalTerm = createDataViewRawValueTerm(spec)
-      val viewTypeInfo = ctx.addReusableObject(spec.dataViewTypeInfo, "viewTypeInfo")
-      val parameters = s""""${spec.stateId}", $viewTypeInfo"""
 
       ctx.addReusableMember(s"private $viewTypeTerm $viewFieldTerm;")
       ctx.addReusableMember(s"private $BINARY_RAW_VALUE $viewFieldInternalTerm;")
 
       val openCode =
         s"""
-           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-           |$viewFieldInternalTerm = ${genToInternalConverter(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), viewFieldTerm)};
+           |$viewFieldTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+           |$viewFieldInternalTerm = $BINARY_RAW_VALUE.fromObject($viewFieldTerm);
          """.stripMargin
       ctx.addReusableOpenStatement(openCode)
 
@@ -1249,12 +1351,24 @@ object AggsHandlerCodeGenerator {
         ctx.addReusableMember(s"private $BINARY_RAW_VALUE $backupViewInternalTerm;")
         val backupOpenCode =
           s"""
-             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$registerCall($parameters);
-             |$backupViewInternalTerm = ${genToInternalConverter(
-                ctx, fromLegacyInfoToDataType(spec.dataViewTypeInfo), backupViewTerm)};
+             |$backupViewTerm = ($viewTypeTerm) $STORE_TERM.$stateStoreCall;
+             |$backupViewInternalTerm = $BINARY_RAW_VALUE.fromObject($backupViewTerm);
            """.stripMargin
         ctx.addReusableOpenStatement(backupOpenCode)
       }
+    }
+  }
+
+  private def addReusableDataViewSerializer(
+      ctx: CodeGeneratorContext,
+      legacySerializer: Optional[TypeSerializer[_]],
+      dataType: () => DataType)
+    : String = {
+    toScala(legacySerializer) match {
+      case Some(serializer) =>
+        ctx.addReusableObject(serializer, "serializer")
+      case None =>
+        ctx.addReusableExternalSerializer(dataType())
     }
   }
 }

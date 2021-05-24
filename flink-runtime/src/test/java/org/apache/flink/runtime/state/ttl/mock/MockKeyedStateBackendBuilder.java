@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -42,48 +43,49 @@ import java.util.Map;
  * @param <K> The data type that the key serializer serializes.
  */
 public class MockKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBuilder<K> {
-	public MockKeyedStateBackendBuilder(
-		TaskKvStateRegistry kvStateRegistry,
-		TypeSerializer<K> keySerializer,
-		ClassLoader userCodeClassLoader,
-		int numberOfKeyGroups,
-		KeyGroupRange keyGroupRange,
-		ExecutionConfig executionConfig,
-		TtlTimeProvider ttlTimeProvider,
-		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		StreamCompressionDecorator keyGroupCompressionDecorator,
-		CloseableRegistry cancelStreamRegistry) {
-		super(
-			kvStateRegistry,
-			keySerializer,
-			userCodeClassLoader,
-			numberOfKeyGroups,
-			keyGroupRange,
-			executionConfig,
-			ttlTimeProvider,
-			stateHandles,
-			keyGroupCompressionDecorator,
-			cancelStreamRegistry);
-	}
+    public MockKeyedStateBackendBuilder(
+            TaskKvStateRegistry kvStateRegistry,
+            TypeSerializer<K> keySerializer,
+            ClassLoader userCodeClassLoader,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            ExecutionConfig executionConfig,
+            TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            StreamCompressionDecorator keyGroupCompressionDecorator,
+            CloseableRegistry cancelStreamRegistry) {
+        super(
+                kvStateRegistry,
+                keySerializer,
+                userCodeClassLoader,
+                numberOfKeyGroups,
+                keyGroupRange,
+                executionConfig,
+                ttlTimeProvider,
+                latencyTrackingStateConfig,
+                stateHandles,
+                keyGroupCompressionDecorator,
+                cancelStreamRegistry);
+    }
 
-	@Override
-	public MockKeyedStateBackend<K> build() {
-		Map<String, Map<K, Map<Object, Object>>> stateValues = new HashMap<>();
-		Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters = new HashMap<>();
-		MockRestoreOperation<K> restoreOperation = new MockRestoreOperation<>(restoreStateHandles, stateValues);
-		restoreOperation.restore();
-		return new MockKeyedStateBackend<>(
-			kvStateRegistry,
-			keySerializerProvider.currentSchemaSerializer(),
-			userCodeClassLoader,
-			executionConfig,
-			ttlTimeProvider,
-			stateValues,
-			stateSnapshotFilters,
-			cancelStreamRegistry,
-			new InternalKeyContextImpl<>(
-				keyGroupRange,
-				numberOfKeyGroups
-			));
-	}
+    @Override
+    public MockKeyedStateBackend<K> build() {
+        Map<String, Map<K, Map<Object, Object>>> stateValues = new HashMap<>();
+        Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters = new HashMap<>();
+        MockRestoreOperation<K> restoreOperation =
+                new MockRestoreOperation<>(restoreStateHandles, stateValues);
+        restoreOperation.restore();
+        return new MockKeyedStateBackend<>(
+                kvStateRegistry,
+                keySerializerProvider.currentSchemaSerializer(),
+                userCodeClassLoader,
+                executionConfig,
+                ttlTimeProvider,
+                latencyTrackingStateConfig,
+                stateValues,
+                stateSnapshotFilters,
+                cancelStreamRegistry,
+                new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups));
+    }
 }

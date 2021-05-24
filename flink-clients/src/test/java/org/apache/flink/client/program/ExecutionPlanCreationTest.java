@@ -41,78 +41,76 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the generation of execution plans.
- */
+/** Tests for the generation of execution plans. */
 public class ExecutionPlanCreationTest {
 
-	@Test
-	public void testGetExecutionPlan() {
-		try {
-			PackagedProgram prg = PackagedProgram.newBuilder()
-				.setEntryPointClassName(TestOptimizerPlan.class.getName())
-				.setArguments("/dev/random", "/tmp")
-				.build();
+    @Test
+    public void testGetExecutionPlan() {
+        try {
+            PackagedProgram prg =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(TestOptimizerPlan.class.getName())
+                            .setArguments("/dev/random", "/tmp")
+                            .build();
 
-			InetAddress mockAddress = InetAddress.getLocalHost();
-			InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
+            InetAddress mockAddress = InetAddress.getLocalHost();
+            InetSocketAddress mockJmAddress = new InetSocketAddress(mockAddress, 12345);
 
-			Configuration config = new Configuration();
+            Configuration config = new Configuration();
 
-			config.setString(JobManagerOptions.ADDRESS, mockJmAddress.getHostName());
-			config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
+            config.setString(JobManagerOptions.ADDRESS, mockJmAddress.getHostName());
+            config.setInteger(JobManagerOptions.PORT, mockJmAddress.getPort());
 
-			Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
-			Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, config, -1, true);
-			OptimizedPlan op = optimizer.compile(plan);
-			assertNotNull(op);
+            Optimizer optimizer =
+                    new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
+            Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, config, -1, true);
+            OptimizedPlan op = optimizer.compile(plan);
+            assertNotNull(op);
 
-			PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
-			assertNotNull(dumper.getOptimizerPlanAsJSON(op));
+            PlanJSONDumpGenerator dumper = new PlanJSONDumpGenerator();
+            assertNotNull(dumper.getOptimizerPlanAsJSON(op));
 
-			// test HTML escaping
-			PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
-			dumper2.setEncodeForHTML(true);
-			String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
+            // test HTML escaping
+            PlanJSONDumpGenerator dumper2 = new PlanJSONDumpGenerator();
+            dumper2.setEncodeForHTML(true);
+            String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
-			assertEquals(-1, htmlEscaped.indexOf('\\'));
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(-1, htmlEscaped.indexOf('\\'));
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	/**
-	 * A test job.
-	 */
-	public static class TestOptimizerPlan implements ProgramDescription {
+    /** A test job. */
+    public static class TestOptimizerPlan implements ProgramDescription {
 
-		@SuppressWarnings("serial")
-		public static void main(String[] args) throws Exception {
-			if (args.length < 2) {
-				System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
-				return;
-			}
+        @SuppressWarnings("serial")
+        public static void main(String[] args) throws Exception {
+            if (args.length < 2) {
+                System.err.println("Usage: TestOptimizerPlan <input-file-path> <output-file-path>");
+                return;
+            }
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> input = env.readCsvFile(args[0])
-					.fieldDelimiter("\t").types(Long.class, Long.class);
+            DataSet<Tuple2<Long, Long>> input =
+                    env.readCsvFile(args[0]).fieldDelimiter("\t").types(Long.class, Long.class);
 
-			DataSet<Tuple2<Long, Long>> result = input.map(
-					new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
-						public Tuple2<Long, Long> map(Tuple2<Long, Long> value){
-							return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
-						}
-			});
-			result.writeAsCsv(args[1], "\n", "\t");
-			env.execute();
-		}
+            DataSet<Tuple2<Long, Long>> result =
+                    input.map(
+                            new MapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>>() {
+                                public Tuple2<Long, Long> map(Tuple2<Long, Long> value) {
+                                    return new Tuple2<Long, Long>(value.f0, value.f1 + 1);
+                                }
+                            });
+            result.writeAsCsv(args[1], "\n", "\t");
+            env.execute();
+        }
 
-		@Override
-		public String getDescription() {
-			return "TestOptimizerPlan <input-file-path> <output-file-path>";
-		}
-	}
+        @Override
+        public String getDescription() {
+            return "TestOptimizerPlan <input-file-path> <output-file-path>";
+        }
+    }
 }

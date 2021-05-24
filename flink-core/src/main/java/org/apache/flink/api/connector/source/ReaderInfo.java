@@ -23,47 +23,41 @@ import org.apache.flink.annotation.PublicEvolving;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * A container class hosting the information of a {@link SourceReader}.
- */
+/** A container class hosting the information of a {@link SourceReader}. */
 @PublicEvolving
 public final class ReaderInfo implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int subtaskId;
-	private final String location;
+    private final int subtaskId;
+    private final String location;
 
-	public ReaderInfo(int subtaskId, String location) {
-		this.subtaskId = subtaskId;
-		this.location = location;
-	}
+    public ReaderInfo(int subtaskId, String location) {
+        this.subtaskId = subtaskId;
+        this.location = location;
+    }
 
-	/**
-	 * @return the ID of the subtask that runs the source reader.
-	 */
-	public int getSubtaskId() {
-		return subtaskId;
-	}
+    /** @return the ID of the subtask that runs the source reader. */
+    public int getSubtaskId() {
+        return subtaskId;
+    }
 
-	/**
-	 * @return the location of the subtask that runs this source reader.
-	 */
-	public String getLocation() {
-		return location;
-	}
+    /** @return the location of the subtask that runs this source reader. */
+    public String getLocation() {
+        return location;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(subtaskId, location);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(subtaskId, location);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (!(obj instanceof ReaderInfo)) {
-			return false;
-		}
-		ReaderInfo other = (ReaderInfo) obj;
-		return subtaskId == other.subtaskId && location.equals(other.location);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ReaderInfo)) {
+            return false;
+        }
+        ReaderInfo other = (ReaderInfo) obj;
+        return subtaskId == other.subtaskId && location.equals(other.location);
+    }
 }

@@ -35,103 +35,103 @@ import java.util.Set;
 /**
  * A read-only {@link MapState} that does not allow for modifications.
  *
- * <p>This is the result returned when querying Flink's keyed state using the
- * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
- * providing an {@link MapStateDescriptor}.
+ * <p>This is the result returned when querying Flink's keyed state using the {@link
+ * org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and providing
+ * an {@link MapStateDescriptor}.
  */
 public final class ImmutableMapState<K, V> extends ImmutableState implements MapState<K, V> {
 
-	private final Map<K, V> state;
+    private final Map<K, V> state;
 
-	private ImmutableMapState(final Map<K, V> mapState) {
-		this.state = Preconditions.checkNotNull(mapState);
-	}
+    private ImmutableMapState(final Map<K, V> mapState) {
+        this.state = Preconditions.checkNotNull(mapState);
+    }
 
-	@Override
-	public V get(K key) {
-		return state.get(key);
-	}
+    @Override
+    public V get(K key) {
+        return state.get(key);
+    }
 
-	@Override
-	public void put(K key, V value) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void put(K key, V value) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public void putAll(Map<K, V> map) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void putAll(Map<K, V> map) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public void remove(K key) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void remove(K key) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public boolean contains(K key) {
-		return state.containsKey(key);
-	}
+    @Override
+    public boolean contains(K key) {
+        return state.containsKey(key);
+    }
 
-	/**
-	 * Returns all the mappings in the state in a {@link Collections#unmodifiableSet(Set)}.
-	 *
-	 * @return A read-only iterable view of all the key-value pairs in the state.
-	 */
-	@Override
-	public Iterable<Map.Entry<K, V>> entries() {
-		return Collections.unmodifiableSet(state.entrySet());
-	}
+    /**
+     * Returns all the mappings in the state in a {@link Collections#unmodifiableSet(Set)}.
+     *
+     * @return A read-only iterable view of all the key-value pairs in the state.
+     */
+    @Override
+    public Iterable<Map.Entry<K, V>> entries() {
+        return Collections.unmodifiableSet(state.entrySet());
+    }
 
-	/**
-	 * Returns all the keys in the state in a {@link Collections#unmodifiableSet(Set)}.
-	 *
-	 * @return A read-only iterable view of all the keys in the state.
-	 */
-	@Override
-	public Iterable<K> keys() {
-		return Collections.unmodifiableSet(state.keySet());
-	}
+    /**
+     * Returns all the keys in the state in a {@link Collections#unmodifiableSet(Set)}.
+     *
+     * @return A read-only iterable view of all the keys in the state.
+     */
+    @Override
+    public Iterable<K> keys() {
+        return Collections.unmodifiableSet(state.keySet());
+    }
 
-	/**
-	 * Returns all the values in the state in a {@link Collections#unmodifiableCollection(Collection)}.
-	 *
-	 * @return A read-only iterable view of all the values in the state.
-	 */
-	@Override
-	public Iterable<V> values() {
-		return Collections.unmodifiableCollection(state.values());
-	}
+    /**
+     * Returns all the values in the state in a {@link
+     * Collections#unmodifiableCollection(Collection)}.
+     *
+     * @return A read-only iterable view of all the values in the state.
+     */
+    @Override
+    public Iterable<V> values() {
+        return Collections.unmodifiableCollection(state.values());
+    }
 
-	/**
-	 * Iterates over all the mappings in the state. The iterator cannot
-	 * remove elements.
-	 *
-	 * @return A read-only iterator over all the mappings in the state.
-	 */
-	@Override
-	public Iterator<Map.Entry<K, V>> iterator() {
-		return Collections.unmodifiableSet(state.entrySet()).iterator();
-	}
+    /**
+     * Iterates over all the mappings in the state. The iterator cannot remove elements.
+     *
+     * @return A read-only iterator over all the mappings in the state.
+     */
+    @Override
+    public Iterator<Map.Entry<K, V>> iterator() {
+        return Collections.unmodifiableSet(state.entrySet()).iterator();
+    }
 
-	@Override
-	public boolean isEmpty() {
-		return state.isEmpty();
-	}
+    @Override
+    public boolean isEmpty() {
+        return state.isEmpty();
+    }
 
-	@Override
-	public void clear() {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void clear() {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <K, V, T, S extends State> S createState(
-		StateDescriptor<S, T> stateDescriptor,
-		byte[] serializedState) throws IOException {
-		MapStateDescriptor<K, V> mapStateDescriptor = (MapStateDescriptor<K, V>) stateDescriptor;
-		final Map<K, V> state = KvStateSerializer.deserializeMap(
-			serializedState,
-			mapStateDescriptor.getKeySerializer(),
-			mapStateDescriptor.getValueSerializer());
-		return (S) new ImmutableMapState<>(state);
-	}
+    @SuppressWarnings("unchecked")
+    public static <K, V, T, S extends State> S createState(
+            StateDescriptor<S, T> stateDescriptor, byte[] serializedState) throws IOException {
+        MapStateDescriptor<K, V> mapStateDescriptor = (MapStateDescriptor<K, V>) stateDescriptor;
+        final Map<K, V> state =
+                KvStateSerializer.deserializeMap(
+                        serializedState,
+                        mapStateDescriptor.getKeySerializer(),
+                        mapStateDescriptor.getValueSerializer());
+        return (S) new ImmutableMapState<>(state);
+    }
 }

@@ -21,52 +21,50 @@ package org.apache.flink.graph.generator.random;
 import org.apache.commons.math3.random.MersenneTwister;
 
 /**
- * Uses a seeded {@link MersenneTwister} to generate seeds for the
- * distributed collection of {@link MersenneTwister}.
+ * Uses a seeded {@link MersenneTwister} to generate seeds for the distributed collection of {@link
+ * MersenneTwister}.
  */
-public class MersenneTwisterFactory
-extends GeneratorFactoryBase<MersenneTwister> {
+public class MersenneTwisterFactory extends GeneratorFactoryBase<MersenneTwister> {
 
-	public static final long DEFAULT_SEED = 0x74c8cc8a58a9ceb9L;
+    public static final long DEFAULT_SEED = 0x74c8cc8a58a9ceb9L;
 
-	public static final int MINIMUM_CYCLES_PER_BLOCK = 1 << 20;
+    public static final int MINIMUM_CYCLES_PER_BLOCK = 1 << 20;
 
-	private final MersenneTwister random = new MersenneTwister();
+    private final MersenneTwister random = new MersenneTwister();
 
-	public MersenneTwisterFactory() {
-		this(DEFAULT_SEED);
-	}
+    public MersenneTwisterFactory() {
+        this(DEFAULT_SEED);
+    }
 
-	public MersenneTwisterFactory(long seed) {
-		random.setSeed(seed);
-	}
+    public MersenneTwisterFactory(long seed) {
+        random.setSeed(seed);
+    }
 
-	@Override
-	protected int getMinimumCyclesPerBlock() {
-		return MINIMUM_CYCLES_PER_BLOCK;
-	}
+    @Override
+    protected int getMinimumCyclesPerBlock() {
+        return MINIMUM_CYCLES_PER_BLOCK;
+    }
 
-	@Override
-	protected MersenneTwisterGenerable next() {
-		return new MersenneTwisterGenerable(random.nextLong());
-	}
+    @Override
+    protected MersenneTwisterGenerable next() {
+        return new MersenneTwisterGenerable(random.nextLong());
+    }
 
-	private static class MersenneTwisterGenerable
-	implements RandomGenerable<MersenneTwister> {
+    private static class MersenneTwisterGenerable implements RandomGenerable<MersenneTwister> {
 
-		private final long seed;
+        private final long seed;
 
-		public MersenneTwisterGenerable(long seed) {
-			this.seed = seed;
-		}
+        public MersenneTwisterGenerable(long seed) {
+            this.seed = seed;
+        }
 
-		@Override
-		public MersenneTwister generator() {
-			MersenneTwister random = new MersenneTwister();
+        @Override
+        public MersenneTwister generator() {
+            MersenneTwister random = new MersenneTwister();
 
-			random.setSeed(seed);
+            random.setSeed(seed);
 
-			return random;
-		}
-	}
+            return random;
+        }
+    }
 }

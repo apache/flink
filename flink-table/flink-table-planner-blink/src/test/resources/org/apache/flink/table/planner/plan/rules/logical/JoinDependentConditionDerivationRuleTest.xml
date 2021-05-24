@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE (b = e AND a = 0) OR ((a = 1 AND d = 2) OR (a = 2 AND d = 1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[OR(AND(=($1, $4), =($0, 0)), AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1)))])
@@ -29,10 +29,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(OR(AND(=($1, $4), =($0, 0)), AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(=(0, $0), =(1, $0), =(2, $0)))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($1, $4), =($0, 0)), AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), SEARCH($0, Sarg[0, 1, 2]))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
@@ -42,7 +42,7 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE b = e AND ((a = 1 AND d = 2) OR (a = 2 AND d = 1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[AND(=($1, $4), OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))))])
@@ -51,10 +51,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(=($1, $4), OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(=(1, $0), =(2, $0)), OR(=(2, $3), =(1, $3)))], joinType=[inner])
++- LogicalJoin(condition=[AND(=($1, $4), OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), SEARCH($0, Sarg[1, 2]), SEARCH($3, Sarg[1, 2]))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
@@ -64,7 +64,7 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE b = e OR ((a = 1 AND d = 2) OR (a = 2 AND d = 1))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[OR(=($1, $4), AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1)))])
@@ -73,7 +73,7 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalJoin(condition=[OR(=($1, $4), AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1)))], joinType=[inner])
@@ -86,7 +86,7 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE (a = 1 AND b = 1 AND d = 2 AND e = 2) OR (a = 2 AND b = 2 AND d = 1 AND e = 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($0, 2), =($1, 2), =($3, 1), =($4, 1)))])
@@ -95,10 +95,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($0, 2), =($1, 2), =($3, 1), =($4, 1))), OR(AND(=(1, $0), =(1, $1)), AND(=(2, $0), =(2, $1))), OR(AND(=(2, $3), =(2, $4)), AND(=(1, $3), =(1, $4))))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($0, 2), =($1, 2), =($3, 1), =($4, 1))), OR(AND(=($0, 1), =($1, 1)), AND(=($0, 2), =($1, 2))), OR(AND(=($3, 2), =($4, 2)), AND(=($3, 1), =($4, 1))))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
@@ -108,7 +108,7 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE ((a = 1 AND d = 2) OR (a = 2 AND d = 1)) AND ((a = 3 AND d = 4) OR (a = 4 AND d = 3))]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[AND(OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(AND(=($0, 3), =($3, 4)), AND(=($0, 4), =($3, 3))))])
@@ -117,10 +117,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(AND(=($0, 3), =($3, 4)), AND(=($0, 4), =($3, 3))), OR(=(1, $0), =(2, $0)), OR(=(2, $3), =(1, $3)), OR(=(3, $0), =(4, $0)), OR(=(4, $3), =(3, $3)))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(AND(=($0, 3), =($3, 4)), AND(=($0, 4), =($3, 3))), SEARCH($0, Sarg[1, 2]), SEARCH($3, Sarg[1, 2]), SEARCH($0, Sarg[3, 4]), SEARCH($3, Sarg[3, 4]))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
@@ -136,7 +136,7 @@ OR
 (T1.a = 2 AND T2.b = 2 AND T2.d = 1 AND T2.e = 1)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$6])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 1), =($3, 2), =($7, 2)), AND(=($0, 2), =($4, 2), =($6, 1), =($7, 1)))])
@@ -149,10 +149,10 @@ LogicalProject(a=[$0], d=[$6])
                +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$6])
-+- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($7, 2)), AND(=($0, 2), =($4, 2), =($6, 1), =($7, 1))), OR(AND(=(1, $0), =(1, $1)), =(2, $0)), OR(AND(=(2, $3), =(2, $7)), AND(=(2, $4), =(1, $6), =(1, $7))))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($7, 2)), AND(=($0, 2), =($4, 2), =($6, 1), =($7, 1))), OR(AND(=($0, 1), =($1, 1)), =($0, 2)), OR(AND(=($3, 2), =($7, 2)), AND(=($4, 2), =($6, 1), =($7, 1))))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], g=[$6], h=[$7])
       +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
@@ -165,7 +165,7 @@ LogicalProject(a=[$0], d=[$6])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE (a = 1 AND b = 1 AND d = 2 AND e = 2) OR (d = 1 AND e = 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($3, 1), =($4, 1)))])
@@ -174,10 +174,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($3, 1), =($4, 1))), OR(AND(=(2, $3), =(2, $4)), AND(=(1, $3), =(1, $4))))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($1, 1), =($3, 2), =($4, 2)), AND(=($3, 1), =($4, 1))), OR(AND(=($3, 2), =($4, 2)), AND(=($3, 1), =($4, 1))))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
@@ -187,7 +187,7 @@ LogicalProject(a=[$0], d=[$3])
     <Resource name="sql">
       <![CDATA[SELECT a, d FROM MyTable1, MyTable2 WHERE (a = 1 AND d = 2) OR (a = 2 AND d = 1)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
 +- LogicalFilter(condition=[OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1)))])
@@ -196,10 +196,10 @@ LogicalProject(a=[$0], d=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], d=[$3])
-+- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), OR(=(1, $0), =(2, $0)), OR(=(2, $3), =(1, $3)))], joinType=[inner])
++- LogicalJoin(condition=[AND(OR(AND(=($0, 1), =($3, 2)), AND(=($0, 2), =($3, 1))), SEARCH($0, Sarg[1, 2]), SEARCH($3, Sarg[1, 2]))], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
 ]]>

@@ -29,59 +29,59 @@ import scala.Option;
 
 /**
  * A standalone Mesos worker store.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
  */
+@Deprecated
 public class StandaloneMesosWorkerStore implements MesosWorkerStore {
 
-	private Option<Protos.FrameworkID> frameworkID = Option.empty();
+    private Option<Protos.FrameworkID> frameworkID = Option.empty();
 
-	private int taskCount = 0;
+    private int taskCount = 0;
 
-	private Map<Protos.TaskID, Worker> storedWorkers = new LinkedHashMap<>();
+    private Map<Protos.TaskID, Worker> storedWorkers = new LinkedHashMap<>();
 
-	public StandaloneMesosWorkerStore() {
-	}
+    public StandaloneMesosWorkerStore() {}
 
-	@Override
-	public void start() throws Exception {
+    @Override
+    public void start() throws Exception {}
 
-	}
+    @Override
+    public void stop(boolean cleanup) throws Exception {}
 
-	@Override
-	public void stop(boolean cleanup) throws Exception {
+    @Override
+    public Option<Protos.FrameworkID> getFrameworkID() throws Exception {
+        return frameworkID;
+    }
 
-	}
+    @Override
+    public void setFrameworkID(Option<Protos.FrameworkID> frameworkID) throws Exception {
+        this.frameworkID = frameworkID;
+    }
 
-	@Override
-	public Option<Protos.FrameworkID> getFrameworkID() throws Exception {
-		return frameworkID;
-	}
+    @Override
+    public List<Worker> recoverWorkers() throws Exception {
+        List<Worker> workers = new ArrayList<>(storedWorkers.size());
+        workers.addAll(storedWorkers.values());
+        return workers;
+    }
 
-	@Override
-	public void setFrameworkID(Option<Protos.FrameworkID> frameworkID) throws Exception {
-		this.frameworkID = frameworkID;
-	}
+    @Override
+    public Protos.TaskID newTaskID() throws Exception {
+        Protos.TaskID taskID =
+                Protos.TaskID.newBuilder().setValue(TASKID_FORMAT.format(++taskCount)).build();
+        return taskID;
+    }
 
-	@Override
-	public List<Worker> recoverWorkers() throws Exception {
-		List<Worker> workers = new ArrayList<>(storedWorkers.size());
-		workers.addAll(storedWorkers.values());
-		return workers;
-	}
+    @Override
+    public void putWorker(Worker worker) throws Exception {
+        storedWorkers.put(worker.taskID(), worker);
+    }
 
-	@Override
-	public Protos.TaskID newTaskID() throws Exception {
-		Protos.TaskID taskID = Protos.TaskID.newBuilder().setValue(TASKID_FORMAT.format(++taskCount)).build();
-		return taskID;
-	}
-
-	@Override
-	public void putWorker(Worker worker) throws Exception {
-		storedWorkers.put(worker.taskID(), worker);
-	}
-
-	@Override
-	public boolean removeWorker(Protos.TaskID taskID) throws Exception {
-		Worker prior = storedWorkers.remove(taskID);
-		return prior != null;
-	}
+    @Override
+    public boolean removeWorker(Protos.TaskID taskID) throws Exception {
+        Worker prior = storedWorkers.remove(taskID);
+        return prior != null;
+    }
 }

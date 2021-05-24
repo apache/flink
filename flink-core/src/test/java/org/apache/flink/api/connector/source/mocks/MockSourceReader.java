@@ -23,109 +23,159 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.core.io.InputStatus;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * A mock {@link SourceReader} for unit tests.
- */
+/** A mock {@link SourceReader} for unit tests. */
 public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> {
-	private final AtomicReference<CompletableFuture<Void>> availableRef;
-	private List<MockSourceSplit> assignedSplits;
-	private List<SourceEvent> receivedSourceEvents;
-	private int currentSplitIndex = 0;
-	private boolean started;
-	private boolean closed;
+    private final List<MockSourceSplit> assignedSplits = new ArrayList<>();
+    private final List<SourceEvent> receivedSourceEvents = new ArrayList<>();
+    private final List<Long> completedCheckpoints = new ArrayList<>();
+    private final List<Long> abortedCheckpoints = new ArrayList<>();
+    private final boolean markIdleOnNoSplits;
 
-	public MockSourceReader() {
-		this.assignedSplits = new ArrayList<>();
-		this.receivedSourceEvents = new ArrayList<>();
-		this.started = false;
-		this.closed = false;
-		this.availableRef = new AtomicReference<>();
-	}
+    private int currentSplitIndex = 0;
+    private boolean started;
+    private int timesClosed;
+    private boolean waitingForMoreSplits;
 
-	@Override
-	public void start() {
-		this.started = true;
-	}
+    @GuardedBy("this")
+    private CompletableFuture<Void> availableFuture;
 
-	@Override
-	public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
-		boolean finished = true;
-		currentSplitIndex = 0;
-		// Find first splits with available records.
-		while (currentSplitIndex < assignedSplits.size()
-				&& !assignedSplits.get(currentSplitIndex).isAvailable()) {
-			finished &= assignedSplits.get(currentSplitIndex).isFinished();
-			currentSplitIndex++;
-		}
-		// Read from the split with available record.
-		if (currentSplitIndex < assignedSplits.size()) {
-			sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
-			return InputStatus.MORE_AVAILABLE;
-		} else {
-			// In case no split has available record, return depending on whether all the splits has finished.
-			return finished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
-		}
-	}
+    public MockSourceReader() {
+        this(false, false);
+    }
 
-	@Override
-	public List<MockSourceSplit> snapshotState() {
-		return assignedSplits;
-	}
+    public MockSourceReader(boolean waitingForMoreSplits, boolean markIdleOnNoSplits) {
+        this.started = false;
+        this.timesClosed = 0;
+        this.availableFuture = CompletableFuture.completedFuture(null);
+        this.waitingForMoreSplits = waitingForMoreSplits;
+        this.markIdleOnNoSplits = markIdleOnNoSplits;
+    }
 
-	@Override
-	public CompletableFuture<Void> isAvailable() {
-		if (currentSplitIndex >= assignedSplits.size()) {
-			CompletableFuture<Void> future = new CompletableFuture<>();
-			availableRef.compareAndSet(null, future);
-			return availableRef.get();
-		} else {
-			return CompletableFuture.completedFuture(null);
-		}
-	}
+    @Override
+    public void start() {
+        this.started = true;
+    }
 
-	@Override
-	public void addSplits(List<MockSourceSplit> splits) {
-		assignedSplits.addAll(splits);
-	}
+    @Override
+    public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+        boolean finished = !waitingForMoreSplits;
+        currentSplitIndex = 0;
+        // Find first splits with available records.
+        while (currentSplitIndex < assignedSplits.size()
+                && !assignedSplits.get(currentSplitIndex).isAvailable()) {
+            finished &= assignedSplits.get(currentSplitIndex).isFinished();
+            currentSplitIndex++;
+        }
+        // Read from the split with available record.
+        if (currentSplitIndex < assignedSplits.size()) {
+            sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
+            return InputStatus.MORE_AVAILABLE;
+        } else if (finished) {
+            // In case no split has available record, return depending on whether all the splits has
+            // finished.
+            return InputStatus.END_OF_INPUT;
+        } else {
+            if (markIdleOnNoSplits) {
+                sourceOutput.markIdle();
+            }
+            markUnavailable();
+            return InputStatus.NOTHING_AVAILABLE;
+        }
+    }
 
-	@Override
-	public void handleSourceEvents(SourceEvent sourceEvent) {
-		receivedSourceEvents.add(sourceEvent);
-	}
+    @Override
+    public List<MockSourceSplit> snapshotState(long checkpointId) {
+        return assignedSplits;
+    }
 
-	@Override
-	public void close() throws Exception {
-		this.closed = true;
-	}
+    @Override
+    public synchronized CompletableFuture<Void> isAvailable() {
+        return availableFuture;
+    }
 
-	// --------------- methods for unit tests ---------------
+    @Override
+    public void addSplits(List<MockSourceSplit> splits) {
+        assignedSplits.addAll(splits);
+        markAvailable();
+    }
 
-	public void markAvailable() {
-		CompletableFuture<Void> future = availableRef.get();
-		if (future != null) {
-			future.complete(null);
-			availableRef.set(null);
-		}
-	}
+    @Override
+    public void notifyNoMoreSplits() {
+        waitingForMoreSplits = false;
+        markAvailable();
+    }
 
-	public boolean isStarted() {
-		return started;
-	}
+    @Override
+    public void close() throws Exception {
+        timesClosed++;
+    }
 
-	public boolean isClosed() {
-		return closed;
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        completedCheckpoints.add(checkpointId);
+    }
 
-	public List<MockSourceSplit> getAssignedSplits() {
-		return assignedSplits;
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        abortedCheckpoints.add(checkpointId);
+    }
 
-	public List<SourceEvent> getReceivedSourceEvents() {
-		return receivedSourceEvents;
-	}
+    private synchronized void markUnavailable() {
+        if (availableFuture.isDone()) {
+            availableFuture = new CompletableFuture<>();
+        }
+    }
+
+    @Override
+    public void handleSourceEvents(SourceEvent sourceEvent) {
+        receivedSourceEvents.add(sourceEvent);
+    }
+
+    // --------------- methods for unit tests ---------------
+
+    public void markAvailable() {
+        CompletableFuture<?> toNotify = null;
+        synchronized (this) {
+            if (!availableFuture.isDone()) {
+                toNotify = availableFuture;
+            }
+        }
+        if (toNotify != null) {
+            toNotify.complete(null);
+        }
+    }
+
+    public boolean isStarted() {
+        return started;
+    }
+
+    public boolean isClosed() {
+        return timesClosed > 0;
+    }
+
+    public int getTimesClosed() {
+        return timesClosed;
+    }
+
+    public List<MockSourceSplit> getAssignedSplits() {
+        return assignedSplits;
+    }
+
+    public List<SourceEvent> getReceivedSourceEvents() {
+        return receivedSourceEvents;
+    }
+
+    public List<Long> getCompletedCheckpoints() {
+        return completedCheckpoints;
+    }
+
+    public List<Long> getAbortedCheckpoints() {
+        return abortedCheckpoints;
+    }
 }

@@ -32,59 +32,65 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * Test base for {@link SlotSelectionStrategy}.
- */
+/** Test base for {@link SlotSelectionStrategy}. */
 public abstract class SlotSelectionStrategyTestBase extends TestLogger {
 
-	protected final ResourceProfile resourceProfile = ResourceProfile.fromResources(2, 1024);
-	protected final ResourceProfile biggerResourceProfile = ResourceProfile.fromResources(3, 1024);
+    protected final ResourceProfile resourceProfile = ResourceProfile.fromResources(2, 1024);
+    protected final ResourceProfile biggerResourceProfile = ResourceProfile.fromResources(3, 1024);
 
-	protected final AllocationID aid1 = new AllocationID();
-	protected final AllocationID aid2 = new AllocationID();
-	protected final AllocationID aid3 = new AllocationID();
-	protected final AllocationID aid4 = new AllocationID();
-	protected final AllocationID aidX = new AllocationID();
+    protected final AllocationID aid1 = new AllocationID();
+    protected final AllocationID aid2 = new AllocationID();
+    protected final AllocationID aid3 = new AllocationID();
+    protected final AllocationID aid4 = new AllocationID();
+    protected final AllocationID aidX = new AllocationID();
 
-	protected final TaskManagerLocation tml1 = new TaskManagerLocation(new ResourceID("tm-1"), InetAddress.getLoopbackAddress(), 42);
-	protected final TaskManagerLocation tml2 = new TaskManagerLocation(new ResourceID("tm-2"), InetAddress.getLoopbackAddress(), 43);
-	protected final TaskManagerLocation tml3 = new TaskManagerLocation(new ResourceID("tm-3"), InetAddress.getLoopbackAddress(), 44);
-	protected final TaskManagerLocation tml4 = new TaskManagerLocation(new ResourceID("tm-4"), InetAddress.getLoopbackAddress(), 45);
-	protected final TaskManagerLocation tmlX = new TaskManagerLocation(new ResourceID("tm-X"), InetAddress.getLoopbackAddress(), 46);
+    protected final TaskManagerLocation tml1 =
+            new TaskManagerLocation(new ResourceID("tm-1"), InetAddress.getLoopbackAddress(), 42);
+    protected final TaskManagerLocation tml2 =
+            new TaskManagerLocation(new ResourceID("tm-2"), InetAddress.getLoopbackAddress(), 43);
+    protected final TaskManagerLocation tml3 =
+            new TaskManagerLocation(new ResourceID("tm-3"), InetAddress.getLoopbackAddress(), 44);
+    protected final TaskManagerLocation tml4 =
+            new TaskManagerLocation(new ResourceID("tm-4"), InetAddress.getLoopbackAddress(), 45);
+    protected final TaskManagerLocation tmlX =
+            new TaskManagerLocation(new ResourceID("tm-X"), InetAddress.getLoopbackAddress(), 46);
 
-	protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+    protected final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 
-	protected final SlotInfoWithUtilization slotInfo1 = SlotInfoWithUtilization.from(
-		new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile),
-		0);
-	protected final SlotInfoWithUtilization slotInfo2 = SlotInfoWithUtilization.from(
-		new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile),
-		0);
-	protected final SlotInfoWithUtilization slotInfo3 = SlotInfoWithUtilization.from(
-		new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile),
-		0);
-	protected final SlotInfoWithUtilization slotInfo4 = SlotInfoWithUtilization.from(
-		new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile),
-		0);
+    protected final SlotInfoWithUtilization slotInfo1 =
+            SlotInfoWithUtilization.from(
+                    new SimpleSlotContext(aid1, tml1, 1, taskManagerGateway, resourceProfile), 0);
+    protected final SlotInfoWithUtilization slotInfo2 =
+            SlotInfoWithUtilization.from(
+                    new SimpleSlotContext(aid2, tml2, 2, taskManagerGateway, biggerResourceProfile),
+                    0);
+    protected final SlotInfoWithUtilization slotInfo3 =
+            SlotInfoWithUtilization.from(
+                    new SimpleSlotContext(aid3, tml3, 3, taskManagerGateway, resourceProfile), 0);
+    protected final SlotInfoWithUtilization slotInfo4 =
+            SlotInfoWithUtilization.from(
+                    new SimpleSlotContext(aid4, tml4, 4, taskManagerGateway, resourceProfile), 0);
 
-	protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = Collections.unmodifiableSet(createCandidates());
+    protected final Set<SlotSelectionStrategy.SlotInfoAndResources> candidates =
+            Collections.unmodifiableSet(createCandidates());
 
-	protected final SlotSelectionStrategy selectionStrategy;
+    protected final SlotSelectionStrategy selectionStrategy;
 
-	public SlotSelectionStrategyTestBase(SlotSelectionStrategy slotSelectionStrategy) {
-		this.selectionStrategy = slotSelectionStrategy;
-	}
+    public SlotSelectionStrategyTestBase(SlotSelectionStrategy slotSelectionStrategy) {
+        this.selectionStrategy = slotSelectionStrategy;
+    }
 
-	private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
-		Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
-		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo1));
-		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo2));
-		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo3));
-		candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo4));
-		return candidates;
-	}
+    private Set<SlotSelectionStrategy.SlotInfoAndResources> createCandidates() {
+        Set<SlotSelectionStrategy.SlotInfoAndResources> candidates = new HashSet<>(4);
+        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo1));
+        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo2));
+        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo3));
+        candidates.add(SlotSelectionStrategy.SlotInfoAndResources.fromSingleSlot(slotInfo4));
+        return candidates;
+    }
 
-	protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(SlotProfile slotProfile) {
-		return selectionStrategy.selectBestSlotForProfile(candidates, slotProfile);
-	}
+    protected Optional<SlotSelectionStrategy.SlotInfoAndLocality> runMatching(
+            SlotProfile slotProfile) {
+        return selectionStrategy.selectBestSlotForProfile(candidates, slotProfile);
+    }
 }

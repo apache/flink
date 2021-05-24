@@ -35,46 +35,45 @@ import org.apache.flink.types.NullValue;
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
-public class EdgeList<K, VV, EV>
-extends DriverBase<K, VV, EV> {
+public class EdgeList<K, VV, EV> extends DriverBase<K, VV, EV> {
 
-	@Override
-	public String getShortDescription() {
-		return "the edge list";
-	}
+    @Override
+    public String getShortDescription() {
+        return "the edge list";
+    }
 
-	@Override
-	public String getLongDescription() {
-		return "Pass-through of the graph's edge list.";
-	}
+    @Override
+    public String getLongDescription() {
+        return "Pass-through of the graph's edge list.";
+    }
 
-	@Override
-	public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
-		DataSet<Edge<K, EV>> edges = graph.getEdges();
+    @Override
+    public DataSet plan(Graph<K, VV, EV> graph) throws Exception {
+        DataSet<Edge<K, EV>> edges = graph.getEdges();
 
-		if (hasNullValueEdges(edges)) {
-			return edges
-				.map(new EdgeToTuple2Map<>())
-				.name("Edge to Tuple2")
-				.setParallelism(parallelism.getValue().intValue());
-		} else {
-			return edges;
-		}
-	}
+        if (hasNullValueEdges(edges)) {
+            return edges.map(new EdgeToTuple2Map<>())
+                    .name("Edge to Tuple2")
+                    .setParallelism(parallelism.getValue().intValue());
+        } else {
+            return edges;
+        }
+    }
 
-	/**
-	 * Check whether the edge type of the {@link DataSet} is {@link NullValue}.
-	 *
-	 * @param edges data set for introspection
-	 * @param <T> graph ID type
-	 * @param <ET> edge value type
-	 * @return whether the edge type of the {@link DataSet} is {@link NullValue}
-	 */
-	private static <T, ET> boolean hasNullValueEdges(DataSet<Edge<T, ET>> edges) {
-		TypeInformation<?> genericTypeInfo = edges.getType();
-		@SuppressWarnings("unchecked")
-		TupleTypeInfo<Tuple3<T, T, ET>> tupleTypeInfo = (TupleTypeInfo<Tuple3<T, T, ET>>) genericTypeInfo;
+    /**
+     * Check whether the edge type of the {@link DataSet} is {@link NullValue}.
+     *
+     * @param edges data set for introspection
+     * @param <T> graph ID type
+     * @param <ET> edge value type
+     * @return whether the edge type of the {@link DataSet} is {@link NullValue}
+     */
+    private static <T, ET> boolean hasNullValueEdges(DataSet<Edge<T, ET>> edges) {
+        TypeInformation<?> genericTypeInfo = edges.getType();
+        @SuppressWarnings("unchecked")
+        TupleTypeInfo<Tuple3<T, T, ET>> tupleTypeInfo =
+                (TupleTypeInfo<Tuple3<T, T, ET>>) genericTypeInfo;
 
-		return tupleTypeInfo.getTypeAt(2).equals(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
-	}
+        return tupleTypeInfo.getTypeAt(2).equals(ValueTypeInfo.NULL_VALUE_TYPE_INFO);
+    }
 }

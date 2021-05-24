@@ -30,42 +30,44 @@ import java.io.IOException;
 /**
  * A read-only {@link AggregatingState} that <b>does not</b> allow for modifications.
  *
- * <p>This is the type of the result returned when querying Flink's keyed state using the
- * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
- * providing an {@link AggregatingStateDescriptor}.
+ * <p>This is the type of the result returned when querying Flink's keyed state using the {@link
+ * org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and providing
+ * an {@link AggregatingStateDescriptor}.
  */
-public final class ImmutableAggregatingState<IN, OUT> extends ImmutableState implements AggregatingState<IN, OUT> {
+public final class ImmutableAggregatingState<IN, OUT> extends ImmutableState
+        implements AggregatingState<IN, OUT> {
 
-	private final OUT value;
+    private final OUT value;
 
-	private ImmutableAggregatingState(OUT value) {
-		this.value = Preconditions.checkNotNull(value);
-	}
+    private ImmutableAggregatingState(OUT value) {
+        this.value = Preconditions.checkNotNull(value);
+    }
 
-	@Override
-	public OUT get() {
-		return value;
-	}
+    @Override
+    public OUT get() {
+        return value;
+    }
 
-	@Override
-	public void add(Object newValue) {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void add(Object newValue) {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@Override
-	public void clear() {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
+    @Override
+    public void clear() {
+        throw MODIFICATION_ATTEMPT_ERROR;
+    }
 
-	@SuppressWarnings("unchecked")
-	public static <OUT, ACC, S extends State> S createState(
-		StateDescriptor<S, ACC> stateDescriptor,
-		byte[] serializedState) throws IOException {
-		final ACC accumulator = KvStateSerializer.deserializeValue(
-			serializedState,
-			stateDescriptor.getSerializer());
-		final OUT state = ((AggregatingStateDescriptor<?, ACC, OUT>) stateDescriptor).
-			getAggregateFunction().getResult(accumulator);
-		return (S) new ImmutableAggregatingState<>(state);
-	}
+    @SuppressWarnings("unchecked")
+    public static <OUT, ACC, S extends State> S createState(
+            StateDescriptor<S, ACC> stateDescriptor, byte[] serializedState) throws IOException {
+        final ACC accumulator =
+                KvStateSerializer.deserializeValue(
+                        serializedState, stateDescriptor.getSerializer());
+        final OUT state =
+                ((AggregatingStateDescriptor<?, ACC, OUT>) stateDescriptor)
+                        .getAggregateFunction()
+                        .getResult(accumulator);
+        return (S) new ImmutableAggregatingState<>(state);
+    }
 }

@@ -18,21 +18,20 @@
 
 package org.apache.flink.table.planner.runtime.batch.table
 
-import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.DataTypes.{BIGINT, DECIMAL, DOUBLE, INT}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
-import org.junit.{Assert, Test}
+import org.junit.Assert.assertEquals
+import org.junit.Test
 
 import java.math.{BigDecimal => JBigDecimal}
 
+import scala.collection.JavaConverters._
 import scala.collection.Seq
 
 /**
@@ -42,31 +41,29 @@ import scala.collection.Seq
 class DecimalITCase extends BatchTestBase {
 
   private def checkQuery(
-      sourceColTypes: Seq[LogicalType],
+      sourceColTypes: Seq[DataType],
       sourceRows: Seq[Row],
       tableTransfer: Table => Table,
-      expectedColTypes: Seq[LogicalType],
+      expectedColTypes: Seq[DataType],
       expectedRows: Seq[Row],
       isSorted: Boolean = false): Unit = {
-    val rowTypeInfo = new RowTypeInfo(sourceColTypes.toArray.map(fromLogicalTypeToTypeInfo): _*)
-    val fieldNames = rowTypeInfo.getFieldNames.mkString(",")
-    val t = BatchTableEnvUtil.fromCollection(tEnv, sourceRows, rowTypeInfo, fieldNames)
+    val t = tEnv.fromValues(DataTypes.ROW(sourceColTypes: _*), sourceRows: _*)
 
     // check result schema
     val resultTable = tableTransfer(t)
-    val ts2 = resultTable.getSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
-    Assert.assertEquals(expectedColTypes.length, ts2.length)
+    val ts2 = resultTable.getResolvedSchema.getColumnDataTypes.asScala
+    assertEquals(expectedColTypes.length, ts2.length)
 
-    Assert.assertTrue(expectedColTypes.zip(ts2).forall {
-      case (t1, t2) => isInteroperable(t1, t2)
-    })
+    expectedColTypes.zip(ts2).foreach {
+      case (t1, t2) => assertEquals(t1, t2)
+    }
 
     def prepareResult(isSorted: Boolean, seq: Seq[Row]) = {
       if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
     }
 
     val resultRows = executeQuery(resultTable)
-    Assert.assertEquals(
+    assertEquals(
       prepareResult(isSorted, expectedRows),
       prepareResult(isSorted, resultRows))
   }
@@ -92,18 +89,6 @@ class DecimalITCase extends BatchTestBase {
       throw new AssertionError("Overflow exception expected, but not thrown.", ex)
     }
   }
-
-  private def DECIMAL = (p: Int, s: Int) => new DecimalType(p, s)
-
-  private def BOOL = DataTypes.BOOLEAN.getLogicalType
-
-  private def INT = DataTypes.INT.getLogicalType
-
-  private def LONG = DataTypes.BIGINT.getLogicalType
-
-  private def DOUBLE = DataTypes.DOUBLE.getLogicalType
-
-  private def STRING = DataTypes.STRING.getLogicalType
 
   // d"xxx" => new BigDecimal("xxx")
   // d"xxx$yy" => new BigDecimal("xxx").setScale(yy)
@@ -190,8 +175,8 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(6, 3)),
       (10 to 90).map(i => row(java.math.BigDecimal.valueOf(i))),
-      table => table.select('f0.min, 'f0.max, 'f0.count ),
-      Seq(DECIMAL(6, 3), DECIMAL(6, 3), LONG),
+      table => table.select('f0.min, 'f0.max, 'f0.count),
+      Seq(DECIMAL(6, 3), DECIMAL(6, 3), BIGINT.notNull()),
       s1r(d"10.000", d"90.000", 81L))
   }
 
@@ -204,7 +189,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('a === 'f0).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -217,7 +202,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('a === 'f1).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -230,7 +215,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('b === 'f0).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
 
   }
@@ -244,7 +229,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('a === 'f2).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -257,7 +242,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('c === 'f0).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -270,7 +255,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('a === 'f3).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -282,7 +267,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),
       s1r(d"1", d"1", 1, 1.0),
       table => table.as("a", "b", "c", "d").join(table).where('a === 'f3).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       s1r(1L))
   }
 
@@ -292,7 +277,7 @@ class DecimalITCase extends BatchTestBase {
       Seq(DECIMAL(8, 2)),
       Seq(row(d"1"), row(d"3"), row(d"1.0"), row(d"2")),
       table => table.groupBy('f0).select(1.count),
-      Seq(LONG),
+      Seq(BIGINT.notNull()),
       Seq(row(2L), row(1L), row(1L)))
   }
 

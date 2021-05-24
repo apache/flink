@@ -21,14 +21,12 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Validator for a descriptor. We put the validation methods and utilities in separate classes
- * to keep the descriptor interfaces clean.
+ * Validator for a descriptor. We put the validation methods and utilities in separate classes to
+ * keep the descriptor interfaces clean.
  */
 @Internal
 public interface DescriptorValidator {
 
-	/**
-	 * Performs basic validation such as completeness tests.
-	 */
-	void validate(DescriptorProperties properties);
+    /** Performs basic validation such as completeness tests. */
+    void validate(DescriptorProperties properties);
 }

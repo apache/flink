@@ -150,46 +150,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             DistinctAgg(args.head)
 
-          case AVG =>
-            assert(args.size == 1)
-            Avg(args.head)
-
-          case COUNT =>
-            assert(args.size == 1)
-            Count(args.head)
-
-          case MAX =>
-            assert(args.size == 1)
-            Max(args.head)
-
-          case MIN =>
-            assert(args.size == 1)
-            Min(args.head)
-
-          case SUM =>
-            assert(args.size == 1)
-            Sum(args.head)
-
-          case SUM0 =>
-            assert(args.size == 1)
-            Sum0(args.head)
-
-          case STDDEV_POP =>
-            assert(args.size == 1)
-            StddevPop(args.head)
-
-          case STDDEV_SAMP =>
-            assert(args.size == 1)
-            StddevSamp(args.head)
-
-          case VAR_POP =>
-            assert(args.size == 1)
-            VarPop(args.head)
-
-          case VAR_SAMP =>
-            assert(args.size == 1)
-            VarSamp(args.head)
-
           case COLLECT =>
             assert(args.size == 1)
             Collect(args.head)
@@ -233,6 +193,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case TIMESTAMP_DIFF =>
             assert(args.size == 3)
             TimestampDiff(args.head, args(1), args.last)
+
+          case TO_TIMESTAMP_LTZ =>
+            assert(args.size == 2)
+            ToTimestampLtz(args.head, args.last)
 
           case AT =>
             assert(args.size == 2)
@@ -393,6 +357,11 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   override def visit(lookupCall: LookupCallExpression): PlannerExpression =
     throw new TableException("Unsupported function call: " + lookupCall)
+
+  override def visit(sqlCall: SqlCallExpression): PlannerExpression =
+    throw new TableException("Unsupported function call: " + sqlCall)
+
+  override def visit(other: ResolvedExpression): PlannerExpression = visitNonApiExpression(other)
 
   override def visitNonApiExpression(other: Expression): PlannerExpression = {
     other match {

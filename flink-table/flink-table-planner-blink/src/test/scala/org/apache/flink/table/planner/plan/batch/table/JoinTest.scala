@@ -36,7 +36,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -47,7 +47,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -58,7 +58,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.leftOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -69,7 +69,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -80,7 +80,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'x < 2).select('b, 'x)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -91,7 +91,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.rightOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -102,7 +102,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -113,7 +113,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z && 'b < 2).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -124,7 +124,7 @@ class JoinTest extends TableTestBase {
 
     val joined = t.fullOuterJoin(s, 'a === 'z && 'b < 'x).select('b, 'y)
 
-    util.verifyPlan(joined)
+    util.verifyExecPlan(joined)
   }
 
   @Test
@@ -138,7 +138,7 @@ class JoinTest extends TableTestBase {
       .select(Merger('c, 'c0) as 'c1)
       .where('c1 >= 0)
 
-    util.verifyPlan(results)
+    util.verifyExecPlan(results)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -147,7 +147,7 @@ class JoinTest extends TableTestBase {
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    util.verifyExecPlan(ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -156,7 +156,7 @@ class JoinTest extends TableTestBase {
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    util.verifyExecPlan(ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g))
   }
 
   @Test(expected = classOf[ValidationException])
@@ -165,7 +165,7 @@ class JoinTest extends TableTestBase {
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g))
+    util.verifyExecPlan(ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g))
   }
 
   @Test
@@ -174,7 +174,7 @@ class JoinTest extends TableTestBase {
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyPlan(ds1.join(ds2)
+    util.verifyExecPlan(ds1.join(ds2)
       // must fail. No equality join predicate
       .where('d === 'f)
       .select('c, 'g))
@@ -186,7 +186,7 @@ class JoinTest extends TableTestBase {
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
-    util.verifyPlan(ds1.join(ds2)
+    util.verifyExecPlan(ds1.join(ds2)
       // must fail. No equality join predicate
       .where('a < 'd)
       .select('c, 'g))
@@ -199,7 +199,7 @@ class JoinTest extends TableTestBase {
     val ds2 = util.addTableSource[(Int, Long, String)]("right",'d, 'e, 'f)
 
     val joinT = ds1.join(ds2, 'b === 'e && Merger('a, 'd) === 10)
-    util.verifyPlan(joinT)
+    util.verifyExecPlan(joinT)
   }
 }
 

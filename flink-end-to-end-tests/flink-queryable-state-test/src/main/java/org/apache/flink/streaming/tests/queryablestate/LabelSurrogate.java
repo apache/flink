@@ -17,49 +17,42 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
-/**
- * A label surrogate.
- */
+/** A label surrogate. */
 public class LabelSurrogate {
 
-	private Type type;
-	private String foo;
+    private Type type;
+    private String foo;
 
-	public LabelSurrogate(Type type, String foo) {
-		this.type = type;
-		this.foo = foo;
-	}
+    public LabelSurrogate(Type type, String foo) {
+        this.type = type;
+        this.foo = foo;
+    }
 
-	public Type getType() {
-		return type;
-	}
+    public Type getType() {
+        return type;
+    }
 
-	public void setType(Type type) {
-		this.type = type;
-	}
+    public void setType(Type type) {
+        this.type = type;
+    }
 
-	public String getFoo() {
-		return foo;
-	}
+    public String getFoo() {
+        return foo;
+    }
 
-	public void setFoo(String foo) {
-		this.foo = foo;
-	}
+    public void setFoo(String foo) {
+        this.foo = foo;
+    }
 
-	@Override
-	public String toString() {
-		return "LabelSurrogate{" +
-				"type=" + type +
-				", foo='" + foo + '\'' +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "LabelSurrogate{" + "type=" + type + ", foo='" + foo + '\'' + '}';
+    }
 
-	/**
-	 * An exemplary enum.
-	 */
-	public enum Type {
-		FOO,
-		BAR,
-		BAZ
-	}
+    /** An exemplary enum. */
+    public enum Type {
+        FOO,
+        BAR,
+        BAZ
+    }
 }

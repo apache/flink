@@ -19,20 +19,20 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.data.{GenericRowData, RowData, UpdatableRowData}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.{UserDefinedAggregateFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{ImperativeAggregateFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
+import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
 import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldCount
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.Collector
 
@@ -79,7 +79,7 @@ class ImperativeAggCodeGen(
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]
   private val UPDATABLE_ROW = className[UpdatableRowData]
 
-  val function = aggInfo.function.asInstanceOf[UserDefinedAggregateFunction[_, _]]
+  val function = aggInfo.function.asInstanceOf[ImperativeAggregateFunction[_, _]]
   val functionTerm: String = ctx.addReusableFunction(
     function,
     contextTerm = s"$STORE_TERM.getRuntimeContext()")
@@ -365,8 +365,9 @@ class ImperativeAggCodeGen(
                    |${newExpr.code}
                    |$fieldTerm = null;
                    |if (!${newExpr.nullTerm}) {
-                   |  $fieldTerm = new $UPDATABLE_ROW(${newExpr.resultTerm}, ${
-                        PlannerTypeUtils.getArity(fieldType)});
+                   |  $fieldTerm = new $UPDATABLE_ROW(
+                   |    ${newExpr.resultTerm},
+                   |    ${getFieldCount(fieldType)});
                    |  ${generateDataViewFieldSetter(fieldTerm, viewSpecs, useBackupDataView)}
                    |}
                 """.stripMargin
@@ -412,7 +413,7 @@ class ImperativeAggCodeGen(
            |if ($NAMESPACE_TERM != null) {
            |  $dataViewTerm.setCurrentNamespace($NAMESPACE_TERM);
            |  $dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |  $accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |  $accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
            |}
          """.stripMargin
       } else {
@@ -421,7 +422,7 @@ class ImperativeAggCodeGen(
 
         s"""
            |$dataViewInternalTerm.setJavaObject($dataViewTerm);
-           |$accTerm.setField(${spec.fieldIndex}, $dataViewInternalTerm);
+           |$accTerm.setField(${spec.getFieldIndex}, $dataViewInternalTerm);
         """.stripMargin
       }
     }
@@ -464,16 +465,6 @@ class ImperativeAggCodeGen(
         function.getClass,
         UserDefinedFunctionHelper.AGGREGATE_MERGE,
         accumulatorClass ++ Array(classOf[JIterable[Any]]),
-        classOf[Unit],
-        functionName
-      )
-    }
-
-    if (needReset) {
-      UserDefinedFunctionHelper.validateClassForRuntime(
-        function.getClass,
-        UserDefinedFunctionHelper.AGGREGATE_RESET,
-        accumulatorClass,
         classOf[Unit],
         functionName
       )

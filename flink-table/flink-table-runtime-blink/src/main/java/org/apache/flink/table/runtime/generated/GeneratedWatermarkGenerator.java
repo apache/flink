@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.runtime.generated;
 
-/**
- * Describes a generated {@link WatermarkGenerator}.
- */
+/** Describes a generated {@link WatermarkGenerator}. */
 public class GeneratedWatermarkGenerator extends GeneratedClass<WatermarkGenerator> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public GeneratedWatermarkGenerator(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    public GeneratedWatermarkGenerator(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

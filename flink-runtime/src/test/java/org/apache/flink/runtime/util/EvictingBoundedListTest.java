@@ -31,137 +31,135 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link EvictingBoundedList}.
- */
+/** Tests for {@link EvictingBoundedList}. */
 public class EvictingBoundedListTest {
 
-	@Test
-	public void testAddGet() {
-		int insertSize = 17;
-		int boundSize = 5;
-		Integer defaultElement = 4711;
+    @Test
+    public void testAddGet() {
+        int insertSize = 17;
+        int boundSize = 5;
+        Integer defaultElement = 4711;
 
-		EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
-		assertTrue(list.isEmpty());
+        EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
+        assertTrue(list.isEmpty());
 
-		for (int i = 0; i < insertSize; ++i) {
-			list.add(i);
-		}
+        for (int i = 0; i < insertSize; ++i) {
+            list.add(i);
+        }
 
-		assertEquals(17, list.size());
+        assertEquals(17, list.size());
 
-		for (int i = 0; i < insertSize; ++i) {
-			int exp = i < (insertSize - boundSize) ? defaultElement : i;
-			int act = list.get(i);
-			assertEquals(exp, act);
-		}
-	}
+        for (int i = 0; i < insertSize; ++i) {
+            int exp = i < (insertSize - boundSize) ? defaultElement : i;
+            int act = list.get(i);
+            assertEquals(exp, act);
+        }
+    }
 
-	@Test
-	public void testSet() {
-		int insertSize = 17;
-		int boundSize = 5;
-		Integer defaultElement = 4711;
-		List<Integer> reference = new ArrayList<>(insertSize);
-		EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
-		for (int i = 0; i < insertSize; ++i) {
-			reference.add(i);
-			list.add(i);
-		}
+    @Test
+    public void testSet() {
+        int insertSize = 17;
+        int boundSize = 5;
+        Integer defaultElement = 4711;
+        List<Integer> reference = new ArrayList<>(insertSize);
+        EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
+        for (int i = 0; i < insertSize; ++i) {
+            reference.add(i);
+            list.add(i);
+        }
 
-		assertEquals(reference.size(), list.size());
+        assertEquals(reference.size(), list.size());
 
-		list.set(0, 123);
-		list.set(insertSize - boundSize - 1, 123);
+        list.set(0, 123);
+        list.set(insertSize - boundSize - 1, 123);
 
-		list.set(insertSize - boundSize, 42);
-		reference.set(insertSize - boundSize, 42);
-		list.set(13, 43);
-		reference.set(13, 43);
-		list.set(16, 44);
-		reference.set(16, 44);
+        list.set(insertSize - boundSize, 42);
+        reference.set(insertSize - boundSize, 42);
+        list.set(13, 43);
+        reference.set(13, 43);
+        list.set(16, 44);
+        reference.set(16, 44);
 
-		try {
-			list.set(insertSize, 23);
-			fail("Illegal index in set not detected.");
-		} catch (IllegalArgumentException ignored) {
+        try {
+            list.set(insertSize, 23);
+            fail("Illegal index in set not detected.");
+        } catch (IllegalArgumentException ignored) {
 
-		}
+        }
 
-		for (int i = 0; i < insertSize; ++i) {
-			int exp = i < (insertSize - boundSize) ? defaultElement : reference.get(i);
-			int act = list.get(i);
-			assertEquals(exp, act);
-		}
+        for (int i = 0; i < insertSize; ++i) {
+            int exp = i < (insertSize - boundSize) ? defaultElement : reference.get(i);
+            int act = list.get(i);
+            assertEquals(exp, act);
+        }
 
-		assertEquals(reference.size(), list.size());
-	}
+        assertEquals(reference.size(), list.size());
+    }
 
-	@Test
-	public void testClear() {
-		int insertSize = 17;
-		int boundSize = 5;
-		Integer defaultElement = 4711;
+    @Test
+    public void testClear() {
+        int insertSize = 17;
+        int boundSize = 5;
+        Integer defaultElement = 4711;
 
-		EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
-		for (int i = 0; i < insertSize; ++i) {
-			list.add(i);
-		}
+        EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
+        for (int i = 0; i < insertSize; ++i) {
+            list.add(i);
+        }
 
-		list.clear();
+        list.clear();
 
-		assertEquals(0, list.size());
-		assertTrue(list.isEmpty());
+        assertEquals(0, list.size());
+        assertTrue(list.isEmpty());
 
-		try {
-			list.get(0);
-			fail();
-		} catch (IndexOutOfBoundsException ignore) {
-		}
-	}
+        try {
+            list.get(0);
+            fail();
+        } catch (IndexOutOfBoundsException ignore) {
+        }
+    }
 
-	@Test
-	public void testIterator() {
-		int insertSize = 17;
-		int boundSize = 5;
-		Integer defaultElement = 4711;
+    @Test
+    public void testIterator() {
+        int insertSize = 17;
+        int boundSize = 5;
+        Integer defaultElement = 4711;
 
-		EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
-		assertTrue(list.isEmpty());
+        EvictingBoundedList<Integer> list = new EvictingBoundedList<>(boundSize, defaultElement);
+        assertTrue(list.isEmpty());
 
-		for (int i = 0; i < insertSize; ++i) {
-			list.add(i);
-		}
+        for (int i = 0; i < insertSize; ++i) {
+            list.add(i);
+        }
 
-		Iterator<Integer> iterator = list.iterator();
+        Iterator<Integer> iterator = list.iterator();
 
-		for (int i = 0; i < insertSize; ++i) {
-			assertTrue(iterator.hasNext());
-			int exp = i < (insertSize - boundSize) ? defaultElement : i;
-			int act = iterator.next();
-			assertEquals(exp, act);
-		}
+        for (int i = 0; i < insertSize; ++i) {
+            assertTrue(iterator.hasNext());
+            int exp = i < (insertSize - boundSize) ? defaultElement : i;
+            int act = iterator.next();
+            assertEquals(exp, act);
+        }
 
-		assertFalse(iterator.hasNext());
+        assertFalse(iterator.hasNext());
 
-		try {
-			iterator.next();
-			fail("Next on exhausted iterator did not trigger exception.");
-		} catch (NoSuchElementException ignored) {
+        try {
+            iterator.next();
+            fail("Next on exhausted iterator did not trigger exception.");
+        } catch (NoSuchElementException ignored) {
 
-		}
+        }
 
-		iterator = list.iterator();
-		assertTrue(iterator.hasNext());
-		iterator.next();
-		list.add(123);
-		assertTrue(iterator.hasNext());
-		try {
-			iterator.next();
-			fail("Concurrent modification not detected.");
-		} catch (ConcurrentModificationException ignored) {
+        iterator = list.iterator();
+        assertTrue(iterator.hasNext());
+        iterator.next();
+        list.add(123);
+        assertTrue(iterator.hasNext());
+        try {
+            iterator.next();
+            fail("Concurrent modification not detected.");
+        } catch (ConcurrentModificationException ignored) {
 
-		}
-	}
+        }
+    }
 }

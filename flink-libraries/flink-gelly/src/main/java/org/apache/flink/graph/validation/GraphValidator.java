@@ -30,8 +30,7 @@ import java.io.Serializable;
  * @param <EV> the edge value type
  */
 @SuppressWarnings("serial")
-public abstract class GraphValidator<K, VV, EV>	implements Serializable {
+public abstract class GraphValidator<K, VV, EV> implements Serializable {
 
-	public abstract boolean validate(Graph<K, VV, EV> graph) throws Exception;
-
+    public abstract boolean validate(Graph<K, VV, EV> graph) throws Exception;
 }

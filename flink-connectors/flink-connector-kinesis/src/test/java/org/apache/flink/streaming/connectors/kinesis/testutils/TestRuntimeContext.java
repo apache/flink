@@ -28,66 +28,62 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 import java.util.Collections;
 
-/**
- * A mock {@link StreamingRuntimeContext} for testing.
- */
+/** A mock {@link StreamingRuntimeContext} for testing. */
 public class TestRuntimeContext extends StreamingRuntimeContext {
 
-	private final boolean isCheckpointingEnabled;
+    private final boolean isCheckpointingEnabled;
 
-	private final int numParallelSubtasks;
-	private final int subtaskIndex;
+    private final int numParallelSubtasks;
+    private final int subtaskIndex;
 
-	public TestRuntimeContext(
-		boolean isCheckpointingEnabled,
-		int numParallelSubtasks,
-		int subtaskIndex) {
+    public TestRuntimeContext(
+            boolean isCheckpointingEnabled, int numParallelSubtasks, int subtaskIndex) {
 
-		super(
-			new TestStreamOperator(),
-			new MockEnvironmentBuilder()
-				.setTaskName("mockTask")
-				.setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
-				.build(),
-			Collections.emptyMap());
+        super(
+                new TestStreamOperator(),
+                new MockEnvironmentBuilder()
+                        .setTaskName("mockTask")
+                        .setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+                        .build(),
+                Collections.emptyMap());
 
-		this.isCheckpointingEnabled = isCheckpointingEnabled;
-		this.numParallelSubtasks = numParallelSubtasks;
-		this.subtaskIndex = subtaskIndex;
-	}
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
+        this.numParallelSubtasks = numParallelSubtasks;
+        this.subtaskIndex = subtaskIndex;
+    }
 
-	@Override
-	public MetricGroup getMetricGroup() {
-		return new UnregisteredMetricsGroup();
-	}
+    @Override
+    public MetricGroup getMetricGroup() {
+        return new UnregisteredMetricsGroup();
+    }
 
-	@Override
-	public boolean isCheckpointingEnabled() {
-		return isCheckpointingEnabled;
-	}
+    @Override
+    public boolean isCheckpointingEnabled() {
+        return isCheckpointingEnabled;
+    }
 
-	@Override
-	public int getIndexOfThisSubtask() {
-		return subtaskIndex;
-	}
+    @Override
+    public int getIndexOfThisSubtask() {
+        return subtaskIndex;
+    }
 
-	@Override
-	public int getNumberOfParallelSubtasks() {
-		return numParallelSubtasks;
-	}
+    @Override
+    public int getNumberOfParallelSubtasks() {
+        return numParallelSubtasks;
+    }
 
-	private static class TestStreamOperator extends AbstractStreamOperator<Integer> {
+    private static class TestStreamOperator extends AbstractStreamOperator<Integer> {
 
-		private static final long serialVersionUID = -2547912462252989589L;
+        private static final long serialVersionUID = -2547912462252989589L;
 
-		@Override
-		public ExecutionConfig getExecutionConfig() {
-			return new ExecutionConfig();
-		}
+        @Override
+        public ExecutionConfig getExecutionConfig() {
+            return new ExecutionConfig();
+        }
 
-		@Override
-		public OperatorID getOperatorID() {
-			return new OperatorID(42, 44);
-		}
-	}
+        @Override
+        public OperatorID getOperatorID() {
+            return new OperatorID(42, 44);
+        }
+    }
 }

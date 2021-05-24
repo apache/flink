@@ -21,32 +21,32 @@ package org.apache.flink.api.common.typeutils.base.array;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * A test for the {@link LongPrimitiveArraySerializer}.
- */
+/** A test for the {@link LongPrimitiveArraySerializer}. */
 public class CharPrimitiveArraySerializerTest extends SerializerTestBase<char[]> {
 
-	@Override
-	protected TypeSerializer<char[]> createSerializer() {
-		return new CharPrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<char[]> createSerializer() {
+        return new CharPrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<char[]> getTypeClass() {
-		return char[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<char[]> getTypeClass() {
+        return char[].class;
+    }
 
-	@Override
-	protected char[][] getTestData() {
-		return new char[][] {
-			new char[] {0, 1, 2, 3, '\n', '\t', 'a', 'b', 'c', Character.MAX_VALUE, Character.MIN_VALUE},
-			new char[] {},
-			new char[] {100, 200, 315, 0, 17, 0, 0}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected char[][] getTestData() {
+        return new char[][] {
+            new char[] {
+                0, 1, 2, 3, '\n', '\t', 'a', 'b', 'c', Character.MAX_VALUE, Character.MIN_VALUE
+            },
+            new char[] {},
+            new char[] {100, 200, 315, 0, 17, 0, 0}
+        };
+    }
 }

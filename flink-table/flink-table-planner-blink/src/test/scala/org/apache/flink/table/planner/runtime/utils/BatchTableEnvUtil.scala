@@ -19,46 +19,22 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sinks.CollectTableSink
 import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.util.AbstractID
-import _root_.java.util.{UUID, ArrayList => JArrayList}
 
-import _root_.scala.collection.JavaConversions._
+import _root_.java.util.UUID
+
 import _root_.scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 object BatchTableEnvUtil {
-
-  def collect[T](
-      tEnv: TableEnvironment,
-      table: Table,
-      sink: CollectTableSink[T],
-      jobName: Option[String]): Seq[T] = {
-    val typeSerializer = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[T]]
-      .createSerializer(tEnv.asInstanceOf[TableEnvironmentImpl]
-        .getPlanner.asInstanceOf[PlannerBase].getExecEnv.getConfig)
-    val id = new AbstractID().toString
-    sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
-    val sinkName = UUID.randomUUID().toString
-    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(sinkName, sink)
-
-    val res = TableEnvUtil.execInsertTableAndWaitResult(table, s"`$sinkName`")
-    val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
-    SerializedListAccumulator.deserializeList(accResult, typeSerializer)
-  }
 
   def parseFieldNames(fields: String): Array[String] = {
     if (fields != null) {

@@ -27,20 +27,22 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
-/**
- * A {@link KafkaResourceFactory} for the {@link LocalStandaloneKafkaResourceFactory}.
- */
+/** A {@link KafkaResourceFactory} for the {@link LocalStandaloneKafkaResourceFactory}. */
 public final class LocalStandaloneKafkaResourceFactory implements KafkaResourceFactory {
-	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneKafkaResourceFactory.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(LocalStandaloneKafkaResourceFactory.class);
 
-	private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY = new ParameterProperty<>("logBackupDir", Paths::get);
+    private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY =
+            new ParameterProperty<>("logBackupDir", Paths::get);
 
-	@Override
-	public KafkaResource create(final String kafkaVersion) {
-		Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
-		if (!logBackupDirectory.isPresent()) {
-			LOG.warn("Property {} not set, logs will not be backed up in case of test failures.", DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
-		}
-		return new LocalStandaloneKafkaResource(kafkaVersion, logBackupDirectory.orElse(null));
-	}
+    @Override
+    public KafkaResource create(final String kafkaVersion) {
+        Optional<Path> logBackupDirectory = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get();
+        if (!logBackupDirectory.isPresent()) {
+            LOG.warn(
+                    "Property {} not set, logs will not be backed up in case of test failures.",
+                    DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+        }
+        return new LocalStandaloneKafkaResource(kafkaVersion, logBackupDirectory.orElse(null));
+    }
 }

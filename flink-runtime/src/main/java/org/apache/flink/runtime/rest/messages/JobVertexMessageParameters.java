@@ -22,20 +22,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Message parameters for job vertex REST handlers.
- */
+/** Message parameters for job vertex REST handlers. */
 public class JobVertexMessageParameters extends JobMessageParameters {
 
-	public final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
+    public final JobVertexIdPathParameter jobVertexIdPathParameter = new JobVertexIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Arrays.asList(jobPathParameter, jobVertexIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Arrays.asList(jobPathParameter, jobVertexIdPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptySet();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptySet();
+    }
 }

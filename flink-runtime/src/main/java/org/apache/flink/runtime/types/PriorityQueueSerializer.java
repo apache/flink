@@ -38,56 +38,53 @@ checks in our code base.
  */
 
 class PriorityQueueSerializer extends Serializer<PriorityQueue<?>> {
-	private Field compField;
+    private Field compField;
 
-	public static IKryoRegistrar registrar() {
-		return new SingleRegistrar(PriorityQueue.class, new PriorityQueueSerializer());
-	}
+    public static IKryoRegistrar registrar() {
+        return new SingleRegistrar(PriorityQueue.class, new PriorityQueueSerializer());
+    }
 
-	public PriorityQueueSerializer() {
-		try {
-			compField = PriorityQueue.class.getDeclaredField("comparator");
-			compField.setAccessible(true);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    public PriorityQueueSerializer() {
+        try {
+            compField = PriorityQueue.class.getDeclaredField("comparator");
+            compField.setAccessible(true);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	public Comparator<?> getComparator(PriorityQueue<?> q) {
-		try {
-			return (Comparator<?>) compField.get(q);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+    public Comparator<?> getComparator(PriorityQueue<?> q) {
+        try {
+            return (Comparator<?>) compField.get(q);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	public void write(Kryo k, Output o, PriorityQueue<?> q) {
-		k.writeClassAndObject(o, getComparator(q));
-		o.writeInt(q.size(), true);
-		for (Object a : q) {
-			k.writeClassAndObject(o, a);
-			o.flush();
-		}
-	}
+    public void write(Kryo k, Output o, PriorityQueue<?> q) {
+        k.writeClassAndObject(o, getComparator(q));
+        o.writeInt(q.size(), true);
+        for (Object a : q) {
+            k.writeClassAndObject(o, a);
+            o.flush();
+        }
+    }
 
-	public PriorityQueue<?> read(Kryo k, Input i, Class<PriorityQueue<?>> c) {
-		Comparator<Object> comp = (Comparator<Object>) k.readClassAndObject(i);
-		int sz = i.readInt(true);
-		// can't create with size 0:
-		PriorityQueue<Object> result;
-		if (sz == 0) {
-			result = new PriorityQueue<Object>(1, comp);
-		}
-		else {
-			result = new PriorityQueue<Object>(sz, comp);
-		}
-		int idx = 0;
-		while (idx < sz) {
-			result.add(k.readClassAndObject(i));
-			idx += 1;
-		}
-		return result;
-	}
+    public PriorityQueue<?> read(Kryo k, Input i, Class<PriorityQueue<?>> c) {
+        Comparator<Object> comp = (Comparator<Object>) k.readClassAndObject(i);
+        int sz = i.readInt(true);
+        // can't create with size 0:
+        PriorityQueue<Object> result;
+        if (sz == 0) {
+            result = new PriorityQueue<Object>(1, comp);
+        } else {
+            result = new PriorityQueue<Object>(sz, comp);
+        }
+        int idx = 0;
+        while (idx < sz) {
+            result.add(k.readClassAndObject(i));
+            idx += 1;
+        }
+        return result;
+    }
 }

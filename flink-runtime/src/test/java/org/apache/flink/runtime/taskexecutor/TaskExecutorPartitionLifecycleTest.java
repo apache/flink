@@ -100,445 +100,529 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the partition-lifecycle logic in the {@link TaskExecutor}.
- */
+/** Tests for the partition-lifecycle logic in the {@link TaskExecutor}. */
 public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
-	private static final Time timeout = Time.seconds(10L);
-
-	private static TestingRpcService rpc;
-
-	private final TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-	private final SettableLeaderRetrievalService jobManagerLeaderRetriever = new SettableLeaderRetrievalService();
-	private final SettableLeaderRetrievalService resourceManagerLeaderRetriever = new SettableLeaderRetrievalService();
-	private final JobID jobId = new JobID();
-
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
-
-	@ClassRule
-	public static final TestExecutorResource TEST_EXECUTOR_SERVICE_RESOURCE =
-		new TestExecutorResource(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
-
-	@Before
-	public void setup() {
-		haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
-		haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
-	}
-
-	@After
-	public void shutdown() {
-		rpc.clearGateways();
-	}
-
-	@BeforeClass
-	public static void setupClass() {
-		rpc = new TestingRpcService();
-	}
-
-	@AfterClass
-	public static void shutdownClass() throws ExecutionException, InterruptedException {
-		rpc.stopService().get();
-	}
-
-	@Test
-	public void testJobMasterConnectionTerminationAfterExternalRelease() throws Exception {
-		testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
-			((taskExecutorGateway, jobID, resultPartitionID) -> taskExecutorGateway.releaseOrPromotePartitions(jobID, Collections.singleton(resultPartitionID), Collections.emptySet()))
-		);
-	}
-
-	@Test
-	public void testJobMasterConnectionTerminationAfterExternalPromotion() throws Exception {
-		testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
-			((taskExecutorGateway, jobID, resultPartitionID) -> taskExecutorGateway.releaseOrPromotePartitions(jobID, Collections.emptySet(), Collections.singleton(resultPartitionID)))
-		);
-	}
-
-	private void testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(TriConsumer<TaskExecutorGateway, JobID, ResultPartitionID> releaseOrPromoteCall) throws Exception {
-		final CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
-		final JobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
-			.setDisconnectTaskManagerFunction(resourceID -> {
-				disconnectFuture.complete(null);
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			}).build();
-
-		final DefaultJobTable jobTable = DefaultJobTable.create();
-
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setJobTable(jobTable)
-			.setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
-			.setTaskSlotTable(createTaskSlotTable())
-			.build();
-
-		final TestingTaskExecutorPartitionTracker partitionTracker = new TestingTaskExecutorPartitionTracker();
-
-		final AtomicBoolean trackerIsTrackingPartitions = new AtomicBoolean(false);
-		partitionTracker.setIsTrackingPartitionsForFunction(jobId -> trackerIsTrackingPartitions.get());
-
-		final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture = new CompletableFuture<>();
-		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(firstReleasePartitionsCallFuture::complete);
-
-		final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor = PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
-		final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
-
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
-
-		try {
-			taskExecutor.start();
-			taskExecutor.waitUntilStarted();
-
-			TaskSubmissionTestEnvironment.registerJobMasterConnection(
-				jobTable,
-				jobId,
-				rpc,
-				jobMasterGateway,
-				new NoOpTaskManagerActions(),
-				timeout,
-				taskExecutor.getMainThreadExecutableForTesting());
-
-			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
-
-			trackerIsTrackingPartitions.set(true);
-			assertThat(firstReleasePartitionsCallFuture.isDone(), is(false));
-
-			taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(new ResultPartitionID()), Collections.emptySet());
-
-			// at this point we only know that the TE has entered releasePartitions; we cannot be certain whether it
-			// has already checked whether it should disconnect or not
-			firstReleasePartitionsCallFuture.get();
-
-			// connection should be kept alive since the table still contains partitions
-			assertThat(disconnectFuture.isDone(), is(false));
-
-			trackerIsTrackingPartitions.set(false);
-
-			// the TM should check whether partitions are still stored, and afterwards terminate the connection
-			releaseOrPromoteCall.accept(taskExecutorGateway, jobId, resultPartitionId);
-
-			disconnectFuture.get();
-		} finally {
-			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-		}
-	}
-
-	@Test
-	public void testPartitionReleaseAfterJobMasterDisconnect() throws Exception {
-		final CompletableFuture<JobID> releasePartitionsForJobFuture = new CompletableFuture<>();
-		testPartitionRelease(
-			partitionTracker -> partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(releasePartitionsForJobFuture::complete),
-			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
-				taskExecutorGateway.disconnectJobManager(jobId, new Exception("test"));
-
-				assertThat(releasePartitionsForJobFuture.get(), equalTo(jobId));
-			}
-		);
-	}
-
-	@Test
-	public void testPartitionReleaseAfterReleaseCall() throws Exception {
-		final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
-		testPartitionRelease(
-			partitionTracker -> partitionTracker.setStopTrackingAndReleasePartitionsConsumer(releasePartitionsFuture::complete),
-			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
-				final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
-
-				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.singleton(resultPartitionId), Collections.emptySet());
-
-				assertThat(releasePartitionsFuture.get(), hasItems(resultPartitionId));
-			}
-		);
-	}
-
-	@Test
-	public void testPartitionPromotion() throws Exception {
-		final CompletableFuture<Collection<ResultPartitionID>> promotePartitionsFuture = new CompletableFuture<>();
-		testPartitionRelease(
-			partitionTracker -> partitionTracker.setPromotePartitionsConsumer(promotePartitionsFuture::complete),
-			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
-				final ResultPartitionID resultPartitionId = resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
-
-				taskExecutorGateway.releaseOrPromotePartitions(jobId, Collections.emptySet(), Collections.singleton(resultPartitionId));
-
-				assertThat(promotePartitionsFuture.get(), hasItems(resultPartitionId));
-			}
-		);
-	}
-
-	@Test
-	public void testClusterPartitionRelease() throws Exception {
-		final CompletableFuture<Collection<IntermediateDataSetID>> releasePartitionsFuture = new CompletableFuture<>();
-		testPartitionRelease(
-			partitionTracker -> partitionTracker.setReleaseClusterPartitionsConsumer(releasePartitionsFuture::complete),
-			(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
-				final IntermediateDataSetID dataSetId = resultPartitionDeploymentDescriptor.getResultId();
-
-				taskExecutorGateway.releaseClusterPartitions(Collections.singleton(dataSetId), timeout);
-
-				assertThat(releasePartitionsFuture.get(), hasItems(dataSetId));
-			}
-		);
-	}
-
-	@Test
-	public void testBlockingLocalPartitionReleaseDoesNotBlockTaskExecutor() throws Exception {
-		BlockerSync sync = new BlockerSync();
-		ResultPartitionManager blockingResultPartitionManager = new ResultPartitionManager() {
-			@Override
-			public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
-				sync.blockNonInterruptible();
-				super.releasePartition(partitionId, cause);
-			}
-		};
-
-		NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder()
-			.setResultPartitionManager(blockingResultPartitionManager)
-			.setIoExecutor(TEST_EXECUTOR_SERVICE_RESOURCE.getExecutor())
-			.build();
-
-		final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
-		final TaskExecutorPartitionTracker partitionTracker = new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
-			@Override
-			public void startTrackingPartition(JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
-				super.startTrackingPartition(producingJobId, partitionInfo);
-				startTrackingFuture.complete(partitionInfo.getResultPartitionId());
-			}
-		};
-
-		try {
-			internalTestPartitionRelease(
-				partitionTracker,
-				shuffleEnvironment,
-				startTrackingFuture,
-				(jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
-					final IntermediateDataSetID dataSetId = resultPartitionDeploymentDescriptor.getResultId();
-
-					taskExecutorGateway.releaseClusterPartitions(Collections.singleton(dataSetId), timeout);
-
-					// execute some operation to check whether the TaskExecutor is blocked
-					taskExecutorGateway.canBeReleased().get(5, TimeUnit.SECONDS);
-				}
-			);
-		} finally {
-			sync.releaseBlocker();
-		}
-	}
-
-	private void testPartitionRelease(PartitionTrackerSetup partitionTrackerSetup, TestAction testAction) throws Exception {
-		final TestingTaskExecutorPartitionTracker partitionTracker = new TestingTaskExecutorPartitionTracker();
-		final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
-		partitionTracker.setStartTrackingPartitionsConsumer((jobId, partitionInfo) -> startTrackingFuture.complete(partitionInfo.getResultPartitionId()));
-		partitionTrackerSetup.accept(partitionTracker);
-
-		internalTestPartitionRelease(
-			partitionTracker,
-			new NettyShuffleEnvironmentBuilder().build(),
-			startTrackingFuture,
-			testAction
-		);
-	}
-
-	private void internalTestPartitionRelease(
-			TaskExecutorPartitionTracker partitionTracker,
-			ShuffleEnvironment<?, ?> shuffleEnvironment,
-			CompletableFuture<ResultPartitionID> startTrackingFuture,
-			TestAction testAction) throws Exception {
-
-		final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
-			PartitionTestUtils.createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
-		final ExecutionAttemptID eid1 = taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID().getProducerId();
-
-		final TaskDeploymentDescriptor taskDeploymentDescriptor =
-			TaskExecutorSubmissionTest.createTaskDeploymentDescriptor(
-				jobId,
-				"job",
-				eid1,
-				new SerializedValue<>(new ExecutionConfig()),
-				"Sender",
-				1,
-				0,
-				1,
-				0,
-				new Configuration(),
-				new Configuration(),
-				TestingInvokable.class.getName(),
-				Collections.singletonList(taskResultPartitionDescriptor),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				Collections.emptyList(),
-				0);
-
-		final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable();
-
-		final TaskExecutorLocalStateStoresManager localStateStoresManager = new TaskExecutorLocalStateStoresManager(
-			false,
-			new File[]{tmp.newFolder()},
-			Executors.directExecutor());
-
-		final TaskManagerServices taskManagerServices = new TaskManagerServicesBuilder()
-			.setTaskSlotTable(taskSlotTable)
-			.setTaskStateManager(localStateStoresManager)
-			.setShuffleEnvironment(shuffleEnvironment)
-			.build();
-
-		final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();
-		final OneShotLatch slotOfferedLatch = new OneShotLatch();
-
-		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
-			.setRegisterTaskManagerFunction((s, location) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(ResourceID.generate())))
-			.setOfferSlotsFunction((resourceID, slotOffers) -> {
-				slotOfferedLatch.trigger();
-				return CompletableFuture.completedFuture(slotOffers);
-			})
-			.setUpdateTaskExecutionStateFunction(taskExecutionState -> {
-				if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
-					taskFinishedFuture.complete(null);
-				}
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			})
-			.build();
-
-		final TestingTaskExecutor taskExecutor = createTestingTaskExecutor(taskManagerServices, partitionTracker);
-
-		final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
-
-		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
-		testingResourceManagerGateway.setSendSlotReportFunction(resourceIDInstanceIDSlotReportTuple3 -> {
-			initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
-			return CompletableFuture.completedFuture(Acknowledge.get());
-		});
-		testingResourceManagerGateway.setRegisterTaskExecutorFunction(input -> CompletableFuture.completedFuture(
-			new TaskExecutorRegistrationSuccess(
-				new InstanceID(),
-				testingResourceManagerGateway.getOwnResourceId(),
-				new ClusterInformation("blobServerHost", 55555))));
-
-		try {
-			taskExecutor.start();
-			taskExecutor.waitUntilStarted();
-
-			final TaskExecutorGateway taskExecutorGateway = taskExecutor.getSelfGateway(TaskExecutorGateway.class);
-
-			final String jobMasterAddress = "jm";
-			rpc.registerGateway(jobMasterAddress, jobMasterGateway);
-			rpc.registerGateway(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
-
-			// inform the task manager about the job leader
-			taskManagerServices.getJobLeaderService().addJob(jobId, jobMasterAddress);
-			jobManagerLeaderRetriever.notifyListener(jobMasterAddress, UUID.randomUUID());
-			resourceManagerLeaderRetriever.notifyListener(testingResourceManagerGateway.getAddress(), testingResourceManagerGateway.getFencingToken().toUUID());
-
-			final Optional<SlotStatus> slotStatusOptional = StreamSupport.stream(initialSlotReportFuture.get().spliterator(), false)
-				.findAny();
-
-			assertTrue(slotStatusOptional.isPresent());
-
-			final SlotStatus slotStatus = slotStatusOptional.get();
-
-			while (true) {
-				try {
-					taskExecutorGateway.requestSlot(
-						slotStatus.getSlotID(),
-						jobId,
-						taskDeploymentDescriptor.getAllocationId(),
-						ResourceProfile.ZERO,
-						jobMasterAddress,
-						testingResourceManagerGateway.getFencingToken(),
-						timeout
-					).get();
-					break;
-				} catch (Exception e) {
-					// the proper establishment of the RM connection is tracked
-					// asynchronously, so we have to poll here until it went through
-					// until then, slot requests will fail with an exception
-					Thread.sleep(50);
-				}
-			}
-
-			TestingInvokable.sync = new BlockerSync();
-
-			// Wait till the slot has been successfully offered before submitting the task.
-			// This ensures TM has been successfully registered to JM.
-			slotOfferedLatch.await();
-
-			taskExecutorGateway.submitTask(taskDeploymentDescriptor, jobMasterGateway.getFencingToken(), timeout)
-				.get();
-
-			TestingInvokable.sync.awaitBlocker();
-
-			// the task is still running => the partition is in in-progress and should be tracked
-			assertThat(startTrackingFuture.get(), equalTo(taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID()));
-
-			TestingInvokable.sync.releaseBlocker();
-			taskFinishedFuture.get(timeout.getSize(), timeout.getUnit());
-
-			testAction.accept(
-				jobId,
-				taskResultPartitionDescriptor,
-				taskExecutor,
-				taskExecutorGateway);
-		} finally {
-			RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
-		}
-
-		// the shutdown of the backing shuffle environment releases all partitions
-		// the book-keeping is not aware of this
-		assertTrue(shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty());
-	}
-
-	/**
-	 * Test invokable which completes the given future when executed.
-	 */
-	public static class TestingInvokable extends AbstractInvokable {
-
-		static BlockerSync sync;
-
-		public TestingInvokable(Environment environment) {
-			super(environment);
-		}
-
-		@Override
-		public void invoke() throws Exception {
-			sync.block();
-		}
-	}
-
-	private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker) throws IOException {
-			final Configuration configuration = new Configuration();
-		return new TestingTaskExecutor(
-			rpc,
-			TaskManagerConfiguration.fromConfiguration(
-				configuration,
-				TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(configuration),
-				InetAddress.getLoopbackAddress().getHostAddress()),
-			haServices,
-			taskManagerServices,
-			ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
-			new HeartbeatServices(10_000L, 30_000L),
-			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			null,
-			new BlobCacheService(
-				configuration,
-				new VoidBlobStore(),
-				null),
-			new TestingFatalErrorHandler(),
-			partitionTracker,
-			TaskManagerRunner.createBackPressureSampleService(configuration, rpc.getScheduledExecutor()));
-	}
-
-	private static TaskSlotTable<Task> createTaskSlotTable() {
-		return TaskSlotUtils.createTaskSlotTable(1, timeout);
-
-	}
-
-	@FunctionalInterface
-	private interface PartitionTrackerSetup {
-		void accept(TestingTaskExecutorPartitionTracker partitionTracker) throws Exception;
-	}
-
-	@FunctionalInterface
-	private interface TestAction {
-		void accept(JobID jobId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor, TaskExecutor taskExecutor, TaskExecutorGateway taskExecutorGateway) throws Exception;
-	}
+    private static final Time timeout = Time.seconds(10L);
+
+    private static TestingRpcService rpc;
+
+    private final TestingHighAvailabilityServices haServices =
+            new TestingHighAvailabilityServices();
+    private final SettableLeaderRetrievalService jobManagerLeaderRetriever =
+            new SettableLeaderRetrievalService();
+    private final SettableLeaderRetrievalService resourceManagerLeaderRetriever =
+            new SettableLeaderRetrievalService();
+    private final JobID jobId = new JobID();
+
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+
+    @ClassRule
+    public static final TestExecutorResource<?> TEST_EXECUTOR_SERVICE_RESOURCE =
+            new TestExecutorResource<>(() -> java.util.concurrent.Executors.newFixedThreadPool(1));
+
+    @Before
+    public void setup() {
+        haServices.setResourceManagerLeaderRetriever(resourceManagerLeaderRetriever);
+        haServices.setJobMasterLeaderRetriever(jobId, jobManagerLeaderRetriever);
+    }
+
+    @After
+    public void shutdown() {
+        rpc.clearGateways();
+    }
+
+    @BeforeClass
+    public static void setupClass() {
+        rpc = new TestingRpcService();
+    }
+
+    @AfterClass
+    public static void shutdownClass() throws ExecutionException, InterruptedException {
+        rpc.stopService().get();
+    }
+
+    @Test
+    public void testJobMasterConnectionTerminationAfterExternalRelease() throws Exception {
+        testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
+                ((taskExecutorGateway, jobID, resultPartitionID) ->
+                        taskExecutorGateway.releaseOrPromotePartitions(
+                                jobID,
+                                Collections.singleton(resultPartitionID),
+                                Collections.emptySet())));
+    }
+
+    @Test
+    public void testJobMasterConnectionTerminationAfterExternalPromotion() throws Exception {
+        testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
+                ((taskExecutorGateway, jobID, resultPartitionID) ->
+                        taskExecutorGateway.releaseOrPromotePartitions(
+                                jobID,
+                                Collections.emptySet(),
+                                Collections.singleton(resultPartitionID))));
+    }
+
+    private void testJobMasterConnectionTerminationAfterExternalReleaseOrPromotion(
+            TriConsumer<TaskExecutorGateway, JobID, ResultPartitionID> releaseOrPromoteCall)
+            throws Exception {
+        final CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+        final JobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setDisconnectTaskManagerFunction(
+                                resourceID -> {
+                                    disconnectFuture.complete(null);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        final DefaultJobTable jobTable = DefaultJobTable.create();
+
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setJobTable(jobTable)
+                        .setShuffleEnvironment(new NettyShuffleEnvironmentBuilder().build())
+                        .setTaskSlotTable(createTaskSlotTable())
+                        .build();
+
+        final TestingTaskExecutorPartitionTracker partitionTracker =
+                new TestingTaskExecutorPartitionTracker();
+
+        final AtomicBoolean trackerIsTrackingPartitions = new AtomicBoolean(false);
+        partitionTracker.setIsTrackingPartitionsForFunction(
+                jobId -> trackerIsTrackingPartitions.get());
+
+        final CompletableFuture<Collection<ResultPartitionID>> firstReleasePartitionsCallFuture =
+                new CompletableFuture<>();
+        partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                firstReleasePartitionsCallFuture::complete);
+
+        final ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
+                PartitionTestUtils.createPartitionDeploymentDescriptor(
+                        ResultPartitionType.BLOCKING);
+        final ResultPartitionID resultPartitionId =
+                resultPartitionDeploymentDescriptor.getShuffleDescriptor().getResultPartitionID();
+
+        final TestingTaskExecutor taskExecutor =
+                createTestingTaskExecutor(taskManagerServices, partitionTracker);
+
+        try {
+            taskExecutor.start();
+            taskExecutor.waitUntilStarted();
+
+            TaskSubmissionTestEnvironment.registerJobMasterConnection(
+                    jobTable,
+                    jobId,
+                    rpc,
+                    jobMasterGateway,
+                    new NoOpTaskManagerActions(),
+                    timeout,
+                    taskExecutor.getMainThreadExecutableForTesting());
+
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            trackerIsTrackingPartitions.set(true);
+            assertThat(firstReleasePartitionsCallFuture.isDone(), is(false));
+
+            taskExecutorGateway.releaseOrPromotePartitions(
+                    jobId, Collections.singleton(new ResultPartitionID()), Collections.emptySet());
+
+            // at this point we only know that the TE has entered releasePartitions; we cannot be
+            // certain whether it
+            // has already checked whether it should disconnect or not
+            firstReleasePartitionsCallFuture.get();
+
+            // connection should be kept alive since the table still contains partitions
+            assertThat(disconnectFuture.isDone(), is(false));
+
+            trackerIsTrackingPartitions.set(false);
+
+            // the TM should check whether partitions are still stored, and afterwards terminate the
+            // connection
+            releaseOrPromoteCall.accept(taskExecutorGateway, jobId, resultPartitionId);
+
+            disconnectFuture.get();
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
+    }
+
+    @Test
+    public void testPartitionReleaseAfterJobMasterDisconnect() throws Exception {
+        final CompletableFuture<JobID> releasePartitionsForJobFuture = new CompletableFuture<>();
+        testPartitionRelease(
+                partitionTracker ->
+                        partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(
+                                releasePartitionsForJobFuture::complete),
+                (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
+                    taskExecutorGateway.disconnectJobManager(jobId, new Exception("test"));
+
+                    assertThat(releasePartitionsForJobFuture.get(), equalTo(jobId));
+                });
+    }
+
+    @Test
+    public void testPartitionReleaseAfterReleaseCall() throws Exception {
+        final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture =
+                new CompletableFuture<>();
+        testPartitionRelease(
+                partitionTracker ->
+                        partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                                releasePartitionsFuture::complete),
+                (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
+                    final ResultPartitionID resultPartitionId =
+                            resultPartitionDeploymentDescriptor
+                                    .getShuffleDescriptor()
+                                    .getResultPartitionID();
+
+                    taskExecutorGateway.releaseOrPromotePartitions(
+                            jobId,
+                            Collections.singleton(resultPartitionId),
+                            Collections.emptySet());
+
+                    assertThat(releasePartitionsFuture.get(), hasItems(resultPartitionId));
+                });
+    }
+
+    @Test
+    public void testPartitionPromotion() throws Exception {
+        final CompletableFuture<Collection<ResultPartitionID>> promotePartitionsFuture =
+                new CompletableFuture<>();
+        testPartitionRelease(
+                partitionTracker ->
+                        partitionTracker.setPromotePartitionsConsumer(
+                                promotePartitionsFuture::complete),
+                (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
+                    final ResultPartitionID resultPartitionId =
+                            resultPartitionDeploymentDescriptor
+                                    .getShuffleDescriptor()
+                                    .getResultPartitionID();
+
+                    taskExecutorGateway.releaseOrPromotePartitions(
+                            jobId,
+                            Collections.emptySet(),
+                            Collections.singleton(resultPartitionId));
+
+                    assertThat(promotePartitionsFuture.get(), hasItems(resultPartitionId));
+                });
+    }
+
+    @Test
+    public void testClusterPartitionRelease() throws Exception {
+        final CompletableFuture<Collection<IntermediateDataSetID>> releasePartitionsFuture =
+                new CompletableFuture<>();
+        testPartitionRelease(
+                partitionTracker ->
+                        partitionTracker.setReleaseClusterPartitionsConsumer(
+                                releasePartitionsFuture::complete),
+                (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
+                    final IntermediateDataSetID dataSetId =
+                            resultPartitionDeploymentDescriptor.getResultId();
+
+                    taskExecutorGateway.releaseClusterPartitions(
+                            Collections.singleton(dataSetId), timeout);
+
+                    assertThat(releasePartitionsFuture.get(), hasItems(dataSetId));
+                });
+    }
+
+    @Test
+    public void testBlockingLocalPartitionReleaseDoesNotBlockTaskExecutor() throws Exception {
+        BlockerSync sync = new BlockerSync();
+        ResultPartitionManager blockingResultPartitionManager =
+                new ResultPartitionManager() {
+                    @Override
+                    public void releasePartition(ResultPartitionID partitionId, Throwable cause) {
+                        sync.blockNonInterruptible();
+                        super.releasePartition(partitionId, cause);
+                    }
+                };
+
+        NettyShuffleEnvironment shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder()
+                        .setResultPartitionManager(blockingResultPartitionManager)
+                        .setIoExecutor(TEST_EXECUTOR_SERVICE_RESOURCE.getExecutor())
+                        .build();
+
+        final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
+        final TaskExecutorPartitionTracker partitionTracker =
+                new TaskExecutorPartitionTrackerImpl(shuffleEnvironment) {
+                    @Override
+                    public void startTrackingPartition(
+                            JobID producingJobId, TaskExecutorPartitionInfo partitionInfo) {
+                        super.startTrackingPartition(producingJobId, partitionInfo);
+                        startTrackingFuture.complete(partitionInfo.getResultPartitionId());
+                    }
+                };
+
+        try {
+            internalTestPartitionRelease(
+                    partitionTracker,
+                    shuffleEnvironment,
+                    startTrackingFuture,
+                    (jobId,
+                            resultPartitionDeploymentDescriptor,
+                            taskExecutor,
+                            taskExecutorGateway) -> {
+                        final IntermediateDataSetID dataSetId =
+                                resultPartitionDeploymentDescriptor.getResultId();
+
+                        taskExecutorGateway.releaseClusterPartitions(
+                                Collections.singleton(dataSetId), timeout);
+
+                        // execute some operation to check whether the TaskExecutor is blocked
+                        taskExecutorGateway.canBeReleased().get(5, TimeUnit.SECONDS);
+                    });
+        } finally {
+            sync.releaseBlocker();
+        }
+    }
+
+    private void testPartitionRelease(
+            PartitionTrackerSetup partitionTrackerSetup, TestAction testAction) throws Exception {
+        final TestingTaskExecutorPartitionTracker partitionTracker =
+                new TestingTaskExecutorPartitionTracker();
+        final CompletableFuture<ResultPartitionID> startTrackingFuture = new CompletableFuture<>();
+        partitionTracker.setStartTrackingPartitionsConsumer(
+                (jobId, partitionInfo) ->
+                        startTrackingFuture.complete(partitionInfo.getResultPartitionId()));
+        partitionTrackerSetup.accept(partitionTracker);
+
+        internalTestPartitionRelease(
+                partitionTracker,
+                new NettyShuffleEnvironmentBuilder().build(),
+                startTrackingFuture,
+                testAction);
+    }
+
+    private void internalTestPartitionRelease(
+            TaskExecutorPartitionTracker partitionTracker,
+            ShuffleEnvironment<?, ?> shuffleEnvironment,
+            CompletableFuture<ResultPartitionID> startTrackingFuture,
+            TestAction testAction)
+            throws Exception {
+
+        final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
+                PartitionTestUtils.createPartitionDeploymentDescriptor(
+                        ResultPartitionType.BLOCKING);
+        final ExecutionAttemptID eid1 =
+                taskResultPartitionDescriptor
+                        .getShuffleDescriptor()
+                        .getResultPartitionID()
+                        .getProducerId();
+
+        final TaskDeploymentDescriptor taskDeploymentDescriptor =
+                TaskExecutorSubmissionTest.createTaskDeploymentDescriptor(
+                        jobId,
+                        "job",
+                        eid1,
+                        new SerializedValue<>(new ExecutionConfig()),
+                        "Sender",
+                        1,
+                        0,
+                        1,
+                        0,
+                        new Configuration(),
+                        new Configuration(),
+                        TestingInvokable.class.getName(),
+                        Collections.singletonList(taskResultPartitionDescriptor),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.emptyList());
+
+        final TaskSlotTable<Task> taskSlotTable = createTaskSlotTable();
+
+        final TaskExecutorLocalStateStoresManager localStateStoresManager =
+                new TaskExecutorLocalStateStoresManager(
+                        false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+
+        final TaskManagerServices taskManagerServices =
+                new TaskManagerServicesBuilder()
+                        .setTaskSlotTable(taskSlotTable)
+                        .setTaskStateManager(localStateStoresManager)
+                        .setShuffleEnvironment(shuffleEnvironment)
+                        .build();
+
+        final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();
+        final OneShotLatch slotOfferedLatch = new OneShotLatch();
+
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setRegisterTaskManagerFunction(
+                                (s, location, ignored) ->
+                                        CompletableFuture.completedFuture(
+                                                new JMTMRegistrationSuccess(ResourceID.generate())))
+                        .setOfferSlotsFunction(
+                                (resourceID, slotOffers) -> {
+                                    slotOfferedLatch.trigger();
+                                    return CompletableFuture.completedFuture(slotOffers);
+                                })
+                        .setUpdateTaskExecutionStateFunction(
+                                taskExecutionState -> {
+                                    if (taskExecutionState.getExecutionState()
+                                            == ExecutionState.FINISHED) {
+                                        taskFinishedFuture.complete(null);
+                                    }
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .build();
+
+        final TestingTaskExecutor taskExecutor =
+                createTestingTaskExecutor(taskManagerServices, partitionTracker);
+
+        final CompletableFuture<SlotReport> initialSlotReportFuture = new CompletableFuture<>();
+
+        final TestingResourceManagerGateway testingResourceManagerGateway =
+                new TestingResourceManagerGateway();
+        testingResourceManagerGateway.setSendSlotReportFunction(
+                resourceIDInstanceIDSlotReportTuple3 -> {
+                    initialSlotReportFuture.complete(resourceIDInstanceIDSlotReportTuple3.f2);
+                    return CompletableFuture.completedFuture(Acknowledge.get());
+                });
+        testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                input ->
+                        CompletableFuture.completedFuture(
+                                new TaskExecutorRegistrationSuccess(
+                                        new InstanceID(),
+                                        testingResourceManagerGateway.getOwnResourceId(),
+                                        new ClusterInformation("blobServerHost", 55555))));
+
+        try {
+            taskExecutor.start();
+            taskExecutor.waitUntilStarted();
+
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskExecutor.getSelfGateway(TaskExecutorGateway.class);
+
+            final String jobMasterAddress = "jm";
+            rpc.registerGateway(jobMasterAddress, jobMasterGateway);
+            rpc.registerGateway(
+                    testingResourceManagerGateway.getAddress(), testingResourceManagerGateway);
+
+            // inform the task manager about the job leader
+            taskManagerServices.getJobLeaderService().addJob(jobId, jobMasterAddress);
+            jobManagerLeaderRetriever.notifyListener(jobMasterAddress, UUID.randomUUID());
+            resourceManagerLeaderRetriever.notifyListener(
+                    testingResourceManagerGateway.getAddress(),
+                    testingResourceManagerGateway.getFencingToken().toUUID());
+
+            final Optional<SlotStatus> slotStatusOptional =
+                    StreamSupport.stream(initialSlotReportFuture.get().spliterator(), false)
+                            .findAny();
+
+            assertTrue(slotStatusOptional.isPresent());
+
+            final SlotStatus slotStatus = slotStatusOptional.get();
+
+            while (true) {
+                try {
+                    taskExecutorGateway
+                            .requestSlot(
+                                    slotStatus.getSlotID(),
+                                    jobId,
+                                    taskDeploymentDescriptor.getAllocationId(),
+                                    ResourceProfile.ZERO,
+                                    jobMasterAddress,
+                                    testingResourceManagerGateway.getFencingToken(),
+                                    timeout)
+                            .get();
+                    break;
+                } catch (Exception e) {
+                    // the proper establishment of the RM connection is tracked
+                    // asynchronously, so we have to poll here until it went through
+                    // until then, slot requests will fail with an exception
+                    Thread.sleep(50);
+                }
+            }
+
+            TestingInvokable.sync = new BlockerSync();
+
+            // Wait till the slot has been successfully offered before submitting the task.
+            // This ensures TM has been successfully registered to JM.
+            slotOfferedLatch.await();
+
+            taskExecutorGateway
+                    .submitTask(
+                            taskDeploymentDescriptor, jobMasterGateway.getFencingToken(), timeout)
+                    .get();
+
+            TestingInvokable.sync.awaitBlocker();
+
+            // the task is still running => the partition is in in-progress and should be tracked
+            assertThat(
+                    startTrackingFuture.get(),
+                    equalTo(
+                            taskResultPartitionDescriptor
+                                    .getShuffleDescriptor()
+                                    .getResultPartitionID()));
+
+            TestingInvokable.sync.releaseBlocker();
+            taskFinishedFuture.get(timeout.getSize(), timeout.getUnit());
+
+            testAction.accept(
+                    jobId, taskResultPartitionDescriptor, taskExecutor, taskExecutorGateway);
+        } finally {
+            RpcUtils.terminateRpcEndpoint(taskExecutor, timeout);
+        }
+
+        // the shutdown of the backing shuffle environment releases all partitions
+        // the book-keeping is not aware of this
+        assertTrue(shuffleEnvironment.getPartitionsOccupyingLocalResources().isEmpty());
+    }
+
+    /** Test invokable which completes the given future when executed. */
+    public static class TestingInvokable extends AbstractInvokable {
+
+        static BlockerSync sync;
+
+        public TestingInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            sync.block();
+        }
+    }
+
+    private TestingTaskExecutor createTestingTaskExecutor(
+            TaskManagerServices taskManagerServices, TaskExecutorPartitionTracker partitionTracker)
+            throws IOException {
+        final Configuration configuration = new Configuration();
+        return new TestingTaskExecutor(
+                rpc,
+                TaskManagerConfiguration.fromConfiguration(
+                        configuration,
+                        TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
+                                configuration),
+                        InetAddress.getLoopbackAddress().getHostAddress()),
+                haServices,
+                taskManagerServices,
+                ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                new HeartbeatServices(10_000L, 30_000L),
+                UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+                null,
+                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                new TestingFatalErrorHandler(),
+                partitionTracker);
+    }
+
+    private static TaskSlotTable<Task> createTaskSlotTable() {
+        return TaskSlotUtils.createTaskSlotTable(1, timeout);
+    }
+
+    @FunctionalInterface
+    private interface PartitionTrackerSetup {
+        void accept(TestingTaskExecutorPartitionTracker partitionTracker) throws Exception;
+    }
+
+    @FunctionalInterface
+    private interface TestAction {
+        void accept(
+                JobID jobId,
+                ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor,
+                TaskExecutor taskExecutor,
+                TaskExecutorGateway taskExecutorGateway)
+                throws Exception;
+    }
 }

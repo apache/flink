@@ -26,18 +26,16 @@ import org.apache.flink.util.AutoCloseableAsync;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Leader process which encapsulates the lifecycle of the {@link Dispatcher} component.
- */
+/** Leader process which encapsulates the lifecycle of the {@link Dispatcher} component. */
 interface DispatcherLeaderProcess extends AutoCloseableAsync {
 
-	void start();
+    void start();
 
-	UUID getLeaderSessionId();
+    UUID getLeaderSessionId();
 
-	CompletableFuture<DispatcherGateway> getDispatcherGateway();
+    CompletableFuture<DispatcherGateway> getDispatcherGateway();
 
-	CompletableFuture<String> getLeaderAddressFuture();
+    CompletableFuture<String> getLeaderAddressFuture();
 
-	CompletableFuture<ApplicationStatus> getShutDownFuture();
+    CompletableFuture<ApplicationStatus> getShutDownFuture();
 }

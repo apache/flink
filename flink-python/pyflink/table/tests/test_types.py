@@ -36,6 +36,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _to_java_type, _from_java_type, ZonedTimestampType,
                                  LocalZonedTimestampType)
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
 class ExamplePointUDT(UserDefinedType):
@@ -125,7 +126,7 @@ class UTCOffsetTimezone(datetime.tzinfo):
         return self.OFFSET
 
 
-class TypesTests(unittest.TestCase):
+class TypesTests(PyFlinkTestCase):
 
     def test_infer_schema(self):
         from decimal import Decimal
@@ -543,6 +544,9 @@ class TypesTests(unittest.TestCase):
                                    "under Windows platform")
     def test_local_zoned_timestamp_type(self):
         lztst = DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE()
+        last_abbreviation = DataTypes.TIMESTAMP_LTZ()
+        self.assertEqual(lztst, last_abbreviation)
+
         ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
         self.assertEqual(0, lztst.to_sql_type(ts))
 
@@ -601,7 +605,7 @@ class TypesTests(unittest.TestCase):
         self.assertEqual(t_notnull._nullable, False)
 
 
-class DataTypeVerificationTests(unittest.TestCase):
+class DataTypeVerificationTests(PyFlinkTestCase):
 
     def test_verify_type_exception_msg(self):
         self.assertRaises(
@@ -796,7 +800,7 @@ class DataTypeVerificationTests(unittest.TestCase):
                 _create_type_verifier(data_type.not_null())(obj)
 
 
-class DataTypeConvertTests(unittest.TestCase):
+class DataTypeConvertTests(PyFlinkTestCase):
 
     def test_basic_type(self):
         test_types = [DataTypes.STRING(),
@@ -909,8 +913,18 @@ class DataTypeConvertTests(unittest.TestCase):
 
         self.assertEqual(test_types, converted_python_types)
 
+    def test_list_view_type(self):
+        test_types = [DataTypes.LIST_VIEW(DataTypes.BIGINT()),
+                      DataTypes.LIST_VIEW(DataTypes.STRING())]
 
-class DataSerializerTests(unittest.TestCase):
+        java_types = [_to_java_type(item) for item in test_types]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        self.assertEqual(test_types, converted_python_types)
+
+
+class DataSerializerTests(PyFlinkTestCase):
 
     def test_java_pickle_deserializer(self):
         temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
@@ -918,7 +932,7 @@ class DataSerializerTests(unittest.TestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 
@@ -934,7 +948,7 @@ class DataSerializerTests(unittest.TestCase):
         data = [(1, 2), (3, 4), (5, 6), (7, 8)]
 
         try:
-            serializer.dump_to_stream(data, temp_file)
+            serializer.serialize(data, temp_file)
         finally:
             temp_file.close()
 

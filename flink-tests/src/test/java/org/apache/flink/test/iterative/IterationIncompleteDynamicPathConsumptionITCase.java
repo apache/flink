@@ -27,73 +27,76 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * Test where the test data is constructed such that the merge join zig zag
- * has an early out, leaving elements on the dynamic path input unconsumed.
+ * Test where the test data is constructed such that the merge join zig zag has an early out,
+ * leaving elements on the dynamic path input unconsumed.
  */
 @SuppressWarnings("serial")
 public class IterationIncompleteDynamicPathConsumptionITCase extends JavaProgramTestBase {
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		// the test data is constructed such that the merge join zig zag
-		// has an early out, leaving elements on the dynamic path input unconsumed
+        // the test data is constructed such that the merge join zig zag
+        // has an early out, leaving elements on the dynamic path input unconsumed
 
-		DataSet<Path> edges = env.fromElements(
-				new Path(1, 2),
-				new Path(1, 4),
-				new Path(3, 6),
-				new Path(3, 8),
-				new Path(1, 10),
-				new Path(1, 12),
-				new Path(3, 14),
-				new Path(3, 16),
-				new Path(1, 18),
-				new Path(1, 20));
+        DataSet<Path> edges =
+                env.fromElements(
+                        new Path(1, 2),
+                        new Path(1, 4),
+                        new Path(3, 6),
+                        new Path(3, 8),
+                        new Path(1, 10),
+                        new Path(1, 12),
+                        new Path(3, 14),
+                        new Path(3, 16),
+                        new Path(1, 18),
+                        new Path(1, 20));
 
-		IterativeDataSet<Path> currentPaths = edges.iterate(10);
+        IterativeDataSet<Path> currentPaths = edges.iterate(10);
 
-		DataSet<Path> newPaths = currentPaths
-				.join(edges, JoinHint.REPARTITION_SORT_MERGE).where("to").equalTo("from")
-					.with(new PathConnector())
-				.union(currentPaths).distinct("from", "to");
+        DataSet<Path> newPaths =
+                currentPaths
+                        .join(edges, JoinHint.REPARTITION_SORT_MERGE)
+                        .where("to")
+                        .equalTo("from")
+                        .with(new PathConnector())
+                        .union(currentPaths)
+                        .distinct("from", "to");
 
-		DataSet<Path> result = currentPaths.closeWith(newPaths);
+        DataSet<Path> result = currentPaths.closeWith(newPaths);
 
-		result.output(new DiscardingOutputFormat<Path>());
+        result.output(new DiscardingOutputFormat<Path>());
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	private static class PathConnector implements JoinFunction<Path, Path, Path> {
+    private static class PathConnector implements JoinFunction<Path, Path, Path> {
 
-		@Override
-		public Path join(Path path, Path edge)  {
-			return new Path(path.from, edge.to);
-		}
-	}
+        @Override
+        public Path join(Path path, Path edge) {
+            return new Path(path.from, edge.to);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Simple POJO.
-	 */
-	public static class Path {
+    /** Simple POJO. */
+    public static class Path {
 
-		public long from;
-		public long to;
+        public long from;
+        public long to;
 
-		public Path() {}
+        public Path() {}
 
-		public Path(long from, long to) {
-			this.from = from;
-			this.to = to;
-		}
+        public Path(long from, long to) {
+            this.from = from;
+            this.to = to;
+        }
 
-		@Override
-		public String toString() {
-			return "(" + from + "," + to + ")";
-		}
-	}
+        @Override
+        public String toString() {
+            return "(" + from + "," + to + ")";
+        }
+    }
 }

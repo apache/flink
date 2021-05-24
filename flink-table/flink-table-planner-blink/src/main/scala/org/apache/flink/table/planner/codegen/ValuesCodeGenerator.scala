@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.operators.values.ValuesInputFormat
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.types.logical.RowType
 
-import com.google.common.collect.ImmutableList
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexLiteral
+
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -34,11 +34,9 @@ object ValuesCodeGenerator {
 
   def generatorInputFormat(
     config: TableConfig,
-    rowType: RelDataType,
-    tuples: ImmutableList[ImmutableList[RexLiteral]],
+    outputType: RowType,
+    tuples: util.List[util.List[RexLiteral]],
     description: String): ValuesInputFormat = {
-    val outputType = FlinkTypeFactory.toLogicalRowType(rowType)
-
     val ctx = CodeGeneratorContext(config)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
     // generate code for every record

@@ -27,100 +27,88 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for {@link Runner}.
- */
+/** Tests for {@link Runner}. */
 @RunWith(Parameterized.class)
-public class RunnerITCase
-extends DriverBaseITCase {
+public class RunnerITCase extends DriverBaseITCase {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	public RunnerITCase(String idType, TestExecutionMode mode) {
-		super(idType, mode);
-	}
+    public RunnerITCase(String idType, TestExecutionMode mode) {
+        super(idType, mode);
+    }
 
-	@Test
-	public void testWithoutAlgorithm() throws Exception {
-		String expected = "Select an algorithm to view usage:";
+    @Test
+    public void testWithoutAlgorithm() throws Exception {
+        String expected = "Select an algorithm to view usage:";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(new String[]{}, expected);
-	}
+        expectedOutput(new String[] {}, expected);
+    }
 
-	@Test
-	public void testWithUnknownAlgorithm() throws Exception {
-		String expected = "Unknown algorithm name: NotAnAlgorithm";
+    @Test
+    public void testWithUnknownAlgorithm() throws Exception {
+        String expected = "Unknown algorithm name: NotAnAlgorithm";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(new String[]{"--algorithm", "NotAnAlgorithm"}, expected);
-	}
+        expectedOutput(new String[] {"--algorithm", "NotAnAlgorithm"}, expected);
+    }
 
-	@Test
-	public void testAlgorithmUsage() throws Exception {
-		String expected = "Pass-through of the graph's edge list.";
+    @Test
+    public void testAlgorithmUsage() throws Exception {
+        String expected = "Pass-through of the graph's edge list.";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(new String[]{"--algorithm", "EdgeList"}, expected);
-	}
+        expectedOutput(new String[] {"--algorithm", "EdgeList"}, expected);
+    }
 
-	@Test
-	public void testWithoutInput() throws Exception {
-		String expected = "No input given";
+    @Test
+    public void testWithoutInput() throws Exception {
+        String expected = "No input given";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--output", "NotAnOutput"},
-			expected);
-	}
+        expectedOutput(
+                new String[] {"--algorithm", "EdgeList", "--output", "NotAnOutput"}, expected);
+    }
 
-	@Test
-	public void testWithUnknownInput() throws Exception {
-		String expected = "Unknown input type: NotAnInput";
+    @Test
+    public void testWithUnknownInput() throws Exception {
+        String expected = "Unknown input type: NotAnInput";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "NotAnInput"},
-			expected);
-	}
+        expectedOutput(new String[] {"--algorithm", "EdgeList", "--input", "NotAnInput"}, expected);
+    }
 
-	@Test
-	public void testWithoutOutput() throws Exception {
-		String expected = "No output given";
+    @Test
+    public void testWithoutOutput() throws Exception {
+        String expected = "No output given";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph"},
-			expected);
-	}
+        expectedOutput(new String[] {"--algorithm", "EdgeList", "--input", "RMatGraph"}, expected);
+    }
 
-	@Test
-	public void testWithUnknownOutput() throws Exception {
-		String expected = "Unknown output type: NotAnOutput";
+    @Test
+    public void testWithUnknownOutput() throws Exception {
+        String expected = "Unknown output type: NotAnOutput";
 
-		thrown.expect(ProgramParametrizationException.class);
-		thrown.expectMessage(expected);
+        thrown.expect(ProgramParametrizationException.class);
+        thrown.expectMessage(expected);
 
-		expectedOutput(
-			new String[]{"--algorithm", "EdgeList",
-				"--input", "RMatGraph",
-				"--output", "NotAnOutput"},
-			expected);
-	}
+        expectedOutput(
+                new String[] {
+                    "--algorithm", "EdgeList", "--input", "RMatGraph", "--output", "NotAnOutput"
+                },
+                expected);
+    }
 }

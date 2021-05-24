@@ -17,33 +17,34 @@
  */
 package org.apache.flink.table.codegen
 
-import java.lang.reflect.Modifier
-import java.lang.{Iterable => JIterable}
-import java.util.{List => JList}
-
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.api.common.state.{ListStateDescriptor, MapStateDescriptor, State, StateDescriptor}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.java.typeutils.TypeExtractionUtils.{extractTypeArgument, getRawClass}
-import org.apache.flink.table.api.{TableConfig, ValidationException}
 import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.api.{TableConfig, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils.{newName, reflectiveFieldWriteAccess}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.functions.{TableAggregateFunction, UserDefinedAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.functions.aggfunctions.DistinctAccumulator
-import org.apache.flink.table.functions.utils.{AggSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getUserDefinedMethod, signatureToString}
+import org.apache.flink.table.functions.utils.{AggSqlFunction, UserDefinedFunctionUtils}
+import org.apache.flink.table.functions.{ImperativeAggregateFunction, TableAggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.runtime.CRowWrappingCollector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate.{AggregateUtil, GeneratedAggregations, GeneratedTableAggregations, SingleElementIterable}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.RexLiteral
+
+import java.lang.reflect.Modifier
+import java.lang.{Iterable => JIterable}
+import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -82,25 +83,25 @@ import scala.collection.mutable
   * @param accConfig              Data view specification for accumulators
   */
 class AggregationCodeGenerator(
-  config: TableConfig,
-  nullableInput: Boolean,
-  inputTypeInfo: TypeInformation[_ <: Any],
-  constants: Option[Seq[RexLiteral]],
-  classNamePrefix: String,
-  physicalInputTypes: Seq[TypeInformation[_]],
-  aggregates: Array[UserDefinedAggregateFunction[_ <: Any, _ <: Any]],
-  aggFields: Array[Array[Int]],
-  aggMapping: Array[Int],
-  distinctAccMapping: Array[(Integer, JList[Integer])],
-  isStateBackedDataViews: Boolean,
-  partialResults: Boolean,
-  fwdMapping: Array[Int],
-  mergeMapping: Option[Array[Int]],
-  outputArity: Int,
-  needRetract: Boolean,
-  needMerge: Boolean,
-  needReset: Boolean,
-  accConfig: Option[Array[Seq[DataViewSpec[_]]]])
+    config: TableConfig,
+    nullableInput: Boolean,
+    inputTypeInfo: TypeInformation[_ <: Any],
+    constants: Option[Seq[RexLiteral]],
+    classNamePrefix: String,
+    physicalInputTypes: Seq[TypeInformation[_]],
+    aggregates: Array[ImperativeAggregateFunction[_ <: Any, _ <: Any]],
+    aggFields: Array[Array[Int]],
+    aggMapping: Array[Int],
+    distinctAccMapping: Array[(Integer, JList[Integer])],
+    isStateBackedDataViews: Boolean,
+    partialResults: Boolean,
+    fwdMapping: Array[Int],
+    mergeMapping: Option[Array[Int]],
+    outputArity: Int,
+    needRetract: Boolean,
+    needMerge: Boolean,
+    needReset: Boolean,
+    accConfig: Option[Array[Seq[DataViewSpec[_]]]])
   extends CodeGenerator(config, nullableInput, inputTypeInfo) {
 
   // set of statements for cleanup dataview that will be added only once

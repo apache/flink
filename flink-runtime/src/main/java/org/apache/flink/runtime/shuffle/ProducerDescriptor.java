@@ -30,60 +30,61 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Partition producer descriptor for {@link ShuffleMaster} to obtain {@link ShuffleDescriptor}.
  *
- * <p>The producer descriptor contains general producer specific information relevant for the shuffle service:
- * the producer location as {@link ResourceID}, {@link ExecutionAttemptID} and the network connection information
- * for shuffle data exchange (address and port).
+ * <p>The producer descriptor contains general producer specific information relevant for the
+ * shuffle service: the producer location as {@link ResourceID}, {@link ExecutionAttemptID} and the
+ * network connection information for shuffle data exchange (address and port).
  */
 public class ProducerDescriptor {
-	/** The resource ID to identify the container where the producer execution is deployed. */
-	private final ResourceID producerLocation;
+    /** The resource ID to identify the container where the producer execution is deployed. */
+    private final ResourceID producerLocation;
 
-	/** The ID of the producer execution attempt. */
-	private final ExecutionAttemptID producerExecutionId;
+    /** The ID of the producer execution attempt. */
+    private final ExecutionAttemptID producerExecutionId;
 
-	/** The address to connect to the producer. */
-	private final InetAddress address;
+    /** The address to connect to the producer. */
+    private final InetAddress address;
 
-	/**
-	 * The port to connect to the producer for shuffle exchange.
-	 *
-	 * <p>Negative value means local execution.
-	 */
-	private final int dataPort;
+    /**
+     * The port to connect to the producer for shuffle exchange.
+     *
+     * <p>Negative value means local execution.
+     */
+    private final int dataPort;
 
-	@VisibleForTesting
-	public ProducerDescriptor(
-			ResourceID producerLocation,
-			ExecutionAttemptID producerExecutionId,
-			InetAddress address,
-			int dataPort) {
-		this.producerLocation = checkNotNull(producerLocation);
-		this.producerExecutionId = checkNotNull(producerExecutionId);
-		this.address = checkNotNull(address);
-		this.dataPort = dataPort;
-	}
+    @VisibleForTesting
+    public ProducerDescriptor(
+            ResourceID producerLocation,
+            ExecutionAttemptID producerExecutionId,
+            InetAddress address,
+            int dataPort) {
+        this.producerLocation = checkNotNull(producerLocation);
+        this.producerExecutionId = checkNotNull(producerExecutionId);
+        this.address = checkNotNull(address);
+        this.dataPort = dataPort;
+    }
 
-	public ResourceID getProducerLocation() {
-		return producerLocation;
-	}
+    public ResourceID getProducerLocation() {
+        return producerLocation;
+    }
 
-	public ExecutionAttemptID getProducerExecutionId() {
-		return producerExecutionId;
-	}
+    public ExecutionAttemptID getProducerExecutionId() {
+        return producerExecutionId;
+    }
 
-	public InetAddress getAddress() {
-		return address;
-	}
+    public InetAddress getAddress() {
+        return address;
+    }
 
-	public int getDataPort() {
-		return dataPort;
-	}
+    public int getDataPort() {
+        return dataPort;
+    }
 
-	public static ProducerDescriptor create(TaskManagerLocation producerLocation, ExecutionAttemptID attemptId) {
-		return new ProducerDescriptor(
-			producerLocation.getResourceID(),
-			attemptId,
-			producerLocation.address(),
-			producerLocation.dataPort());
-	}
+    public static ProducerDescriptor create(
+            TaskManagerLocation producerLocation, ExecutionAttemptID attemptId) {
+        return new ProducerDescriptor(
+                producerLocation.getResourceID(),
+                attemptId,
+                producerLocation.address(),
+                producerLocation.dataPort());
+    }
 }

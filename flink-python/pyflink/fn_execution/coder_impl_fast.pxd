@@ -21,9 +21,23 @@ cimport libc.stdint
 
 from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream
 
+cdef enum InternalRowKind:
+    INSERT = 0
+    UPDATE_BEFORE = 1
+    UPDATE_AFTER = 2
+    DELETE = 3
+
+cdef class InternalRow:
+    cdef readonly list values
+    cdef readonly InternalRowKind row_kind
+    cdef bint is_retract_msg(self)
+    cdef bint is_accumulate_msg(self)
+
 cdef class BaseCoderImpl:
-    cpdef void encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
+    cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream)
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream)
+
+cdef unsigned char ROW_KIND_BIT_SIZE
 
 cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef readonly list _field_coders
@@ -32,9 +46,11 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef size_t _field_count
     cdef size_t _leading_complete_bytes_num
     cdef size_t _remaining_bits_num
+    cdef bint _single_output
 
-    cdef bint*_null_mask
-    cdef unsigned char*_null_byte_search_table
+    cdef bint*_mask
+    cdef unsigned char*_mask_byte_search_table
+    cdef unsigned char*_row_kind_byte_table
 
     # the tmp char pointer used to store encoded data of every row
     cdef char*_tmp_output_data
@@ -51,17 +67,21 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     # initial attribute
     cdef void _init_attribute(self)
 
-    cdef void _write_null_mask(self, value, size_t leading_complete_bytes_num,
-                               size_t remaining_bits_num)
-    cdef void _read_null_mask(self, bint*null_mask, size_t leading_complete_bytes_num,
-                              size_t remaining_bits_num)
+    cdef void _write_mask(self, value, size_t leading_complete_bytes_num,
+                             size_t remaining_bits_num, unsigned char row_kind_value, size_t field_count)
+    cdef void _read_mask(self, bint*null_mask, size_t leading_complete_bytes_num,
+                            size_t remaining_bits_num)
 
+    cpdef bytes encode_nested(self, value)
     # encode data to output_stream
-    cdef void _encode_one_row(self, value, LengthPrefixOutputStream output_stream)
-    cdef void _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
+    cdef _encode_one_row_to_buffer(self, value, unsigned char row_kind_value)
+    cdef _encode_one_row(self, value, LengthPrefixOutputStream output_stream)
+    cdef _encode_one_row_with_row_kind(self, value, LengthPrefixOutputStream output_stream,
+                                            unsigned char row_kind_value)
+    cdef _encode_field(self, CoderType coder_type, TypeName field_type, FieldCoder field_coder,
                             item)
-    cdef void _encode_field_simple(self, TypeName field_type, item)
-    cdef void _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item)
+    cdef _encode_field_simple(self, TypeName field_type, item)
+    cdef _encode_field_complex(self, TypeName field_type, FieldCoder field_coder, item)
     cdef void _extend(self, size_t missing)
     cdef void _encode_byte(self, unsigned char val)
     cdef void _encode_smallint(self, libc.stdint.int16_t v)
@@ -84,9 +104,43 @@ cdef class FlattenRowCoderImpl(BaseCoderImpl):
     cdef float _decode_float(self) except? -1
     cdef double _decode_double(self) except? -1
     cdef bytes _decode_bytes(self)
+    cdef object _decode_field_row(self, RowCoderImpl field_coder)
+
+cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
+    cdef bint _is_row_data
+    cdef bint _is_first_row
+    cdef _encode_list_value(self, list list_value, LengthPrefixOutputStream output_stream)
+    cdef _encode_internal_row(self, InternalRow row, LengthPrefixOutputStream output_stream)
 
 cdef class TableFunctionRowCoderImpl(FlattenRowCoderImpl):
     cdef char* _end_message
+
+cdef class DataStreamMapCoderImpl(FlattenRowCoderImpl):
+    cdef readonly FieldCoder _single_field_coder
+
+cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
+    cdef readonly object _single_field_coder
+    cdef char* _end_message
+
+cdef class DataStreamCoFlatMapCoderImpl(BaseCoderImpl):
+    cdef readonly object _single_field_coder
+
+cdef class WindowCoderImpl(BaseCoderImpl):
+    cdef size_t _tmp_output_pos
+    cdef size_t _input_pos
+    cdef char*_tmp_output_data
+    cdef char*_input_data
+
+    cpdef bytes encode_nested(self, value)
+    cpdef decode_nested(self, bytes encoded_bytes)
+    cdef void _encode_bigint(self, libc.stdint.int64_t v)
+    cdef libc.stdint.int64_t _decode_bigint(self) except? -1
+
+cdef class TimeWindowCoderImpl(WindowCoderImpl):
+    pass
+
+cdef class CountWindowCoderImpl(WindowCoderImpl):
+    pass
 
 cdef enum CoderType:
     UNDEFINED = -1
@@ -109,9 +163,13 @@ cdef enum TypeName:
     BOOLEAN = 11
     BINARY = 12
     CHAR = 13
-    ARRAY = 14
+    BASIC_ARRAY = 14
     MAP = 15
     LOCAL_ZONED_TIMESTAMP = 16
+    PICKLED_BYTES = 17
+    BIG_DEC = 18
+    TUPLE = 19
+    PRIMITIVE_ARRAY = 20
 
 cdef class FieldCoder:
     cpdef CoderType coder_type(self)
@@ -150,6 +208,12 @@ cdef class DateCoderImpl(FieldCoder):
 cdef class TimeCoderImpl(FieldCoder):
     pass
 
+cdef class PickledBytesCoderImpl(FieldCoder):
+    pass
+
+cdef class BigDecimalCoderImpl(FieldCoder):
+    pass
+
 cdef class DecimalCoderImpl(FieldCoder):
     cdef readonly object context
     cdef readonly object scale_format
@@ -160,7 +224,10 @@ cdef class TimestampCoderImpl(FieldCoder):
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef readonly object timezone
 
-cdef class ArrayCoderImpl(FieldCoder):
+cdef class BasicArrayCoderImpl(FieldCoder):
+    cdef readonly FieldCoder elem_coder
+
+cdef class PrimitiveArrayCoderImpl(FieldCoder):
     cdef readonly FieldCoder elem_coder
 
 cdef class MapCoderImpl(FieldCoder):
@@ -168,4 +235,9 @@ cdef class MapCoderImpl(FieldCoder):
     cdef readonly FieldCoder value_coder
 
 cdef class RowCoderImpl(FieldCoder):
+    cdef readonly list field_coders
+    cdef readonly list field_names
+    cdef readonly size_t field_count
+
+cdef class TupleCoderImpl(FieldCoder):
     cdef readonly list field_coders

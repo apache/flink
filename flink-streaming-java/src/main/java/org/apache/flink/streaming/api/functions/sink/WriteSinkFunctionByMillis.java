@@ -20,38 +20,35 @@ package org.apache.flink.streaming.api.functions.sink;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Implementation of WriteSinkFunction. Writes tuples to file in every millis
- * milliseconds.
+ * Implementation of WriteSinkFunction. Writes tuples to file in every millis milliseconds.
  *
- * @param <IN>
- *            Input tuple type
- *
- * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
- * for writing to files from a streaming program.
+ * @param <IN> Input tuple type
+ * @deprecated Please use the {@link
+ *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ *     for writing to files from a streaming program.
  */
 @PublicEvolving
 @Deprecated
 public class WriteSinkFunctionByMillis<IN> extends WriteSinkFunction<IN> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long millis;
-	private long lastTime;
+    private final long millis;
+    private long lastTime;
 
-	public WriteSinkFunctionByMillis(String path, WriteFormat<IN> format, long millis) {
-		super(path, format);
-		this.millis = millis;
-		lastTime = System.currentTimeMillis();
-	}
+    public WriteSinkFunctionByMillis(String path, WriteFormat<IN> format, long millis) {
+        super(path, format);
+        this.millis = millis;
+        lastTime = System.currentTimeMillis();
+    }
 
-	@Override
-	protected boolean updateCondition() {
-		return System.currentTimeMillis() - lastTime >= millis;
-	}
+    @Override
+    protected boolean updateCondition() {
+        return System.currentTimeMillis() - lastTime >= millis;
+    }
 
-	@Override
-	protected void resetParameters() {
-		tupleList.clear();
-		lastTime = System.currentTimeMillis();
-	}
-
+    @Override
+    protected void resetParameters() {
+        tupleList.clear();
+        lastTime = System.currentTimeMillis();
+    }
 }

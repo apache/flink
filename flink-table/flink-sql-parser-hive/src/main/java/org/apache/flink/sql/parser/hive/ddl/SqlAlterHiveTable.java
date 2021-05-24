@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
@@ -26,39 +26,42 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Abstract class for ALTER DDL of a Hive table.
- * Any ALTER TABLE operations that need to be encoded as table properties should extend this class.
+ * Abstract class for ALTER DDL of a Hive table. Any ALTER TABLE operations that need to be encoded
+ * as table properties should extend this class.
  */
-public abstract class SqlAlterHiveTable extends SqlAlterTableProperties {
+public abstract class SqlAlterHiveTable extends SqlAlterTableOptions {
 
-	public static final String ALTER_TABLE_OP = "alter.table.op";
-	public static final String ALTER_COL_CASCADE = "alter.column.cascade";
+    public static final String ALTER_TABLE_OP = "alter.table.op";
+    public static final String ALTER_COL_CASCADE = "alter.column.cascade";
 
-	public SqlAlterHiveTable(AlterTableOp op, SqlParserPos pos, SqlIdentifier tableName,
-			SqlNodeList partSpec, SqlNodeList propertyList) {
-		super(pos, tableName, partSpec, propertyList);
-		propertyList.add(HiveDDLUtils.toTableOption(ALTER_TABLE_OP, op.name(), pos));
-	}
+    public SqlAlterHiveTable(
+            AlterTableOp op,
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partSpec,
+            SqlNodeList propertyList) {
+        super(pos, tableName, partSpec, propertyList);
+        propertyList.add(HiveDDLUtils.toTableOption(ALTER_TABLE_OP, op.name(), pos));
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		SqlNodeList partitionSpec = getPartitionSpec();
-		if (partitionSpec != null && partitionSpec.size() > 0) {
-			writer.keyword("PARTITION");
-			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        SqlNodeList partitionSpec = getPartitionSpec();
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
+    }
 
-	/**
-	 * Type of ALTER TABLE operation.
-	 */
-	public enum AlterTableOp {
-		CHANGE_TBL_PROPS,
-		CHANGE_SERDE_PROPS,
-		CHANGE_FILE_FORMAT,
-		CHANGE_LOCATION,
-		ALTER_COLUMNS
-	}
+    /** Type of ALTER TABLE operation. */
+    public enum AlterTableOp {
+        CHANGE_TBL_PROPS,
+        CHANGE_SERDE_PROPS,
+        CHANGE_FILE_FORMAT,
+        CHANGE_LOCATION,
+        ALTER_COLUMNS
+    }
 }

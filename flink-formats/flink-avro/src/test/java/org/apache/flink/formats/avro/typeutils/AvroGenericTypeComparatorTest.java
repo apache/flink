@@ -21,13 +21,11 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.AbstractGenericTypeComparatorTest;
 
-/**
- * Test for the {@link AvroSerializer}.
- */
+/** Test for the {@link AvroSerializer}. */
 public class AvroGenericTypeComparatorTest extends AbstractGenericTypeComparatorTest {
 
-	@Override
-	protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
-		return new AvroSerializer<>(type);
-	}
+    @Override
+    protected <T> TypeSerializer<T> createSerializer(Class<T> type) {
+        return new AvroSerializer<>(type);
+    }
 }

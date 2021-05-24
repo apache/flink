@@ -24,6 +24,17 @@ under the License.
         <name>dfs.namenode.rpc-address</name>
         <value>master.docker-hadoop-cluster-network:9000</value>
     </property>
+
+    <!-- Introduced to address instability described in FLINK-18117 -->
+    <property>
+        <name>dfs.namenode.http-address</name>
+        <value>0.0.0.0:0</value>
+    </property>
+    <property>
+        <name>dfs.namenode.https-address</name>
+        <value>0.0.0.0:0</value>
+    </property>
+
     <property>
          <name>dfs.permissions</name>
          <value>true</value>

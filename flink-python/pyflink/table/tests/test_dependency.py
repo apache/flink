@@ -23,12 +23,13 @@ import uuid
 
 from pyflink.pyflink_gateway_server import on_windows
 from pyflink.table import DataTypes
+from pyflink.table import expressions as expr
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (PyFlinkBlinkStreamTableTestCase,
                                              PyFlinkBlinkBatchTableTestCase,
-                                             PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+                                             PyFlinkOldStreamTableTestCase,
+                                             PyFlinkOldBatchTableTestCase)
 
 
 class DependencyTests(object):
@@ -38,31 +39,40 @@ class DependencyTests(object):
         os.mkdir(python_file_dir)
         python_file_path = os.path.join(python_file_dir, "test_dependency_manage_lib.py")
         with open(python_file_path, 'w') as f:
-            f.write("def add_two(a):\n    return a + 2")
+            f.write("def add_two(a):\n    raise Exception('This function should not be called!')")
         self.t_env.add_python_file(python_file_path)
+
+        python_file_dir_with_higher_priority = os.path.join(
+            self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
+        os.mkdir(python_file_dir_with_higher_priority)
+        python_file_path_higher_priority = os.path.join(python_file_dir_with_higher_priority,
+                                                        "test_dependency_manage_lib.py")
+        with open(python_file_path_higher_priority, 'w') as f:
+            f.write("def add_two(a):\n    return a + 2")
+        self.t_env.add_python_file(python_file_path_higher_priority)
 
         def plus_two(i):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_two(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        t.select(expr.call("add_two", t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,1", "4,2", "5,3"])
+        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
-class FlinkStreamDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
+class FlinkStreamDependencyTests(DependencyTests, PyFlinkOldStreamTableTestCase):
 
     pass
 
 
-class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
+class FlinkBatchDependencyTests(PyFlinkOldBatchTableTestCase):
 
     def test_add_python_file(self):
         python_file_dir = os.path.join(self.tempdir, "python_file_dir_" + str(uuid.uuid4()))
@@ -76,13 +86,14 @@ class FlinkBatchDependencyTests(PyFlinkBatchTableTestCase):
             from test_dependency_manage_lib import add_two
             return add_two(i)
 
-        self.t_env.register_function("add_two", udf(plus_two, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "add_two", udf(plus_two, DataTypes.BIGINT(), DataTypes.BIGINT()))
 
-        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])\
-            .select("add_two(a), a")
+        t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
+        t = t.select(expr.call('add_two', t.a), t.a)
 
         result = self.collect(t)
-        self.assertEqual(result, ["3,1", "4,2", "5,3"])
+        self.assertEqual(result, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
 
 class BlinkBatchDependencyTests(DependencyTests, PyFlinkBlinkBatchTableTestCase):
@@ -104,17 +115,17 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 os.environ['_PYTHON_REQUIREMENTS_INSTALL_DIR'])
             return i
 
-        self.t_env.register_function("check_requirements",
-                                     udf(check_requirements, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("check_requirements",
+                                                    udf(check_requirements, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_requirements(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        t.select(expr.call('check_requirements', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,1", "2,2", "3,3"])
+        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
 
     def test_set_requirements_with_cached_directory(self):
         tmp_dir = self.tempdir
@@ -150,16 +161,17 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             from python_package1 import plus
             return plus(i, 1)
 
-        self.t_env.register_function("add_one", udf(add_one, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("add_one",
+                                                    udf(add_one, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_one(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        t.select(expr.call('add_one', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["2,1", "3,2", "4,3"])
+        self.assert_equals(actual, ["+I[2, 1]", "+I[3, 2]", "+I[4, 3]"])
 
     def test_add_python_archive(self):
         tmp_dir = self.tempdir
@@ -175,17 +187,17 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             with open("data/data.txt", 'r') as f:
                 return i + int(f.read())
 
-        self.t_env.register_function("add_from_file",
-                                     udf(add_from_file, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("add_from_file",
+                                                    udf(add_from_file, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("add_from_file(a), a").insert_into("Results")
-        self.t_env.execute("test")
+        t.select(expr.call('add_from_file', t.a), t.a).execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["3,1", "4,2", "5,3"])
+        self.assert_equals(actual, ["+I[3, 1]", "+I[4, 2]", "+I[5, 3]"])
 
     @unittest.skipIf(on_windows(), "Symbolic link is not supported on Windows, skipping.")
     def test_set_environment(self):
@@ -200,8 +212,9 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
             assert os.environ["python"] == python_exec_link_path
             return i
 
-        self.t_env.register_function("check_python_exec",
-                                     udf(check_python_exec, result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function("check_python_exec",
+                                                    udf(check_python_exec, DataTypes.BIGINT(),
+                                                        DataTypes.BIGINT()))
 
         def check_pyflink_gateway_disabled(i):
             try:
@@ -214,19 +227,22 @@ class BlinkStreamDependencyTests(DependencyTests, PyFlinkBlinkStreamTableTestCas
                 raise Exception("The gateway server is not disabled!")
             return i
 
-        self.t_env.register_function("check_pyflink_gateway_disabled",
-                                     udf(check_pyflink_gateway_disabled,
-                                         result_type=DataTypes.BIGINT()))
+        self.t_env.create_temporary_system_function(
+            "check_pyflink_gateway_disabled",
+            udf(check_pyflink_gateway_disabled, DataTypes.BIGINT(),
+                DataTypes.BIGINT()))
 
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t = self.t_env.from_elements([(1, 2), (2, 5), (3, 1)], ['a', 'b'])
-        t.select("check_python_exec(a), check_pyflink_gateway_disabled(a)").insert_into("Results")
-        self.t_env.execute("test")
+        t.select(
+            expr.call('check_python_exec', t.a),
+            expr.call('check_pyflink_gateway_disabled', t.a)) \
+            .execute_insert("Results").wait()
 
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["1,1", "2,2", "3,3"])
+        self.assert_equals(actual, ["+I[1, 1]", "+I[2, 2]", "+I[3, 3]"])
 
 
 if __name__ == "__main__":

@@ -25,67 +25,67 @@ import org.apache.hadoop.hive.ql.exec.UDF;
 import java.io.Serializable;
 
 /**
- * A wrapper of Hive functions that instantiate function instances and ser/de functino instance cross process boundary.
+ * A wrapper of Hive functions that instantiate function instances and ser/de functino instance
+ * cross process boundary.
  *
  * @param <UDFType> The type of UDF.
  */
 @Internal
 public class HiveFunctionWrapper<UDFType> implements Serializable {
 
-	public static final long serialVersionUID = 393313529306818205L;
+    public static final long serialVersionUID = 393313529306818205L;
 
-	private final String className;
+    private final String className;
 
-	private transient UDFType instance = null;
+    private transient UDFType instance = null;
 
-	public HiveFunctionWrapper(String className) {
-		this.className = className;
-	}
+    public HiveFunctionWrapper(String className) {
+        this.className = className;
+    }
 
-	/**
-	 * Instantiate a Hive function instance.
-	 *
-	 * @return a Hive function instance
-	 */
-	public UDFType createFunction() {
-		if (instance != null) {
-			return instance;
-		} else {
-			UDFType func = null;
-			try {
-				func = (UDFType) Thread.currentThread().getContextClassLoader().loadClass(className).newInstance();
-			} catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-				throw new FlinkHiveUDFException(
-					String.format("Failed to create function from %s", className), e);
-			}
+    /**
+     * Instantiate a Hive function instance.
+     *
+     * @return a Hive function instance
+     */
+    public UDFType createFunction() {
+        if (instance != null) {
+            return instance;
+        } else {
+            UDFType func = null;
+            try {
+                func = getUDFClass().newInstance();
+            } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+                throw new FlinkHiveUDFException(
+                        String.format("Failed to create function from %s", className), e);
+            }
 
-			if (!(func instanceof UDF)) {
-				// We cache the function if it is not the Simple UDF,
-				// as we always have to create new instance for Simple UDF.
-				instance = func;
-			}
+            if (!(func instanceof UDF)) {
+                // We cache the function if it is not the Simple UDF,
+                // as we always have to create new instance for Simple UDF.
+                instance = func;
+            }
 
-			return func;
-		}
-	}
+            return func;
+        }
+    }
 
-	/**
-	 * Get class name of the Hive function.
-	 *
-	 * @return class name of the Hive function
-	 */
-	public String getClassName() {
-		return className;
-	}
+    /**
+     * Get class name of the Hive function.
+     *
+     * @return class name of the Hive function
+     */
+    public String getClassName() {
+        return className;
+    }
 
-	/**
-	 * Get class of the Hive function.
-	 *
-	 * @return class of the Hive function
-	 * @throws ClassNotFoundException thrown when the class is not found in classpath
-	 */
-	public Class<UDFType> getUDFClass() throws ClassNotFoundException {
-		return (Class<UDFType>) Class.forName(className);
-	}
+    /**
+     * Get class of the Hive function.
+     *
+     * @return class of the Hive function
+     * @throws ClassNotFoundException thrown when the class is not found in classpath
+     */
+    public Class<UDFType> getUDFClass() throws ClassNotFoundException {
+        return (Class<UDFType>) Thread.currentThread().getContextClassLoader().loadClass(className);
+    }
 }
-

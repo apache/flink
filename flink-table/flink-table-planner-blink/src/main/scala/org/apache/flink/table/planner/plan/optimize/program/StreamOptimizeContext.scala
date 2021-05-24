@@ -28,11 +28,6 @@ import org.apache.calcite.rex.RexBuilder
 trait StreamOptimizeContext extends FlinkOptimizeContext {
 
   /**
-    * Gets the Calcite [[RexBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getRexBuilder: RexBuilder
-
-  /**
    * Returns true if the root is required to send UPDATE_BEFORE message with
    * UPDATE_AFTER message together for update changes.
    */
@@ -42,11 +37,5 @@ trait StreamOptimizeContext extends FlinkOptimizeContext {
     * Returns the mini-batch interval that sink requests.
     */
   def getMiniBatchInterval: MiniBatchInterval
-
-  /**
-    * Returns true if the output node needs final TimeIndicator conversion
-    * defined in [[org.apache.flink.table.api.TableEnvironment#optimize]].
-    */
-  def needFinalTimeIndicatorConversion: Boolean
 
 }

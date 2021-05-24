@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -61,6 +62,9 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Rule
   def expectedEx: ExpectedException = _expectedException
 
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -77,8 +81,8 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithOutPartitionGrouping(): Unit = {
     registerTableSink()
-    execInsertSqlAndWaitResult("insert into sinkTable select a, max(b), c"
-      + " from nonSortTable group by a, c")
+    tEnv.executeSql("insert into sinkTable select a, max(b), c"
+      + " from nonSortTable group by a, c").await()
     assertEquals(List("1,5,Hi",
       "1,5,Hi01",
       "1,5,Hi02"),
@@ -101,7 +105,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithPartitionGrouping(): Unit = {
     registerTableSink()
-    execInsertSqlAndWaitResult("insert into sinkTable select a, b, c from sortTable")
+    tEnv.executeSql("insert into sinkTable select a, b, c from sortTable").await()
     assertEquals(List("1,1,Hello world",
       "1,1,Hello world, how are you?"),
       RESULT1.toList)
@@ -121,7 +125,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticPartitions(): Unit = {
     registerTableSink()
-    execInsertSqlAndWaitResult("insert into sinkTable partition(a=1) select b, c from sortTable")
+    tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
     assertEquals(List("1,2,Hi",
       "1,1,Hello world",
       "1,2,Hello",
@@ -141,7 +145,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticAndDynamicPartitions(): Unit = {
     registerTableSink(partitionColumns = Array("a", "b"))
-    execInsertSqlAndWaitResult("insert into sinkTable partition(a=1) select b, c from sortTable")
+    tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
     assertEquals(List("1,1,Hello world", "1,1,Hello world, how are you?"), RESULT1.toList)
     assertEquals(List(
       "1,4,你好，陌生人",
@@ -161,7 +165,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticPartitionAndStarSource(): Unit = {
     registerTableSink(partitionColumns = Array("b", "c"))
-    execInsertSqlAndWaitResult("insert into sinkTable partition(b=1) select * from starTable")
+    tEnv.executeSql("insert into sinkTable partition(b=1) select * from starTable").await()
     assertEquals(List(
       "1,1,Hello world, how are you?",
       "3,1,I'm fine, thank you",
@@ -184,8 +188,8 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticPartitionAndValuesSource(): Unit = {
     registerTableSink(partitionColumns = Array("b", "c"))
-    execInsertSqlAndWaitResult("insert into sinkTable partition(b=1)\n"
-      + "(values (1, 'Hello world, how are you?'), (4, '你好，陌生人，我是'), (2, 'Hello'))")
+    tEnv.executeSql("insert into sinkTable partition(b=1)\n"
+      + "(values (1, 'Hello world, how are you?'), (4, '你好，陌生人，我是'), (2, 'Hello'))").await()
     assertEquals(List("1,1,Hello world, how are you?"), RESULT1.toList)
     assertEquals(List("4,1,你好，陌生人，我是"), RESULT2.toList)
     assertEquals(List("2,1,Hello"), RESULT3.toList)
@@ -196,14 +200,14 @@ class PartitionableSinkITCase extends BatchTestBase {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,
       partitionColumns = Array("a", "b"))
-    execInsertSqlAndWaitResult("insert into sinkTable2 partition(c=1) select a, b from sortTable")
+    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
   }
 
   @Test
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
     expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
-    execInsertSqlAndWaitResult("insert into sinkTable2 partition(c=1) select a, b from sortTable")
+    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
   }
 
   private def registerTableSink(

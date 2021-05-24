@@ -35,106 +35,104 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests that validate that the configuration for limited FS
- * connections are properly picked up.
- */
+/** Tests that validate that the configuration for limited FS connections are properly picked up. */
 public class LimitedConnectionsConfigurationTest {
 
-	@Rule
-	public final TemporaryFolder tempDir = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
 
-	/**
-	 * This test validates that the File System is correctly wrapped by the
-	 * file system factories when the corresponding entries are in the configuration.
-	 */
-	@Test
-	public void testConfiguration() throws Exception {
-		final String fsScheme = TestFileSystem.SCHEME;
+    /**
+     * This test validates that the File System is correctly wrapped by the file system factories
+     * when the corresponding entries are in the configuration.
+     */
+    @Test
+    public void testConfiguration() throws Exception {
+        final String fsScheme = TestFileSystem.SCHEME;
 
-		// nothing configured, we should get a regular file system
-		FileSystem schemeFs = FileSystem.get(URI.create(fsScheme + ":///a/b/c"));
-		FileSystem localFs = FileSystem.get(tempDir.newFile().toURI());
+        // nothing configured, we should get a regular file system
+        FileSystem schemeFs = FileSystem.get(URI.create(fsScheme + ":///a/b/c"));
+        FileSystem localFs = FileSystem.get(tempDir.newFile().toURI());
 
-		assertFalse(schemeFs instanceof LimitedConnectionsFileSystem);
-		assertFalse(localFs instanceof LimitedConnectionsFileSystem);
+        assertFalse(schemeFs instanceof LimitedConnectionsFileSystem);
+        assertFalse(localFs instanceof LimitedConnectionsFileSystem);
 
-		// configure some limits, which should cause "fsScheme" to be limited
+        // configure some limits, which should cause "fsScheme" to be limited
 
-		final Configuration config = new Configuration();
-		config.setInteger("fs." + fsScheme + ".limit.total", 42);
-		config.setInteger("fs." + fsScheme + ".limit.input", 11);
-		config.setInteger("fs." + fsScheme + ".limit.output", 40);
-		config.setInteger("fs." + fsScheme + ".limit.timeout", 12345);
-		config.setInteger("fs." + fsScheme + ".limit.stream-timeout", 98765);
+        final Configuration config = new Configuration();
+        config.setInteger("fs." + fsScheme + ".limit.total", 42);
+        config.setInteger("fs." + fsScheme + ".limit.input", 11);
+        config.setInteger("fs." + fsScheme + ".limit.output", 40);
+        config.setInteger("fs." + fsScheme + ".limit.timeout", 12345);
+        config.setInteger("fs." + fsScheme + ".limit.stream-timeout", 98765);
 
-		try {
-			FileSystem.initialize(config);
+        try {
+            FileSystem.initialize(config);
 
-			schemeFs = FileSystem.get(URI.create(fsScheme + ":///a/b/c"));
-			localFs = FileSystem.get(tempDir.newFile().toURI());
+            schemeFs = FileSystem.get(URI.create(fsScheme + ":///a/b/c"));
+            localFs = FileSystem.get(tempDir.newFile().toURI());
 
-			assertTrue(schemeFs instanceof LimitedConnectionsFileSystem);
-			assertFalse(localFs instanceof LimitedConnectionsFileSystem);
+            assertTrue(schemeFs instanceof LimitedConnectionsFileSystem);
+            assertFalse(localFs instanceof LimitedConnectionsFileSystem);
 
-			LimitedConnectionsFileSystem limitedFs = (LimitedConnectionsFileSystem) schemeFs;
-			assertEquals(42, limitedFs.getMaxNumOpenStreamsTotal());
-			assertEquals(11, limitedFs.getMaxNumOpenInputStreams());
-			assertEquals(40, limitedFs.getMaxNumOpenOutputStreams());
-			assertEquals(12345, limitedFs.getStreamOpenTimeout());
-			assertEquals(98765, limitedFs.getStreamInactivityTimeout());
-		}
-		finally {
-			// clear all settings
-			FileSystem.initialize(new Configuration());
-		}
-	}
+            LimitedConnectionsFileSystem limitedFs = (LimitedConnectionsFileSystem) schemeFs;
+            assertEquals(42, limitedFs.getMaxNumOpenStreamsTotal());
+            assertEquals(11, limitedFs.getMaxNumOpenInputStreams());
+            assertEquals(40, limitedFs.getMaxNumOpenOutputStreams());
+            assertEquals(12345, limitedFs.getStreamOpenTimeout());
+            assertEquals(98765, limitedFs.getStreamInactivityTimeout());
+        } finally {
+            // clear all settings
+            FileSystem.initialize(new Configuration());
+        }
+    }
 
-	/**
-	 * This test checks that the file system connection limiting configuration object
-	 * is properly created.
-	 */
-	@Test
-	public void testConnectionLimitingSettings() {
-		final String scheme = "testscheme";
+    /**
+     * This test checks that the file system connection limiting configuration object is properly
+     * created.
+     */
+    @Test
+    public void testConnectionLimitingSettings() {
+        final String scheme = "testscheme";
 
-		// empty config
-		assertNull(ConnectionLimitingSettings.fromConfig(new Configuration(), scheme));
+        // empty config
+        assertNull(ConnectionLimitingSettings.fromConfig(new Configuration(), scheme));
 
-		// only total limit set
-		{
-			Configuration conf = new Configuration();
-			conf.setInteger(CoreOptions.fileSystemConnectionLimit(scheme), 10);
+        // only total limit set
+        {
+            Configuration conf = new Configuration();
+            conf.setInteger(CoreOptions.fileSystemConnectionLimit(scheme), 10);
 
-			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
-			assertNotNull(settings);
-			assertEquals(10, settings.limitTotal);
-			assertEquals(0, settings.limitInput);
-			assertEquals(0, settings.limitOutput);
-		}
+            ConnectionLimitingSettings settings =
+                    ConnectionLimitingSettings.fromConfig(conf, scheme);
+            assertNotNull(settings);
+            assertEquals(10, settings.limitTotal);
+            assertEquals(0, settings.limitInput);
+            assertEquals(0, settings.limitOutput);
+        }
 
-		// only input limit set
-		{
-			Configuration conf = new Configuration();
-			conf.setInteger(CoreOptions.fileSystemConnectionLimitIn(scheme), 10);
+        // only input limit set
+        {
+            Configuration conf = new Configuration();
+            conf.setInteger(CoreOptions.fileSystemConnectionLimitIn(scheme), 10);
 
-			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
-			assertNotNull(settings);
-			assertEquals(0, settings.limitTotal);
-			assertEquals(10, settings.limitInput);
-			assertEquals(0, settings.limitOutput);
-		}
+            ConnectionLimitingSettings settings =
+                    ConnectionLimitingSettings.fromConfig(conf, scheme);
+            assertNotNull(settings);
+            assertEquals(0, settings.limitTotal);
+            assertEquals(10, settings.limitInput);
+            assertEquals(0, settings.limitOutput);
+        }
 
-		// only output limit set
-		{
-			Configuration conf = new Configuration();
-			conf.setInteger(CoreOptions.fileSystemConnectionLimitOut(scheme), 10);
+        // only output limit set
+        {
+            Configuration conf = new Configuration();
+            conf.setInteger(CoreOptions.fileSystemConnectionLimitOut(scheme), 10);
 
-			ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(conf, scheme);
-			assertNotNull(settings);
-			assertEquals(0, settings.limitTotal);
-			assertEquals(0, settings.limitInput);
-			assertEquals(10, settings.limitOutput);
-		}
-	}
+            ConnectionLimitingSettings settings =
+                    ConnectionLimitingSettings.fromConfig(conf, scheme);
+            assertNotNull(settings);
+            assertEquals(0, settings.limitTotal);
+            assertEquals(0, settings.limitInput);
+            assertEquals(10, settings.limitOutput);
+        }
+    }
 }

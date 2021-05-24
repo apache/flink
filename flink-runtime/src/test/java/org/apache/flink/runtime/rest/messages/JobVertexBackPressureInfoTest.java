@@ -21,25 +21,30 @@ package org.apache.flink.runtime.rest.messages;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Tests that the {@link JobVertexBackPressureInfo} can be marshalled and unmarshalled.
- */
-public class JobVertexBackPressureInfoTest extends RestResponseMarshallingTestBase<JobVertexBackPressureInfo> {
-	@Override
-	protected Class<JobVertexBackPressureInfo> getTestResponseClass() {
-		return JobVertexBackPressureInfo.class;
-	}
+/** Tests that the {@link JobVertexBackPressureInfo} can be marshalled and unmarshalled. */
+public class JobVertexBackPressureInfoTest
+        extends RestResponseMarshallingTestBase<JobVertexBackPressureInfo> {
+    @Override
+    protected Class<JobVertexBackPressureInfo> getTestResponseClass() {
+        return JobVertexBackPressureInfo.class;
+    }
 
-	@Override
-	protected JobVertexBackPressureInfo getTestResponseInstance() throws Exception {
-		List<JobVertexBackPressureInfo.SubtaskBackPressureInfo> subtaskList = new ArrayList<>();
-		subtaskList.add(new JobVertexBackPressureInfo.SubtaskBackPressureInfo(0, JobVertexBackPressureInfo.VertexBackPressureLevel.LOW, 0.1));
-		subtaskList.add(new JobVertexBackPressureInfo.SubtaskBackPressureInfo(1, JobVertexBackPressureInfo.VertexBackPressureLevel.OK, 0.4));
-		subtaskList.add(new JobVertexBackPressureInfo.SubtaskBackPressureInfo(2, JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH, 0.9));
-		return new JobVertexBackPressureInfo(
-					JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
-					JobVertexBackPressureInfo.VertexBackPressureLevel.LOW,
-					System.currentTimeMillis(),
-					subtaskList);
-	}
+    @Override
+    protected JobVertexBackPressureInfo getTestResponseInstance() throws Exception {
+        List<JobVertexBackPressureInfo.SubtaskBackPressureInfo> subtaskList = new ArrayList<>();
+        subtaskList.add(
+                new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
+                        0, JobVertexBackPressureInfo.VertexBackPressureLevel.LOW, 0.1, 0.5, 0.4));
+        subtaskList.add(
+                new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
+                        1, JobVertexBackPressureInfo.VertexBackPressureLevel.OK, 0.4, 0.3, 0.3));
+        subtaskList.add(
+                new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
+                        2, JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH, 0.9, 0.0, 0.1));
+        return new JobVertexBackPressureInfo(
+                JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
+                JobVertexBackPressureInfo.VertexBackPressureLevel.LOW,
+                System.currentTimeMillis(),
+                subtaskList);
+    }
 }

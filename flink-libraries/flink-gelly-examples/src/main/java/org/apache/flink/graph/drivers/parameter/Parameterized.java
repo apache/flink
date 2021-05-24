@@ -21,31 +21,29 @@ package org.apache.flink.graph.drivers.parameter;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
 
-/**
- * A configurable command-line choice, such as an input or algorithm.
- */
+/** A configurable command-line choice, such as an input or algorithm. */
 public interface Parameterized {
 
-	/**
-	 * A unique, human-readable identifier. Presented to the user as the
-	 * name of a selectable choice.
-	 *
-	 * @return parameter name
-	 */
-	String getName();
+    /**
+     * A unique, human-readable identifier. Presented to the user as the name of a selectable
+     * choice.
+     *
+     * @return parameter name
+     */
+    String getName();
 
-	/**
-	 * Human-readable format for the command-line usage string.
-	 *
-	 * @return command-line documentation string
-	 */
-	String getUsage();
+    /**
+     * Human-readable format for the command-line usage string.
+     *
+     * @return command-line documentation string
+     */
+    String getUsage();
 
-	/**
-	 * Read parameter values from the command-line arguments.
-	 *
-	 * @param parameterTool parameter parser
-	 * @throws ProgramParametrizationException when configuration is invalid
-	 */
-	void configure(ParameterTool parameterTool) throws ProgramParametrizationException;
+    /**
+     * Read parameter values from the command-line arguments.
+     *
+     * @param parameterTool parameter parser
+     * @throws ProgramParametrizationException when configuration is invalid
+     */
+    void configure(ParameterTool parameterTool) throws ProgramParametrizationException;
 }
