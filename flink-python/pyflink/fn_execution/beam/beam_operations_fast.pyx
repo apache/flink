@@ -24,9 +24,8 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 
 from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
-
-from pyflink.fn_execution.operations import MapBundleOperation
+from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
+from pyflink.fn_execution.operations import BundleOperation
 
 cdef class FunctionOperation(Operation):
     """
@@ -38,14 +37,12 @@ cdef class FunctionOperation(Operation):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-        from pyflink.fn_execution.beam.beam_coder_impl_slow import ArrowCoderImpl, \
-            OverWindowArrowCoderImpl
 
-        if isinstance(self._value_coder_impl, (ArrowCoderImpl, OverWindowArrowCoderImpl)):
-            self._is_python_coder = True
-        else:
+        if isinstance(self._value_coder_impl, BeamCoderImpl):
             self._is_python_coder = False
             self._output_coder = self._value_coder_impl._value_coder
+        else:
+            self._is_python_coder = True
 
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
@@ -81,7 +78,7 @@ cdef class FunctionOperation(Operation):
                 input_stream = input_stream_wrapper._input_stream
                 input_coder = input_stream_wrapper._value_coder
                 output_stream = BeamOutputStream(self.consumer.output_stream)
-                if isinstance(self.operation, MapBundleOperation):
+                if isinstance(self.operation, BundleOperation):
                     while input_stream.available():
                         input_data = input_coder.decode_from_stream(input_stream)
                         self.process_element(input_data)

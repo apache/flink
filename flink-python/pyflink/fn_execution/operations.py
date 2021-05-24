@@ -106,7 +106,7 @@ class Operation(abc.ABC):
         pass
 
 
-class MapBundleOperation(object):
+class BundleOperation(object):
     def finish_bundle(self):
         raise NotImplementedError
 
@@ -168,7 +168,9 @@ class TableFunctionOperation(TableOperation):
         """
         table_function, variable_dict, user_defined_funcs = \
             operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
-        generate_func = eval('lambda value: %s' % table_function, variable_dict)
+        variable_dict['wrap_table_function_result'] = operation_utils.wrap_table_function_result
+        generate_func = eval('lambda value: wrap_table_function_result(%s)' % table_function,
+                             variable_dict)
         return generate_func, user_defined_funcs
 
 
@@ -379,7 +381,11 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
         # [element_type, element(for process_element), timestamp(for timer), key(for timer)]
         # all the fields are nullable except the "element_type"
         if input_data[0] == NORMAL_RECORD:
-            self.group_agg_function.process_element(input_data[1])
+            if has_cython:
+                row = InternalRow(input_data[1]._values, input_data[1].get_row_kind().value)
+            else:
+                row = input_data[1]
+            self.group_agg_function.process_element(row)
         else:
             self.group_agg_function.on_timer(input_data[3])
 
@@ -390,7 +396,7 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
         pass
 
 
-class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, MapBundleOperation):
+class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
 
     def __init__(self, spec, keyed_state_backend):
         super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
@@ -421,7 +427,7 @@ class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, MapBu
             self.index_of_count_star)
 
 
-class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, MapBundleOperation):
+class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
     def __init__(self, spec, keyed_state_backend):
         super(StreamGroupTableAggregateOperation, self).__init__(spec, keyed_state_backend)
 
@@ -453,6 +459,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
         self._window = spec.serialized_fn.group_window
         self._named_property_extractor = self._create_named_property_function()
         self._is_time_window = None
+        self._reuse_timer_data = Row()
+        self._reuse_key_data = Row()
         super(StreamGroupWindowAggregateOperation, self).__init__(spec, keyed_state_backend)
 
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
@@ -507,7 +515,6 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             self._window.shift_timezone)
 
     def process_element_or_timer(self, input_data: Tuple[int, Row, int, int, Row]):
-        results = []
         if input_data[0] == NORMAL_RECORD:
             self.group_agg_function.process_watermark(input_data[3])
             if has_cython:
@@ -516,34 +523,31 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 input_row = input_data[1]
             result_datas = self.group_agg_function.process_element(input_row)
             for result_data in result_datas:
-                result = [NORMAL_RECORD, result_data, None]
-                results.append(result)
+                yield [NORMAL_RECORD, result_data, None]
             timers = self.group_agg_function.get_timers()
             for timer in timers:
                 timer_operand_type = timer[0]  # type: TimerOperandType
                 internal_timer = timer[1]  # type: InternalTimer
                 window = internal_timer.get_namespace()
-                key = internal_timer.get_key()
+                self._reuse_key_data._values = internal_timer.get_key()
                 timestamp = internal_timer.get_timestamp()
-                encoded_window = self._namespace_coder.encode_nested(window)
-                timer_data = [TRIGGER_TIMER, None,
-                              [timer_operand_type.value, key, timestamp, encoded_window]]
-                results.append(timer_data)
+                encoded_window = self._namespace_coder.encode(window)
+                self._reuse_timer_data._values = \
+                    [timer_operand_type.value, self._reuse_key_data, timestamp, encoded_window]
+                yield [TRIGGER_TIMER, None, self._reuse_timer_data]
         else:
             timestamp = input_data[2]
             timer_data = input_data[4]
             key = list(timer_data[1])
             timer_type = timer_data[0]
-            namespace = self._namespace_coder.decode_nested(timer_data[2])
+            namespace = self._namespace_coder.decode(timer_data[2])
             timer = InternalTimerImpl(timestamp, key, namespace)
             if timer_type == REGISTER_EVENT_TIMER:
                 result_datas = self.group_agg_function.on_event_time(timer)
             else:
                 result_datas = self.group_agg_function.on_processing_time(timer)
             for result_data in result_datas:
-                result = [NORMAL_RECORD, result_data, None]
-                results.append(result)
-        return results
+                yield [NORMAL_RECORD, result_data, None]
 
     def _create_named_property_function(self):
         named_property_extractor_array = []

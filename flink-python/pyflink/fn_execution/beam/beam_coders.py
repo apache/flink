@@ -35,7 +35,7 @@ except ImportError:
     BeamCoderImpl = lambda a: a
 
 
-FLINK_CODER_URN = "flink:coder"
+FLINK_CODER_URN = "flink:coder:v1"
 
 
 class PassThroughLengthPrefixCoder(LengthPrefixCoder):
@@ -58,7 +58,7 @@ Coder.register_structured_urn(
     common_urns.coders.LENGTH_PREFIX.urn, PassThroughLengthPrefixCoder)
 
 
-class BeamCoder(FastCoder):
+class FlinkCoder(FastCoder):
 
     def __init__(self, internal_coder: BaseCoder):
         self._internal_coder = internal_coder
@@ -67,7 +67,7 @@ class BeamCoder(FastCoder):
         return self._internal_coder.get_impl()
 
     def get_impl(self):
-        if isinstance(self._internal_coder, (ArrowCoder, OverWindowArrowCoder)):
+        if isinstance(self._internal_coder._field_coder, (ArrowCoder, OverWindowArrowCoder)):
             return self._create_impl()
         else:
             return BeamCoderImpl(self._create_impl())
@@ -77,12 +77,12 @@ class BeamCoder(FastCoder):
 
     @Coder.register_urn(FLINK_CODER_URN, CoderParam)
     def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
-        return BeamCoder(BaseCoder.from_coder_param_proto(coder_praram_proto))
+        return FlinkCoder(BaseCoder.from_coder_param_proto(coder_praram_proto))
 
     def __repr__(self):
-        return 'BeamFlattenRowCoder[%s]' % repr(self._internal_coder)
+        return 'FlinkCoder[%s]' % repr(self._internal_coder)
 
-    def __eq__(self, other: 'BeamCoder'):
+    def __eq__(self, other: 'FlinkCoder'):
         return (self.__class__ == other.__class__
                 and self._internal_coder == other._internal_coder)
 

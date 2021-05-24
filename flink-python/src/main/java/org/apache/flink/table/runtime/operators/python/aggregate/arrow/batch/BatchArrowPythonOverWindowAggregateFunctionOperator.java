@@ -109,7 +109,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 groupKey,
                 groupingSet,
                 udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.BATCH_OVER_WINDOW_ARROW,
+                FlinkFnApi.CoderParam.DataType.OVER_WINDOW_ARROW,
                 FlinkFnApi.CoderParam.DataType.ARROW);
         this.lowerBoundary = lowerBoundary;
         this.upperBoundary = upperBoundary;

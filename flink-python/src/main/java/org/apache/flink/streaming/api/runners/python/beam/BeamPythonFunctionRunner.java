@@ -135,7 +135,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
 
-    protected static final String FLINK_CODER_URN = "flink:coder";
+    protected static final String FLINK_CODER_URN = "flink:coder:v1";
 
     protected final FlinkFnApi.CoderParam.OutputMode outputMode;
 

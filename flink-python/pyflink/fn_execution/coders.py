@@ -32,17 +32,17 @@ try:
 except:
     from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
 
-__all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
-           'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder', 'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
-           'TimeWindowCoder', 'CountWindowCoder']
+__all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
+           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
+           'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder', 'BigDecimalCoder',
+           'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
 
 
 # BaseCoder will be used in Operations and other coders will be the field coder of BaseCoder
 class BaseCoder(ABC):
-    def __init__(self, output_mode):
-        self._output_mode = output_mode
+    def __init__(self, field_coder: 'FieldCoder'):
+        self._field_coder = field_coder
 
     @abstractmethod
     def get_impl(self):
@@ -50,8 +50,16 @@ class BaseCoder(ABC):
 
     @classmethod
     def from_coder_param_proto(cls, coder_param_proto):
-        data_type = coder_param_proto.data_type
+        field_coder = cls._to_field_coder(coder_param_proto)
         output_mode = coder_param_proto.output_mode
+        if output_mode == flink_fn_execution_pb2.CoderParam.SINGLE:
+            return ValueCoder(field_coder)
+        else:
+            return IterableCoder(field_coder, output_mode)
+
+    @classmethod
+    def _to_field_coder(cls, coder_param_proto):
+        data_type = coder_param_proto.data_type
         if data_type == flink_fn_execution_pb2.CoderParam.FLATTEN_ROW:
             if coder_param_proto.HasField('schema'):
                 schema_proto = coder_param_proto.schema
@@ -60,27 +68,27 @@ class BaseCoder(ABC):
                 type_info_proto = coder_param_proto.type_info
                 field_coders = [from_type_info_proto(f.field_type)
                                 for f in type_info_proto.row_type_info.fields]
-            return FlattenRowCoder(field_coders, output_mode)
+            return FlattenRowCoder(field_coders)
         elif data_type == flink_fn_execution_pb2.CoderParam.ROW:
             schema_proto = coder_param_proto.schema
             field_coders = [from_proto(f.type) for f in schema_proto.fields]
             field_names = [f.name for f in schema_proto.fields]
-            return TopRowCoder(field_coders, field_names, output_mode)
+            return RowCoder(field_coders, field_names)
         elif data_type == flink_fn_execution_pb2.CoderParam.RAW:
             type_info_proto = coder_param_proto.type_info
             field_coder = from_type_info_proto(type_info_proto)
-            return RawCoder(field_coder, output_mode)
+            return field_coder
         elif data_type == flink_fn_execution_pb2.CoderParam.ARROW:
             timezone = pytz.timezone(os.environ['table.exec.timezone'])
             schema_proto = coder_param_proto.schema
             row_type = cls._to_row_type(schema_proto)
-            return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone, output_mode)
-        elif data_type == flink_fn_execution_pb2.CoderParam.BATCH_OVER_WINDOW_ARROW:
+            return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
+        elif data_type == flink_fn_execution_pb2.CoderParam.OVER_WINDOW_ARROW:
             timezone = pytz.timezone(os.environ['table.exec.timezone'])
             schema_proto = coder_param_proto.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
-                cls._to_arrow_schema(row_type), row_type, timezone, output_mode)
+                cls._to_arrow_schema(row_type), row_type, timezone)
         else:
             raise ValueError("Unexpected coder type %s" % data_type)
 
@@ -140,27 +148,54 @@ class BaseCoder(ABC):
 
 class FieldCoder(ABC):
 
-    def get_impl(self):
+    def get_impl(self) -> coder_impl.FieldCoderImpl:
         pass
 
 
-class FlattenRowCoder(BaseCoder):
+class IterableCoder(BaseCoder):
+    """
+    Coder for iterable data.
+    """
+
+    def __init__(self, field_coder: FieldCoder, output_mode):
+        super(IterableCoder, self).__init__(field_coder)
+        self._output_mode = output_mode
+
+    def get_impl(self):
+        return coder_impl.IterableCoderImpl(self._field_coder.get_impl(), self._output_mode)
+
+
+class ValueCoder(BaseCoder):
+    """
+    Coder for single data.
+    """
+
+    def __init__(self, field_coder: FieldCoder):
+        super(ValueCoder, self).__init__(field_coder)
+
+    def get_impl(self):
+        if isinstance(self._field_coder, (ArrowCoder, OverWindowArrowCoder)):
+            # ArrowCoder and OverWindowArrowCoder doesn't support fast coder currently.
+            from pyflink.fn_execution.beam import beam_coder_impl_slow
+            return beam_coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
+        else:
+            return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
+
+
+class FlattenRowCoder(FieldCoder):
     """
     Coder for Row. The decoded result will be flattened as a list of column values of a row instead
     of a row object.
     """
 
-    def __init__(self, field_coders, output_mode):
-        super(FlattenRowCoder, self).__init__(output_mode)
+    def __init__(self, field_coders):
         self._field_coders = field_coders
 
     def get_impl(self):
-        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders],
-                                              self._output_mode)
+        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
 
     def __repr__(self):
-        return 'FlattenRowCoder[%s, %s]' % \
-               (', '.join(str(c) for c in self._field_coders), self._output_mode)
+        return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
     def __eq__(self, other: 'FlattenRowCoder'):
         return (self.__class__ == other.__class__
@@ -175,70 +210,40 @@ class FlattenRowCoder(BaseCoder):
         return hash(self._field_coders)
 
 
-class TopRowCoder(BaseCoder):
-
-    def __init__(self, field_coders, field_names, output_mode):
-        super(TopRowCoder, self).__init__(output_mode)
-        self._field_coders = field_coders
-        self._field_names = field_names
-
-    def get_impl(self):
-        return coder_impl.TopRowCoderImpl(
-            [c.get_impl() for c in self._field_coders],
-            self._field_names, self._output_mode)
-
-    def __repr__(self):
-        return 'TopRowCoder[%s, %s, %s]' % \
-               (', '.join(str(c) for c in self._field_coders), self._field_names, self._output_mode)
-
-
-class RawCoder(BaseCoder):
-    def __init__(self, field_coder, output_mode):
-        super(RawCoder, self).__init__(output_mode)
-        self._field_coder = field_coder
-
-    def get_impl(self):
-        return coder_impl.RawCoderImpl(self._field_coder.get_impl(), self._output_mode)
-
-    def __repr__(self):
-        return 'RawCoder[%s, %s]' % (self._field_coder, self._output_mode)
-
-
-class ArrowCoder(BaseCoder):
+class ArrowCoder(FieldCoder):
     """
     Coder for Arrow.
     """
 
-    def __init__(self, schema, row_type, timezone, output_mode):
-        super(ArrowCoder, self).__init__(output_mode)
+    def __init__(self, schema, row_type, timezone):
         self._schema = schema
         self._row_type = row_type
         self._timezone = timezone
 
     def get_impl(self):
+        # ArrowCoder doesn't support fast coder implementation currently.
         from pyflink.fn_execution.beam import beam_coder_impl_slow
-        return beam_coder_impl_slow.ArrowCoderImpl(
-            self._schema, self._row_type, self._timezone, self._output_mode)
+        return beam_coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
 
 
-class OverWindowArrowCoder(ArrowCoder):
+class OverWindowArrowCoder(FieldCoder):
     """
     Coder for batch pandas over window aggregation.
     """
 
-    def __init__(self, schema, row_type, timezone, output_mode):
-        super(OverWindowArrowCoder, self).__init__(schema, row_type, timezone, output_mode)
+    def __init__(self, schema, row_type, timezone):
+        self._arrow_coder = ArrowCoder(schema, row_type, timezone)
 
     def get_impl(self):
+        # OverWindowArrowCoder doesn't support fast coder implementation currently.
         from pyflink.fn_execution.beam import beam_coder_impl_slow
-        return beam_coder_impl_slow.OverWindowArrowCoderImpl(
-            self._schema, self._row_type, self._timezone, self._output_mode)
+        return beam_coder_impl_slow.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
 
     def __repr__(self):
-        return 'OverWindowArrowCoder[%s]' % self._schema
+        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
 
 
 class RowCoder(FieldCoder):
@@ -257,7 +262,7 @@ class RowCoder(FieldCoder):
     def __repr__(self):
         return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'RowCoder'):
         return (self.__class__ == other.__class__
                 and self._field_names == other._field_names
                 and [self._field_coders[i] == other._field_coders[i] for i in

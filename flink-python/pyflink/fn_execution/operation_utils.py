@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import datetime
+from collections import Iterable
 from enum import Enum
 from functools import partial
 
@@ -42,6 +43,34 @@ from pyflink.table.udf import DelegationTableFunction, DelegatingScalarFunction,
 
 _func_num = 0
 _constant_num = 0
+
+
+def wrap_table_function_result(it):
+    if it is None:
+        return []
+    elif isinstance(it, tuple):
+        # We assume that tuple is a single line output
+        return [[*it]]
+    elif isinstance(it, Row):
+        # We assume that tuple is a single line output
+        return [it._values]
+    elif isinstance(it, Iterable):
+        def func():
+            for item in it:
+                if not isinstance(item, Iterable):
+                    # single field value
+                    yield [item]
+                elif isinstance(item, tuple):
+                    yield [*item]
+                elif isinstance(item, Row):
+                    yield item._values
+                else:
+                    yield list(item)
+
+        return func()
+    else:
+        # single field value
+        return [[it]]
 
 
 def wrap_pandas_result(it):
