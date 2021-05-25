@@ -202,7 +202,7 @@ public abstract class FineGrainedSlotManagerTestBase extends TestLogger {
                             getResourceAllocationStrategy()
                                     .orElse(resourceAllocationStrategyBuilder.build()),
                             Time.milliseconds(requirementCheckDelay));
-            runInMainThread(
+            runInMainThreadAndWait(
                     () ->
                             slotManager.start(
                                     resourceManagerId,

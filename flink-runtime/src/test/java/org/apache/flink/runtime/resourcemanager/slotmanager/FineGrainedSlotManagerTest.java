@@ -980,17 +980,18 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 SlotManagerMetricGroup.create(metricRegistry, "localhost"));
 
         context.runTest(
-                () ->
-                        context.runInMainThreadAndWait(
-                                () -> {
-                                    try {
-                                        // sanity check to ensure metrics were actually registered
-                                        assertThat(registeredMetrics.get(), greaterThan(0));
-                                        closeFn.accept(context.getSlotManager());
-                                        assertThat(registeredMetrics.get(), is(0));
-                                    } catch (Exception e) {
-                                        fail("Error when closing slot manager.");
-                                    }
-                                }));
+                () -> {
+                    // sanity check to ensure metrics were actually registered
+                    assertThat(registeredMetrics.get(), greaterThan(0));
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                try {
+                                    closeFn.accept(context.getSlotManager());
+                                } catch (Exception e) {
+                                    fail("Error when closing slot manager.");
+                                }
+                            });
+                    assertThat(registeredMetrics.get(), is(0));
+                });
     }
 }
