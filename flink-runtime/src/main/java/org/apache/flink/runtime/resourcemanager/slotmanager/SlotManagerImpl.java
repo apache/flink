@@ -345,6 +345,8 @@ public class SlotManagerImpl implements SlotManager {
     public void suspend() {
         LOG.info("Suspending the SlotManager.");
 
+        slotManagerMetricGroup.close();
+
         // stop the timeout checks for the TaskManagers and the SlotRequests
         if (taskManagerTimeoutsAndRedundancyCheck != null) {
             taskManagerTimeoutsAndRedundancyCheck.cancel(false);
@@ -386,7 +388,6 @@ public class SlotManagerImpl implements SlotManager {
         LOG.info("Closing the SlotManager.");
 
         suspend();
-        slotManagerMetricGroup.close();
     }
 
     // ---------------------------------------------------------------------------------------------
