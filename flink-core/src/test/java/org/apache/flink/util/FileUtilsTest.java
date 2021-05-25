@@ -331,6 +331,22 @@ public class FileUtilsTest extends TestLogger {
         FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
     }
 
+    @Test
+    public void testFollowSymbolicDirectoryLink() throws IOException {
+        final File directory = tmp.newFolder("a");
+        final File file = new File(directory, "a.jar");
+        assertTrue(file.createNewFile());
+
+        final File otherDirectory = tmp.newFolder();
+        java.nio.file.Path linkPath = Paths.get(otherDirectory.getPath(), "a.lnk");
+        Files.createSymbolicLink(linkPath, directory.toPath());
+
+        Collection<java.nio.file.Path> paths =
+                FileUtils.listFilesInDirectory(linkPath, FileUtils::isJarFile);
+
+        assertThat(paths, containsInAnyOrder(linkPath.resolve(file.getName())));
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
