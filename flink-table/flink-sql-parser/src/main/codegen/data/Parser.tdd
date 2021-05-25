@@ -33,6 +33,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableRenameColumn"
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
