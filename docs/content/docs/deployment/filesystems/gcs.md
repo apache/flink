@@ -1,5 +1,5 @@
 ---
-title: Google cloud storage
+title: Google Cloud Storage
 weight: 3
 type: docs
 aliases:
@@ -26,7 +26,7 @@ under the License.
 
 # Google Cloud Storage
 
-[Google Cloud storage](https://cloud.google.com/storage) (GCS) provides cloud storage for variety of usecases. You can use it for **reading** and **writing data**.
+[Google Cloud storage](https://cloud.google.com/storage) (GCS) provides cloud storage for a variety of use cases. You can use it for **reading** and **writing data**.
 
 
 
@@ -49,7 +49,7 @@ stream.writeAsText("gs://<bucket>/<endpoint>");
 
 ### Libraries
 
-You would require to include the following libraries to `/lib` for connecting flink with gcs. 
+You must include the following libraries in Flink's `lib` directory to connect Flink with gcs:
 
 ```xml
 <dependency>
@@ -69,7 +69,7 @@ We have tested with `flink-shared-hadoop2-uber version` >= `2.8.3-1.8.3`.
 
 ### Authentication to access GCS
 
-You would need authentication to access GCS. Please follow the [link](https://cloud.google.com/storage/docs/authentication).
+Most operations on GCS require authentication. Please see [the documentation on Google Cloud Storage authentication](https://cloud.google.com/storage/docs/authentication) for more information.
 
 You can expose the key generated via `GOOGLE_APPLICATION_CREDENTIALS` environment variable. 
 
