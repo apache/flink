@@ -25,6 +25,7 @@ import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -32,7 +33,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,8 +56,16 @@ public class SessionContextTest {
     @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+    private static File udfJar;
 
     private SessionContext sessionContext;
+
+    @BeforeClass
+    public static void prepare() throws Exception {
+        udfJar =
+                TestUserClassLoaderJar.createJarFile(
+                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
+    }
 
     @Before
     public void setup() throws Exception {
@@ -180,10 +188,6 @@ public class SessionContextTest {
 
     @Test
     public void testAddJar() throws IOException {
-        File udfJar =
-                TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
-
         sessionContext.addJar(udfJar.getPath());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
@@ -192,7 +196,8 @@ public class SessionContextTest {
         // reset to the default classloader
         sessionContext.reset();
         assertEquals(
-                Arrays.asList(udfJar.toURI().toURL().toString()), getConfiguration().get(JARS));
+                Collections.singletonList(udfJar.toURI().toURL().toString()),
+                getConfiguration().get(JARS));
     }
 
     @Test
@@ -206,13 +211,10 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testIllegalJarInConfig() throws Exception {
+    public void testIllegalJarInConfig() {
         Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
         innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
 
-        File udfJar =
-                TestUserClassLoaderJar.createJarFile(
-                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
         validateAddJarException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
     }
 

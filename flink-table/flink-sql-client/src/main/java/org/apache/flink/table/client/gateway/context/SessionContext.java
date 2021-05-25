@@ -333,7 +333,7 @@ public class SessionContext {
                                     sessionConfiguration, PipelineOptions.JARS, URL::new));
         } catch (MalformedURLException e) {
             throw new SqlExecutionException(
-                    "Failed to parse the option `PipelineOptions.JARS` in configuration.", e);
+                    "Failed to parse the option `pipeline.jars` in configuration.", e);
         }
         jarsInConfig.addAll(newDependencies);
         ConfigUtils.encodeCollectionToConfig(
