@@ -25,14 +25,18 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxy;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 import org.apache.flink.streaming.connectors.kinesis.util.AWSUtil;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.model.GetRecordsResult;
-import com.amazonaws.services.kinesis.model.PutRecordRequest;
-import com.amazonaws.services.kinesis.model.PutRecordResult;
+import com.amazonaws.services.kinesis.model.PutRecordsRequest;
+import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
+import com.amazonaws.services.kinesis.model.PutRecordsResult;
+import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ResourceNotFoundException;
 import org.slf4j.Logger;
@@ -41,10 +45,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * Simple client to publish and retrieve messages, using the AWS Kinesis SDK and the Flink Kinesis
@@ -86,13 +92,23 @@ public class KinesisPubsubClient {
         }
     }
 
-    public void sendMessage(String topic, String msg) {
-        PutRecordRequest putRecordRequest = new PutRecordRequest();
-        putRecordRequest.setStreamName(topic);
-        putRecordRequest.setPartitionKey("fakePartitionKey");
-        putRecordRequest.withData(ByteBuffer.wrap(msg.getBytes()));
-        PutRecordResult putRecordResult = kinesisClient.putRecord(putRecordRequest);
-        LOG.info("added record: {}", putRecordResult.getSequenceNumber());
+    public void sendMessage(String topic, String... messages) {
+        for (List<String> partition : Lists.partition(Arrays.asList(messages), 500)) {
+            List<PutRecordsRequestEntry> entries =
+                    partition.stream()
+                            .map(
+                                    msg ->
+                                            new PutRecordsRequestEntry()
+                                                    .withPartitionKey("fakePartitionKey")
+                                                    .withData(ByteBuffer.wrap(msg.getBytes())))
+                            .collect(Collectors.toList());
+            PutRecordsRequest requests =
+                    new PutRecordsRequest().withStreamName(topic).withRecords(entries);
+            PutRecordsResult putRecordResult = kinesisClient.putRecords(requests);
+            for (PutRecordsResultEntry result : putRecordResult.getRecords()) {
+                LOG.debug("added record: {}", result.getSequenceNumber());
+            }
+        }
     }
 
     public List<String> readAllMessages(String streamName) throws Exception {
