@@ -21,6 +21,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
@@ -90,14 +91,10 @@ public class FlinkKinesisITCase {
         client.createTopic(TEST_STREAM, 1, new Properties());
 
         // add elements to the test stream
-        int numElements = 10;
-        List<String> elements =
-                IntStream.range(0, numElements)
-                        .mapToObj(String::valueOf)
-                        .collect(Collectors.toList());
-        for (String element : elements) {
-            client.sendMessage(TEST_STREAM, element);
-        }
+        int numElements = 1000;
+        client.sendMessage(
+                TEST_STREAM,
+                IntStream.range(0, numElements).mapToObj(String::valueOf).toArray(String[]::new));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
@@ -107,6 +104,7 @@ public class FlinkKinesisITCase {
         FlinkKinesisConsumer<String> consumer =
                 new FlinkKinesisConsumer<>(TEST_STREAM, STRING_SCHEMA, config);
 
+        DataStream<String> stream = env.addSource(consumer).map(new WaitingMapper());
         // call stop with savepoint in another thread
         ForkJoinTask<Object> stopTask =
                 ForkJoinPool.commonPool()
@@ -117,14 +115,18 @@ public class FlinkKinesisITCase {
                                     WaitingMapper.stopped = true;
                                     return null;
                                 });
-
         try {
-            List<String> result =
-                    env.addSource(consumer).map(new WaitingMapper()).executeAndCollect(10000);
+            List<String> result = stream.executeAndCollect(10000);
             // stop with savepoint will most likely only return a small subset of the elements
             // validate that the prefix is as expected
             assertThat(result, hasSize(lessThan(numElements)));
-            assertThat(result, equalTo(elements.subList(0, result.size())));
+            assertThat(
+                    result,
+                    equalTo(
+                            IntStream.range(0, numElements)
+                                    .mapToObj(String::valueOf)
+                                    .collect(Collectors.toList())
+                                    .subList(0, result.size())));
         } finally {
             stopTask.cancel(true);
         }
@@ -140,8 +142,13 @@ public class FlinkKinesisITCase {
     }
 
     private static class WaitingMapper implements MapFunction<String, String> {
-        static CountDownLatch firstElement = new CountDownLatch(1);
-        static volatile boolean stopped = false;
+        static CountDownLatch firstElement;
+        static volatile boolean stopped;
+
+        WaitingMapper() {
+            firstElement = new CountDownLatch(1);
+            stopped = false;
+        }
 
         @Override
         public String map(String value) throws Exception {
