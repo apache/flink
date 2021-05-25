@@ -20,7 +20,7 @@ from apache_beam.runners.worker import bundle_processor, operation_specs
 
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
-    CountWindowCoder
+    CountWindowCoder, FlattenRowCoder
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 import pyflink.fn_execution.operations as operations
@@ -145,7 +145,8 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
 
     if hasattr(spec.serialized_fn, "key_type"):
         # keyed operation, need to create the KeyedStateBackend.
-        key_row_coder = from_proto(spec.serialized_fn.key_type)
+        row_schema = spec.serialized_fn.key_type.row_schema
+        key_row_coder = FlattenRowCoder([from_proto(f.type) for f in row_schema.fields])
         if spec.serialized_fn.HasField('group_window'):
             if spec.serialized_fn.group_window.is_time_window:
                 window_coder = TimeWindowCoder()

@@ -933,8 +933,7 @@ class RemoteKeyedStateBackend(object):
         self._state_handler = state_handler
         self._map_state_handler = CachingMapStateHandler(
             state_handler, map_state_read_cache_size)
-        from pyflink.fn_execution.coders import FlattenRowCoder
-        self._key_coder_impl = FlattenRowCoder(key_coder._field_coders).get_impl()
+        self._key_coder_impl = key_coder.get_impl()
         self.namespace_coder = namespace_coder
         if namespace_coder:
             self._namespace_coder_impl = namespace_coder.get_impl()

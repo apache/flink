@@ -44,7 +44,7 @@ cdef class BeamCoderImpl(StreamCoderImpl):
         self._value_coder = value_coder
 
     cpdef encode_to_stream(self, value, BOutputStream out_stream, bint nested):
-        self._value_coder.encode(value, out_stream)
+        self._value_coder.encode_to_stream(value, out_stream)
 
     cpdef decode_from_stream(self, BInputStream in_stream, bint nested):
         cdef BeamInputStream input_stream = BeamInputStream(in_stream, in_stream.size())
