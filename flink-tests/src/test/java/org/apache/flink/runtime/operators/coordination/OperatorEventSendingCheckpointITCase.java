@@ -46,6 +46,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGatewayDecoratorBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
+import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunction;
@@ -54,6 +55,7 @@ import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
@@ -124,6 +126,7 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
      * additionally a failure on the reader that triggers recovery.
      */
     @Test
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-22464
     public void testOperatorEventLostWithReaderFailure() throws Exception {
         final int[] eventsToLose = new int[] {1, 3};
 
