@@ -154,14 +154,14 @@ class TimeWindowSerializer(TypeSerializer[TimeWindow]):
     def serialize(self, element: TimeWindow, stream: BytesIO) -> None:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder()
-        bytes_data = self._underlying_coder.encode_nested(element)
+        bytes_data = self._underlying_coder.encode(element)
         stream.write(bytes_data)
 
     def deserialize(self, stream: BytesIO) -> TimeWindow:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder()
         bytes_data = stream.read(16)
-        return self._underlying_coder.decode_nested(bytes_data)
+        return self._underlying_coder.decode(bytes_data)
 
     def _get_coder(self):
         try:
@@ -179,14 +179,14 @@ class CountWindowSerializer(TypeSerializer[CountWindow]):
     def serialize(self, element: CountWindow, stream: BytesIO) -> None:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder()
-        bytes_data = self._underlying_coder.encode_nested(element)
+        bytes_data = self._underlying_coder.encode(element)
         stream.write(bytes_data)
 
     def deserialize(self, stream: BytesIO) -> CountWindow:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder()
         bytes_data = stream.read(8)
-        return self._underlying_coder.decode_nested(bytes_data)
+        return self._underlying_coder.decode(bytes_data)
 
     def _get_coder(self):
         try:
