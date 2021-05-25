@@ -71,6 +71,6 @@ We have tested with `flink-shared-hadoop2-uber version` >= `2.8.3-1.8.3`.
 
 Most operations on GCS require authentication. Please see [the documentation on Google Cloud Storage authentication](https://cloud.google.com/storage/docs/authentication) for more information.
 
-You can expose the key generated via `GOOGLE_APPLICATION_CREDENTIALS` environment variable. 
+You can provide the necessary key via the `GOOGLE_APPLICATION_CREDENTIALS` environment variable. 
 
 {{< top >}}
