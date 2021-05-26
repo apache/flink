@@ -138,11 +138,11 @@ used by default.
 ### Boundedness
 Kafka source is designed to support both streaming and batch running mode. By default, the KafkaSource
 is set to run in streaming manner, thus never stops until Flink job fails or is cancelled. You can use
-```setBounded(OffsetInitializer)``` to specify stopping offsets and set the source running in
-batch mode. When all partitions have reached their stooping offsets, the source will exit.
+```setBounded(OffsetsInitializer)``` to specify stopping offsets and set the source running in
+batch mode. When all partitions have reached their stoping offsets, the source will exit.
 
 You can also set KafkaSource running in streaming mode, but still stop at the stopping offset by
-using ```setUnbounded(OffsetInitializer)```. The source will exit when all partitions reach their
+using ```setUnbounded(OffsetsInitializer)```. The source will exit when all partitions reach their
 specified stopping offset.
 
 ### Additional Properties
@@ -178,12 +178,16 @@ KafkaSource.builder()
 ### Dynamic Partition Discovery
 In order to handle scenarios like topic scaling-out or topic creation without restarting the Flink
 job, Kafka source can be configured to periodically discover new partitions under provided 
-topic-partition subscribing pattern. The discovery is disabled by default. To enable this feature, 
-set a non-negative value for property ```partition.discovery.interval.ms```:
+topic-partition subscribing pattern. To enable partition discovery, set a non-negative value for 
+property ```partition.discovery.interval.ms```:
 ```java
 KafkaSource.builder()
     .setProperty("partition.discovery.interval.ms", "10000") // discover new partitions per 10 seconds
 ```
+{{< hint warning >}}
+Partition discovery is **disabled** by default. You need to explicitly set the partition discovery
+interval to enable this feature.
+{{< /hint >}}
 
 ### Event Time and Watermarks
 By default, the record will use the timestamp embedded in Kafka ```ConsumerRecord``` as the event
