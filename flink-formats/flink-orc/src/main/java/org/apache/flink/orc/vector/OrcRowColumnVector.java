@@ -29,24 +29,21 @@ import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 public class OrcRowColumnVector extends AbstractOrcColumnVector
         implements org.apache.flink.table.data.vector.RowColumnVector {
 
-    private StructColumnVector hiveVector;
-    private RowType type;
-    private VectorizedColumnBatch vectorizedColumnBatch;
+    private final ColumnarRowData columnarRowData;
 
     public OrcRowColumnVector(StructColumnVector hiveVector, RowType type) {
         super(hiveVector);
-        this.hiveVector = hiveVector;
-        this.type = type;
         int len = hiveVector.fields.length;
         ColumnVector[] flinkVectors = new ColumnVector[len];
         for (int i = 0; i < len; i++) {
             flinkVectors[i] = createFlinkVector(hiveVector.fields[i], type.getTypeAt(i));
         }
-        this.vectorizedColumnBatch = new VectorizedColumnBatch(flinkVectors);
+        this.columnarRowData = new ColumnarRowData(new VectorizedColumnBatch(flinkVectors));
     }
 
     @Override
     public ColumnarRowData getRow(int i) {
-        return new ColumnarRowData(this.vectorizedColumnBatch, i);
+        this.columnarRowData.setRowId(i);
+        return this.columnarRowData;
     }
 }

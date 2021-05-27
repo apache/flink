@@ -29,14 +29,12 @@ import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 public class OrcArrayColumnVector extends AbstractOrcColumnVector
         implements org.apache.flink.table.data.vector.ArrayColumnVector {
 
-    private ListColumnVector hiveVector;
-    private ArrayType type;
-    private ColumnVector flinkVector;
+    private final ListColumnVector hiveVector;
+    private final ColumnVector flinkVector;
 
     public OrcArrayColumnVector(ListColumnVector hiveVector, ArrayType type) {
         super(hiveVector);
         this.hiveVector = hiveVector;
-        this.type = type;
         this.flinkVector = createFlinkVector(hiveVector.child, type.getElementType());
     }
 

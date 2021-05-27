@@ -18,27 +18,53 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.orc.vector.RowDataVectorizer;
+import org.apache.flink.orc.writer.OrcBulkWriterFactory;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.operators.StreamSink;
+import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.assertEquals;
@@ -46,6 +72,8 @@ import static org.junit.Assert.assertEquals;
 /** ITCase for {@link OrcFileFormatFactory}. */
 @RunWith(Parameterized.class)
 public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
     private final boolean configure;
 
@@ -169,24 +197,16 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
     }
 
     @Test
-    public void testNestedTypes() throws ExecutionException, InterruptedException {
-        String path =
-                this.getClass().getClassLoader().getResource("test-data-nested.orc").getPath();
+    public void testNestedTypes() throws Exception {
+        String path = initNestedTypesFile(initNestedTypesData());
         super.tableEnv()
                 .executeSql(
                         String.format(
                                 "create table orcNestedTypesTable ("
-                                        + "boolean1 boolean,"
-                                        + "byte1 tinyint,"
-                                        + "short1 smallint,"
-                                        + "int1 int,"
-                                        + "long1 bigint,"
-                                        + "float1 float,"
-                                        + "double1 double,"
-                                        + "string1 string,"
-                                        + "middle ROW<list ARRAY<ROW<int1 int,string1 string>>>,"
-                                        + "list ARRAY<ROW<int1 int,string1 string>>,"
-                                        + "map MAP<string,ROW<int1 int,string1 string>>"
+                                        + "_col0 string,"
+                                        + "_col1 int,"
+                                        + "_col2 ARRAY<ROW<_col2_col0 string>>,"
+                                        + "_col3 MAP<string,ROW<_col3_col0 string,_col3_col1 timestamp>>"
                                         + ") with ("
                                         + "'connector' = 'filesystem',"
                                         + "'format' = 'orc',"
@@ -194,13 +214,117 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                                 path));
 
         TableResult tableResult = super.tableEnv().executeSql("SELECT * FROM orcNestedTypesTable");
-        List<Row> rows = new ArrayList<>();
-        tableResult.collect().forEachRemaining(rows::add);
+        List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
+        assertEquals(4, rows.size());
         assertEquals(
-                "+I[false, 1, 1024, 65536, 9223372036854775807, 1.0, -15.0, hi, +I[[+I[1, bye], +I[2, sigh]]], [+I[3, good], +I[4, bad]], {}]",
+                "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, 1970-01-01T09:00]}]",
                 rows.get(0).toString());
-        assertEquals(
-                "+I[true, 100, 2048, 65536, 9223372036854775807, 2.0, -5.0, bye, +I[[+I[1, bye], +I[2, sigh]]], [+I[100000000, cat], +I[-100000, in], +I[1234, hat]], {chani=+I[5, chani], mauddib=+I[1, mauddib]}]",
-                rows.get(1).toString());
+        assertEquals("+I[_col_0_string_2, 2, null, null]", rows.get(1).toString());
+        assertEquals("+I[_col_0_string_3, 3, [], {}]", rows.get(2).toString());
+        assertEquals("+I[_col_0_string_4, 4, [], {null=null}]", rows.get(3).toString());
+    }
+
+    private List<RowData> initNestedTypesData() {
+        List<RowData> data = new ArrayList<>(3);
+        {
+            GenericRowData rowData = new GenericRowData(4);
+
+            rowData.setField(0, new BinaryStringData("_col_0_string_1"));
+
+            rowData.setField(1, 1);
+
+            GenericRowData arrayValue1 = new GenericRowData(1);
+            arrayValue1.setField(0, new BinaryStringData("_col_2_row_0_string_1"));
+            GenericRowData arrayValue2 = new GenericRowData(1);
+            arrayValue2.setField(0, new BinaryStringData("_col_2_row_1_string_1"));
+            GenericArrayData arrayData =
+                    new GenericArrayData(new Object[] {arrayValue1, arrayValue2});
+            rowData.setField(2, arrayData);
+
+            GenericRowData mapValue1 = new GenericRowData(2);
+            mapValue1.setField(0, new BinaryStringData(("_col_3_map_value_string_1")));
+            mapValue1.setField(1, TimestampData.fromTimestamp(new Timestamp(3600000)));
+            Map<StringData, RowData> mapDataMap = new HashMap<>();
+            mapDataMap.put(new BinaryStringData("_col_3_map_key_1"), mapValue1);
+            GenericMapData mapData = new GenericMapData(mapDataMap);
+            rowData.setField(3, mapData);
+
+            data.add(rowData);
+        }
+        {
+            GenericRowData rowData = new GenericRowData(4);
+            rowData.setField(0, new BinaryStringData("_col_0_string_2"));
+            rowData.setField(1, 2);
+            rowData.setField(2, null);
+            rowData.setField(3, null);
+            data.add(rowData);
+        }
+        {
+            GenericRowData rowData = new GenericRowData(4);
+            rowData.setField(0, new BinaryStringData("_col_0_string_3"));
+            rowData.setField(1, 3);
+            rowData.setField(2, new GenericArrayData(new Object[0]));
+            rowData.setField(3, new GenericMapData(new HashMap<>()));
+            data.add(rowData);
+        }
+        {
+            GenericRowData rowData = new GenericRowData(4);
+            rowData.setField(0, new BinaryStringData("_col_0_string_4"));
+            rowData.setField(1, 4);
+            rowData.setField(2, new GenericArrayData(new Object[0]));
+            Map<StringData, RowData> mapDataMap = new HashMap<>();
+            mapDataMap.put(null, null);
+            rowData.setField(3, new GenericMapData(mapDataMap));
+            data.add(rowData);
+        }
+        return data;
+    }
+
+    private String initNestedTypesFile(List<RowData> data) throws Exception {
+        LogicalType[] fieldTypes = new LogicalType[4];
+        fieldTypes[0] = new VarCharType();
+        fieldTypes[1] = new IntType();
+        List<RowType.RowField> arrayRowFieldList =
+                Collections.singletonList(new RowType.RowField("_col2_col0", new VarCharType()));
+        fieldTypes[2] = new ArrayType(new RowType(arrayRowFieldList));
+        List<RowType.RowField> mapRowFieldList =
+                Arrays.asList(
+                        new RowType.RowField("_col3_col0", new VarCharType()),
+                        new RowType.RowField("_col3_col1", new TimestampType()));
+        fieldTypes[3] = new MapType(new VarCharType(), new RowType(mapRowFieldList));
+        String schema =
+                "struct<_col0:string,_col1:int,_col2:array<struct<_col2_col0:string>>,"
+                        + "_col3:map<string,struct<_col3_col0:string,_col3_col1:timestamp>>>";
+
+        File outDir = TEMPORARY_FOLDER.newFolder();
+        Properties writerProps = new Properties();
+        writerProps.setProperty("orc.compress", "LZ4");
+
+        final OrcBulkWriterFactory<RowData> writer =
+                new OrcBulkWriterFactory<>(
+                        new RowDataVectorizer(schema, fieldTypes),
+                        writerProps,
+                        new Configuration());
+
+        StreamingFileSink<RowData> sink =
+                StreamingFileSink.forBulkFormat(
+                                new org.apache.flink.core.fs.Path(outDir.toURI()), writer)
+                        .withBucketCheckInterval(10000)
+                        .build();
+
+        try (OneInputStreamOperatorTestHarness<RowData, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(new StreamSink<>(sink), 1, 1, 0)) {
+
+            testHarness.setup();
+            testHarness.open();
+
+            int time = 0;
+            for (final RowData record : data) {
+                testHarness.processElement(record, ++time);
+            }
+            testHarness.snapshot(1, ++time);
+            testHarness.notifyOfCompletedCheckpoint(1);
+        }
+        return outDir.getAbsolutePath();
     }
 }

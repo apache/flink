@@ -29,15 +29,13 @@ import org.apache.hadoop.hive.ql.exec.vector.MapColumnVector;
 public class OrcMapColumnVector extends AbstractOrcColumnVector
         implements org.apache.flink.table.data.vector.MapColumnVector {
 
-    private MapColumnVector hiveVector;
-    private MapType type;
-    private ColumnVector keyFlinkVector;
-    private ColumnVector valueFlinkVector;
+    private final MapColumnVector hiveVector;
+    private final ColumnVector keyFlinkVector;
+    private final ColumnVector valueFlinkVector;
 
     public OrcMapColumnVector(MapColumnVector hiveVector, MapType type) {
         super(hiveVector);
         this.hiveVector = hiveVector;
-        this.type = type;
         this.keyFlinkVector = createFlinkVector(hiveVector.keys, type.getKeyType());
         this.valueFlinkVector = createFlinkVector(hiveVector.values, type.getValueType());
     }
