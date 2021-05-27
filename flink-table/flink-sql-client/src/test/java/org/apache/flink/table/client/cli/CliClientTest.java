@@ -520,5 +520,10 @@ public class CliClientTest extends TestLogger {
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             // nothing to do
         }
+
+        @Override
+        public void addJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
     }
 }

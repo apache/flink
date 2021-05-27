@@ -37,6 +37,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
@@ -342,7 +343,8 @@ public class CliClient implements AutoCloseable {
                     && !(operation instanceof UseOperation)
                     && !(operation instanceof AlterOperation)
                     && !(operation instanceof LoadModuleOperation)
-                    && !(operation instanceof UnloadModuleOperation)) {
+                    && !(operation instanceof UnloadModuleOperation)
+                    && !(operation instanceof AddJarOperation)) {
                 throw new SqlExecutionException(
                         "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
@@ -420,6 +422,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof EndStatementSetOperation) {
             // END
             callEndStatementSet();
+        } else if (operation instanceof AddJarOperation) {
+            // ADD JAR
+            callAddJar((AddJarOperation) operation);
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
@@ -427,6 +432,12 @@ public class CliClient implements AutoCloseable {
             // fallback to default implementation
             executeOperation(operation);
         }
+    }
+
+    private void callAddJar(AddJarOperation operation) {
+        String jarPath = operation.getPath();
+        executor.addJar(sessionId, jarPath);
+        printInfo(CliStrings.MESSAGE_ADD_JAR_STATEMENT);
     }
 
     private void callQuit() {

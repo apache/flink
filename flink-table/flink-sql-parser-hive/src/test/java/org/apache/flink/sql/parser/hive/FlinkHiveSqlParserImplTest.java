@@ -460,6 +460,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAddJar() {
+        sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
+        sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
+        sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
     public void testLoadModule() {
         sql("load module hive").ok("LOAD MODULE `HIVE`");
 
