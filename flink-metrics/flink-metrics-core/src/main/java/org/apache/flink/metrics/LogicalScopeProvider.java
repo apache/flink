@@ -45,6 +45,9 @@ public interface LogicalScopeProvider {
      */
     String getLogicalScope(CharacterFilter filter, char delimiter);
 
+    /** Returns the underlying metric group. */
+    MetricGroup getWrappedMetricGroup();
+
     /**
      * Casts the given metric group to a {@link LogicalScopeProvider}, if it implements the
      * interface.
