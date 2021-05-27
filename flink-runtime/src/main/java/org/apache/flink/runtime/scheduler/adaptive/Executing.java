@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -31,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -39,6 +42,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -81,11 +85,15 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
+        handleAnyFailure(null, cause);
     }
 
-    private void handleAnyFailure(Throwable cause) {
-        final FailureResult failureResult = context.howToHandleFailure(cause);
+    private void handleAnyFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable cause) {
+        final FailureResult failureResult = context.howToHandleFailure(
+                failingExecutionVertexId,
+                cause);
 
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
@@ -105,21 +113,32 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
-        final boolean successfulUpdate = getExecutionGraph().updateState(taskExecutionState);
+    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+        final boolean successfulUpdate =
+                getExecutionGraph().updateState(taskExecutionStateTransition);
 
         if (successfulUpdate) {
-            if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
-                Throwable cause = taskExecutionState.getError(userCodeClassLoader);
+            if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
+                Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
                 handleAnyFailure(
+                        getExcutionVertexId(taskExecutionStateTransition.getID()),
                         cause == null
                                 ? new FlinkException(
-                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                "Unknown failure cause. Probably related to FLINK-21376.")
                                 : cause);
             }
         }
 
         return successfulUpdate;
+    }
+
+    @Nullable
+    private ExecutionVertexID getExcutionVertexId(ExecutionAttemptID id) {
+        Execution execution = getExecutionGraph().getRegisteredExecutions().get(id);
+        if (execution == null) {
+            return null;
+        }
+        return execution.getVertex().getID();
     }
 
     @Override
@@ -201,7 +220,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @param executionGraph executionGraph to pass to the {@link Canceling} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
+         *         Canceling} state
          */
         void goToCanceling(
                 ExecutionGraph executionGraph,
@@ -211,15 +230,22 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         /**
          * Asks how to handle the failure.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *         ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *         indicates that the failure was issued by Flink itself.
          * @param failure failure describing the failure cause
+         *
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failure);
 
         /**
          * Asks if we can scale up the currently executing job.
          *
          * @param executionGraph executionGraph for making the scaling decision.
+         *
          * @return true, if we can scale up
          */
         boolean canScaleUp(ExecutionGraph executionGraph);
@@ -229,11 +255,11 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          *
          * @param executionGraph executionGraph to pass to the {@link Restarting} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Restarting}
-         *     state
+         *         state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pas to the {@link
-         *     Restarting} state
+         *         Restarting} state
          * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
-         *     state
+         *         state
          */
         void goToRestarting(
                 ExecutionGraph executionGraph,
@@ -247,7 +273,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @param executionGraph executionGraph to pass to the {@link Failing} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Failing} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Failing} state
+         *         Failing} state
          * @param failureCause failureCause describing why the job execution failed
          */
         void goToFailing(
@@ -261,10 +287,11 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          *
          * @param executionGraph executionGraph to pass to the {@link StopWithSavepoint} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link
-         *     StopWithSavepoint} state
+         *         StopWithSavepoint} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     StopWithSavepoint} state
+         *         StopWithSavepoint} state
          * @param savepointFuture Future for the savepoint to complete.
+         *
          * @return Location of the savepoint.
          */
         CompletableFuture<String> goToStopWithSavepoint(
@@ -278,9 +305,10 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * Runs the given action after a delay if the state at this time equals the expected state.
          *
          * @param expectedState expectedState describes the required state at the time of running
-         *     the action
+         *         the action
          * @param action action to run if the expected state equals the actual state
          * @param delay delay after which to run the action
+         *
          * @return a ScheduledFuture representing pending completion of the task
          */
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
@@ -291,17 +319,40 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
      * alternatives: Either restarting the job or failing it.
      */
     static final class FailureResult {
-        @Nullable private final Duration backoffTime;
+        @Nullable
+        private final Duration backoffTime;
+
+        /**
+         * the {@link ExecutionVertexID} refering to the {@link ExecutionVertex} the failure is
+         * originating from or {@code null} if it's a global failure.
+         */
+        @Nullable
+        private final ExecutionVertexID failingExecutionVertexId;
 
         private final Throwable failureCause;
 
-        private FailureResult(Throwable failureCause, @Nullable Duration backoffTime) {
+        private FailureResult(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failureCause,
+                @Nullable Duration backoffTime) {
+            this.failingExecutionVertexId = failingExecutionVertexId;
             this.backoffTime = backoffTime;
             this.failureCause = failureCause;
         }
 
         boolean canRestart() {
             return backoffTime != null;
+        }
+
+        /**
+         * Returns an {@code Optional} with the {@link ExecutionVertexID} of the task causing this
+         * failure or an empty {@code Optional} if it's a global failure.
+         *
+         * @return The {@code ExecutionVertexID} of the causing task or an empty {@code Optional} if
+         *         it's a global failure.
+         */
+        Optional<ExecutionVertexID> getExecutionVertexIdOfFailedTask() {
+            return Optional.ofNullable(failingExecutionVertexId);
         }
 
         Duration getBackoffTime() {
@@ -317,22 +368,35 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         /**
          * Creates a FailureResult which allows to restart the job.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *         ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *         indicates that the failure was issued by Flink itself.
          * @param failureCause failureCause for restarting the job
          * @param backoffTime backoffTime to wait before restarting the job
+         *
          * @return FailureResult which allows to restart the job
          */
-        static FailureResult canRestart(Throwable failureCause, Duration backoffTime) {
-            return new FailureResult(failureCause, backoffTime);
+        static FailureResult canRestart(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failureCause,
+                Duration backoffTime) {
+            return new FailureResult(failingExecutionVertexId, failureCause, backoffTime);
         }
 
         /**
          * Creates FailureResult which does not allow to restart the job.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *         ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *         indicates that the failure was issued by Flink itself.
          * @param failureCause failureCause describes the reason why the job cannot be restarted
+         *
          * @return FailureResult which does not allow to restart the job
          */
-        static FailureResult canNotRestart(Throwable failureCause) {
-            return new FailureResult(failureCause, null);
+        static FailureResult canNotRestart(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failureCause) {
+            return new FailureResult(failingExecutionVertexId, failureCause, null);
         }
     }
 

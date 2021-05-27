@@ -98,6 +98,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
@@ -145,14 +146,14 @@ import java.util.function.Function;
  */
 public class AdaptiveScheduler
         implements SchedulerNG,
-                Created.Context,
-                WaitingForResources.Context,
-                CreatingExecutionGraph.Context,
-                Executing.Context,
-                Restarting.Context,
-                Failing.Context,
-                Finished.Context,
-                StopWithSavepoint.Context {
+        Created.Context,
+        WaitingForResources.Context,
+        CreatingExecutionGraph.Context,
+        Executing.Context,
+        Restarting.Context,
+        Failing.Context,
+        Finished.Context,
+        StopWithSavepoint.Context {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
@@ -299,7 +300,8 @@ public class AdaptiveScheduler
      * @param vertices The vertices to store parallelism information for
      * @param adjustParallelism Whether to adjust the parallelism
      * @param defaultMaxParallelismFunc a function for computing a default max parallelism if none
-     *     is specified on a given vertex
+     *         is specified on a given vertex
+     *
      * @return The parallelism store.
      */
     @VisibleForTesting
@@ -337,7 +339,7 @@ public class AdaptiveScheduler
                                     newMax >= maxParallelism
                                             ? Optional.empty()
                                             : Optional.of(
-                                                    "Cannot lower max parallelism in Reactive mode."));
+                                            "Cannot lower max parallelism in Reactive mode."));
             store.setParallelismInfo(vertex.getID(), parallelismInfo);
         }
 
@@ -351,6 +353,7 @@ public class AdaptiveScheduler
      *
      * @param jobGraph The job graph for execution.
      * @param executionMode The mode of scheduler execution.
+     *
      * @return The parallelism store.
      */
     private static VertexParallelismStore computeVertexParallelismStore(
@@ -369,7 +372,8 @@ public class AdaptiveScheduler
      * @param jobGraph The job graph for execution.
      * @param executionMode The mode of scheduler execution.
      * @param defaultMaxParallelismFunc a function for computing a default max parallelism if none
-     *     is specified on a given vertex
+     *         is specified on a given vertex
+     *
      * @return The parallelism store.
      */
     @VisibleForTesting
@@ -466,11 +470,11 @@ public class AdaptiveScheduler
     @Override
     public boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.updateTaskExecutionState(
-                                        taskExecutionState),
-                        "updateTaskExecutionState")
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.updateTaskExecutionState(
+                                taskExecutionState),
+                "updateTaskExecutionState")
                 .orElse(false);
     }
 
@@ -478,11 +482,11 @@ public class AdaptiveScheduler
     public SerializedInputSplit requestNextInputSplit(
             JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.requestNextInputSplit(
-                                        vertexID, executionAttempt),
-                        "requestNextInputSplit")
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.requestNextInputSplit(
+                                vertexID, executionAttempt),
+                "requestNextInputSplit")
                 .orElseThrow(
                         () -> new IOException("Scheduler is currently not executing the job."));
     }
@@ -492,11 +496,11 @@ public class AdaptiveScheduler
             IntermediateDataSetID intermediateResultId, ResultPartitionID resultPartitionId)
             throws PartitionProducerDisposedException {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.requestPartitionState(
-                                        intermediateResultId, resultPartitionId),
-                        "requestPartitionState")
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.requestPartitionState(
+                                intermediateResultId, resultPartitionId),
+                "requestPartitionState")
                 .orElseThrow(() -> new PartitionProducerDisposedException(resultPartitionId));
     }
 
@@ -588,11 +592,11 @@ public class AdaptiveScheduler
     public CompletableFuture<String> triggerSavepoint(
             @Nullable String targetDirectory, boolean cancelJob) {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.triggerSavepoint(
-                                        targetDirectory, cancelJob),
-                        "triggerSavepoint")
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.triggerSavepoint(
+                                targetDirectory, cancelJob),
+                "triggerSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
                                 new CheckpointException(
@@ -645,9 +649,9 @@ public class AdaptiveScheduler
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable String targetDirectory, boolean terminate) {
         return state.tryCall(
-                        Executing.class,
-                        executing -> executing.stopWithSavepoint(targetDirectory, terminate),
-                        "stopWithSavepoint")
+                Executing.class,
+                executing -> executing.stopWithSavepoint(targetDirectory, terminate),
+                "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
                                 new CheckpointException(
@@ -673,11 +677,11 @@ public class AdaptiveScheduler
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operator, CoordinationRequest request) throws FlinkException {
         return state.tryCall(
-                        StateWithExecutionGraph.class,
-                        stateWithExecutionGraph ->
-                                stateWithExecutionGraph.deliverCoordinationRequestToCoordinator(
-                                        operator, request),
-                        "deliverCoordinationRequestToCoordinator")
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.deliverCoordinationRequestToCoordinator(
+                                operator, request),
+                "deliverCoordinationRequestToCoordinator")
                 .orElseGet(
                         () ->
                                 FutureUtils.completedExceptionally(
@@ -884,7 +888,7 @@ public class AdaptiveScheduler
     public void goToCreatingExecutionGraph() {
         final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                 executionGraphWithAvailableResourcesFuture =
-                        createExecutionGraphWithAvailableResourcesAsync();
+                createExecutionGraphWithAvailableResourcesAsync();
 
         transitionToState(
                 new CreatingExecutionGraph.Factory(
@@ -892,7 +896,7 @@ public class AdaptiveScheduler
     }
 
     private CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
-            createExecutionGraphWithAvailableResourcesAsync() {
+    createExecutionGraphWithAvailableResourcesAsync() {
         final VertexParallelism vertexParallelism;
         final VertexParallelismStore adjustedParallelismStore;
 
@@ -1042,8 +1046,7 @@ public class AdaptiveScheduler
     @Override
     public void onFinished(ArchivedExecutionGraph archivedExecutionGraph) {
 
-        @Nullable
-        final Throwable optionalFailure =
+        @Nullable final Throwable optionalFailure =
                 archivedExecutionGraph.getFailureInfo() != null
                         ? archivedExecutionGraph.getFailureInfo().getException()
                         : null;
@@ -1065,18 +1068,23 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executing.FailureResult howToHandleFailure(Throwable failure) {
+    public Executing.FailureResult howToHandleFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable failure) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
             return Executing.FailureResult.canNotRestart(
+                    failingExecutionVertexId,
                     new JobException("The failure is not recoverable", failure));
         }
 
         restartBackoffTimeStrategy.notifyFailure(failure);
         if (restartBackoffTimeStrategy.canRestart()) {
             return Executing.FailureResult.canRestart(
+                    failingExecutionVertexId,
                     failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
         } else {
             return Executing.FailureResult.canNotRestart(
+                    failingExecutionVertexId,
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, failure));
         }
@@ -1123,6 +1131,7 @@ public class AdaptiveScheduler
      *
      * @param targetState State to transition to
      * @param <T> Type of the target state
+     *
      * @return A target state instance
      */
     @VisibleForTesting

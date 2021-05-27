@@ -23,10 +23,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -60,9 +64,11 @@ class StopWithSavepoint extends StateWithExecutionGraph {
 
     private boolean hasFullyFinished = false;
 
-    @Nullable private String savepoint = null;
+    @Nullable
+    private String savepoint = null;
 
-    @Nullable private Throwable operationFailureCause;
+    @Nullable
+    private Throwable operationFailureCause;
 
     StopWithSavepoint(
             Context context,
@@ -136,7 +142,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
+        handleAnyFailure(null, cause);
     }
 
     @Override
@@ -148,14 +154,24 @@ class StopWithSavepoint extends StateWithExecutionGraph {
             if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
                 handleAnyFailure(
+                        getExcutionVertexId(taskExecutionStateTransition.getID()),
                         cause == null
                                 ? new FlinkException(
-                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                "Unknown failure cause. Probably related to FLINK-21376.")
                                 : cause);
             }
         }
 
         return successfulUpdate;
+    }
+
+    private @Nullable
+    ExecutionVertexID getExcutionVertexId(ExecutionAttemptID id) {
+        Execution execution = getExecutionGraph().getRegisteredExecutions().get(id);
+        if (execution == null) {
+            return null;
+        }
+        return execution.getVertex().getID();
     }
 
     @Override
@@ -168,6 +184,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
             }
         } else {
             handleAnyFailure(
+                    null,
                     new FlinkException(
                             "Job did not reach the FINISHED state while performing stop-with-savepoint."));
         }
@@ -178,9 +195,13 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
     }
 
-    private void handleAnyFailure(Throwable cause) {
+    private void handleAnyFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId,
+            Throwable cause) {
         operationFailureCause = cause;
-        final Executing.FailureResult failureResult = context.howToHandleFailure(cause);
+        final Executing.FailureResult failureResult = context.howToHandleFailure(
+                failingExecutionVertexId,
+                cause);
 
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
@@ -207,10 +228,16 @@ class StopWithSavepoint extends StateWithExecutionGraph {
         /**
          * Asks how to handle the failure.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *         ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *         indicates that the failure was issued by Flink itself.
          * @param failure failure describing the failure cause
+         *
          * @return {@link Executing.FailureResult} which describes how to handle the failure
          */
-        Executing.FailureResult howToHandleFailure(Throwable failure);
+        Executing.FailureResult howToHandleFailure(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failure);
 
         /**
          * Transitions into the {@link Canceling} state.
@@ -218,7 +245,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * @param executionGraph executionGraph to pass to the {@link Canceling} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
+         *         Canceling} state
          */
         void goToCanceling(
                 ExecutionGraph executionGraph,
@@ -230,11 +257,11 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          *
          * @param executionGraph executionGraph to pass to the {@link Restarting} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Restarting}
-         *     state
+         *         state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pas to the {@link
-         *     Restarting} state
+         *         Restarting} state
          * @param backoffTime backoffTime to wait before transitioning to the {@link Restarting}
-         *     state
+         *         state
          */
         void goToRestarting(
                 ExecutionGraph executionGraph,
@@ -248,7 +275,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * @param executionGraph executionGraph to pass to the {@link Failing} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Failing} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Failing} state
+         *         Failing} state
          * @param failureCause failureCause describing why the job execution failed
          */
         void goToFailing(
@@ -263,7 +290,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * @param executionGraph executionGraph to pass to the {@link Executing} state
          * @param executionGraphHandler executionGraphHandler to pass to the {@link Executing} state
          * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Executing} state
+         *         Executing} state
          */
         void goToExecuting(
                 ExecutionGraph executionGraph,
@@ -275,9 +302,10 @@ class StopWithSavepoint extends StateWithExecutionGraph {
          * this time.
          *
          * @param expectedState expectedState describes the required state to run the action after
-         *     the delay
+         *         the delay
          * @param action action to run if the state equals the expected state
          * @param delay delay after which the action should be executed
+         *
          * @return a ScheduledFuture representing pending completion of the task
          */
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);

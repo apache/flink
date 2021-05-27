@@ -23,17 +23,20 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.runtime.scheduler.adaptive.ExecutingTest.createFailingStateTransition;
@@ -174,7 +177,11 @@ public class StopWithSavepointTest extends TestLogger {
             StopWithSavepoint sws = createStopWithSavepoint(ctx);
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (failingExecCtxVtxId, throwable) ->
+                            Executing.FailureResult.canRestart(
+                                    failingExecCtxVtxId,
+                                    throwable,
+                                    Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -229,7 +236,11 @@ public class StopWithSavepointTest extends TestLogger {
                     createStopWithSavepoint(ctx, new StateTrackingMockExecutionGraph());
             ctx.setStopWithSavepoint(sws);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (failingExecCtxVtxId, throwable) ->
+                            Executing.FailureResult.canRestart(
+                                    failingExecCtxVtxId,
+                                    throwable,
+                                    Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -297,7 +308,11 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setStopWithSavepoint(sws);
 
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (failingExecCtxVtxId, throwable) ->
+                            Executing.FailureResult.canRestart(
+                                    failingExecCtxVtxId,
+                                    throwable,
+                                    Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -390,7 +405,7 @@ public class StopWithSavepointTest extends TestLogger {
     private static class MockStopWithSavepointContext extends MockStateWithExecutionGraphContext
             implements StopWithSavepoint.Context {
 
-        private Function<Throwable, Executing.FailureResult> howToHandleFailure;
+        private BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> howToHandleFailure;
 
         private final StateValidator<ExecutingTest.FailingArguments> failingStateValidator =
                 new StateValidator<>("failing");
@@ -424,13 +439,15 @@ public class StopWithSavepointTest extends TestLogger {
             executingStateTransition.expectInput(asserter);
         }
 
-        public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
+        public void setHowToHandleFailure(BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> function) {
             this.howToHandleFailure = function;
         }
 
         @Override
-        public Executing.FailureResult howToHandleFailure(Throwable failure) {
-            return howToHandleFailure.apply(failure);
+        public Executing.FailureResult howToHandleFailure(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failure) {
+            return howToHandleFailure.apply(failingExecutionVertexId, failure);
         }
 
         private void simulateTransitionToState(Class<? extends State> target) {

@@ -75,8 +75,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledFuture;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
@@ -185,7 +185,10 @@ public class ExecutingTest extends TestLogger {
             ctx.setExpectRestarting(
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
-            ctx.setHowToHandleFailure((t) -> Executing.FailureResult.canRestart(t, duration));
+            ctx.setHowToHandleFailure((fid, t) -> Executing.FailureResult.canRestart(
+                    fid,
+                    t,
+                    duration));
             exec.handleGlobalFailure(new RuntimeException("Recoverable error"));
         }
     }
@@ -280,7 +283,11 @@ public class ExecutingTest extends TestLogger {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
             ctx.setHowToHandleFailure(
-                    (throwable) -> Executing.FailureResult.canRestart(throwable, Duration.ZERO));
+                    (failingExecCtxVtxId, throwable) ->
+                            Executing.FailureResult.canRestart(
+                                    failingExecCtxVtxId,
+                                    throwable,
+                                    Duration.ZERO));
             ctx.setExpectRestarting(assertNonNull());
 
             exec.updateTaskExecutionState(createFailingStateTransition());
@@ -402,7 +409,8 @@ public class ExecutingTest extends TestLogger {
 
             // ideally we'd delay the async call to #onGloballyTerminalState instead, but the
             // context does not support that
-            ctx.setExpectFinished(eg -> {});
+            ctx.setExpectFinished(eg -> {
+            });
 
             finishingMockExecutionGraph.completeTerminationFuture(JobStatus.FINISHED);
 
@@ -478,7 +486,7 @@ public class ExecutingTest extends TestLogger {
         private final StateValidator<CancellingArguments> cancellingStateValidator =
                 new StateValidator<>("cancelling");
 
-        private Function<Throwable, Executing.FailureResult> howToHandleFailure;
+        private BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> howToHandleFailure;
         private Supplier<Boolean> canScaleUp = () -> false;
         private StateValidator<StopWithSavepointArguments> stopWithSavepointValidator =
                 new StateValidator<>("stopWithSavepoint");
@@ -501,7 +509,7 @@ public class ExecutingTest extends TestLogger {
             stopWithSavepointValidator.expectInput(asserter);
         }
 
-        public void setHowToHandleFailure(Function<Throwable, Executing.FailureResult> function) {
+        public void setHowToHandleFailure(BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> function) {
             this.howToHandleFailure = function;
         }
 
@@ -523,8 +531,10 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public Executing.FailureResult howToHandleFailure(Throwable failure) {
-            return howToHandleFailure.apply(failure);
+        public Executing.FailureResult howToHandleFailure(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failure) {
+            return howToHandleFailure.apply(failingExecutionVertexId, failure);
         }
 
         @Override
@@ -722,10 +732,12 @@ public class ExecutingTest extends TestLogger {
 
     private static class MockState implements State {
         @Override
-        public void cancel() {}
+        public void cancel() {
+        }
 
         @Override
-        public void suspend(Throwable cause) {}
+        public void suspend(Throwable cause) {
+        }
 
         @Override
         public JobStatus getJobStatus() {
@@ -738,7 +750,8 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void handleGlobalFailure(Throwable cause) {}
+        public void handleGlobalFailure(Throwable cause) {
+        }
 
         @Override
         public Logger getLogger() {
@@ -765,7 +778,7 @@ public class ExecutingTest extends TestLogger {
 
         @Override
         public ExecutionVertex[] getTaskVertices() {
-            return new ExecutionVertex[] {mockExecutionVertex};
+            return new ExecutionVertex[]{mockExecutionVertex};
         }
 
         public ExecutionVertex getMockExecutionVertex() {
@@ -802,7 +815,7 @@ public class ExecutingTest extends TestLogger {
         private ExecutionState mockedExecutionState = ExecutionState.RUNNING;
 
         MockExecutionVertex(ExecutionJobVertex jobVertex) {
-            super(jobVertex, 1, new IntermediateResult[] {}, Time.milliseconds(1L), 1L, 1, 0);
+            super(jobVertex, 1, new IntermediateResult[]{}, Time.milliseconds(1L), 1L, 1, 0);
         }
 
         @Override
@@ -851,13 +864,13 @@ public class ExecutingTest extends TestLogger {
 
         @Override
         public Either<SerializedValue<JobInformation>, PermanentBlobKey>
-                getJobInformationOrBlobKey() {
+        getJobInformationOrBlobKey() {
             return null;
         }
 
         @Override
         public TaskDeploymentDescriptorFactory.PartitionLocationConstraint
-                getPartitionLocationConstraint() {
+        getPartitionLocationConstraint() {
             return null;
         }
 
@@ -878,10 +891,12 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void registerExecution(Execution exec) {}
+        public void registerExecution(Execution exec) {
+        }
 
         @Override
-        public void deregisterExecution(Execution exec) {}
+        public void deregisterExecution(Execution exec) {
+        }
 
         @Override
         public PartitionReleaseStrategy getPartitionReleaseStrategy() {
@@ -889,20 +904,24 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void failGlobal(Throwable t) {}
+        public void failGlobal(Throwable t) {
+        }
 
         @Override
         public void notifySchedulerNgAboutInternalTaskFailure(
                 ExecutionAttemptID attemptId,
                 Throwable t,
                 boolean cancelTask,
-                boolean releasePartitions) {}
+                boolean releasePartitions) {
+        }
 
         @Override
-        public void vertexFinished() {}
+        public void vertexFinished() {
+        }
 
         @Override
-        public void vertexUnFinished() {}
+        public void vertexUnFinished() {
+        }
 
         @Override
         public ExecutionDeploymentListener getExecutionDeploymentListener() {
@@ -910,7 +929,8 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void notifyExecutionChange(Execution execution, ExecutionState newExecutionState) {}
+        public void notifyExecutionChange(Execution execution, ExecutionState newExecutionState) {
+        }
 
         @Override
         public EdgeManager getEdgeManager() {
