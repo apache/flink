@@ -38,6 +38,9 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
+__all__ = ['CloseableIterator']
+
+
 class DataStream(object):
     """
     A DataStream represents a stream of elements of the same type. A DataStream can be transformed
