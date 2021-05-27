@@ -45,6 +45,8 @@ import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
+import org.apache.flink.sql.parser.ddl.SqlReset;
+import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
@@ -112,6 +114,8 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.ddl.AddPartitionsOperation;
 import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
@@ -282,6 +286,10 @@ public class SqlToOperationConverter {
                     converter.convertBeginStatementSet((SqlBeginStatementSet) validated));
         } else if (validated instanceof SqlEndStatementSet) {
             return Optional.of(converter.convertEndStatementSet((SqlEndStatementSet) validated));
+        } else if (validated instanceof SqlSet) {
+            return Optional.of(converter.convertSet((SqlSet) validated));
+        } else if (validated instanceof SqlReset) {
+            return Optional.of(converter.convertReset((SqlReset) validated));
         } else if (validated.getKind().belongsTo(SqlKind.QUERY)) {
             return Optional.of(converter.convertSqlQuery(validated));
         } else {
@@ -980,6 +988,20 @@ public class SqlToOperationConverter {
     /** Convert SHOW [FULL] MODULES statement. */
     private Operation convertShowModules(SqlShowModules sqlShowModules) {
         return new ShowModulesOperation(sqlShowModules.requireFull());
+    }
+
+    /** Convert SET ['key' = 'value']. */
+    private Operation convertSet(SqlSet sqlSet) {
+        if (sqlSet.getKey() == null && sqlSet.getValue() == null) {
+            return new SetOperation();
+        } else {
+            return new SetOperation(sqlSet.getKeyString(), sqlSet.getValueString());
+        }
+    }
+
+    /** Convert RESET ['key']. */
+    private Operation convertReset(SqlReset sqlReset) {
+        return new ResetOperation(sqlReset.getKeyString());
     }
 
     /** Fallback method for sql query. */

@@ -46,6 +46,8 @@
     "org.apache.flink.sql.parser.ddl.SqlDropFunction"
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlDropView"
+    "org.apache.flink.sql.parser.ddl.SqlSet"
+    "org.apache.flink.sql.parser.ddl.SqlReset"
     "org.apache.flink.sql.parser.ddl.SqlTableColumn"
     "org.apache.flink.sql.parser.ddl.SqlTableLike"
     "org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption"
@@ -492,6 +494,8 @@
     "SqlUseModules()"
     "SqlRichExplain()"
     "SqlAddJar()"
+    "SqlSet()"
+    "SqlReset()"
   ]
 
   # List of methods for parsing custom literals.
