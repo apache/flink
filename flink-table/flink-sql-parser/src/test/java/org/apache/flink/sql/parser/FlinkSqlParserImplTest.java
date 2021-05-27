@@ -1127,6 +1127,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterView() {
+        sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+        sql("ALTER VIEW v1 AS SELECT c1, c2 FROM tbl")
+                .ok("ALTER VIEW `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
+    }
+
+    @Test
     public void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
     }

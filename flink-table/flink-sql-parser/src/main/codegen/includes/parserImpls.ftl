@@ -1134,6 +1134,31 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
     }
 }
 
+SqlAlterView SqlAlterView() :
+{
+  SqlParserPos startPos;
+  SqlIdentifier viewName;
+  SqlIdentifier newViewName;
+  SqlNode newQuery;
+}
+{
+  <ALTER> <VIEW> { startPos = getPos(); }
+  viewName = CompoundIdentifier()
+  (
+      <RENAME> <TO>
+      newViewName = CompoundIdentifier()
+      {
+        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+      }
+  |
+      <AS>
+      newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  )
+}
+
 /**
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.

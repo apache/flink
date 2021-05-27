@@ -33,6 +33,7 @@ ALTER statements are used to modified a registered table/view/function definitio
 Flink SQL supports the following ALTER statements for now:
 
 - ALTER TABLE
+- ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
 
@@ -157,6 +158,20 @@ ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 ```
 
 Set one or more properties in the specified table. If a particular property is already set in the table, override the old value with the new one.
+
+## ALTER VIEW
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name RENAME TO new_view_name
+```
+
+Renames a given view to a new name within the same catalog and database.
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name AS new_query_expression
+```
+
+Changes the underlying query defining the given view to a new query.
 
 ## ALTER DATABASE
 
