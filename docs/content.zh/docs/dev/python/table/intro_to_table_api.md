@@ -492,6 +492,32 @@ table.to_pandas()
 
 ### 将结果数据收集到客户端
 
+你可以使用 `TableResult.collect` 将 Table 的结果收集到客户端，结果的类型为迭代器类型。
+
+以下代码展示了如何使用 `TableResult.collect()` 方法：
+
+```python
+# 准备 source 表
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# 得到 TableResult
+res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# 遍历结果
+with res.collect() as results:
+   for result in results:
+       print(result)
+```
+
+结果为：
+
+```text
+<Row(2, 'Hi', 'Hello')>
+<Row(3, 'Hello', 'Hello')>
+```
+
+### 将结果数据转换为Pandas DataFrame，并收集到客户端
+
 你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
