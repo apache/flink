@@ -1298,6 +1298,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testSqlOptions() {
+        // SET/RESET are overridden for Flink SQL
+    }
+
+    @Test
     public void testExplainAsJson() {
         // TODO: FLINK-20562
     }
@@ -1313,6 +1318,14 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
         this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testSetReset() {
+        sql("SET").ok("SET");
+        sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
+        sql("RESET").ok("RESET");
+        sql("RESET 'test-key'").ok("RESET 'test-key'");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

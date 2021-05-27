@@ -58,6 +58,8 @@ import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -1409,6 +1411,31 @@ public class SqlToOperationConverterTest {
                 (EndStatementSetOperation) operation;
 
         assertEquals("END", endStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testSet() {
+        Operation operation1 = parse("SET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof SetOperation);
+        assertFalse(((SetOperation) operation1).getKey().isPresent());
+        assertFalse(((SetOperation) operation1).getValue().isPresent());
+
+        Operation operation2 = parse("SET 'test-key' = 'test-value'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof SetOperation);
+        assertEquals("test-key", ((SetOperation) operation2).getKey().get());
+        assertEquals("test-value", ((SetOperation) operation2).getValue().get());
+    }
+
+    @Test
+    public void testReset() {
+        Operation operation1 = parse("RESET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof ResetOperation);
+        assertFalse(((ResetOperation) operation1).getKey().isPresent());
+
+        Operation operation2 = parse("RESET 'test-key'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof ResetOperation);
+        assertTrue(((ResetOperation) operation2).getKey().isPresent());
+        assertEquals("test-key", ((ResetOperation) operation2).getKey().get());
     }
 
     // ~ Tool Methods ----------------------------------------------------------
