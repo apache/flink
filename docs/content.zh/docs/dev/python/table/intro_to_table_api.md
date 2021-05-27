@@ -511,6 +511,37 @@ table.to_pandas()
 
 <span class="label label-info">Note</span> flink planner 不支持 "to_pandas"，并且，并不是所有的数据类型都可以转换为 pandas DataFrames。
 
+### 将结果作为可关闭的行迭代器
+
+你可以使用TableResult.collect 将结果作为可关闭的行迭代器
+
+注意：为了获取本地结果，你可以调用collect()和print()。但是,他们可以不能在同一个TableResult实例上同时调用。
+
+以下代码展示了如何使用 `TableResult.collect()` 方法：
+
+```python
+
+# 准备 source 表
+t_env = self.t_env
+source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# 得到TableResult
+res = t_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# 遍历 结果
+with res.collect() as results:
+   for result in results:
+       print(result)
+
+```
+
+结果为：
+
+```text
+<Row(2, 'Hi', 'Hello')>
+<Row(3, 'Hello', 'Hello')>
+```
+
 ### 将结果写入到一张 Sink 表中
 
 你可以调用 "execute_insert" 方法来将 `Table` 对象中的数据写入到一张 sink 表中：

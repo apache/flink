@@ -510,6 +510,36 @@ The result is:
 
 <span class="label label-info">Note</span> "to_pandas" is not supported by the flink planner, and not all data types can be emitted to pandas DataFrames.
 
+### Get the result contents as a closeable row iterator
+
+You can call the "TableResult.collect"  method to emit the data as a closeable row iterator
+
+note：In order to fetch result to local, you can call either collect() and print(). But, they can not be called both on the same TableResult instance
+
+The following code shows how to use the  `TableResult.collect()` method：
+
+```python
+
+# prepare source tables 
+source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# Get TableResult
+res = t_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# Traversal result
+with res.collect() as results:
+   for result in results:
+       print(result)
+
+```
+
+The result is：
+
+```text
+<Row(2, 'Hi', 'Hello')>
+<Row(3, 'Hello', 'Hello')>
+```
+
 ### Emit Results to One Sink Table
 
 You can call the "execute_insert" method to emit the data in a `Table` object to a sink table:
