@@ -30,28 +30,6 @@ import static org.junit.Assert.assertEquals;
 /** Tests {@link SubtaskStateMapper}. */
 public class SubtaskStateMapperTest {
     @Test
-    public void testDiscardTaskMappingOnScaleDown() {
-        assertMappingEquals(
-                new int[][] {{0}, {1}},
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 2));
-    }
-
-    @Test
-    public void testDiscardTaskMappingOnNoScale() {
-        // this may be a bit surprising, but the optimization should be done on call-site
-        assertMappingEquals(
-                new int[][] {{0}, {1}, {2}},
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 3));
-    }
-
-    @Test
-    public void testDiscardTaskMappingOnScaleUp() {
-        assertMappingEquals(
-                new int[][] {{0}, {1}, {2}, {}},
-                SubtaskStateMapper.DISCARD_EXTRA_STATE.getNewToOldSubtasksMapping(3, 4));
-    }
-
-    @Test
     public void testFirstTaskMappingOnScaleDown() {
         assertMappingEquals(
                 new int[][] {{0, 1, 2}, {}},
