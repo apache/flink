@@ -1290,8 +1290,41 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testExplain() {
+        String sql = "explain select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainPlanFor() {
         String sql = "explain plan for select * from emps";
         String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainChangelogMode() {
+        String sql = "explain changelog_mode select * from emps";
+        String expected = "EXPLAIN CHANGELOG_MODE SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainEstimatedCost() {
+        String sql = "explain estimated_cost select * from emps";
+        String expected = "EXPLAIN ESTIMATED_COST SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainUnion() {
+        String sql = "explain estimated_cost select * from emps union all select * from emps";
+        String expected =
+                "EXPLAIN ESTIMATED_COST (SELECT *\n"
+                        + "FROM `EMPS`\n"
+                        + "UNION ALL\n"
+                        + "SELECT *\n"
+                        + "FROM `EMPS`)";
         this.sql(sql).ok(expected);
     }
 
@@ -1327,7 +1360,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testExplainAsJson() {
-        // TODO: FLINK-20562
+        String sql = "explain json_execution_plan select * from emps";
+        String expected = "EXPLAIN JSON_EXECUTION_PLAN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainAllDetails() {
+        String sql = "explain changelog_mode,json_execution_plan,estimated_cost select * from emps";
+        String expected =
+                "EXPLAIN JSON_EXECUTION_PLAN, CHANGELOG_MODE, ESTIMATED_COST SELECT *\n"
+                        + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
     }
 
     @Test
@@ -1341,6 +1385,18 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
         this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainPlanForWithExplainDetails() {
+        String sql = "explain plan for ^json_execution_plan^ upsert into emps1 values (1, 2)";
+        this.sql(sql).fails("(?s).*Encountered \"json_execution_plan\" at line 1, column 18.\n.*");
+    }
+
+    @Test
+    public void testExplainRepeatExplainDetails() {
+        String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
+        this.sql(sql).fails("EXPLAIN DETAIL must be unique.");
     }
 
     @Test

@@ -18,17 +18,27 @@
 
 package org.apache.flink.table.operations;
 
-import java.util.Collections;
+import org.apache.commons.collections.CollectionUtils;
 
-/**
- * Operation to describe an EXPLAIN statement. NOTES: currently, only default behavior (EXPLAIN
- * [PLAN FOR] xx) is supported.
- */
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/** Operation to describe an EXPLAIN statement. */
 public class ExplainOperation implements Operation {
     private final Operation child;
+    private final Set<String> explainDetails;
 
+    // this construct used to adapt to the old API
     public ExplainOperation(Operation child) {
         this.child = child;
+        this.explainDetails = new HashSet<>();
+    }
+
+    public ExplainOperation(Operation child, Set<String> explainDetails) {
+        this.child = child;
+        this.explainDetails = explainDetails;
     }
 
     public Operation getChild() {
@@ -37,10 +47,23 @@ public class ExplainOperation implements Operation {
 
     @Override
     public String asSummaryString() {
+        String operationName = "EXPLAIN";
+        if (CollectionUtils.isNotEmpty(explainDetails)) {
+            operationName =
+                    String.format(
+                            "EXPLAIN %s",
+                            explainDetails.stream()
+                                    .map(String::toUpperCase)
+                                    .collect(Collectors.joining(", ")));
+        }
         return OperationUtils.formatWithChildren(
-                "EXPLAIN",
+                operationName,
                 Collections.emptyMap(),
                 Collections.singletonList(child),
                 Operation::asSummaryString);
+    }
+
+    public Set<String> getExplainDetails() {
+        return explainDetails;
     }
 }
