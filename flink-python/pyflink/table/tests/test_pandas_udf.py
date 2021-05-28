@@ -306,9 +306,6 @@ class PandasUDFITTests(object):
         with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
             t.select(result_type_not_series(t.a)).to_pandas()
 
-
-class BlinkPandasUDFITTests(object):
-
     def test_data_types_only_supported_in_blink_planner(self):
         import pandas as pd
 
@@ -342,13 +339,11 @@ class BlinkPandasUDFITTests(object):
 
 
 class BlinkBatchPandasUDFITTests(PandasUDFITTests,
-                                 BlinkPandasUDFITTests,
                                  PyFlinkBlinkBatchTableTestCase):
     pass
 
 
 class BlinkStreamPandasUDFITTests(PandasUDFITTests,
-                                  BlinkPandasUDFITTests,
                                   PyFlinkBlinkStreamTableTestCase):
     pass
 
