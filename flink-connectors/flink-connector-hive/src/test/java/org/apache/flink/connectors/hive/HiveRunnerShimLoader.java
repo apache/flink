@@ -56,6 +56,7 @@ public class HiveRunnerShimLoader {
                         case HiveShimLoader.HIVE_VERSION_V2_3_4:
                         case HiveShimLoader.HIVE_VERSION_V2_3_5:
                         case HiveShimLoader.HIVE_VERSION_V2_3_6:
+                        case HiveShimLoader.HIVE_VERSION_V2_3_7:
                         case HiveShimLoader.HIVE_VERSION_V3_1_0:
                         case HiveShimLoader.HIVE_VERSION_V3_1_1:
                         case HiveShimLoader.HIVE_VERSION_V3_1_2:
