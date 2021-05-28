@@ -35,6 +35,7 @@ import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -1237,9 +1238,11 @@ public class RemoteInputChannelTest {
             final Callable<Void> bufferPoolInteractionsTask =
                     () -> {
                         for (int i = 0; i < retries; ++i) {
-                            Buffer buffer =
-                                    buildSingleBuffer(bufferPool.requestBufferBuilderBlocking());
-                            buffer.recycleBuffer();
+                            try (BufferBuilder bufferBuilder =
+                                    bufferPool.requestBufferBuilderBlocking()) {
+                                Buffer buffer = buildSingleBuffer(bufferBuilder);
+                                buffer.recycleBuffer();
+                            }
                         }
                         return null;
                     };

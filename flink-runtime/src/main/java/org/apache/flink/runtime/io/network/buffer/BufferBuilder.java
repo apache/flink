@@ -34,10 +34,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * written data.
  */
 @NotThreadSafe
-public class BufferBuilder {
+public class BufferBuilder implements AutoCloseable {
+    private final Buffer buffer;
     private final MemorySegment memorySegment;
-
-    private final BufferRecycler recycler;
 
     private final SettablePositionMarker positionMarker = new SettablePositionMarker();
 
@@ -45,7 +44,7 @@ public class BufferBuilder {
 
     public BufferBuilder(MemorySegment memorySegment, BufferRecycler recycler) {
         this.memorySegment = checkNotNull(memorySegment);
-        this.recycler = checkNotNull(recycler);
+        this.buffer = new NetworkBuffer(memorySegment, recycler);
     }
 
     /**
@@ -73,7 +72,7 @@ public class BufferBuilder {
         checkState(
                 !bufferConsumerCreated, "Two BufferConsumer shouldn't exist for one BufferBuilder");
         bufferConsumerCreated = true;
-        return new BufferConsumer(memorySegment, recycler, positionMarker, currentReaderPosition);
+        return new BufferConsumer(buffer.retainBuffer(), positionMarker, currentReaderPosition);
     }
 
     /** Same as {@link #append(ByteBuffer)} but additionally {@link #commit()} the appending. */
@@ -143,16 +142,12 @@ public class BufferBuilder {
     }
 
     public int getMaxCapacity() {
-        return memorySegment.size();
+        return buffer.getMaxCapacity();
     }
 
-    @VisibleForTesting
-    public BufferRecycler getRecycler() {
-        return recycler;
-    }
-
-    public void recycle() {
-        recycler.recycle(memorySegment);
+    @Override
+    public void close() {
+        buffer.recycleBuffer();
     }
 
     /**

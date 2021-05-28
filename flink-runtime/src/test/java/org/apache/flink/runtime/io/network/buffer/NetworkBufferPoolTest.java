@@ -695,7 +695,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 
             // recycle all the requested buffers
             for (BufferBuilder bufferBuilder : segmentsRequested) {
-                bufferBuilder.createBufferConsumer().close();
+                bufferBuilder.close();
             }
 
         } finally {
