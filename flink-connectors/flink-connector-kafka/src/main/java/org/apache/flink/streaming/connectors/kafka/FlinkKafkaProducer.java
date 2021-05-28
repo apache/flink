@@ -1017,7 +1017,9 @@ public class FlinkKafkaProducer<IN>
             boolean nonRecoverableError = false;
             try {
                 transaction.producer.commitTransaction();
-            } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+            } catch (ProducerFencedException
+                    | OutOfOrderSequenceException
+                    | AuthorizationException e) {
                 nonRecoverableError = true;
                 LOG.error("Error while committing to Kafka: " + e.getMessage(), e);
             } finally {
@@ -1059,7 +1061,9 @@ public class FlinkKafkaProducer<IN>
             boolean nonRecoverableError = false;
             try {
                 transaction.producer.abortTransaction();
-            } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+            } catch (ProducerFencedException
+                    | OutOfOrderSequenceException
+                    | AuthorizationException e) {
                 nonRecoverableError = true;
                 LOG.error("Error while aborting Kafka transaction: " + e.getMessage(), e);
             } finally {
