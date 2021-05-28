@@ -306,7 +306,9 @@ public class EventSerializer {
         MemorySegment data = MemorySegmentFactory.wrap(serializedEvent.array());
 
         return new BufferConsumer(
-                data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority));
+                new NetworkBuffer(
+                        data, FreeingBufferRecycler.INSTANCE, getDataType(event, hasPriority)),
+                data.size());
     }
 
     public static AbstractEvent fromBuffer(Buffer buffer, ClassLoader classLoader)

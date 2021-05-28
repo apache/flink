@@ -236,12 +236,14 @@ public class StreamTaskNetworkInputTest {
     }
 
     private BufferOrEvent createDataBuffer() throws IOException {
-        BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
-        BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
-        serializeRecord(42L, bufferBuilder);
-        serializeRecord(44L, bufferBuilder);
+        try (BufferBuilder bufferBuilder =
+                BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE)) {
+            BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
+            serializeRecord(42L, bufferBuilder);
+            serializeRecord(44L, bufferBuilder);
 
-        return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
+            return new BufferOrEvent(bufferConsumer.build(), new InputChannelInfo(0, 0));
+        }
     }
 
     private StreamTaskNetworkInput<Long> createStreamTaskNetworkInput(List<BufferOrEvent> buffers) {

@@ -121,6 +121,7 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
                             BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
                             bufferBuilder.appendAndCommit(serializedRecord);
                             bufferBuilder.finish();
+                            bufferBuilder.close();
 
                             // Call getCurrentBuffer to ensure size is set
                             return Optional.of(
