@@ -180,6 +180,17 @@ public enum SubtaskStateMapper {
             }
             return subtasks;
         }
+    },
+
+    UNSUPPORTED {
+        @Override
+        public Set<Integer> getOldSubtasks(
+                int newSubtaskIndex, int oldNumberOfSubtasks, int newNumberOfSubtasks) {
+            throw new UnsupportedOperationException(
+                    "Cannot rescale the given pointwise partitioner.\n"
+                            + "Did you change the partitioner to forward or rescale?\n"
+                            + "It may also help to add an explicit shuffle().");
+        }
     };
 
     /**
