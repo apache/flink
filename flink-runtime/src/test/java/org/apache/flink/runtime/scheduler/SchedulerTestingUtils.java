@@ -162,6 +162,7 @@ public class SchedulerTestingUtils {
                         false,
                         false,
                         false,
+                        0,
                         0);
 
         SerializedValue<StateBackend> serializedStateBackend = null;

@@ -294,7 +294,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 
 TableEnvironment tEnv = TableEnvironment.create(
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+    EnvironmentSettings.newInstance().inBatchMode().build());
 tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
 
 // register the Python UDF

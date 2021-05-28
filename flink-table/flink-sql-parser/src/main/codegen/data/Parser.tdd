@@ -26,6 +26,7 @@
     "org.apache.flink.sql.parser.ddl.constraint.SqlConstraintEnforcement"
     "org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint"
     "org.apache.flink.sql.parser.ddl.constraint.SqlUniqueSpec"
+    "org.apache.flink.sql.parser.ddl.SqlAddJar"
     "org.apache.flink.sql.parser.ddl.SqlAlterDatabase"
     "org.apache.flink.sql.parser.ddl.SqlAlterFunction"
     "org.apache.flink.sql.parser.ddl.SqlAlterTable"
@@ -33,6 +34,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableOptions"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableRename"
+    "org.apache.flink.sql.parser.ddl.SqlAlterTableReset"
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
@@ -100,6 +102,7 @@
     "EXTENDED"
     "FUNCTIONS"
     "IF"
+    "JAR"
     "LOAD"
     "METADATA"
     "MODULES"
@@ -235,6 +238,7 @@
     "ISODOW"
     "ISOLATION"
     "ISOYEAR"
+    "JAR"
     "JAVA"
     "JSON"
     "K"
@@ -487,6 +491,7 @@
     "SqlUnloadModule()"
     "SqlUseModules()"
     "SqlRichExplain()"
+    "SqlAddJar()"
   ]
 
   # List of methods for parsing custom literals.

@@ -70,7 +70,6 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         getEnvironment().getIOManager(),
                         getEnvironment().getMemoryManager(),
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
-                        getStreamStatusMaintainer(),
                         mainOperator,
                         input1WatermarkGauge,
                         input2WatermarkGauge,

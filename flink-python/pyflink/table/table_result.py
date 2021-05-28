@@ -28,7 +28,7 @@ from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import _from_java_type
 from pyflink.table.utils import pickled_bytes_to_python_converter
 
-__all__ = ['TableResult']
+__all__ = ['TableResult', 'CloseableIterator']
 
 
 class TableResult(object):

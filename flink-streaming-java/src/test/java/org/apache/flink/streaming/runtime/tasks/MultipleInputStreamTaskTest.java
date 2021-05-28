@@ -598,50 +598,33 @@ public class MultipleInputStreamTaskTest {
             // watermarks
             testHarness.processElement(StreamStatus.IDLE, 0, 1);
             testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
-            testHarness.processElement(
-                    new Watermark(initialTime + 5),
-                    1,
-                    1); // this watermark should be advanced first
+            testHarness.processElement(new Watermark(initialTime + 5), 1, 1);
             testHarness.processElement(StreamStatus.IDLE, 1, 0); // once this is acknowledged,
-
-            // We don't expect to see Watermark(6) here because the idle status of one
-            // input doesn't propagate to the other input. That is, if input 1 is at WM 6 and input
-            // two was at WM 5 before going to IDLE then the output watermark will not jump to WM 6.
-
-            // OPS, there is a known bug: https://issues.apache.org/jira/browse/FLINK-18934
-            // that prevents this check from succeeding (AbstractStreamOperator and
-            // AbstractStreamOperatorV2
-            // are ignoring StreamStatus), so those checks needs to be commented out ...
-
-            // expectedOutput.add(new Watermark(initialTime + 5));
-            // assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
-
-            // and in as a temporary replacement we need this code block:
-            {
-                // we wake up the source and emit watermark
-                addSourceRecords(testHarness, 1, initialTime + 5);
-                testHarness.processAll();
-                expectedOutput.add(
-                        new StreamRecord<>("" + (initialTime + 5), TimestampAssigner.NO_TIMESTAMP));
-                expectedOutput.add(new Watermark(initialTime + 5));
-                // the source should go back to being idle immediately, but AbstractStreamOperatorV2
-                // should have updated it's watermark by then.
-            }
+            expectedOutput.add(new Watermark(initialTime + 5));
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
-            // make all input channels idle and check that the operator's idle status is forwarded
-            testHarness.processElement(StreamStatus.IDLE, 0, 0);
+            // We make the second input idle, which should forward W=6 from the first input
             testHarness.processElement(StreamStatus.IDLE, 1, 1);
+            expectedOutput.add(new Watermark(initialTime + 6));
+            assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
+            // Make the first input idle
+            testHarness.processElement(StreamStatus.IDLE, 0, 0);
             expectedOutput.add(StreamStatus.IDLE);
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // make source active once again, emit a watermark and go idle again.
             addSourceRecords(testHarness, 1, initialTime + 10);
+
+            // FLIP-27 sources do not emit active status on new records, we wrap a record with
+            // ACTIVE/IDLE sequence
+            expectedOutput.add(StreamStatus.ACTIVE);
             expectedOutput.add(
                     new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
-            expectedOutput.add(StreamStatus.ACTIVE);
             expectedOutput.add(StreamStatus.IDLE);
+            expectedOutput.add(StreamStatus.ACTIVE); // activate source on new watermark
+            expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
+            expectedOutput.add(StreamStatus.IDLE); // go idle after reading all records
             testHarness.processAll();
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 

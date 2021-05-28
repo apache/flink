@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,19 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.streamstatus;
+package org.apache.flink.table.operations.command;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.operations.Operation;
 
-/** Interface that allows toggling the current {@link StreamStatus} as well as retrieving it. */
-@Internal
-public interface StreamStatusMaintainer extends StreamStatusProvider {
+/** Operation to describe an ADD JAR statement. */
+public class AddJarOperation implements Operation {
 
-    /**
-     * Toggles the current stream status. This method should only have effect if the supplied stream
-     * status is different from the current status.
-     *
-     * @param streamStatus the new status to toggle to
-     */
-    void toggleStreamStatus(StreamStatus streamStatus);
+    private final String path;
+
+    public AddJarOperation(String path) {
+        this.path = path;
+    }
+
+    public String getPath() {
+        return path;
+    }
+
+    @Override
+    public String asSummaryString() {
+        return String.format("ADD JAR '%s'", path);
+    }
 }
