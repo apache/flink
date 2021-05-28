@@ -1,0 +1,41 @@
+== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2])
+  LogicalFilter(condition=[>($0, 10)])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Logical Plan ==
+DataStreamCalc(select=[a, b, c], where=[>(a, 10)])
+  StreamTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], source=[CollectionTableSource(a, b, c)])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Custom Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Custom Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Map",
+    "pact" : "Operator",
+    "contents" : "Map",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "where: (>(a, 10)), select: (a, b, c)",
+    "pact" : "Operator",
+    "contents" : "where: (>(a, 10)), select: (a, b, c)",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}

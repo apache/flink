@@ -302,11 +302,20 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                out.append(result.content).append(result.highestTag.tag).append("\n");
+                String content = replaceStreamNodeId(result.content);
+                out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
 
         return out.toString();
+    }
+
+    /*
+     * Stream node {id} is ignored, because id keeps incrementing in test class while
+     * StreamExecutionEnvironment is up
+     */
+    private static String replaceStreamNodeId(String s) {
+        return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 
     private static final class Result {

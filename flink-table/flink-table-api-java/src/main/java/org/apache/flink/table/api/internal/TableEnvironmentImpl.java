@@ -1288,9 +1288,30 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 throw new TableException(exMsg, e);
             }
         } else if (operation instanceof ExplainOperation) {
+            ExplainOperation explainOperation = (ExplainOperation) operation;
+            ExplainDetail[] explainDetails =
+                    explainOperation.getExplainDetails().stream()
+                            .map(
+                                    detail -> {
+                                        switch (detail.toUpperCase()) {
+                                            case "ESTIMATED_COST":
+                                                return ExplainDetail.ESTIMATED_COST;
+                                            case "CHANGELOG_MODE":
+                                                return ExplainDetail.CHANGELOG_MODE;
+                                            case "JSON_EXECUTION_PLAN":
+                                                return ExplainDetail.JSON_EXECUTION_PLAN;
+                                            default:
+                                                throw new TableException(
+                                                        String.format(
+                                                                "Unsupported EXPLAIN DETAIL: %s",
+                                                                detail));
+                                        }
+                                    })
+                            .toArray(ExplainDetail[]::new);
             String explanation =
                     explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()));
+                            Collections.singletonList(((ExplainOperation) operation).getChild()),
+                            explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))
