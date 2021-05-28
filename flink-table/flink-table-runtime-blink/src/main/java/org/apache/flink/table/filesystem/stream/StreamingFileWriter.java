@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem.stream;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -26,29 +27,52 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
+
+import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 
 /** Writer for emitting {@link PartitionCommitInfo} to downstream. */
 public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, PartitionCommitInfo> {
 
     private static final long serialVersionUID = 2L;
 
+    private final List<String> partitionKeys;
+    private final Configuration conf;
+
     private transient Set<String> currentNewPartitions;
     private transient TreeMap<Long, Set<String>> newPartitions;
     private transient Set<String> committablePartitions;
+
+    private transient PartitionCommitTrigger trigger;
 
     public StreamingFileWriter(
             long bucketCheckInterval,
             StreamingFileSink.BucketsBuilder<
                             IN, String, ? extends StreamingFileSink.BucketsBuilder<IN, String, ?>>
-                    bucketsBuilder) {
+                    bucketsBuilder,
+            List<String> partitionKeys,
+            Configuration conf) {
         super(bucketCheckInterval, bucketsBuilder);
+        this.partitionKeys = partitionKeys;
+        this.conf = conf;
     }
 
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
+        if (isPartitionCommitTriggerEnabled()) {
+            trigger =
+                    PartitionCommitTrigger.create(
+                            context.isRestored(),
+                            context.getOperatorStateStore(),
+                            conf,
+                            getUserCodeClassloader(),
+                            partitionKeys,
+                            getProcessingTimeService());
+        }
+
         currentNewPartitions = new HashSet<>();
         newPartitions = new TreeMap<>();
         committablePartitions = new HashSet<>();
@@ -57,6 +81,7 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 
     @Override
     protected void partitionCreated(String partition) {
+        addPartitionToTrigger(partition);
         currentNewPartitions.add(partition);
     }
 
@@ -70,9 +95,38 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
+        snapshotTriggerState(context.getCheckpointId());
+        closePartFileForPartitions(context.getCheckpointId());
         super.snapshotState(context);
         newPartitions.put(context.getCheckpointId(), new HashSet<>(currentNewPartitions));
         currentNewPartitions.clear();
+    }
+
+    private boolean isPartitionCommitTriggerEnabled() {
+        // when there are partition keys and partition commit policy,
+        // the partition commit trigger is enabled
+        return partitionKeys.size() > 0 && conf.contains(SINK_PARTITION_COMMIT_POLICY_KIND);
+    }
+
+    private void addPartitionToTrigger(String partition) {
+        if (trigger != null) {
+            trigger.addPartition(partition);
+        }
+    }
+
+    private void closePartFileForPartitions(long checkpointId) throws Exception {
+        if (trigger != null) {
+            List<String> committablePartitions = trigger.committablePartitions(checkpointId);
+            for (String partition : committablePartitions) {
+                buckets.closePartFileForBucket(partition);
+            }
+        }
+    }
+
+    private void snapshotTriggerState(long checkpointId) throws Exception {
+        if (trigger != null) {
+            trigger.snapshotState(checkpointId, currentWatermark);
+        }
     }
 
     @Override

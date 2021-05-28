@@ -62,9 +62,11 @@ public class StreamingSink {
             StreamingFileSink.BucketsBuilder<
                             T, String, ? extends StreamingFileSink.BucketsBuilder<T, String, ?>>
                     bucketsBuilder,
-            int parallelism) {
+            int parallelism,
+            List<String> partitionKeys,
+            Configuration conf) {
         StreamingFileWriter<T> fileWriter =
-                new StreamingFileWriter<>(bucketCheckInterval, bucketsBuilder);
+                new StreamingFileWriter<>(bucketCheckInterval, bucketsBuilder, partitionKeys, conf);
         return inputStream
                 .transform(
                         StreamingFileWriter.class.getSimpleName(),
