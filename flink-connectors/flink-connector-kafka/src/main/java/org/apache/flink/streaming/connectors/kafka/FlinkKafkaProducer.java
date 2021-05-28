@@ -62,7 +62,9 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.errors.AuthorizationException;
 import org.apache.kafka.common.errors.InvalidTxnStateException;
+import org.apache.kafka.common.errors.OutOfOrderSequenceException;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.slf4j.Logger;
@@ -1012,10 +1014,18 @@ public class FlinkKafkaProducer<IN>
     @Override
     protected void commit(FlinkKafkaProducer.KafkaTransactionState transaction) {
         if (transaction.isTransactional()) {
+            boolean nonRecoverableError = false;
             try {
                 transaction.producer.commitTransaction();
+            } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+                nonRecoverableError = true;
+                LOG.error("Error while committing to Kafka: " + e.getMessage(), e);
             } finally {
-                recycleTransactionalProducer(transaction.producer);
+                if (nonRecoverableError) {
+                    transaction.producer.close(Duration.ofSeconds(0));
+                } else {
+                    recycleTransactionalProducer(transaction.producer);
+                }
             }
         }
     }
@@ -1046,8 +1056,19 @@ public class FlinkKafkaProducer<IN>
     @Override
     protected void abort(FlinkKafkaProducer.KafkaTransactionState transaction) {
         if (transaction.isTransactional()) {
-            transaction.producer.abortTransaction();
-            recycleTransactionalProducer(transaction.producer);
+            boolean nonRecoverableError = false;
+            try {
+                transaction.producer.abortTransaction();
+            } catch (ProducerFencedException | OutOfOrderSequenceException | AuthorizationException e) {
+                nonRecoverableError = true;
+                LOG.error("Error while aborting Kafka transaction: " + e.getMessage(), e);
+            } finally {
+                if (nonRecoverableError) {
+                    transaction.producer.close(Duration.ofSeconds(0));
+                } else {
+                    recycleTransactionalProducer(transaction.producer);
+                }
+            }
         }
     }
 
