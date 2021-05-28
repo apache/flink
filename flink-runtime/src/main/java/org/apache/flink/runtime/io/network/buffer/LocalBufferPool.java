@@ -281,7 +281,12 @@ class LocalBufferPool implements BufferPool {
 
     @Override
     public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
-        return toBufferBuilder(requestMemorySegmentBlocking(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
+        return toBufferBuilder(requestMemorySegmentBlocking(), UNKNOWN_CHANNEL);
+    }
+
+    @Override
+    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
+        return requestMemorySegmentBlocking(UNKNOWN_CHANNEL);
     }
 
     @Override
@@ -359,8 +364,8 @@ class LocalBufferPool implements BufferPool {
         return segment;
     }
 
-    @Nullable
-    private MemorySegment requestMemorySegment() {
+    @Override
+    public MemorySegment requestMemorySegment() {
         return requestMemorySegment(UNKNOWN_CHANNEL);
     }
 

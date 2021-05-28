@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -154,11 +153,6 @@ public class BufferBuilder {
 
     public void recycle() {
         recycler.recycle(memorySegment);
-    }
-
-    @VisibleForTesting
-    public MemorySegment getMemorySegment() {
-        return memorySegment;
     }
 
     /**
