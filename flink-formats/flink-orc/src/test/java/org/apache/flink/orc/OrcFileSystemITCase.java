@@ -217,7 +217,9 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         List<Row> rows = CollectionUtil.iteratorToList(tableResult.collect());
         assertEquals(4, rows.size());
         assertEquals(
-                "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, 1970-01-01T09:00]}]",
+                "+I[_col_0_string_1, 1, [+I[_col_2_row_0_string_1], +I[_col_2_row_1_string_1]], {_col_3_map_key_1=+I[_col_3_map_value_string_1, "
+                        + new Timestamp(3600000).toLocalDateTime()
+                        + "]}]",
                 rows.get(0).toString());
         assertEquals("+I[_col_0_string_2, 2, null, null]", rows.get(1).toString());
         assertEquals("+I[_col_0_string_3, 3, [], {}]", rows.get(2).toString());
