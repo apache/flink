@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.util;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
@@ -51,14 +52,18 @@ public class TestBufferFactory {
         this.bufferRecycler = checkNotNull(bufferRecycler);
     }
 
-    public synchronized Buffer create() {
+    public synchronized MemorySegment createMemorySegment() {
         if (numberOfCreatedBuffers >= poolSize) {
             return null;
         }
 
         numberOfCreatedBuffers++;
-        return new NetworkBuffer(
-                MemorySegmentFactory.allocateUnpooledSegment(bufferSize), bufferRecycler);
+        return MemorySegmentFactory.allocateUnpooledSegment(bufferSize);
+    }
+
+    public synchronized Buffer create() {
+        MemorySegment memorySegment = createMemorySegment();
+        return memorySegment == null ? null : new NetworkBuffer(memorySegment, bufferRecycler);
     }
 
     public synchronized int getNumberOfCreatedBuffers() {
