@@ -514,6 +514,7 @@ public class LocalBufferPoolTest extends TestLogger {
 
         // recycle the requested buffer
         bufferBuilder.createBufferConsumer().close();
+        bufferBuilder.recycle();
         assertTrue(localBufferPool.isAvailable());
         assertTrue(availableFuture2.isDone());
     }
@@ -524,7 +525,7 @@ public class LocalBufferPoolTest extends TestLogger {
         NetworkBufferPool globalPool = new TestNetworkBufferPool(numBuffers, memorySegmentSize);
         try {
             BufferPool localPool = new LocalBufferPool(globalPool, 1);
-            MemorySegment segment = localPool.requestBufferBuilderBlocking().getMemorySegment();
+            MemorySegment segment = localPool.requestMemorySegmentBlocking();
             localPool.setNumBuffers(2);
 
             localPool.recycle(segment);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 
 import javax.annotation.Nullable;
@@ -85,4 +86,21 @@ public interface BufferProvider extends AvailabilityProvider {
 
     /** Returns whether the buffer provider has been destroyed. */
     boolean isDestroyed();
+
+    /**
+     * Returns a {@link MemorySegment} instance from the buffer provider.
+     *
+     * @return {@code null} if no memory segment is available or the buffer provider has been
+     *     destroyed.
+     */
+    @Nullable
+    MemorySegment requestMemorySegment();
+
+    /**
+     * Returns a {@link MemorySegment} instance from the buffer provider.
+     *
+     * <p>If there is no memory segment available, the call will block until one becomes available
+     * again or the buffer provider has been destroyed.
+     */
+    MemorySegment requestMemorySegmentBlocking() throws InterruptedException;
 }
