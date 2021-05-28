@@ -659,6 +659,32 @@ Calc(select=[w$start AS EXPR$0, EXPR$1], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWindowAggregateWithAllowLateness">
+    <Resource name="sql">
+      <![CDATA[
+SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+FROM MyTable
+GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_START($0)], cnt=[$1])
++- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+   +- LogicalProject($f0=[$TUMBLE($4, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[w$start AS EXPR$0, cnt], changelogMode=[I,UA])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 1000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[COUNT(*) AS cnt, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], emit=[late delay 5000 millisecond], changelogMode=[I,UA])
+   +- Exchange(distribution=[single], changelogMode=[I])
+      +- Calc(select=[rowtime], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWindowAggregateWithAllowLatenessOnly">
     <Resource name="sql">
       <![CDATA[
