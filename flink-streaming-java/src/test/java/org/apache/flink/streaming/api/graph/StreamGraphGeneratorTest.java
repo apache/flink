@@ -20,11 +20,13 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
@@ -32,6 +34,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -56,9 +59,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.EvenOddOutputSelector;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Description;
+import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
@@ -68,10 +73,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -390,6 +397,63 @@ public class StreamGraphGeneratorTest extends TestLogger {
         assertEquals(1, streamGraph.getStreamEdges(source2.getId()).size());
         assertEquals(1, streamGraph.getStreamEdges(source3.getId()).size());
         assertEquals(0, streamGraph.getStreamEdges(transform.getId()).size());
+    }
+
+    @Test
+    public void testUnalignedCheckpointDisabledOnBroadcast() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(42);
+
+        DataStream<Long> source1 = env.fromElements(1L, 10L);
+        DataStream<Long> map1 = source1.broadcast().map(l -> l);
+        DataStream<Long> source2 = env.fromElements(2L, 11L);
+        DataStream<Long> keyed = source2.keyBy(r -> 0L);
+
+        final MapStateDescriptor<Long, Long> descriptor =
+                new MapStateDescriptor<>(
+                        "broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+        final BroadcastStream<Long> broadcast = map1.broadcast(descriptor);
+        final SingleOutputStreamOperator<Long> joined =
+                keyed.connect(broadcast)
+                        .process(
+                                new KeyedBroadcastProcessFunction<Long, Long, Long, Long>() {
+                                    @Override
+                                    public void processElement(
+                                            Long value, ReadOnlyContext ctx, Collector<Long> out) {}
+
+                                    @Override
+                                    public void processBroadcastElement(
+                                            Long value, Context ctx, Collector<Long> out) {}
+                                });
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertEquals(4, streamGraph.getStreamNodes().size());
+
+        // single broadcast
+        assertThat(edge(streamGraph, source1, map1), supportsUnalignedCheckpoints(false));
+        // keyed, connected with broadcast
+        assertThat(edge(streamGraph, source2, joined), supportsUnalignedCheckpoints(false));
+        // broadcast, connected with keyed
+        assertThat(edge(streamGraph, map1, joined), supportsUnalignedCheckpoints(false));
+    }
+
+    private static StreamEdge edge(
+            StreamGraph streamGraph, DataStream<Long> op1, DataStream<Long> op2) {
+        List<StreamEdge> streamEdges = streamGraph.getStreamEdges(op1.getId(), op2.getId());
+        assertThat(streamEdges, iterableWithSize(1));
+        return streamEdges.get(0);
+    }
+
+    private static Matcher<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
+        return new FeatureMatcher<StreamEdge, Boolean>(
+                equalTo(enabled),
+                "supports unaligned checkpoint",
+                "supports unaligned checkpoint") {
+            @Override
+            protected Boolean featureValueOf(StreamEdge actual) {
+                return actual.supportsUnalignedCheckpoints();
+            }
+        };
     }
 
     /**
