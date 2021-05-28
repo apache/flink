@@ -349,6 +349,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             numBytesOut.inc(bufferBuilder.finish());
             numBuffersOut.inc();
             unicastBufferBuilders[targetSubpartition] = null;
+            bufferBuilder.close();
         }
     }
 
@@ -362,6 +363,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         if (broadcastBufferBuilder != null) {
             numBytesOut.inc(broadcastBufferBuilder.finish() * numSubpartitions);
             numBuffersOut.inc(numSubpartitions);
+            broadcastBufferBuilder.close();
             broadcastBufferBuilder = null;
         }
     }
