@@ -164,6 +164,33 @@ public class JobExceptionsHandlerTest extends TestLogger {
     }
 
     @Test
+    public void testWithLocalExceptionHistoryEntryNotHavingATaskManagerInformationAvailable()
+            throws HandlerRequestException {
+        final RootExceptionHistoryEntry failure =
+                new RootExceptionHistoryEntry(
+                        new RuntimeException("exception #1"),
+                        System.currentTimeMillis(),
+                        "task name",
+                        null,
+                        Collections.emptySet());
+
+        final ExecutionGraphInfo executionGraphInfo = createExecutionGraphInfo(failure);
+        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request =
+                createRequest(executionGraphInfo.getJobId(), 10);
+        final JobExceptionsInfoWithHistory response =
+                testInstance.handleRequest(request, executionGraphInfo);
+
+        assertThat(
+                response.getExceptionHistory().getEntries(),
+                contains(
+                        historyContainsJobExceptionInfo(
+                                failure.getException(),
+                                failure.getTimestamp(),
+                                failure.getFailingTaskName(),
+                                JobExceptionsHandler.toString(failure.getTaskManagerLocation()))));
+    }
+
+    @Test
     public void testWithExceptionHistoryWithTruncationThroughParameter()
             throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =

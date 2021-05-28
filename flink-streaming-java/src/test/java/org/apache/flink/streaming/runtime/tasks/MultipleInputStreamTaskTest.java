@@ -91,6 +91,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -511,20 +512,7 @@ public class MultipleInputStreamTaskTest {
     @Test
     public void testWatermark() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
-                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
-                        .addSourceInput(
-                                new SourceOperatorFactory<>(
-                                        new MockSource(
-                                                Boundedness.CONTINUOUS_UNBOUNDED, 2, true, false),
-                                        WatermarkStrategy.forGenerator(
-                                                ctx -> new RecordToWatermarkGenerator())))
-                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-                        .setupOutputForSingletonOperatorChain(
-                                new MapToStringMultipleInputOperatorFactory(3))
-                        .build()) {
+                buildWatermarkTestHarness(2, false)) {
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
             int initialTime = 0;
@@ -601,20 +589,7 @@ public class MultipleInputStreamTaskTest {
     @Test
     public void testWatermarkAndStreamStatusForwarding() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
-                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
-                        .addSourceInput(
-                                new SourceOperatorFactory<>(
-                                        new MockSource(
-                                                Boundedness.CONTINUOUS_UNBOUNDED, 2, true, true),
-                                        WatermarkStrategy.forGenerator(
-                                                ctx -> new RecordToWatermarkGenerator())))
-                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
-                        .setupOutputForSingletonOperatorChain(
-                                new MapToStringMultipleInputOperatorFactory(3))
-                        .build()) {
+                buildWatermarkTestHarness(2, true)) {
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
             int initialTime = 0;
@@ -623,50 +598,33 @@ public class MultipleInputStreamTaskTest {
             // watermarks
             testHarness.processElement(StreamStatus.IDLE, 0, 1);
             testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
-            testHarness.processElement(
-                    new Watermark(initialTime + 5),
-                    1,
-                    1); // this watermark should be advanced first
+            testHarness.processElement(new Watermark(initialTime + 5), 1, 1);
             testHarness.processElement(StreamStatus.IDLE, 1, 0); // once this is acknowledged,
-
-            // We don't expect to see Watermark(6) here because the idle status of one
-            // input doesn't propagate to the other input. That is, if input 1 is at WM 6 and input
-            // two was at WM 5 before going to IDLE then the output watermark will not jump to WM 6.
-
-            // OPS, there is a known bug: https://issues.apache.org/jira/browse/FLINK-18934
-            // that prevents this check from succeeding (AbstractStreamOperator and
-            // AbstractStreamOperatorV2
-            // are ignoring StreamStatus), so those checks needs to be commented out ...
-
-            // expectedOutput.add(new Watermark(initialTime + 5));
-            // assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
-
-            // and in as a temporary replacement we need this code block:
-            {
-                // we wake up the source and emit watermark
-                addSourceRecords(testHarness, 1, initialTime + 5);
-                testHarness.processAll();
-                expectedOutput.add(
-                        new StreamRecord<>("" + (initialTime + 5), TimestampAssigner.NO_TIMESTAMP));
-                expectedOutput.add(new Watermark(initialTime + 5));
-                // the source should go back to being idle immediately, but AbstractStreamOperatorV2
-                // should have updated it's watermark by then.
-            }
+            expectedOutput.add(new Watermark(initialTime + 5));
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
-            // make all input channels idle and check that the operator's idle status is forwarded
-            testHarness.processElement(StreamStatus.IDLE, 0, 0);
+            // We make the second input idle, which should forward W=6 from the first input
             testHarness.processElement(StreamStatus.IDLE, 1, 1);
+            expectedOutput.add(new Watermark(initialTime + 6));
+            assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
+            // Make the first input idle
+            testHarness.processElement(StreamStatus.IDLE, 0, 0);
             expectedOutput.add(StreamStatus.IDLE);
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // make source active once again, emit a watermark and go idle again.
             addSourceRecords(testHarness, 1, initialTime + 10);
+
+            // FLIP-27 sources do not emit active status on new records, we wrap a record with
+            // ACTIVE/IDLE sequence
+            expectedOutput.add(StreamStatus.ACTIVE);
             expectedOutput.add(
                     new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
-            expectedOutput.add(StreamStatus.ACTIVE);
             expectedOutput.add(StreamStatus.IDLE);
+            expectedOutput.add(StreamStatus.ACTIVE); // activate source on new watermark
+            expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
+            expectedOutput.add(StreamStatus.IDLE); // go idle after reading all records
             testHarness.processAll();
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
@@ -674,6 +632,24 @@ public class MultipleInputStreamTaskTest {
             testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
             expectedOutput.add(StreamStatus.ACTIVE);
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+        }
+    }
+
+    @Test
+    public void testAdvanceToEndOfEventTime() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                buildWatermarkTestHarness(2, false)) {
+            testHarness.processElement(Watermark.MAX_WATERMARK, 0, 0);
+            testHarness.processElement(Watermark.MAX_WATERMARK, 0, 1);
+
+            testHarness.getStreamTask().advanceToEndOfEventTime();
+
+            testHarness.processElement(Watermark.MAX_WATERMARK, 1, 0);
+
+            assertThat(testHarness.getOutput(), not(contains(Watermark.MAX_WATERMARK)));
+
+            testHarness.processElement(Watermark.MAX_WATERMARK, 1, 1);
+            assertThat(testHarness.getOutput(), contains(Watermark.MAX_WATERMARK));
         }
     }
 
@@ -1025,6 +1001,27 @@ public class MultipleInputStreamTaskTest {
         testHarness
                 .getStreamTask()
                 .dispatchOperatorEvent(sourceOperatorID, new SerializedValue<>(addSplitEvent));
+    }
+
+    private static StreamTaskMailboxTestHarness<String> buildWatermarkTestHarness(
+            int inputChannels, boolean readerMarkIdleOnNoSplits) throws Exception {
+        return new StreamTaskMailboxTestHarnessBuilder<>(
+                        MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                .modifyExecutionConfig(config -> config.enableObjectReuse())
+                .addInput(BasicTypeInfo.STRING_TYPE_INFO, inputChannels)
+                .addSourceInput(
+                        new SourceOperatorFactory<>(
+                                new MockSource(
+                                        Boundedness.CONTINUOUS_UNBOUNDED,
+                                        2,
+                                        true,
+                                        readerMarkIdleOnNoSplits),
+                                WatermarkStrategy.forGenerator(
+                                        ctx -> new RecordToWatermarkGenerator())))
+                .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, inputChannels)
+                .setupOutputForSingletonOperatorChain(
+                        new MapToStringMultipleInputOperatorFactory(3))
+                .build();
     }
 
     private static OperatorID getSourceOperatorID(

@@ -43,7 +43,6 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
-import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -131,6 +130,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
     private CompletableFuture<BlobKey> storedHABlobFuture;
     private CompletableFuture<JobID> deleteAllHABlobsFuture;
     private CompletableFuture<JobID> cleanupJobFuture;
+    private CompletableFuture<JobID> cleanupJobHADataFuture;
     private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
     @BeforeClass
@@ -151,6 +151,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         clearedJobLatch = new OneShotLatch();
         runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
         highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
+        cleanupJobHADataFuture = new CompletableFuture<>();
+        highAvailabilityServices.setCleanupJobDataFuture(cleanupJobHADataFuture);
 
         storedHABlobFuture = new CompletableFuture<>();
         deleteAllHABlobsFuture = new CompletableFuture<>();
@@ -272,8 +274,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         // job not finished
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFutureExceptionally(
-                new JobNotFinishedException(jobId));
+        suspendJob(testingJobManagerRunner);
 
         assertThat(cleanupJobFuture.get(), equalTo(jobId));
 
@@ -400,8 +401,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         runningJobsRegistry.setJobRunning(jobId);
         final TestingJobManagerRunner testingJobManagerRunner =
                 jobManagerRunnerFactory.takeCreatedJobManagerRunner();
-        testingJobManagerRunner.completeResultFutureExceptionally(
-                new JobNotFinishedException(jobId));
+        suspendJob(testingJobManagerRunner);
 
         // wait until termination JobManagerRunner closeAsync has been called.
         // this is necessary to avoid race conditions with completion of the 1st job and the
@@ -456,12 +456,46 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         assertThatHABlobsHaveBeenRemoved();
     }
 
+    @Test
+    public void testHaDataCleanupWhenJobFinished() throws Exception {
+        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+        TestingJobManagerRunner jobManagerRunner =
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+        finishJob(jobManagerRunner);
+        JobID jobID = cleanupJobHADataFuture.get(2000, TimeUnit.MILLISECONDS);
+        assertThat(jobID, is(this.jobId));
+    }
+
+    @Test
+    public void testHaDataCleanupWhenJobNotFinished() throws Exception {
+        TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+        TestingJobManagerRunner jobManagerRunner =
+                jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+        suspendJob(jobManagerRunner);
+        try {
+            cleanupJobHADataFuture.get(10L, TimeUnit.MILLISECONDS);
+            fail("We should not delete the HA data for job.");
+        } catch (TimeoutException ignored) {
+            // expected
+        }
+        assertThat(cleanupJobHADataFuture.isDone(), is(false));
+    }
+
     private void finishJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.FINISHED);
+    }
+
+    private void suspendJob(TestingJobManagerRunner takeCreatedJobManagerRunner) {
+        terminateJobWithState(takeCreatedJobManagerRunner, JobStatus.SUSPENDED);
+    }
+
+    private void terminateJobWithState(
+            TestingJobManagerRunner takeCreatedJobManagerRunner, JobStatus state) {
         takeCreatedJobManagerRunner.completeResultFuture(
                 new ExecutionGraphInfo(
                         new ArchivedExecutionGraphBuilder()
                                 .setJobID(jobId)
-                                .setState(JobStatus.FINISHED)
+                                .setState(state)
                                 .build()));
     }
 

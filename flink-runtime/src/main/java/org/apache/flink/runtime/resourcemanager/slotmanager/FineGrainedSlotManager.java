@@ -218,6 +218,8 @@ public class FineGrainedSlotManager implements SlotManager {
 
         LOG.info("Suspending the slot manager.");
 
+        slotManagerMetricGroup.close();
+
         // stop the timeout checks for the TaskManagers
         if (taskManagerTimeoutsCheck != null) {
             taskManagerTimeoutsCheck.cancel(false);
@@ -249,7 +251,6 @@ public class FineGrainedSlotManager implements SlotManager {
         LOG.info("Closing the slot manager.");
 
         suspend();
-        slotManagerMetricGroup.close();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -644,7 +645,7 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public ResourceProfile getFreeResourceOf(InstanceID instanceID) {
-        return taskManagerTracker.getRegisteredResourceOf(instanceID);
+        return taskManagerTracker.getFreeResourceOf(instanceID);
     }
 
     @Override

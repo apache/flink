@@ -119,12 +119,10 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    protected CleanupJobState jobReachedGloballyTerminalState(
-            ExecutionGraphInfo executionGraphInfo) {
+    protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
         final ArchivedExecutionGraph archivedExecutionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
-        final CleanupJobState cleanupHAState =
-                super.jobReachedGloballyTerminalState(executionGraphInfo);
+        final CleanupJobState cleanupHAState = super.jobReachedTerminalState(executionGraphInfo);
 
         if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
             // shut down if job is cancelled or we don't have to wait for the execution result
@@ -139,13 +137,5 @@ public class MiniDispatcher extends Dispatcher {
         }
 
         return cleanupHAState;
-    }
-
-    @Override
-    protected void jobNotFinished(JobID jobId) {
-        super.jobNotFinished(jobId);
-        // shut down since we have done our job
-        log.info("Shutting down cluster because job not finished");
-        shutDownFuture.complete(ApplicationStatus.UNKNOWN);
     }
 }

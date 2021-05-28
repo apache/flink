@@ -22,17 +22,20 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.persistence.IntegerResourceVersion;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
+import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
-import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper.LongRetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -82,26 +85,27 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     @Before
     public void cleanUp() throws Exception {
         ZOOKEEPER.deleteAll();
+        TestingLongStateHandleHelper.clearGlobalState();
     }
 
     /** Tests add operation with lock. */
     @Test
     public void testAddAndLock() throws Exception {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
         // Config
         final String pathInZooKeeper = "/testAdd";
-        final Long state = 1239712317L;
+        final long state = 1239712317L;
 
         // Test
-        store.addAndLock(pathInZooKeeper, state);
+        store.addAndLock(pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(state));
 
         // Verify
         // State handle created
         assertEquals(1, store.getAllAndLock().size());
-        assertEquals(state, store.getAndLock(pathInZooKeeper).retrieveState());
+        assertEquals(state, store.getAndLock(pathInZooKeeper).retrieveState().getValue());
 
         // Path created and is persistent
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(pathInZooKeeper);
@@ -121,64 +125,134 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         // Data is equal
         @SuppressWarnings("unchecked")
-        Long actual =
-                ((RetrievableStateHandle<Long>)
+        final long actual =
+                ((RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>)
                                 InstantiationUtil.deserializeObject(
                                         ZOOKEEPER.getClient().getData().forPath(pathInZooKeeper),
                                         ClassLoader.getSystemClassLoader()))
-                        .retrieveState();
+                        .retrieveState()
+                        .getValue();
 
         assertEquals(state, actual);
     }
 
-    /** Tests that an existing path throws an Exception. */
-    @Test(expected = Exception.class)
-    public void testAddAlreadyExistingPath() throws Exception {
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
-
-        ZooKeeperStateHandleStore<Long> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
-
-        ZOOKEEPER.getClient().create().forPath("/testAddAlreadyExistingPath");
-
-        store.addAndLock("/testAddAlreadyExistingPath", 1L);
-
-        // writing to the state storage should have succeeded
-        assertEquals(1, stateHandleProvider.getStateHandles());
-
-        // the created state handle should have been cleaned up if the add operation failed
-        assertEquals(1, stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
-    }
-
-    /** Tests that the created state handle is discarded if ZooKeeper create fails. */
+    /**
+     * Tests that the created state handle is not discarded if ZooKeeper create fails with an
+     * generic exception.
+     */
     @Test
-    public void testAddDiscardStateHandleAfterFailure() throws Exception {
-        // Setup
+    public void testFailingAddWithPossiblyInconsistentState() throws Exception {
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
         CuratorFramework client = spy(ZOOKEEPER.getClient());
         when(client.inTransaction().create())
                 .thenThrow(new RuntimeException("Expected test Exception."));
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
 
         // Config
         final String pathInZooKeeper = "/testAddDiscardStateHandleAfterFailure";
-        final Long state = 81282227L;
+        final long state = 81282227L;
 
         try {
             // Test
-            store.addAndLock(pathInZooKeeper, state);
-            fail("Did not throw expected exception");
-        } catch (Exception ignored) {
+            store.addAndLock(
+                    pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(state));
+            fail("PossibleInconsistentStateException should have been thrown.");
+        } catch (PossibleInconsistentStateException ignored) {
+            // PossibleInconsistentStateException expected
         }
 
-        // Verify
+        // State handle created and not discarded
+        assertEquals(1, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(state, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        assertEquals(0, TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0));
+    }
+
+    @Test
+    public void testAddFailureHandlingForNodeExistsException() {
+        testFailingAddWithStateDiscardTriggeredFor(
+                new KeeperException.NodeExistsException(),
+                StateHandleStore.AlreadyExistException.class);
+    }
+
+    @Test
+    public void testAddFailureHandlingForBadArgumentsException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.BadArgumentsException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForNoNodeException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.NoNodeException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForNoAuthException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.NoAuthException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForBadVersionException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.BadVersionException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForAuthFailedException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.AuthFailedException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForInvalidACLException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.InvalidACLException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForSessionMovedException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.SessionMovedException());
+    }
+
+    @Test
+    public void testAddFailureHandlingForNotReadOnlyException() {
+        testFailingAddWithStateDiscardTriggeredFor(new KeeperException.NotReadOnlyException());
+    }
+
+    private static void testFailingAddWithStateDiscardTriggeredFor(Exception actualException) {
+        testFailingAddWithStateDiscardTriggeredFor(actualException, actualException.getClass());
+    }
+
+    private static void testFailingAddWithStateDiscardTriggeredFor(
+            Exception actualException, Class<? extends Throwable> expectedException) {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>(
+                        ZOOKEEPER.getClient(), stateHandleProvider) {
+                    @Override
+                    protected void writeStoreHandleTransactionally(
+                            String path, byte[] serializedStoreHandle) throws Exception {
+                        throw actualException;
+                    }
+                };
+
+        // Config
+        final String pathInZooKeeper =
+                "/testAddDiscardStateHandleAfterFailure-" + expectedException.getSimpleName();
+        final long state = 81282227L;
+
+        try {
+            // Test
+            store.addAndLock(
+                    pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(state));
+            fail(expectedException.getSimpleName() + " should have been thrown.");
+        } catch (Exception ex) {
+            assertThat(ex, IsInstanceOf.instanceOf(expectedException));
+        }
+
         // State handle created and discarded
-        assertEquals(1, stateHandleProvider.getStateHandles().size());
-        assertEquals(state, stateHandleProvider.getStateHandles().get(0).retrieveState());
-        assertEquals(1, stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
+        assertEquals(1, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(state, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        assertEquals(1, TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0));
     }
 
     /** Tests that a state handle is replaced. */
@@ -187,23 +261,27 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
         final String pathInZooKeeper = "/testReplace";
-        final Long initialState = 30968470898L;
-        final Long replaceState = 88383776661L;
+        final long initialState = 30968470898L;
+        final long replaceState = 88383776661L;
 
         // Test
-        store.addAndLock(pathInZooKeeper, initialState);
-        store.replace(pathInZooKeeper, IntegerResourceVersion.valueOf(0), replaceState);
+        store.addAndLock(
+                pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(initialState));
+        store.replace(
+                pathInZooKeeper,
+                IntegerResourceVersion.valueOf(0),
+                new TestingLongStateHandleHelper.LongStateHandle(replaceState));
 
         // Verify
         // State handles created
-        assertEquals(2, stateHandleProvider.getStateHandles().size());
-        assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).retrieveState());
-        assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).retrieveState());
+        assertEquals(2, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(initialState, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        assertEquals(replaceState, TestingLongStateHandleHelper.getStateHandleValueByIndex(1));
 
         // Path created and is persistent
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(pathInZooKeeper);
@@ -212,12 +290,13 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         // Data is equal
         @SuppressWarnings("unchecked")
-        Long actual =
-                ((RetrievableStateHandle<Long>)
+        final long actual =
+                ((RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>)
                                 InstantiationUtil.deserializeObject(
                                         ZOOKEEPER.getClient().getData().forPath(pathInZooKeeper),
                                         ClassLoader.getSystemClassLoader()))
-                        .retrieveState();
+                        .retrieveState()
+                        .getValue();
 
         assertEquals(replaceState, actual);
     }
@@ -225,12 +304,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     /** Tests that a non existing path throws an Exception. */
     @Test(expected = Exception.class)
     public void testReplaceNonExistingPath() throws Exception {
-        final RetrievableStateStorageHelper<Long> stateStorage = new TestingLongStateHandleHelper();
+        final RetrievableStateStorageHelper<TestingLongStateHandleHelper.LongStateHandle>
+                stateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateStorage);
 
-        store.replace("/testReplaceNonExistingPath", IntegerResourceVersion.valueOf(0), 1L);
+        store.replace(
+                "/testReplaceNonExistingPath",
+                IntegerResourceVersion.valueOf(0),
+                new TestingLongStateHandleHelper.LongStateHandle(1L));
     }
 
     /** Tests that the replace state handle is discarded if ZooKeeper setData fails. */
@@ -242,38 +325,151 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         CuratorFramework client = spy(ZOOKEEPER.getClient());
         when(client.setData()).thenThrow(new RuntimeException("Expected test Exception."));
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
 
         // Config
         final String pathInZooKeeper = "/testReplaceDiscardStateHandleAfterFailure";
-        final Long initialState = 30968470898L;
-        final Long replaceState = 88383776661L;
+        final long initialState = 30968470898L;
+        final long replaceState = 88383776661L;
 
         // Test
-        store.addAndLock(pathInZooKeeper, initialState);
+        store.addAndLock(
+                pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(initialState));
 
         try {
-            store.replace(pathInZooKeeper, IntegerResourceVersion.valueOf(0), replaceState);
+            store.replace(
+                    pathInZooKeeper,
+                    IntegerResourceVersion.valueOf(0),
+                    new TestingLongStateHandleHelper.LongStateHandle(replaceState));
             fail("Did not throw expected exception");
         } catch (Exception ignored) {
         }
 
         // Verify
         // State handle created and discarded
-        assertEquals(2, stateHandleProvider.getStateHandles().size());
-        assertEquals(initialState, stateHandleProvider.getStateHandles().get(0).retrieveState());
-        assertEquals(replaceState, stateHandleProvider.getStateHandles().get(1).retrieveState());
-        assertEquals(1, stateHandleProvider.getStateHandles().get(1).getNumberOfDiscardCalls());
+        assertEquals(2, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(initialState, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        assertEquals(replaceState, TestingLongStateHandleHelper.getStateHandleValueByIndex(1));
+        assertThat(TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0), is(0));
+        assertThat(TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(1), is(0));
 
         // Initial value
         @SuppressWarnings("unchecked")
-        Long actual =
-                ((RetrievableStateHandle<Long>)
+        final long actual =
+                ((RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>)
                                 InstantiationUtil.deserializeObject(
                                         ZOOKEEPER.getClient().getData().forPath(pathInZooKeeper),
                                         ClassLoader.getSystemClassLoader()))
-                        .retrieveState();
+                        .retrieveState()
+                        .getValue();
+
+        assertEquals(initialState, actual);
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithNoNodeException() throws Exception {
+        testDiscardAfterReplaceFailureWith(
+                new KeeperException.NoNodeException(), StateHandleStore.NotExistException.class);
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithNodeExistsException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.NodeExistsException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithBadArgumentsException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.BadArgumentsException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithNoAuthException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.NoAuthException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithBadVersionException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.BadVersionException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithAuthFailedException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.AuthFailedException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithInvalidACLException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.InvalidACLException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithSessionMovedException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.SessionMovedException());
+    }
+
+    @Test
+    public void testDiscardAfterReplaceFailureWithNotReadOnlyException() throws Exception {
+        testDiscardAfterReplaceFailureWith(new KeeperException.NotReadOnlyException());
+    }
+
+    private static void testDiscardAfterReplaceFailureWith(Exception actualException)
+            throws Exception {
+        testDiscardAfterReplaceFailureWith(actualException, actualException.getClass());
+    }
+
+    private static void testDiscardAfterReplaceFailureWith(
+            Exception actualException, Class<? extends Throwable> expectedException)
+            throws Exception {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>(
+                        ZOOKEEPER.getClient(), stateHandleProvider) {
+                    @Override
+                    protected void setStateHandle(
+                            String path, byte[] serializedStateHandle, int expectedVersion)
+                            throws Exception {
+                        throw actualException;
+                    }
+                };
+
+        // Config
+        final String pathInZooKeeper =
+                "/testReplaceDiscardStateHandleAfterFailure-" + expectedException.getSimpleName();
+        final long initialState = 30968470898L;
+        final long replaceState = 88383776661L;
+
+        // Test
+        store.addAndLock(
+                pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(initialState));
+
+        try {
+            store.replace(
+                    pathInZooKeeper,
+                    IntegerResourceVersion.valueOf(0),
+                    new TestingLongStateHandleHelper.LongStateHandle(replaceState));
+            fail("Did not throw expected exception");
+        } catch (Throwable t) {
+            assertThat(t, IsInstanceOf.instanceOf(expectedException));
+        }
+
+        // State handle created and discarded
+        assertEquals(2, TestingLongStateHandleHelper.getGlobalStorageSize());
+        assertEquals(initialState, TestingLongStateHandleHelper.getStateHandleValueByIndex(0));
+        assertEquals(replaceState, TestingLongStateHandleHelper.getStateHandleValueByIndex(1));
+        assertThat(TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(0), is(0));
+        assertThat(TestingLongStateHandleHelper.getDiscardCallCountForStateHandleByIndex(1), is(1));
+
+        // Initial value
+        @SuppressWarnings("unchecked")
+        final long actual =
+                ((RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>)
+                                InstantiationUtil.deserializeObject(
+                                        ZOOKEEPER.getClient().getData().forPath(pathInZooKeeper),
+                                        ClassLoader.getSystemClassLoader()))
+                        .retrieveState()
+                        .getValue();
 
         assertEquals(initialState, actual);
     }
@@ -284,21 +480,22 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
         final String pathInZooKeeper = "/testGetAndExists";
-        final Long state = 311222268470898L;
+        final long state = 311222268470898L;
 
         // Test
         assertThat(store.exists(pathInZooKeeper).isExisting(), is(false));
 
-        store.addAndLock(pathInZooKeeper, state);
-        RetrievableStateHandle<Long> actual = store.getAndLock(pathInZooKeeper);
+        store.addAndLock(pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(state));
+        RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle> actual =
+                store.getAndLock(pathInZooKeeper);
 
         // Verify
-        assertEquals(state, actual.retrieveState());
+        assertEquals(state, actual.retrieveState().getValue());
         assertTrue(store.exists(pathInZooKeeper).getValue() >= 0);
     }
 
@@ -307,7 +504,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testGetNonExistingPath() throws Exception {
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         store.getAndLock("/testGetNonExistingPath");
@@ -319,7 +516,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
@@ -333,11 +530,13 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         // Test
         for (long val : expected) {
-            store.addAndLock(pathInZooKeeper + val, val);
+            store.addAndLock(
+                    pathInZooKeeper + val, new TestingLongStateHandleHelper.LongStateHandle(val));
         }
 
-        for (Tuple2<RetrievableStateHandle<Long>, String> val : store.getAllAndLock()) {
-            assertTrue(expected.remove(val.f0.retrieveState()));
+        for (Tuple2<RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>, String>
+                val : store.getAllAndLock()) {
+            assertTrue(expected.remove(val.f0.retrieveState().getValue()));
         }
         assertEquals(0, expected.size());
     }
@@ -348,7 +547,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
@@ -359,10 +558,12 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Test
         for (long val : expected) {
             final String pathInZooKeeper = String.format("%s%016d", basePath, val);
-            store.addAndLock(pathInZooKeeper, val);
+            store.addAndLock(
+                    pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(val));
         }
 
-        List<Tuple2<RetrievableStateHandle<Long>, String>> actual = store.getAllAndLock();
+        List<Tuple2<RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>, String>>
+                actual = store.getAllAndLock();
         assertEquals(expected.length, actual.size());
 
         // bring the elements in sort order
@@ -370,7 +571,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         Collections.sort(actual, Comparator.comparing(o -> o.f1));
 
         for (int i = 0; i < expected.length; i++) {
-            assertEquals(expected[i], actual.get(i).f0.retrieveState());
+            assertEquals(expected[i], (Long) actual.get(i).f0.retrieveState().getValue());
         }
     }
 
@@ -380,17 +581,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
         final String pathInZooKeeper = "/testRemove";
-        final Long state = 27255442L;
 
-        store.addAndLock(pathInZooKeeper, state);
+        store.addAndLock(
+                pathInZooKeeper, new TestingLongStateHandleHelper.LongStateHandle(27255442L));
 
-        final int numberOfGlobalDiscardCalls =
-                LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls();
+        final int numberOfGlobalDiscardCalls = TestingLongStateHandleHelper.getGlobalDiscardCount();
 
         // Test
         store.releaseAndTryRemove(pathInZooKeeper);
@@ -399,7 +599,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         assertEquals(0, ZOOKEEPER.getClient().getChildren().forPath("/").size());
         assertEquals(
                 numberOfGlobalDiscardCalls + 1,
-                LongRetrievableStateHandle.getNumberOfGlobalDiscardCalls());
+                TestingLongStateHandleHelper.getGlobalDiscardCount());
     }
 
     /** Tests that all state handles are correctly discarded. */
@@ -408,7 +608,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         // Setup
         final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         // Config
@@ -422,7 +622,8 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         // Test
         for (long val : expected) {
-            store.addAndLock(pathInZooKeeper + val, val);
+            store.addAndLock(
+                    pathInZooKeeper + val, new TestingLongStateHandleHelper.LongStateHandle(val));
         }
 
         store.releaseAndTryRemoveAll();
@@ -439,7 +640,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testCorruptedData() throws Exception {
         final TestingLongStateHandleHelper stateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateStorage);
 
         final Collection<Long> input = new HashSet<>();
@@ -448,21 +649,23 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         input.add(3L);
 
         for (Long aLong : input) {
-            store.addAndLock("/" + aLong, aLong);
+            store.addAndLock("/" + aLong, new TestingLongStateHandleHelper.LongStateHandle(aLong));
         }
 
         // corrupt one of the entries
         ZOOKEEPER.getClient().setData().forPath("/" + 2, new byte[2]);
 
-        List<Tuple2<RetrievableStateHandle<Long>, String>> allEntries = store.getAllAndLock();
+        List<Tuple2<RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>, String>>
+                allEntries = store.getAllAndLock();
 
         Collection<Long> expected = new HashSet<>(input);
         expected.remove(2L);
 
         Collection<Long> actual = new HashSet<>(expected.size());
 
-        for (Tuple2<RetrievableStateHandle<Long>, String> entry : allEntries) {
-            actual.add(entry.f0.retrieveState());
+        for (Tuple2<RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>, String>
+                entry : allEntries) {
+            actual.add(entry.f0.retrieveState().getValue());
         }
 
         assertEquals(expected, actual);
@@ -478,23 +681,24 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testConcurrentDeleteOperation() throws Exception {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> zkStore1 =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore1 =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
-        ZooKeeperStateHandleStore<Long> zkStore2 =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore2 =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
         final String statePath = "/state";
 
-        zkStore1.addAndLock(statePath, 42L);
-        RetrievableStateHandle<Long> stateHandle = zkStore2.getAndLock(statePath);
+        zkStore1.addAndLock(statePath, new TestingLongStateHandleHelper.LongStateHandle(42L));
+        RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle> stateHandle =
+                zkStore2.getAndLock(statePath);
 
         // this should not remove the referenced node because we are still holding a state handle
         // reference via zkStore2
         zkStore1.releaseAndTryRemove(statePath);
 
         // sanity check
-        assertEquals(42L, (long) stateHandle.retrieveState());
+        assertEquals(42L, stateHandle.retrieveState().getValue());
 
         Stat nodeStat = ZOOKEEPER.getClient().checkExists().forPath(statePath);
 
@@ -521,15 +725,15 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testLockCleanupWhenGetAndLockFails() throws Exception {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> zkStore1 =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore1 =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
-        ZooKeeperStateHandleStore<Long> zkStore2 =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore2 =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
         final String path = "/state";
 
-        zkStore1.addAndLock(path, 42L);
+        zkStore1.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(42L));
 
         final byte[] corruptedData = {1, 2};
 
@@ -581,12 +785,12 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         try (CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
                 CuratorFramework client2 = ZooKeeperUtils.startCuratorFramework(configuration)) {
 
-            ZooKeeperStateHandleStore<Long> zkStore =
+            ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                     new ZooKeeperStateHandleStore<>(client, longStateStorage);
 
             final String path = "/state";
 
-            zkStore.addAndLock(path, 42L);
+            zkStore.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(42L));
 
             // this should delete all ephemeral nodes
             client.close();
@@ -612,12 +816,12 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testRelease() throws Exception {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> zkStore =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
         final String path = "/state";
 
-        zkStore.addAndLock(path, 42L);
+        zkStore.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(42L));
 
         final String lockPath = zkStore.getLockPath(path);
 
@@ -648,13 +852,13 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     public void testReleaseAll() throws Exception {
         final TestingLongStateHandleHelper longStateStorage = new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> zkStore =
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), longStateStorage);
 
         final Collection<String> paths = Arrays.asList("/state1", "/state2", "/state3");
 
         for (String path : paths) {
-            zkStore.addAndLock(path, 42L);
+            zkStore.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(42L));
         }
 
         for (String path : paths) {
@@ -680,12 +884,12 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
     @Test
     public void testRemoveAllHandlesShouldRemoveAllPaths() throws Exception {
-        final ZooKeeperStateHandleStore<Long> zkStore =
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
                 new ZooKeeperStateHandleStore<>(
                         ZooKeeperUtils.useNamespaceAndEnsurePath(ZOOKEEPER.getClient(), "/path"),
                         new TestingLongStateHandleHelper());
 
-        zkStore.addAndLock("/state", 1L);
+        zkStore.addAndLock("/state", new TestingLongStateHandleHelper.LongStateHandle(1L));
         zkStore.clearEntries();
 
         assertThat(zkStore.getAllHandles(), is(empty()));

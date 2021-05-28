@@ -501,7 +501,7 @@ function wait_job_terminal_state {
   echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_LOG_DIR/*$log_file_name*.log | tail -1 || true)
+    local N=$(grep -o "Job $job reached terminal state .*" $FLINK_LOG_DIR/*$log_file_name*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else

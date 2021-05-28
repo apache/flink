@@ -143,7 +143,9 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
         super.close();
         collector = null;
         functionsClosed = true;
-        windowBuffer.close();
+        if (windowBuffer != null) {
+            windowBuffer.close();
+        }
     }
 
     @Override

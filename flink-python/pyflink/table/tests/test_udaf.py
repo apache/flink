@@ -785,6 +785,111 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 03:10:00.0, 2018-03-11 04:10:00.0, 2]",
                             "+I[1, 2018-03-11 04:20:00.0, 2018-03-11 04:50:00.0, 1]"])
 
+    def test_execute_group_aggregate_from_json_plan(self):
+        # create source file path
+        tmp_dir = self.tempdir
+        data = ['1,1', '3,2', '1,3']
+        source_path = tmp_dir + '/test_execute_group_aggregate_from_json_plan.csv'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        source_table = """
+            CREATE TABLE source_table (
+                a BIGINT,
+                b BIGINT
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+
+        self.t_env.execute_sql("""
+            CREATE TABLE sink_table (
+                a BIGINT,
+                b BIGINT
+            ) WITH (
+                'connector' = 'blackhole'
+            )
+        """)
+
+        self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
+
+        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
+                                                   "SELECT a, my_sum(b) FROM source_table "
+                                                   "GROUP BY a")
+        from py4j.java_gateway import get_method
+        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+
+    def test_execute_group_window_aggregate_from_json_plan(self):
+        # create source file path
+        tmp_dir = self.tempdir
+        data = [
+            '1,1,2,2018-03-11 03:10:00',
+            '3,3,2,2018-03-11 03:10:00',
+            '2,2,1,2018-03-11 03:10:00',
+            '1,1,3,2018-03-11 03:40:00',
+            '1,1,8,2018-03-11 04:20:00',
+            '2,2,3,2018-03-11 03:30:00'
+        ]
+        source_path = tmp_dir + '/test_execute_group_window_aggregate_from_json_plan.csv'
+        sink_path = tmp_dir + '/test_execute_group_window_aggregate_from_json_plan'
+        with open(source_path, 'w') as fd:
+            for ele in data:
+                fd.write(ele + '\n')
+
+        source_table = """
+            CREATE TABLE source_table (
+                a TINYINT,
+                b SMALLINT,
+                c SMALLINT,
+                rowtime TIMESTAMP(3),
+                WATERMARK FOR rowtime AS rowtime - INTERVAL '60' MINUTE
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % source_path
+        self.t_env.execute_sql(source_table)
+
+        self.t_env.execute_sql("""
+            CREATE TABLE sink_table (
+                a BIGINT,
+                w_start TIMESTAMP(3),
+                w_end TIMESTAMP(3),
+                b BIGINT
+            ) WITH (
+                'connector' = 'filesystem',
+                'path' = '%s',
+                'format' = 'csv'
+            )
+        """ % sink_path)
+
+        self.t_env.create_temporary_function("my_count", CountAggregateFunction())
+
+        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
+                                                   "SELECT a, "
+                                                   "SESSION_START(rowtime, INTERVAL '30' MINUTE), "
+                                                   "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
+                                                   "my_count(c) "
+                                                   "FROM source_table "
+                                                   "GROUP BY "
+                                                   "a, b, SESSION(rowtime, INTERVAL '30' MINUTE)")
+        from py4j.java_gateway import get_method
+        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+
+        import glob
+        lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
+        lines.sort()
+        self.assertEqual(lines,
+                         ['1,"2018-03-11 03:10:00","2018-03-11 04:10:00",2',
+                          '1,"2018-03-11 04:20:00","2018-03-11 04:50:00",1',
+                          '2,"2018-03-11 03:10:00","2018-03-11 04:00:00",2',
+                          '3,"2018-03-11 03:10:00","2018-03-11 03:40:00",1'])
+
 
 if __name__ == '__main__':
     import unittest

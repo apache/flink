@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
@@ -42,7 +41,7 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import javax.annotation.Nullable;
 
@@ -149,8 +148,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
     }
 
     private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
-        return new StreamTaskNetworkOutput<>(
-                mainOperator, getStreamStatusMaintainer(), inputWatermarkGauge, numRecordsIn);
+        return new StreamTaskNetworkOutput<>(mainOperator, inputWatermarkGauge, numRecordsIn);
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -179,7 +177,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
      * The network data output implementation used for processing stream elements from {@link
      * StreamTaskNetworkInput} in one input processor.
      */
-    private static class StreamTaskNetworkOutput<IN> extends AbstractDataOutput<IN> {
+    private static class StreamTaskNetworkOutput<IN> implements DataOutput<IN> {
 
         private final OneInputStreamOperator<IN, ?> operator;
 
@@ -188,10 +186,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         private StreamTaskNetworkOutput(
                 OneInputStreamOperator<IN, ?> operator,
-                StreamStatusMaintainer streamStatusMaintainer,
                 WatermarkGauge watermarkGauge,
                 Counter numRecordsIn) {
-            super(streamStatusMaintainer);
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
@@ -209,6 +205,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         public void emitWatermark(Watermark watermark) throws Exception {
             watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
             operator.processWatermark(watermark);
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            operator.emitStreamStatus(streamStatus);
         }
 
         @Override

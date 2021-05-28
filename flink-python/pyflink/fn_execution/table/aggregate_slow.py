@@ -355,12 +355,20 @@ class SimpleTableAggsHandleFunction(SimpleAggsHandleFunctionBase, TableAggsHandl
         udf = self._udfs[0]  # type: TableAggregateFunction
         results = udf.emit_value(self._accumulators[0])
         for x in results:
-            result = join_row(current_key, x._values)
+            result = join_row(current_key, self._convert_to_row(x))
             if is_retract:
                 result.set_row_kind(RowKind.DELETE)
             else:
                 result.set_row_kind(RowKind.INSERT)
             yield result
+
+    def _convert_to_row(self, data):
+        if isinstance(data, Row):
+            return data._values
+        elif isinstance(data, tuple):
+            return list(data)
+        else:
+            return [data]
 
 
 class RecordCounter(ABC):

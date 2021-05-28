@@ -149,9 +149,7 @@ public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
                                 new ZooKeeperRunningJobsRegistry(client, configuration))
                         .setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
                         .setJobMasterLeaderRetrieverFunction(
-                                jobId ->
-                                        ZooKeeperUtils.createLeaderRetrievalService(
-                                                client, configuration))
+                                jobId -> ZooKeeperUtils.createLeaderRetrievalService(client))
                         .build()) {
 
             final PartialDispatcherServices partialDispatcherServices =

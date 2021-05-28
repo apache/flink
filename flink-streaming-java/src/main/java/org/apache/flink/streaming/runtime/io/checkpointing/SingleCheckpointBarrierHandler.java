@@ -123,7 +123,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 checkpointCoordinator,
                 clock,
                 numOpenChannels,
-                new WaitingForFirstBarrierUnaligned(false, inputs),
+                new AlternatingWaitingForFirstBarrierUnaligned(false, new ChannelState(inputs)),
                 false,
                 registerTimer,
                 inputs);
@@ -162,7 +162,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 checkpointCoordinator,
                 clock,
                 numOpenChannels,
-                new AlternatingWaitingForFirstBarrier(inputs),
+                new AlternatingWaitingForFirstBarrier(new ChannelState(inputs)),
                 true,
                 registerTimer,
                 inputs);
@@ -213,7 +213,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             } else {
                 markAlignmentStart(barrier.getTimestamp());
             }
-            allBarriersReceivedFuture = new CompletableFuture<>();
         }
 
         // we must mark alignment end before calling currentState.barrierReceived which might
@@ -308,6 +307,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             }
             currentCheckpointId = barrierId;
             numBarriersReceived = 0;
+            allBarriersReceivedFuture = new CompletableFuture<>();
             return true;
         }
         return false;

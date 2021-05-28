@@ -23,12 +23,12 @@ import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.util.StateHandleStoreUtils.deserialize;
+import static org.apache.flink.runtime.util.StateHandleStoreUtils.serializeOrDiscard;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -114,21 +116,28 @@ public class KubernetesStateHandleStore<T extends Serializable>
      * @param key Key in ConfigMap
      * @param state State to be added
      * @throws AlreadyExistException if the name already exists
+     * @throws PossibleInconsistentStateException if the write-to-Kubernetes operation failed. This
+     *     indicates that it's not clear whether the new state was successfully written to
+     *     Kubernetes or not. No state was discarded. Proper error handling has to be applied on the
+     *     caller's side.
      * @throws Exception if persisting state or writing state handle failed
      */
     @Override
-    public RetrievableStateHandle<T> addAndLock(String key, T state) throws Exception {
+    public RetrievableStateHandle<T> addAndLock(String key, T state)
+            throws PossibleInconsistentStateException, Exception {
         checkNotNull(key, "Key in ConfigMap.");
         checkNotNull(state, "State.");
 
         final RetrievableStateHandle<T> storeHandle = storage.store(state);
 
-        boolean success = false;
+        final byte[] serializedStoreHandle = serializeOrDiscard(storeHandle);
 
+        // initialize flag to serve the failure case
+        boolean discardState = true;
         try {
-            final byte[] serializedStoreHandle = InstantiationUtil.serializeObject(storeHandle);
-            success =
-                    kubeClient
+            // a successful operation will result in the state not being discarded
+            discardState =
+                    !kubeClient
                             .checkAndUpdateConfigMap(
                                     configMapName,
                                     c -> {
@@ -151,14 +160,20 @@ public class KubernetesStateHandleStore<T extends Serializable>
                             .get();
             return storeHandle;
         } catch (Exception ex) {
+            final Optional<PossibleInconsistentStateException> possibleInconsistentStateException =
+                    ExceptionUtils.findThrowable(ex, PossibleInconsistentStateException.class);
+            if (possibleInconsistentStateException.isPresent()) {
+                // it's unclear whether the state handle metadata was written to the ConfigMap -
+                // hence, we don't discard the data
+                discardState = false;
+                throw possibleInconsistentStateException.get();
+            }
+
             throw ExceptionUtils.findThrowable(ex, AlreadyExistException.class)
                     .orElseThrow(() -> ex);
         } finally {
-            if (!success) {
-                // Cleanup the state handle if it was not written to ConfigMap.
-                if (storeHandle != null) {
-                    storeHandle.discardState();
-                }
+            if (discardState) {
+                storeHandle.discardState();
             }
         }
     }
@@ -173,6 +188,9 @@ public class KubernetesStateHandleStore<T extends Serializable>
      * @param resourceVersion resource version when checking existence via {@link #exists}.
      * @param state State to be added
      * @throws NotExistException if the name does not exist
+     * @throws PossibleInconsistentStateException if a failure occurred during the update operation.
+     *     It's unclear whether the operation actually succeeded or not. No state was discarded. The
+     *     method's caller should handle this case properly.
      * @throws Exception if persisting state or writing state handle failed
      */
     @Override
@@ -185,11 +203,13 @@ public class KubernetesStateHandleStore<T extends Serializable>
 
         final RetrievableStateHandle<T> newStateHandle = storage.store(state);
 
-        boolean success = false;
+        final byte[] serializedStateHandle = serializeOrDiscard(newStateHandle);
 
+        // initialize flags to serve the failure case
+        boolean discardOldState = false;
+        boolean discardNewState = true;
         try {
-            final byte[] serializedStoreHandle = InstantiationUtil.serializeObject(newStateHandle);
-            success =
+            boolean success =
                     kubeClient
                             .checkAndUpdateConfigMap(
                                     configMapName,
@@ -202,7 +222,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                                         .put(
                                                                 key,
                                                                 encodeStateHandle(
-                                                                        serializedStoreHandle));
+                                                                        serializedStateHandle));
                                             } else {
                                                 throw new CompletionException(
                                                         getKeyNotExistException(key));
@@ -212,13 +232,28 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                         return Optional.empty();
                                     })
                             .get();
+
+            // swap subject for deletion in case of success
+            discardOldState = success;
+            discardNewState = !success;
         } catch (Exception ex) {
+            final Optional<PossibleInconsistentStateException> possibleInconsistentStateException =
+                    ExceptionUtils.findThrowable(ex, PossibleInconsistentStateException.class);
+            if (possibleInconsistentStateException.isPresent()) {
+                // it's unclear whether the state handle metadata was written to the ConfigMap -
+                // hence, we don't discard any data
+                discardNewState = false;
+                throw possibleInconsistentStateException.get();
+            }
+
             throw ExceptionUtils.findThrowable(ex, NotExistException.class).orElseThrow(() -> ex);
         } finally {
-            if (success) {
-                oldStateHandle.discardState();
-            } else {
+            if (discardNewState) {
                 newStateHandle.discardState();
+            }
+
+            if (discardOldState) {
+                oldStateHandle.discardState();
             }
         }
     }
@@ -476,8 +511,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
         final byte[] data = Base64.getDecoder().decode(content);
 
         try {
-            return InstantiationUtil.deserializeObject(
-                    data, Thread.currentThread().getContextClassLoader());
+            return deserialize(data);
         } catch (IOException | ClassNotFoundException e) {
             throw new IOException(
                     "Failed to deserialize state handle from ConfigMap data " + content + '.', e);

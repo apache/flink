@@ -43,8 +43,8 @@ public class TimeWindowUtil {
     /**
      * Convert a epoch mills to timestamp mills which can describe a locate date time.
      *
-     * <p>For example: The timestamp string of epoch mills 5 in GMT+8:00 is 1970-01-01 08:00:05, the
-     * timestamp mills is 8 * 60 * 60 * 1000 + 5.
+     * <p>For example: The timestamp string of epoch mills 5 in GMT+08:00 is 1970-01-01 08:00:05,
+     * the timestamp mills is 8 * 60 * 60 * 1000 + 5.
      *
      * @param epochMills the epoch mills.
      * @param shiftTimeZone the timezone that the given timestamp mills has been shifted.

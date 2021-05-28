@@ -211,6 +211,8 @@ public class DeclarativeSlotManager implements SlotManager {
 
         LOG.info("Suspending the slot manager.");
 
+        slotManagerMetricGroup.close();
+
         resourceTracker.clear();
         if (taskExecutorManager != null) {
             taskExecutorManager.close();
@@ -238,7 +240,6 @@ public class DeclarativeSlotManager implements SlotManager {
         LOG.info("Closing the slot manager.");
 
         suspend();
-        slotManagerMetricGroup.close();
     }
 
     // ---------------------------------------------------------------------------------------------

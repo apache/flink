@@ -196,4 +196,21 @@ public class ExecutionCheckpointingOptions {
                                     .text(
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
+
+    public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
+            ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "It is better to keep this value empty until "
+                                                    + "there is explicit needs to restore from "
+                                                    + "the specific checkpoint without in-flight data.")
+                                    .linebreak()
+                                    .build());
 }

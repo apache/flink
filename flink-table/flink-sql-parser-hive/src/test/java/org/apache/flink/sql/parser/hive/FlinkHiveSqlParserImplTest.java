@@ -440,8 +440,16 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "ALTER TABLE `TBL`\n"
                                 + "DROP\n"
-                                + "PARTITION (`P1` = 'a', `P2` = 1)\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
                                 + "PARTITION (`P1` = 'b', `P2` = 2)");
+        sql("alter table tbl drop partition (p1='a',p2=1), "
+                        + "partition(p1='b',p2=2), partition(p1='c',p2=3)")
+                .ok(
+                        "ALTER TABLE `TBL`\n"
+                                + "DROP\n"
+                                + "PARTITION (`P1` = 'a', `P2` = 1),\n"
+                                + "PARTITION (`P1` = 'b', `P2` = 2),\n"
+                                + "PARTITION (`P1` = 'c', `P2` = 3)");
         // TODO: support IGNORE PROTECTION, PURGE
     }
 
@@ -449,6 +457,13 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     public void testShowPartitions() {
         sql("show partitions tbl").ok("SHOW PARTITIONS `TBL`");
         sql("show partitions tbl partition (p=1)").ok("SHOW PARTITIONS `TBL` PARTITION (`P` = 1)");
+    }
+
+    @Test
+    public void testAddJar() {
+        sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
+        sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
+        sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
     }
 
     @Test

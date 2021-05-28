@@ -112,20 +112,20 @@ public class KubernetesHaServices extends AbstractHaServices {
                 kubeClient,
                 configuration,
                 ioExecutor,
-                this::getLeaderNameForJobManager,
+                this::getLeaderPathForJobManager,
                 lockIdentity);
     }
 
     @Override
     public JobGraphStore createJobGraphStore() throws Exception {
         return KubernetesUtils.createJobGraphStore(
-                configuration, kubeClient, getLeaderNameForDispatcher(), lockIdentity);
+                configuration, kubeClient, getLeaderPathForDispatcher(), lockIdentity);
     }
 
     @Override
     public RunningJobsRegistry createRunningJobsRegistry() {
         return new KubernetesRunningJobsRegistry(
-                kubeClient, getLeaderNameForDispatcher(), lockIdentity);
+                kubeClient, getLeaderPathForDispatcher(), lockIdentity);
     }
 
     @Override
@@ -143,21 +143,26 @@ public class KubernetesHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected String getLeaderNameForResourceManager() {
+    public void internalCleanupJobData(JobID jobID) throws Exception {
+        kubeClient.deleteConfigMap(getLeaderPathForJobManager(jobID)).get();
+    }
+
+    @Override
+    protected String getLeaderPathForResourceManager() {
         return getLeaderName(RESOURCE_MANAGER_NAME);
     }
 
     @Override
-    protected String getLeaderNameForDispatcher() {
+    protected String getLeaderPathForDispatcher() {
         return getLeaderName(DISPATCHER_NAME);
     }
 
-    public String getLeaderNameForJobManager(final JobID jobID) {
+    public String getLeaderPathForJobManager(final JobID jobID) {
         return getLeaderName(jobID.toString() + NAME_SEPARATOR + JOB_MANAGER_NAME);
     }
 
     @Override
-    protected String getLeaderNameForRestServer() {
+    protected String getLeaderPathForRestServer() {
         return getLeaderName(REST_SERVER_NAME);
     }
 

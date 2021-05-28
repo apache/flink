@@ -33,6 +33,7 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -290,13 +291,17 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                                                             Throwable
                                                                                                     throwable) {
                                                                                         LOG.debug(
-                                                                                                "Failed to update ConfigMap {} with data {} because of concurrent "
-                                                                                                        + "modifications. Trying again.",
+                                                                                                "Failed to update ConfigMap {} with data {}. Trying again.",
                                                                                                 configMap
                                                                                                         .getName(),
                                                                                                 configMap
                                                                                                         .getData());
-                                                                                        throw throwable;
+                                                                                        // the
+                                                                                        // client
+                                                                                        // implementation does not expose the different kind of error causes to a degree that we could do a more fine-grained error handling here
+                                                                                        throw new CompletionException(
+                                                                                                new PossibleInconsistentStateException(
+                                                                                                        throwable));
                                                                                     }
                                                                                     return true;
                                                                                 })

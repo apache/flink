@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 
+/** We are performing aligned checkpoints. We have not seen any barriers yet. */
 final class WaitingForFirstBarrier extends AbstractAlignedBarrierHandlerState {
 
     WaitingForFirstBarrier(CheckpointableInput[] inputs) {

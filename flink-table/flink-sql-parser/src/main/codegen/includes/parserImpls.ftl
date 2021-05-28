@@ -463,6 +463,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
 }
@@ -477,6 +478,15 @@ SqlAlterTable SqlAlterTable() :
                         startPos.plus(getPos()),
                         tableIdentifier,
                         newTableIdentifier);
+        }
+    |
+        <RESET>
+        propertyKeyList = TablePropertyKeys()
+        {
+            return new SqlAlterTableReset(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyKeyList);
         }
     |
         <SET>
@@ -503,6 +513,31 @@ SqlAlterTable SqlAlterTable() :
                 startPos.plus(getPos()));
         }
     )
+}
+
+/** Parse a table option key list. */
+SqlNodeList TablePropertyKeys():
+{
+    SqlNode key;
+    final List<SqlNode> proKeyList = new ArrayList<SqlNode>();
+    final Span span;
+}
+{
+    <LPAREN> { span = span(); }
+    [
+        key = StringLiteral()
+        {
+            proKeyList.add(key);
+        }
+        (
+            <COMMA> key = StringLiteral()
+            {
+                proKeyList.add(key);
+            }
+        )*
+    ]
+    <RPAREN>
+    {  return new SqlNodeList(proKeyList, span.end(this)); }
 }
 
 void TableColumn(TableCreationContext context) :
@@ -1602,7 +1637,30 @@ SqlNode SqlRichExplain() :
 }
 {
     <EXPLAIN> [ <PLAN> <FOR> ]
-    stmt = SqlQueryOrDml() {
-        return new SqlRichExplain(getPos(),stmt);
+    (
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlRichExplain(getPos(), stmt);
+    }
+}
+
+/**
+* Parses an ADD JAR statement.
+*/
+SqlAddJar SqlAddJar() :
+{
+    SqlCharStringLiteral jarPath;
+}
+{
+    <ADD> <JAR> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        jarPath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlAddJar(getPos(), jarPath);
     }
 }

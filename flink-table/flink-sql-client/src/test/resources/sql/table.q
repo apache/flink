@@ -90,22 +90,121 @@ CREATE TABLE `default_catalog`.`default_database`.`orders` (
 !ok
 
 # ==========================================================================
-# test alter table
+# test alter table rename
 # ==========================================================================
 
-# test alter table name
 alter table orders rename to orders2;
 [INFO] Execute statement succeed.
 !info
 
+# ==========================================================================
+# test alter table set
+# ==========================================================================
+
 # test alter table properties
-alter table orders2 set ('connector' = 'kafka');
+alter table orders2 set ('connector' = 'kafka', 'scan.startup.mode' = 'earliest-offset');
 [INFO] Execute statement succeed.
 !info
 
-# TODO: verify properties using SHOW CREATE TABLE in the future
+# verify table options using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'kafka',
+  'scan.startup.mode' = 'earliest-offset'
+)
 
+!ok
+
+# change connector to 'datagen' without removing 'scan.startup.mode' for the fix later
+alter table orders2 set ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+# verify table options are problematic
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen',
+  'scan.startup.mode' = 'earliest-offset'
+)
+
+!ok
+
+# test explain plan to verify the table source cannot be created
+explain plan for select * from orders2;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Unsupported options found for 'datagen'.
+
+Unsupported options:
+
+scan.startup.mode
+
+Supported options:
+
+connector
+fields.amount.kind
+fields.amount.max
+fields.amount.min
+fields.product.kind
+fields.product.length
+fields.ts.kind
+fields.user.kind
+fields.user.max
+fields.user.min
+number-of-rows
+rows-per-second
+!error
+
+# ==========================================================================
+# test alter table reset
+# ==========================================================================
+
+# test alter table reset to remove invalid key
+alter table orders2 reset ('scan.startup.mode');
+[INFO] Execute statement succeed.
+!info
+
+# verify table options using SHOW CREATE TABLE
+show create table orders2;
+CREATE TABLE `default_catalog`.`default_database`.`orders2` (
+  `user` BIGINT NOT NULL,
+  `product` VARCHAR(32),
+  `amount` INT,
+  `ts` TIMESTAMP(3),
+  `ptime` AS PROCTIME(),
+  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
+  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+) WITH (
+  'connector' = 'datagen'
+)
+
+!ok
+
+# test alter table reset emtpy key
+alter table orders2 reset ();
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: ALTER TABLE RESET does not support empty key
+!error
+
+# ==========================================================================
 # test describe table
+# ==========================================================================
+
 describe orders2;
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+
 |    name |                        type |  null |       key |        extras |                  watermark |
@@ -131,22 +230,6 @@ desc orders2;
 |   ptime | TIMESTAMP_LTZ(3) *PROCTIME* | false |           | AS PROCTIME() |                            |
 +---------+-----------------------------+-------+-----------+---------------+----------------------------+
 5 rows in set
-!ok
-
-# test SHOW CREATE TABLE
-show create table orders2;
-CREATE TABLE `default_catalog`.`default_database`.`orders2` (
-  `user` BIGINT NOT NULL,
-  `product` VARCHAR(32),
-  `amount` INT,
-  `ts` TIMESTAMP(3),
-  `ptime` AS PROCTIME(),
-  WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
-) WITH (
-  'connector' = 'kafka'
-)
-
 !ok
 
 # ==========================================================================

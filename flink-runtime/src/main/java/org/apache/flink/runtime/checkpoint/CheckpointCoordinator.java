@@ -37,6 +37,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -205,6 +206,9 @@ public class CheckpointCoordinator {
 
     private boolean isPreferCheckpointForRecovery;
 
+    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
+    private final long checkpointIdOfIgnoredInFlightData;
+
     private final CheckpointFailureManager failureManager;
 
     private final Clock clock;
@@ -308,6 +312,7 @@ public class CheckpointCoordinator {
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
         this.alignmentTimeout = chkConfig.getAlignmentTimeout();
+        this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
         this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
         this.masterHooks = new HashMap<>();
@@ -1208,21 +1213,16 @@ public class CheckpointCoordinator {
                 completedCheckpointStore.addCheckpoint(
                         completedCheckpoint, checkpointsCleaner, this::scheduleTriggerRequest);
             } catch (Exception exception) {
-                // we failed to store the completed checkpoint. Let's clean up
-                executor.execute(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    completedCheckpoint.discardOnFailedStoring();
-                                } catch (Throwable t) {
-                                    LOG.warn(
-                                            "Could not properly discard completed checkpoint {}.",
-                                            completedCheckpoint.getCheckpointID(),
-                                            t);
-                                }
-                            }
-                        });
+                if (exception instanceof PossibleInconsistentStateException) {
+                    LOG.warn(
+                            "An error occurred while writing checkpoint {} to the underlying metadata store. Flink was not able to determine whether the metadata was successfully persisted. The corresponding state located at '{}' won't be discarded and needs to be cleaned up manually.",
+                            completedCheckpoint.getCheckpointID(),
+                            completedCheckpoint.getExternalPointer());
+                } else {
+                    // we failed to store the completed checkpoint. Let's clean up
+                    checkpointsCleaner.cleanCheckpointOnFailedStoring(
+                            completedCheckpoint, executor);
+                }
 
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
@@ -1557,7 +1557,7 @@ public class CheckpointCoordinator {
             LOG.info("Restoring job {} from {}.", job, latest);
 
             // re-assign the task states
-            final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
+            final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
@@ -1597,6 +1597,42 @@ public class CheckpointCoordinator {
 
             return OptionalLong.of(latest.getCheckpointID());
         }
+    }
+
+    private Map<OperatorID, OperatorState> extractOperatorStates(CompletedCheckpoint checkpoint) {
+        Map<OperatorID, OperatorState> originalOperatorStates = checkpoint.getOperatorStates();
+
+        if (checkpoint.getCheckpointID() != checkpointIdOfIgnoredInFlightData) {
+            // Don't do any changes if it is not required.
+            return originalOperatorStates;
+        }
+
+        HashMap<OperatorID, OperatorState> newStates = new HashMap<>();
+        // Create the new operator states without in-flight data.
+        for (OperatorState originalOperatorState : originalOperatorStates.values()) {
+            OperatorState newState =
+                    new OperatorState(
+                            originalOperatorState.getOperatorID(),
+                            originalOperatorState.getParallelism(),
+                            originalOperatorState.getMaxParallelism());
+
+            newStates.put(newState.getOperatorID(), newState);
+
+            for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                    originalOperatorState.getSubtaskStates().entrySet()) {
+
+                newState.putState(
+                        originalSubtaskStateEntry.getKey(),
+                        originalSubtaskStateEntry
+                                .getValue()
+                                .toBuilder()
+                                .setResultSubpartitionState(StateObjectCollection.empty())
+                                .setInputChannelState(StateObjectCollection.empty())
+                                .build());
+            }
+        }
+
+        return newStates;
     }
 
     /**

@@ -32,6 +32,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
@@ -161,6 +162,11 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     /** ExecutorService to run operations that can be retried on exceptions. */
     private ScheduledExecutorService retryExecutorService;
 
+    private final Predicate<Throwable> unknownJobStateRetryable =
+            exception ->
+                    ExceptionUtils.findThrowable(exception, JobStateUnknownException.class)
+                            .isPresent();
+
     public RestClusterClient(Configuration config, T clusterId) throws Exception {
         this(config, clusterId, HighAvailabilityServicesUtils.createClientHAService(config));
     }
@@ -270,7 +276,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
-        return getJobDetails(jobId).thenApply(JobDetailsInfo::getJobStatus);
+        final CheckedSupplier<CompletableFuture<JobStatus>> operation =
+                () -> requestJobStatus(jobId);
+        return retry(operation, unknownJobStateRetryable);
     }
 
     /**
@@ -283,12 +291,9 @@ public class RestClusterClient<T> implements ClusterClient<T> {
      */
     @Override
     public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
-        return pollResourceAsync(
-                () -> {
-                    final JobMessageParameters messageParameters = new JobMessageParameters();
-                    messageParameters.jobPathParameter.resolve(jobId);
-                    return sendRequest(JobExecutionResultHeaders.getInstance(), messageParameters);
-                });
+        final CheckedSupplier<CompletableFuture<JobResult>> operation =
+                () -> requestJobResultInternal(jobId);
+        return retry(operation, unknownJobStateRetryable);
     }
 
     @Override
@@ -699,6 +704,44 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     // -------------------------------------------------------------------------
     // RestClient Helper
     // -------------------------------------------------------------------------
+
+    private CompletableFuture<JobStatus> requestJobStatus(JobID jobId) {
+        return getJobDetails(jobId)
+                .thenApply(JobDetailsInfo::getJobStatus)
+                .thenApply(
+                        jobStatus -> {
+                            if (jobStatus == JobStatus.SUSPENDED) {
+                                throw new JobStateUnknownException(
+                                        String.format("Job %s is in state SUSPENDED", jobId));
+                            }
+                            return jobStatus;
+                        });
+    }
+
+    private static class JobStateUnknownException extends RuntimeException {
+        public JobStateUnknownException(String message) {
+            super(message);
+        }
+    }
+
+    private CompletableFuture<JobResult> requestJobResultInternal(@Nonnull JobID jobId) {
+        return pollResourceAsync(
+                        () -> {
+                            final JobMessageParameters messageParameters =
+                                    new JobMessageParameters();
+                            messageParameters.jobPathParameter.resolve(jobId);
+                            return sendRequest(
+                                    JobExecutionResultHeaders.getInstance(), messageParameters);
+                        })
+                .thenApply(
+                        jobResult -> {
+                            if (jobResult.getApplicationStatus() == ApplicationStatus.UNKNOWN) {
+                                throw new JobStateUnknownException(
+                                        String.format("Result for Job %s is UNKNOWN", jobId));
+                            }
+                            return jobResult;
+                        });
+    }
 
     private <
                     M extends MessageHeaders<EmptyRequestBody, P, U>,

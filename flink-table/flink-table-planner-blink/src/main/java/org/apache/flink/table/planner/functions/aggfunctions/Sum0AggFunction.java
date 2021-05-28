@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -28,11 +29,13 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import java.math.BigDecimal;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /** built-in sum0 aggregate function. */
 public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
@@ -56,20 +59,25 @@ public abstract class Sum0AggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum0 = */ ifThenElse(isNull(operand(0)), sum0, plus(sum0, operand(0)))
+            /* sum0 = */ adjustSumType(ifThenElse(isNull(operand(0)), sum0, plus(sum0, operand(0))))
         };
     }
 
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum0 = */ ifThenElse(isNull(operand(0)), sum0, minus(sum0, operand(0)))
+            /* sum0 = */ adjustSumType(
+                    ifThenElse(isNull(operand(0)), sum0, minus(sum0, operand(0))))
         };
     }
 
     @Override
     public Expression[] mergeExpressions() {
-        return new Expression[] {/* sum0 = */ plus(sum0, mergeOperand(sum0))};
+        return new Expression[] {/* sum0 = */ adjustSumType(plus(sum0, mergeOperand(sum0)))};
+    }
+
+    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
+        return cast(sumExpr, typeLiteral(getResultType()));
     }
 
     @Override

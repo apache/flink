@@ -27,13 +27,18 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
@@ -43,10 +48,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -54,6 +61,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests of {@link FineGrainedSlotManager}. */
@@ -738,6 +746,86 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
     }
 
     @Test
+    public void testGetResourceOverview() throws Exception {
+        final TaskExecutorConnection taskExecutorConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection taskExecutorConnection2 = createTaskExecutorConnection();
+        final ResourceID resourceId1 = ResourceID.generate();
+        final ResourceID resourceId2 = ResourceID.generate();
+
+        final SlotID slotId1 = new SlotID(resourceId1, 0);
+        final SlotID slotId2 = new SlotID(resourceId2, 0);
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        final SlotStatus slotStatus1 =
+                new SlotStatus(slotId1, resourceProfile1, new JobID(), new AllocationID());
+        final SlotStatus slotStatus2 =
+                new SlotStatus(slotId2, resourceProfile2, new JobID(), new AllocationID());
+        final SlotReport slotReport1 = new SlotReport(slotStatus1);
+        final SlotReport slotReport2 = new SlotReport(slotStatus2);
+
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final CompletableFuture<Boolean> registerTaskManagerFuture1 =
+                                    new CompletableFuture<>();
+                            final CompletableFuture<Boolean> registerTaskManagerFuture2 =
+                                    new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        registerTaskManagerFuture1.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection1,
+                                                                slotReport1,
+                                                                resourceProfile1.multiply(2),
+                                                                resourceProfile1));
+                                        registerTaskManagerFuture2.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection2,
+                                                                slotReport2,
+                                                                resourceProfile2.multiply(2),
+                                                                resourceProfile2));
+                                    });
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture1),
+                                    is(true));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture2),
+                                    is(true));
+                            assertThat(
+                                    getSlotManager().getFreeResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2));
+                            assertThat(
+                                    getSlotManager().getRegisteredResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2).multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1.multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2.multiply(2)));
+                        });
+            }
+        };
+    }
+
+    @Test
     public void testMaxTotalResourceMemoryExceeded() throws Exception {
         Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
                 (smConfigBuilder) ->
@@ -866,5 +954,44 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                         });
             }
         };
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final AtomicInteger registeredMetrics = new AtomicInteger();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer((a, b, c) -> registeredMetrics.incrementAndGet())
+                        .setUnregisterConsumer((a, b, c) -> registeredMetrics.decrementAndGet())
+                        .build();
+
+        final Context context = new Context();
+        context.setSlotManagerMetricGroup(
+                SlotManagerMetricGroup.create(metricRegistry, "localhost"));
+
+        context.runTest(
+                () -> {
+                    // sanity check to ensure metrics were actually registered
+                    assertThat(registeredMetrics.get(), greaterThan(0));
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                try {
+                                    closeFn.accept(context.getSlotManager());
+                                } catch (Exception e) {
+                                    fail("Error when closing slot manager.");
+                                }
+                            });
+                    assertThat(registeredMetrics.get(), is(0));
+                });
     }
 }

@@ -215,9 +215,6 @@ public class JobExceptionsHandler
         Preconditions.checkArgument(
                 exceptionHistoryEntry.getFailingTaskName() != null,
                 "The taskName must not be null for a non-global failure.");
-        Preconditions.checkArgument(
-                exceptionHistoryEntry.getTaskManagerLocation() != null,
-                "The location must not be null for a non-global failure.");
     }
 
     @VisibleForTesting

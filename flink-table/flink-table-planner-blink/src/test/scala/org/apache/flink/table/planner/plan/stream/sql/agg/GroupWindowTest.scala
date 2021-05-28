@@ -456,4 +456,46 @@ class GroupWindowTest extends TableTestBase {
         |""".stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testWindowAggregateOnRetractStream(): Unit = {
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM  (
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |   ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rowNum
+        |   FROM MyTable
+        | )
+        | WHERE rowNum = 1
+        |)
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWindowAggregateOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts AS PROCTIME(),
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    val query =
+      """
+        |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
+  }
 }

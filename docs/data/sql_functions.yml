@@ -471,7 +471,7 @@ temporal:
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
     description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
   - sql: CONVERT_TZ(string1, string2, string3)
-    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
+    description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
     description: Returns a representation of the numeric argument as a value in string format (default is 'yyyy-MM-dd HH:mm:ss'). numeric is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig). E.g., FROM_UNIXTIME(44) returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.
   - sql: UNIX_TIMESTAMP()

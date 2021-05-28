@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
-import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.containsWindowStartEqualityAndEndEquality
+import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -64,7 +64,7 @@ class StreamPhysicalJoinRule
       return false
     }
 
-    if (containsWindowStartEqualityAndEndEquality(join)) {
+    if (satisfyWindowJoin(join)) {
       return false
     }
 

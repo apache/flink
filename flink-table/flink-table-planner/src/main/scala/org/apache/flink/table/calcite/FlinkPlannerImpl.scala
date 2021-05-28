@@ -19,6 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql.{SqlRichDescribeTable, SqlRichExplain, SqlShowCatalogs,
   SqlShowCurrentCatalog, SqlShowCurrentDatabase, SqlShowDatabases,
   SqlShowFunctions, SqlShowTables, SqlShowViews}
@@ -135,8 +136,15 @@ class FlinkPlannerImpl(
       }
       sqlNode match {
         case richExplain: SqlRichExplain =>
-          val validated = validator.validate(richExplain.getStatement)
-          richExplain.setOperand(0, validated)
+          val validatedStatement = richExplain.getStatement match {
+            case insert: RichSqlInsert =>
+              val validatedSource = validator.validate(insert.getSource)
+              insert.setOperand(2, validatedSource)
+              insert
+            case others =>
+              validator.validate(others)
+          }
+          richExplain.setOperand(0, validatedStatement)
           richExplain
         case _ =>
           validator.validate(sqlNode)

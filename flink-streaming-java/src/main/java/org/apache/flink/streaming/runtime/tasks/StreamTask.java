@@ -77,7 +77,6 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
@@ -249,6 +248,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private Long activeSyncSavepointId = null;
 
     private long latestAsyncCheckpointStartDelayNanos;
+
+    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     // ------------------------------------------------------------------------
 
@@ -759,7 +760,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
 
-        if (suppressedException != null) {
+        if (suppressedException == null) {
+            terminationFuture.complete(null);
+        } else {
+            terminationFuture.completeExceptionally(suppressedException);
             throw suppressedException;
         }
     }
@@ -769,7 +773,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     @Override
-    public final void cancel() throws Exception {
+    public final Future<Void> cancel() throws Exception {
         isRunning = false;
         canceled = true;
 
@@ -793,6 +797,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                 }
                             });
         }
+        return terminationFuture;
     }
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
@@ -923,10 +928,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     public StreamConfig getConfiguration() {
         return configuration;
-    }
-
-    public StreamStatusMaintainer getStreamStatusMaintainer() {
-        return operatorChain;
     }
 
     RecordWriterOutput<?>[] getStreamOutputs() {
