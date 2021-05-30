@@ -184,7 +184,8 @@ public class SlotPoolInteractionsTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPool() throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
+        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
+                .build();
     }
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {

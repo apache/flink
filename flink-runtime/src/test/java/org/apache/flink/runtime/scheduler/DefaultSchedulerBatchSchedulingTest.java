@@ -32,10 +32,10 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridge;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -180,7 +180,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     private DeclarativeSlotPoolBridge createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).setBatchSlotTimeout(batchSlotTimeout).build();
+        return new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor)
+                .setBatchSlotTimeout(batchSlotTimeout)
+                .build();
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {

@@ -52,7 +52,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
     private boolean autoLoadRequirement = true;
     private int resourceRequirementCount = 100;
 
-    public DeclarativeSlotPoolBridgeBuilder(ComponentMainThreadExecutor componentMainThreadExecutor) {
+    public DeclarativeSlotPoolBridgeBuilder(
+            ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.componentMainThreadExecutor = componentMainThreadExecutor;
     }
 
@@ -101,15 +102,16 @@ public class DeclarativeSlotPoolBridgeBuilder {
         }
         if (resourceManagerGateway != null) {
             CompletableFuture.runAsync(
-                            () -> slotPool.connectToResourceManager(resourceManagerGateway),
-                            componentMainThreadExecutor)
+                    () -> slotPool.connectToResourceManager(resourceManagerGateway),
+                    componentMainThreadExecutor)
                     .join();
         }
 
         return slotPool;
     }
 
-    public DeclarativeSlotPoolBridgeBuilder setAutoLoadRequirementCount(int resourceRequirementCount) {
+    public DeclarativeSlotPoolBridgeBuilder setAutoLoadRequirementCount(
+            int resourceRequirementCount) {
         this.resourceRequirementCount = resourceRequirementCount;
         return this;
     }
