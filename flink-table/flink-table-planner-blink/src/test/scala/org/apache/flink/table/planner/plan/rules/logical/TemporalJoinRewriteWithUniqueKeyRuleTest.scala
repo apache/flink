@@ -46,7 +46,7 @@ class TemporalJoinRewriteWithUniqueKeyRuleTest extends TableTestBase {
         .add(RuleSets.ofList(
           FlinkLogicalRankRule.INSTANCE,
           CalcRankTransposeRule.INSTANCE,
-          RankNumberColumnRemoveRule.INSTANCE,
+          ConstantRankNumberColumnRemoveRule.INSTANCE,
           CalcSnapshotTransposeRule.INSTANCE,
           TemporalJoinRewriteWithUniqueKeyRule.INSTANCE))
         .build())

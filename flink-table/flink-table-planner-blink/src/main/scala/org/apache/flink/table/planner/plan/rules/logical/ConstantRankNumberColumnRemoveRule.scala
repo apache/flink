@@ -31,10 +31,10 @@ import java.math.{BigDecimal => JBigDecimal}
   * Planner rule that removes the output column of rank number
   * iff there is a equality condition for the rank column.
   */
-class RankNumberColumnRemoveRule
+class ConstantRankNumberColumnRemoveRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalRank], any()),
-    "RankFunctionColumnRemoveRule") {
+    "ConstantRankNumberColumnRemoveRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
@@ -79,6 +79,6 @@ class RankNumberColumnRemoveRule
   }
 }
 
-object RankNumberColumnRemoveRule {
-  val INSTANCE = new RankNumberColumnRemoveRule
+object ConstantRankNumberColumnRemoveRule {
+  val INSTANCE = new ConstantRankNumberColumnRemoveRule
 }

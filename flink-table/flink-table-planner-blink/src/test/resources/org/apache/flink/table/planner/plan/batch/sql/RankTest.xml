@@ -151,7 +151,7 @@ LogicalProject(a=[$0], b=[$1], rk=[$2])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, 2:BIGINT AS $2])
-+- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c, w0$o0])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
    +- Sort(orderBy=[b ASC, a ASC, c ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
@@ -280,6 +280,80 @@ Calc(select=[CAST(rna) AS rn1, CAST(w0$o0) AS rn2], where=[(w0$o0 <= 200)])
                +- Sort(orderBy=[a ASC, c ASC, b DESC])
                   +- Exchange(distribution=[hash[a, c]])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRedundantRankNumberColumnRemove">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  CONCAT('http://txmov2.a.yximgs.com', uri) AS url,
+  reqcount AS download_count,
+  start_time AS `timestamp`
+FROM
+  (
+    SELECT
+      uri,
+      reqcount,
+      rownum_2,
+      start_time
+    FROM
+      (
+        SELECT
+          uri,
+          reqcount,
+          start_time,
+          RANK() OVER (
+            PARTITION BY start_time
+            ORDER BY
+              reqcount DESC
+          ) AS rownum_2
+        FROM
+          (
+            SELECT
+            uri,
+            reqcount,
+            start_time,
+            RANK() OVER (
+                PARTITION BY start_time, bucket_id
+                ORDER BY
+                reqcount DESC
+            ) AS rownum_1
+            FROM MyTable1
+          )
+        WHERE
+          rownum_1 <= 100000
+      )
+    WHERE
+      rownum_2 <= 100000
+  )
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$2])
++- LogicalFilter(condition=[<=($3, 100000)])
+   +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[RANK() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[<=($3, 100000)])
+         +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[RANK() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time])
+   +- Sort(orderBy=[start_time ASC, reqcount DESC])
+      +- Exchange(distribution=[hash[start_time]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time])
+            +- Sort(orderBy=[start_time ASC, reqcount DESC])
+               +- Calc(select=[uri, reqcount, start_time])
+                  +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time, bucket_id])
+                     +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
+                        +- Exchange(distribution=[hash[start_time, bucket_id]])
+                           +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time, bucket_id])
+                              +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
+                                 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
 ]]>
     </Resource>
   </TestCase>
