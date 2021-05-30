@@ -298,7 +298,7 @@ object FlinkBatchRuleSets {
     // transpose calc past rank to reduce rank input fields
     CalcRankTransposeRule.INSTANCE,
     // remove output of rank number when it is a constant
-    RankNumberColumnRemoveRule.INSTANCE,
+    ConstantRankNumberColumnRemoveRule.INSTANCE,
 
     // calc rules
     CoreRules.FILTER_CALC_MERGE,
@@ -306,6 +306,9 @@ object FlinkBatchRuleSets {
     CoreRules.FILTER_TO_CALC,
     CoreRules.PROJECT_TO_CALC,
     FlinkCalcMergeRule.INSTANCE,
+
+    // remove output of rank number when it is not used by successor calc
+    RedundantRankNumberColumnRemoveRule.INSTANCE,
 
     // semi/anti join transpose rule
     FlinkSemiAntiJoinJoinTransposeRule.INSTANCE,

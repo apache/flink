@@ -19,36 +19,34 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalRank}
-import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
+import org.apache.flink.table.planner.plan.utils.InputRefVisitor
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgramBuilder
 
-import java.math.{BigDecimal => JBigDecimal}
+import scala.collection.JavaConversions._
 
 /**
   * Planner rule that removes the output column of rank number
-  * iff there is a equality condition for the rank column.
+  * iff the rank number column is not used by successor calc.
   */
-class RankNumberColumnRemoveRule
+class RedundantRankNumberColumnRemoveRule
   extends RelOptRule(
-    operand(classOf[FlinkLogicalRank], any()),
-    "RankFunctionColumnRemoveRule") {
+    operand(classOf[FlinkLogicalCalc],
+      operand(classOf[FlinkLogicalRank], any())),
+    "RedundantRankNumberColumnRemoveRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val rank: FlinkLogicalRank = call.rel(0)
-    val isRowNumber = rank.rankType == RankType.ROW_NUMBER
-    val constantRowNumber = rank.rankRange match {
-      case range: ConstantRankRange => range.getRankStart == range.getRankEnd
-      case _ => false
-    }
-    isRowNumber && constantRowNumber && rank.outputRankNumber
+    val calc: FlinkLogicalCalc = call.rel(0)
+    val rank: FlinkLogicalRank = call.rel(1)
+    val rankNumberColumnIdx = rank.getRowType.getFieldCount - 1
+    rank.outputRankNumber && !isFieldUsedByCalc(calc, rankNumberColumnIdx)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val rank: FlinkLogicalRank = call.rel(0)
-    val rowNumber = rank.rankRange.asInstanceOf[ConstantRankRange].getRankStart
+    val calc: FlinkLogicalCalc = call.rel(0)
+    val rank: FlinkLogicalRank = call.rel(1)
     val newRank = new FlinkLogicalRank(
       rank.getCluster,
       rank.getTraitSet,
@@ -61,24 +59,32 @@ class RankNumberColumnRemoveRule
       outputRankNumber = false)
 
     val rexBuilder = rank.getCluster.getRexBuilder
+    val oldProgram = calc.getProgram
     val programBuilder = new RexProgramBuilder(newRank.getRowType, rexBuilder)
-    val fieldCount = rank.getRowType.getFieldCount
-    val fieldNames = rank.getRowType.getFieldNames
-    for (i <- 0 until fieldCount) {
-      if (i < fieldCount - 1) {
-        programBuilder.addProject(i, i, fieldNames.get(i))
-      } else {
-        val rowNumberLiteral = rexBuilder.makeBigintLiteral(new JBigDecimal(rowNumber))
-        programBuilder.addProject(i, rowNumberLiteral, fieldNames.get(i))
-      }
+    oldProgram.getNamedProjects.foreach { pair =>
+      programBuilder.addProject(oldProgram.expandLocalRef(pair.left), pair.right)
     }
-
+    if (oldProgram.getCondition != null) {
+      programBuilder.addCondition(oldProgram.expandLocalRef(oldProgram.getCondition))
+    }
     val rexProgram = programBuilder.getProgram
-    val calc = FlinkLogicalCalc.create(newRank, rexProgram)
-    call.transformTo(calc)
+    val newCalc = FlinkLogicalCalc.create(newRank, rexProgram)
+    call.transformTo(newCalc)
+  }
+
+  private def isFieldUsedByCalc(calc: FlinkLogicalCalc, inputRefIdx: Int): Boolean = {
+    val projectsAndConditions = calc.getProgram.split()
+    val projects = projectsAndConditions.left
+    val conditions = projectsAndConditions.right
+    val visitor = new InputRefVisitor
+    // extract referenced input fields from projections
+    projects.foreach(exp => exp.accept(visitor))
+    // extract referenced input fields from condition
+    conditions.foreach(_.accept(visitor))
+    visitor.getFields.contains(inputRefIdx)
   }
 }
 
-object RankNumberColumnRemoveRule {
-  val INSTANCE = new RankNumberColumnRemoveRule
+object RedundantRankNumberColumnRemoveRule {
+  val INSTANCE = new RedundantRankNumberColumnRemoveRule
 }
