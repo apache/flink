@@ -58,14 +58,71 @@ class WindowJoinTest extends TableTestBase {
 
   // ----------------------------------------------------------------------------------------
   // Tests for queries Join on window TVF
-  // Current does not support merge Window TVF into WindowJoin.
   // ----------------------------------------------------------------------------------------
 
   @Test
-  def testCantMergeWindowTVF_Tumble(): Unit = {
+  def testSimplifyTumbleWindowTVFBeforeWindowJoinWithTwoCalc(): Unit = {
     val sql =
       """
-        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyTumbleWindowTVFBeforeWindowJoinWithLeftCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyTumbleWindowTVFBeforeWindowJoinWithRightCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyTumbleWindowTVFBeforeWindowJoin(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |  SELECT *
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -98,10 +155,74 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_Hop(): Unit = {
+  def testSimplifyHopWindowTVFBeforeWindowJoinWithTwoCalc(): Unit = {
     val sql =
       """
-        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyHopWindowTVFBeforeWindowJoinWithLeftCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyHopWindowTVFBeforeWindowJoinWithRightCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  HOP(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyHopWindowTVFBeforeWindowJoin(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |  SELECT *
         |  FROM TABLE(
@@ -138,10 +259,74 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_Cumulate(): Unit = {
+  def testSimplifyCumulateWindowTVFBeforeWindowJoinWithTwoCalc(): Unit = {
     val sql =
       """
-        |SELECT L.a, L.b, L.c, R.a, R.b, R.c
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyCumulateWindowTVFBeforeWindowJoinWithLeftCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  WHERE c > 10
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyCumulateWindowTVFBeforeWindowJoinWithRightCalc(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |) L
+        |JOIN (
+        |  SELECT *
+        |  FROM TABLE(
+        |  CUMULATE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |  WHERE c > 10
+        |) R
+        |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyCumulateWindowTVFBeforeWindowJoin(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |  SELECT *
         |  FROM TABLE(

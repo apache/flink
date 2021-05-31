@@ -104,13 +104,17 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.rankType = rankType;
-        this.rankRange = rankRange;
-        this.sortSpec = sortSpec;
-        this.partitionSpec = partitionSpec;
-        this.outputRankNumber = outputRankNumber;
-        this.windowing = windowing;
+        this(
+                rankType,
+                partitionSpec,
+                sortSpec,
+                rankRange,
+                outputRankNumber,
+                windowing,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
     }
 
     @JsonCreator

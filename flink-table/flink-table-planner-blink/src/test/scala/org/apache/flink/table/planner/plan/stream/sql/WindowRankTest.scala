@@ -47,15 +47,29 @@ class WindowRankTest extends TableTestBase {
        |""".stripMargin)
 
   // ----------------------------------------------------------------------------------------
-  // Tests for queries Rank on window TVF, Current does not support merge Window TVF into
-  // WindowRank.
+  // Tests for queries Rank on window TVF
   // ----------------------------------------------------------------------------------------
 
   @Test
-  def testCantMergeWindowTVF_Tumble(): Unit = {
+  def testSimplifyTumbleWindowTVFBeforeWindowRankWithCalc(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
+        |FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyTumbleWindowTVFBeforeWindowRank(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |SELECT *,
         |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
@@ -82,10 +96,26 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_Hop(): Unit = {
+  def testSimplifyHopWindowTVFBeforeWindowRankWithCalc(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
+        |FROM TABLE(
+        |  HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE, INTERVAL '10' MINUTE))
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyHopWindowTVFBeforeWindowRank(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |SELECT *,
         |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
@@ -114,10 +144,26 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_Cumulate(): Unit = {
+  def testSimplifyCumulateWindowTVFBeforeWindowRankWithCalc(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
+        |FROM (
+        |SELECT *,
+        |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
+        |FROM TABLE(
+        |  CUMULATE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '10' MINUTE, INTERVAL '1' HOUR))
+        |)
+        |WHERE rownum <= 3
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testSimplifyCumulateWindowTVFBeforeWindowRank(): Unit = {
+    val sql =
+      """
+        |SELECT *
         |FROM (
         |SELECT *,
         |   ROW_NUMBER() OVER(PARTITION BY a, window_start, window_end ORDER BY b DESC) as rownum
