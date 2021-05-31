@@ -27,9 +27,13 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -311,7 +315,21 @@ public class TypeStrategiesTest {
                                 "Average without grouped aggregation",
                                 TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                         .inputTypes(DataTypes.INT().notNull())
-                        .expectDataType(DataTypes.INT()));
+                        .expectDataType(DataTypes.INT()),
+
+                // CURRENT_WATERMARK
+                TestSpec.forStrategy("TIMESTAMP(3) *ROWTIME*", TypeStrategies.CURRENT_WATERMARK)
+                        .inputTypes(createRowtimeType(TimestampKind.ROWTIME, 3).notNull())
+                        .expectDataType(DataTypes.TIMESTAMP(3)),
+                TestSpec.forStrategy("TIMESTAMP_LTZ(3) *ROWTIME*", TypeStrategies.CURRENT_WATERMARK)
+                        .inputTypes(createRowtimeLtzType(TimestampKind.ROWTIME, 3).notNull())
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3)),
+                TestSpec.forStrategy("TIMESTAMP(9) *ROWTIME*", TypeStrategies.CURRENT_WATERMARK)
+                        .inputTypes(createRowtimeType(TimestampKind.ROWTIME, 9).notNull())
+                        .expectDataType(DataTypes.TIMESTAMP(3)),
+                TestSpec.forStrategy("TIMESTAMP_LTZ(9) *ROWTIME*", TypeStrategies.CURRENT_WATERMARK)
+                        .inputTypes(createRowtimeLtzType(TimestampKind.ROWTIME, 9).notNull())
+                        .expectDataType(DataTypes.TIMESTAMP_LTZ(3)));
     }
 
     @Parameter public TestSpec testSpec;
@@ -442,5 +460,14 @@ public class TypeStrategiesTest {
                         InputTypeStrategies.explicit(DataTypes.BOOLEAN())),
                 explicit(DataTypes.STRING()));
         return TypeStrategies.mapping(mappings);
+    }
+
+    private static DataType createRowtimeType(TimestampKind kind, int precision) {
+        return TypeConversions.fromLogicalToDataType(new TimestampType(false, kind, precision));
+    }
+
+    private static DataType createRowtimeLtzType(TimestampKind kind, int precision) {
+        return TypeConversions.fromLogicalToDataType(
+                new LocalZonedTimestampType(false, kind, precision));
     }
 }

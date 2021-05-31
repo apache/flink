@@ -1387,6 +1387,16 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(TypeStrategies.MISSING)
                     .build();
 
+    public static final BuiltInFunctionDefinition CURRENT_WATERMARK =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("CURRENT_WATERMARK")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                    .outputTypeStrategy(TypeStrategies.CURRENT_WATERMARK)
+                    .notDeterministic()
+                    .runtimeProvided()
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Over window
     // --------------------------------------------------------------------------------------------
