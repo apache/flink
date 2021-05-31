@@ -56,7 +56,7 @@ public class ExceptionUtilsITCase extends TestLogger {
     public void testIsDirectOutOfMemoryError() throws IOException, InterruptedException {
         String className = DummyDirectAllocatingProgram.class.getName();
         RunResult result = run(className, Collections.emptyList(), DIRECT_MEMORY_SIZE, -1);
-        assertThat(result.getErrorOut() + result.getStandardOut(), is(""));
+        assertThat(result.getErrorOut() + "|" + result.getStandardOut(), is("|"));
     }
 
     @Test
@@ -70,7 +70,7 @@ public class ExceptionUtilsITCase extends TestLogger {
         RunResult oomOut = run(className, getDummyClassLoadingProgramArgs(1000), -1, okMetaspace);
         // 'OutOfMemoryError: Metaspace' errors are caught, hence no output means we produced the
         // expected exception.
-        assertThat(oomOut.getErrorOut() + oomOut.getStandardOut(), is(""));
+        assertThat(oomOut.getErrorOut() + "|" + oomOut.getStandardOut(), is("|"));
     }
 
     private static RunResult run(
