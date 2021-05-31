@@ -42,7 +42,7 @@ under the License.
 
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -50,6 +50,19 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Table ecosystem -->
+
+		<!-- Projects depending on this project won't depend on flink-table-*. -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<!-- Flink Elasticsearch -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -64,6 +77,8 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Elasticsearch -->
+
 		<!-- Dependency for Elasticsearch 6.x REST Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
@@ -71,17 +86,7 @@ under the License.
 			<version>${elasticsearch.version}</version>
 		</dependency>
 
-		<!-- Table ecosystem -->
-		<!-- Projects depending on this project won't depend on flink-table-*. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-
-		<!-- test dependencies -->
+		<!-- Tests -->
 
 		<dependency>
 			<groupId>org.testcontainers</groupId>
@@ -141,15 +146,6 @@ under the License.
 			<groupId>org.apache.logging.log4j</groupId>
 			<artifactId>log4j-api</artifactId>
 			<scope>provided</scope>
-		</dependency>
-
-		<!-- Elasticsearch table descriptor testing -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<type>test-jar</type>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- Table API integration tests -->
