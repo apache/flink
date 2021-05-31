@@ -109,7 +109,7 @@ public final class CliUtils {
             if (parent == null) {
                 return false;
             }
-            Files.createDirectories(parent);
+            Files.createDirectories(parent.toRealPath());
             if (Files.notExists(filePath)) {
                 Files.createFile(filePath);
             }
