@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -169,16 +170,18 @@ class TaskStateAssignment {
                                 instanceID,
                                 inputOperatorID,
                                 getUpstreamAssignments(),
-                                assignment ->
-                                        assignment.outputSubtaskMappings.get(
-                                                getAssignmentIndex(
-                                                        assignment.getDownstreamAssignments(),
-                                                        this)),
-                                assignment ->
-                                        assignment.getOutputMapping(
-                                                getAssignmentIndex(
-                                                        assignment.getDownstreamAssignments(),
-                                                        this)),
+                                (assignment, recompute) -> {
+                                    int assignmentIndex =
+                                            getAssignmentIndex(
+                                                    assignment.getDownstreamAssignments(), this);
+                                    SubtasksRescaleMapping mapping =
+                                            assignment.outputSubtaskMappings.get(assignmentIndex);
+                                    if (recompute && mapping == null) {
+                                        return assignment.getOutputMapping(assignmentIndex);
+                                    } else {
+                                        return mapping;
+                                    }
+                                },
                                 inputSubtaskMappings,
                                 this::getInputMapping))
                 .setOutputRescalingDescriptor(
@@ -186,14 +189,18 @@ class TaskStateAssignment {
                                 instanceID,
                                 outputOperatorID,
                                 getDownstreamAssignments(),
-                                assignment ->
-                                        assignment.inputSubtaskMappings.get(
-                                                getAssignmentIndex(
-                                                        assignment.getUpstreamAssignments(), this)),
-                                assignment ->
-                                        assignment.getInputMapping(
-                                                getAssignmentIndex(
-                                                        assignment.getUpstreamAssignments(), this)),
+                                (assignment, recompute) -> {
+                                    int assignmentIndex =
+                                            getAssignmentIndex(
+                                                    assignment.getUpstreamAssignments(), this);
+                                    SubtasksRescaleMapping mapping =
+                                            assignment.inputSubtaskMappings.get(assignmentIndex);
+                                    if (recompute && mapping == null) {
+                                        return assignment.getInputMapping(assignmentIndex);
+                                    } else {
+                                        return mapping;
+                                    }
+                                },
                                 outputSubtaskMappings,
                                 this::getOutputMapping))
                 .build();
@@ -224,8 +231,7 @@ class TaskStateAssignment {
             OperatorInstanceID instanceID,
             OperatorID expectedOperatorID,
             TaskStateAssignment[] connectedAssignments,
-            Function<TaskStateAssignment, SubtasksRescaleMapping> mappingRetriever,
-            Function<TaskStateAssignment, SubtasksRescaleMapping> mappingCalculator,
+            BiFunction<TaskStateAssignment, Boolean, SubtasksRescaleMapping> mappingRetriever,
             Map<Integer, SubtasksRescaleMapping> subtaskGateOrPartitionMappings,
             Function<Integer, SubtasksRescaleMapping> subtaskMappingCalculator) {
         if (!expectedOperatorID.equals(instanceID.getOperatorId())) {
@@ -234,7 +240,7 @@ class TaskStateAssignment {
 
         SubtasksRescaleMapping[] rescaledChannelsMappings =
                 Arrays.stream(connectedAssignments)
-                        .map(mappingRetriever)
+                        .map(assignment -> mappingRetriever.apply(assignment, false))
                         .toArray(SubtasksRescaleMapping[]::new);
 
         // no state on input and output, especially for any aligned checkpoint
@@ -247,7 +253,7 @@ class TaskStateAssignment {
                 createGateOrPartitionRescalingDescriptors(
                         instanceID,
                         connectedAssignments,
-                        mappingCalculator,
+                        assignment -> mappingRetriever.apply(assignment, true),
                         subtaskGateOrPartitionMappings,
                         subtaskMappingCalculator,
                         rescaledChannelsMappings);
