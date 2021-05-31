@@ -51,8 +51,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -280,6 +282,10 @@ public class SessionContext {
 
         // renew the execution context
         executionContext = new ExecutionContext(sessionConfiguration, classLoader, sessionState);
+    }
+
+    public List<String> listJars() {
+        return dependencies.stream().map(URL::getPath).collect(Collectors.toList());
     }
 
     // --------------------------------------------------------------------------------------------

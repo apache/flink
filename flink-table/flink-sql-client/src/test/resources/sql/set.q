@@ -176,6 +176,10 @@ ADD JAR '$VAR_UDF_JAR_PATH';
 [INFO] The specified jar is added into session classloader.
 !info
 
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
 set;
 execution.attached=true
 execution.savepoint.ignore-unclaimed-state=false

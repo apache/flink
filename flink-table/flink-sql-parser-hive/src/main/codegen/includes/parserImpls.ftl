@@ -1642,3 +1642,17 @@ SqlAddJar SqlAddJar() :
         return new SqlAddJar(getPos(), jarPath);
     }
 }
+
+/**
+* Parses a show jars statement.
+* SHOW JARS;
+*/
+SqlShowJars SqlShowJars() :
+{
+}
+{
+    <SHOW> <JARS>
+    {
+        return new SqlShowJars(getPos());
+    }
+}

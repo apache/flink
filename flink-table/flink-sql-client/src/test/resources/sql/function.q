@@ -19,6 +19,10 @@ ADD JAR '$VAR_UDF_JAR_PATH';
 [INFO] The specified jar is added into session classloader.
 !info
 
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.

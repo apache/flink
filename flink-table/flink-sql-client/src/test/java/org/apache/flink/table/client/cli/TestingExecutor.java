@@ -73,6 +73,11 @@ class TestingExecutor implements Executor {
     }
 
     @Override
+    public List<String> listJars(String sessionId) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
+
+    @Override
     public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
             throws SqlExecutionException {
         return resultChanges

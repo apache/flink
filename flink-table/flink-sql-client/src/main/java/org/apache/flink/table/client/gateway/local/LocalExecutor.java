@@ -313,4 +313,10 @@ public class LocalExecutor implements Executor {
         final SessionContext context = getSessionContext(sessionId);
         context.addJar(jarUrl);
     }
+
+    @Override
+    public List<String> listJars(String sessionId) {
+        final SessionContext context = getSessionContext(sessionId);
+        return context.listJars();
+    }
 }

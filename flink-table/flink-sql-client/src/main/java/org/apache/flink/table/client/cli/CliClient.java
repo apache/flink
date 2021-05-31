@@ -43,6 +43,7 @@ import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
@@ -425,6 +426,9 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof AddJarOperation) {
             // ADD JAR
             callAddJar((AddJarOperation) operation);
+        } else if (operation instanceof ShowJarsOperation) {
+            // SHOW JARS
+            callShowJars();
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
@@ -438,6 +442,10 @@ public class CliClient implements AutoCloseable {
         String jarPath = operation.getPath();
         executor.addJar(sessionId, jarPath);
         printInfo(CliStrings.MESSAGE_ADD_JAR_STATEMENT);
+    }
+
+    private void callShowJars() {
+        executor.listJars(sessionId).forEach(jar -> terminal.writer().println(jar));
     }
 
     private void callQuit() {
