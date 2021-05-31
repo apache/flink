@@ -116,7 +116,7 @@ The following example shows how a Python Table API program is constructed and ho
 from pyflink.table import *
 
 # environment configuration
-t_env = BatchTableEnvironment.create(
+t_env = TableEnvironment.create(
     environment_settings=EnvironmentSettings.new_instance().in_batch_mode().build())
 
 # register Orders table and Result table sink in table environment
