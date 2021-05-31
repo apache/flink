@@ -76,6 +76,7 @@ class StreamPhysicalWindowJoin(
     }
     super.isValid(litmus, context)
   }
+
   override def requireWatermark: Boolean = leftWindowing.isRowtime || rightWindowing.isRowtime
 
   override def copy(

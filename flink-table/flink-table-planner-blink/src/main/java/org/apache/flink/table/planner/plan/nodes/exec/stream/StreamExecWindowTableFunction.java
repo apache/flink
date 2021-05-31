@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
+import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -39,15 +39,18 @@ import java.util.Collections;
 public class StreamExecWindowTableFunction extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
 
-    private final WindowingStrategy windowingStrategy;
+    private final TimeAttributeWindowingStrategy windowingStrategy;
+    private final Boolean emitPerRecord;
 
     public StreamExecWindowTableFunction(
-            WindowingStrategy windowingStrategy,
+            TimeAttributeWindowingStrategy windowingStrategy,
             InputProperty inputEdge,
             RowType outputType,
+            Boolean emitPerRecord,
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.windowingStrategy = windowingStrategy;
+        this.emitPerRecord = emitPerRecord;
     }
 
     @Override
@@ -57,6 +60,7 @@ public class StreamExecWindowTableFunction extends ExecNodeBase<RowData>
         String[] inputFieldNames = inputRowType.getFieldNames().toArray(new String[0]);
         String windowSummary = windowingStrategy.toSummaryString(inputFieldNames);
 
+        // TODO support emitPerRecord later
         throw new UnsupportedOperationException(
                 String.format(
                         "Currently Flink doesn't support individual window table-valued function %s.\n "
