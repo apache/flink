@@ -32,12 +32,16 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -52,17 +56,22 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -73,6 +82,44 @@ import static org.junit.Assert.assertTrue;
 public class SourceOperatorStreamTaskTest {
     private static final OperatorID OPERATOR_ID = new OperatorID();
     private static final int NUM_RECORDS = 10;
+
+    @Test
+    public void testMetrics() throws Exception {
+        long sleepTime = 42;
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                        SourceOperatorStreamTask::new, INT_TYPE_INFO);
+
+        final Map<String, Metric> metrics = new ConcurrentHashMap<>();
+        final TaskMetricGroup taskMetricGroup =
+                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.BOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .setTaskMetricGroup(taskMetricGroup)
+                        .build()) {
+
+            Future<Boolean> triggerFuture =
+                    harness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(1L, System.currentTimeMillis()),
+                            CheckpointOptions.forCheckpointWithDefaultLocation());
+
+            assertFalse(triggerFuture.isDone());
+            Thread.sleep(sleepTime);
+            while (!triggerFuture.isDone()) {
+                harness.streamTask.runMailboxStep();
+            }
+            Gauge<Long> checkpointStartDelayGauge =
+                    (Gauge<Long>) metrics.get(MetricNames.CHECKPOINT_START_DELAY_TIME);
+            assertThat(
+                    checkpointStartDelayGauge.getValue(),
+                    greaterThanOrEqualTo(sleepTime * 1_000_000));
+        }
+    }
 
     /**
      * Tests that the stream operator can snapshot and restore the operator state of chained

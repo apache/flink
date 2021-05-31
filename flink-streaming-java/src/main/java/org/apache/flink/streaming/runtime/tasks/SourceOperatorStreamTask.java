@@ -25,6 +25,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -103,6 +104,13 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
                         null);
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
+
+        getEnvironment()
+                .getMetricGroup()
+                .getIOMetricGroup()
+                .gauge(
+                        MetricNames.CHECKPOINT_START_DELAY_TIME,
+                        this::getAsyncCheckpointStartDelayNanos);
     }
 
     @Override
