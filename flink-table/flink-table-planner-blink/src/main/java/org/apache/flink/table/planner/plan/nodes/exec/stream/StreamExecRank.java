@@ -51,13 +51,15 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.flink.table.types.logical.TimestampKind;
 
 import java.util.Collections;
 import java.util.List;
@@ -209,10 +211,17 @@ public class StreamExecRank extends ExecNodeBase<RowData>
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
-            if (sortFields.length == 1
-                    && inputType.getChildren().get(sortFields[0]).getTypeRoot()
-                            == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
-                    && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
+            boolean isAppendOnlyFirstN = false;
+            if (sortFields.length == 1) {
+                LogicalType sortKeyType = inputType.getChildren().get(sortFields[0]);
+                if (sortKeyType instanceof LocalZonedTimestampType
+                        && ((LocalZonedTimestampType)sortKeyType).getKind()
+                            == TimestampKind.PROCTIME
+                        && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
+                        isAppendOnlyFirstN = true;
+                }
+            }
+            if (isAppendOnlyFirstN) {
                 processFunction =
                         new AppendOnlyFirstNFunction(
                                 minIdleStateRetentionTime,
