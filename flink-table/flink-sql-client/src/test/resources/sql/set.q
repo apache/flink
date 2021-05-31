@@ -195,6 +195,10 @@ reset;
 [INFO] All session properties have been set to their default values.
 !info
 
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
 SET sql-client.execution.result-mode=tableau;
 [INFO] Session property has been set.
 !info

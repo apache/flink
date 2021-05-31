@@ -267,6 +267,7 @@ public class SessionContextTest {
                 getConfiguration().get(JARS));
         // reset to the default
         sessionContext.reset();
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
                 getConfiguration().get(JARS));
