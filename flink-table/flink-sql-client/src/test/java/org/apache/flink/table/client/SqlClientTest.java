@@ -205,6 +205,16 @@ public class SqlClientTest {
         }
     }
 
+    @Test
+    public void testExecuteSqlWithHDFSFile() throws Exception {
+        List<String> statements = Collections.singletonList("HELP;\n");
+        String sqlFilePath = createSqlFile(statements, "test-sql.sql");
+        String[] args = new String[] {"-f", "hdfs:/" + sqlFilePath};
+        String output = runSqlClient(args);
+        thrown.expect(SqlExecutionException.class);
+        thrown.expectMessage("Currently, Flink doesn't support HDFS path. You can use local path !");
+    }
+
     private String runSqlClient(String[] args) throws Exception {
         return runSqlClient(args, "QUIT;\n");
     }

@@ -23,7 +23,6 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
 import org.apache.flink.table.client.gateway.local.LocalContextUtils;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
@@ -165,6 +164,8 @@ public class SqlClient {
     protected static void startClient(String[] args, Supplier<Terminal> terminalFactory) {
         final String mode;
         final String[] modeArgs;
+        // check args e.g. -i -f
+        checkArgs(args);
         if (args.length < 1 || args[0].startsWith("-")) {
             // mode is not specified, use the default `embedded` mode
             mode = MODE_EMBEDDED;
@@ -210,6 +211,14 @@ public class SqlClient {
 
             default:
                 CliOptionsParser.printHelpClient();
+        }
+    }
+
+    public static void checkArgs(String[] args) {
+        for (String arg: args) {
+            if (arg.trim().toLowerCase().startsWith("hdfs")) {
+                throw new SqlExecutionException("Currently, Flink doesn't support HDFS path. You can use local path ! " + arg);
+            }
         }
     }
 
