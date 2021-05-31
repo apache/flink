@@ -81,11 +81,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -406,7 +407,9 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
     private static StreamEdge edge(
             StreamGraph streamGraph, DataStream<Long> op1, DataStream<Long> op2) {
-        return streamGraph.getStreamEdges(op1.getId(), op2.getId()).get(0);
+        List<StreamEdge> streamEdges = streamGraph.getStreamEdges(op1.getId(), op2.getId());
+        assertThat(streamEdges, iterableWithSize(1));
+        return streamEdges.get(0);
     }
 
     private static Matcher<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
