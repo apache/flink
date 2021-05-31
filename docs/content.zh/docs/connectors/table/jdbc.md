@@ -394,7 +394,7 @@ tableEnv.useCatalog("mypg")
 ```python
 from pyflink.table.catalog import JdbcCatalog
 
-environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
 t_env = TableEnvironment.create(environment_settings)
 
 name = "mypg"
