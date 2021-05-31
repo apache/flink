@@ -42,7 +42,7 @@ under the License.
 
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -50,6 +50,8 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Flink Elasticsearch -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -63,6 +65,8 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
+
+		<!-- Elasticsearch -->
 
 		<!-- Dependency for Elasticsearch 5.x Java Client -->
 		<dependency>
@@ -120,7 +124,7 @@ under the License.
 			<version>4.1.46.Final</version>
 		</dependency>
 
-		<!-- test dependencies -->
+		<!-- Tests -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
