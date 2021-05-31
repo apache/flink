@@ -206,7 +206,7 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
         if (definition instanceof BuiltInFunctionDefinition) {
             final BuiltInFunctionDefinition builtInFunction =
                     (BuiltInFunctionDefinition) definition;
-            if (!builtInFunction.getRuntimeClass().isPresent()) {
+            if (!builtInFunction.hasRuntimeImplementation()) {
                 return false;
             }
         }

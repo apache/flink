@@ -42,7 +42,7 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
         if (functionDefinition instanceof BuiltInFunctionDefinition) {
             final BuiltInFunctionDefinition builtInFunction =
                     (BuiltInFunctionDefinition) functionDefinition;
-            if (!builtInFunction.getRuntimeClass().isPresent()) {
+            if (!builtInFunction.hasRuntimeImplementation()) {
                 return Optional.empty();
             }
         }
