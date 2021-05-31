@@ -61,7 +61,7 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
 pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
+pipeline.jars=
 rest.port=$VAR_REST_PORT
 table.planner=blink
 table.sql-dialect=hive
@@ -80,7 +80,7 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
 pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
+pipeline.jars=
 rest.port=$VAR_REST_PORT
 !ok
 
@@ -127,7 +127,7 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
 pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
+pipeline.jars=
 rest.port=$VAR_REST_PORT
 !ok
 
@@ -148,7 +148,7 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
 pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
+pipeline.jars=
 rest.port=$VAR_REST_PORT
 !ok
 
@@ -167,6 +167,43 @@ execution.shutdown-on-attached-exit=false
 execution.target=remote
 jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
 pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
+pipeline.jars=
 rest.port=$VAR_REST_PORT
+!ok
+
+# test reset can work with add jar
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is added into session classloader.
+!info
+
+set;
+execution.attached=true
+execution.savepoint.ignore-unclaimed-state=false
+execution.shutdown-on-attached-exit=false
+execution.target=remote
+jobmanager.rpc.address=localhost
+pipeline.classpaths=
+pipeline.jars=$VAR_PIPELINE_JARS_URL
+rest.port=$VAR_REST_PORT
+!ok
+
+reset;
+[INFO] All session properties have been set to their default values.
+!info
+
+SET sql-client.execution.result-mode=tableau;
+[INFO] Session property has been set.
+!info
+
+create function func1 as 'LowerUDF' LANGUAGE JAVA;
+[INFO] Execute statement succeed.
+!info
+
+SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
++----+-------------+--------------------------------+
+| op |          id |                         EXPR$1 |
++----+-------------+--------------------------------+
+| +I |           1 |                    hello world |
++----+-------------+--------------------------------+
+Received a total of 1 row
 !ok

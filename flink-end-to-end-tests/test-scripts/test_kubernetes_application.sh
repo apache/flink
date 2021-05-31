@@ -59,4 +59,4 @@ wait_rest_endpoint_up_k8s $jm_pod_name
 # The Flink cluster will be destroyed immediately once the job finished or failed. So we check jobmanager logs
 # instead of checking the result
 kubectl logs -f $jm_pod_name >$LOCAL_LOGS_PATH/jobmanager.log
-grep -E "Job [A-Za-z0-9]+ reached globally terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log
+grep -E "Job [A-Za-z0-9]+ reached terminal state FINISHED" $LOCAL_LOGS_PATH/jobmanager.log

@@ -139,4 +139,7 @@ public interface Executor {
      * has been sent to cluster.
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
+
+    /** Add the JAR resource to into the classloader with specified session. */
+    void addJar(String sessionId, String jarPath);
 }

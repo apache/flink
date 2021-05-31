@@ -22,7 +22,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.Preconditions;
@@ -46,7 +45,6 @@ public class StreamSourceContexts {
             TimeCharacteristic timeCharacteristic,
             ProcessingTimeService processingTimeService,
             Object checkpointLock,
-            StreamStatusMaintainer streamStatusMaintainer,
             Output<StreamRecord<OUT>> output,
             long watermarkInterval,
             long idleTimeout) {
@@ -56,11 +54,7 @@ public class StreamSourceContexts {
             case EventTime:
                 ctx =
                         new ManualWatermarkContext<>(
-                                output,
-                                processingTimeService,
-                                checkpointLock,
-                                streamStatusMaintainer,
-                                idleTimeout);
+                                output, processingTimeService, checkpointLock, idleTimeout);
 
                 break;
             case IngestionTime:
@@ -70,7 +64,6 @@ public class StreamSourceContexts {
                                 watermarkInterval,
                                 processingTimeService,
                                 checkpointLock,
-                                streamStatusMaintainer,
                                 idleTimeout);
 
                 break;
@@ -149,15 +142,16 @@ public class StreamSourceContexts {
 
         private long lastRecordTime;
 
+        private boolean idle = false;
+
         private AutomaticWatermarkContext(
                 final Output<StreamRecord<T>> output,
                 final long watermarkInterval,
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final StreamStatusMaintainer streamStatusMaintainer,
                 final long idleTimeout) {
 
-            super(timeService, checkpointLock, streamStatusMaintainer, idleTimeout);
+            super(timeService, checkpointLock, idleTimeout);
 
             this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
 
@@ -223,6 +217,14 @@ public class StreamSourceContexts {
         }
 
         @Override
+        protected void processAndEmitStreamStatus(StreamStatus streamStatus) {
+            if (idle != streamStatus.isIdle()) {
+                output.emitStreamStatus(streamStatus);
+            }
+            idle = streamStatus.isIdle();
+        }
+
+        @Override
         public void close() {
             super.close();
 
@@ -253,7 +255,7 @@ public class StreamSourceContexts {
 
                 synchronized (lock) {
                     // we should continue to automatically emit watermarks if we are active
-                    if (streamStatusMaintainer.getStreamStatus().isActive()) {
+                    if (!idle) {
                         if (idleTimeout != -1 && currentTime - lastRecordTime > idleTimeout) {
                             // if we are configured to detect idleness, piggy-back the idle
                             // detection check on the
@@ -298,15 +300,15 @@ public class StreamSourceContexts {
 
         private final Output<StreamRecord<T>> output;
         private final StreamRecord<T> reuse;
+        private boolean idle = false;
 
         private ManualWatermarkContext(
                 final Output<StreamRecord<T>> output,
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final StreamStatusMaintainer streamStatusMaintainer,
                 final long idleTimeout) {
 
-            super(timeService, checkpointLock, streamStatusMaintainer, idleTimeout);
+            super(timeService, checkpointLock, idleTimeout);
 
             this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
             this.reuse = new StreamRecord<>(null);
@@ -325,6 +327,14 @@ public class StreamSourceContexts {
         @Override
         protected void processAndEmitWatermark(Watermark mark) {
             output.emitWatermark(mark);
+        }
+
+        @Override
+        protected void processAndEmitStreamStatus(StreamStatus streamStatus) {
+            if (idle != streamStatus.isIdle()) {
+                output.emitStreamStatus(streamStatus);
+            }
+            idle = streamStatus.isIdle();
         }
 
         @Override
@@ -351,7 +361,6 @@ public class StreamSourceContexts {
 
         protected final ProcessingTimeService timeService;
         protected final Object checkpointLock;
-        protected final StreamStatusMaintainer streamStatusMaintainer;
         protected final long idleTimeout;
 
         private ScheduledFuture<?> nextCheck;
@@ -370,23 +379,17 @@ public class StreamSourceContexts {
          *
          * @param timeService the time service to schedule idleness detection tasks
          * @param checkpointLock the checkpoint lock
-         * @param streamStatusMaintainer the stream status maintainer to toggle and retrieve current
-         *     status
          * @param idleTimeout (-1 if idleness checking is disabled)
          */
         public WatermarkContext(
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final StreamStatusMaintainer streamStatusMaintainer,
                 final long idleTimeout) {
 
             this.timeService =
                     Preconditions.checkNotNull(timeService, "Time Service cannot be null.");
             this.checkpointLock =
                     Preconditions.checkNotNull(checkpointLock, "Checkpoint Lock cannot be null.");
-            this.streamStatusMaintainer =
-                    Preconditions.checkNotNull(
-                            streamStatusMaintainer, "Stream Status Maintainer cannot be null.");
 
             if (idleTimeout != -1) {
                 Preconditions.checkArgument(
@@ -400,7 +403,7 @@ public class StreamSourceContexts {
         @Override
         public void collect(T element) {
             synchronized (checkpointLock) {
-                streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+                processAndEmitStreamStatus(StreamStatus.ACTIVE);
 
                 if (nextCheck != null) {
                     this.failOnNextCheck = false;
@@ -415,7 +418,7 @@ public class StreamSourceContexts {
         @Override
         public void collectWithTimestamp(T element, long timestamp) {
             synchronized (checkpointLock) {
-                streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+                processAndEmitStreamStatus(StreamStatus.ACTIVE);
 
                 if (nextCheck != null) {
                     this.failOnNextCheck = false;
@@ -431,7 +434,7 @@ public class StreamSourceContexts {
         public void emitWatermark(Watermark mark) {
             if (allowWatermark(mark)) {
                 synchronized (checkpointLock) {
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+                    processAndEmitStreamStatus(StreamStatus.ACTIVE);
 
                     if (nextCheck != null) {
                         this.failOnNextCheck = false;
@@ -447,7 +450,7 @@ public class StreamSourceContexts {
         @Override
         public void markAsTemporarilyIdle() {
             synchronized (checkpointLock) {
-                streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
+                processAndEmitStreamStatus(StreamStatus.IDLE);
             }
         }
 
@@ -517,5 +520,7 @@ public class StreamSourceContexts {
          * WatermarkContext#allowWatermark(Watermark)} returns {@code true}.
          */
         protected abstract void processAndEmitWatermark(Watermark mark);
+
+        protected abstract void processAndEmitStreamStatus(StreamStatus streamStatus);
     }
 }

@@ -28,7 +28,7 @@ import java.util.Optional;
 /**
  * {@link ExtendedParser} is used for parsing some special command which can't supported by {@link
  * CalciteParser}, e.g. {@code SET key=value} contains special characters in key and value
- * identifier. It's also good to move some parsring here to avoid introducing new reserved keywords.
+ * identifier. It's also good to move some parsing here to avoid introducing new reserved keywords.
  */
 public class ExtendedParser {
 

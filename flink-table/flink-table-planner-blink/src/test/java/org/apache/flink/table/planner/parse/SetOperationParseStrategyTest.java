@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow.readers;
+package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.annotation.Internal;
+import org.junit.Test;
 
-import org.apache.arrow.vector.Float4Vector;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-/** {@link ArrowFieldReader} for Float. */
-@Internal
-public final class FloatFieldReader extends ArrowFieldReader<Float> {
+/** Tests for {@link SetOperationParseStrategy}. */
+public class SetOperationParseStrategyTest {
 
-    public FloatFieldReader(Float4Vector floatVector) {
-        super(floatVector);
+    @Test
+    public void testMatches() {
+        assertTrue(SetOperationParseStrategy.INSTANCE.match("SET"));
+        assertTrue(SetOperationParseStrategy.INSTANCE.match("SET table.planner = blink"));
+        assertTrue(SetOperationParseStrategy.INSTANCE.match("SET table.planner = 'blink'"));
     }
 
-    @Override
-    public Float read(int index) {
-        return ((Float4Vector) getValueVector()).getObject(index);
+    @Test
+    public void testDoesNotMatchQuotedKey() {
+        assertFalse(SetOperationParseStrategy.INSTANCE.match("SET 'table.planner' = blink"));
     }
 }

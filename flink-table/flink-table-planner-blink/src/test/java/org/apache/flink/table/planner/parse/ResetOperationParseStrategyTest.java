@@ -16,22 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow.readers;
+package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.annotation.Internal;
+import org.junit.Test;
 
-import org.apache.arrow.vector.BitVector;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-/** {@link ArrowFieldReader} for Boolean. */
-@Internal
-public final class BooleanFieldReader extends ArrowFieldReader<Boolean> {
+/** Tests for {@link ResetOperationParseStrategy}. */
+public class ResetOperationParseStrategyTest {
 
-    public BooleanFieldReader(BitVector bitVector) {
-        super(bitVector);
+    @Test
+    public void testMatches() {
+        assertTrue(ResetOperationParseStrategy.INSTANCE.match("RESET"));
+        assertTrue(ResetOperationParseStrategy.INSTANCE.match("RESET table.planner"));
     }
 
-    @Override
-    public Boolean read(int index) {
-        return ((BitVector) getValueVector()).getObject(index);
+    @Test
+    public void testDoesNotMatchQuotedKey() {
+        assertFalse(ResetOperationParseStrategy.INSTANCE.match("RESET 'table.planner'"));
     }
 }

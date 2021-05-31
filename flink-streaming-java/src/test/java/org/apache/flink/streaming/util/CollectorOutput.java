@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 
@@ -41,6 +42,11 @@ public class CollectorOutput<T> implements Output<StreamRecord<T>> {
     @Override
     public void emitWatermark(Watermark mark) {
         list.add(mark);
+    }
+
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        list.add(streamStatus);
     }
 
     @Override

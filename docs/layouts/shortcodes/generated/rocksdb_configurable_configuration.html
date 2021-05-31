@@ -54,7 +54,7 @@
             <td><h5>state.backend.rocksdb.files.open</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. RocksDB has default configuration as '-1'.</td>
+            <td>The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. RocksDB has default configuration as '-1'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.log.level</h5></td>
@@ -66,7 +66,7 @@
             <td><h5>state.backend.rocksdb.thread.num</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The maximum number of concurrent background flush and compaction jobs (per TaskManager). RocksDB has default configuration as '1'.</td>
+            <td>The maximum number of concurrent background flush and compaction jobs (per stateful operator). RocksDB has default configuration as '1'.</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.write-batch-size</h5></td>

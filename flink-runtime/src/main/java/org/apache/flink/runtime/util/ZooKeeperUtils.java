@@ -486,7 +486,7 @@ public class ZooKeeperUtils {
         return result;
     }
 
-    private static String trimStartingSlash(String path) {
+    public static String trimStartingSlash(String path) {
         return path.startsWith("/") ? path.substring(1) : path;
     }
 

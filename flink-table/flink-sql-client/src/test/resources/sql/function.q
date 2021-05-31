@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is added into session classloader.
+!info
+
 # this also tests user classloader because the LowerUDF is in user jar
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.

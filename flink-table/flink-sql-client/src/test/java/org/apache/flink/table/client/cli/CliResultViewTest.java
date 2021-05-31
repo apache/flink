@@ -226,6 +226,11 @@ public class CliResultViewTest {
         public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
             cancellationCounter.countDown();
         }
+
+        @Override
+        public void addJar(String sessionId, String jarUrl) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
     }
 
     private static final class TestingCliResultView implements Runnable {

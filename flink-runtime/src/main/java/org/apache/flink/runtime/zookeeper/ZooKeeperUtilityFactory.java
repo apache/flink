@@ -51,7 +51,10 @@ public class ZooKeeperUtilityFactory {
         root.newNamespaceAwareEnsurePath(path).ensure(root.getZookeeperClient());
         facade =
                 root.usingNamespace(
-                        ZooKeeperUtils.generateZookeeperPath(root.getNamespace(), path));
+                        // Curator prepends a '/' manually and throws an Exception if the namespace
+                        // starts with a '/'.
+                        ZooKeeperUtils.trimStartingSlash(
+                                ZooKeeperUtils.generateZookeeperPath(root.getNamespace(), path)));
     }
 
     /**

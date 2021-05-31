@@ -38,6 +38,9 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
+__all__ = ['CloseableIterator']
+
+
 class DataStream(object):
     """
     A DataStream represents a stream of elements of the same type. A DataStream can be transformed
@@ -368,7 +371,10 @@ class DataStream(object):
         """
         j_data_streams = []
         for data_stream in streams:
-            j_data_streams.append(data_stream._j_data_stream)
+            if isinstance(data_stream, KeyedStream):
+                j_data_streams.append(data_stream._values()._j_data_stream)
+            else:
+                j_data_streams.append(data_stream._j_data_stream)
         gateway = get_gateway()
         JDataStream = gateway.jvm.org.apache.flink.streaming.api.datastream.DataStream
         j_data_stream_arr = get_gateway().new_array(JDataStream, len(j_data_streams))

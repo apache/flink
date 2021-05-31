@@ -21,13 +21,13 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.utils.JobResultUtils;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
@@ -35,7 +35,6 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -45,12 +44,11 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests which verify the cluster behaviour in case of leader changes. */
 public class LeaderChangeClusterComponentsTest extends TestLogger {
@@ -109,14 +107,8 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
         highAvailabilityServices.revokeDispatcherLeadership().get();
 
-        try {
-            jobResultFuture.get();
-            fail("Expected JobNotFinishedException");
-        } catch (ExecutionException ee) {
-            assertThat(
-                    ExceptionUtils.findThrowable(ee, JobNotFinishedException.class).isPresent(),
-                    is(true));
-        }
+        JobResult jobResult = jobResultFuture.get();
+        assertEquals(jobResult.getApplicationStatus(), ApplicationStatus.UNKNOWN);
 
         highAvailabilityServices.grantDispatcherLeadership();
 
@@ -129,7 +121,7 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
         final CompletableFuture<JobResult> jobResultFuture2 = miniCluster.requestJobResult(jobId);
 
-        JobResult jobResult = jobResultFuture2.get();
+        jobResult = jobResultFuture2.get();
 
         JobResultUtils.assertSuccess(jobResult);
     }

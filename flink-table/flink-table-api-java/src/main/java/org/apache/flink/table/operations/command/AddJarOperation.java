@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,22 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.arrow.readers;
+package org.apache.flink.table.operations.command;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.operations.Operation;
 
-import org.apache.arrow.vector.SmallIntVector;
+/** Operation to describe an ADD JAR statement. */
+public class AddJarOperation implements Operation {
 
-/** {@link ArrowFieldReader} for SmallInt. */
-@Internal
-public final class SmallIntFieldReader extends ArrowFieldReader<Short> {
+    private final String path;
 
-    public SmallIntFieldReader(SmallIntVector smallIntVector) {
-        super(smallIntVector);
+    public AddJarOperation(String path) {
+        this.path = path;
+    }
+
+    public String getPath() {
+        return path;
     }
 
     @Override
-    public Short read(int index) {
-        return ((SmallIntVector) getValueVector()).getObject(index);
+    public String asSummaryString() {
+        return String.format("ADD JAR '%s'", path);
     }
 }

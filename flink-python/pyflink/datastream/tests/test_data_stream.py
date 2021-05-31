@@ -877,9 +877,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         ds_2 = self.env.from_collection([4, 5, 6])
         ds_3 = self.env.from_collection([7, 8, 9])
 
-        united_stream = ds_3.union(ds_1, ds_2)
+        unioned_stream = ds_3.union(ds_1, ds_2)
 
-        united_stream.map(lambda x: x + 1).add_sink(self.test_sink)
+        unioned_stream.map(lambda x: x + 1).add_sink(self.test_sink)
         exec_plan = eval(self.env.get_execution_plan())
         source_ids = []
         union_node_pre_ids = []
@@ -893,6 +893,25 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         source_ids.sort()
         union_node_pre_ids.sort()
         self.assertEqual(source_ids, union_node_pre_ids)
+
+    def test_keyed_stream_union(self):
+        ds_1 = self.env.from_collection([1, 2, 3])
+        ds_2 = self.env.from_collection([4, 5, 6])
+        unioned_stream = ds_1.key_by(lambda x: x).union(ds_2.key_by(lambda x: x))
+        unioned_stream.add_sink(self.test_sink)
+        exec_plan = eval(self.env.get_execution_plan())
+        expected_union_node_pre_ids = []
+        union_node_pre_ids = []
+        for node in exec_plan['nodes']:
+            if node['type'] == '_keyed_stream_values_operator':
+                expected_union_node_pre_ids.append(node['id'])
+            if node['pact'] == 'Data Sink':
+                for pre in node['predecessors']:
+                    union_node_pre_ids.append(pre['id'])
+
+        expected_union_node_pre_ids.sort()
+        union_node_pre_ids.sort()
+        self.assertEqual(expected_union_node_pre_ids, union_node_pre_ids)
 
     def test_project(self):
         ds = self.env.from_collection([[1, 2, 3, 4], [5, 6, 7, 8]],

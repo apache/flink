@@ -114,7 +114,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -1973,7 +1972,6 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public void run(
                 Object lockingObject,
-                StreamStatusMaintainer streamStatusMaintainer,
                 Output<StreamRecord<Long>> collector,
                 OperatorChain<?, ?> operatorChain)
                 throws Exception {

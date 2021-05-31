@@ -307,4 +307,10 @@ public class LocalExecutor implements Executor {
         }
         resultStore.removeResult(resultId);
     }
+
+    @Override
+    public void addJar(String sessionId, String jarUrl) {
+        final SessionContext context = getSessionContext(sessionId);
+        context.addJar(jarUrl);
+    }
 }

@@ -315,7 +315,7 @@ properties.setProperty("group.id", "test");
 FlinkKafkaConsumer<String> myConsumer =
     new FlinkKafkaConsumer<>("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy.
+    WatermarkStrategy
         .forBoundedOutOfOrderness(Duration.ofSeconds(20)));
 
 DataStream<String> stream = env.addSource(myConsumer);
@@ -330,7 +330,7 @@ properties.setProperty("group.id", "test")
 val myConsumer =
     new FlinkKafkaConsumer("topic", new SimpleStringSchema(), properties);
 myConsumer.assignTimestampsAndWatermarks(
-    WatermarkStrategy.
+    WatermarkStrategy
         .forBoundedOutOfOrderness(Duration.ofSeconds(20)))
 
 val stream = env.addSource(myConsumer)
@@ -364,7 +364,7 @@ properties.setProperty("bootstrap.servers", "localhost:9092");
 
 FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<String>(
         "my-topic",                  // 目标 topic
-        new SimpleStringSchema()     // 序列化 schema
+        new SimpleStringSchema(),    // 序列化 schema
         properties,                  // producer 配置
         FlinkKafkaProducer.Semantic.EXACTLY_ONCE); // 容错
 

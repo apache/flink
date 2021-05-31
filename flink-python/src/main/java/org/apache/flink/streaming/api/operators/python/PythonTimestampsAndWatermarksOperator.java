@@ -110,9 +110,7 @@ public class PythonTimestampsAndWatermarksOperator<IN>
                 emitProgressiveWatermarks
                         ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
                         : new NoWatermarksGenerator<>();
-        watermarkOutput =
-                new TimestampsAndWatermarksOperator.WatermarkEmitter(
-                        output, getContainingTask().getStreamStatusMaintainer());
+        watermarkOutput = new TimestampsAndWatermarksOperator.WatermarkEmitter(output);
 
         watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
         if (watermarkInterval > 0 && emitProgressiveWatermarks) {
