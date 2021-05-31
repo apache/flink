@@ -215,9 +215,11 @@ public class SqlClient {
     }
 
     public static void checkArgs(String[] args) {
-        for (String arg: args) {
+        for (String arg : args) {
             if (arg.trim().toLowerCase().startsWith("hdfs")) {
-                throw new SqlExecutionException("Currently, Flink doesn't support HDFS path. You can use local path ! " + arg);
+                throw new SqlExecutionException(
+                        "Currently, Flink doesn't support HDFS path. You can use local path ! "
+                                + arg);
             }
         }
     }

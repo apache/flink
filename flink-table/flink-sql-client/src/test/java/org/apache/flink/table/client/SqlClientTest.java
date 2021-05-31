@@ -212,7 +212,8 @@ public class SqlClientTest {
         String[] args = new String[] {"-f", "hdfs:/" + sqlFilePath};
         String output = runSqlClient(args);
         thrown.expect(SqlExecutionException.class);
-        thrown.expectMessage("Currently, Flink doesn't support HDFS path. You can use local path !");
+        thrown.expectMessage(
+                "Currently, Flink doesn't support HDFS path. You can use local path !");
     }
 
     private String runSqlClient(String[] args) throws Exception {
