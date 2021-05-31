@@ -41,11 +41,11 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.{Sarg, TimestampString}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
 import scala.collection.JavaConversions._
 
@@ -827,6 +827,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           call,
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
+
+      case bsf: BridgingSqlFunction
+        if bsf.getDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
+          generateWatermark(ctx, contextTerm, resultType)
 
       case _: BridgingSqlFunction =>
         new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)

@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
@@ -432,6 +433,24 @@ public final class TypeStrategies {
                                                         LogicalTypeFamily.TIMESTAMP))
                                 .orElse(DataTypes.TIMESTAMP_LTZ(3));
                 return Optional.of(timestampDataType);
+            };
+
+    /**
+     * Type strategy for {@link BuiltInFunctionDefinitions#CURRENT_WATERMARK} which mirrors the type
+     * of the passed rowtime column, but removes the rowtime kind and enforces the correct precision
+     * for watermarks.
+     */
+    public static final TypeStrategy CURRENT_WATERMARK =
+            callContext -> {
+                final LogicalType inputType =
+                        callContext.getArgumentDataTypes().get(0).getLogicalType();
+                if (hasRoot(inputType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
+                    return Optional.of(DataTypes.TIMESTAMP(3));
+                } else if (hasRoot(inputType, LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
+                    return Optional.of(DataTypes.TIMESTAMP_LTZ(3));
+                }
+
+                return Optional.empty();
             };
 
     /**

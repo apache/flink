@@ -29,6 +29,7 @@ import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CurrentWatermarkInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
@@ -337,6 +338,10 @@ public final class InputTypeStrategies {
      */
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
             comparable(ConstantArgumentCount.of(2), StructuredComparision.EQUALS);
+
+    /** Strategy specific for {@link BuiltInFunctionDefinitions#CURRENT_WATERMARK}. */
+    public static final InputTypeStrategy SPECIFIC_FOR_CURRENT_WATERMARK =
+            new CurrentWatermarkInputTypeStrategy();
 
     // --------------------------------------------------------------------------------------------
 

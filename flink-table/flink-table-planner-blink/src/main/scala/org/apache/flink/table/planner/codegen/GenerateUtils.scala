@@ -543,6 +543,26 @@ object GenerateUtils {
       resultType)
   }
 
+  def generateWatermark(
+      ctx: CodeGeneratorContext,
+      contextTerm: String,
+      resultType: LogicalType): GeneratedExpression = {
+    val resultTypeTerm = primitiveTypeTermForType(resultType)
+    val Seq(resultTerm, nullTerm, currentWatermarkTerm) = ctx.addReusableLocalVariables(
+      (resultTypeTerm, "result"),
+      ("boolean", "isNull"),
+      ("long", "currentWatermark")
+    )
+
+    val code =
+      s"""
+         |$currentWatermarkTerm = $contextTerm.timerService().currentWatermark();
+         |$nullTerm = ($currentWatermarkTerm == java.lang.Long.MIN_VALUE);
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($currentWatermarkTerm);
+         |""".stripMargin.trim
+    GeneratedExpression(resultTerm, nullTerm, code, resultType)
+  }
+
   /**
     * Generates access to a field of the input.
     * @param ctx  code generator context which maintains various code statements.

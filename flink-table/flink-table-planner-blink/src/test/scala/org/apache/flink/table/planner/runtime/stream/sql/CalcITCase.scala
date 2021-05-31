@@ -33,12 +33,15 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.typeutils.MapDataSerializerTest.CustomMapData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
 import java.util
 import org.junit.Assert._
 import org.junit._
+
+import java.time.Instant
 import scala.collection.JavaConversions._
 import scala.collection.Seq
 
@@ -433,4 +436,99 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("{a=0.12, b=0.50}")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testCurrentWatermark(): Unit = {
+    val rows = Seq(
+      row(1, Instant.ofEpochSecond(644326662L)),
+      row(2, Instant.ofEpochSecond(1622466300L)),
+      row(3, Instant.ofEpochSecond(1622466300L))
+    )
+    val tableId = TestValuesTableFactory.registerData(rows)
+
+    // We need a fixed timezone to make sure this test can run on machines across the world
+    tEnv.getConfig.getConfiguration.setString("table.local-time-zone", "Europe/Berlin")
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  id INT,
+                       |  ts TIMESTAMP_LTZ(3),
+                       |  WATERMARK FOR ts AS ts
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+       """.stripMargin)
+
+    // Table API
+    val result1 = tEnv.from("T")
+      .select($("id"), currentWatermark($("ts")))
+      .execute().collect().toList
+    TestBaseUtils.compareResultAsText(result1,
+      """1,null
+        |2,1990-06-02T11:37:42Z
+        |3,2021-05-31T13:05:00Z
+        |""".stripMargin)
+
+    // SQL
+    val result2 = tEnv.sqlQuery("SELECT id, CURRENT_WATERMARK(ts) FROM T")
+      .execute().collect().toList
+    TestBaseUtils.compareResultAsText(result2,
+      """1,null
+        |2,1990-06-02T11:37:42Z
+        |3,2021-05-31T13:05:00Z
+        |""".stripMargin)
+
+    val result3 = tEnv.sqlQuery(
+      """
+        |SELECT id FROM T WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+        |""".stripMargin)
+      .execute().collect().toList
+    TestBaseUtils.compareResultAsText(result3,
+      """1
+        |2
+        |""".stripMargin)
+
+    val result4 = tEnv.sqlQuery(
+      """
+        |SELECT
+        |  TUMBLE_END(ts, INTERVAL '1' SECOND),
+        |  CURRENT_WATERMARK(ts)
+        |FROM T
+        |GROUP BY
+        |  TUMBLE(ts, INTERVAL '1' SECOND),
+        |  CURRENT_WATERMARK(ts)
+        |""".stripMargin)
+      .execute().collect().toList
+    TestBaseUtils.compareResultAsText(result4,
+      """1990-06-02T13:37:43,null
+        |2021-05-31T15:05:01,1990-06-02T11:37:42Z
+        |2021-05-31T15:05:01,2021-05-31T13:05:00Z
+        |""".stripMargin)
+  }
+
+  @Test
+  def testCurrentWatermarkForNonRowtimeAttribute(): Unit = {
+    val tableId = TestValuesTableFactory.registerData(Seq())
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  ts TIMESTAMP_LTZ(3)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+       """.stripMargin)
+
+    try {
+      tEnv.sqlQuery("SELECT CURRENT_WATERMARK(ts) FROM T")
+      fail("CURRENT_WATERMARK for a non-rowtime attribute should have failed.");
+    } catch {
+      case e: Exception => assertEquals(
+        "SQL validation failed. Invalid function call:\n" +
+          "CURRENT_WATERMARK(TIMESTAMP_LTZ(3))", e.getMessage)
+    }
+  }
+
 }
