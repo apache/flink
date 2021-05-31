@@ -86,4 +86,7 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
 			checks=".*"/>
+		<!-- suppress check for copied hive code -->
+		<suppress files="HiveConf.java" checks="[a-zA-Z0-9]*"/>
+		<suppress files="HiveMetaStoreClient.java" checks="[a-zA-Z0-9]*"/>
 </suppressions>
