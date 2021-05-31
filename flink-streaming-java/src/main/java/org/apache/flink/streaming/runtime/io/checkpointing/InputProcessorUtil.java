@@ -36,12 +36,9 @@ import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -55,57 +52,6 @@ import java.util.stream.Stream;
  */
 @Internal
 public class InputProcessorUtil {
-    @SuppressWarnings("unchecked")
-    public static CheckpointedInputGate createCheckpointedInputGate(
-            AbstractInvokable toNotifyOnCheckpoint,
-            StreamConfig config,
-            SubtaskCheckpointCoordinator checkpointCoordinator,
-            IndexedInputGate[] inputGates,
-            TaskIOMetricGroup taskIOMetricGroup,
-            String taskName,
-            MailboxExecutor mailboxExecutor,
-            TimerService timerService) {
-        CheckpointedInputGate[] checkpointedInputGates =
-                createCheckpointedMultipleInputGate(
-                        toNotifyOnCheckpoint,
-                        config,
-                        checkpointCoordinator,
-                        taskIOMetricGroup,
-                        taskName,
-                        mailboxExecutor,
-                        new List[] {Arrays.asList(inputGates)},
-                        Collections.emptyList(),
-                        timerService);
-        return Iterables.getOnlyElement(Arrays.asList(checkpointedInputGates));
-    }
-
-    /**
-     * @return an array of {@link CheckpointedInputGate} created for corresponding {@link
-     *     InputGate}s supplied as parameters.
-     */
-    public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
-            AbstractInvokable toNotifyOnCheckpoint,
-            StreamConfig config,
-            SubtaskCheckpointCoordinator checkpointCoordinator,
-            TaskIOMetricGroup taskIOMetricGroup,
-            String taskName,
-            MailboxExecutor mailboxExecutor,
-            List<IndexedInputGate>[] inputGates,
-            List<StreamTaskSourceInput<?>> sourceInputs,
-            TimerService timerService) {
-        CheckpointBarrierHandler barrierHandler =
-                createCheckpointBarrierHandler(
-                        toNotifyOnCheckpoint,
-                        config,
-                        checkpointCoordinator,
-                        taskName,
-                        inputGates,
-                        sourceInputs,
-                        mailboxExecutor,
-                        timerService);
-        return createCheckpointedMultipleInputGate(
-                mailboxExecutor, inputGates, taskIOMetricGroup, barrierHandler, config);
-    }
 
     public static CheckpointedInputGate[] createCheckpointedMultipleInputGate(
             MailboxExecutor mailboxExecutor,
