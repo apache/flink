@@ -2165,7 +2165,7 @@ public class MyMapFunction extends ScalarFunction {
 
     @Override
     public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return Types.ROW(Types.STRING(), Types.STRING());
+        return Types.ROW(Types.STRING, Types.STRING);
     }
 }
 
@@ -2173,7 +2173,7 @@ ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .map(call("func", $("c")).as("a", "b"));
+  .map(call("func", $("c"))).as("a", "b");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -2248,7 +2248,7 @@ public class MyFlatMapFunction extends TableFunction<Row> {
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
+        return Types.ROW(Types.STRING, Types.INT);
     }
 }
 
@@ -2256,7 +2256,7 @@ TableFunction func = new MyFlatMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .flatMap(call("func", $("c")).as("a", "b"));
+  .flatMap(call("func", $("c"))).as("a", "b");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
