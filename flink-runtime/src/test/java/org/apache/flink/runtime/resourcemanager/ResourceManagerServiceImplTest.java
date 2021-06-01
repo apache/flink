@@ -44,6 +44,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -388,6 +389,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
         // make sure RM started, before proceeding the next step
         assertRmStarted();
+        assertFalse(leaderElectionService.isStopped());
 
         // close service
         resourceManagerService.close();
