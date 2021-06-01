@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
  */
 public class FullyFinishedOperatorState extends OperatorState {
 
-    private static final long serialVersionUID = -7094972830573632176L;
+    private static final long serialVersionUID = 1L;
 
     public FullyFinishedOperatorState(OperatorID operatorID, int parallelism, int maxParallelism) {
         super(operatorID, parallelism, maxParallelism);

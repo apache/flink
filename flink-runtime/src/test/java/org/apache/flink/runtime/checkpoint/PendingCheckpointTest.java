@@ -67,6 +67,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -576,14 +577,14 @@ public class PendingCheckpointTest {
                 .getCurrentExecutionAttempt()
                 .markFinished();
         PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
-        assertEquals(1, pendingCheckpoint.getCheckpointPlan().getFullyFinishedJobVertex().size());
-        assertEquals(
-                finishedJobVertexID,
+        assertThat(pendingCheckpoint.getCheckpointPlan().getFullyFinishedJobVertex().size(), is(1));
+        assertThat(
                 pendingCheckpoint
                         .getCheckpointPlan()
                         .getFullyFinishedJobVertex()
                         .get(0)
-                        .getJobVertexId());
+                        .getJobVertexId(),
+                is(finishedJobVertexID));
 
         // Report the state for the running operator
         ExecutionAttemptID runningTaskId =
@@ -598,15 +599,15 @@ public class PendingCheckpointTest {
         TaskAcknowledgeResult result =
                 pendingCheckpoint.acknowledgeTask(
                         runningTaskId, taskStateSnapshot, new CheckpointMetrics(), null);
-        assertEquals(TaskAcknowledgeResult.SUCCESS, result);
+        assertThat(result, is(TaskAcknowledgeResult.SUCCESS));
 
         CompletedCheckpoint completedCheckpoint =
                 pendingCheckpoint.finalizeCheckpoint(
                         new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
-        assertEquals(2, completedCheckpoint.getOperatorStates().size());
+        assertThat(completedCheckpoint.getOperatorStates().size(), is(2));
         OperatorState finishedOperatorState =
                 completedCheckpoint.getOperatorStates().get(finishedOperatorID);
-        assertTrue(finishedOperatorState.isFullyFinished());
+        assertThat(finishedOperatorState.isFullyFinished(), is(true));
     }
 
     // ------------------------------------------------------------------------

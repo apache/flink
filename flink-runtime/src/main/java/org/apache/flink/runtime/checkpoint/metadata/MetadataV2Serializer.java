@@ -75,7 +75,7 @@ public class MetadataV2Serializer extends MetadataV2V3SerializerBase implements 
             throws IOException {
         checkState(
                 !operatorState.isFullyFinished(),
-                "Could not support finished Operator state in stale serializers.");
+                "Could not support finished Operator state in state serializers.");
 
         // Operator ID
         dos.writeLong(operatorState.getOperatorID().getLowerPart());
