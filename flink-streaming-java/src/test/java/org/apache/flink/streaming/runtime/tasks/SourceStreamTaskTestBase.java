@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -25,8 +26,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.util.function.FunctionWithException;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,6 +67,9 @@ public class SourceStreamTaskTestBase {
                             new CheckpointMetaData(1L, System.currentTimeMillis()),
                             CheckpointOptions.forCheckpointWithDefaultLocation());
 
+            OneShotLatch checkpointAcknowledgeLatch = new OneShotLatch();
+            harness.getCheckpointResponder().setAcknowledgeLatch(checkpointAcknowledgeLatch);
+
             assertFalse(triggerFuture.isDone());
             Thread.sleep(sleepTime);
             while (!triggerFuture.isDone()) {
@@ -72,6 +79,14 @@ public class SourceStreamTaskTestBase {
                     (Gauge<Long>) metrics.get(MetricNames.CHECKPOINT_START_DELAY_TIME);
             assertThat(
                     checkpointStartDelayGauge.getValue(),
+                    greaterThanOrEqualTo(sleepTime * 1_000_000));
+
+            checkpointAcknowledgeLatch.await();
+            TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
+                    Iterables.getOnlyElement(
+                            harness.getCheckpointResponder().getAcknowledgeReports());
+            assertThat(
+                    acknowledgeReport.getCheckpointMetrics().getCheckpointStartDelayNanos(),
                     greaterThanOrEqualTo(sleepTime * 1_000_000));
         }
     }
