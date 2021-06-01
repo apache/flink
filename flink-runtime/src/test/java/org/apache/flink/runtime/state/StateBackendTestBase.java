@@ -4502,7 +4502,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             backend.dispose();
             // Initialize again
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-            snapshot.discardState();
+            if (snapshot != null) {
+                snapshot.discardState();
+            }
 
             backend.getPartitionedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
