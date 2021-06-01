@@ -38,12 +38,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -163,12 +163,12 @@ public class SessionContextTest {
     @Test
     public void testSetWithConfigOptionAndResetWithYamlKey() {
         // runtime config option and has deprecated key
-        sessionContext.set(TABLE_PLANNER.key(), "blink");
-        assertEquals("blink", getConfiguration().get(TABLE_PLANNER).name().toLowerCase());
+        sessionContext.set(RUNTIME_MODE.key(), "BATCH");
+        assertEquals("BATCH", getConfiguration().get(RUNTIME_MODE).name());
 
-        sessionContext.reset(TABLE_PLANNER.key());
-        assertEquals("old", getConfiguration().get(TABLE_PLANNER).name().toLowerCase());
-        assertEquals("old", getConfigurationMap().get("execution.planner").toLowerCase());
+        sessionContext.reset(RUNTIME_MODE.key());
+        assertEquals("STREAMING", getConfiguration().get(RUNTIME_MODE).name());
+        assertEquals("STREAMING", getConfigurationMap().get("execution.type").toUpperCase());
     }
 
     @Test
@@ -222,7 +222,6 @@ public class SessionContextTest {
 
     private SessionContext createSessionContext() throws Exception {
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");

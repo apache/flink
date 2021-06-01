@@ -22,7 +22,6 @@
 #==============================================================================
 
 execution:
-  planner: blink
   type: batch
   result-mode: table
 

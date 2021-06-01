@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.client.gateway.context;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.bridge.java.internal.BatchTableEnvironmentImpl;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -57,7 +56,7 @@ public class ExecutionContext {
     private final SessionState sessionState;
     private final URLClassLoader classLoader;
 
-    private final TableEnvironment tableEnv;
+    private final StreamTableEnvironment tableEnv;
 
     public ExecutionContext(
             Configuration flinkConfig, URLClassLoader classLoader, SessionState sessionState) {
@@ -78,7 +77,7 @@ public class ExecutionContext {
         this.flinkConfig = context.flinkConfig;
         this.sessionState = context.sessionState;
         this.classLoader = context.classLoader;
-        // create a new table env
+
         this.tableEnv = createTableEnvironment();
     }
 
@@ -91,7 +90,7 @@ public class ExecutionContext {
         }
     }
 
-    public TableEnvironment getTableEnvironment() {
+    public StreamTableEnvironment getTableEnvironment() {
         return tableEnv;
     }
 
@@ -99,33 +98,34 @@ public class ExecutionContext {
     // Helper to create Table Environment
     // ------------------------------------------------------------------------------------------------------------------
 
-    private TableEnvironment createTableEnvironment() {
-        // check the value of TABLE_PLANNER and RUNTIME_MODE
+    private StreamTableEnvironment createTableEnvironment() {
+        // checks the value of RUNTIME_MODE
         EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
+
+        if (!settings.isBlinkPlanner()) {
+            throw new TableException(
+                    "The old planner is not supported anymore. Please update to new default planner.");
+        }
+
         TableConfig config = new TableConfig();
         config.addConfiguration(flinkConfig);
-        if (!settings.isStreamingMode() && !settings.isBlinkPlanner()) {
-            ExecutionEnvironment execEnv = createExecutionEnvironment();
-            return new BatchTableEnvironmentImpl(
-                    execEnv, config, sessionState.catalogManager, sessionState.moduleManager);
-        } else {
-            StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
-            final Map<String, String> executorProperties = settings.toExecutorProperties();
-            Executor executor = lookupExecutor(executorProperties, streamExecEnv);
-            return createStreamTableEnvironment(
-                    streamExecEnv,
-                    settings,
-                    config,
-                    executor,
-                    sessionState.catalogManager,
-                    sessionState.moduleManager,
-                    sessionState.functionCatalog,
-                    classLoader);
-        }
+        StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
+
+        final Map<String, String> executorProperties = settings.toExecutorProperties();
+        Executor executor = lookupExecutor(executorProperties, streamExecEnv);
+        return createStreamTableEnvironment(
+                streamExecEnv,
+                settings,
+                config,
+                executor,
+                sessionState.catalogManager,
+                sessionState.moduleManager,
+                sessionState.functionCatalog,
+                classLoader);
     }
 
-    private TableEnvironment createStreamTableEnvironment(
+    private StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
             TableConfig config,
@@ -183,11 +183,5 @@ public class ExecutionContext {
         // to execute existing StreamGraph.
         // This requires StreamExecutionEnvironment to have a full flink configuration.
         return new StreamExecutionEnvironment(new Configuration(flinkConfig), classLoader);
-    }
-
-    private ExecutionEnvironment createExecutionEnvironment() {
-        ExecutionEnvironment execEnv = ExecutionEnvironment.getExecutionEnvironment();
-        execEnv.getConfiguration().addAll(flinkConfig);
-        return execEnv;
     }
 }

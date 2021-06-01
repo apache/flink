@@ -135,7 +135,7 @@ catalogs:
     test-table: test-table
 
 execution:
-  planner: "$VAR_PLANNER"
+  planner: blink
   type: "$VAR_EXECUTION_TYPE"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
