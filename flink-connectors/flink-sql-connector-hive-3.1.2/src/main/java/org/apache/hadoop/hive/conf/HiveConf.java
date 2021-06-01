@@ -176,7 +176,10 @@ public class HiveConf extends Configuration {
             System.err.println("Cannot get jar URI: " + e.getMessage());
           }
           // From the jar file, the parent is /lib folder
-          File parent = new File(jarUri).getParentFile();
+          File parent = null;
+          if (!jarUri.isOpaque()) {
+            parent = new File(jarUri).getParentFile();
+          }
           if (parent != null) {
             result = checkConfigFile(new File(parent.getParentFile(), nameInConf));
           }
