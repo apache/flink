@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalE
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.typeutils.RowTypeUtils;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -34,6 +35,7 @@ import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLocalRef;
@@ -91,50 +93,32 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
             final Mappings.TargetMapping calcMapping = buildMapping(calc.getProgram());
             final RelDistribution exchangeDistribution = exchange.getDistribution();
             final RelDistribution newExchangeDistribution = exchangeDistribution.apply(calcMapping);
-            // Pushes down WatermarkAssigner/Calc as a whole if shuffle keys of
-            // Exchange are all kept by Calc
             final boolean shuffleKeysAreKeptByCalc =
                     newExchangeDistribution.getType() == exchangeDistribution.getType()
                             && newExchangeDistribution.getKeys().size()
                                     == exchangeDistribution.getKeys().size();
             if (shuffleKeysAreKeptByCalc) {
+                // Pushes down WatermarkAssigner/Calc as a whole if shuffle keys of
+                // Exchange are all kept by Calc
                 newTree =
-                        pushDownWatermarkAndCalc(
+                        pushDownOriginalWatermarkAndCalc(
                                 watermark,
                                 calc,
                                 changelogNormalize,
                                 exchange,
                                 newExchangeDistribution);
             } else {
-                final List<Integer> projectedOutShuffleKeys =
-                        deriveProjectedOutShuffleKeys(exchangeDistribution.getKeys(), calcMapping);
-                final RexBuilder rexBuilder = call.builder().getRexBuilder();
-                // Creates a new Program which contains all shuffle keys
-                final RexProgram newPushDownProgram =
-                        createNewProgramWithAllShuffleKeys(
-                                calc.getProgram(), projectedOutShuffleKeys, rexBuilder);
-                if (newPushDownProgram.isPermutation()) {
-                    // Pushes down WatermarkAssigner alone if new pushDown program is permutation
-                    newTree =
-                            pushDownWatermarkAlone(
-                                    watermark,
-                                    calc,
-                                    changelogNormalize,
-                                    exchange,
-                                    calcMapping,
-                                    rexBuilder);
-                } else {
-                    // Pushes down new WatermarkAssigner/Calc, adds a top Calc to remove new added
-                    // shuffle keys
-                    newTree =
-                            pushDownNewWatermarkAndCalc(
-                                    newPushDownProgram,
-                                    watermark,
-                                    calc,
-                                    changelogNormalize,
-                                    exchange,
-                                    rexBuilder);
-                }
+                // 1. Creates a new Calc which contains all shuffle keys
+                // 2. Pushes down new WatermarkAssigner/new Calc
+                // 3. Adds a top Calc to remove new added shuffle keys in step 1
+                newTree =
+                        pushDownTransformedWatermarkAndCalc(
+                                watermark,
+                                calc,
+                                changelogNormalize,
+                                exchange,
+                                exchangeDistribution.getKeys(),
+                                calcMapping);
             }
         } else if (node instanceof StreamPhysicalChangelogNormalize) {
             // without calc
@@ -158,7 +142,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
         call.transformTo(newTree);
     }
 
-    private RelNode pushDownWatermarkAndCalc(
+    private RelNode pushDownOriginalWatermarkAndCalc(
             StreamPhysicalWatermarkAssigner watermark,
             StreamPhysicalCalc calc,
             StreamPhysicalChangelogNormalize changelogNormalize,
@@ -166,10 +150,10 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
             RelDistribution newExchangeDistribution) {
         return buildTreeInOrder(
                 exchange.getInput(),
-                // clears distribution on new Calc/WatermarkAssigner
+                // Clears distribution on new Calc/WatermarkAssigner
                 Tuple2.of(calc, calc.getTraitSet().plus(FlinkRelDistribution.DEFAULT())),
                 Tuple2.of(watermark, watermark.getTraitSet().plus(FlinkRelDistribution.DEFAULT())),
-                // updates distribution on new Exchange/Normalize based on field
+                // Updates distribution on new Exchange/Normalize based on field
                 // mapping of Calc
                 Tuple2.of(exchange, exchange.getTraitSet().plus(newExchangeDistribution)),
                 Tuple2.of(
@@ -177,16 +161,74 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
                         changelogNormalize.getTraitSet().plus(newExchangeDistribution)));
     }
 
-    private RelNode pushDownNewWatermarkAndCalc(
-            RexProgram newPushDownProgram,
+    private RelNode pushDownTransformedWatermarkAndCalc(
             StreamPhysicalWatermarkAssigner watermark,
             StreamPhysicalCalc calc,
             StreamPhysicalChangelogNormalize changelogNormalize,
             StreamPhysicalExchange exchange,
-            RexBuilder rexBuilder) {
+            List<Integer> completeShuffleKeys,
+            Mappings.TargetMapping calcMapping) {
+        final List<Integer> projectedOutShuffleKeys = new ArrayList<>();
+        for (Integer key : completeShuffleKeys) {
+            int targetIdx = calcMapping.getTargetOpt(key);
+            if (targetIdx < 0) {
+                projectedOutShuffleKeys.add(key);
+            }
+        }
+        // Creates a new Program which contains all shuffle keys
+        final RexBuilder rexBuilder = calc.getCluster().getRexBuilder();
+        final RexProgram newPushDownProgram =
+                createTransformedProgramWithAllShuffleKeys(
+                        calc.getProgram(), projectedOutShuffleKeys, rexBuilder);
+        if (newPushDownProgram.isPermutation()) {
+            // Pushes down transformed WatermarkAssigner alone if new pushDown program is a
+            // permutation of its inputs
+            return pushDownTransformedWatermark(
+                    watermark, calc, changelogNormalize, exchange, calcMapping, rexBuilder);
+        } else {
+            // 1. Pushes down transformed WatermarkAssigner and transformed Calc
+            // 2. Adds a top Calc to remove new added shuffle keys
+            return pushDownTransformedWatermarkAndCalc(
+                    newPushDownProgram, watermark, exchange, changelogNormalize, calc);
+        }
+    }
+
+    private RexProgram createTransformedProgramWithAllShuffleKeys(
+            RexProgram program, List<Integer> projectsOutShuffleKeys, RexBuilder rexBuilder) {
+        RelDataType oldInputRowType = program.getInputRowType();
+        List<String> visitedProjectNames = new ArrayList<>();
+        RexProgramBuilder newProgramBuilder = new RexProgramBuilder(oldInputRowType, rexBuilder);
+        program.getNamedProjects()
+                .forEach(
+                        pair -> {
+                            newProgramBuilder.addProject(
+                                    program.expandLocalRef(pair.left), pair.right);
+                            visitedProjectNames.add(pair.right);
+                        });
+        List<RelDataTypeField> oldFieldList = oldInputRowType.getFieldList();
+        for (Integer projectsOutShuffleKey : projectsOutShuffleKeys) {
+            RelDataTypeField oldField = oldFieldList.get(projectsOutShuffleKey);
+            String oldFieldName = oldField.getName();
+            String newProjectName = RowTypeUtils.getUniqueName(oldFieldName, visitedProjectNames);
+            newProgramBuilder.addProject(
+                    new RexInputRef(projectsOutShuffleKey, oldField.getType()), newProjectName);
+            visitedProjectNames.add(newProjectName);
+        }
+        if (program.getCondition() != null) {
+            newProgramBuilder.addCondition(program.expandLocalRef(program.getCondition()));
+        }
+        return newProgramBuilder.getProgram();
+    }
+
+    private RelNode pushDownTransformedWatermarkAndCalc(
+            RexProgram newPushDownProgram,
+            StreamPhysicalWatermarkAssigner watermark,
+            StreamPhysicalExchange exchange,
+            StreamPhysicalChangelogNormalize changelogNormalize,
+            StreamPhysicalCalc calc) {
         final RelNode pushDownCalc =
                 calc.copy(
-                        // clears distribution on new Calc
+                        // Clears distribution on new Calc
                         calc.getTraitSet().plus(FlinkRelDistribution.DEFAULT()),
                         exchange.getInput(),
                         newPushDownProgram);
@@ -207,7 +249,9 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
                                 changelogNormalize.getTraitSet().plus(newDistribution)));
         final List<String> newInputFieldNames = newChangelogNormalize.getRowType().getFieldNames();
         final RexProgramBuilder topProgramBuilder =
-                new RexProgramBuilder(newChangelogNormalize.getRowType(), rexBuilder);
+                new RexProgramBuilder(
+                        newChangelogNormalize.getRowType(),
+                        changelogNormalize.getCluster().getRexBuilder());
         for (int fieldIdx = 0; fieldIdx < calc.getRowType().getFieldCount(); fieldIdx++) {
             topProgramBuilder.addProject(
                     RexInputRef.of(fieldIdx, newChangelogNormalize.getRowType()),
@@ -217,7 +261,7 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
         return calc.copy(calc.getTraitSet(), newChangelogNormalize, topProgram);
     }
 
-    private RelNode pushDownWatermarkAlone(
+    private RelNode pushDownTransformedWatermark(
             StreamPhysicalWatermarkAssigner watermark,
             StreamPhysicalCalc calc,
             StreamPhysicalChangelogNormalize changelogNormalize,
@@ -281,37 +325,6 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
         return calc.copy(calc.getTraitSet(), newChangelogNormalize, newProgram);
     }
 
-    private List<Integer> deriveProjectedOutShuffleKeys(
-            List<Integer> allShuffleKeys, Mappings.TargetMapping calcMapping) {
-        List<Integer> projectsOutShuffleKeys = new ArrayList<>();
-        for (Integer key : allShuffleKeys) {
-            int targetIdx = calcMapping.getTargetOpt(key);
-            if (targetIdx < 0) {
-                projectsOutShuffleKeys.add(key);
-            }
-        }
-        return projectsOutShuffleKeys;
-    }
-
-    private RexProgram createNewProgramWithAllShuffleKeys(
-            RexProgram program, List<Integer> projectsOutShuffleKeys, RexBuilder rexBuilder) {
-        RelDataType oldInputRowType = program.getInputRowType();
-        RexProgramBuilder newProgramBuilder = new RexProgramBuilder(oldInputRowType, rexBuilder);
-        program.getNamedProjects()
-                .forEach(
-                        pair ->
-                                newProgramBuilder.addProject(
-                                        program.expandLocalRef(pair.left), pair.right));
-        for (Integer projectsOutShuffleKey : projectsOutShuffleKeys) {
-            newProgramBuilder.addProject(
-                    RexInputRef.of(projectsOutShuffleKey, oldInputRowType), null);
-        }
-        if (program.getCondition() != null) {
-            newProgramBuilder.addCondition(program.expandLocalRef(program.getCondition()));
-        }
-        return newProgramBuilder.getProgram();
-    }
-
     private Mappings.TargetMapping buildMapping(RexProgram program) {
         final Map<Integer, Integer> mapInToOutPos = new HashMap<>();
         final List<RexLocalRef> projects = program.getProjectList();
@@ -330,24 +343,25 @@ public class WatermarkAssignerChangelogNormalizeTransposeRule
     /**
      * Build a new {@link RelNode} tree in the given nodes order which is in bottom-up direction.
      */
-    private RelNode buildTreeInOrder(
+    @SafeVarargs
+    private final RelNode buildTreeInOrder(
             RelNode leafNode, Tuple2<RelNode, RelTraitSet>... nodeAndTraits) {
         checkArgument(nodeAndTraits.length >= 1);
         RelNode inputNode = leafNode;
         RelNode currentNode = null;
-        for (Tuple2<RelNode, RelTraitSet> nodeAndPair : nodeAndTraits) {
-            currentNode = nodeAndPair.f0;
+        for (Tuple2<RelNode, RelTraitSet> nodeAndTrait : nodeAndTraits) {
+            currentNode = nodeAndTrait.f0;
             if (currentNode instanceof StreamPhysicalExchange) {
                 currentNode =
                         ((StreamPhysicalExchange) currentNode)
                                 .copy(
-                                        nodeAndPair.f1,
+                                        nodeAndTrait.f1,
                                         inputNode,
-                                        nodeAndPair.f1.getTrait(
+                                        nodeAndTrait.f1.getTrait(
                                                 FlinkRelDistributionTraitDef.INSTANCE()));
             } else {
                 currentNode =
-                        currentNode.copy(nodeAndPair.f1, Collections.singletonList(inputNode));
+                        currentNode.copy(nodeAndTrait.f1, Collections.singletonList(inputNode));
             }
             inputNode = currentNode;
         }
