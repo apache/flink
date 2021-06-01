@@ -170,10 +170,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     private MockEnvironment env;
 
-    protected abstract B getStateBackend() throws Exception;
+    protected abstract ConfigurableStateBackend getStateBackend() throws Exception;
 
     protected CheckpointStorage getCheckpointStorage() throws Exception {
-        StateBackend stateBackend = getStateBackend();
+        ConfigurableStateBackend stateBackend = getStateBackend();
         if (stateBackend instanceof CheckpointStorage) {
             return (CheckpointStorage) stateBackend;
         }
@@ -235,19 +235,19 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         return backend;
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
         return restoreKeyedBackend(keySerializer, state, env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer, KeyedStateHandle state, Environment env)
             throws Exception {
         return restoreKeyedBackend(
                 keySerializer, 10, new KeyGroupRange(0, 9), Collections.singletonList(state), env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -255,32 +255,28 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             Environment env)
             throws Exception {
 
-        AbstractKeyedStateBackend<K> backend =
-                getStateBackend()
-                        .createKeyedStateBackend(
-                                env,
-                                new JobID(),
-                                "test_op",
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                env.getTaskKvStateRegistry(),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                state,
-                                new CloseableRegistry());
-
-        return backend;
+        return getStateBackend()
+                .createKeyedStateBackend(
+                        env,
+                        new JobID(),
+                        "test_op",
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        env.getTaskKvStateRegistry(),
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        state,
+                        new CloseableRegistry());
     }
 
     @Test
     public void testEnableStateLatencyTracking() throws Exception {
-        B stateBackend = getStateBackend();
+        ConfigurableStateBackend stateBackend = getStateBackend();
         Configuration config = new Configuration();
         config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend configuredBackend =
-                ((ConfigurableStateBackend) stateBackend)
-                        .configure(config, Thread.currentThread().getContextClassLoader());
+                stateBackend.configure(config, Thread.currentThread().getContextClassLoader());
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
         CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                 configuredBackend.createKeyedStateBackend(

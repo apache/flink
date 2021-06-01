@@ -23,10 +23,13 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 import org.junit.Ignore;
 import org.junit.Test;
+
+import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
@@ -55,10 +58,15 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(getStateBackend()),
+                new ChangelogStateBackend(super.getStateBackend()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
                 env);
+    }
+
+    @Override
+    protected ConfigurableStateBackend getStateBackend() throws IOException {
+        return new ChangelogStateBackend(super.getStateBackend());
     }
 }
