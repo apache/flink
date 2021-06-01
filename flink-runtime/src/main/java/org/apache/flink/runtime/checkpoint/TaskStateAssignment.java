@@ -19,7 +19,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
-import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.Rescaling;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.MappingType;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
@@ -314,7 +314,7 @@ class TaskStateAssignment {
                         oldSubtaskInstances,
                         rescaleMapping.getRescaleMappings(),
                         ambiguousSubtasks,
-                        isIdentity ? Rescaling.IDENTITY : Rescaling.RESCALING),
+                        isIdentity ? MappingType.IDENTITY : MappingType.RESCALING),
                 instanceID.getSubtaskId(),
                 partition);
     }

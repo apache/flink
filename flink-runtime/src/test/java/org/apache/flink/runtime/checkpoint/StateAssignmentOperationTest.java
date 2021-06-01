@@ -63,7 +63,7 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.Rescaling.RESCALING;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.MappingType.RESCALING;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.array;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.rescalingDescriptor;
@@ -482,9 +482,9 @@ public class StateAssignmentOperationTest extends TestLogger {
             int[] oldIndices,
             RescaleMappings rescaleMapping,
             Set<Integer> ambiguousSubtaskIndexes,
-            InflightDataGateOrPartitionRescalingDescriptor.Rescaling rescalingMode) {
+            InflightDataGateOrPartitionRescalingDescriptor.MappingType mappingType) {
         return new InflightDataGateOrPartitionRescalingDescriptor(
-                oldIndices, rescaleMapping, ambiguousSubtaskIndexes, rescalingMode);
+                oldIndices, rescaleMapping, ambiguousSubtaskIndexes, mappingType);
     }
 
     @Test

@@ -126,9 +126,9 @@ public class InflightDataRescalingDescriptor implements Serializable {
         /** All channels where upstream duplicates data (only valid for downstream mappings). */
         private final Set<Integer> ambiguousSubtaskIndexes;
 
-        private final Rescaling rescaling;
+        private final MappingType mappingType;
 
-        enum Rescaling {
+        enum MappingType {
             IDENTITY,
             RESCALING
         }
@@ -137,15 +137,15 @@ public class InflightDataRescalingDescriptor implements Serializable {
                 int[] oldSubtaskIndexes,
                 RescaleMappings rescaledChannelsMappings,
                 Set<Integer> ambiguousSubtaskIndexes,
-                Rescaling rescaling) {
+                MappingType mappingType) {
             this.oldSubtaskIndexes = oldSubtaskIndexes;
             this.rescaledChannelsMappings = rescaledChannelsMappings;
             this.ambiguousSubtaskIndexes = ambiguousSubtaskIndexes;
-            this.rescaling = rescaling;
+            this.mappingType = mappingType;
         }
 
         public boolean isIdentity() {
-            return rescaling == Rescaling.IDENTITY;
+            return mappingType == MappingType.IDENTITY;
         }
 
         @Override
@@ -161,12 +161,13 @@ public class InflightDataRescalingDescriptor implements Serializable {
             return Arrays.equals(oldSubtaskIndexes, that.oldSubtaskIndexes)
                     && Objects.equals(rescaledChannelsMappings, that.rescaledChannelsMappings)
                     && Objects.equals(ambiguousSubtaskIndexes, that.ambiguousSubtaskIndexes)
-                    && rescaling == that.rescaling;
+                    && mappingType == that.mappingType;
         }
 
         @Override
         public int hashCode() {
-            int result = Objects.hash(rescaledChannelsMappings, ambiguousSubtaskIndexes, rescaling);
+            int result =
+                    Objects.hash(rescaledChannelsMappings, ambiguousSubtaskIndexes, mappingType);
             result = 31 * result + Arrays.hashCode(oldSubtaskIndexes);
             return result;
         }
@@ -180,8 +181,8 @@ public class InflightDataRescalingDescriptor implements Serializable {
                     + rescaledChannelsMappings
                     + ", ambiguousSubtaskIndexes="
                     + ambiguousSubtaskIndexes
-                    + ", rescaling="
-                    + rescaling
+                    + ", mappingType="
+                    + mappingType
                     + '}';
         }
     }

@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
-import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.Rescaling;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.MappingType;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -59,7 +59,7 @@ public class InflightDataRescalingDescriptorUtil {
                                                 oldIndices,
                                                 mapping,
                                                 ambiguousSubtasks,
-                                                Rescaling.RESCALING))
+                                                MappingType.RESCALING))
                         .toArray(InflightDataGateOrPartitionRescalingDescriptor[]::new));
     }
 }
