@@ -38,12 +38,18 @@ public class CliUtilsTest {
 
     @Test
     public void testCreate() throws IOException {
+        Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
+        CliUtils.createFile(realDirHistoryFile);
+        assertTrue(Files.exists(realDirHistoryFile));
+
         Path link = Paths.get(linkFolder.getRoot().getAbsolutePath(), "link");
         Files.createSymbolicLink(link, realFolder.getRoot().toPath());
+        Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
+        CliUtils.createFile(linkDirHistoryFile);
+        assertTrue(Files.exists(linkDirHistoryFile));
 
-        Path historyFile = Paths.get(link.toAbsolutePath().toString(), "test.file");
-        CliUtils.createFile(historyFile);
-
-        assertTrue(Files.exists(historyFile));
+        Path subDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
+        CliUtils.createFile(subDirHistoryFile);
+        assertTrue(Files.exists(subDirHistoryFile));
     }
 }
