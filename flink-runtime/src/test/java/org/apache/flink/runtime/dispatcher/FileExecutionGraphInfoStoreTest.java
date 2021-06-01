@@ -74,28 +74,13 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
      */
     @Test
     public void testPut() throws IOException {
-        final ExecutionGraphInfo dummyExecutionGraphInfo =
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build());
-        final File rootDir = temporaryFolder.newFolder();
+        assertPutJobGraphWithStatus(JobStatus.FINISHED);
+    }
 
-        try (final FileExecutionGraphInfoStore executionGraphStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
-
-            final File storageDirectory = executionGraphStore.getStorageDir();
-
-            // check that the storage directory is empty
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
-
-            executionGraphStore.put(dummyExecutionGraphInfo);
-
-            // check that we have persisted the given execution graph
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
-
-            assertThat(
-                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
-                    new PartialExecutionGraphInfoMatcher(dummyExecutionGraphInfo));
-        }
+    /** Tests that a SUSPENDED job can be persisted. */
+    @Test
+    public void testPutSuspendedJob() throws IOException {
+        assertPutJobGraphWithStatus(JobStatus.SUSPENDED);
     }
 
     /** Tests that null is returned if we request an unknown JobID. */
@@ -411,6 +396,31 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         public void describeTo(Description description) {
             description.appendText(
                     "Matches against " + ExecutionGraphInfo.class.getSimpleName() + '.');
+        }
+    }
+
+    private void assertPutJobGraphWithStatus(JobStatus jobStatus) throws IOException {
+        final ExecutionGraphInfo dummyExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder().setState(jobStatus).build());
+        final File rootDir = temporaryFolder.newFolder();
+
+        try (final FileExecutionGraphInfoStore executionGraphStore =
+                createDefaultExecutionGraphInfoStore(rootDir)) {
+
+            final File storageDirectory = executionGraphStore.getStorageDir();
+
+            // check that the storage directory is empty
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+
+            executionGraphStore.put(dummyExecutionGraphInfo);
+
+            // check that we have persisted the given execution graph
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+
+            assertThat(
+                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
+                    new PartialExecutionGraphInfoMatcher(dummyExecutionGraphInfo));
         }
     }
 
