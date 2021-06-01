@@ -25,8 +25,8 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.AbstractFileSource;
 import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
+import org.apache.flink.connector.file.src.assigners.FIFOSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
-import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connectors.hive.read.HiveBulkFormatAdapter;
@@ -204,7 +204,7 @@ public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
             FileSplitAssigner.Provider splitAssigner =
                     continuousSourceSettings == null || partitionKeys.isEmpty()
                             ? DEFAULT_SPLIT_ASSIGNER
-                            : SimpleSplitAssigner::new;
+                            : FIFOSplitAssigner::new;
             return new HiveSource(
                     inputPaths,
                     fileEnumerator,
