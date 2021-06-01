@@ -25,9 +25,26 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
+import org.junit.Ignore;
+import org.junit.Test;
+
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         extends EmbeddedRocksDBStateBackendTest {
+
+    @Override
+    protected boolean snapshotUsesStreamFactory() {
+        return false;
+    }
+
+    @Override
+    protected boolean supportsMetaInfoVerification() {
+        return false;
+    }
+
+    @Test
+    @Ignore("The type of handle returned from snapshot() is not incremental")
+    public void testSharedIncrementalStateDeRegistration() {}
 
     @Override
     protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
