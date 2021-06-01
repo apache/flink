@@ -20,7 +20,6 @@ package org.apache.flink.formats.json.maxwell;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
@@ -29,7 +28,6 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -67,29 +65,9 @@ public class MaxwellJsonFormatFactory
         validateDecodingFormatOptions(formatOptions);
 
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-        TimestampFormat timestampFormatOption = JsonOptions.getTimestampFormat(formatOptions);
+        final TimestampFormat timestampFormat = JsonOptions.getTimestampFormat(formatOptions);
 
-        return new DecodingFormat<DeserializationSchema<RowData>>() {
-            @Override
-            public DeserializationSchema<RowData> createRuntimeDecoder(
-                    DynamicTableSource.Context context, DataType producedDataType) {
-                final RowType rowType = (RowType) producedDataType.getLogicalType();
-                final TypeInformation<RowData> rowDataTypeInfo =
-                        context.createTypeInformation(producedDataType);
-                return new MaxwellJsonDeserializationSchema(
-                        rowType, rowDataTypeInfo, ignoreParseErrors, timestampFormatOption);
-            }
-
-            @Override
-            public ChangelogMode getChangelogMode() {
-                return ChangelogMode.newBuilder()
-                        .addContainedKind(RowKind.INSERT)
-                        .addContainedKind(RowKind.UPDATE_BEFORE)
-                        .addContainedKind(RowKind.UPDATE_AFTER)
-                        .addContainedKind(RowKind.DELETE)
-                        .build();
-            }
-        };
+        return new MaxwellJsonDecodingFormat(ignoreParseErrors, timestampFormat);
     }
 
     @Override
