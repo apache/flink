@@ -75,7 +75,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend {
+                TestableKeyedStateBackend<K> {
 
     private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
             Stream.of(
@@ -331,6 +331,11 @@ class ChangelogKeyedStateBackend<K>
         return stateFactory.create(
                 keyedStateBackend.createInternalState(
                         namespaceSerializer, stateDesc, snapshotTransformFactory));
+    }
+
+    @Override
+    public KeyedStateBackend<K> getDelegatedKeyedStateBackend(boolean recursive) {
+        return keyedStateBackend.getDelegatedKeyedStateBackend(recursive);
     }
 
     // Factory function interface
