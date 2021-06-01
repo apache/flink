@@ -163,12 +163,12 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
         final String jobName = archivedExecutionGraph.getJobName();
 
         Preconditions.checkArgument(
-                jobStatus.isGloballyTerminalState(),
+                jobStatus.isTerminalState(),
                 "The job "
                         + jobName
                         + '('
                         + jobId
-                        + ") is not in a globally terminal state. Instead it is in state "
+                        + ") is not in a terminal state. Instead it is in state "
                         + jobStatus
                         + '.');
 
@@ -182,13 +182,15 @@ public class FileArchivedExecutionGraphStore implements ArchivedExecutionGraphSt
             case FAILED:
                 numFailedJobs++;
                 break;
+            case SUSPENDED:
+                break;
             default:
                 throw new IllegalStateException(
                         "The job "
                                 + jobName
                                 + '('
                                 + jobId
-                                + ") should have been in a globally terminal state. "
+                                + ") should have been in a known terminal state. "
                                 + "Instead it was in state "
                                 + jobStatus
                                 + '.');
