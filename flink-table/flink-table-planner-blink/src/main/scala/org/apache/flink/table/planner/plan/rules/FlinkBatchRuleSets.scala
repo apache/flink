@@ -307,9 +307,6 @@ object FlinkBatchRuleSets {
     CoreRules.PROJECT_TO_CALC,
     FlinkCalcMergeRule.INSTANCE,
 
-    // remove output of rank number when it is not used by successor calc
-    RedundantRankNumberColumnRemoveRule.INSTANCE,
-
     // semi/anti join transpose rule
     FlinkSemiAntiJoinJoinTransposeRule.INSTANCE,
     FlinkSemiAntiJoinProjectTransposeRule.INSTANCE,
@@ -386,7 +383,9 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
     PythonCalcSplitRule.REWRITE_PROJECT,
-    PythonMapMergeRule.INSTANCE
+    PythonMapMergeRule.INSTANCE,
+    // remove output of rank number when it is not used by successor calc
+    RedundantRankNumberColumnRemoveRule.INSTANCE
     )
 
   /**

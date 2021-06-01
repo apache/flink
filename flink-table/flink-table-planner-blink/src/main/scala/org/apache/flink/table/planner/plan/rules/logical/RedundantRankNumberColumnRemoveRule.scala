@@ -19,18 +19,18 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalRank}
-import org.apache.flink.table.planner.plan.utils.InputRefVisitor
+import org.apache.flink.table.planner.plan.utils.RankUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rex.RexProgramBuilder
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}
+import org.apache.calcite.rex.{RexNode, RexProgram}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Planner rule that removes the output column of rank number
-  * iff the rank number column is not used by successor calc.
-  */
+ * Planner rule that removes the output column of rank number
+ * iff the rank number column is not used by successor calc.
+ */
 class RedundantRankNumberColumnRemoveRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalCalc],
@@ -39,9 +39,10 @@ class RedundantRankNumberColumnRemoveRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0)
+    val usedFields = getUsedFields(calc.getProgram)
     val rank: FlinkLogicalRank = call.rel(1)
-    val rankNumberColumnIdx = rank.getRowType.getFieldCount - 1
-    rank.outputRankNumber && !isFieldUsedByCalc(calc, rankNumberColumnIdx)
+    val rankFunFieldIndex = RankUtil.getRankNumberColumnIndex(rank).getOrElse(-1)
+    rank.outputRankNumber && !usedFields.contains(rankFunFieldIndex)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -58,30 +59,31 @@ class RedundantRankNumberColumnRemoveRule
       rank.rankNumberType,
       outputRankNumber = false)
 
-    val rexBuilder = rank.getCluster.getRexBuilder
     val oldProgram = calc.getProgram
-    val programBuilder = new RexProgramBuilder(newRank.getRowType, rexBuilder)
-    oldProgram.getNamedProjects.foreach { pair =>
-      programBuilder.addProject(oldProgram.expandLocalRef(pair.left), pair.right)
-    }
-    if (oldProgram.getCondition != null) {
-      programBuilder.addCondition(oldProgram.expandLocalRef(oldProgram.getCondition))
-    }
-    val rexProgram = programBuilder.getProgram
-    val newCalc = FlinkLogicalCalc.create(newRank, rexProgram)
+    val (projects, condition) = getProjectsAndCondition(calc.getProgram)
+    val newProgram = RexProgram.create(
+      newRank.getRowType,
+      projects,
+      condition,
+      oldProgram.getOutputRowType,
+      rank.getCluster.getRexBuilder)
+    val newCalc = FlinkLogicalCalc.create(newRank, newProgram)
     call.transformTo(newCalc)
   }
 
-  private def isFieldUsedByCalc(calc: FlinkLogicalCalc, inputRefIdx: Int): Boolean = {
-    val projectsAndConditions = calc.getProgram.split()
-    val projects = projectsAndConditions.left
-    val conditions = projectsAndConditions.right
-    val visitor = new InputRefVisitor
-    // extract referenced input fields from projections
-    projects.foreach(exp => exp.accept(visitor))
-    // extract referenced input fields from condition
-    conditions.foreach(_.accept(visitor))
-    visitor.getFields.contains(inputRefIdx)
+  private def getUsedFields(program: RexProgram): Array[Int] = {
+    val (projects, condition) = getProjectsAndCondition(program)
+    RelOptUtil.InputFinder.bits(projects, condition).toArray
+  }
+
+  private def getProjectsAndCondition(program: RexProgram): (Seq[RexNode], RexNode) = {
+    val projects = program.getProjectList.map(program.expandLocalRef)
+    val condition = if (program.getCondition != null) {
+      program.expandLocalRef(program.getCondition)
+    } else {
+      null
+    }
+    (projects, condition)
   }
 }
 
