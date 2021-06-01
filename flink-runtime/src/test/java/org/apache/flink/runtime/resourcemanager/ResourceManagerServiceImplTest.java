@@ -38,6 +38,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -68,6 +69,8 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private TestingLeaderElectionService leaderElectionService;
     private ResourceManagerServiceImpl resourceManagerService;
 
+    private Properties sysProps;
+
     @BeforeClass
     public static void setupClass() {
         rpcService = new TestingRpcService();
@@ -77,6 +80,9 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
+        sysProps = System.getProperties();
+        System.setProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY, "");
+
         fatalErrorHandler.clearError();
 
         rmFactoryBuilder = new TestingResourceManagerFactory.Builder();
@@ -98,6 +104,8 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         if (fatalErrorHandler.hasExceptionOccurred()) {
             fatalErrorHandler.rethrowError();
         }
+
+        System.setProperties(sysProps);
     }
 
     @AfterClass
@@ -322,6 +330,25 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         // should terminate RM
         assertThat(
                 terminateRmFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit()), is(leaderSessionId));
+    }
+
+    @Test
+    public void revokeLeadership_terminateService_multiLeaderSessionDisabled() throws Exception {
+        System.clearProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY);
+
+        createAndStartResourceManager();
+
+        // grant leadership
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        // make sure RM started, before proceeding the next step
+        assertRmStarted();
+
+        // revoke leadership
+        leaderElectionService.notLeader();
+
+        // should terminate service
+        resourceManagerService.getTerminationFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
     @Test
