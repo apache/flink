@@ -43,6 +43,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,7 +60,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final FatalErrorHandler fatalErrorHandler;
     private final Executor ioExecutor;
 
-    private final Executor handleLeaderEventExecutor;
+    private final ExecutorService handleLeaderEventExecutor;
     private final CompletableFuture<Void> serviceTerminationFuture;
 
     private final Object lock = new Object();
@@ -155,6 +156,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
             FutureUtils.forward(previousResourceManagerTerminationFuture, serviceTerminationFuture);
         }
+
+        handleLeaderEventExecutor.shutdownNow();
 
         return serviceTerminationFuture;
     }
