@@ -174,13 +174,7 @@ class TaskStateAssignment {
                                     int assignmentIndex =
                                             getAssignmentIndex(
                                                     assignment.getDownstreamAssignments(), this);
-                                    SubtasksRescaleMapping mapping =
-                                            assignment.outputSubtaskMappings.get(assignmentIndex);
-                                    if (recompute && mapping == null) {
-                                        return assignment.getOutputMapping(assignmentIndex);
-                                    } else {
-                                        return mapping;
-                                    }
+                                    return assignment.getOutputMapping(assignmentIndex, recompute);
                                 },
                                 inputSubtaskMappings,
                                 this::getInputMapping))
@@ -193,13 +187,7 @@ class TaskStateAssignment {
                                     int assignmentIndex =
                                             getAssignmentIndex(
                                                     assignment.getUpstreamAssignments(), this);
-                                    SubtasksRescaleMapping mapping =
-                                            assignment.inputSubtaskMappings.get(assignmentIndex);
-                                    if (recompute && mapping == null) {
-                                        return assignment.getInputMapping(assignmentIndex);
-                                    } else {
-                                        return mapping;
-                                    }
+                                    return assignment.getInputMapping(assignmentIndex, recompute);
                                 },
                                 outputSubtaskMappings,
                                 this::getOutputMapping))
@@ -336,6 +324,24 @@ class TaskStateAssignment {
             Map<OperatorInstanceID, List<T>> subManagedOperatorState) {
         List<T> value = subManagedOperatorState.get(instanceID);
         return value != null ? new StateObjectCollection<>(value) : StateObjectCollection.empty();
+    }
+
+    private SubtasksRescaleMapping getOutputMapping(int assignmentIndex, boolean recompute) {
+        SubtasksRescaleMapping mapping = outputSubtaskMappings.get(assignmentIndex);
+        if (recompute && mapping == null) {
+            return getOutputMapping(assignmentIndex);
+        } else {
+            return mapping;
+        }
+    }
+
+    private SubtasksRescaleMapping getInputMapping(int assignmentIndex, boolean recompute) {
+        SubtasksRescaleMapping mapping = inputSubtaskMappings.get(assignmentIndex);
+        if (recompute && mapping == null) {
+            return getInputMapping(assignmentIndex);
+        } else {
+            return mapping;
+        }
     }
 
     public SubtasksRescaleMapping getOutputMapping(int partitionIndex) {
