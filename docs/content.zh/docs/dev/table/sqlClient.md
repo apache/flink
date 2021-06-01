@@ -339,7 +339,6 @@ CREATE FUNCTION foo.bar.AggregateUDF AS myUDF;
 
 -- Properties that change the fundamental execution behavior of a table program.
 
-SET 'table.planner' = 'blink'; -- planner: either 'blink' (default) or 'old'
 SET 'execution.runtime-mode' = 'streaming'; -- execution mode either 'batch' or 'streaming'
 SET 'sql-client.execution.result-mode' = 'table'; -- available values: 'table', 'changelog' and 'tableau'
 SET 'sql-client.execution.max-table-result.rows' = '10000'; -- optional: maximum number of maintained rows
@@ -362,7 +361,7 @@ This configuration:
 - defines a table `MyTableSource` that can read data from a CSV file,
 - defines a view `MyCustomView` that declares a virtual table using a SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name,
-- uses the blink planner in streaming mode for running statements and a parallelism of 1,
+- uses streaming mode for running statements and a parallelism of 1,
 - runs exploratory queries in the `table` result mode,
 - and makes some planner adjustments around join reordering and spilling via configuration options.
 
@@ -688,8 +687,6 @@ To distinguish the deprecated key, the sql client use the '[DEPRECATED]' as the 
 Flink SQL>SET;
 execution.runtime-mode=batch
 sql-client.execution.result-mode=table
-table.planner=blink
-[DEPRECATED] execution.planner=blink
 [DEPRECATED] execution.result-mode=table
 [DEPRECATED] execution.type=batch
 ```

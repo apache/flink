@@ -21,7 +21,6 @@ package org.apache.flink.table.client.gateway.context;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.Catalog;
@@ -35,8 +34,6 @@ import org.apache.flink.table.client.config.entries.TemporalTableEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.descriptors.CoreModuleDescriptorValidator;
-import org.apache.flink.table.factories.BatchTableSinkFactory;
-import org.apache.flink.table.factories.BatchTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModuleFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -74,7 +71,7 @@ import static org.apache.flink.table.api.Expressions.$;
 public class LegacyTableEnvironmentInitializer {
 
     public static void initializeSessionState(
-            TableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
+            StreamTableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
 
         // --------------------------------------------------------------------------------------------------------------
         // Step.1 Create modules and load them into the TableEnvironment.
@@ -106,7 +103,7 @@ public class LegacyTableEnvironmentInitializer {
     }
 
     private static void initializeCatalogs(
-            TableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
+            StreamTableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
         // --------------------------------------------------------------------------------------------------------------
         // Step.1 Create catalogs and register them.
         // --------------------------------------------------------------------------------------------------------------
@@ -137,11 +134,7 @@ public class LegacyTableEnvironmentInitializer {
                                 tableSources.put(
                                         name,
                                         createTableSource(
-                                                tableEnv,
-                                                environment.getExecution().isStreamingPlanner(),
-                                                classLoader,
-                                                name,
-                                                entry.asMap()));
+                                                tableEnv, classLoader, name, entry.asMap()));
                             }
                             if (entry instanceof SinkTableEntry
                                     || entry instanceof SourceSinkTableEntry) {
@@ -149,7 +142,6 @@ public class LegacyTableEnvironmentInitializer {
                                         name,
                                         createTableSink(
                                                 tableEnv,
-                                                environment.getExecution().isStreamingPlanner(),
                                                 environment.getExecution().inBatchMode(),
                                                 classLoader,
                                                 name,
@@ -210,7 +202,7 @@ public class LegacyTableEnvironmentInitializer {
     }
 
     private static Catalog createCatalog(
-            TableEnvironment tableEnv,
+            StreamTableEnvironment tableEnv,
             String catalogName,
             Map<String, String> catalogProperties,
             ClassLoader classLoader) {
@@ -222,72 +214,46 @@ public class LegacyTableEnvironmentInitializer {
     }
 
     private static TableSource<?> createTableSource(
-            TableEnvironment tableEnv,
-            boolean isStreamingPlanner,
+            StreamTableEnvironment tableEnv,
             URLClassLoader classLoader,
             String name,
             Map<String, String> sourceProperties) {
-        if (isStreamingPlanner) {
-            // blink planner and old planner in streaming mode
-            final TableSourceFactory<?> factory =
-                    (TableSourceFactory<?>)
-                            TableFactoryService.find(
-                                    TableSourceFactory.class, sourceProperties, classLoader);
-            return factory.createTableSource(
-                    new TableSourceFactoryContextImpl(
-                            ObjectIdentifier.of(
-                                    tableEnv.getCurrentCatalog(),
-                                    tableEnv.getCurrentDatabase(),
-                                    name),
-                            CatalogTableImpl.fromProperties(sourceProperties),
-                            tableEnv.getConfig().getConfiguration(),
-                            true));
-        } else {
-            // old planner in batch mode
-            final BatchTableSourceFactory<?> factory =
-                    (BatchTableSourceFactory<?>)
-                            TableFactoryService.find(
-                                    BatchTableSourceFactory.class, sourceProperties, classLoader);
-            return factory.createBatchTableSource(sourceProperties);
-        }
+        final TableSourceFactory<?> factory =
+                (TableSourceFactory<?>)
+                        TableFactoryService.find(
+                                TableSourceFactory.class, sourceProperties, classLoader);
+        return factory.createTableSource(
+                new TableSourceFactoryContextImpl(
+                        ObjectIdentifier.of(
+                                tableEnv.getCurrentCatalog(), tableEnv.getCurrentDatabase(), name),
+                        CatalogTableImpl.fromProperties(sourceProperties),
+                        tableEnv.getConfig().getConfiguration(),
+                        true));
     }
 
     private static TableSink<?> createTableSink(
-            TableEnvironment tableEnv,
-            boolean isStreamingPlanner,
+            StreamTableEnvironment tableEnv,
             boolean isBounded,
             URLClassLoader classLoader,
             String name,
             Map<String, String> sinkProperties) {
-        if (isStreamingPlanner) {
-            // blink planner and old planner in streaming mode
-            final TableSinkFactory<?> factory =
-                    (TableSinkFactory<?>)
-                            TableFactoryService.find(
-                                    TableSinkFactory.class, sinkProperties, classLoader);
+        final TableSinkFactory<?> factory =
+                (TableSinkFactory<?>)
+                        TableFactoryService.find(
+                                TableSinkFactory.class, sinkProperties, classLoader);
 
-            return factory.createTableSink(
-                    new TableSinkFactoryContextImpl(
-                            ObjectIdentifier.of(
-                                    tableEnv.getCurrentCatalog(),
-                                    tableEnv.getCurrentDatabase(),
-                                    name),
-                            CatalogTableImpl.fromProperties(sinkProperties),
-                            tableEnv.getConfig().getConfiguration(),
-                            isBounded,
-                            true));
-        } else {
-            // old planner in batch mode
-            final BatchTableSinkFactory<?> factory =
-                    (BatchTableSinkFactory<?>)
-                            TableFactoryService.find(
-                                    BatchTableSinkFactory.class, sinkProperties, classLoader);
-            return factory.createBatchTableSink(sinkProperties);
-        }
+        return factory.createTableSink(
+                new TableSinkFactoryContextImpl(
+                        ObjectIdentifier.of(
+                                tableEnv.getCurrentCatalog(), tableEnv.getCurrentDatabase(), name),
+                        CatalogTableImpl.fromProperties(sinkProperties),
+                        tableEnv.getConfig().getConfiguration(),
+                        isBounded,
+                        true));
     }
 
     private static void registerFunctions(
-            TableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
+            StreamTableEnvironment tableEnv, Environment environment, URLClassLoader classLoader) {
         Map<String, FunctionDefinition> functions = new LinkedHashMap<>();
         environment
                 .getFunctions()
@@ -302,58 +268,21 @@ public class LegacyTableEnvironmentInitializer {
                             functions.put(name, function);
                         });
 
-        if (tableEnv instanceof StreamTableEnvironment) {
-            StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-            functions.forEach(
-                    (k, v) -> {
-                        // Blink planner uses FLIP-65 functions for scalar and table functions
-                        // aggregate functions still use the old type inference
-                        if (environment.getExecution().isBlinkPlanner()) {
-                            if (v instanceof ScalarFunction || v instanceof TableFunction) {
-                                streamTableEnvironment.createTemporarySystemFunction(
-                                        k, (UserDefinedFunction) v);
-                            } else if (v instanceof AggregateFunction) {
-                                streamTableEnvironment.registerFunction(
-                                        k, (AggregateFunction<?, ?>) v);
-                            } else {
-                                throw new SqlExecutionException(
-                                        "Unsupported function type: " + v.getClass().getName());
-                            }
-                        }
-                        // legacy
-                        else {
-                            if (v instanceof ScalarFunction) {
-                                streamTableEnvironment.registerFunction(k, (ScalarFunction) v);
-                            } else if (v instanceof AggregateFunction) {
-                                streamTableEnvironment.registerFunction(
-                                        k, (AggregateFunction<?, ?>) v);
-                            } else if (v instanceof TableFunction) {
-                                streamTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-                            } else {
-                                throw new SqlExecutionException(
-                                        "Unsupported function type: " + v.getClass().getName());
-                            }
-                        }
-                    });
-        } else {
-            BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-            functions.forEach(
-                    (k, v) -> {
-                        if (v instanceof ScalarFunction) {
-                            batchTableEnvironment.registerFunction(k, (ScalarFunction) v);
-                        } else if (v instanceof AggregateFunction) {
-                            batchTableEnvironment.registerFunction(k, (AggregateFunction<?, ?>) v);
-                        } else if (v instanceof TableFunction) {
-                            batchTableEnvironment.registerFunction(k, (TableFunction<?>) v);
-                        } else {
-                            throw new SqlExecutionException(
-                                    "Unsupported function type: " + v.getClass().getName());
-                        }
-                    });
-        }
+        functions.forEach(
+                (k, v) -> {
+                    if (v instanceof ScalarFunction
+                            || v instanceof TableFunction
+                            || v instanceof AggregateFunction) {
+                        tableEnv.createTemporarySystemFunction(k, (UserDefinedFunction) v);
+                    } else {
+                        throw new SqlExecutionException(
+                                "Unsupported function type: " + v.getClass().getName());
+                    }
+                });
     }
 
-    private static void registerTemporaryView(TableEnvironment tableEnv, ViewEntry viewEntry) {
+    private static void registerTemporaryView(
+            StreamTableEnvironment tableEnv, ViewEntry viewEntry) {
         try {
             tableEnv.createTemporaryView(
                     viewEntry.getName(), tableEnv.sqlQuery(viewEntry.getQuery()));
@@ -369,7 +298,7 @@ public class LegacyTableEnvironmentInitializer {
     }
 
     private static void registerTemporalTable(
-            TableEnvironment tableEnv, TemporalTableEntry temporalTableEntry) {
+            StreamTableEnvironment tableEnv, TemporalTableEntry temporalTableEntry) {
         try {
             final Table table = tableEnv.from(temporalTableEntry.getHistoryTable());
             List<String> primaryKeyFields = temporalTableEntry.getPrimaryKeyFields();
@@ -380,13 +309,7 @@ public class LegacyTableEnvironmentInitializer {
             final TableFunction<?> function =
                     table.createTemporalTableFunction(
                             $(temporalTableEntry.getTimeAttribute()), $(primaryKeyFields.get(0)));
-            if (tableEnv instanceof StreamTableEnvironment) {
-                StreamTableEnvironment streamTableEnvironment = (StreamTableEnvironment) tableEnv;
-                streamTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-            } else {
-                BatchTableEnvironment batchTableEnvironment = (BatchTableEnvironment) tableEnv;
-                batchTableEnvironment.registerFunction(temporalTableEntry.getName(), function);
-            }
+            tableEnv.registerFunction(temporalTableEntry.getName(), function);
         } catch (Exception e) {
             throw new SqlExecutionException(
                     "Invalid temporal table '"

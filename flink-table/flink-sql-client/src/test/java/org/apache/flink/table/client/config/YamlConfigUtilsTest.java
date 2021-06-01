@@ -120,13 +120,13 @@ public class YamlConfigUtilsTest {
                         "sql-client.execution.max-table-result.rows=100",
                         "sql-client.execution.result-mode=table",
                         "table.exec.state.ttl=1000",
-                        "table.planner=old",
+                        "table.planner=blink",
                         "[DEPRECATED] execution.max-parallelism=16",
                         "[DEPRECATED] execution.max-table-result-rows=100",
                         "[DEPRECATED] execution.min-idle-state-retention=1000",
                         "[DEPRECATED] execution.parallelism=1",
                         "[DEPRECATED] execution.periodic-watermarks-interval=99",
-                        "[DEPRECATED] execution.planner=old",
+                        "[DEPRECATED] execution.planner=blink",
                         "[DEPRECATED] execution.restart-strategy.delay=1000",
                         "[DEPRECATED] execution.restart-strategy.failure-rate-interval=99000",
                         "[DEPRECATED] execution.restart-strategy.max-failures-per-interval=10",
@@ -138,7 +138,7 @@ public class YamlConfigUtilsTest {
 
     private Environment getEnvironment() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
+        replaceVars.put("$VAR_PLANNER", "blink");
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_RESULT_MODE", "table");
         replaceVars.put("$VAR_UPDATE_MODE", "");
