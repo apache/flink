@@ -128,7 +128,8 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         private final MappingType mappingType;
 
-        enum MappingType {
+        /** Type of mapping which should be used for this in-flight data. */
+        public enum MappingType {
             IDENTITY,
             RESCALING
         }
