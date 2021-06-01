@@ -28,6 +28,16 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
 
     @Override
+    protected boolean snapshotUsesStreamFactory() {
+        return false;
+    }
+
+    @Override
+    protected boolean supportsMetaInfoVerification() {
+        return false;
+    }
+
+    @Override
     protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,

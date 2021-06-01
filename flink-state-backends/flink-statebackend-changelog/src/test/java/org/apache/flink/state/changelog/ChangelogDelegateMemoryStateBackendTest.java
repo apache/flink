@@ -29,6 +29,16 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 public class ChangelogDelegateMemoryStateBackendTest extends MemoryStateBackendTest {
 
     @Override
+    protected boolean snapshotUsesStreamFactory() {
+        return false;
+    }
+
+    @Override
+    protected boolean supportsMetaInfoVerification() {
+        return false;
+    }
+
+    @Override
     protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,

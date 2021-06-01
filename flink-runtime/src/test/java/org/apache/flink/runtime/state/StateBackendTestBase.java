@@ -139,6 +139,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -860,6 +861,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -982,6 +984,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
@@ -3958,6 +3961,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testRestoreWithWrongKeySerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -4008,6 +4012,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testValueStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4066,6 +4071,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testListStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4123,6 +4129,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testReducingStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4184,6 +4191,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testMapStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4599,6 +4607,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testParallelAsyncSnapshots() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
@@ -4693,6 +4702,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testAsyncSnapshot() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
                 new BlockerCheckpointStreamFactory(1024 * 1024);
@@ -4909,6 +4919,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testAsyncSnapshotCancellation() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
@@ -5527,5 +5538,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     private MockEnvironment buildMockEnv() {
         return MockEnvironment.builder().build();
+    }
+
+    /**
+     * @return true if {@link org.apache.flink.runtime.state.Snapshotable#snapshot
+     *     backend.snapshot()} actually uses passed {@link CheckpointStreamFactory}.
+     */
+    protected boolean snapshotUsesStreamFactory() {
+        return true;
+    }
+
+    /**
+     * @return true if metadata serialization supports verification. If not, expected exceptions
+     *     will likely not be thrown.
+     */
+    protected boolean supportsMetaInfoVerification() {
+        return true;
     }
 }
