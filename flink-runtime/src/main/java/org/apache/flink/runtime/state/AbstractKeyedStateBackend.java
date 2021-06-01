@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend {
+                TestableKeyedStateBackend<K> {
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;

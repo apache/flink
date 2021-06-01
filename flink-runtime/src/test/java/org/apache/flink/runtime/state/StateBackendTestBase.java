@@ -295,8 +295,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                         Collections.emptyList(),
                         new CloseableRegistry());
         try {
+            KeyedStateBackend<Integer> nested =
+                    keyedStateBackend instanceof TestableKeyedStateBackend
+                            ? ((TestableKeyedStateBackend<Integer>) keyedStateBackend)
+                                    .getDelegatedKeyedStateBackend(true)
+                            : keyedStateBackend;
             Assert.assertTrue(
-                    ((AbstractKeyedStateBackend<Integer>) keyedStateBackend)
+                    ((AbstractKeyedStateBackend<Integer>) nested)
                             .getLatencyTrackingStateConfig()
                             .isEnabled());
         } finally {
