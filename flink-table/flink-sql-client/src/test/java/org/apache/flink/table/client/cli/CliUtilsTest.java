@@ -37,7 +37,7 @@ public class CliUtilsTest {
     @Rule public TemporaryFolder linkFolder = new TemporaryFolder();
 
     @Test
-    public void testCreate() throws IOException {
+    public void testCreateFile() throws IOException {
         Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(realDirHistoryFile);
         assertTrue(Files.exists(realDirHistoryFile));
@@ -45,8 +45,10 @@ public class CliUtilsTest {
         Path link = Paths.get(linkFolder.getRoot().getAbsolutePath(), "link");
         Files.createSymbolicLink(link, realFolder.getRoot().toPath());
         Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
+        Path realLinkDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(linkDirHistoryFile);
         assertTrue(Files.exists(linkDirHistoryFile));
+        assertTrue(Files.exists(realLinkDirHistoryFile));
 
         Path subDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
