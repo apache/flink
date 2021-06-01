@@ -176,6 +176,10 @@ ADD JAR '$VAR_UDF_JAR_PATH';
 [INFO] The specified jar is added into session classloader.
 !info
 
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
 set;
 execution.attached=true
 execution.savepoint.ignore-unclaimed-state=false
@@ -190,6 +194,10 @@ rest.port=$VAR_REST_PORT
 reset;
 [INFO] All session properties have been set to their default values.
 !info
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
 
 SET sql-client.execution.result-mode=tableau;
 [INFO] Session property has been set.

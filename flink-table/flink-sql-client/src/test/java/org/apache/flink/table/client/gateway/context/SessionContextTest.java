@@ -261,11 +261,13 @@ public class SessionContextTest {
 
     private void validateAddJar(String jarPath) throws IOException {
         sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
                 getConfiguration().get(JARS));
         // reset to the default
         sessionContext.reset();
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
                 getConfiguration().get(JARS));

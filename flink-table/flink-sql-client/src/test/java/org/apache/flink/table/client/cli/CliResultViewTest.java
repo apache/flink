@@ -231,6 +231,11 @@ public class CliResultViewTest {
         public void addJar(String sessionId, String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
         }
+
+        @Override
+        public List<String> listJars(String sessionId) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
     }
 
     private static final class TestingCliResultView implements Runnable {

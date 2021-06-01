@@ -523,5 +523,10 @@ public class CliClientTest extends TestLogger {
         public void addJar(String sessionId, String jarUrl) {
             throw new UnsupportedOperationException("Not implemented.");
         }
+
+        @Override
+        public List<String> listJars(String sessionId) {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
     }
 }

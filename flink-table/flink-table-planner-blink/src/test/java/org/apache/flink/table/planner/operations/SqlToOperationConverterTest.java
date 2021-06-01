@@ -62,6 +62,7 @@ import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -1354,7 +1355,7 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testAddJars() {
+    public void testAddJar() {
         List<String> jarPaths =
                 Arrays.asList(
                         "./test.\njar",
@@ -1364,8 +1365,17 @@ public class SqlToOperationConverterTest {
                         "test\\ jar.jar",
                         "oss://path/helloworld.go");
         for (String path : jarPaths) {
-            validateJarPath(path, "  ADD   JAR   '%s'");
+            validateJarPath(path, "ADD JAR '%s'");
         }
+    }
+
+    @Test
+    public void testShowJars() {
+        final String sql = "SHOW JARS";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowJarsOperation;
+        final ShowJarsOperation showModulesOperation = (ShowJarsOperation) operation;
+        assertEquals("SHOW JARS", showModulesOperation.asSummaryString());
     }
 
     @Test

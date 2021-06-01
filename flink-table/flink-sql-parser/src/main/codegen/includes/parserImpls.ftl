@@ -1665,6 +1665,20 @@ SqlAddJar SqlAddJar() :
     }
 }
 
+/**
+* Parses a show jars statement.
+* SHOW JARS;
+*/
+SqlShowJars SqlShowJars() :
+{
+}
+{
+    <SHOW> <JARS>
+    {
+        return new SqlShowJars(getPos());
+    }
+}
+
 /*
 * Parses a SET statement:
 * SET ['key' = 'value'];

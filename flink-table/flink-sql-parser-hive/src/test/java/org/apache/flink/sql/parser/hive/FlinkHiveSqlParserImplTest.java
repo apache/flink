@@ -467,6 +467,11 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowJars() {
+        sql("show jars").ok("SHOW JARS");
+    }
+
+    @Test
     public void testLoadModule() {
         sql("load module hive").ok("LOAD MODULE `HIVE`");
 
