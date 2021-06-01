@@ -50,7 +50,8 @@ public class CliUtilsTest {
         assertTrue(Files.exists(linkDirHistoryFile));
         assertTrue(Files.exists(realLinkDirHistoryFile));
 
-        Path subDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
+        Path subDirHistoryFile =
+                Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
         assertTrue(Files.exists(subDirHistoryFile));
     }
