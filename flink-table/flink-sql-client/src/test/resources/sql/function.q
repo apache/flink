@@ -37,7 +37,7 @@ show user functions;
 1 row in set
 !ok
 
-SET sql-client.execution.result-mode=tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
