@@ -179,8 +179,6 @@ public class SqlClient {
         switch (mode) {
             case MODE_EMBEDDED:
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
-                // check arg e.g -i -f
-                checkArgs(args);
                 if (options.isPrintHelp()) {
                     CliOptionsParser.printHelpEmbeddedModeClient();
                 } else {
@@ -212,22 +210,6 @@ public class SqlClient {
 
             default:
                 CliOptionsParser.printHelpClient();
-        }
-    }
-
-    private static void checkArgs(String[] args) {
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].trim().equals("-i") || args[i].trim().equals("-f")) {
-                checkFilePath(args[i + 1]);
-            }
-        }
-    }
-
-    public static void checkFilePath(String filePath) {
-        org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(filePath);
-        String scheme = path.toUri().getScheme();
-        if (scheme != null && !scheme.equals("file")) {
-            throw new SqlClientException("SQL Client only supports to load files in local.");
         }
     }
 
