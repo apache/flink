@@ -45,7 +45,7 @@ _func_num = 0
 _constant_num = 0
 
 
-def wrap_table_function_result(it):
+def normalize_table_function_result(it):
     if it is None:
         return []
     elif isinstance(it, tuple):
@@ -73,7 +73,7 @@ def wrap_table_function_result(it):
         return [[it]]
 
 
-def wrap_pandas_result(it):
+def normalize_pandas_result(it):
     import pandas as pd
     arrays = []
     for result in it:

@@ -36,7 +36,11 @@ cdef class InputStream:
     def __init__(self):
         self._input_pos = 0
 
-    cdef int8_t read_byte(self) except? -1:
+    cdef long read_byte(self) except? -1:
+        self._input_pos += 1
+        return <long> <unsigned char> self._input_data[self._input_pos - 1]
+
+    cdef int8_t read_int8(self) except? -1:
         self._input_pos += 1
         return <unsigned char> self._input_data[self._input_pos - 1]
 
@@ -90,7 +94,13 @@ cdef class OutputStream:
         self.buffer_size = 1024
         self.pos = 0
 
-    cdef void write_byte(self, int8_t v):
+    cdef void write_byte(self, unsigned char v):
+        if self.buffer_size < self.pos + 1:
+            self._extend(1)
+        self.buffer[self.pos] = v
+        self.pos += 1
+
+    cdef void write_int8(self, int8_t v):
         if self.buffer_size < self.pos + 1:
             self._extend(1)
         self.buffer[self.pos] = <unsigned char> v

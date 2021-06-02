@@ -167,7 +167,7 @@ class TimeWindowSerializer(TypeSerializer[TimeWindow]):
         try:
             from pyflink.fn_execution import coder_impl_fast as coder_impl
         except:
-            from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
+            from pyflink.fn_execution import coder_impl_slow as coder_impl
         return coder_impl.TimeWindowCoderImpl()
 
 
@@ -192,7 +192,7 @@ class CountWindowSerializer(TypeSerializer[CountWindow]):
         try:
             from pyflink.fn_execution import coder_impl_fast as coder_impl
         except:
-            from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
+            from pyflink.fn_execution import coder_impl_slow as coder_impl
         return coder_impl.CountWindowCoderImpl()
 
 

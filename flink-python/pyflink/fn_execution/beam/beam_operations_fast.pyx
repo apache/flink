@@ -22,7 +22,7 @@
 from libc.stdint cimport *
 from apache_beam.utils.windowed_value cimport WindowedValue
 
-from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
+from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
 from pyflink.fn_execution.operations import BundleOperation
@@ -65,7 +65,7 @@ cdef class FunctionOperation(Operation):
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
         cdef BeamInputStream input_stream
-        cdef BaseCoderImpl input_coder
+        cdef LengthPrefixBaseCoderImpl input_coder
         cdef BeamOutputStream output_stream
         with self.scoped_process_state:
             if self._is_python_coder:

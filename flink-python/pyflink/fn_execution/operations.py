@@ -168,8 +168,9 @@ class TableFunctionOperation(TableOperation):
         """
         table_function, variable_dict, user_defined_funcs = \
             operation_utils.extract_user_defined_function(serialized_fn.udfs[0])
-        variable_dict['wrap_table_function_result'] = operation_utils.wrap_table_function_result
-        generate_func = eval('lambda value: wrap_table_function_result(%s)' % table_function,
+        variable_dict['normalize_table_function_result'] = \
+            operation_utils.normalize_table_function_result
+        generate_func = eval('lambda value: normalize_table_function_result(%s)' % table_function,
                              variable_dict)
         return generate_func, user_defined_funcs
 
@@ -186,8 +187,8 @@ class PandasAggregateFunctionOperation(TableOperation):
                 x[2] + y[2]),
             [operation_utils.extract_user_defined_function(udf, True)
              for udf in serialized_fn.udfs])
-        variable_dict['wrap_pandas_result'] = operation_utils.wrap_pandas_result
-        generate_func = eval('lambda value: wrap_pandas_result([%s])' %
+        variable_dict['normalize_pandas_result'] = operation_utils.normalize_pandas_result
+        generate_func = eval('lambda value: normalize_pandas_result([%s])' %
                              pandas_functions, variable_dict)
         return generate_func, user_defined_funcs
 

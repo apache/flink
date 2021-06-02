@@ -152,9 +152,10 @@ cdef class MaskUtils:
         if self._row_kind_byte_table != NULL:
             free(self._row_kind_byte_table)
 
-cdef class BaseCoderImpl:
+cdef class LengthPrefixBaseCoderImpl:
     """
-    BaseCoder will be used in Operations and other coders will be the field coder of BaseCoder
+    LengthPrefixBaseCoderImpl will be used in Operations and other coders will be the field coder of
+    LengthPrefixBaseCoderImpl.
     """
 
     def __init__(self, field_coder: FieldCoderImpl):
@@ -230,7 +231,7 @@ cdef class FieldCoderImpl:
         input_stream._input_data = <char*> encoded
         return self.decode_from_stream(input_stream, len(encoded))
 
-cdef class IterableCoderImpl(BaseCoderImpl):
+cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     """
     Encodes iterable data to output stream. The output mode will decide whether write a special end
     message 0x00 to output stream after encoding data.
@@ -262,7 +263,7 @@ cdef class IterableCoderImpl(BaseCoderImpl):
         if self._end_message != NULL:
             free(self._end_message)
 
-cdef class ValueCoderImpl(BaseCoderImpl):
+cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     """
     Encodes a single data to output stream.
     """
@@ -395,7 +396,7 @@ cdef class TinyIntCoderImpl(FieldCoderImpl):
     """
 
     cpdef encode_to_stream(self, value, OutputStream out_stream):
-        out_stream.write_byte(value)
+        out_stream.write_int8(value)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return in_stream.read_byte()

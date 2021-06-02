@@ -30,7 +30,7 @@ from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, 
 try:
     from pyflink.fn_execution import coder_impl_fast as coder_impl
 except:
-    from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
+    from pyflink.fn_execution import coder_impl_slow as coder_impl
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
@@ -39,8 +39,9 @@ __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'Boolea
            'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
 
 
-# BaseCoder will be used in Operations and other coders will be the field coder of BaseCoder
-class BaseCoder(ABC):
+# LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
+# of LengthPrefixBaseCoder
+class LengthPrefixBaseCoder(ABC):
     def __init__(self, field_coder: 'FieldCoder'):
         self._field_coder = field_coder
 
@@ -152,7 +153,7 @@ class FieldCoder(ABC):
         pass
 
 
-class IterableCoder(BaseCoder):
+class IterableCoder(LengthPrefixBaseCoder):
     """
     Coder for iterable data.
     """
@@ -165,7 +166,7 @@ class IterableCoder(BaseCoder):
         return coder_impl.IterableCoderImpl(self._field_coder.get_impl(), self._output_mode)
 
 
-class ValueCoder(BaseCoder):
+class ValueCoder(LengthPrefixBaseCoder):
     """
     Coder for single data.
     """
@@ -176,8 +177,8 @@ class ValueCoder(BaseCoder):
     def get_impl(self):
         if isinstance(self._field_coder, (ArrowCoder, OverWindowArrowCoder)):
             # ArrowCoder and OverWindowArrowCoder doesn't support fast coder currently.
-            from pyflink.fn_execution.beam import beam_coder_impl_slow
-            return beam_coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
+            from pyflink.fn_execution import coder_impl_slow
+            return coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
         else:
             return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
 
@@ -222,8 +223,8 @@ class ArrowCoder(FieldCoder):
 
     def get_impl(self):
         # ArrowCoder doesn't support fast coder implementation currently.
-        from pyflink.fn_execution.beam import beam_coder_impl_slow
-        return beam_coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        from pyflink.fn_execution import coder_impl_slow
+        return coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
@@ -239,8 +240,8 @@ class OverWindowArrowCoder(FieldCoder):
 
     def get_impl(self):
         # OverWindowArrowCoder doesn't support fast coder implementation currently.
-        from pyflink.fn_execution.beam import beam_coder_impl_slow
-        return beam_coder_impl_slow.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
+        from pyflink.fn_execution import coder_impl_slow
+        return coder_impl_slow.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
 
     def __repr__(self):
         return 'OverWindowArrowCoder[%s]' % self._arrow_coder

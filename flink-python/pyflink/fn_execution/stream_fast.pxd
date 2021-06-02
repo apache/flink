@@ -30,7 +30,8 @@ cdef class InputStream:
     cdef char*_input_data
     cdef size_t _input_pos
 
-    cdef int8_t read_byte(self) except? -1
+    cdef long read_byte(self) except? -1
+    cdef int8_t read_int8(self) except? -1
     cdef int16_t read_int16(self) except? -1
     cdef int32_t read_int32(self) except? -1
     cdef int64_t read_int64(self) except? -1
@@ -43,7 +44,8 @@ cdef class OutputStream:
     cdef size_t buffer_size
     cdef size_t pos
 
-    cdef void write_byte(self, int8_t v)
+    cdef void write_byte(self, unsigned char val)
+    cdef void write_int8(self, int8_t v)
     cdef void write_int16(self, int16_t v)
     cdef void write_int32(self, int32_t v)
     cdef void write_int64(self, int64_t v)

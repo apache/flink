@@ -29,8 +29,8 @@ from typing import List, Tuple, Any, Dict, Collection
 
 from pyflink.datastream import ReduceFunction
 from pyflink.datastream.functions import AggregateFunction
-from pyflink.fn_execution.beam import beam_coder_impl_slow
-from pyflink.fn_execution.coders import TimeWindowCoder, CountWindowCoder
+from pyflink.fn_execution.beam.beam_coders import FlinkCoder
+from pyflink.fn_execution.coders import FieldCoder
 from pyflink.fn_execution.internal_state import InternalKvState, N, InternalValueState, \
     InternalListState, InternalReducingState, InternalMergingState, InternalAggregatingState, \
     InternalMapState
@@ -703,30 +703,19 @@ class InternalSynchronousMapRuntimeState(object):
         self._map_state_handler = map_state_handler
         self._state_key = state_key
         self._map_key_coder = map_key_coder
-        # TODO: Replace slow WindowCoderImpl with fast WindowCoderImpl
-        if isinstance(map_key_coder, TimeWindowCoder):
-            map_key_coder_impl = beam_coder_impl_slow.TimeWindowCoderImpl()
-            is_beam_coder = False
-        elif isinstance(map_key_coder, CountWindowCoder):
-            map_key_coder_impl = beam_coder_impl_slow.CountWindowCoderImpl()
-            is_beam_coder = False
+        if isinstance(map_key_coder, FieldCoder):
+            map_key_coder_impl = FlinkCoder(map_key_coder).get_impl()
         else:
             map_key_coder_impl = map_key_coder.get_impl()
-            is_beam_coder = True
         self._map_key_encoder, self._map_key_decoder = \
-            self._get_encoder_and_decoder(map_key_coder_impl, is_beam_coder)
+            self._get_encoder_and_decoder(map_key_coder_impl)
         self._map_value_coder = map_value_coder
-        if isinstance(map_value_coder, TimeWindowCoder):
-            map_value_coder_impl = beam_coder_impl_slow.TimeWindowCoderImpl()
-            is_beam_coder = False
-        elif isinstance(map_key_coder, CountWindowCoder):
-            map_value_coder_impl = beam_coder_impl_slow.CountWindowCoderImpl()
-            is_beam_coder = False
+        if isinstance(map_value_coder, FieldCoder):
+            map_value_coder_impl = FlinkCoder(map_value_coder).get_impl()
         else:
             map_value_coder_impl = map_value_coder.get_impl()
-            is_beam_coder = True
         self._map_value_encoder, self._map_value_decoder = \
-            self._get_encoder_and_decoder(map_value_coder_impl, is_beam_coder)
+            self._get_encoder_and_decoder(map_value_coder_impl)
         self._write_cache = dict()
         self._max_write_cache_entries = max_write_cache_entries
         self._is_empty = None
@@ -858,13 +847,9 @@ class InternalSynchronousMapRuntimeState(object):
                 self._write_cache)
 
     @staticmethod
-    def _get_encoder_and_decoder(coder, is_beam_coder: bool):
-        if is_beam_coder:
-            encoder = partial(coder.encode_to_stream, nested=True)
-            decoder = partial(coder.decode_from_stream, nested=True)
-        else:
-            encoder = coder.encode_to_stream
-            decoder = coder.decode_from_stream
+    def _get_encoder_and_decoder(coder):
+        encoder = partial(coder.encode_to_stream, nested=True)
+        decoder = partial(coder.decode_from_stream, nested=True)
         return encoder, decoder
 
 

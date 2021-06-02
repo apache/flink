@@ -17,7 +17,7 @@
 ################################################################################
 # cython: language_level=3
 
-from pyflink.fn_execution.stream cimport LengthPrefixInputStream, LengthPrefixOutputStream, \
+from pyflink.fn_execution.stream_fast cimport LengthPrefixInputStream, LengthPrefixOutputStream, \
     InputStream, OutputStream
 
 cdef enum InternalRowKind:
@@ -43,7 +43,7 @@ cdef class MaskUtils:
     cdef void write_mask(self, list value, unsigned char row_kind_value, OutputStream output_stream)
     cdef bint*read_mask(self, InputStream input_stream)
 
-cdef class BaseCoderImpl:
+cdef class LengthPrefixBaseCoderImpl:
     cdef FieldCoderImpl _field_coder
     cdef OutputStream _data_out_stream
 
@@ -57,11 +57,11 @@ cdef class FieldCoderImpl:
     cpdef bytes encode(self, value)
     cpdef decode(self, encoded)
 
-cdef class IterableCoderImpl(BaseCoderImpl):
+cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     cdef char*_end_message
     cdef bint _writes_end_message
 
-cdef class ValueCoderImpl(BaseCoderImpl):
+cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     pass
 
 cdef unsigned char ROW_KIND_BIT_SIZE
