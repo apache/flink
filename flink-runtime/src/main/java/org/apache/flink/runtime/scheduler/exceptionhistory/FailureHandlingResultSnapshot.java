@@ -41,8 +41,7 @@ import java.util.stream.Collectors;
  */
 public class FailureHandlingResultSnapshot {
 
-    @Nullable
-    private final Execution rootCauseExecution;
+    @Nullable private final Execution rootCauseExecution;
     private final Throwable rootCause;
     private final long timestamp;
     private final Set<Execution> concurrentlyFailedExecutions;
@@ -52,10 +51,9 @@ public class FailureHandlingResultSnapshot {
      * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
      *
      * @param failureHandlingResult The {@code FailureHandlingResult} that is used for extracting
-     *         the failure information.
+     *     the failure information.
      * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
-     *         instance for a given {@link ExecutionVertexID}.
-     *
+     *     instance for a given {@link ExecutionVertexID}.
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
@@ -66,21 +64,21 @@ public class FailureHandlingResultSnapshot {
                 failureHandlingResult.getError(),
                 failureHandlingResult.getVerticesToRestart(),
                 failureHandlingResult.getTimestamp(),
-                latestExecutionLookup
-        );
+                latestExecutionLookup);
     }
 
     /**
      * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
      * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
      *
-     * @param failingExecutionVertexId, an {@link Optional} of the {@link ExecutionVertexID} the failure originates from, or {@code None}.
+     * @param failingExecutionVertexId, an {@link Optional} of the {@link ExecutionVertexID} the
+     *     failure originates from, or {@code None}.
      * @param rootCause, the failure reason.
-     * @param concurrentVertexIds {@link ExecutionVertexID} Task vertices concurrently failing with the {@code failingExecutionVertexID}.
+     * @param concurrentVertexIds {@link ExecutionVertexID} Task vertices concurrently failing with
+     *     the {@code failingExecutionVertexID}.
      * @param timestamp, the failure timestamp.
      * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
-     *         instance for a given {@link ExecutionVertexID}.
-     *
+     *     instance for a given {@link ExecutionVertexID}.
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
@@ -90,9 +88,7 @@ public class FailureHandlingResultSnapshot {
             long timestamp,
             Function<ExecutionVertexID, Execution> latestExecutionLookup) {
         final Execution rootCauseExecution =
-                failingExecutionVertexId
-                        .map(latestExecutionLookup)
-                        .orElse(null);
+                failingExecutionVertexId.map(latestExecutionLookup).orElse(null);
 
         Preconditions.checkArgument(
                 rootCauseExecution == null || rootCauseExecution.getFailureInfo().isPresent(),
@@ -101,12 +97,9 @@ public class FailureHandlingResultSnapshot {
                         // the "(null)" values should never be used due to the condition - it's just
                         // added to make the compiler happy
                         rootCauseExecution != null ? rootCauseExecution.getAttemptId() : "(null)",
-                        failingExecutionVertexId
-                                .map(Objects::toString)
-                                .orElse("(null)")));
+                        failingExecutionVertexId.map(Objects::toString).orElse("(null)")));
 
-        final ExecutionVertexID rootCauseExecutionVertexId =
-                failingExecutionVertexId.orElse(null);
+        final ExecutionVertexID rootCauseExecutionVertexId = failingExecutionVertexId.orElse(null);
         final Set<Execution> concurrentlyFailedExecutions =
                 concurrentVertexIds.stream()
                         .filter(

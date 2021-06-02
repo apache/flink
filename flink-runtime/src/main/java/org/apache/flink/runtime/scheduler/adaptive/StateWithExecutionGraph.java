@@ -300,22 +300,23 @@ abstract class StateWithExecutionGraph implements State {
     }
 
     void archiveExecutionFailure(
-            @Nullable ExecutionVertexID failingExecutionVertexId,
-            Throwable cause) {
-        Set<ExecutionVertexID> concurrentVertexIds = IterableUtils
-                .toStream(getExecutionGraph().getSchedulingTopology().getVertices())
-                .map(SchedulingExecutionVertex::getId)
-                .filter(v -> failingExecutionVertexId != null
-                        && !failingExecutionVertexId.equals(v))
-                .collect(Collectors.toSet());
+            @Nullable ExecutionVertexID failingExecutionVertexId, Throwable cause) {
+        Set<ExecutionVertexID> concurrentVertexIds =
+                IterableUtils.toStream(getExecutionGraph().getSchedulingTopology().getVertices())
+                        .map(SchedulingExecutionVertex::getId)
+                        .filter(
+                                v ->
+                                        failingExecutionVertexId != null
+                                                && !failingExecutionVertexId.equals(v))
+                        .collect(Collectors.toSet());
 
-        context.archiveFailure(FailureHandlingResultSnapshot.create(
-                Optional.ofNullable(failingExecutionVertexId),
-                cause,
-                concurrentVertexIds,
-                System.currentTimeMillis(),
-                id -> this.getExecutionVertex(id).getCurrentExecutionAttempt()
-        ));
+        context.archiveFailure(
+                FailureHandlingResultSnapshot.create(
+                        Optional.ofNullable(failingExecutionVertexId),
+                        cause,
+                        concurrentVertexIds,
+                        System.currentTimeMillis(),
+                        id -> this.getExecutionVertex(id).getCurrentExecutionAttempt()));
     }
 
     void deliverOperatorEventToCoordinator(
@@ -335,8 +336,7 @@ abstract class StateWithExecutionGraph implements State {
      * Updates the execution graph with the given task execution state transition.
      *
      * @param taskExecutionStateTransition taskExecutionStateTransition to update the ExecutionGraph
-     *         with
-     *
+     *     with
      * @return {@code true} if the update was successful; otherwise {@code false}
      */
     abstract boolean updateTaskExecutionState(
@@ -364,9 +364,8 @@ abstract class StateWithExecutionGraph implements State {
          * Checks whether the current state is the expected state.
          *
          * @param expectedState expectedState is the expected state
-         *
          * @return {@code true} if the current state equals the expected state; otherwise {@code
-         *         false}
+         *     false}
          */
         boolean isState(State expectedState);
 
@@ -381,10 +380,9 @@ abstract class StateWithExecutionGraph implements State {
          * Transitions into the {@link Finished} state.
          *
          * @param archivedExecutionGraph archivedExecutionGraph which is passed to the {@link
-         *         Finished} state
+         *     Finished} state
          */
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
-
 
         /**
          * Archive the details of an execution failure for future retrieval and inspection.

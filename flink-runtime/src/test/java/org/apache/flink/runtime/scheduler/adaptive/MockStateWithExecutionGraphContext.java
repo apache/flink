@@ -62,8 +62,7 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     }
 
     @Override
-    public void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot) {
-    }
+    public void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot) {}
 
     @Override
     public ComponentMainThreadExecutor getMainThreadExecutor() {

@@ -179,9 +179,7 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setHowToHandleFailure(
                     (failingExecCtxVtxId, throwable) ->
                             Executing.FailureResult.canRestart(
-                                    failingExecCtxVtxId,
-                                    throwable,
-                                    Duration.ZERO));
+                                    failingExecCtxVtxId, throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -238,9 +236,7 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setHowToHandleFailure(
                     (failingExecCtxVtxId, throwable) ->
                             Executing.FailureResult.canRestart(
-                                    failingExecCtxVtxId,
-                                    throwable,
-                                    Duration.ZERO));
+                                    failingExecCtxVtxId, throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -310,9 +306,7 @@ public class StopWithSavepointTest extends TestLogger {
             ctx.setHowToHandleFailure(
                     (failingExecCtxVtxId, throwable) ->
                             Executing.FailureResult.canRestart(
-                                    failingExecCtxVtxId,
-                                    throwable,
-                                    Duration.ZERO));
+                                    failingExecCtxVtxId, throwable, Duration.ZERO));
 
             ctx.setExpectRestarting(assertNonNull());
 
@@ -405,7 +399,8 @@ public class StopWithSavepointTest extends TestLogger {
     private static class MockStopWithSavepointContext extends MockStateWithExecutionGraphContext
             implements StopWithSavepoint.Context {
 
-        private BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> howToHandleFailure;
+        private BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult>
+                howToHandleFailure;
 
         private final StateValidator<ExecutingTest.FailingArguments> failingStateValidator =
                 new StateValidator<>("failing");
@@ -439,14 +434,14 @@ public class StopWithSavepointTest extends TestLogger {
             executingStateTransition.expectInput(asserter);
         }
 
-        public void setHowToHandleFailure(BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> function) {
+        public void setHowToHandleFailure(
+                BiFunction<ExecutionVertexID, Throwable, Executing.FailureResult> function) {
             this.howToHandleFailure = function;
         }
 
         @Override
         public Executing.FailureResult howToHandleFailure(
-                @Nullable ExecutionVertexID failingExecutionVertexId,
-                Throwable failure) {
+                @Nullable ExecutionVertexID failingExecutionVertexId, Throwable failure) {
             return howToHandleFailure.apply(failingExecutionVertexId, failure);
         }
 
