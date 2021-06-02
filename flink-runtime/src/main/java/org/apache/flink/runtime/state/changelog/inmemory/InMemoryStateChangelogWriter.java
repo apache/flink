@@ -104,16 +104,13 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
 
     @Override
     public void truncate(SequenceNumber before) {
-        changesByKeyGroup.forEach((k, v) -> {});
+        changesByKeyGroup.forEach(
+                (kg, changesBySqn) -> changesBySqn.headMap(before, false).clear());
     }
 
     @Override
-    public void confirm(SequenceNumber from, SequenceNumber to) {
-        throw new UnsupportedOperationException();
-    }
+    public void confirm(SequenceNumber from, SequenceNumber to) {}
 
     @Override
-    public void reset(SequenceNumber from, SequenceNumber to) {
-        throw new UnsupportedOperationException();
-    }
+    public void reset(SequenceNumber from, SequenceNumber to) {}
 }

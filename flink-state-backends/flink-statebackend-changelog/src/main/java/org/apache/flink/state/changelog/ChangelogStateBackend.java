@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -46,6 +47,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
@@ -105,10 +108,11 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 kvStateRegistry,
                                 ttlTimeProvider,
                                 metricGroup,
-                                stateHandles,
+                                extractMaterializedState(stateHandles),
                                 cancelStreamRegistry);
         // todo: FLINK-21804 get from Environment.getTaskStateManager
         InMemoryStateChangelogStorage changelogWriterFactory = new InMemoryStateChangelogStorage();
+        // todo: apply state changes from non-materialized part of stateHandles
         return new ChangelogKeyedStateBackend<>(
                 keyedStateBackend,
                 env.getExecutionConfig(),
@@ -144,12 +148,13 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 kvStateRegistry,
                                 ttlTimeProvider,
                                 metricGroup,
-                                stateHandles,
+                                extractMaterializedState(stateHandles),
                                 cancelStreamRegistry,
                                 managedMemoryFraction);
 
         // todo: FLINK-21804 get from Environment.getTaskStateManager
         InMemoryStateChangelogStorage changelogWriterFactory = new InMemoryStateChangelogStorage();
+        // todo: apply state changes from non-materialized part of stateHandles
         return new ChangelogKeyedStateBackend<>(
                 keyedStateBackend,
                 env.getExecutionConfig(),
@@ -189,5 +194,17 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         }
 
         return this;
+    }
+
+    private static Collection<KeyedStateHandle> extractMaterializedState(
+            Collection<KeyedStateHandle> stateHandles) {
+        return stateHandles.stream()
+                .flatMap(
+                        keyedStateHandle ->
+                                ((ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl)
+                                                keyedStateHandle)
+                                        .getMaterializedStateHandles().stream())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 }

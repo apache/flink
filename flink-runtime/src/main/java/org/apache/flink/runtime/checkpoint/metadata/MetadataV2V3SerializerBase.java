@@ -38,7 +38,9 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
@@ -99,6 +101,7 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
     private static final byte RELATIVE_STREAM_STATE_HANDLE = 6;
     private static final byte SAVEPOINT_KEY_GROUPS_HANDLE = 7;
+    private static final byte CHANGELOG_HANDLE = 8;
     private static final byte CHANGELOG_BYTE_INCREMENT_HANDLE = 9;
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE = 10;
 
@@ -316,6 +319,23 @@ public abstract class MetadataV2V3SerializerBase {
 
             serializeStreamStateHandleMap(incrementalKeyedStateHandle.getSharedState(), dos);
             serializeStreamStateHandleMap(incrementalKeyedStateHandle.getPrivateState(), dos);
+        } else if (stateHandle instanceof ChangelogStateBackendHandle) {
+            ChangelogStateBackendHandle handle = (ChangelogStateBackendHandle) stateHandle;
+
+            dos.writeByte(CHANGELOG_HANDLE);
+
+            dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
+
+            dos.writeInt(handle.getMaterializedStateHandles().size());
+            for (KeyedStateHandle k : handle.getMaterializedStateHandles()) {
+                serializeKeyedStateHandle(k, dos);
+            }
+
+            dos.writeInt(handle.getNonMaterializedStateHandles().size());
+            for (KeyedStateHandle k : handle.getNonMaterializedStateHandles()) {
+                serializeKeyedStateHandle(k, dos);
+            }
 
         } else if (stateHandle instanceof InMemoryStateChangelogHandle) {
             InMemoryStateChangelogHandle handle = (InMemoryStateChangelogHandle) stateHandle;
@@ -406,6 +426,24 @@ public abstract class MetadataV2V3SerializerBase {
                     sharedStates,
                     privateStates,
                     metaDataStateHandle);
+        } else if (CHANGELOG_HANDLE == type) {
+
+            int startKeyGroup = dis.readInt();
+            int numKeyGroups = dis.readInt();
+            KeyGroupRange keyGroupRange =
+                    KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+            int baseSize = dis.readInt();
+            List<KeyedStateHandle> base = new ArrayList<>(baseSize);
+            for (int i = 0; i < baseSize; i++) {
+                base.add(deserializeKeyedStateHandle(dis, context));
+            }
+            int deltaSize = dis.readInt();
+            List<StateChangelogHandle> delta = new ArrayList<>(deltaSize);
+            for (int i = 0; i < deltaSize; i++) {
+                delta.add((StateChangelogHandle) deserializeKeyedStateHandle(dis, context));
+            }
+            return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
+                    base, delta, keyGroupRange);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();

@@ -44,6 +44,9 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
+import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -52,12 +55,23 @@ import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -74,6 +88,7 @@ class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
                 TestableKeyedStateBackend<K> {
+    private static final Logger LOG = LoggerFactory.getLogger(ChangelogKeyedStateBackend.class);
 
     private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
@@ -109,12 +124,47 @@ class ChangelogKeyedStateBackend<K>
 
     private final StateChangelogWriter<?> stateChangelogWriter;
 
+    private long lastCheckpointId = -1L;
+
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
     private InternalKvState lastState;
 
     /** For caching the last accessed partitioned state. */
     private String lastName;
+
+    /** Updated initially on restore and later upon materialization (in FLINK-21357). */
+    @GuardedBy("materialized")
+    private final List<KeyedStateHandle> materialized = new ArrayList<>();
+
+    /** Updated initially on restore and later cleared upon materialization (in FLINK-21357). */
+    @GuardedBy("materialized")
+    private final List<StateChangelogHandle> nonMaterialized = new ArrayList<>();
+
+    /**
+     * {@link SequenceNumber} denoting last upload range <b>start</b>, inclusive. Updated to {@link
+     * #materializedTo} when {@link #snapshot(long, long, CheckpointStreamFactory,
+     * CheckpointOptions) starting snapshot}. Used to notify {@link #stateChangelogWriter} about
+     * changelog ranges that were confirmed or aborted by JM.
+     */
+    @Nullable private SequenceNumber lastUploadedFrom;
+    /**
+     * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
+     * org.apache.flink.runtime.state.changelog.StateChangelogWriter#lastAppendedSequenceNumber}
+     * when {@link #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions) starting
+     * snapshot}. Used to notify {@link #stateChangelogWriter} about changelog ranges that were
+     * confirmed or aborted by JM.
+     */
+    @Nullable private SequenceNumber lastUploadedTo;
+    /**
+     * The {@link SequenceNumber} up to which the state is materialized, exclusive. The log should
+     * be truncated accordingly.
+     *
+     * <p>WARN: currently not updated - to be changed in FLINK-21357.
+     *
+     * <p>WARN: this value needs to be updated for benchmarking, e.g. in notifyCheckpointComplete.
+     */
+    private final SequenceNumber materializedTo;
 
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
@@ -126,6 +176,7 @@ class ChangelogKeyedStateBackend<K>
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
         this.stateChangelogWriter = stateChangelogWriter;
+        this.materializedTo = stateChangelogWriter.initialSequenceNumber();
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
@@ -240,8 +291,43 @@ class ChangelogKeyedStateBackend<K>
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
-        return keyedStateBackend.snapshot(
-                checkpointId, timestamp, streamFactory, checkpointOptions);
+        // The range to upload may overlap with the previous one(s). To reuse them, we could store
+        // the previous results either here in the backend or in the writer. However,
+        // materialization may truncate only a part of the previous result and the backend would
+        // have to split it somehow for the former option, so the latter is used.
+        lastCheckpointId = checkpointId;
+        lastUploadedFrom = materializedTo;
+        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+
+        LOG.debug(
+                "snapshot for checkpoint {}, change range: {}..{}",
+                checkpointId,
+                lastUploadedFrom,
+                lastUploadedTo);
+        return toRunnableFuture(
+                stateChangelogWriter
+                        .persist(lastUploadedFrom)
+                        .thenApply(this::buildSnapshotResult));
+    }
+
+    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(StateChangelogHandle delta) {
+        // Can be called by either task thread during the sync checkpoint phase (if persist future
+        // was already completed); or by the writer thread otherwise. So need to synchronize.
+        // todo: revisit after FLINK-21357 - use mailbox action?
+        synchronized (materialized) {
+            // collections don't change once started and handles are immutable
+            List<StateChangelogHandle> prevDeltaCopy = new ArrayList<>(nonMaterialized);
+            if (delta != null && delta.getStateSize() > 0) {
+                prevDeltaCopy.add(delta);
+            }
+            if (prevDeltaCopy.isEmpty() && materialized.isEmpty()) {
+                return SnapshotResult.empty();
+            } else {
+                return SnapshotResult.of(
+                        new ChangelogStateBackendHandleImpl(
+                                materialized, prevDeltaCopy, getKeyGroupRange()));
+            }
+        }
     }
 
     @Nonnull
@@ -283,11 +369,26 @@ class ChangelogKeyedStateBackend<K>
     // -------------------- CheckpointListener --------------------------------
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (lastCheckpointId == checkpointId) {
+            // Notify the writer so that it can re-use the previous uploads. Do NOT notify it about
+            // a range status change if it is not relevant anymore. Otherwise, it could CONFIRM a
+            // newer upload instead of the previous one. This newer upload could then be re-used
+            // while in fact JM has discarded its results.
+            // This might change if the log ownership changes (the method won't likely be needed).
+            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo);
+        }
         keyedStateBackend.notifyCheckpointComplete(checkpointId);
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (lastCheckpointId == checkpointId) {
+            // Notify the writer so that it can clean up. Do NOT notify it about a range status
+            // change if it is not relevant anymore. Otherwise, it could DISCARD a newer upload
+            // instead of the previous one. Rely on truncation for the cleanup in this case.
+            // This might change if the log ownership changes (the method won't likely be needed).
+            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo);
+        }
         keyedStateBackend.notifyCheckpointAborted(checkpointId);
     }
 
@@ -371,5 +472,40 @@ class ChangelogKeyedStateBackend<K>
         <K, N, SV, S extends State, IS extends S> IS create(
                 InternalKvState<K, N, SV> kvState, KvStateChangeLogger<SV, N> changeLogger)
                 throws Exception;
+    }
+
+    private static <T> RunnableFuture<T> toRunnableFuture(CompletableFuture<T> f) {
+        return new RunnableFuture<T>() {
+            @Override
+            public void run() {
+                f.join();
+            }
+
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                return f.cancel(mayInterruptIfRunning);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return f.isCancelled();
+            }
+
+            @Override
+            public boolean isDone() {
+                return f.isDone();
+            }
+
+            @Override
+            public T get() throws InterruptedException, ExecutionException {
+                return f.get();
+            }
+
+            @Override
+            public T get(long timeout, TimeUnit unit)
+                    throws InterruptedException, ExecutionException, TimeoutException {
+                return f.get(timeout, unit);
+            }
+        };
     }
 }
