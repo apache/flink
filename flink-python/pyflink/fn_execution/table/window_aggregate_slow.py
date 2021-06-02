@@ -21,11 +21,11 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
 import pytz
-from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
@@ -290,7 +290,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase[W],
                  trigger: Trigger[W],
@@ -457,7 +457,7 @@ class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],

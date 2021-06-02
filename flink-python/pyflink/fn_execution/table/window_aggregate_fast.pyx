@@ -29,9 +29,9 @@ import sys
 from typing import List, Dict
 
 import pytz
-from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -330,7 +330,7 @@ cdef class GroupWindowAggFunctionBase:
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase,
                  trigger: Trigger[W],
@@ -511,7 +511,7 @@ cdef class GroupWindowAggFunction(GroupWindowAggFunctionBase):
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
                  state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],

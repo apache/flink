@@ -1137,7 +1137,7 @@ class WindowedStream(object):
         return self._keyed_stream.get_execution_environment()
 
     def get_input_type(self):
-        return self._keyed_stream.get_type()
+        return _from_java_type(self._keyed_stream._original_data_type_info.get_java_type_info())
 
     def trigger(self, trigger: Trigger):
         """

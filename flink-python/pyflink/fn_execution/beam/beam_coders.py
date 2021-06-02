@@ -15,10 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import pickle
-from typing import Any
-
-from apache_beam.coders import Coder, coder_impl
+from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
@@ -93,27 +90,3 @@ class FlinkCoder(FastCoder):
 
     def __hash__(self):
         return hash(self._internal_coder)
-
-
-class DataViewFilterCoder(FastCoder):
-
-    def to_type_hint(self):
-        return Any
-
-    def __init__(self, udf_data_view_specs):
-        self._udf_data_view_specs = udf_data_view_specs
-
-    def filter_data_views(self, row):
-        i = 0
-        for specs in self._udf_data_view_specs:
-            for spec in specs:
-                row[i][spec.field_index] = None
-            i += 1
-        return row
-
-    def _create_impl(self):
-        filter_data_views = self.filter_data_views
-        dumps = pickle.dumps
-        HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
-        return coder_impl.CallbackCoderImpl(
-            lambda x: dumps(filter_data_views(x), HIGHEST_PROTOCOL), pickle.loads)
