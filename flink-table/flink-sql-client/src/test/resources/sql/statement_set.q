@@ -15,11 +15,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SET sql-client.execution.result-mode = tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
-SET table.dml-sync=true;
+SET 'table.dml-sync' = 'true';
 [INFO] Session property has been set.
 !info
 
@@ -36,7 +36,7 @@ create table src (
 # test statement set with streaming insert
 # ==========================================================================
 
-SET execution.runtime-mode = streaming;
+SET 'execution.runtime-mode' = 'streaming';
 [INFO] Session property has been set.
 !info
 
@@ -109,7 +109,7 @@ Received a total of 7 rows
 # test statement set with batch inserts
 # ==========================================================================
 
-SET execution.runtime-mode = batch;
+SET 'execution.runtime-mode' = 'batch';
 [INFO] Session property has been set.
 !info
 
