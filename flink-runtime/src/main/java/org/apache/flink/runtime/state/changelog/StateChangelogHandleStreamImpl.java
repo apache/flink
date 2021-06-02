@@ -19,6 +19,7 @@ package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -29,28 +30,45 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /** {@link StateChangelogHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
 public final class StateChangelogHandleStreamImpl
         implements StateChangelogHandle<StateChangelogHandleStreamImpl.StateChangeStreamReader> {
     private static final long serialVersionUID = -8070326169926626355L;
+    private static final Logger LOG = LoggerFactory.getLogger(StateChangelogHandleStreamImpl.class);
 
     private final KeyGroupRange keyGroupRange;
     /** NOTE: order is important as it reflects the order of changes. */
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 
     private transient SharedStateRegistry stateRegistry;
+    private final long size;
 
     public StateChangelogHandleStreamImpl(
-            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets, KeyGroupRange keyGroupRange) {
+            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
+            KeyGroupRange keyGroupRange,
+            long size) {
         this.handlesAndOffsets = handlesAndOffsets;
         this.keyGroupRange = keyGroupRange;
+        this.size = size;
+    }
+
+    public StateChangelogHandleStreamImpl(
+            List<Tuple3<StreamStateHandle, Long, Long>> sorted, KeyGroupRange keyGroupRange) {
+        this(
+                sorted.stream().map(t -> Tuple2.of(t.f0, t.f1)).collect(Collectors.toList()),
+                keyGroupRange,
+                sorted.stream().mapToLong(t1 -> t1.f2).sum());
     }
 
     @Override
@@ -74,7 +92,7 @@ public final class StateChangelogHandleStreamImpl
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new StateChangelogHandleStreamImpl(handlesAndOffsets, offsets);
+        return new StateChangelogHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
     }
 
     @Override
@@ -99,10 +117,12 @@ public final class StateChangelogHandleStreamImpl
 
             private void advance() {
                 while (!current.hasNext() && handleIterator.hasNext()) {
-                    Tuple2<StreamStateHandle, Long> tuple2 = handleIterator.next();
                     try {
+                        current.close();
+                        Tuple2<StreamStateHandle, Long> tuple2 = handleIterator.next();
+                        LOG.debug("read at {} from {}", tuple2.f1, tuple2.f0);
                         current = reader.read(tuple2.f0, tuple2.f1);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         ExceptionUtils.rethrow(e);
                     }
                 }
@@ -123,7 +143,7 @@ public final class StateChangelogHandleStreamImpl
 
     @Override
     public long getStateSize() {
-        return 0;
+        return size;
     }
 
     private static SharedStateRegistryKey getKey(StreamStateHandle stateHandle) {
@@ -145,5 +165,9 @@ public final class StateChangelogHandleStreamImpl
     public interface StateChangeStreamReader {
         CloseableIterator<StateChange> read(StreamStateHandle handle, long offset)
                 throws IOException;
+    }
+
+    public List<Tuple2<StreamStateHandle, Long>> getHandlesAndOffsets() {
+        return handlesAndOffsets;
     }
 }
