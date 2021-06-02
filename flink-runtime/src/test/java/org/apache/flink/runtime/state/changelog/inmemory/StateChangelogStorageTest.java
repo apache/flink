@@ -23,8 +23,8 @@ import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
-import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
 import org.apache.flink.util.CloseableIterator;
 
 import org.junit.Rule;
@@ -48,8 +48,8 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/** {@link InMemoryStateChangelogWriterFactory} test. */
-public class StateChangelogWriterFactoryTest<T extends StateChangelogHandle> {
+/** {@link InMemoryStateChangelogStorage} test. */
+public class StateChangelogStorageTest<T extends StateChangelogHandle> {
 
     private final Random random = new Random();
 
@@ -68,7 +68,7 @@ public class StateChangelogWriterFactoryTest<T extends StateChangelogHandle> {
         KeyGroupRange kgRange = KeyGroupRange.of(0, 5);
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
 
-        try (StateChangelogWriterFactory<T> client = getFactory();
+        try (StateChangelogStorage<T> client = getFactory();
                 StateChangelogWriter<T> writer =
                         client.createWriter(new OperatorID().toString(), kgRange)) {
             SequenceNumber prev = writer.initialSequenceNumber();
@@ -133,7 +133,7 @@ public class StateChangelogWriterFactoryTest<T extends StateChangelogHandle> {
         return bytes;
     }
 
-    protected StateChangelogWriterFactory<T> getFactory() {
-        return (StateChangelogWriterFactory<T>) new InMemoryStateChangelogWriterFactory();
+    protected StateChangelogStorage<T> getFactory() {
+        return (StateChangelogStorage<T>) new InMemoryStateChangelogStorage();
     }
 }

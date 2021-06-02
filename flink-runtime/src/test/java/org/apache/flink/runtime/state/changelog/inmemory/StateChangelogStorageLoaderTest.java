@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.core.plugin.PluginManager;
-import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
-import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactoryLoader;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 
 import org.junit.Test;
 
@@ -31,12 +31,12 @@ import static org.apache.flink.shaded.curator4.com.google.common.collect.Immutab
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.junit.Assert.assertTrue;
 
-public class StateChangelogWriterFactoryLoaderTest {
+public class StateChangelogStorageLoaderTest {
 
     @Test
     public void testLoadSpiImplementation() {
         assertTrue(
-                new StateChangelogWriterFactoryLoader(getPluginManager(emptyIterator()))
+                new StateChangelogStorageLoader(getPluginManager(emptyIterator()))
                         .load()
                         .hasNext());
     }
@@ -44,20 +44,19 @@ public class StateChangelogWriterFactoryLoaderTest {
     @Test
     @SuppressWarnings("rawtypes")
     public void testLoadPluginImplementation() {
-        StateChangelogWriterFactory<?> impl = new InMemoryStateChangelogWriterFactory();
+        StateChangelogStorage<?> impl = new InMemoryStateChangelogStorage();
         PluginManager pluginManager = getPluginManager(singletonList(impl).iterator());
-        Iterator<StateChangelogWriterFactory> loaded =
-                new StateChangelogWriterFactoryLoader(pluginManager).load();
+        Iterator<StateChangelogStorage> loaded =
+                new StateChangelogStorageLoader(pluginManager).load();
         assertTrue(copyOf(loaded).contains(impl));
     }
 
-    private PluginManager getPluginManager(
-            Iterator<? extends StateChangelogWriterFactory<?>> iterator) {
+    private PluginManager getPluginManager(Iterator<? extends StateChangelogStorage<?>> iterator) {
         return new PluginManager() {
 
             @Override
             public <P> Iterator<P> load(Class<P> service) {
-                checkArgument(service.equals(StateChangelogWriterFactory.class));
+                checkArgument(service.equals(StateChangelogStorage.class));
                 //noinspection unchecked
                 return (Iterator<P>) iterator;
             }

@@ -23,11 +23,10 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 
 /**
  * A factory for {@link StateChangelogWriter} and {@link StateChangelogHandleReader}. Please use
- * {@link StateChangelogWriterFactoryLoader} to obtain an instance.
+ * {@link StateChangelogStorageLoader} to obtain an instance.
  */
 @Internal
-public interface StateChangelogWriterFactory<Handle extends StateChangelogHandle>
-        extends AutoCloseable {
+public interface StateChangelogStorage<Handle extends StateChangelogHandle> extends AutoCloseable {
 
     StateChangelogWriter<Handle> createWriter(String operatorID, KeyGroupRange keyGroupRange);
 
