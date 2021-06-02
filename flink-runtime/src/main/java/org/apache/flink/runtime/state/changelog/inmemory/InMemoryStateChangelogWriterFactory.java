@@ -18,7 +18,9 @@
 package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
+import org.apache.flink.util.CloseableIterator;
 
 /** An in-memory (non-production) implementation of {@link StateChangelogWriterFactory}. */
 public class InMemoryStateChangelogWriterFactory
@@ -28,5 +30,10 @@ public class InMemoryStateChangelogWriterFactory
     public InMemoryStateChangelogWriter createWriter(
             String operatorID, KeyGroupRange keyGroupRange) {
         return new InMemoryStateChangelogWriter(keyGroupRange);
+    }
+
+    @Override
+    public StateChangelogHandleReader<InMemoryStateChangelogHandle> createReader() {
+        return handle -> CloseableIterator.fromList(handle.getChanges(), change -> {});
     }
 }

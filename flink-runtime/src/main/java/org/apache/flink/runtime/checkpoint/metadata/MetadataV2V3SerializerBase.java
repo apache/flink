@@ -64,6 +64,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
  *
@@ -322,10 +324,8 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(handle.getFrom());
             dos.writeLong(handle.getTo());
-            List<StateChange> list = new ArrayList<>();
-            handle.getChanges(null).forEachRemaining(list::add);
-            dos.writeInt(list.size());
-            for (StateChange change : list) {
+            dos.writeInt(handle.getChanges().size());
+            for (StateChange change : handle.getChanges()) {
                 dos.writeInt(change.getKeyGroup());
                 dos.writeInt(change.getChange().length);
                 dos.write(change.getChange());
@@ -419,7 +419,7 @@ public abstract class MetadataV2V3SerializerBase {
                 int keyGroup = dis.readInt();
                 int bytesSize = dis.readInt();
                 byte[] bytes = new byte[bytesSize];
-                dis.read(bytes);
+                checkState(bytesSize == dis.read(bytes));
                 changes.add(new StateChange(keyGroup, bytes));
             }
             return new InMemoryStateChangelogHandle(changes, from, to, keyGroupRange);

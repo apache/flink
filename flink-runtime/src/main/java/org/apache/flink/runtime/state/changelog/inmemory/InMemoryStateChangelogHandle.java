@@ -24,15 +24,15 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
-import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
 
 /** In-memory {@link StateChangelogHandle}. */
 @Internal
-public class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> {
+public class InMemoryStateChangelogHandle implements StateChangelogHandle {
 
     private static final long serialVersionUID = 1L;
 
@@ -65,9 +65,8 @@ public class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> 
         return changes.stream().mapToLong(change -> change.getChange().length).sum();
     }
 
-    @Override
-    public CloseableIterator<StateChange> getChanges(Void unused) {
-        return CloseableIterator.fromList(changes, change -> {});
+    public List<StateChange> getChanges() {
+        return Collections.unmodifiableList(changes);
     }
 
     @Override
