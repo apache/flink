@@ -67,7 +67,9 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
                         + " where c <= 2";
         executeSqlWithJsonPlanVerified(sql).await();
 
-        List<String> expected = Arrays.asList("+I[book, 1, 1]", "+I[book, 2, 2]", "+I[fruit, 4, 1]", "+I[fruit, 3, 2]");
+        List<String> expected =
+                Arrays.asList(
+                        "+I[book, 1, 1]", "+I[book, 2, 2]", "+I[fruit, 4, 1]", "+I[fruit, 3, 2]");
         assertResult(expected, TestValuesTableFactory.getResults("result1"));
     }
 }
