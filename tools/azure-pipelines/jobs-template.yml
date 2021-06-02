@@ -33,7 +33,7 @@ jobs:
   workspace:
     clean: all # this cleans the entire workspace directory before running a new job
     # It is necessary because the custom build machines are reused for tests.
-    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace 
+    # See also https://docs.microsoft.com/en-us/azure/devops/pipelines/process/phases?view=azure-devops&tabs=yaml#workspace
 
   steps:
   # if on Azure, free up disk space
@@ -42,10 +42,10 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Free up disk space
   # The cache task is persisting the .m2 directory between builds, so that
-  # we do not have to re-download all dependencies from maven central for 
+  # we do not have to re-download all dependencies from maven central for
   # each build. The hope is that downloading the cache is faster than
   # all dependencies individually.
-  # In this configuration, we use a hash over all committed (not generated) .pom files 
+  # In this configuration, we use a hash over all committed (not generated) .pom files
   # as a key for the build cache (CACHE_KEY). If we have a cache miss on the hash
   # (usually because a pom file has changed), we'll fall back to a key without
   # the pom files (CACHE_FALLBACK_KEY).
@@ -60,10 +60,10 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
   - script: |
-      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-    displayName: "Set to jdk11"
-    condition: eq('${{parameters.jdk}}', 'jdk11')
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+    displayName: "Set to jdk8"
+    condition: eq('${{parameters.jdk}}', 'jdk8')
   # Compile
   - script: |
       ${{parameters.environment}} ./tools/ci/compile.sh || exit $?
@@ -129,10 +129,10 @@ jobs:
     displayName: Cache Maven local repo
 
   - script: |
-      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-    displayName: "Set to jdk11"
-    condition: eq('${{parameters.jdk}}', 'jdk11')  
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+    displayName: "Set to jdk8"
+    condition: eq('${{parameters.jdk}}', 'jdk8')
 
   - script: sudo sysctl -w kernel.core_pattern=core.%p
     displayName: Set coredump pattern
@@ -141,9 +141,9 @@ jobs:
   - script: |
       source ./tools/azure-pipelines/debug_files_utils.sh
       prepare_debug_files $(module)
-      
+
       ${{parameters.environment}} ./tools/ci/test_controller.sh $(module) ; TEST_EXIT_CODE=$?
-    
+
       compress_debug_files
       exit $TEST_EXIT_CODE
     displayName: Test - $(module)
@@ -203,10 +203,10 @@ jobs:
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - script: |
-        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-      displayName: "Set to jdk11"
-      condition: eq('${{parameters.jdk}}', 'jdk11')
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+      displayName: "Set to jdk8"
+      condition: eq('${{parameters.jdk}}', 'jdk8')
     - script: |
         echo "Setting up Maven"
         source ./tools/ci/maven-utils.sh
@@ -216,7 +216,10 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc moreutils
+        sudo apt-get install -y bc moreutils libapr1
+        # install libssl1.0.0 for netty tcnative
+        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.6_amd64.deb
+        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.6_amd64.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh
@@ -237,5 +240,5 @@ jobs:
       inputs:
         targetPath: $(ARTIFACT_DIR)
         artifact: logs-${{parameters.stage_name}}-e2e
-        
+
 
