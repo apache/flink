@@ -2235,27 +2235,31 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test(timeout = 10000L)
     public void testLogNotFoundHandling() throws Throwable {
-        final int dataPort = NetUtils.getAvailablePort();
-        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            int dataPort = port.getPort();
 
-        try (TaskSubmissionTestEnvironment env =
-                new Builder(jobId)
-                        .setConfiguration(configuration)
-                        .setLocalCommunication(false)
-                        .build()) {
-            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-            try {
-                CompletableFuture<TransientBlobKey> logFuture =
-                        tmGateway.requestFileUploadByType(FileType.LOG, timeout);
-                logFuture.get();
-            } catch (Exception e) {
-                assertThat(
-                        e.getMessage(),
-                        containsString("The file LOG does not exist on the TaskExecutor."));
+            configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            configuration.setInteger(
+                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+            configuration.setInteger(
+                    NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+            configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+
+            try (TaskSubmissionTestEnvironment env =
+                    new Builder(jobId)
+                            .setConfiguration(configuration)
+                            .setLocalCommunication(false)
+                            .build()) {
+                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+                try {
+                    CompletableFuture<TransientBlobKey> logFuture =
+                            tmGateway.requestFileUploadByType(FileType.LOG, timeout);
+                    logFuture.get();
+                } catch (Exception e) {
+                    assertThat(
+                            e.getMessage(),
+                            containsString("The file LOG does not exist on the TaskExecutor."));
+                }
             }
         }
     }

@@ -236,16 +236,19 @@ public class NettyPartitionRequestClientTest {
 
     private NettyPartitionRequestClient createPartitionRequestClient(
             Channel tcpChannel, NetworkClientHandler clientHandler) throws Exception {
-        int port = NetUtils.getAvailablePort();
-        ConnectionID connectionID = new ConnectionID(new InetSocketAddress("localhost", port), 0);
-        NettyConfig config =
-                new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
-        NettyClient nettyClient = new NettyClient(config);
-        PartitionRequestClientFactory partitionRequestClientFactory =
-                new PartitionRequestClientFactory(nettyClient);
+        try (NetUtils.Port availablePort = NetUtils.getAvailablePort()) {
+            int port = availablePort.getPort();
+            ConnectionID connectionID =
+                    new ConnectionID(new InetSocketAddress("localhost", port), 0);
+            NettyConfig config =
+                    new NettyConfig(InetAddress.getLocalHost(), port, 1024, 1, new Configuration());
+            NettyClient nettyClient = new NettyClient(config);
+            PartitionRequestClientFactory partitionRequestClientFactory =
+                    new PartitionRequestClientFactory(nettyClient);
 
-        return new NettyPartitionRequestClient(
-                tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
+            return new NettyPartitionRequestClient(
+                    tcpChannel, clientHandler, connectionID, partitionRequestClientFactory);
+        }
     }
 
     /**

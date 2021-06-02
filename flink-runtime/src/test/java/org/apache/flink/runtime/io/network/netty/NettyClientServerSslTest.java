@@ -88,21 +88,26 @@ public class NettyClientServerSslTest extends TestLogger {
 
         NettyProtocol protocol = new NoOpProtocol();
 
-        NettyConfig nettyConfig = createNettyConfig(sslConfig);
+        NettyServerAndClient serverAndClient;
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            NettyConfig nettyConfig = createNettyConfig(sslConfig, port);
 
-        final NettyBufferPool bufferPool = new NettyBufferPool(1);
-        final NettyServer server =
-                NettyTestUtil.initServer(
-                        nettyConfig,
-                        bufferPool,
-                        sslHandlerFactory ->
-                                new TestingServerChannelInitializer(
-                                        protocol,
-                                        sslHandlerFactory,
-                                        serverChannelInitComplete,
-                                        serverSslHandler));
-        final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
-        final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+            final NettyBufferPool bufferPool = new NettyBufferPool(1);
+            final NettyServer server =
+                    NettyTestUtil.initServer(
+                            nettyConfig,
+                            bufferPool,
+                            sslHandlerFactory ->
+                                    new TestingServerChannelInitializer(
+                                            protocol,
+                                            sslHandlerFactory,
+                                            serverChannelInitComplete,
+                                            serverSslHandler));
+            final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
+            serverAndClient = new NettyServerAndClient(server, client);
+        }
+        Assert.assertNotNull(
+                "serverAndClient is null due to fail to get a free port", serverAndClient);
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
 
@@ -175,10 +180,10 @@ public class NettyClientServerSslTest extends TestLogger {
         // Modify the keystore password to an incorrect one
         config.setString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD, "invalidpassword");
 
-        NettyConfig nettyConfig = createNettyConfig(config);
-
         NettyTestUtil.NettyServerAndClient serverAndClient = null;
-        try {
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            NettyConfig nettyConfig = createNettyConfig(config, port);
+
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
             Assert.fail("Created server and client from invalid configuration");
         } catch (Exception e) {
@@ -199,11 +204,14 @@ public class NettyClientServerSslTest extends TestLogger {
         config.setString(
                 SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
-        NettyConfig nettyConfig = createNettyConfig(config);
+        NettyTestUtil.NettyServerAndClient serverAndClient;
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            NettyConfig nettyConfig = createNettyConfig(config, port);
 
-        NettyTestUtil.NettyServerAndClient serverAndClient =
-                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
-
+            serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        }
+        Assert.assertNotNull(
+                "serverAndClient is null due to fail to get a free port", serverAndClient);
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
@@ -222,17 +230,23 @@ public class NettyClientServerSslTest extends TestLogger {
         clientConfig.setString(
                 SecurityOptions.SSL_INTERNAL_KEYSTORE, "src/test/resources/untrusted.keystore");
 
-        final NettyConfig nettyServerConfig = createNettyConfig(serverConfig);
-        final NettyConfig nettyClientConfig = createNettyConfig(clientConfig);
+        NettyServerAndClient serverAndClient;
+        try (NetUtils.Port serverPort = NetUtils.getAvailablePort();
+                NetUtils.Port clientPort = NetUtils.getAvailablePort()) {
+            final NettyConfig nettyServerConfig = createNettyConfig(serverConfig, serverPort);
+            final NettyConfig nettyClientConfig = createNettyConfig(clientConfig, clientPort);
 
-        final NettyBufferPool bufferPool = new NettyBufferPool(1);
-        final NettyProtocol protocol = new NoOpProtocol();
+            final NettyBufferPool bufferPool = new NettyBufferPool(1);
+            final NettyProtocol protocol = new NoOpProtocol();
 
-        final NettyServer server =
-                NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
-        final NettyClient client =
-                NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
-        final NettyServerAndClient serverAndClient = new NettyServerAndClient(server, client);
+            final NettyServer server =
+                    NettyTestUtil.initServer(nettyServerConfig, protocol, bufferPool);
+            final NettyClient client =
+                    NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
+            serverAndClient = new NettyServerAndClient(server, client);
+        }
+        Assert.assertNotNull(
+                "serverAndClient is null due to fail to get a free port", serverAndClient);
 
         final Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
@@ -253,11 +267,14 @@ public class NettyClientServerSslTest extends TestLogger {
         config.setString(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
+        NettyTestUtil.NettyServerAndClient serverAndClient;
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            NettyConfig nettyConfig = createNettyConfig(config, port);
 
-        NettyConfig nettyConfig = createNettyConfig(config);
-
-        NettyTestUtil.NettyServerAndClient serverAndClient =
-                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+            serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        }
+        Assert.assertNotNull(
+                "serverAndClient is null due to fail to get a free port", serverAndClient);
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
@@ -278,11 +295,14 @@ public class NettyClientServerSslTest extends TestLogger {
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 SSLUtilsTest.getCertificateFingerprint(config, "flink.test")
                         .replaceAll("[0-9A-Z]", "0"));
+        NettyTestUtil.NettyServerAndClient serverAndClient;
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            NettyConfig nettyConfig = createNettyConfig(config, port);
 
-        NettyConfig nettyConfig = createNettyConfig(config);
-
-        NettyTestUtil.NettyServerAndClient serverAndClient =
-                NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+            serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
+        }
+        Assert.assertNotNull(
+                "serverAndClient is null due to fail to get a free port", serverAndClient);
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
@@ -296,10 +316,11 @@ public class NettyClientServerSslTest extends TestLogger {
         return SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(sslProvider);
     }
 
-    private static NettyConfig createNettyConfig(Configuration config) {
+    private static NettyConfig createNettyConfig(Configuration config, NetUtils.Port availablePort)
+            throws Exception {
         return new NettyConfig(
                 InetAddress.getLoopbackAddress(),
-                NetUtils.getAvailablePort(),
+                availablePort.getPort(),
                 NettyTestUtil.DEFAULT_SEGMENT_SIZE,
                 1,
                 config);
