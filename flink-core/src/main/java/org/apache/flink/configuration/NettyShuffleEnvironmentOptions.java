@@ -41,6 +41,7 @@ public class NettyShuffleEnvironmentOptions {
     })
     public static final ConfigOption<Integer> DATA_PORT =
             key("taskmanager.data.port")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "The task manager’s external port used for data exchange operations.");
@@ -59,6 +60,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DATA_SSL_ENABLED =
             key("taskmanager.data.ssl.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Enable SSL support for the taskmanager data transport. This is applicable only when the"
@@ -76,6 +78,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> BLOCKING_SHUFFLE_COMPRESSION_ENABLED =
             key("taskmanager.network.blocking-shuffle.compression.enabled")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Boolean flag indicating whether the shuffle data will be compressed "
@@ -88,6 +91,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.ExcludeFromDocumentation("Currently, LZ4 is the only legal option.")
     public static final ConfigOption<String> SHUFFLE_COMPRESSION_CODEC =
             key("taskmanager.network.compression.codec")
+                    .stringType()
                     .defaultValue("LZ4")
                     .withDescription("The codec to be used when compressing shuffle data.");
 
@@ -98,6 +102,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Boolean> NETWORK_DETAILED_METRICS =
             key("taskmanager.network.detailed-metrics")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.");
@@ -122,6 +127,7 @@ public class NettyShuffleEnvironmentOptions {
     @Deprecated
     public static final ConfigOption<Float> NETWORK_BUFFERS_MEMORY_FRACTION =
             key("taskmanager.network.memory.fraction")
+                    .floatType()
                     .defaultValue(0.1f)
                     .withDescription(
                             "Fraction of JVM memory to use for network buffers. This determines how many streaming"
@@ -138,6 +144,7 @@ public class NettyShuffleEnvironmentOptions {
     @Deprecated
     public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MIN =
             key("taskmanager.network.memory.min")
+                    .stringType()
                     .defaultValue("64mb")
                     .withDescription("Minimum memory size for network buffers.");
 
@@ -149,6 +156,7 @@ public class NettyShuffleEnvironmentOptions {
     @Deprecated
     public static final ConfigOption<String> NETWORK_BUFFERS_MEMORY_MAX =
             key("taskmanager.network.memory.max")
+                    .stringType()
                     .defaultValue("1gb")
                     .withDescription("Maximum memory size for network buffers.");
 
@@ -162,6 +170,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.buffers-per-channel")
+                    .intType()
                     .defaultValue(2)
                     .withDescription(
                             "Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel)"
@@ -175,6 +184,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_EXTRA_BUFFERS_PER_GATE =
             key("taskmanager.network.memory.floating-buffers-per-gate")
+                    .intType()
                     .defaultValue(8)
                     .withDescription(
                             "Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate)."
@@ -232,6 +242,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_MAX_BUFFERS_PER_CHANNEL =
             key("taskmanager.network.memory.max-buffers-per-channel")
+                    .intType()
                     .defaultValue(10)
                     .withDescription(
                             "Number of max buffers that can be used for each channel. If a channel exceeds the number of max"
@@ -246,6 +257,7 @@ public class NettyShuffleEnvironmentOptions {
             "This option is purely implementation related, and may be removed as the implementation changes.")
     public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
             key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription(
                             "The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and "
@@ -256,6 +268,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<String> NETWORK_BLOCKING_SHUFFLE_TYPE =
             key("taskmanager.network.blocking-shuffle.type")
+                    .stringType()
                     .defaultValue("file")
                     .withDescription(
                             "The blocking shuffle type, either \"mmap\" or \"file\". The \"auto\" means selecting the property type automatically"
@@ -270,6 +283,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NUM_ARENAS =
             key("taskmanager.network.netty.num-arenas")
+                    .intType()
                     .defaultValue(-1)
                     .withDeprecatedKeys("taskmanager.net.num-arenas")
                     .withDescription("The number of Netty arenas.");
@@ -277,6 +291,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NUM_THREADS_SERVER =
             key("taskmanager.network.netty.server.numThreads")
+                    .intType()
                     .defaultValue(-1)
                     .withDeprecatedKeys("taskmanager.net.server.numThreads")
                     .withDescription("The number of Netty server threads.");
@@ -284,6 +299,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NUM_THREADS_CLIENT =
             key("taskmanager.network.netty.client.numThreads")
+                    .intType()
                     .defaultValue(-1)
                     .withDeprecatedKeys("taskmanager.net.client.numThreads")
                     .withDescription("The number of Netty client threads.");
@@ -291,6 +307,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> CONNECT_BACKLOG =
             key("taskmanager.network.netty.server.backlog")
+                    .intType()
                     .defaultValue(0) // default: 0 => Netty's default
                     .withDeprecatedKeys("taskmanager.net.server.backlog")
                     .withDescription("The netty server connection backlog.");
@@ -298,6 +315,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> CLIENT_CONNECT_TIMEOUT_SECONDS =
             key("taskmanager.network.netty.client.connectTimeoutSec")
+                    .intType()
                     .defaultValue(120) // default: 120s = 2min
                     .withDeprecatedKeys("taskmanager.net.client.connectTimeoutSec")
                     .withDescription("The Netty client connection timeout.");
@@ -305,6 +323,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_RETRIES =
             key("taskmanager.network.retries")
+                    .intType()
                     .defaultValue(0)
                     .withDeprecatedKeys("taskmanager.network.retries")
                     .withDescription(
@@ -314,6 +333,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> SEND_RECEIVE_BUFFER_SIZE =
             key("taskmanager.network.netty.sendReceiveBufferSize")
+                    .intType()
                     .defaultValue(0) // default: 0 => Netty's default
                     .withDeprecatedKeys("taskmanager.net.sendReceiveBufferSize")
                     .withDescription(
@@ -323,6 +343,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<String> TRANSPORT_TYPE =
             key("taskmanager.network.netty.transport")
+                    .stringType()
                     .defaultValue("auto")
                     .withDeprecatedKeys("taskmanager.net.transport")
                     .withDescription(
@@ -338,6 +359,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_INITIAL =
             key("taskmanager.network.request-backoff.initial")
+                    .intType()
                     .defaultValue(100)
                     .withDeprecatedKeys("taskmanager.net.request-backoff.initial")
                     .withDescription(
@@ -347,6 +369,7 @@ public class NettyShuffleEnvironmentOptions {
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER_NETWORK)
     public static final ConfigOption<Integer> NETWORK_REQUEST_BACKOFF_MAX =
             key("taskmanager.network.request-backoff.max")
+                    .intType()
                     .defaultValue(10000)
                     .withDeprecatedKeys("taskmanager.net.request-backoff.max")
                     .withDescription(

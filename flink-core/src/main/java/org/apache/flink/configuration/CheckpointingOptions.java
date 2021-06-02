@@ -138,6 +138,7 @@ public class CheckpointingOptions {
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> INCREMENTAL_CHECKPOINTS =
             ConfigOptions.key("state.backend.incremental")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Option whether the state backend should create incremental checkpoints, if possible. For"
@@ -156,6 +157,7 @@ public class CheckpointingOptions {
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<Boolean> LOCAL_RECOVERY =
             ConfigOptions.key("state.backend.local-recovery")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "This option configures local recovery for this state backend. By default, local recovery is "
@@ -172,6 +174,7 @@ public class CheckpointingOptions {
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
     public static final ConfigOption<String> LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS =
             ConfigOptions.key("taskmanager.state.local.root-dirs")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "The config parameter defining the root directories for storing file-based state for local "
@@ -189,6 +192,7 @@ public class CheckpointingOptions {
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS, position = 3)
     public static final ConfigOption<String> SAVEPOINT_DIRECTORY =
             ConfigOptions.key("state.savepoints.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("savepoints.state.backend.fs.dir")
                     .withDescription(
