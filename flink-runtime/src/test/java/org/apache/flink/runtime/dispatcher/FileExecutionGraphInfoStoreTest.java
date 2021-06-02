@@ -21,14 +21,29 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
+import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ManualTicker;
+import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -48,6 +63,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
@@ -74,28 +90,13 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
      */
     @Test
     public void testPut() throws IOException {
-        final ExecutionGraphInfo dummyExecutionGraphInfo =
-                new ExecutionGraphInfo(
-                        new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build());
-        final File rootDir = temporaryFolder.newFolder();
+        assertPutJobGraphWithStatus(JobStatus.FINISHED);
+    }
 
-        try (final FileExecutionGraphInfoStore executionGraphStore =
-                createDefaultExecutionGraphInfoStore(rootDir)) {
-
-            final File storageDirectory = executionGraphStore.getStorageDir();
-
-            // check that the storage directory is empty
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
-
-            executionGraphStore.put(dummyExecutionGraphInfo);
-
-            // check that we have persisted the given execution graph
-            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
-
-            assertThat(
-                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
-                    new PartialExecutionGraphInfoMatcher(dummyExecutionGraphInfo));
-        }
+    /** Tests that a SUSPENDED job can be persisted. */
+    @Test
+    public void testPutSuspendedJob() throws IOException {
+        assertPutJobGraphWithStatus(JobStatus.SUSPENDED);
     }
 
     /** Tests that null is returned if we request an unknown JobID. */
@@ -337,6 +338,60 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         }
     }
 
+    /** Tests that a session cluster can terminate gracefully when jobs are still running. */
+    @Test
+    public void testPutSuspendedJobOnClusterShutdown() throws Exception {
+        try (final MiniCluster miniCluster =
+                new PersistingMiniCluster(new MiniClusterConfiguration.Builder().build())) {
+            miniCluster.start();
+            final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
+            miniCluster.submitJob(jobGraph);
+        }
+    }
+
+    private class PersistingMiniCluster extends MiniCluster {
+
+        PersistingMiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
+            super(miniClusterConfiguration);
+        }
+
+        @Override
+        protected Collection<? extends DispatcherResourceManagerComponent>
+                createDispatcherResourceManagerComponents(
+                        Configuration configuration,
+                        RpcServiceFactory rpcServiceFactory,
+                        HighAvailabilityServices haServices,
+                        BlobServer blobServer,
+                        HeartbeatServices heartbeatServices,
+                        MetricRegistry metricRegistry,
+                        MetricQueryServiceRetriever metricQueryServiceRetriever,
+                        FatalErrorHandler fatalErrorHandler)
+                        throws Exception {
+            final DispatcherResourceManagerComponentFactory
+                    dispatcherResourceManagerComponentFactory =
+                            DefaultDispatcherResourceManagerComponentFactory
+                                    .createSessionComponentFactory(
+                                            StandaloneResourceManagerFactory.getInstance());
+
+            final File rootDir = temporaryFolder.newFolder();
+            final ExecutionGraphInfoStore executionGraphInfoStore =
+                    createDefaultExecutionGraphInfoStore(rootDir);
+
+            return Collections.singleton(
+                    dispatcherResourceManagerComponentFactory.create(
+                            configuration,
+                            getIOExecutor(),
+                            rpcServiceFactory.createRpcService(),
+                            haServices,
+                            blobServer,
+                            heartbeatServices,
+                            metricRegistry,
+                            executionGraphInfoStore,
+                            metricQueryServiceRetriever,
+                            fatalErrorHandler));
+        }
+    }
+
     private Collection<ExecutionGraphInfo> generateTerminalExecutionGraphInfos(int number) {
         final Collection<ExecutionGraphInfo> executionGraphInfos = new ArrayList<>(number);
 
@@ -411,6 +466,31 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
         public void describeTo(Description description) {
             description.appendText(
                     "Matches against " + ExecutionGraphInfo.class.getSimpleName() + '.');
+        }
+    }
+
+    private void assertPutJobGraphWithStatus(JobStatus jobStatus) throws IOException {
+        final ExecutionGraphInfo dummyExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder().setState(jobStatus).build());
+        final File rootDir = temporaryFolder.newFolder();
+
+        try (final FileExecutionGraphInfoStore executionGraphStore =
+                createDefaultExecutionGraphInfoStore(rootDir)) {
+
+            final File storageDirectory = executionGraphStore.getStorageDir();
+
+            // check that the storage directory is empty
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+
+            executionGraphStore.put(dummyExecutionGraphInfo);
+
+            // check that we have persisted the given execution graph
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+
+            assertThat(
+                    executionGraphStore.get(dummyExecutionGraphInfo.getJobId()),
+                    new PartialExecutionGraphInfoMatcher(dummyExecutionGraphInfo));
         }
     }
 
