@@ -84,7 +84,7 @@ public class InMemoryStateChangelogHandle implements StateChangelogHandle {
 
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry) {
-        throw new UnsupportedOperationException();
+        // do nothing
     }
 
     @Override
