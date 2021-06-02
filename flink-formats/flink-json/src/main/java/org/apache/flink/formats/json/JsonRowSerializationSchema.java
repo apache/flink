@@ -166,6 +166,7 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
                     "Could not serialize row '"
                             + row
                             + "'. "
+                            + t.getMessage()
                             + "Make sure that the schema matches the input.",
                     t);
         }
@@ -389,12 +390,18 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
 
             for (int i = 0; i < fieldNames.length; i++) {
                 String fieldName = fieldNames[i];
-                node.set(
-                        fieldName,
-                        fieldConverters
-                                .get(i)
-                                .convert(mapper, node.get(fieldNames[i]), row.getField(i)));
-            }
+                try {
+                    node.set(
+                            fieldName,
+                            fieldConverters
+                                    .get(i)
+                                    .convert(mapper, node.get(fieldNames[i]), row.getField(i)));
+                } catch (Throwable t) {
+                    throw new IllegalStateException(
+                            String.format(
+                                    "Failed to serialize at field: %s. ", fieldName), t);
+
+                }
 
             return node;
         };

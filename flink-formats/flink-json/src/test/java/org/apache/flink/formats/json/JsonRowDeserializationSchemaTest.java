@@ -316,7 +316,8 @@ public class JsonRowDeserializationSchemaTest {
                             .expect(Row.of(true)),
                     TestSpec.json("{\"id\":\"abc\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.INT))
-                            .expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+                            .expectErrorMessage(
+                                    "Failed to deserialize JSON '{\"id\":\"abc\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":112.013}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.LONG))
                             .expect(Row.of(112L)),
@@ -340,30 +341,32 @@ public class JsonRowDeserializationSchemaTest {
                             .expect(Row.of("{\"k1\":123,\"k2\":234.234,\"k3\":\"string data\"}")),
                     TestSpec.json("{\"id\":\"long\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.LONG))
-                            .expectErrorMessage("Failed to deserialize JSON '{\"id\":\"long\"}'"),
+                            .expectErrorMessage(
+                                    "Failed to deserialize JSON '{\"id\":\"long\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"112.013.123\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.FLOAT))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+                                    "Failed to deserialize JSON '{\"id\":\"112.013.123\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"112.013.123\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.DOUBLE))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"id\":\"112.013.123\"}'"),
+                                    "Failed to deserialize JSON '{\"id\":\"112.013.123\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"18:00:243\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.SQL_TIME))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"id\":\"18:00:243\"}'"),
+                                    "Failed to deserialize JSON '{\"id\":\"18:00:243\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"20191112\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.SQL_DATE))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"id\":\"20191112\"}'"),
+                                    "Failed to deserialize JSON '{\"id\":\"20191112\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"2019-11-12 18:00:12\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.SQL_TIMESTAMP))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'"),
+                                    "Failed to deserialize JSON '{\"id\":\"2019-11-12 18:00:12\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"id\":\"abc\"}")
                             .typeInfo(Types.ROW_NAMED(new String[] {"id"}, Types.BIG_DEC))
-                            .expectErrorMessage("Failed to deserialize JSON '{\"id\":\"abc\"}'"),
+                            .expectErrorMessage(
+                                    "Failed to deserialize JSON '{\"id\":\"abc\"}'. Failed to deserialize at field: id."),
                     TestSpec.json("{\"row\":{\"id\":\"abc\"}}")
                             .typeInfo(
                                     Types.ROW_NAMED(
@@ -371,14 +374,14 @@ public class JsonRowDeserializationSchemaTest {
                                             Types.ROW_NAMED(new String[] {"id"}, Types.INT)))
                             .expect(Row.of(new Row(1)))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'"),
+                                    "Failed to deserialize JSON '{\"row\":{\"id\":\"abc\"}}'. Failed to deserialize at field: row."),
                     TestSpec.json("{\"array\":[123, \"abc\"]}")
                             .typeInfo(
                                     Types.ROW_NAMED(
                                             new String[] {"array"}, Types.OBJECT_ARRAY(Types.INT)))
                             .expect(Row.of((Object) new Integer[] {123, null}))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'"),
+                                    "Failed to deserialize JSON '{\"array\":[123, \"abc\"]}'. Failed to deserialize at field: array."),
                     TestSpec.json("{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}")
                             .typeInfo(
                                     Types.ROW_NAMED(
@@ -386,7 +389,7 @@ public class JsonRowDeserializationSchemaTest {
                                             Types.MAP(Types.STRING, Types.INT)))
                             .expect(Row.of(createHashMap("key1", 123, "key2", null)))
                             .expectErrorMessage(
-                                    "Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'"),
+                                    "Failed to deserialize JSON '{\"map\":{\"key1\":\"123\", \"key2\":\"abc\"}}'. Failed to deserialize at field: map."),
                     TestSpec.json("{\"id\":1,\"factor\":799.929496989092949698}")
                             .typeInfo(
                                     Types.ROW_NAMED(

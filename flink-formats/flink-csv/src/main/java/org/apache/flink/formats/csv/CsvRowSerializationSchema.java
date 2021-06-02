@@ -169,7 +169,8 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
             runtimeConverter.convert(csvMapper, root, row);
             return objectWriter.writeValueAsBytes(root);
         } catch (Throwable t) {
-            throw new RuntimeException("Could not serialize row '" + row + "'.", t);
+            throw new RuntimeException(
+                    "Could not serialize row '" + row + "'. " + t.getMessage(), t);
         }
     }
 
@@ -235,6 +236,7 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
     private static RuntimeConverter assembleRowRuntimeConverter(
             boolean isTopLevel, String[] fieldNames, RuntimeConverter[] fieldConverters) {
         final int rowArity = fieldNames.length;
+        String errMessage = "Failed to serialize at field: %s. ";
         // top level reuses the object node container
         if (isTopLevel) {
             return (csvMapper, container, obj) -> {
@@ -244,9 +246,14 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
                 final ObjectNode objectNode = (ObjectNode) container;
                 for (int i = 0; i < rowArity; i++) {
-                    objectNode.set(
-                            fieldNames[i],
-                            fieldConverters[i].convert(csvMapper, container, row.getField(i)));
+                    try {
+                        objectNode.set(
+                                fieldNames[i],
+                                fieldConverters[i].convert(csvMapper, container, row.getField(i)));
+                    } catch (Throwable t) {
+                        throw new IllegalStateException(
+                                String.format(errMessage, fieldNames[i]), t);
+                    }
                 }
                 return objectNode;
             };
@@ -258,8 +265,13 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
                 final ArrayNode arrayNode = csvMapper.createArrayNode();
                 for (int i = 0; i < rowArity; i++) {
-                    arrayNode.add(
-                            fieldConverters[i].convert(csvMapper, arrayNode, row.getField(i)));
+                    try {
+                        arrayNode.add(
+                                fieldConverters[i].convert(csvMapper, arrayNode, row.getField(i)));
+                    } catch (Throwable t) {
+                        throw new IllegalStateException(
+                                String.format(errMessage, fieldNames[i]), t);
+                    }
                 }
                 return arrayNode;
             };

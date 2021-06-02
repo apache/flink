@@ -162,7 +162,11 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
                 return null;
             }
             throw new IOException(
-                    "Failed to deserialize CSV row '" + new String(message) + "'.", t);
+                    "Failed to deserialize CSV row '"
+                            + new String(message)
+                            + "'. "
+                            + t.getMessage(),
+                    t);
         }
     }
 
@@ -245,6 +249,7 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
             String[] fieldNames,
             RuntimeConverter[] fieldConverters) {
         final int rowArity = fieldNames.length;
+        String errMessage = "Failed to deserialize at field: %s. ";
 
         return (node) -> {
             final int nodeSize = node.size();
@@ -259,9 +264,19 @@ public final class CsvRowDeserializationSchema implements DeserializationSchema<
             for (int i = 0; i < Math.min(rowArity, nodeSize); i++) {
                 // Jackson only supports mapping by name in the first level
                 if (isTopLevel) {
-                    row.setField(i, fieldConverters[i].convert(node.get(fieldNames[i])));
+                    try {
+                        row.setField(i, fieldConverters[i].convert(node.get(fieldNames[i])));
+                    } catch (Throwable t) {
+                        throw new IllegalStateException(
+                                String.format(errMessage, fieldNames[i]), t);
+                    }
                 } else {
-                    row.setField(i, fieldConverters[i].convert(node.get(i)));
+                    try {
+                        row.setField(i, fieldConverters[i].convert(node.get(i)));
+                    } catch (Throwable t) {
+                        throw new IllegalStateException(
+                                String.format(errMessage, fieldNames[i]), t);
+                    }
                 }
             }
             return row;

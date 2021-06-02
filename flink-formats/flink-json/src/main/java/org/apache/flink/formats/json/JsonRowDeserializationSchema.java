@@ -146,7 +146,10 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
                 return null;
             }
             throw new IOException(
-                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
+                    format(
+                            "Failed to deserialize JSON '%s'. %s",
+                            new String(message), t.getMessage()),
+                    t);
         }
     }
 
@@ -543,7 +546,12 @@ public class JsonRowDeserializationSchema implements DeserializationSchema<Row> 
                 return null;
             }
         } else {
-            return fieldConverter.convert(mapper, field);
+            try {
+                return fieldConverter.convert(mapper, field);
+            } catch (Throwable t) {
+                throw new IllegalStateException(
+                        String.format("Failed to deserialize at field: %s. ", fieldName), t);
+            }
         }
     }
 

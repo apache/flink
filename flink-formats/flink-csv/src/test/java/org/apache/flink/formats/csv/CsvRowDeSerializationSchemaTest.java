@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link CsvRowSerializationSchema} and {@link CsvRowDeserializationSchema}. */
@@ -288,6 +289,38 @@ public class CsvRowDeSerializationSchemaTest {
                                 LocalDateTime.parse("1970-01-01T01:02:05"),
                                 Instant.ofEpochMilli(3000)));
         testSerDeConsistency(nullRow, serSchemaBuilder, deserSchemaBuilder);
+    }
+
+    @Test
+    public void testSerializationWithTypesMismatch() {
+        final TypeInformation<Row> rowInfo =
+                Types.ROW_NAMED(new String[] {"f1", "f2"}, Types.INT, Types.STRING);
+        final CsvRowSerializationSchema.Builder serSchemaBuilder =
+                new CsvRowSerializationSchema.Builder(rowInfo).setLineDelimiter("");
+        try {
+            serialize(serSchemaBuilder, Row.of("test", "test"));
+        } catch (Throwable t) {
+            String expectedMessage = "Failed to serialize field: f1";
+            assertTrue(t.getMessage().contains(expectedMessage));
+            return;
+        }
+        fail();
+    }
+
+    @Test
+    public void testDeserializationWithTypesMismatch() {
+        final TypeInformation<Row> rowInfo =
+                Types.ROW_NAMED(new String[] {"f1", "f2"}, Types.INT, Types.STRING);
+        final CsvRowDeserializationSchema.Builder deserSchemaBuilder =
+                new CsvRowDeserializationSchema.Builder(rowInfo);
+        try {
+            deserialize(deserSchemaBuilder, "Test,Test");
+        } catch (Throwable t) {
+            String expectedMessage = "Failed to deserialize at field: f1";
+            assertTrue(t.getMessage().contains(expectedMessage));
+            return;
+        }
+        fail();
     }
 
     private <T> void testNullableField(TypeInformation<T> fieldInfo, String string, T value)

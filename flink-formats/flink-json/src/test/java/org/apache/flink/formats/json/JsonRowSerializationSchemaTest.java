@@ -31,9 +31,11 @@ import java.sql.Timestamp;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.SerializationSchemaMatcher.whenSerializedWith;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Tests for the {@link JsonRowSerializationSchema}. */
 public class JsonRowSerializationSchemaTest {
@@ -177,6 +179,22 @@ public class JsonRowSerializationSchemaTest {
                 row,
                 whenSerializedWith(serializationSchema)
                         .failsWithException(instanceOf(RuntimeException.class)));
+    }
+
+    @Test
+    public void testSerializeRowWithTypesMismatch() {
+        final TypeInformation<Row> rowSchema =
+                Types.ROW_NAMED(new String[] {"f1", "f2"}, Types.INT, Types.STRING);
+        final Row row = new Row(2);
+        row.setField(0, 1);
+        row.setField(1, 1);
+        final JsonRowSerializationSchema serializationSchema =
+                new JsonRowSerializationSchema.Builder(rowSchema).build();
+        String expectErrMessage = "Failed to serialize at field: f2";
+        assertThat(
+                row,
+                whenSerializedWith(serializationSchema)
+                        .failsWithException(hasMessage(containsString(expectErrMessage))));
     }
 
     @Test
