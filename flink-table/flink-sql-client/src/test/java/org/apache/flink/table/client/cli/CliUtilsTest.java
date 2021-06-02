@@ -37,7 +37,7 @@ public class CliUtilsTest {
     @Rule public TemporaryFolder linkFolder = new TemporaryFolder();
 
     @Test
-    public void testCreateFileRealDir() throws IOException {
+    public void testCreateFileRealDir() {
         Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(realDirHistoryFile);
         assertTrue(Files.exists(realDirHistoryFile));
@@ -55,7 +55,7 @@ public class CliUtilsTest {
     }
 
     @Test
-    public void testCreateFileSubDir() throws IOException {
+    public void testCreateFileSubDir() {
         Path subDirHistoryFile =
                 Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
