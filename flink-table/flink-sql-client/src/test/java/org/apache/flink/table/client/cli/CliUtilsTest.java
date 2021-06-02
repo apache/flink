@@ -34,29 +34,30 @@ public class CliUtilsTest {
 
     @Rule public TemporaryFolder realFolder = new TemporaryFolder();
 
-    @Rule public TemporaryFolder realFolderForLinkFolder = new TemporaryFolder();
-
-    @Rule public TemporaryFolder realFolderForSubFolder = new TemporaryFolder();
-
     @Rule public TemporaryFolder linkFolder = new TemporaryFolder();
 
     @Test
-    public void testCreateFile() throws IOException {
+    public void testCreateFileRealDir() throws IOException {
         Path realDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(realDirHistoryFile);
         assertTrue(Files.exists(realDirHistoryFile));
+    }
 
+    @Test
+    public void testCreateFileLinkDir() throws IOException {
         Path link = Paths.get(linkFolder.getRoot().getAbsolutePath(), "link");
-        Files.createSymbolicLink(link, realFolderForLinkFolder.getRoot().toPath());
+        Files.createSymbolicLink(link, realFolder.getRoot().toPath());
         Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
-        Path realLinkDirHistoryFile =
-                Paths.get(realFolderForLinkFolder.getRoot().toString(), "history.file");
+        Path realLinkDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(linkDirHistoryFile);
         assertTrue(Files.exists(linkDirHistoryFile));
         assertTrue(Files.exists(realLinkDirHistoryFile));
+    }
 
+    @Test
+    public void testCreateFileSubDir() throws IOException {
         Path subDirHistoryFile =
-                Paths.get(realFolderForSubFolder.getRoot().toString(), "subdir", "history.file");
+                Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
         assertTrue(Files.exists(subDirHistoryFile));
     }
