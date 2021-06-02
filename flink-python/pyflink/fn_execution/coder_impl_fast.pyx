@@ -399,7 +399,7 @@ cdef class TinyIntCoderImpl(FieldCoderImpl):
         out_stream.write_int8(value)
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
-        return in_stream.read_byte()
+        return in_stream.read_int8()
 
 cdef class SmallIntCoderImpl(FieldCoderImpl):
     """
