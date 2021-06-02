@@ -34,6 +34,10 @@ public class CliUtilsTest {
 
     @Rule public TemporaryFolder realFolder = new TemporaryFolder();
 
+    @Rule public TemporaryFolder realFolderForLinkFolder = new TemporaryFolder();
+
+    @Rule public TemporaryFolder realFolderForSubFolder = new TemporaryFolder();
+
     @Rule public TemporaryFolder linkFolder = new TemporaryFolder();
 
     @Test
@@ -43,15 +47,16 @@ public class CliUtilsTest {
         assertTrue(Files.exists(realDirHistoryFile));
 
         Path link = Paths.get(linkFolder.getRoot().getAbsolutePath(), "link");
-        Files.createSymbolicLink(link, realFolder.getRoot().toPath());
+        Files.createSymbolicLink(link, realFolderForLinkFolder.getRoot().toPath());
         Path linkDirHistoryFile = Paths.get(link.toAbsolutePath().toString(), "history.file");
-        Path realLinkDirHistoryFile = Paths.get(realFolder.getRoot().toString(), "history.file");
+        Path realLinkDirHistoryFile =
+                Paths.get(realFolderForLinkFolder.getRoot().toString(), "history.file");
         CliUtils.createFile(linkDirHistoryFile);
         assertTrue(Files.exists(linkDirHistoryFile));
         assertTrue(Files.exists(realLinkDirHistoryFile));
 
         Path subDirHistoryFile =
-                Paths.get(realFolder.getRoot().toString(), "subdir", "history.file");
+                Paths.get(realFolderForSubFolder.getRoot().toString(), "subdir", "history.file");
         CliUtils.createFile(subDirHistoryFile);
         assertTrue(Files.exists(subDirHistoryFile));
     }
