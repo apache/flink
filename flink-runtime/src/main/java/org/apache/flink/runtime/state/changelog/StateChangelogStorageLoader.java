@@ -25,19 +25,19 @@ import java.util.ServiceLoader;
 
 import static org.apache.flink.shaded.guava18.com.google.common.collect.Iterators.concat;
 
-/** A thin wrapper around {@link PluginManager} to load {@link StateChangelogWriterFactory}. */
+/** A thin wrapper around {@link PluginManager} to load {@link StateChangelogStorage}. */
 @Internal
-public class StateChangelogWriterFactoryLoader {
+public class StateChangelogStorageLoader {
     private final PluginManager pluginManager;
 
-    public StateChangelogWriterFactoryLoader(PluginManager pluginManager) {
+    public StateChangelogStorageLoader(PluginManager pluginManager) {
         this.pluginManager = pluginManager;
     }
 
     @SuppressWarnings({"rawtypes"})
-    public Iterator<StateChangelogWriterFactory> load() {
+    public Iterator<StateChangelogStorage> load() {
         return concat(
-                pluginManager.load(StateChangelogWriterFactory.class),
-                ServiceLoader.load(StateChangelogWriterFactory.class).iterator());
+                pluginManager.load(StateChangelogStorage.class),
+                ServiceLoader.load(StateChangelogStorage.class).iterator());
     }
 }
