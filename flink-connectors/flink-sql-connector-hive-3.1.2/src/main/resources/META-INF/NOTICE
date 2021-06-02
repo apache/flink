@@ -25,8 +25,8 @@ the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 - javax.jdo:jdo-api:3.0.1
 - joda-time:joda-time:2.9.9
 - net.sf.opencsv:opencsv:2.3
-- org.apache.avro:avro-mapred:1.7.7
-- org.apache.avro:avro:1.7.7
+- org.apache.avro:avro-mapred:hadoop2:1.8.2
+- org.apache.avro:avro:1.8.2
 - org.apache.commons:commons-lang3:3.3.2
 - org.apache.hive.shims:hive-shims-0.23:3.1.2
 - org.apache.hive.shims:hive-shims-common:3.1.2

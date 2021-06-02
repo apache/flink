@@ -72,6 +72,8 @@ import java.util.regex.Pattern;
 
 /**
  * Hive Configuration.
+ *
+ * This is copied from hive to fix initialization failure when hive-site is not available.
  */
 public class HiveConf extends Configuration {
   protected String hiveJar;
@@ -177,7 +179,7 @@ public class HiveConf extends Configuration {
           }
           // From the jar file, the parent is /lib folder
           File parent = null;
-          if (!jarUri.isOpaque()) {
+          if (jarUri != null && !jarUri.isOpaque()) {
             parent = new File(jarUri).getParentFile();
           }
           if (parent != null) {

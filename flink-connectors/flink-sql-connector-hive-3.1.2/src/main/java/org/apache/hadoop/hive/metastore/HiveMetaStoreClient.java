@@ -91,6 +91,8 @@ import com.google.common.collect.Lists;
  * are not public and can change. Hence this is marked as unstable.
  * For users who require retry mechanism when the connection between metastore and client is
  * broken, RetryingMetaStoreClient class should be used.
+ *
+ * This is copied from hive to port https://issues.apache.org/jira/browse/HIVE-21508
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
