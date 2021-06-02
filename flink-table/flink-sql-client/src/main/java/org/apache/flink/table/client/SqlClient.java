@@ -165,8 +165,6 @@ public class SqlClient {
     protected static void startClient(String[] args, Supplier<Terminal> terminalFactory) {
         final String mode;
         final String[] modeArgs;
-        // check arg e.g -i -f
-        checkArgs(args);
         if (args.length < 1 || args[0].startsWith("-")) {
             // mode is not specified, use the default `embedded` mode
             mode = MODE_EMBEDDED;
@@ -181,6 +179,8 @@ public class SqlClient {
         switch (mode) {
             case MODE_EMBEDDED:
                 final CliOptions options = CliOptionsParser.parseEmbeddedModeClient(modeArgs);
+                // check arg e.g -i -f
+                checkArgs(args);
                 if (options.isPrintHelp()) {
                     CliOptionsParser.printHelpEmbeddedModeClient();
                 } else {
@@ -216,8 +216,10 @@ public class SqlClient {
     }
 
     private static void checkArgs(String[] args) {
-        for (String arg : args) {
-            checkFilePath(arg);
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].trim().equals("-i") || args[i].trim().equals("-f")) {
+                checkFilePath(args[i + 1]);
+            }
         }
     }
 
