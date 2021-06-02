@@ -17,9 +17,11 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.util.CloseableIterator;
@@ -27,19 +29,26 @@ import org.apache.flink.util.CloseableIterator;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toList;
-
-class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> {
+/** In-memory {@link StateChangelogHandle}. */
+@Internal
+public class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> {
 
     private static final long serialVersionUID = 1L;
 
-    private final Map<Integer, List<byte[]>> changes;
+    private final List<StateChange> changes;
+    private final SequenceNumber from; // for debug purposes
+    private final SequenceNumber to; // for debug purposes
 
-    public InMemoryStateChangelogHandle(Map<Integer, List<byte[]>> changes) {
+    public InMemoryStateChangelogHandle(List<StateChange> changes, long from, long to) {
+        this(changes, SequenceNumber.of(from), SequenceNumber.of(to));
+    }
+
+    public InMemoryStateChangelogHandle(
+            List<StateChange> changes, SequenceNumber from, SequenceNumber to) {
         this.changes = changes;
+        this.from = from;
+        this.to = to;
     }
 
     @Override
@@ -47,19 +56,12 @@ class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> {
 
     @Override
     public long getStateSize() {
-        return 0;
+        return changes.stream().mapToLong(change -> change.getChange().length).sum();
     }
 
     @Override
     public CloseableIterator<StateChange> getChanges(Void unused) {
-        return CloseableIterator.fromList(
-                changes.entrySet().stream().flatMap(this::mapEntryToChangeStream).collect(toList()),
-                change -> {});
-    }
-
-    private Stream<StateChange> mapEntryToChangeStream(Map.Entry<Integer, List<byte[]>> entry) {
-        int keyGroup = entry.getKey();
-        return entry.getValue().stream().map(bytes -> new StateChange(keyGroup, bytes));
+        return CloseableIterator.fromList(changes, change -> {});
     }
 
     @Override
@@ -70,11 +72,26 @@ class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> {
     @Nullable
     @Override
     public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
-        throw new UnsupportedOperationException();
+        return changes.stream().mapToInt(StateChange::getKeyGroup).anyMatch(keyGroupRange::contains)
+                ? this
+                : null;
     }
 
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("from %s to %s: %s", from, to, changes);
+    }
+
+    public long getFrom() {
+        return ((SequenceNumber.GenericSequenceNumber) from).number;
+    }
+
+    public long getTo() {
+        return ((SequenceNumber.GenericSequenceNumber) to).number;
     }
 }

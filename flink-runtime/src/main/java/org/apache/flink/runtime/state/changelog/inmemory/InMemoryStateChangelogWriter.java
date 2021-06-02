@@ -17,7 +17,9 @@
 
 package org.apache.flink.runtime.state.changelog.inmemory;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
+import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.Preconditions;
 
@@ -26,16 +28,17 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static java.util.stream.Collectors.toMap;
 
 @NotThreadSafe
 class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryStateChangelogHandle> {
@@ -64,17 +67,21 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
     public CompletableFuture<InMemoryStateChangelogHandle> persist(SequenceNumber from) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
-        return completedFuture(new InMemoryStateChangelogHandle(collectChanges(from)));
+        return completedFuture(new InMemoryStateChangelogHandle(collectChanges(from), from, SequenceNumber.of(sqn)));
     }
 
-    private Map<Integer, List<byte[]>> collectChanges(SequenceNumber after) {
+    private List<StateChange> collectChanges(SequenceNumber after) {
         return changesByKeyGroup.entrySet().stream()
-                .collect(
-                        toMap(
-                                Map.Entry::getKey,
-                                kv ->
-                                        new ArrayList<>(
-                                                kv.getValue().tailMap(after, true).values())));
+                .flatMap(e -> toChangeStream(e.getValue(), after, e.getKey()))
+                .sorted(Comparator.comparing(sqnAndChange -> sqnAndChange.f0))
+                .map(t -> t.f1)
+                .collect(Collectors.toList());
+    }
+
+    private Stream<Tuple2<SequenceNumber, StateChange>> toChangeStream(
+            NavigableMap<SequenceNumber, byte[]> changeMap, SequenceNumber after, int keyGroup) {
+        return changeMap.tailMap(after, true).entrySet().stream()
+                .map(e2 -> Tuple2.of(e2.getKey(), new StateChange(keyGroup, e2.getValue())));
     }
 
     @Override
