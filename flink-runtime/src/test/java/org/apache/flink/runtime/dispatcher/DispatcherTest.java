@@ -861,10 +861,12 @@ public class DispatcherTest extends TestLogger {
                 createAndStartDispatcher(heartbeatServices, haServices, jobManagerRunnerFactory);
         final DispatcherGateway dispatcherGateway =
                 dispatcher.getSelfGateway(DispatcherGateway.class);
+
         final JobGraph blockedJobGraph = new JobGraph();
         blockedJobGraph.setJobID(blockingId);
-        blockedJobGraph.addVertex(new JobVertex("test"));
-        blockedJobGraph.setJobID(blockingId);
+        final JobVertex vertex = new JobVertex("test");
+        vertex.setInvokableClass(NoOpInvokable.class);
+        blockedJobGraph.addVertex(vertex);
 
         // Submit two jobs, one blocks forever
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
@@ -877,12 +879,22 @@ public class DispatcherTest extends TestLogger {
         try {
             CommonTestUtils.waitUntilCondition(
                     () -> {
-                        JobStatus status =
-                                dispatcherGateway
-                                        .requestJob(jobGraph.getJobID(), TIMEOUT)
-                                        .get()
-                                        .getState();
-                        return status == JobStatus.SUSPENDED;
+                        try {
+                            JobStatus status =
+                                    dispatcherGateway
+                                            .requestJob(jobGraph.getJobID(), TIMEOUT)
+                                            .get()
+                                            .getState();
+                            return status == JobStatus.SUSPENDED;
+                        } catch (Throwable t) {
+                            Optional<Throwable> cause =
+                                    ExceptionUtils.findThrowableWithMessage(
+                                            t, "JobMaster has been shut down");
+                            if (cause.isPresent()) {
+                                return false;
+                            }
+                            throw t;
+                        }
                     },
                     Deadline.fromNow(TimeUtils.toDuration(TIMEOUT)),
                     5L);
@@ -1020,7 +1032,7 @@ public class DispatcherTest extends TestLogger {
                             fatalErrorHandler,
                             schedulerNGFactory,
                             shuffleMaster);
-            return new BlockingTerminationJobMangerService(
+            return new BlockingTerminationJobManagerService(
                     jobIdToBlock,
                     future,
                     jobGraph,
@@ -1038,12 +1050,12 @@ public class DispatcherTest extends TestLogger {
         }
     }
 
-    private static final class BlockingTerminationJobMangerService extends JobManagerRunnerImpl {
+    private static final class BlockingTerminationJobManagerService extends JobManagerRunnerImpl {
 
         private final JobID jobIdToBlock;
         private final CompletableFuture<Void> future;
 
-        public BlockingTerminationJobMangerService(
+        public BlockingTerminationJobManagerService(
                 JobID jobIdToBlock,
                 CompletableFuture<Void> future,
                 JobGraph jobGraph,
