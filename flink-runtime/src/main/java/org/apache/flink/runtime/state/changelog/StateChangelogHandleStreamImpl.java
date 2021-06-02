@@ -28,24 +28,19 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.ExceptionUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /** {@link StateChangelogHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
-public final class StateChangelogHandleStreamImpl
-        implements StateChangelogHandle<StateChangelogHandleStreamImpl.StateChangeStreamReader> {
+public final class StateChangelogHandleStreamImpl implements StateChangelogHandle {
+
     private static final long serialVersionUID = -8070326169926626355L;
-    private static final Logger LOG = LoggerFactory.getLogger(StateChangelogHandleStreamImpl.class);
 
     private final KeyGroupRange keyGroupRange;
     /** NOTE: order is important as it reflects the order of changes. */
@@ -96,46 +91,6 @@ public final class StateChangelogHandleStreamImpl
     }
 
     @Override
-    public CloseableIterator<StateChange> getChanges(StateChangeStreamReader reader) {
-        return new CloseableIterator<StateChange>() {
-            private final Iterator<Tuple2<StreamStateHandle, Long>> handleIterator =
-                    handlesAndOffsets.iterator();
-
-            private CloseableIterator<StateChange> current = CloseableIterator.empty();
-
-            @Override
-            public boolean hasNext() {
-                advance();
-                return current.hasNext();
-            }
-
-            @Override
-            public StateChange next() {
-                advance();
-                return current.next();
-            }
-
-            private void advance() {
-                while (!current.hasNext() && handleIterator.hasNext()) {
-                    try {
-                        current.close();
-                        Tuple2<StreamStateHandle, Long> tuple2 = handleIterator.next();
-                        LOG.debug("read at {} from {}", tuple2.f1, tuple2.f0);
-                        current = reader.read(tuple2.f0, tuple2.f1);
-                    } catch (Exception e) {
-                        ExceptionUtils.rethrow(e);
-                    }
-                }
-            }
-
-            @Override
-            public void close() throws Exception {
-                current.close();
-            }
-        };
-    }
-
-    @Override
     public void discardState() {
         handlesAndOffsets.forEach(
                 handleAndOffset -> stateRegistry.unregisterReference(getKey(handleAndOffset.f0)));
@@ -168,6 +123,6 @@ public final class StateChangelogHandleStreamImpl
     }
 
     public List<Tuple2<StreamStateHandle, Long>> getHandlesAndOffsets() {
-        return handlesAndOffsets;
+        return Collections.unmodifiableList(handlesAndOffsets);
     }
 }

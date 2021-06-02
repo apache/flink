@@ -18,8 +18,12 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.util.CloseableIterator;
 
-/** A handle to saved {@link StateChange state changes}. */
+import java.io.IOException;
+
+/** Allows to read state changelog referenced by the provided {@link StateChangelogHandle}. */
 @Internal
-public interface StateChangelogHandle extends KeyedStateHandle {}
+public interface StateChangelogHandleReader<Handle extends StateChangelogHandle> {
+    CloseableIterator<StateChange> getChanges(Handle handle) throws IOException;
+}

@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
+import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
 import org.apache.flink.util.CloseableIterator;
@@ -30,6 +31,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -47,14 +49,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /** {@link InMemoryStateChangelogWriterFactory} test. */
-public class StateChangelogWriterFactoryTest {
+public class StateChangelogWriterFactoryTest<T extends StateChangelogHandle> {
 
     private final Random random = new Random();
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test(expected = IllegalStateException.class)
-    public void testNoAppendAfterClose() {
+    public void testNoAppendAfterClose() throws IOException {
         StateChangelogWriter<?> writer =
                 getFactory().createWriter(new OperatorID().toString(), KeyGroupRange.of(0, 0));
         writer.close();
@@ -66,16 +68,22 @@ public class StateChangelogWriterFactoryTest {
         KeyGroupRange kgRange = KeyGroupRange.of(0, 5);
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
 
-        try (StateChangelogWriterFactory<?> client = getFactory();
-                StateChangelogWriter<?> writer =
+        try (StateChangelogWriterFactory<T> client = getFactory();
+                StateChangelogWriter<T> writer =
                         client.createWriter(new OperatorID().toString(), kgRange)) {
-            SequenceNumber prev = writer.lastAppendedSequenceNumber();
-            appendsByKeyGroup.forEach(
-                    (group, appends) -> appends.forEach(bytes -> writer.append(group, bytes)));
+            SequenceNumber prev = writer.initialSequenceNumber();
+            for (Map.Entry<Integer, List<byte[]>> entry : appendsByKeyGroup.entrySet()) {
+                Integer group = entry.getKey();
+                List<byte[]> appends = entry.getValue();
+                for (byte[] bytes : appends) {
+                    writer.append(group, bytes);
+                }
+            }
 
-            StateChangelogHandle<?> handle = writer.persist(prev.next()).get();
+            T handle = writer.persist(prev).get();
+            StateChangelogHandleReader<T> reader = client.createReader();
 
-            assertByteMapsEqual(appendsByKeyGroup, extract(handle));
+            assertByteMapsEqual(appendsByKeyGroup, extract(handle, reader));
         }
     }
 
@@ -94,11 +102,10 @@ public class StateChangelogWriterFactoryTest {
         }
     }
 
-    private Map<Integer, List<byte[]>> extract(StateChangelogHandle<?> handle) throws Exception {
+    private Map<Integer, List<byte[]>> extract(T handle, StateChangelogHandleReader<T> reader)
+            throws Exception {
         Map<Integer, List<byte[]>> changes = new HashMap<>();
-        //noinspection unchecked
-        StateChangelogHandle<Object> objHandle = (StateChangelogHandle<Object>) handle;
-        try (CloseableIterator<StateChange> it = objHandle.getChanges(getContext())) {
+        try (CloseableIterator<StateChange> it = reader.getChanges(handle)) {
             while (it.hasNext()) {
                 StateChange change = it.next();
                 changes.computeIfAbsent(change.getKeyGroup(), k -> new ArrayList<>())
@@ -126,11 +133,7 @@ public class StateChangelogWriterFactoryTest {
         return bytes;
     }
 
-    private InMemoryStateChangelogWriterFactory getFactory() {
-        return new InMemoryStateChangelogWriterFactory();
-    }
-
-    private Object getContext() {
-        return null;
+    protected StateChangelogWriterFactory<T> getFactory() {
+        return (StateChangelogWriterFactory<T>) new InMemoryStateChangelogWriterFactory();
     }
 }

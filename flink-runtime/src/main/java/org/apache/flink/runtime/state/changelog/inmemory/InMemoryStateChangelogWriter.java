@@ -44,11 +44,12 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 @NotThreadSafe
 class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryStateChangelogHandle> {
     private static final Logger LOG = LoggerFactory.getLogger(InMemoryStateChangelogWriter.class);
+    private static final SequenceNumber INITIAL_SQN = SequenceNumber.of(0L);
 
     private final Map<Integer, NavigableMap<SequenceNumber, byte[]>> changesByKeyGroup =
             new HashMap<>();
     private final KeyGroupRange keyGroupRange;
-    private long sqn = 0L;
+    private SequenceNumber sqn = INITIAL_SQN;
     private boolean closed;
 
     public InMemoryStateChangelogWriter(KeyGroupRange keyGroupRange) {
@@ -59,14 +60,18 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
     public void append(int keyGroup, byte[] value) {
         Preconditions.checkState(!closed, "LogWriter is closed");
         LOG.trace("append, keyGroup={}, {} bytes", keyGroup, value.length);
-        changesByKeyGroup
-                .computeIfAbsent(keyGroup, unused -> new TreeMap<>())
-                .put(SequenceNumber.of(++sqn), value);
+        sqn = sqn.next();
+        changesByKeyGroup.computeIfAbsent(keyGroup, unused -> new TreeMap<>()).put(sqn, value);
+    }
+
+    @Override
+    public SequenceNumber initialSequenceNumber() {
+        return INITIAL_SQN;
     }
 
     @Override
     public SequenceNumber lastAppendedSequenceNumber() {
-        return SequenceNumber.of(sqn);
+        return sqn;
     }
 
     @Override
@@ -74,8 +79,7 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
-                new InMemoryStateChangelogHandle(
-                        collectChanges(from), from, SequenceNumber.of(sqn), keyGroupRange));
+                new InMemoryStateChangelogHandle(collectChanges(from), from, sqn, keyGroupRange));
     }
 
     private List<StateChange> collectChanges(SequenceNumber after) {
