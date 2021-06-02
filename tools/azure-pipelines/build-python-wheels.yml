@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         linux:
-          vm-label: 'ubuntu-16.04'
+          vm-label: 'ubuntu-20.04'
         mac:
           vm-label: 'macOS-10.15'
     pool:

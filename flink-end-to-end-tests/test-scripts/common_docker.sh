@@ -58,15 +58,15 @@ function build_image() {
 }
 
 function start_file_server() {
-    command -v python >/dev/null 2>&1
-    if [[ $? -eq 0 ]]; then
-      python ${TEST_INFRA_DIR}/python2_fileserver.py &
-      return
-    fi
-
     command -v python3 >/dev/null 2>&1
     if [[ $? -eq 0 ]]; then
       python3 ${TEST_INFRA_DIR}/python3_fileserver.py &
+      return
+    fi
+
+    command -v python >/dev/null 2>&1
+    if [[ $? -eq 0 ]]; then
+      python ${TEST_INFRA_DIR}/python2_fileserver.py &
       return
     fi
 

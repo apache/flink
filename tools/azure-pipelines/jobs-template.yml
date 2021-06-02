@@ -60,10 +60,10 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
   - script: |
-      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-    displayName: "Set to jdk11"
-    condition: eq('${{parameters.jdk}}', 'jdk11')
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+    displayName: "Set to jdk8"
+    condition: eq('${{parameters.jdk}}', 'jdk8')
   # Compile
   - script: |
       ${{parameters.environment}} ./tools/ci/compile.sh || exit $?
@@ -133,10 +133,10 @@ jobs:
     displayName: Cache Maven local repo
 
   - script: |
-      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-    displayName: "Set to jdk11"
-    condition: eq('${{parameters.jdk}}', 'jdk11')
+      echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+      echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+    displayName: "Set to jdk8"
+    condition: eq('${{parameters.jdk}}', 'jdk8')
 
   - script: sudo sysctl -w kernel.core_pattern=core.%p
     displayName: Set coredump pattern
@@ -210,10 +210,10 @@ jobs:
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
     - script: |
-        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_11_X64"
-        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_11_X64/bin:$PATH"
-      displayName: "Set to jdk11"
-      condition: eq('${{parameters.jdk}}', 'jdk11')
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_8_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_8_X64/bin:$PATH"
+      displayName: "Set to jdk8"
+      condition: eq('${{parameters.jdk}}', 'jdk8')
     - script: |
         echo "Setting up Maven"
         source ./tools/ci/maven-utils.sh
@@ -223,7 +223,10 @@ jobs:
         ./tools/azure-pipelines/free_disk_space.sh
 
         echo "Installing required software"
-        sudo apt-get install -y bc
+        sudo apt-get install -y bc libapr1
+        # install libssl1.0.0 for netty tcnative
+        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.6_amd64.deb
+        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.6_amd64.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} ./tools/ci/compile.sh

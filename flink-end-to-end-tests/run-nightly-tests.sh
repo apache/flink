@@ -37,7 +37,7 @@ if [ -z "$FLINK_LOG_DIR" ] ; then
 fi
 
 # On Azure CI, use artifacts dir
-if [ -z "$DEBUG_FILES_OUTPUT_DIR"] ; then
+if [ -z "$DEBUG_FILES_OUTPUT_DIR" ] ; then
     export DEBUG_FILES_OUTPUT_DIR="$FLINK_LOG_DIR"
 fi
 
