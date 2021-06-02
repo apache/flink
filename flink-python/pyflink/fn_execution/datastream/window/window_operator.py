@@ -18,7 +18,6 @@
 import typing
 from typing import TypeVar, Iterable, Collection
 
-from pyflink.common.typeinfo import Types
 from pyflink.datastream import WindowAssigner, Trigger, MergingWindowAssigner, TriggerResult
 from pyflink.datastream.functions import KeyedStateStore, RuntimeContext, InternalWindowFunction
 from pyflink.datastream.state import StateDescriptor, ListStateDescriptor, \
@@ -321,14 +320,9 @@ class WindowOperator(object):
             if isinstance(self.window_state, InternalMergingState):
                 self.window_merging_state = self.window_state
 
-            # TODO: the type info is just a placeholder currently.
-            # it should be the real type serializer after supporting the user-defined state type
-            # serializer
-            merging_sets_state_descriptor = ListStateDescriptor(
-                "merging-window-set", Types.PICKLED_BYTE_ARRAY())
-
-            self.merging_sets_state = get_or_create_keyed_state(
-                runtime_context, merging_sets_state_descriptor)
+            window_coder = self.keyed_state_backend.namespace_coder
+            self.merging_sets_state = self.keyed_state_backend.get_map_state(
+                "merging-window-set", window_coder, window_coder)
 
         self.merge_function = WindowMergeFunction(self)
 

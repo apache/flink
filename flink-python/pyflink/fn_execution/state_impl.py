@@ -1001,6 +1001,8 @@ class RemoteKeyedStateBackend(object):
         # at once. The internal state cache is only updated when the current key changes.
         # The reason is that the state cache size may be smaller that the count of activated
         # state (i.e. the state with current key).
+        if isinstance(element_coder, FieldCoder):
+            element_coder = FlinkCoder(element_coder)
         state_spec = userstate.BagStateSpec(name, element_coder)
         internal_state = self._create_bag_state(state_spec, encoded_namespace)
         return internal_state

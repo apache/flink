@@ -129,7 +129,10 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef object _timezone
 
-cdef class PickledBytesCoderImpl(FieldCoderImpl):
+cdef class CloudPickleCoderImpl(FieldCoderImpl):
+    pass
+
+cdef class PickleCoderImpl(FieldCoderImpl):
     pass
 
 cdef class GenericArrayCoderImpl(FieldCoderImpl):
@@ -151,3 +154,7 @@ cdef class TimeWindowCoderImpl(FieldCoderImpl):
 
 cdef class CountWindowCoderImpl(FieldCoderImpl):
     pass
+
+cdef class DataViewFilterCoderImpl(FieldCoderImpl):
+    cdef object _udf_data_view_specs
+    cdef PickleCoderImpl _pickle_coder

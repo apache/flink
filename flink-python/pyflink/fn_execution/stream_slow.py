@@ -61,8 +61,7 @@ class InputStream(object):
         shift = 0
         result = 0
         while True:
-            self.pos += 1
-            byte = self.data[self.pos - 1]
+            byte = self.read_byte()
             if byte < 0:
                 raise RuntimeError('VarLong not terminated.')
 

@@ -17,12 +17,11 @@
 ################################################################################
 from typing import Dict, Union
 
-from apache_beam.coders import PickleCoder
-
 from pyflink.datastream import RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
     AggregatingStateDescriptor, AggregatingState
+from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.metrics import MetricGroup
 
@@ -105,27 +104,35 @@ class StreamingRuntimeContext(RuntimeContext):
 
     def get_state(self, state_descriptor: ValueStateDescriptor) -> ValueState:
         if self._keyed_state_backend:
-            return self._keyed_state_backend.get_value_state(state_descriptor.name, PickleCoder())
+            return self._keyed_state_backend.get_value_state(
+                state_descriptor.name, from_type_info(state_descriptor.type_info))
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
         if self._keyed_state_backend:
-            return self._keyed_state_backend.get_list_state(state_descriptor.name, PickleCoder())
+            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
+            return self._keyed_state_backend.get_list_state(
+                state_descriptor.name, array_coder._elem_coder)
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_map_state(self, state_descriptor: MapStateDescriptor) -> MapState:
         if self._keyed_state_backend:
-            return self._keyed_state_backend.get_map_state(state_descriptor.name, PickleCoder(),
-                                                           PickleCoder())
+            map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+            key_coder = map_coder._key_coder
+            value_coder = map_coder._value_coder
+            return self._keyed_state_backend.get_map_state(
+                state_descriptor.name, key_coder, value_coder)
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
     def get_reducing_state(self, state_descriptor: ReducingStateDescriptor) -> ReducingState:
         if self._keyed_state_backend:
             return self._keyed_state_backend.get_reducing_state(
-                state_descriptor.get_name(), PickleCoder(), state_descriptor.get_reduce_function())
+                state_descriptor.get_name(),
+                from_type_info(state_descriptor.type_info),
+                state_descriptor.get_reduce_function())
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
@@ -133,7 +140,9 @@ class StreamingRuntimeContext(RuntimeContext):
             self, state_descriptor: AggregatingStateDescriptor) -> AggregatingState:
         if self._keyed_state_backend:
             return self._keyed_state_backend.get_aggregating_state(
-                state_descriptor.get_name(), PickleCoder(), state_descriptor.get_agg_function())
+                state_descriptor.get_name(),
+                from_type_info(state_descriptor.type_info),
+                state_descriptor.get_agg_function())
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 

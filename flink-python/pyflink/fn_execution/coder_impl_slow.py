@@ -17,6 +17,7 @@
 ################################################################################
 import datetime
 import decimal
+import pickle
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -585,9 +586,9 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
                 milliseconds, nanoseconds))
 
 
-class PickledBytesCoderImpl(FieldCoderImpl):
+class CloudPickleCoderImpl(FieldCoderImpl):
     """
-    A coder for all kinds of python object.
+    A coder used with cloudpickle for all kinds of python object.
     """
 
     def __init__(self):
@@ -606,7 +607,28 @@ class PickledBytesCoderImpl(FieldCoderImpl):
         return value
 
     def __repr__(self) -> str:
-        return 'PickledBytesCoderImpl[%s]' % str(self.field_coder)
+        return 'CloudPickleCoderImpl[%s]' % str(self.field_coder)
+
+
+class PickleCoderImpl(FieldCoderImpl):
+    """
+    A coder used with pickle for all kinds of python object.
+    """
+
+    def __init__(self):
+        self.field_coder = BinaryCoderImpl()
+
+    def encode_to_stream(self, value, out_stream):
+        coded_data = pickle.dumps(value)
+        self.field_coder.encode_to_stream(coded_data, out_stream)
+
+    def decode_from_stream(self, in_stream, length=0):
+        real_data = self.field_coder.decode_from_stream(in_stream)
+        value = pickle.loads(real_data)
+        return value
+
+    def __repr__(self) -> str:
+        return 'PickleCoderImpl[%s]' % str(self.field_coder)
 
 
 class TupleCoderImpl(FieldCoderImpl):
@@ -743,3 +765,26 @@ class CountWindowCoderImpl(FieldCoderImpl):
 
     def decode_from_stream(self, in_stream, length=0):
         return CountWindow(in_stream.read_int64())
+
+
+class DataViewFilterCoderImpl(FieldCoderImpl):
+    """
+    A coder for data view filter.
+    """
+    def __init__(self, udf_data_view_specs):
+        self._udf_data_view_specs = udf_data_view_specs
+        self._pickle_coder = PickleCoderImpl()
+
+    def encode_to_stream(self, value, out_stream):
+        self._pickle_coder.encode_to_stream(self._filter_data_views(value), out_stream)
+
+    def decode_from_stream(self, in_stream, length=0):
+        return self._pickle_coder.decode_from_stream(in_stream)
+
+    def _filter_data_views(self, row):
+        i = 0
+        for specs in self._udf_data_view_specs:
+            for spec in specs:
+                row[i][spec.field_index] = None
+            i += 1
+        return row

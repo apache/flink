@@ -25,7 +25,7 @@ from apache_beam.coders.coder_impl cimport InputStream as BInputStream
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
-from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamInputStream
 from pyflink.fn_execution.stream_fast cimport InputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
@@ -59,9 +59,11 @@ cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
         # create InputStream
         data_input_stream = InputStream()
         data_input_stream._input_data = <char*?>in_stream.allc
-        in_stream.pos = size
+        data_input_stream._input_pos = in_stream.pos
 
-        return self._value_coder.decode_from_stream(data_input_stream, size)
+        result = self._value_coder.decode_from_stream(data_input_stream, size)
+        in_stream.pos = data_input_stream._input_pos
+        return result
 
     cdef void _write_data_output_stream(self, BOutputStream out_stream):
         cdef OutputStream data_out_stream

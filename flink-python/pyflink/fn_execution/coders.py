@@ -22,6 +22,9 @@ from abc import ABC, abstractmethod
 import pyarrow as pa
 import pytz
 
+from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
+    TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
+    MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
@@ -36,7 +39,8 @@ __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'Boolea
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
            'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
            'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
-           'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
+           'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
+           'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
 
 
 # LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
@@ -151,6 +155,9 @@ class FieldCoder(ABC):
 
     def get_impl(self) -> coder_impl.FieldCoderImpl:
         pass
+
+    def __eq__(self, other):
+        return type(self) == type(other)
 
 
 class IterableCoder(LengthPrefixBaseCoder):
@@ -430,6 +437,11 @@ class DecimalCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.DecimalCoderImpl(self.precision, self.scale)
 
+    def __eq__(self, other: 'DecimalCoder'):
+        return (self.__class__ == other.__class__ and
+                self.precision == other.precision and
+                self.scale == other.scale)
+
 
 class BigDecimalCoder(FieldCoder):
     """
@@ -487,6 +499,9 @@ class TimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.TimestampCoderImpl(self.precision)
 
+    def __eq__(self, other: 'TimestampCoder'):
+        return self.__class__ == other.__class__ and self.precision == other.precision
+
 
 class LocalZonedTimestampCoder(FieldCoder):
     """
@@ -500,11 +515,28 @@ class LocalZonedTimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
 
+    def __eq__(self, other: 'LocalZonedTimestampCoder'):
+        return (self.__class__ == other.__class__ and
+                self.precision == other.precision and
+                self.timezone == other.timezone)
 
-class PickledBytesCoder(FieldCoder):
+
+class CloudPickleCoder(FieldCoder):
+    """
+    Coder used with cloudpickle to encode python object.
+    """
 
     def get_impl(self):
-        return coder_impl.PickledBytesCoderImpl()
+        return coder_impl.CloudPickleCoderImpl()
+
+
+class PickleCoder(FieldCoder):
+    """
+    Coder used with pickle to encode python object.
+    """
+
+    def get_impl(self):
+        return coder_impl.PickleCoderImpl()
 
 
 class TupleCoder(FieldCoder):
@@ -520,6 +552,11 @@ class TupleCoder(FieldCoder):
 
     def __repr__(self):
         return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other: 'TupleCoder'):
+        return (self.__class__ == other.__class__ and
+                [self._field_coders[i] == other._field_coders[i]
+                 for i in range(len(self._field_coders))])
 
 
 class TimeWindowCoder(FieldCoder):
@@ -538,6 +575,18 @@ class CountWindowCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.CountWindowCoderImpl()
+
+
+class DataViewFilterCoder(FieldCoder):
+    """
+    Coder for data view filter.
+    """
+
+    def __init__(self, udf_data_view_specs):
+        self._udf_data_view_specs = udf_data_view_specs
+
+    def get_impl(self):
+        return coder_impl.DataViewFilterCoderImpl(self._udf_data_view_specs)
 
 
 type_name = flink_fn_execution_pb2.Schema
@@ -606,7 +655,7 @@ _type_info_name_mappings = {
     type_info_name.SQL_DATE: DateCoder(),
     type_info_name.SQL_TIME: TimeCoder(),
     type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
-    type_info_name.PICKLED_BYTES: PickledBytesCoder()
+    type_info_name.PICKLED_BYTES: CloudPickleCoder()
 }
 
 
@@ -635,3 +684,57 @@ def from_type_info_proto(type_info):
                             from_type_info_proto(type_info.map_type_info.value_type))
         else:
             raise ValueError("Unsupported type_info %s." % type_info)
+
+
+_basic_type_info_mappings = {
+    BasicType.BYTE: TinyIntCoder(),
+    BasicType.BOOLEAN: BooleanCoder(),
+    BasicType.SHORT: SmallIntCoder(),
+    BasicType.INT: IntCoder(),
+    BasicType.LONG: BigIntCoder(),
+    BasicType.BIG_INT: BigIntCoder(),
+    BasicType.FLOAT: FloatCoder(),
+    BasicType.DOUBLE: DoubleCoder(),
+    BasicType.STRING: CharCoder(),
+    BasicType.CHAR: CharCoder(),
+    BasicType.BIG_DEC: BigDecimalCoder(),
+}
+
+
+def from_type_info(type_info: TypeInformation) -> FieldCoder:
+    """
+    Mappings from type_info to Coder
+    """
+
+    if isinstance(type_info, PickledBytesTypeInfo):
+        return PickleCoder()
+    elif isinstance(type_info, BasicTypeInfo):
+        return _basic_type_info_mappings[type_info._basic_type]
+    elif isinstance(type_info, DateTypeInfo):
+        return DateCoder()
+    elif isinstance(type_info, TimeTypeInfo):
+        return TimeCoder()
+    elif isinstance(type_info, TimestampTypeInfo):
+        return TimestampCoder(3)
+    elif isinstance(type_info, PrimitiveArrayTypeInfo):
+        element_type = type_info._element_type
+        if isinstance(element_type, BasicTypeInfo) and element_type._basic_type == BasicType.BYTE:
+            return BinaryCoder()
+        else:
+            return PrimitiveArrayCoder(from_type_info(element_type))
+    elif isinstance(type_info, (BasicArrayTypeInfo, ObjectArrayTypeInfo)):
+        return GenericArrayCoder(from_type_info(type_info._element_type))
+    elif isinstance(type_info, ListTypeInfo):
+        return GenericArrayCoder(from_type_info(type_info.elem_type))
+    elif isinstance(type_info, MapTypeInfo):
+        return MapCoder(
+            from_type_info(type_info._key_type_info), from_type_info(type_info._value_type_info))
+    elif isinstance(type_info, TupleTypeInfo):
+        return TupleCoder([from_type_info(field_type)
+                           for field_type in type_info.get_field_types()])
+    elif isinstance(type_info, RowTypeInfo):
+        return RowCoder(
+            [from_type_info(f) for f in type_info.get_field_types()],
+            [f for f in type_info.get_field_names()])
+    else:
+        raise ValueError("Unsupported type_info %s." % type_info)

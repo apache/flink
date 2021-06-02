@@ -19,13 +19,14 @@ import sys
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
-from apache_beam.coders import Coder, PickleCoder
+from apache_beam.coders import Coder
 
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.datastream.timerservice import InternalTimerService
 from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
@@ -228,12 +229,18 @@ class TriggerContext(object):
 
     def get_partitioned_state(self, state_descriptor: StateDescriptor) -> State:
         if isinstance(state_descriptor, ValueStateDescriptor):
-            state = self._state_backend.get_value_state(state_descriptor.name, PickleCoder())
+            state = self._state_backend.get_value_state(
+                state_descriptor.name, from_type_info(state_descriptor.type_info))
         elif isinstance(state_descriptor, ListStateDescriptor):
-            state = self._state_backend.get_list_state(state_descriptor.name, PickleCoder())
+            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
+            state = self._state_backend.get_list_state(
+                state_descriptor.name, array_coder._elem_coder)
         elif isinstance(state_descriptor, MapStateDescriptor):
+            map_coder = from_type_info(state_descriptor.type_info)  # type: MapCoder
+            key_coder = map_coder._key_coder
+            value_coder = map_coder._value_coder
             state = self._state_backend.get_map_state(
-                state_descriptor.name, PickleCoder(), PickleCoder())
+                state_descriptor.name, key_coder, value_coder)
         else:
             raise Exception("Unknown supported StateDescriptor %s" % state_descriptor)
         state.set_current_namespace(self.window)

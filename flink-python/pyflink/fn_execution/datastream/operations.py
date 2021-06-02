@@ -289,7 +289,9 @@ def extract_stateful_function(user_defined_function_proto,
         window_state_descriptor = window_operation_descriptor.window_state_descriptor
         internal_window_function = window_operation_descriptor.internal_window_function
         window_serializer = window_operation_descriptor.window_serializer
-        keyed_state_backend._namespace_coder_impl = window_serializer._get_coder()
+        window_coder = window_serializer._get_coder()
+        keyed_state_backend.namespace_coder = window_coder
+        keyed_state_backend._namespace_coder_impl = window_coder.get_impl()
         window_operator = WindowOperator(
             window_assigner,
             keyed_state_backend,

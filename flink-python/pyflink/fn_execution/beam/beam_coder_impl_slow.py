@@ -19,7 +19,8 @@ from typing import Any
 
 from apache_beam.coders.coder_impl import StreamCoderImpl, create_InputStream, create_OutputStream
 
-from pyflink.fn_execution.stream_slow import OutputStream, InputStream
+from pyflink.fn_execution.stream_slow import OutputStream
+from pyflink.fn_execution.beam.beam_stream_slow import BeamInputStream
 
 
 class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
@@ -50,7 +51,7 @@ class BeamCoderImpl(StreamCoderImpl):
         self._data_output_stream.clear()
 
     def decode_from_stream(self, in_stream: create_InputStream, nested):
-        data_input_stream = InputStream(in_stream.read_all(False))
+        data_input_stream = BeamInputStream(in_stream)
         return self._value_coder.decode_from_stream(data_input_stream)
 
     def __repr__(self):
