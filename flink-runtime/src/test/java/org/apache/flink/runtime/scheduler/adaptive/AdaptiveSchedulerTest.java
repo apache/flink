@@ -40,6 +40,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
@@ -97,6 +98,7 @@ import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -840,7 +842,92 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final Exception expectedException = new Exception("Expected Global Exception");
         final long start = System.currentTimeMillis();
-        scheduler.handleGlobalFailure(expectedException);
+        final CountDownLatch latch = new CountDownLatch(1);
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.handleGlobalFailure(expectedException);
+                    latch.countDown();
+                });
+
+        latch.await();
+
+        Iterable<RootExceptionHistoryEntry> actualExceptionHistory = scheduler
+                .requestJob()
+                .getExceptionHistory();
+        final long end = System.currentTimeMillis();
+
+        assertThat(actualExceptionHistory, IsIterableWithSize.iterableWithSize(1));
+
+        RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(
+                failure.getException().deserializeError(ClassLoader.getSystemClassLoader()),
+                Matchers.is(expectedException));
+        assertThat(failure.getTimestamp(), greaterThanOrEqualTo(start));
+        assertThat(failure.getTimestamp(), lessThanOrEqualTo(end));
+        assertThat(failure.getTaskManagerLocation(), Matchers.is(nullValue()));
+        assertThat(failure.getFailingTaskName(), Matchers.is(nullValue()));
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailure() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+
+        final AdaptiveScheduler scheduler =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .build();
+
+        final int numAvailableSlots = 4;
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                            taskManagerGateway);
+                });
+        taskManagerGateway.waitForSubmissions(numAvailableSlots, Duration.ofSeconds(5));
+
+        final Exception expectedException = new Exception("local failure");
+        Iterable<ArchivedExecutionVertex> executionVertices = scheduler
+                .requestJob()
+                .getArchivedExecutionGraph()
+                .getAllExecutionVertices();
+
+        ExecutionAttemptID attemptId = executionVertices
+                .iterator()
+                .next()
+                .getCurrentExecutionAttempt()
+                .getAttemptId();
+        final long start = System.currentTimeMillis();
+        final CountDownLatch latch = new CountDownLatch(1);
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+
+                    scheduler.updateTaskExecutionState(new TaskExecutionStateTransition(
+                            new TaskExecutionState(
+                                    attemptId,
+                                    ExecutionState.FAILED,
+                                    expectedException
+                            )
+                    ));
+                    latch.countDown();
+                });
+
+        latch.await();
 
         Iterable<RootExceptionHistoryEntry> actualExceptionHistory = scheduler
                 .requestJob()

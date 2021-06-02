@@ -95,6 +95,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 failingExecutionVertexId,
                 cause);
 
+        archiveExecutionFailure(failingExecutionVertexId, cause);
+
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(

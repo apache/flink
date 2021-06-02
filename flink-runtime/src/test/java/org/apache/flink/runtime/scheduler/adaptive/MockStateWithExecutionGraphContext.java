@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -58,6 +59,10 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
         finishedStateValidator.validateInput(archivedExecutionGraph);
         hadStateTransition = true;
+    }
+
+    @Override
+    public void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot) {
     }
 
     @Override

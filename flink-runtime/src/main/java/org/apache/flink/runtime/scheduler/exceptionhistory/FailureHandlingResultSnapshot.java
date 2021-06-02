@@ -41,7 +41,8 @@ import java.util.stream.Collectors;
  */
 public class FailureHandlingResultSnapshot {
 
-    @Nullable private final Execution rootCauseExecution;
+    @Nullable
+    private final Execution rootCauseExecution;
     private final Throwable rootCause;
     private final long timestamp;
     private final Set<Execution> concurrentlyFailedExecutions;
@@ -51,19 +52,48 @@ public class FailureHandlingResultSnapshot {
      * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
      *
      * @param failureHandlingResult The {@code FailureHandlingResult} that is used for extracting
-     *     the failure information.
+     *         the failure information.
      * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
-     *     instance for a given {@link ExecutionVertexID}.
+     *         instance for a given {@link ExecutionVertexID}.
+     *
      * @return The {@code FailureHandlingResultSnapshot}.
      */
     public static FailureHandlingResultSnapshot create(
             FailureHandlingResult failureHandlingResult,
             Function<ExecutionVertexID, Execution> latestExecutionLookup) {
+        return create(
+                failureHandlingResult.getExecutionVertexIdOfFailedTask(),
+                failureHandlingResult.getError(),
+                failureHandlingResult.getVerticesToRestart(),
+                failureHandlingResult.getTimestamp(),
+                latestExecutionLookup
+        );
+    }
+
+    /**
+     * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
+     * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
+     *
+     * @param failingExecutionVertexId, an {@link Optional} of the {@link ExecutionVertexID} the failure originates from, or {@code None}.
+     * @param rootCause, the failure reason.
+     * @param concurrentVertexIds {@link ExecutionVertexID} Task vertices concurrently failing with the {@code failingExecutionVertexID}.
+     * @param timestamp, the failure timestamp.
+     * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
+     *         instance for a given {@link ExecutionVertexID}.
+     *
+     * @return The {@code FailureHandlingResultSnapshot}.
+     */
+    public static FailureHandlingResultSnapshot create(
+            Optional<ExecutionVertexID> failingExecutionVertexId,
+            Throwable rootCause,
+            Set<ExecutionVertexID> concurrentVertexIds,
+            long timestamp,
+            Function<ExecutionVertexID, Execution> latestExecutionLookup) {
         final Execution rootCauseExecution =
-                failureHandlingResult
-                        .getExecutionVertexIdOfFailedTask()
+                failingExecutionVertexId
                         .map(latestExecutionLookup)
                         .orElse(null);
+
         Preconditions.checkArgument(
                 rootCauseExecution == null || rootCauseExecution.getFailureInfo().isPresent(),
                 String.format(
@@ -71,15 +101,14 @@ public class FailureHandlingResultSnapshot {
                         // the "(null)" values should never be used due to the condition - it's just
                         // added to make the compiler happy
                         rootCauseExecution != null ? rootCauseExecution.getAttemptId() : "(null)",
-                        failureHandlingResult
-                                .getExecutionVertexIdOfFailedTask()
+                        failingExecutionVertexId
                                 .map(Objects::toString)
                                 .orElse("(null)")));
 
         final ExecutionVertexID rootCauseExecutionVertexId =
-                failureHandlingResult.getExecutionVertexIdOfFailedTask().orElse(null);
+                failingExecutionVertexId.orElse(null);
         final Set<Execution> concurrentlyFailedExecutions =
-                failureHandlingResult.getVerticesToRestart().stream()
+                concurrentVertexIds.stream()
                         .filter(
                                 executionVertexId ->
                                         !executionVertexId.equals(rootCauseExecutionVertexId))
@@ -89,8 +118,8 @@ public class FailureHandlingResultSnapshot {
 
         return new FailureHandlingResultSnapshot(
                 rootCauseExecution,
-                ErrorInfo.handleMissingThrowable(failureHandlingResult.getError()),
-                failureHandlingResult.getTimestamp(),
+                ErrorInfo.handleMissingThrowable(rootCause),
+                timestamp,
                 concurrentlyFailedExecutions);
     }
 

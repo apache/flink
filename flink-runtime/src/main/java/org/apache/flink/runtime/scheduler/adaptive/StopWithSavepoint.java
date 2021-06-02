@@ -203,6 +203,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                 failingExecutionVertexId,
                 cause);
 
+        archiveExecutionFailure(failingExecutionVertexId, cause);
+
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(
