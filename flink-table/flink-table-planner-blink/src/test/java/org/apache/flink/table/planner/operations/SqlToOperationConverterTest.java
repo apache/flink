@@ -60,6 +60,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
@@ -1356,17 +1357,40 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAddJar() {
-        List<String> jarPaths =
-                Arrays.asList(
+        Arrays.asList(
                         "./test.\njar",
                         "file:///path/to/whatever",
                         "../test-jar.jar",
                         "/root/test.jar",
                         "test\\ jar.jar",
-                        "oss://path/helloworld.go");
-        for (String path : jarPaths) {
-            validateJarPath(path, "ADD JAR '%s'");
-        }
+                        "oss://path/helloworld.go")
+                .forEach(
+                        jarPath -> {
+                            AddJarOperation operation =
+                                    (AddJarOperation)
+                                            parser.parse(String.format("ADD JAR '%s'", jarPath))
+                                                    .get(0);
+                            Assert.assertEquals(jarPath, operation.getPath());
+                        });
+    }
+
+    @Test
+    public void testRemoveJar() {
+        Arrays.asList(
+                        "./test.\njar",
+                        "file:///path/to/whatever",
+                        "../test-jar.jar",
+                        "/root/test.jar",
+                        "test\\ jar.jar",
+                        "oss://path/helloworld.go")
+                .forEach(
+                        jarPath -> {
+                            RemoveJarOperation operation =
+                                    (RemoveJarOperation)
+                                            parser.parse(String.format("REMOVE JAR '%s'", jarPath))
+                                                    .get(0);
+                            Assert.assertEquals(jarPath, operation.getPath());
+                        });
     }
 
     @Test
@@ -1484,12 +1508,6 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
-    }
-
-    private void validateJarPath(String expected, String template) {
-        AddJarOperation operation =
-                (AddJarOperation) parser.parse(String.format(template, expected)).get(0);
-        Assert.assertEquals(expected, operation.getPath());
     }
 
     // ~ Inner Classes ----------------------------------------------------------

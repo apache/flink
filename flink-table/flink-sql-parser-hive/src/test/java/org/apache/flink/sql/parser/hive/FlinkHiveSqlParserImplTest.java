@@ -467,6 +467,14 @@ public class FlinkHiveSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testRemoveJar() {
+        sql("remove Jar './test.sql'").ok("REMOVE JAR './test.sql'");
+        sql("remove JAR 'file:///path/to/\nwhatever'")
+                .ok("REMOVE JAR 'file:///path/to/\nwhatever'");
+        sql("remove JAR 'oss://path/helloworld.go'").ok("REMOVE JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
     public void testShowJars() {
         sql("show jars").ok("SHOW JARS");
     }

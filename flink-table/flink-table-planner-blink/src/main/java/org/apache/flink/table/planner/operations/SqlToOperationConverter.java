@@ -45,6 +45,7 @@ import org.apache.flink.sql.parser.ddl.SqlDropFunction;
 import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlDropView;
+import org.apache.flink.sql.parser.ddl.SqlRemoveJar;
 import org.apache.flink.sql.parser.ddl.SqlReset;
 import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
@@ -115,6 +116,7 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
@@ -281,6 +283,8 @@ public class SqlToOperationConverter {
             return Optional.of(converter.convertDescribeTable((SqlRichDescribeTable) validated));
         } else if (validated instanceof SqlAddJar) {
             return Optional.of(converter.convertAddJar((SqlAddJar) validated));
+        } else if (validated instanceof SqlRemoveJar) {
+            return Optional.of(converter.convertRemoveJar((SqlRemoveJar) validated));
         } else if (validated instanceof SqlShowJars) {
             return Optional.of(converter.convertShowJars((SqlShowJars) validated));
         } else if (validated instanceof RichSqlInsert) {
@@ -976,6 +980,10 @@ public class SqlToOperationConverter {
 
     private Operation convertAddJar(SqlAddJar sqlAddJar) {
         return new AddJarOperation(sqlAddJar.getPath());
+    }
+
+    private Operation convertRemoveJar(SqlRemoveJar sqlRemoveJar) {
+        return new RemoveJarOperation(sqlRemoveJar.getPath());
     }
 
     private Operation convertShowJars(SqlShowJars sqlShowJars) {
