@@ -76,7 +76,7 @@ public class TestRestServerEndpoint extends RestServerEndpoint {
 
     private final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers;
 
-    private TestRestServerEndpoint(
+    public TestRestServerEndpoint(
             final RestServerEndpointConfiguration configuration,
             final List<Tuple2<RestHandlerSpecification, ChannelInboundHandler>> handlers)
             throws IOException {

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -27,6 +28,8 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLEngine;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -41,11 +44,14 @@ public final class RestClientConfiguration {
 
     private final int maxContentLength;
 
+    @Nullable private final String basicAuthCredentials;
+
     private RestClientConfiguration(
             @Nullable final SSLHandlerFactory sslHandlerFactory,
             final long connectionTimeout,
             final long idlenessTimeout,
-            final int maxContentLength) {
+            final int maxContentLength,
+            @Nullable final String basicAuthCredentials) {
         checkArgument(
                 maxContentLength > 0,
                 "maxContentLength must be positive, was: %s",
@@ -54,6 +60,7 @@ public final class RestClientConfiguration {
         this.connectionTimeout = connectionTimeout;
         this.idlenessTimeout = idlenessTimeout;
         this.maxContentLength = maxContentLength;
+        this.basicAuthCredentials = basicAuthCredentials;
     }
 
     /**
@@ -83,6 +90,15 @@ public final class RestClientConfiguration {
      */
     public int getMaxContentLength() {
         return maxContentLength;
+    }
+
+    /**
+     * Returns the basic authentication credentials that the REST client endpoint should use.
+     *
+     * @return basic authentication credentials that the REST client endpoint should use
+     */
+    public Optional<String> getBasicAuthCredentials() {
+        return Optional.ofNullable(basicAuthCredentials);
     }
 
     /**
@@ -116,7 +132,23 @@ public final class RestClientConfiguration {
 
         int maxContentLength = config.getInteger(RestOptions.CLIENT_MAX_CONTENT_LENGTH);
 
+        String basicAuthCredentials =
+                config.getBoolean(SecurityOptions.BASIC_AUTH_ENABLED)
+                        ? config.getOptional(SecurityOptions.BASIC_AUTH_CLIENT_CREDENTIALS)
+                                .orElseThrow(
+                                        () ->
+                                                new ConfigurationException(
+                                                        SecurityOptions
+                                                                        .BASIC_AUTH_CLIENT_CREDENTIALS
+                                                                        .key()
+                                                                + " must be configured if basic auth is enabled."))
+                        : null;
+
         return new RestClientConfiguration(
-                sslHandlerFactory, connectionTimeout, idlenessTimeout, maxContentLength);
+                sslHandlerFactory,
+                connectionTimeout,
+                idlenessTimeout,
+                maxContentLength,
+                basicAuthCredentials);
     }
 }

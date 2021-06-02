@@ -51,6 +51,7 @@ public class HistoryServerStaticFileServerHandlerTest extends TestLogger {
                         LoggerFactory.getLogger(HistoryServerStaticFileServerHandlerTest.class),
                         tmp.newFolder("uploadDir"),
                         null,
+                        null,
                         "localhost",
                         0,
                         new Configuration());

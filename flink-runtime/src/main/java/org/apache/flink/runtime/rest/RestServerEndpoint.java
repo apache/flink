@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.io.network.netty.ServerBasicAuthHandlerFactory;
 import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
@@ -85,6 +86,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
     private final String restBindAddress;
     private final String restBindPortRange;
     @Nullable private final SSLHandlerFactory sslHandlerFactory;
+    @Nullable private final ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory;
     private final int maxContentLength;
 
     protected final Path uploadDir;
@@ -106,6 +108,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
         this.restBindAddress = configuration.getRestBindAddress();
         this.restBindPortRange = configuration.getRestBindPortRange();
         this.sslHandlerFactory = configuration.getSslHandlerFactory();
+        this.serverBasicAuthHandlerFactory = configuration.getBasicAuthHandlerFactory();
 
         this.uploadDir = configuration.getUploadDir();
         createUploadDir(uploadDir, log, true);
@@ -113,7 +116,7 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
         this.maxContentLength = configuration.getMaxContentLength();
         this.responseHeaders = configuration.getResponseHeaders();
 
-        terminationFuture = new CompletableFuture<>();
+        this.terminationFuture = new CompletableFuture<>();
     }
 
     /**
@@ -173,8 +176,16 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                                                         sslHandlerFactory));
                             }
 
+                            ch.pipeline().addLast(new HttpServerCodec());
+
+                            if (isBasicAuthEnabled()) {
+                                ch.pipeline()
+                                        .addLast(
+                                                serverBasicAuthHandlerFactory.getAuthHandler(
+                                                        responseHeaders));
+                            }
+
                             ch.pipeline()
-                                    .addLast(new HttpServerCodec())
                                     .addLast(new FileUploadHandler(uploadDir))
                                     .addLast(
                                             new FlinkHttpObjectAggregator(
@@ -439,6 +450,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
 
     private boolean isHttpsEnabled() {
         return sslHandlerFactory != null;
+    }
+
+    private boolean isBasicAuthEnabled() {
+        return serverBasicAuthHandlerFactory != null;
     }
 
     private String determineProtocol() {

@@ -98,5 +98,23 @@
             <td>Integer</td>
             <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
         </tr>
+        <tr>
+            <td><h5>security.basic.auth.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables HTTP basic authentication.</td>
+        </tr>
+        <tr>
+            <td><h5>security.basic.auth.password.file</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic authentication password file.</td>
+        </tr>
+        <tr>
+            <td><h5>security.basic.auth.client.credentials</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic authentication client credentials user:password.</td>
+        </tr>
     </tbody>
 </table>

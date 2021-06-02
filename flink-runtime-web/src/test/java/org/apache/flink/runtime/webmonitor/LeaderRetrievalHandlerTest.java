@@ -70,7 +70,8 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 
         router.addGet(restPath, testingHandler);
         WebFrontendBootstrap bootstrap =
-                new WebFrontendBootstrap(router, log, null, null, "localhost", 0, configuration);
+                new WebFrontendBootstrap(
+                        router, log, null, null, null, "localhost", 0, configuration);
 
         try (HttpTestClient httpClient =
                 new HttpTestClient("localhost", bootstrap.getServerPort())) {

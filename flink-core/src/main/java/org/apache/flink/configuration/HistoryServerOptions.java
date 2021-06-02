@@ -95,6 +95,13 @@ public class HistoryServerOptions {
                             "Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the"
                                     + " global SSL flag security.ssl.enabled is set to true.");
 
+    /** Enables/Disables basic authentication support for the HistoryServer web-frontend. */
+    public static final ConfigOption<Boolean> HISTORY_SERVER_WEB_BASIC_AUTH_ENABLED =
+            key("historyserver.security.basic.auth.enabled")
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enable basic authentication to the HistoryServer web frontend.");
+
     public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
             key("historyserver.archive.retained-jobs")
                     .intType()

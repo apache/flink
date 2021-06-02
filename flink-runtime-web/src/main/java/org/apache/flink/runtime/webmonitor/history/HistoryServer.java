@@ -24,11 +24,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.io.network.netty.ServerBasicAuthHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
@@ -36,6 +38,7 @@ import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -100,6 +103,7 @@ public class HistoryServer {
     private final HistoryServerArchiveFetcher archiveFetcher;
 
     @Nullable private final SSLHandlerFactory serverSSLFactory;
+    @Nullable private final ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory;
     private WebFrontendBootstrap netty;
 
     private final Object startupShutdownLock = new Object();
@@ -173,6 +177,18 @@ public class HistoryServer {
         } else {
             this.serverSSLFactory = null;
         }
+
+        this.serverBasicAuthHandlerFactory =
+                config.getBoolean(HistoryServerOptions.HISTORY_SERVER_WEB_BASIC_AUTH_ENABLED)
+                        ? new ServerBasicAuthHandlerFactory(
+                                config.getOptional(SecurityOptions.BASIC_AUTH_PWD_FILE)
+                                        .orElseThrow(
+                                                () ->
+                                                        new ConfigurationException(
+                                                                SecurityOptions.BASIC_AUTH_PWD_FILE
+                                                                                .key()
+                                                                        + " must be configured if basic auth is enabled.")))
+                        : null;
 
         webAddress = config.getString(HistoryServerOptions.HISTORY_SERVER_WEB_ADDRESS);
         webPort = config.getInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT);
@@ -277,7 +293,14 @@ public class HistoryServer {
 
             netty =
                     new WebFrontendBootstrap(
-                            router, LOG, webDir, serverSSLFactory, webAddress, webPort, config);
+                            router,
+                            LOG,
+                            webDir,
+                            serverSSLFactory,
+                            serverBasicAuthHandlerFactory,
+                            webAddress,
+                            webPort,
+                            config);
         }
     }
 

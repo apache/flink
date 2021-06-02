@@ -76,6 +76,11 @@ under the License.
 			<artifactId>flink-shaded-jackson</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+		</dependency>
+
 		<!-- ===================================================
 								Testing
 			=================================================== -->

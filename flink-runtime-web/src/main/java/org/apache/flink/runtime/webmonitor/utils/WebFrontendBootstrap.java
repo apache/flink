@@ -20,7 +20,9 @@ package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.io.network.netty.ServerBasicAuthHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.webmonitor.HttpRequestHandler;
@@ -34,6 +36,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedWriteHandler;
 
@@ -45,13 +48,15 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.Map;
 
 /** This classes encapsulates the boot-strapping of netty for the web-frontend. */
 public class WebFrontendBootstrap {
     private final Router router;
     private final Logger log;
     private final File uploadDir;
+    private final Map<String, String> responseHeaders;
     private final ServerBootstrap bootstrap;
     private final Channel serverChannel;
     private final String restAddress;
@@ -61,6 +66,7 @@ public class WebFrontendBootstrap {
             Logger log,
             File directory,
             @Nullable SSLHandlerFactory serverSSLFactory,
+            @Nullable ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory,
             String configuredAddress,
             int configuredPort,
             final Configuration config)
@@ -69,6 +75,7 @@ public class WebFrontendBootstrap {
         this.router = Preconditions.checkNotNull(router);
         this.log = Preconditions.checkNotNull(log);
         this.uploadDir = directory;
+        this.responseHeaders = Collections.emptyMap();
 
         ChannelInitializer<SocketChannel> initializer =
                 new ChannelInitializer<SocketChannel>() {
@@ -77,7 +84,7 @@ public class WebFrontendBootstrap {
                     protected void initChannel(SocketChannel ch) {
                         RouterHandler handler =
                                 new RouterHandler(
-                                        WebFrontendBootstrap.this.router, new HashMap<>());
+                                        WebFrontendBootstrap.this.router, responseHeaders);
 
                         // SSL should be the first handler in the pipeline
                         if (serverSSLFactory != null) {
@@ -87,8 +94,16 @@ public class WebFrontendBootstrap {
                                             serverSSLFactory.createNettySSLHandler(ch.alloc()));
                         }
 
+                        ch.pipeline().addLast(new HttpServerCodec());
+
+                        if (serverBasicAuthHandlerFactory != null) {
+                            ch.pipeline()
+                                    .addLast(
+                                            serverBasicAuthHandlerFactory.getAuthHandler(
+                                                    responseHeaders));
+                        }
+
                         ch.pipeline()
-                                .addLast(new HttpServerCodec())
                                 .addLast(new ChunkedWriteHandler())
                                 .addLast(new HttpRequestHandler(uploadDir))
                                 .addLast(handler.getName(), handler)

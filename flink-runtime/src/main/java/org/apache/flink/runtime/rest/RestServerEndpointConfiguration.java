@@ -20,9 +20,12 @@ package org.apache.flink.runtime.rest;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.io.network.netty.ServerBasicAuthHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
+import org.apache.flink.runtime.rest.handler.ServerBasicHttpAuthenticator;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +52,8 @@ public final class RestServerEndpointConfiguration {
 
     @Nullable private final SSLHandlerFactory sslHandlerFactory;
 
+    @Nullable private final ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory;
+
     private final Path uploadDir;
 
     private final int maxContentLength;
@@ -60,6 +65,7 @@ public final class RestServerEndpointConfiguration {
             @Nullable String restBindAddress,
             String restBindPortRange,
             @Nullable SSLHandlerFactory sslHandlerFactory,
+            @Nullable ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory,
             final Path uploadDir,
             final int maxContentLength,
             final Map<String, String> responseHeaders) {
@@ -73,6 +79,7 @@ public final class RestServerEndpointConfiguration {
         this.restBindAddress = restBindAddress;
         this.restBindPortRange = requireNonNull(restBindPortRange);
         this.sslHandlerFactory = sslHandlerFactory;
+        this.serverBasicAuthHandlerFactory = serverBasicAuthHandlerFactory;
         this.uploadDir = requireNonNull(uploadDir);
         this.maxContentLength = maxContentLength;
         this.responseHeaders = Collections.unmodifiableMap(requireNonNull(responseHeaders));
@@ -109,6 +116,17 @@ public final class RestServerEndpointConfiguration {
     @Nullable
     public SSLHandlerFactory getSslHandlerFactory() {
         return sslHandlerFactory;
+    }
+
+    /**
+     * Returns the {@link ServerBasicHttpAuthenticator} that the REST server endpoint should use.
+     *
+     * @return ServerBasicHttpAuthenticator that the REST server endpoint should use, or null if
+     *     basic authentication was disabled
+     */
+    @Nullable
+    public ServerBasicAuthHandlerFactory getBasicAuthHandlerFactory() {
+        return serverBasicAuthHandlerFactory;
     }
 
     /** Returns the directory used to temporarily store multipart/form-data uploads. */
@@ -177,11 +195,24 @@ public final class RestServerEndpointConfiguration {
                         HttpHeaders.Names.ACCESS_CONTROL_ALLOW_ORIGIN,
                         config.getString(WebOptions.ACCESS_CONTROL_ALLOW_ORIGIN));
 
+        final ServerBasicAuthHandlerFactory serverBasicAuthHandlerFactory =
+                config.getBoolean(SecurityOptions.BASIC_AUTH_ENABLED)
+                        ? new ServerBasicAuthHandlerFactory(
+                                config.getOptional(SecurityOptions.BASIC_AUTH_PWD_FILE)
+                                        .orElseThrow(
+                                                () ->
+                                                        new ConfigurationException(
+                                                                SecurityOptions.BASIC_AUTH_PWD_FILE
+                                                                                .key()
+                                                                        + " must be configured if basic auth is enabled.")))
+                        : null;
+
         return new RestServerEndpointConfiguration(
                 restAddress,
                 restBindAddress,
                 portRangeDefinition,
                 sslHandlerFactory,
+                serverBasicAuthHandlerFactory,
                 uploadDir,
                 maxContentLength,
                 responseHeaders);

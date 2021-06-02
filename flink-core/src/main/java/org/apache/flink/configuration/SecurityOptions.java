@@ -510,4 +510,27 @@ public class SecurityOptions {
                                     + "channel. If the `close_notify` was not flushed in the given timeout the channel will be closed "
                                     + "forcibly. (-1 = use system default)")
                     .withDeprecatedKeys("security.ssl.close-notify-flush-timeout");
+
+    // ------------------- basic authentication parameters --------------------
+
+    /** Basic authentication enabled. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> BASIC_AUTH_ENABLED =
+            key("security.basic.auth.enabled")
+                    .defaultValue(false)
+                    .withDescription("Enables HTTP basic authentication.");
+
+    /** Basic authentication password file. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<String> BASIC_AUTH_PWD_FILE =
+            key("security.basic.auth.password.file")
+                    .noDefaultValue()
+                    .withDescription("Basic authentication password file.");
+
+    /** Basic authentication client credentials user:pwd. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<String> BASIC_AUTH_CLIENT_CREDENTIALS =
+            key("security.basic.auth.client.credentials")
+                    .noDefaultValue()
+                    .withDescription("Basic authentication client credentials user:pwd.");
 }

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
+import org.apache.flink.runtime.rest.handler.ClientBasicHttpAuthenticator;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.ErrorResponseBody;
@@ -137,7 +138,21 @@ public class RestClient implements AutoCloseableAsync {
                                     .addLast(new HttpClientCodec())
                                     .addLast(
                                             new HttpObjectAggregator(
-                                                    configuration.getMaxContentLength()))
+                                                    configuration.getMaxContentLength()));
+
+                            configuration
+                                    .getBasicAuthCredentials()
+                                    .ifPresent(
+                                            credentials -> {
+                                                socketChannel
+                                                        .pipeline()
+                                                        .addLast(
+                                                                new ClientBasicHttpAuthenticator(
+                                                                        credentials));
+                                            });
+
+                            socketChannel
+                                    .pipeline()
                                     .addLast(new ChunkedWriteHandler()) // required for
                                     // multipart-requests
                                     .addLast(
