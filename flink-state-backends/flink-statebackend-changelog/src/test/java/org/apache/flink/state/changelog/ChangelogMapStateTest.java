@@ -21,6 +21,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -246,7 +248,10 @@ public class ChangelogMapStateTest {
     private static ChangelogMapState createState(
             Map<String, String> data, TestChangeLoggerKv logger) {
         ChangelogMapState state =
-                new ChangelogMapState<>(new TestingInternalMapState(data), logger);
+                new ChangelogMapState<>(
+                        new TestingInternalMapState(data),
+                        logger,
+                        new InternalKeyContextImpl<>(KeyGroupRange.EMPTY_KEY_GROUP_RANGE, 0));
         state.setCurrentNamespace("ns0");
         return state;
     }

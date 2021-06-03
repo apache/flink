@@ -45,6 +45,7 @@ public class StateChangelogHandleStreamHandleReader
 
     /** Reads a stream of state changes starting from a specified offset. */
     public interface StateChangeIterator {
+        // todo: add implementation (FLINK-21353)
         CloseableIterator<StateChange> read(StreamStateHandle handle, long offset);
     }
 

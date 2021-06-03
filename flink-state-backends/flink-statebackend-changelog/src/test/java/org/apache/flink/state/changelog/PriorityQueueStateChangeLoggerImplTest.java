@@ -21,12 +21,11 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
-import org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation;
 
 import java.io.IOException;
 import java.util.Optional;
 
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.REMOVE_FIRST_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.REMOVE_FIRST_ELEMENT;
 
 /** {@link PriorityQueueStateChangeLoggerImpl} test. */
 public class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Void> {
