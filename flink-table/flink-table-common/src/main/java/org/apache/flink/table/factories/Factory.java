@@ -52,6 +52,8 @@ import java.util.Set;
  *   <li>In case of a hierarchy, try not to use the higher level again in the key name (e.g. do
  *       {@code sink.partitioner} instead of {@code sink.sink-partitioner}) to <b>keep the keys
  *       short</b>.
+ *   <li>Key names which can be templated, e.g. to refer to a specific column, should be listed
+ *       using '#' as the placeholder symbol. For example, use {@code fields.#.min}.
  * </ul>
  */
 @PublicEvolving

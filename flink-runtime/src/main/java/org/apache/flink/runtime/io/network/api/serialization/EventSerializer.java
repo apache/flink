@@ -30,6 +30,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
@@ -64,6 +65,8 @@ public class EventSerializer {
     private static final int END_OF_CHANNEL_STATE_EVENT = 5;
 
     private static final int ANNOUNCEMENT_EVENT = 6;
+
+    private static final int VIRTUAL_CHANNEL_SELECTOR_EVENT = 7;
 
     private static final int CHECKPOINT_TYPE_CHECKPOINT = 0;
 
@@ -107,6 +110,14 @@ public class EventSerializer {
             serializedAnnouncement.put(serializedAnnouncedEvent);
             serializedAnnouncement.flip();
             return serializedAnnouncement;
+        } else if (eventClass == SubtaskConnectionDescriptor.class) {
+            SubtaskConnectionDescriptor selector = (SubtaskConnectionDescriptor) event;
+            ByteBuffer buf = ByteBuffer.allocate(12);
+            buf.putInt(VIRTUAL_CHANNEL_SELECTOR_EVENT);
+            buf.putInt(selector.getInputSubtaskIndex());
+            buf.putInt(selector.getOutputSubtaskIndex());
+            buf.flip();
+            return buf;
         } else {
             try {
                 final DataOutputSerializer serializer = new DataOutputSerializer(128);
@@ -147,6 +158,8 @@ public class EventSerializer {
                 int sequenceNumber = buffer.getInt();
                 AbstractEvent announcedEvent = fromSerializedEvent(buffer, classLoader);
                 return new EventAnnouncement(announcedEvent, sequenceNumber);
+            } else if (type == VIRTUAL_CHANNEL_SELECTOR_EVENT) {
+                return new SubtaskConnectionDescriptor(buffer.getInt(), buffer.getInt());
             } else if (type == OTHER_EVENT) {
                 try {
                     final DataInputDeserializer deserializer = new DataInputDeserializer(buffer);
@@ -222,8 +235,7 @@ public class EventSerializer {
             buf.putInt(locationBytes.length);
             buf.put(locationBytes);
         }
-        buf.put((byte) (checkpointOptions.isExactlyOnceMode() ? 1 : 0));
-        buf.put((byte) (checkpointOptions.isUnalignedCheckpoint() ? 1 : 0));
+        buf.put((byte) checkpointOptions.getAlignment().ordinal());
         buf.putLong(checkpointOptions.getAlignmentTimeout());
 
         buf.flip();
@@ -259,19 +271,15 @@ public class EventSerializer {
             buffer.get(bytes);
             locationRef = new CheckpointStorageLocationReference(bytes);
         }
-        final boolean isExactlyOnceMode = buffer.get() == 1;
-        final boolean isUnalignedCheckpoint = buffer.get() == 1;
+        final CheckpointOptions.AlignmentType alignmentType =
+                CheckpointOptions.AlignmentType.values()[buffer.get()];
         final long alignmentTimeout = buffer.getLong();
 
         return new CheckpointBarrier(
                 id,
                 timestamp,
                 new CheckpointOptions(
-                        checkpointType,
-                        locationRef,
-                        isExactlyOnceMode,
-                        isUnalignedCheckpoint,
-                        alignmentTimeout));
+                        checkpointType, locationRef, alignmentType, alignmentTimeout));
     }
 
     // ------------------------------------------------------------------------

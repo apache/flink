@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -65,6 +66,35 @@ public class StreamExecutionEnvironmentTest {
     public void fromElementsWithBaseTypeTest2() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+    }
+
+    @Test
+    public void testFromElementsDeducedType() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<String> source = env.fromElements("a", "b");
+
+        FromElementsFunction<String> elementsFunction =
+                (FromElementsFunction<String>) getFunctionFromDataSource(source);
+        assertEquals(
+                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()),
+                elementsFunction.getSerializer());
+    }
+
+    @Test
+    public void testFromElementsPostConstructionType() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<String> source = env.fromElements("a", "b");
+        TypeInformation<String> customType = new GenericTypeInfo<>(String.class);
+
+        source.returns(customType);
+
+        FromElementsFunction<String> elementsFunction =
+                (FromElementsFunction<String>) getFunctionFromDataSource(source);
+        assertNotEquals(
+                BasicTypeInfo.STRING_TYPE_INFO.createSerializer(env.getConfig()),
+                elementsFunction.getSerializer());
+        assertEquals(
+                customType.createSerializer(env.getConfig()), elementsFunction.getSerializer());
     }
 
     @Test

@@ -78,6 +78,9 @@ public class PartitionSortedBuffer implements SortBuffer {
     /** Size of buffers requested from buffer pool. All buffers must be of the same size. */
     private final int bufferSize;
 
+    /** Number of guaranteed buffers can be allocated from the buffer pool for data sort. */
+    private final int numGuaranteedBuffers;
+
     // ---------------------------------------------------------------------------------------------
     // Statistics and states
     // ---------------------------------------------------------------------------------------------
@@ -129,12 +132,15 @@ public class PartitionSortedBuffer implements SortBuffer {
             BufferPool bufferPool,
             int numSubpartitions,
             int bufferSize,
+            int numGuaranteedBuffers,
             @Nullable int[] customReadOrder) {
         checkArgument(bufferSize > INDEX_ENTRY_SIZE, "Buffer size is too small.");
+        checkArgument(numGuaranteedBuffers > 0, "No guaranteed buffers for sort.");
 
         this.lock = checkNotNull(lock);
         this.bufferPool = checkNotNull(bufferPool);
         this.bufferSize = bufferSize;
+        this.numGuaranteedBuffers = numGuaranteedBuffers;
         this.firstIndexEntryAddresses = new long[numSubpartitions];
         this.lastIndexEntryAddresses = new long[numSubpartitions];
 
@@ -263,7 +269,7 @@ public class PartitionSortedBuffer implements SortBuffer {
     private MemorySegment requestBufferFromPool() throws IOException {
         try {
             // blocking request buffers if there is still guaranteed memory
-            if (buffers.size() < bufferPool.getNumberOfRequiredMemorySegments()) {
+            if (buffers.size() < numGuaranteedBuffers) {
                 return bufferPool.requestBufferBuilderBlocking().getMemorySegment();
             }
         } catch (InterruptedException e) {

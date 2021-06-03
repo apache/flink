@@ -34,8 +34,8 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
     @classmethod
     def excluded_methods(cls):
         # Exclude these methods for the time being, because current
-        # ExecutionEnvironment/StreamExecutionEnvironment do not apply to the
-        # DataSet/DataStream API, but to the Table API configuration.
+        # StreamExecutionEnvironment do not apply to the
+        # DataStream API, but to the Table API configuration.
         # Currently only the methods for configuration is added.
         # 'isForceCheckpointing', 'getNumberOfExecutionRetries', 'setNumberOfExecutionRetries'
         # is deprecated, exclude them.
@@ -46,10 +46,10 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'getNumberOfExecutionRetries', 'getStreamGraph', 'fromParallelCollection',
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
-                'socketTextStream', 'initializeContextEnvironment', 'readTextFile', 'addSource',
+                'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
                 'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners', "fromSource", "fromSequence",
-                'setRuntimeMode', 'setDefaultSavepointDirectory', 'getDefaultSavepointDirectory'}
+                'clearJobListeners', 'getJobListeners', "fromSequence",
+                'setDefaultSavepointDirectory', 'getDefaultSavepointDirectory'}
 
 
 if __name__ == '__main__':

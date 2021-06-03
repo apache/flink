@@ -109,11 +109,11 @@ public class SourceStreamTask<
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
                                             configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignmentTimeout());
+                                            configuration.getAlignmentTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
-                                    new CheckpointMetaData(checkpointId, timestamp);
+                                    new CheckpointMetaData(checkpointId, timestamp, timestamp);
 
                             try {
                                 SourceStreamTask.super
@@ -266,7 +266,7 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+                mainOperator.run(lock, operatorChain);
                 if (!wasStoppedExternally && !isCanceled()) {
                     synchronized (lock) {
                         operatorChain.setIgnoreEndOfInput(false);

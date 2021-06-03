@@ -22,6 +22,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.util.Disposable;
 
 import java.util.stream.Stream;
@@ -135,6 +136,10 @@ public interface KeyedStateBackend<K>
      * @return returns true iff listener was registered before.
      */
     boolean deregisterKeySelectionListener(KeySelectionListener<K> listener);
+
+    default boolean isStateImmutableInStateBackend(CheckpointType checkpointOptions) {
+        return false;
+    }
 
     /** Listener is given a callback when {@link #setCurrentKey} is called (key context changes). */
     @FunctionalInterface

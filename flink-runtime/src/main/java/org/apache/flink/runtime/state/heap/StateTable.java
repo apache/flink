@@ -311,7 +311,7 @@ public abstract class StateTable<K, N, S>
     }
 
     @VisibleForTesting
-    StateMap<K, N, S> getMapForKeyGroup(int keyGroupIndex) {
+    public StateMap<K, N, S> getMapForKeyGroup(int keyGroupIndex) {
         final int pos = indexToOffset(keyGroupIndex);
         if (pos >= 0 && pos < keyGroupedStateMaps.length) {
             return keyGroupedStateMaps[pos];

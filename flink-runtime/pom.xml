@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -571,12 +571,6 @@ under the License.
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 										 	copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
-									</excludes>
-								</filter>	
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>META-INF/maven/io.netty/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

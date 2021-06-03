@@ -30,18 +30,18 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.AbstractDataOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
+import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInputFactory;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import javax.annotation.Nullable;
 
@@ -110,11 +110,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         }
         mainOperator
                 .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge);
         // wrap watermark gauge since registered metrics must be unique
         getEnvironment()
                 .getMetricGroup()
-                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge::getValue);
+                .gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, inputWatermarkGauge::getValue);
     }
 
     private StreamTaskInput<IN> wrapWithSorted(StreamTaskInput<IN> input) {
@@ -143,12 +143,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 inputGates,
                 getEnvironment().getMetricGroup().getIOMetricGroup(),
                 getTaskNameWithSubtaskAndId(),
-                mainMailboxExecutor);
+                mainMailboxExecutor,
+                systemTimerService);
     }
 
     private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
-        return new StreamTaskNetworkOutput<>(
-                mainOperator, getStreamStatusMaintainer(), inputWatermarkGauge, numRecordsIn);
+        return new StreamTaskNetworkOutput<>(mainOperator, inputWatermarkGauge, numRecordsIn);
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -157,15 +157,27 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         TypeSerializer<IN> inSerializer =
                 configuration.getTypeSerializerIn1(getUserCodeClassLoader());
-        return new StreamTaskNetworkInput<>(
-                inputGate, inSerializer, getEnvironment().getIOManager(), statusWatermarkValve, 0);
+
+        return StreamTaskNetworkInputFactory.create(
+                inputGate,
+                inSerializer,
+                getEnvironment().getIOManager(),
+                statusWatermarkValve,
+                0,
+                getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                gateIndex ->
+                        configuration
+                                .getInPhysicalEdges(getUserCodeClassLoader())
+                                .get(gateIndex)
+                                .getPartitioner(),
+                getEnvironment().getTaskInfo());
     }
 
     /**
      * The network data output implementation used for processing stream elements from {@link
      * StreamTaskNetworkInput} in one input processor.
      */
-    private static class StreamTaskNetworkOutput<IN> extends AbstractDataOutput<IN> {
+    private static class StreamTaskNetworkOutput<IN> implements DataOutput<IN> {
 
         private final OneInputStreamOperator<IN, ?> operator;
 
@@ -174,10 +186,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         private StreamTaskNetworkOutput(
                 OneInputStreamOperator<IN, ?> operator,
-                StreamStatusMaintainer streamStatusMaintainer,
                 WatermarkGauge watermarkGauge,
                 Counter numRecordsIn) {
-            super(streamStatusMaintainer);
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
@@ -195,6 +205,11 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         public void emitWatermark(Watermark watermark) throws Exception {
             watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
             operator.processWatermark(watermark);
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            operator.emitStreamStatus(streamStatus);
         }
 
         @Override

@@ -88,6 +88,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
         try {
             JobVertex sourceJobVertex = new JobVertex("Source");
             sourceJobVertex.setInvokableClass(BlockingInvokable.class);
+            sourceJobVertex.setParallelism(1);
 
             final JobCheckpointingSettings jobCheckpointingSettings =
                     new JobCheckpointingSettings(
@@ -100,6 +101,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
                                     true,
                                     false,
                                     false,
+                                    0,
                                     0),
                             null);
 

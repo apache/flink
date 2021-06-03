@@ -48,7 +48,6 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
@@ -61,13 +60,16 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 outputType,
                 functionUrn,
                 userDefinedFunctions,
-                coderUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,
                 null,
-                0.0);
+                null,
+                0.0,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
         this.operator = operator;
     }
 

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
 import org.apache.flink.table.expressions._
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
+import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
 
@@ -324,17 +326,23 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Unit = {
-    def internalVisit(fieldAccess: RexFieldAccess): (Int, List[String]) = {
+    def internalVisit(fieldAccess: RexFieldAccess): (Boolean, Int, List[String]) = {
       fieldAccess.getReferenceExpr match {
         case ref: RexInputRef =>
-          (ref.getIndex, List(fieldAccess.getField.getName))
+          (true, ref.getIndex, List(fieldAccess.getField.getName))
         case fac: RexFieldAccess =>
-          val (i, n) = internalVisit(fac)
-          (i, n :+ fieldAccess.getField.getName)
+          val (success, i, n) = internalVisit(fac)
+          (success, i, if (success) n :+ fieldAccess.getField.getName else null)
+        case expr =>
+          expr.accept(this)
+          (false, -1, null)
       }
     }
 
-    val (index, fullName) = internalVisit(fieldAccess)
+    val (success, index, fullName) = internalVisit(fieldAccess)
+    if (!success) {
+      return
+    }
     val outputIndex = order.getOrElse(index, -1)
     val fields: List[List[String]] = projectedFields(outputIndex)
     projectedFields(outputIndex) = fields :+ fullName
@@ -408,6 +416,16 @@ class RexNodeToExpressionConverter(
         val v = literal.getValueAs(classOf[TimestampString])
         toLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
 
+      case INTERVAL_DAY_TIME =>
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        DayTimeIntervalDurationConverter.INSTANCE.toExternal(v)
+
+      case INTERVAL_YEAR_MONTH =>
+        val v = literal.getValueAs(classOf[java.lang.Integer])
+        YearMonthIntervalPeriodConverter
+          .create(literalType.asInstanceOf[YearMonthIntervalType])
+          .toExternal(v)
+
       case TINYINT =>
         // convert from BigDecimal to Byte
         literal.getValueAs(classOf[java.lang.Byte])
@@ -448,7 +466,12 @@ class RexNodeToExpressionConverter(
         literal.getValue
     }
 
-    Some(valueLiteral(literalValue, fromLogicalTypeToDataType(literalType).notNull()))
+    val dataType = fromLogicalTypeToDataType(literalType)
+    if (literalValue == null) {
+      Some(valueLiteral(null, dataType.nullable()))
+    } else {
+      Some(valueLiteral(literalValue, dataType.notNull()))
+    }
   }
 
   override def visitCall(oriRexCall: RexCall): Option[ResolvedExpression] = {

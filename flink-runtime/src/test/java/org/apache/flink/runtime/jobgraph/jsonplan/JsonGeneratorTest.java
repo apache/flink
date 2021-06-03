@@ -102,6 +102,7 @@ public class JsonGeneratorTest {
             // core fields
             assertEquals(new TextNode(jg.getJobID().toString()), rootNode.get("jid"));
             assertEquals(new TextNode(jg.getName()), rootNode.get("name"));
+            assertEquals(new TextNode(jg.getJobType().name()), rootNode.get("type"));
 
             assertTrue(rootNode.path("nodes").isArray());
 

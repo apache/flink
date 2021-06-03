@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -51,7 +51,7 @@ public class WindowAggregateQueryOperation implements QueryOperation {
     private final List<ResolvedExpression> windowPropertiesExpressions;
     private final ResolvedGroupWindow groupWindow;
     private final QueryOperation child;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public WindowAggregateQueryOperation(
             List<ResolvedExpression> groupingExpressions,
@@ -59,18 +59,18 @@ public class WindowAggregateQueryOperation implements QueryOperation {
             List<ResolvedExpression> windowPropertiesExpressions,
             ResolvedGroupWindow groupWindow,
             QueryOperation child,
-            TableSchema tableSchema) {
+            ResolvedSchema resolvedSchema) {
         this.groupingExpressions = groupingExpressions;
         this.aggregateExpressions = aggregateExpressions;
         this.windowPropertiesExpressions = windowPropertiesExpressions;
         this.groupWindow = groupWindow;
         this.child = child;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

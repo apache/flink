@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -40,11 +41,12 @@ public class DataSetQueryOperation<E> implements QueryOperation {
 
     private final DataSet<E> dataSet;
     private final int[] fieldIndices;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
-    public DataSetQueryOperation(DataSet<E> dataSet, int[] fieldIndices, TableSchema tableSchema) {
+    public DataSetQueryOperation(
+            DataSet<E> dataSet, int[] fieldIndices, ResolvedSchema resolvedSchema) {
         this.dataSet = dataSet;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
         this.fieldIndices = fieldIndices;
     }
 
@@ -57,14 +59,14 @@ public class DataSetQueryOperation<E> implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override
     public String asSummaryString() {
         Map<String, Object> args = new LinkedHashMap<>();
-        args.put("fields", tableSchema.getFieldNames());
+        args.put("fields", resolvedSchema.getColumnNames());
 
         return OperationUtils.formatWithChildren(
                 "DataSet", args, getChildren(), Operation::asSummaryString);

@@ -31,22 +31,11 @@ import java.nio.ByteBuffer;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for undersized {@link HeapMemorySegment} and {@link HybridMemorySegment} (in both heap and
- * off-heap modes).
- */
+/** Tests for undersized {@link MemorySegment} (in both heap and off-heap modes). */
 public class MemorySegmentUndersizedTest {
 
     @Test
     public void testZeroSizeHeapSegment() {
-        MemorySegment segment = new HeapMemorySegment(new byte[0]);
-
-        testZeroSizeBuffer(segment);
-        testSegmentWithSizeLargerZero(segment);
-    }
-
-    @Test
-    public void testZeroSizeHeapHybridSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(0);
 
         testZeroSizeBuffer(segment);
@@ -54,7 +43,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapHybridSegment() {
+    public void testZeroSizeOffHeapSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledOffHeapMemory(0);
 
         testZeroSizeBuffer(segment);
@@ -62,7 +51,7 @@ public class MemorySegmentUndersizedTest {
     }
 
     @Test
-    public void testZeroSizeOffHeapUnsafeHybridSegment() {
+    public void testZeroSizeOffHeapUnsafeSegment() {
         MemorySegment segment = MemorySegmentFactory.allocateOffHeapUnsafeMemory(0);
 
         testZeroSizeBuffer(segment);
@@ -71,21 +60,16 @@ public class MemorySegmentUndersizedTest {
 
     @Test
     public void testSizeOneHeapSegment() {
-        testSegmentWithSizeLargerZero(new HeapMemorySegment(new byte[1]));
-    }
-
-    @Test
-    public void testSizeOneHeapHybridSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateUnpooledSegment(1));
     }
 
     @Test
-    public void testSizeOneOffHeapHybridSegment() {
+    public void testSizeOneOffHeapSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateUnpooledOffHeapMemory(1));
     }
 
     @Test
-    public void testSizeOneOffHeapUnsafeHybridSegment() {
+    public void testSizeOneOffHeapUnsafeSegment() {
         testSegmentWithSizeLargerZero(MemorySegmentFactory.allocateOffHeapUnsafeMemory(1));
     }
 

@@ -20,15 +20,12 @@ import platform
 import sys
 
 from pyflink.common import *
-from pyflink.dataset import *
 from pyflink.datastream import *
 from pyflink.table import *
 from pyflink.table.catalog import *
 from pyflink.table.descriptors import *
 from pyflink.table.window import *
 from pyflink.metrics import *
-from pyflink.ml.api import *
-from pyflink.ml.lib import *
 
 utf8_out = open(sys.stdout.fileno(), mode='w', encoding='utf8', buffering=1)
 
@@ -75,36 +72,6 @@ welcome_msg = u'''
 
 NOTE: Use the prebound Table Environment to implement batch or streaming Table programs.
 
-  Batch - Use 'b_env' and 'bt_env' variables
-
-    *
-    * import tempfile
-    * import os
-    * import shutil
-    * sink_path = tempfile.gettempdir() + '/batch.csv'
-    * if os.path.exists(sink_path):
-    *     if os.path.isfile(sink_path):
-    *         os.remove(sink_path)
-    *     else:
-    *         shutil.rmtree(sink_path)
-    * b_env.set_parallelism(1)
-    * t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * bt_env.connect(FileSystem().path(sink_path)) \\
-    *     .with_format(OldCsv()
-    *                  .field_delimiter(',')
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .with_schema(Schema()
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .create_temporary_table("batch_sink")
-    *
-    * t.select("a + 1, b, c").insert_into("batch_sink")
-    *
-    * bt_env.execute("batch_job")
-
   Streaming - Use 's_env' and 'st_env' variables
 
     *
@@ -136,10 +103,6 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * st_env.execute("stream_job")
 '''
 utf8_out.write(welcome_msg)
-
-b_env = ExecutionEnvironment.get_execution_environment()
-
-bt_env = BatchTableEnvironment.create(b_env)
 
 s_env = StreamExecutionEnvironment.get_execution_environment()
 

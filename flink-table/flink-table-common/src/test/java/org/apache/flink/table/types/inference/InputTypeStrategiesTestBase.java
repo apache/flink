@@ -117,8 +117,13 @@ public abstract class InputTypeStrategiesTestBase {
                             .outputTypeStrategy(TypeStrategies.MISSING)
                             .build();
             surroundingInfo =
-                    new TypeInferenceUtil.SurroundingInfo(
-                            "f_outer", functionDefinitionMock, outerTypeInference, 1, 0);
+                    TypeInferenceUtil.SurroundingInfo.of(
+                            "f_outer",
+                            functionDefinitionMock,
+                            outerTypeInference,
+                            1,
+                            0,
+                            callContextMock.isGroupedAggregation);
         } else {
             surroundingInfo = null;
         }

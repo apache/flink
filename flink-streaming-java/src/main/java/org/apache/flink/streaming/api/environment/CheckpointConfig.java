@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.net.URI;
+import java.time.Duration;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
@@ -64,6 +65,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
     public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
+    /** Default id of checkpoint for which in-flight data should be ignored on recovery. */
+    public static final int DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA = -1;
+
     // ------------------------------------------------------------------------
 
     /** Checkpointing mode (exactly-once vs. at-least-once). */
@@ -90,8 +94,12 @@ public class CheckpointConfig implements java.io.Serializable {
     /** Flag to enable unaligned checkpoints. */
     private boolean unalignedCheckpointsEnabled;
 
-    private long alignmentTimeout =
-            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue().toMillis();
+    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
+    private long checkpointIdOfIgnoredInFlightData =
+            DEFAULT_CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA;
+
+    private Duration alignmentTimeout =
+            ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT.defaultValue();
 
     /** Flag to enable approximate local recovery. */
     private boolean approximateLocalRecovery;
@@ -146,8 +154,9 @@ public class CheckpointConfig implements java.io.Serializable {
         this.externalizedCheckpointCleanup = checkpointConfig.externalizedCheckpointCleanup;
         this.forceCheckpointing = checkpointConfig.forceCheckpointing;
         this.forceUnalignedCheckpoints = checkpointConfig.forceUnalignedCheckpoints;
-        this.tolerableCheckpointFailureNumber = checkpointConfig.tolerableCheckpointFailureNumber;
         this.storage = checkpointConfig.getCheckpointStorage();
+        this.checkpointIdOfIgnoredInFlightData =
+                checkpointConfig.getCheckpointIdOfIgnoredInFlightData();
     }
 
     public CheckpointConfig() {}
@@ -327,9 +336,9 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether Unaligned Checkpoints are forced, despite iteration feedback.
+     * Checks whether unaligned checkpoints are forced, despite iteration feedback.
      *
-     * @return True, if Unaligned Checkpoints are forced, false otherwise.
+     * @return True, if unaligned checkpoints are forced, false otherwise.
      */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
@@ -337,10 +346,10 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
-     * Checks whether Unaligned Checkpoints are forced, despite currently non-checkpointable
-     * iteration feedback.
+     * Checks whether unaligned checkpoints are forced, despite currently non-checkpointable
+     * iteration feedback or custom partitioners.
      *
-     * @param forceUnalignedCheckpoints The flag to force checkpointing.
+     * @param forceUnalignedCheckpoints The flag to force unaligned checkpoints.
      */
     @PublicEvolving
     public void setForceUnalignedCheckpoints(boolean forceUnalignedCheckpoints) {
@@ -540,16 +549,16 @@ public class CheckpointConfig implements java.io.Serializable {
      * checkpoint.
      */
     @PublicEvolving
-    public void setAlignmentTimeout(long alignmentTimeout) {
+    public void setAlignmentTimeout(Duration alignmentTimeout) {
         this.alignmentTimeout = alignmentTimeout;
     }
 
     /**
-     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(long)} or
-     *     {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
+     * @return value of alignment timeout, as configured via {@link #setAlignmentTimeout(Duration)}
+     *     or {@link ExecutionCheckpointingOptions#ALIGNMENT_TIMEOUT}.
      */
     @PublicEvolving
-    public long getAlignmentTimeout() {
+    public Duration getAlignmentTimeout() {
         return alignmentTimeout;
     }
 
@@ -668,6 +677,28 @@ public class CheckpointConfig implements java.io.Serializable {
         return this.storage;
     }
 
+    /**
+     * Setup the checkpoint id for which the in-flight data will be ignored for all operators in
+     * case of the recovery from this checkpoint.
+     *
+     * @param checkpointIdOfIgnoredInFlightData Checkpoint id for which in-flight data should be
+     *     ignored.
+     * @see #setCheckpointIdOfIgnoredInFlightData
+     */
+    @PublicEvolving
+    public void setCheckpointIdOfIgnoredInFlightData(long checkpointIdOfIgnoredInFlightData) {
+        this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
+    }
+
+    /**
+     * @return Checkpoint id for which in-flight data should be ignored.
+     * @see #setCheckpointIdOfIgnoredInFlightData
+     */
+    @PublicEvolving
+    public long getCheckpointIdOfIgnoredInFlightData() {
+        return checkpointIdOfIgnoredInFlightData;
+    }
+
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
     @PublicEvolving
     public enum ExternalizedCheckpointCleanup {
@@ -750,8 +781,11 @@ public class CheckpointConfig implements java.io.Serializable {
                 .getOptional(ExecutionCheckpointingOptions.ENABLE_UNALIGNED)
                 .ifPresent(this::enableUnalignedCheckpoints);
         configuration
+                .getOptional(ExecutionCheckpointingOptions.CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA)
+                .ifPresent(this::setCheckpointIdOfIgnoredInFlightData);
+        configuration
                 .getOptional(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT)
-                .ifPresent(timeout -> setAlignmentTimeout(timeout.toMillis()));
+                .ifPresent(this::setAlignmentTimeout);
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);

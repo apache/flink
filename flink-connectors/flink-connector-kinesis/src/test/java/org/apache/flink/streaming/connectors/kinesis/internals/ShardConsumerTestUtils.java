@@ -58,6 +58,21 @@ public class ShardConsumerTestUtils {
             final SequenceNumber startingSequenceNumber,
             final Properties consumerProperties)
             throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
+    }
+
+    public static <T> ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final SequenceNumber expectedLastProcessedSequenceNum)
+            throws InterruptedException {
         ShardConsumerMetricsReporter shardMetricsReporter =
                 new ShardConsumerMetricsReporter(mock(MetricGroup.class));
 
@@ -118,7 +133,7 @@ public class ShardConsumerTestUtils {
 
         assertEquals(expectedNumberOfMessages, sourceContext.getCollectedOutputs().size());
         assertEquals(
-                SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
+                expectedLastProcessedSequenceNum,
                 subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
 
         return shardMetricsReporter;

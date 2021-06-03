@@ -89,7 +89,10 @@ class SqlCreateTableConverter {
         if (sqlCreateTable.getTableLike().isPresent()) {
             SqlTableLike sqlTableLike = sqlCreateTable.getTableLike().get();
             CatalogTable table = lookupLikeSourceTable(sqlTableLike);
-            sourceTableSchema = table.getSchema();
+            sourceTableSchema =
+                    TableSchema.fromResolvedSchema(
+                            table.getUnresolvedSchema()
+                                    .resolve(catalogManager.getSchemaResolver()));
             sourcePartitionKeys = table.getPartitionKeys();
             likeOptions = sqlTableLike.getOptions();
             sourceProperties = table.getOptions();

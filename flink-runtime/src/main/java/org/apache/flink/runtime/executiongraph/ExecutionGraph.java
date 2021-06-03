@@ -163,7 +163,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      */
     void suspend(Throwable suspensionCause);
 
-    void failJob(Throwable cause);
+    void failJob(Throwable cause, long timestamp);
 
     /**
      * Returns the termination future of this {@link ExecutionGraph}. The termination future is
@@ -181,7 +181,7 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void incrementRestarts();
 
-    void initFailureCause(Throwable t);
+    void initFailureCause(Throwable t, long timestamp);
 
     /**
      * Updates the state of one of the ExecutionVertex's Execution attempts. If the new status if

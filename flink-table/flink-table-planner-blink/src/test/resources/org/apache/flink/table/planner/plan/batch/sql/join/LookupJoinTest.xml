@@ -410,35 +410,6 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithTrueCondition[LegacyTableSource=false]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MyTable AS T
-JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-ON true
-WHERE T.c > 1000
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
-+- LogicalFilter(condition=[>($2, 1000)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
-   +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
-      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLeftJoinTemporalTable[LegacyTableSource=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable AS T LEFT JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
@@ -460,6 +431,51 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age]
 +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLogicalPlan[LegacyTableSource=false]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b, count(a), sum(c), sum(d)
+FROM (
+SELECT T.* FROM (
+SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
+FROM T1
+GROUP BY a, b
+      ) AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age > 10
+      ) AS T
+GROUP BY b
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
++- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
+   +- LogicalFilter(condition=[>($7, 10)])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
+         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
+         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+         +- LogicalFilter(condition=[=($cor0.a, $0)])
+            +- LogicalSnapshot(period=[$cor0.proctime])
+               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
++- FlinkLogicalCalc(select=[b, a, c, d])
+   +- FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
+      :- FlinkLogicalCalc(select=[b, a, c, d])
+      :  +- FlinkLogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
+      :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, d])
+      +- FlinkLogicalSnapshot(period=[$cor0.proctime])
+         +- FlinkLogicalCalc(select=[id], where=[>(age, 10)])
+            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
 ]]>
     </Resource>
   </TestCase>
@@ -501,39 +517,10 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=
    +- FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
       :- FlinkLogicalCalc(select=[b, a, c, d])
       :  +- FlinkLogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
-      :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]])
+      :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, d])
       +- FlinkLogicalSnapshot(period=[$cor0.proctime])
          +- FlinkLogicalCalc(select=[id], where=[>(age, 10)])
             +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]], fields=[id, name, age])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinTemporalTableWithTrueCondition[LegacyTableSource=true]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MyTable AS T
-JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-ON true
-WHERE T.c > 1000
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$6])
-+- LogicalFilter(condition=[>($2, 1000)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable, source: [TestTemporalTable(id, name, age)]]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
-   +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
-      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -610,51 +597,6 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[id AS a, b])
                   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testLogicalPlan[LegacyTableSource=false]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT b, count(a), sum(c), sum(d)
-FROM (
-SELECT T.* FROM (
-SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime
-FROM T1
-GROUP BY a, b
-      ) AS T
-JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-ON T.a = D.id
-WHERE D.age > 10
-      ) AS T
-GROUP BY b
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
-+- LogicalProject(b=[$0], a=[$1], c=[$2], d=[$3])
-   +- LogicalFilter(condition=[>($7, 10)])
-      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 4}])
-         :- LogicalProject(b=[$1], a=[$0], c=[$2], d=[$3], proctime=[PROCTIME()])
-         :  +- LogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
-         :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-         +- LogicalFilter(condition=[=($cor0.a, $0)])
-            +- LogicalSnapshot(period=[$cor0.proctime])
-               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)])
-+- FlinkLogicalCalc(select=[b, a, c, d])
-   +- FlinkLogicalJoin(condition=[=($1, $4)], joinType=[inner])
-      :- FlinkLogicalCalc(select=[b, a, c, d])
-      :  +- FlinkLogicalAggregate(group=[{0, 1}], c=[SUM($2)], d=[SUM($3)])
-      :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]])
-      +- FlinkLogicalSnapshot(period=[$cor0.proctime])
-         +- FlinkLogicalCalc(select=[id], where=[>(age, 10)])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
 ]]>
     </Resource>
   </TestCase>

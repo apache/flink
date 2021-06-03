@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -43,7 +44,12 @@ import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeMiniBatchDed
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Stream {@link ExecNode} which normalizes a changelog stream which maybe an upsert stream or a
@@ -51,9 +57,17 @@ import java.util.Collections;
  * changelog stream that contains INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE records without
  * duplication.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
+    public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
+
+    @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
+
+    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
     public StreamExecChangelogNormalize(
@@ -62,7 +76,24 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        this(
+                uniqueKeys,
+                generateUpdateBefore,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecChangelogNormalize(
+            @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
     }
@@ -121,11 +152,6 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());
-
-        if (inputsContainSingleton()) {
-            transform.setParallelism(1);
-            transform.setMaxParallelism(1);
-        }
 
         final RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(uniqueKeys, rowTypeInfo);

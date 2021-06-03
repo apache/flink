@@ -47,6 +47,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
@@ -90,7 +91,9 @@ public class DefaultExecutionGraphBuilder {
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            VertexAttemptNumberStore vertexAttemptNumberStore,
+            VertexParallelismStore vertexParallelismStore)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -132,7 +135,9 @@ public class DefaultExecutionGraphBuilder {
                             partitionLocationConstraint,
                             executionDeploymentListener,
                             executionStateUpdateListener,
-                            initializationTimestamp);
+                            initializationTimestamp,
+                            vertexAttemptNumberStore,
+                            vertexParallelismStore);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }

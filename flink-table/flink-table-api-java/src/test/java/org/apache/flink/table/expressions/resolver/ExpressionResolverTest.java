@@ -27,6 +27,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -229,6 +230,24 @@ public class ExpressionResolverTest {
                                                         DataTypes.INT()
                                                                 .notNull()
                                                                 .bridgedTo(int.class))),
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.test("Star expression as parameter of user-defined func")
+                        .inputSchemas(
+                                TableSchema.builder()
+                                        .field("f0", DataTypes.INT())
+                                        .field("f1", DataTypes.STRING())
+                                        .build())
+                        .lookupFunction("func", new ScalarFunc())
+                        .select(call("func", $("*")))
+                        .equalTo(
+                                new CallExpression(
+                                        FunctionIdentifier.of("func"),
+                                        new ScalarFunc(),
+                                        Arrays.asList(
+                                                new FieldReferenceExpression(
+                                                        "f0", DataTypes.INT(), 0, 0),
+                                                new FieldReferenceExpression(
+                                                        "f1", DataTypes.STRING(), 0, 1)),
                                         DataTypes.INT().notNull().bridgedTo(int.class))));
     }
 
@@ -331,7 +350,7 @@ public class ExpressionResolverTest {
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),
-                            (sqlExpression, inputSchema) -> {
+                            (sqlExpression, inputRowType, outputType) -> {
                                 throw new UnsupportedOperationException();
                             },
                             Arrays.stream(schemas)
@@ -340,7 +359,10 @@ public class ExpressionResolverTest {
                                                     (QueryOperation)
                                                             new CatalogQueryOperation(
                                                                     ObjectIdentifier.of("", "", ""),
-                                                                    schema))
+                                                                    ResolvedSchema.physical(
+                                                                            schema.getFieldNames(),
+                                                                            schema
+                                                                                    .getFieldDataTypes())))
                                     .toArray(QueryOperation[]::new))
                     .build();
         }

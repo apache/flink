@@ -18,20 +18,14 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducerBase;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -42,28 +36,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE;
+import static org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer.Semantic.EXACTLY_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.waitingExpectedResults;
 
 /** IT cases for Kafka with changelog format for Table API & SQL. */
-public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
-
-    protected StreamExecutionEnvironment env;
-    protected StreamTableEnvironment tEnv;
+public class KafkaChangelogTableITCase extends KafkaTableTestBase {
 
     @Before
-    public void setup() {
-        TestValuesTableFactory.clearAllData();
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                // Watermark is only supported in blink planner
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+    public void before() {
         // we have to use single parallelism,
         // because we will count the messages in sink to terminate the job
         env.setParallelism(1);
@@ -88,19 +70,24 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
         FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
 
         // the producer must not produce duplicates
-        Properties producerProperties =
-                FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+        Properties producerProperties = getStandardProps();
         producerProperties.setProperty("retries", "0");
-        producerProperties.putAll(secureProps);
-        kafkaServer.produceIntoKafka(stream, topic, serSchema, producerProperties, partitioner);
         try {
+            stream.addSink(
+                    new FlinkKafkaProducer<>(
+                            topic,
+                            serSchema,
+                            producerProperties,
+                            partitioner,
+                            EXACTLY_ONCE,
+                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
             env.execute("Write sequence");
         } catch (Exception e) {
             throw new Exception("Failed to write debezium data to Kafka.", e);
         }
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
         String sourceDDL =
                 String.format(
                         "CREATE TABLE debezium_source ("
@@ -226,19 +213,24 @@ public class KafkaChangelogTableITCase extends KafkaTestBaseWithFlink {
         FlinkKafkaPartitioner<String> partitioner = new FlinkFixedPartitioner<>();
 
         // the producer must not produce duplicates
-        Properties producerProperties =
-                FlinkKafkaProducerBase.getPropertiesFromBrokerList(brokerConnectionStrings);
+        Properties producerProperties = getStandardProps();
         producerProperties.setProperty("retries", "0");
-        producerProperties.putAll(secureProps);
-        kafkaServer.produceIntoKafka(stream, topic, serSchema, producerProperties, partitioner);
         try {
+            stream.addSink(
+                    new FlinkKafkaProducer<>(
+                            topic,
+                            serSchema,
+                            producerProperties,
+                            partitioner,
+                            EXACTLY_ONCE,
+                            DEFAULT_KAFKA_PRODUCERS_POOL_SIZE));
             env.execute("Write sequence");
         } catch (Exception e) {
             throw new Exception("Failed to write canal data to Kafka.", e);
         }
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String bootstraps = getBootstrapServers();
         String sourceDDL =
                 String.format(
                         "CREATE TABLE canal_source ("

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.codegen
 
 import java.lang.reflect.Method
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.functions.RuntimeContext
@@ -38,7 +38,7 @@ import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunctio
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.runtime.util.MurmurHashUtil
+import org.apache.flink.table.runtime.util.{MurmurHashUtil, TimeWindowUtil}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
@@ -110,13 +110,15 @@ object CodeGenUtils {
 
   val BINARY_STRING_UTIL: String = className[BinaryStringDataUtil]
 
+  val TIME_WINDOW_UTIL: String = className[TimeWindowUtil]
+
   val TIMESTAMP_DATA: String = className[TimestampData]
 
   val RUNTIME_CONTEXT: String = className[RuntimeContext]
 
   // ----------------------------------------------------------------------------------------
 
-  private val nameCounter = new AtomicInteger
+  private val nameCounter = new AtomicLong
 
   def newName(name: String): String = {
     s"$name$$${nameCounter.getAndIncrement}"
@@ -255,7 +257,9 @@ object CodeGenUtils {
     case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
       s"$term.hashCode()"
     case TIMESTAMP_WITH_TIME_ZONE | ARRAY | MULTISET | MAP =>
-      throw new UnsupportedOperationException("Unsupported type: " + t)
+      throw new UnsupportedOperationException(
+        s"Unsupported type($t) to generate hash code," +
+            s" the type($t) is not supported as a GROUP_BY/PARTITION_BY/JOIN_EQUAL/UNION field.")
     case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
     case ROW | STRUCTURED_TYPE =>
       val fieldCount = getFieldCount(t)

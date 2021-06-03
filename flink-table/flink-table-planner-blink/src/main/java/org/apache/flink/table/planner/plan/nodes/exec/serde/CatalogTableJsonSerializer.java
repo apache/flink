@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
@@ -28,26 +28,29 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 import java.util.Map;
 
-/** JSON serializer for {@link CatalogTable}. */
-public class CatalogTableJsonSerializer extends StdSerializer<CatalogTable> {
+/** JSON serializer for {@link ResolvedCatalogTable}. */
+public class CatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTable> {
     private static final long serialVersionUID = 1L;
 
     public CatalogTableJsonSerializer() {
-        super(CatalogTable.class);
+        super(ResolvedCatalogTable.class);
     }
 
     @Override
     public void serialize(
-            CatalogTable catalogTable,
+            ResolvedCatalogTable catalogTable,
             JsonGenerator jsonGenerator,
             SerializerProvider serializerProvider)
             throws IOException {
-        if (!(catalogTable instanceof CatalogTableImpl)) {
-            throw new UnsupportedOperationException("Only CatalogTableImpl is supported now.");
+        final Map<String, String> properties;
+        try {
+            properties = catalogTable.toProperties();
+        } catch (Exception e) {
+            throw new TableException("Unable to serialize catalog table: " + catalogTable, e);
         }
 
         jsonGenerator.writeStartObject();
-        for (Map.Entry<String, String> entry : catalogTable.toProperties().entrySet()) {
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
             jsonGenerator.writeStringField(entry.getKey(), entry.getValue());
         }
         jsonGenerator.writeEndObject();

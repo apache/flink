@@ -59,6 +59,7 @@ import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTra
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.translators.BroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.KeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.LegacySinkTransformationTranslator;
@@ -157,7 +158,7 @@ public class StreamGraphGenerator {
 
     private String jobName = DEFAULT_JOB_NAME;
 
-    private SavepointRestoreSettings savepointRestoreSettings = SavepointRestoreSettings.none();
+    private SavepointRestoreSettings savepointRestoreSettings;
 
     private long defaultBufferTimeout = StreamingJobGraphGenerator.UNDEFINED_NETWORK_BUFFER_TIMEOUT;
 
@@ -228,6 +229,7 @@ public class StreamGraphGenerator {
         this.checkpointConfig = new CheckpointConfig(checkpointConfig);
         this.configuration = checkNotNull(configuration);
         this.checkpointStorage = this.checkpointConfig.getCheckpointStorage();
+        this.savepointRestoreSettings = SavepointRestoreSettings.fromConfiguration(configuration);
     }
 
     public StreamGraphGenerator setRuntimeExecutionMode(
@@ -301,6 +303,14 @@ public class StreamGraphGenerator {
             transform(transformation);
         }
 
+        for (StreamNode node : streamGraph.getStreamNodes()) {
+            if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
+                for (StreamEdge edge : node.getInEdges()) {
+                    edge.setSupportsUnalignedCheckpoints(false);
+                }
+            }
+        }
+
         final StreamGraph builtStreamGraph = streamGraph;
 
         alreadyTransformed.clear();
@@ -308,6 +318,11 @@ public class StreamGraphGenerator {
         streamGraph = null;
 
         return builtStreamGraph;
+    }
+
+    private boolean shouldDisableUnalignedCheckpointing(StreamEdge edge) {
+        StreamPartitioner<?> partitioner = edge.getPartitioner();
+        return partitioner.isPointwise() || partitioner.isBroadcast();
     }
 
     private void configureStreamGraph(final StreamGraph graph) {

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -49,7 +50,9 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
                 outputType,
                 groupKey,
                 groupingSet,
-                udafInputOffsets);
+                udafInputOffsets,
+                FlinkFnApi.CoderParam.DataType.ARROW,
+                FlinkFnApi.CoderParam.DataType.ARROW);
     }
 
     @Override

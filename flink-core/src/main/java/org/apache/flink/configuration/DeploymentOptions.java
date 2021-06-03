@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import java.util.List;
 
@@ -37,14 +38,19 @@ public class DeploymentOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The deployment target for the execution. This can take one of the following values:")
+                                            "The deployment target for the execution. This can take one of the following values "
+                                                    + "when calling %s:",
+                                            TextElement.code("bin/flink run"))
                                     .list(
                                             text("remote"),
                                             text("local"),
                                             text("yarn-per-job"),
                                             text("yarn-session"),
                                             text("kubernetes-session"))
-                                    .text(".")
+                                    .text(
+                                            "And one of the following values when calling %s:",
+                                            TextElement.code("bin/flink run-application"))
+                                    .list(text("yarn-application"), text("kubernetes-application"))
                                     .build());
 
     public static final ConfigOption<Boolean> ATTACHED =

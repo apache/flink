@@ -28,7 +28,13 @@ import akka.actor.ActorSystem;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 
-/** Service factory interface for Mesos. */
+/**
+ * Service factory interface for Mesos.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public interface MesosServices {
 
     /**

@@ -31,7 +31,6 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManag
 import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedTaskManagerTracker;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerConfiguration;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -70,7 +69,7 @@ public class ResourceManagerRuntimeServices {
                 createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
 
         final JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         highAvailabilityServices, scheduledExecutor, configuration.getJobTimeout());
 
         return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
@@ -92,21 +91,17 @@ public class ResourceManagerRuntimeServices {
                     new DefaultSlotStatusSyncer(
                             slotManagerConfiguration.getTaskManagerRequestTimeout()),
                     new DefaultResourceAllocationStrategy(
-                            SlotManagerUtils.generateDefaultSlotResourceProfile(
-                                    slotManagerConfiguration.getDefaultWorkerResourceSpec(),
-                                    slotManagerConfiguration.getNumSlotsPerWorker()),
+                            SlotManagerUtils.generateTaskManagerTotalResourceProfile(
+                                    slotManagerConfiguration.getDefaultWorkerResourceSpec()),
                             slotManagerConfiguration.getNumSlotsPerWorker()),
                     Time.milliseconds(REQUIREMENTS_CHECK_DELAY_MS));
-        } else if (configuration.isDeclarativeResourceManagementEnabled()) {
+        } else {
             return new DeclarativeSlotManager(
                     scheduledExecutor,
                     slotManagerConfiguration,
                     slotManagerMetricGroup,
                     new DefaultResourceTracker(),
                     new DefaultSlotTracker());
-        } else {
-            return new SlotManagerImpl(
-                    scheduledExecutor, slotManagerConfiguration, slotManagerMetricGroup);
         }
     }
 }

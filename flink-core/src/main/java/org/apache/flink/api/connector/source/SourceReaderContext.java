@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 /** The class that expose some context from runtime to the {@link SourceReader}. */
 @PublicEvolving
@@ -54,4 +55,12 @@ public interface SourceReaderContext {
      * @param sourceEvent the source event to coordinator.
      */
     void sendSourceEventToCoordinator(SourceEvent sourceEvent);
+
+    /**
+     * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath, but
+     * are part of the jar file of a user job.
+     *
+     * @see UserCodeClassLoader
+     */
+    UserCodeClassLoader getUserCodeClassLoader();
 }

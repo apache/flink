@@ -25,11 +25,9 @@ import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime;
 
@@ -37,7 +35,7 @@ import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTime
 public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testProjectPushDown() throws IOException, ExecutionException, InterruptedException {
+    public void testProjectPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int");
@@ -49,7 +47,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testReadingMetadata() throws IOException, ExecutionException, InterruptedException {
+    public void testReadingMetadata() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -69,7 +67,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testFilterPushDown() throws IOException, ExecutionException, InterruptedException {
+    public void testFilterPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int", "c varchar");
@@ -82,8 +80,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testPartitionPushDown()
-            throws IOException, ExecutionException, InterruptedException {
+    public void testPartitionPushDown() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -104,8 +101,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testWatermarkPushDown()
-            throws IOException, ExecutionException, InterruptedException {
+    public void testWatermarkPushDown() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data3WithTimestamp()),
@@ -137,7 +133,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testPushDowns() throws IOException, ExecutionException, InterruptedException {
+    public void testPushDowns() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data3WithTimestamp()),

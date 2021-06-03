@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -43,7 +44,9 @@ import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 
 import javax.annotation.Nullable;
 
@@ -179,9 +182,10 @@ public interface ResourceManagerGateway
      * Disconnects a JobManager specified by the given resourceID from the {@link ResourceManager}.
      *
      * @param jobId JobID for which the JobManager was the leader
+     * @param jobStatus status of the job at the time of disconnection
      * @param cause for the disconnection of the JobManager
      */
-    void disconnectJobManager(JobID jobId, Exception cause);
+    void disconnectJobManager(JobID jobId, JobStatus jobStatus, Exception cause);
 
     /**
      * Requests information about the registered {@link TaskExecutor}.
@@ -192,13 +196,13 @@ public interface ResourceManagerGateway
     CompletableFuture<Collection<TaskManagerInfo>> requestTaskManagerInfo(@RpcTimeout Time timeout);
 
     /**
-     * Requests information about the given {@link TaskExecutor}.
+     * Requests detail information about the given {@link TaskExecutor}.
      *
      * @param taskManagerId identifying the TaskExecutor for which to return information
      * @param timeout of the request
-     * @return Future TaskManager information
+     * @return Future TaskManager information and its allocated slots
      */
-    CompletableFuture<TaskManagerInfo> requestTaskManagerInfo(
+    CompletableFuture<TaskManagerInfoWithSlots> requestTaskManagerDetailsInfo(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 
     /**
@@ -265,5 +269,14 @@ public interface ResourceManagerGateway
      * @return Future containing the thread dump information
      */
     CompletableFuture<ThreadDumpInfo> requestThreadDump(
+            ResourceID taskManagerId, @RpcTimeout Time timeout);
+
+    /**
+     * Requests the {@link TaskExecutorGateway}.
+     *
+     * @param taskManagerId identifying the {@link TaskExecutor}.
+     * @return Future containing the task executor gateway.
+     */
+    CompletableFuture<TaskExecutorThreadInfoGateway> requestTaskExecutorThreadInfoGateway(
             ResourceID taskManagerId, @RpcTimeout Time timeout);
 }

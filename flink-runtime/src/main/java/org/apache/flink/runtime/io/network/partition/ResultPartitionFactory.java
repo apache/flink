@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 
 /** Factory for {@link ResultPartition} to use in {@link NettyShuffleEnvironment}. */
@@ -47,6 +49,10 @@ public class ResultPartitionFactory {
     private final FileChannelManager channelManager;
 
     private final BufferPoolFactory bufferPoolFactory;
+
+    private final BatchShuffleReadBufferPool batchShuffleReadBufferPool;
+
+    private final ExecutorService batchShuffleReadIOExecutor;
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
@@ -72,6 +78,8 @@ public class ResultPartitionFactory {
             ResultPartitionManager partitionManager,
             FileChannelManager channelManager,
             BufferPoolFactory bufferPoolFactory,
+            BatchShuffleReadBufferPool batchShuffleReadBufferPool,
+            ExecutorService batchShuffleReadIOExecutor,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
@@ -88,6 +96,8 @@ public class ResultPartitionFactory {
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.bufferPoolFactory = bufferPoolFactory;
+        this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
+        this.batchShuffleReadIOExecutor = batchShuffleReadIOExecutor;
         this.blockingSubpartitionType = blockingSubpartitionType;
         this.networkBufferSize = networkBufferSize;
         this.blockingShuffleCompressionEnabled = blockingShuffleCompressionEnabled;
@@ -167,7 +177,8 @@ public class ResultPartitionFactory {
                                 type,
                                 subpartitions.length,
                                 maxParallelism,
-                                networkBufferSize,
+                                batchShuffleReadBufferPool,
+                                batchShuffleReadIOExecutor,
                                 partitionManager,
                                 channelManager.createChannel().getPath(),
                                 bufferCompressor,

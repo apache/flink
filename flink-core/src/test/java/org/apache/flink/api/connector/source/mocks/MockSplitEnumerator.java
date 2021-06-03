@@ -98,7 +98,7 @@ public class MockSplitEnumerator implements SplitEnumerator<MockSourceSplit, Set
     }
 
     @Override
-    public Set<MockSourceSplit> snapshotState() {
+    public Set<MockSourceSplit> snapshotState(long checkpointId) {
         return unassignedSplits;
     }
 

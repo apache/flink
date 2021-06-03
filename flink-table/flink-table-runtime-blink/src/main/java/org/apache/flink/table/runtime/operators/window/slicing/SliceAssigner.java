@@ -43,6 +43,12 @@ public interface SliceAssigner extends Serializable {
      */
     long assignSliceEnd(RowData element, ClockService clock);
 
+    /**
+     * Returns the last window which the slice belongs to. The window and and slices are both
+     * identified by the end timestamp.
+     */
+    long getLastWindowEnd(long sliceEnd);
+
     /** Returns the corresponding window start timestamp of the given window end timestamp. */
     long getWindowStart(long windowEnd);
 
@@ -53,6 +59,12 @@ public interface SliceAssigner extends Serializable {
      * @param windowEnd the end timestamp of window emitted.
      */
     Iterable<Long> expiredSlices(long windowEnd);
+
+    /**
+     * Returns the interval of slice ends, i.e. the step size to advance of the slice end when a new
+     * slice assigned.
+     */
+    long getSliceEndInterval();
 
     /**
      * Returns {@code true} if elements are assigned to windows based on event time, {@code false}

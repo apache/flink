@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -41,7 +41,7 @@ under the License.
 
 	<dependencies>
 
-		<!-- streaming-java dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -50,15 +50,16 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Add Kafka 2.x as a dependency -->
+		<!-- Connectors -->
 
 		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>${kafka.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<!-- Table ecosystem -->
+
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -67,29 +68,17 @@ under the License.
 			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
+
+		<!-- Kafka -->
+
+		<!-- Add Kafka 2.x as a dependency -->
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>${kafka.version}</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-connector-base</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<!-- test dependencies -->
+		<!-- Tests -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -118,6 +107,13 @@ under the License.
 					<artifactId>slf4j-api</artifactId>
 				</exclusion>
 			</exclusions>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>kafka</artifactId>
+			<version>1.15.1</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -169,9 +165,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
 
@@ -240,6 +235,10 @@ under the License.
 							<goal>test-jar-no-fork</goal>
 						</goals>
 						<configuration>
+							<archive>
+								<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+								<addMavenDescriptor>false</addMavenDescriptor>
+							</archive>
 							<includes>
 								<include>**/KafkaTestEnvironmentImpl*</include>
 								<include>META-INF/LICENSE</include>

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -47,6 +49,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.util.EnumSet.complementOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -148,25 +151,61 @@ public class DefaultCheckpointPlanCalculatorTest {
     }
 
     @Test
-    public void testWithTriggeredTasksNotRunning() throws Exception {
-        ExecutionGraph graph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(new JobVertexID())
-                        .setTransitToRunning(false)
-                        .build();
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
-                createCheckpointPlanCalculator(graph);
+    public void testPlanCalculationWhenOneTaskNotRunning() throws Exception {
+        // when: All combinations of Source/Not Source for one RUNNING and one NOT RUNNING tasks.
+        runWithNotRunningTask(true, true);
+        runWithNotRunningTask(true, false);
+        runWithNotRunningTask(false, false);
+        runWithNotRunningTask(false, true);
 
-        try {
-            checkpointPlanCalculator.calculateCheckpointPlan().get();
-            fail("The computation should fail since not all tasks to trigger have start running");
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause, instanceOf(CheckpointException.class));
-            assertEquals(
-                    CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
-                    ((CheckpointException) cause).getCheckpointFailureReason());
+        // then: The plan failed because one task didn't have RUNNING state.
+    }
+
+    private void runWithNotRunningTask(
+            boolean isRunningVertexSource, boolean isNotRunningVertexSource) throws Exception {
+        for (ExecutionState notRunningState : complementOf(EnumSet.of(ExecutionState.RUNNING))) {
+            JobVertexID runningVertex = new JobVertexID();
+            JobVertexID notRunningVertex = new JobVertexID();
+
+            ExecutionGraph graph =
+                    new CheckpointExecutionGraphBuilder()
+                            .addJobVertex(runningVertex, isRunningVertexSource)
+                            .addJobVertex(notRunningVertex, isNotRunningVertexSource)
+                            .setTransitToRunning(false)
+                            .build();
+
+            // The first vertex is always RUNNING.
+            transitVertexToState(graph, runningVertex, ExecutionState.RUNNING);
+            // The second vertex is everything except RUNNING.
+            transitVertexToState(graph, notRunningVertex, notRunningState);
+
+            DefaultCheckpointPlanCalculator checkpointPlanCalculator =
+                    createCheckpointPlanCalculator(graph);
+
+            try {
+                checkpointPlanCalculator.calculateCheckpointPlan().get();
+                fail(
+                        "The computation should fail since some tasks to trigger are in "
+                                + notRunningState
+                                + " state");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                assertThat(cause, instanceOf(CheckpointException.class));
+                assertEquals(
+                        CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING,
+                        ((CheckpointException) cause).getCheckpointFailureReason());
+            }
         }
+    }
+
+    private void transitVertexToState(
+            ExecutionGraph graph, JobVertexID jobVertexID, ExecutionState state) {
+        Arrays.stream(graph.getJobVertex(jobVertexID).getTaskVertices())
+                .filter(vertex -> vertex.getJobvertexId().equals(jobVertexID))
+                .findFirst()
+                .get()
+                .getCurrentExecutionAttempt()
+                .transitionState(state);
     }
 
     // ------------------------- Utility methods ---------------------------------------
@@ -228,7 +267,8 @@ public class DefaultCheckpointPlanCalculatorTest {
                 chooseTasks(
                         graph, expectedToTriggerTaskDeclarations.toArray(new TaskDeclaration[0]));
 
-        // Tests computing checkpoint plan
+        // Tests computing checkpoint plan(isUnalignedCheckpoint flag doesn't influence on result
+        // because all tasks are in RUNNING state here).
         CheckpointPlan checkpointPlan = planCalculator.calculateCheckpointPlan().get();
         checkCheckpointPlan(
                 expectedToTriggerTasks,

@@ -26,9 +26,9 @@ import org.apache.flink.streaming.connectors.kinesis.model.StreamShardHandle;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
 
 /**
- * An adaptive record publisher to add a dynamic loop delay and batch read size for {@link
- * PollingRecordPublisher}. Kinesis Streams have quotas on the transactions per second, and
- * throughout. This class attempts to balance quotas and mitigate back off errors.
+ * An adaptive record publisher to add a dynamic batch read size for {@link PollingRecordPublisher}.
+ * Kinesis Streams have quotas on the transactions per second, and throughout. This class attempts
+ * to balance quotas and mitigate back off errors.
  */
 @Internal
 public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
@@ -43,8 +43,6 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
     private long processingStartTimeNanos = System.nanoTime();
 
     private int maxNumberOfRecordsPerFetch;
-
-    private final long fetchIntervalMillis;
 
     private final PollingRecordPublisherMetricsReporter metricsReporter;
 
@@ -64,7 +62,6 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
                 maxNumberOfRecordsPerFetch,
                 fetchIntervalMillis);
         this.maxNumberOfRecordsPerFetch = maxNumberOfRecordsPerFetch;
-        this.fetchIntervalMillis = fetchIntervalMillis;
         this.metricsReporter = metricsReporter;
     }
 
@@ -81,42 +78,19 @@ public class AdaptivePollingRecordPublisher extends PollingRecordPublisher {
                         },
                         maxNumberOfRecordsPerFetch);
 
-        long adjustmentEndTimeNanos =
-                adjustRunLoopFrequency(processingStartTimeNanos, System.nanoTime());
-        long runLoopTimeNanos = adjustmentEndTimeNanos - processingStartTimeNanos;
+        long endTimeNanos = System.nanoTime();
+        long runLoopTimeNanos = endTimeNanos - processingStartTimeNanos;
+
         maxNumberOfRecordsPerFetch =
                 adaptRecordsToRead(
                         runLoopTimeNanos,
                         lastRecordBatchSize,
                         lastRecordBatchSizeInBytes,
                         maxNumberOfRecordsPerFetch);
-        processingStartTimeNanos = adjustmentEndTimeNanos;
-        metricsReporter.setRunLoopTimeNanos(runLoopTimeNanos);
+
+        processingStartTimeNanos = endTimeNanos;
 
         return result;
-    }
-
-    /**
-     * Adjusts loop timing to match target frequency if specified.
-     *
-     * @param processingStartTimeNanos The start time of the run loop "work"
-     * @param processingEndTimeNanos The end time of the run loop "work"
-     * @return The System.nanoTime() after the sleep (if any)
-     * @throws InterruptedException
-     */
-    private long adjustRunLoopFrequency(long processingStartTimeNanos, long processingEndTimeNanos)
-            throws InterruptedException {
-        long endTimeNanos = processingEndTimeNanos;
-        if (fetchIntervalMillis != 0) {
-            long processingTimeNanos = processingEndTimeNanos - processingStartTimeNanos;
-            long sleepTimeMillis = fetchIntervalMillis - (processingTimeNanos / 1_000_000);
-            if (sleepTimeMillis > 0) {
-                Thread.sleep(sleepTimeMillis);
-                endTimeNanos = System.nanoTime();
-                metricsReporter.setSleepTimeMillis(sleepTimeMillis);
-            }
-        }
-        return endTimeNanos;
     }
 
     /**

@@ -20,8 +20,8 @@ package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -69,16 +69,16 @@ class ValuesOperationFactory {
      * automatically derived from the types of the expressions.
      */
     QueryOperation create(
-            @Nullable TableSchema expectedSchema,
+            @Nullable ResolvedSchema expectedSchema,
             List<ResolvedExpression> resolvedExpressions,
             ExpressionResolver.PostResolverFactory postResolverFactory) {
         List<List<ResolvedExpression>> resolvedRows = unwrapFromRowConstructor(resolvedExpressions);
 
         if (expectedSchema != null) {
-            verifyAllSameSize(resolvedRows, expectedSchema.getFieldCount());
+            verifyAllSameSize(resolvedRows, expectedSchema.getColumnCount());
         }
 
-        TableSchema schema =
+        ResolvedSchema schema =
                 Optional.ofNullable(expectedSchema).orElseGet(() -> extractSchema(resolvedRows));
 
         List<List<ResolvedExpression>> castedExpressions =
@@ -87,23 +87,23 @@ class ValuesOperationFactory {
                                 row ->
                                         convertTopLevelExpressionToExpectedRowType(
                                                 postResolverFactory,
-                                                schema.getFieldDataTypes(),
+                                                schema.getColumnDataTypes(),
                                                 row))
                         .collect(Collectors.toList());
 
         return new ValuesQueryOperation(castedExpressions, schema);
     }
 
-    private TableSchema extractSchema(List<List<ResolvedExpression>> resolvedRows) {
+    private ResolvedSchema extractSchema(List<List<ResolvedExpression>> resolvedRows) {
         DataType[] dataTypes = findRowType(resolvedRows);
         String[] fieldNames =
                 IntStream.range(0, dataTypes.length).mapToObj(i -> "f" + i).toArray(String[]::new);
-        return TableSchema.builder().fields(fieldNames, dataTypes).build();
+        return ResolvedSchema.physical(fieldNames, dataTypes);
     }
 
     private List<ResolvedExpression> convertTopLevelExpressionToExpectedRowType(
             ExpressionResolver.PostResolverFactory postResolverFactory,
-            DataType[] dataTypes,
+            List<DataType> dataTypes,
             List<ResolvedExpression> row) {
         return IntStream.range(0, row.size())
                 .mapToObj(
@@ -112,13 +112,13 @@ class ValuesOperationFactory {
                                     row.get(i)
                                             .getOutputDataType()
                                             .getLogicalType()
-                                            .equals(dataTypes[i].getLogicalType());
+                                            .equals(dataTypes.get(i).getLogicalType());
                             if (typesMatch) {
                                 return row.get(i);
                             }
 
                             ResolvedExpression castedExpr = row.get(i);
-                            DataType targetDataType = dataTypes[i];
+                            DataType targetDataType = dataTypes.get(i);
 
                             return convertToExpectedType(
                                             castedExpr, targetDataType, postResolverFactory)

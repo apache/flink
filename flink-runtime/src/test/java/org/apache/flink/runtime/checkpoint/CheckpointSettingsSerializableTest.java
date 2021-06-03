@@ -86,6 +86,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
                         new SerializedValue<CheckpointStorage>(

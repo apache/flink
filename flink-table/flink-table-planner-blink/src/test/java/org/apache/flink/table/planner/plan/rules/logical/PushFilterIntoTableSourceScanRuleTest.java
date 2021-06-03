@@ -18,26 +18,31 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.plan.optimize.program.BatchOptimizeContext;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram;
 import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgramBuilder;
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
+import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
+import org.junit.Before;
+import org.junit.Test;
 
 /** Test for {@link PushFilterIntoTableSourceScanRule}. */
 public class PushFilterIntoTableSourceScanRuleTest
-        extends PushFilterIntoLegacyTableSourceScanRuleTest {
+        extends PushFilterIntoTableSourceScanRuleTestBase {
 
-    @Override
+    @Before
     public void setup() {
-        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        util = batchTestUtil(TableConfig.getDefault());
+        ((BatchTableTestUtil) util).buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
-                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+                TableConfigUtils.getCalciteConfig(util.tableEnv().getConfig());
         calciteConfig
                 .getBatchProgram()
                 .get()
@@ -52,6 +57,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                                                 PushFilterIntoTableSourceScanRule.INSTANCE,
                                                 CoreRules.FILTER_PROJECT_TRANSPOSE))
                                 .build());
+
         // name: STRING, id: LONG, amount: INT, price: DOUBLE
         String ddl1 =
                 "CREATE TABLE MyTable (\n"
@@ -64,7 +70,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + " 'filterable-fields' = 'amount',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl1);
+        util.tableEnv().executeSql(ddl1);
 
         String ddl2 =
                 "CREATE TABLE VirtualTable (\n"
@@ -79,10 +85,10 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + " 'bounded' = 'true'\n"
                         + ")";
 
-        util().tableEnv().executeSql(ddl2);
+        util.tableEnv().executeSql(ddl2);
     }
 
-    @Override
+    @Test
     public void testLowerUpperPushdown() {
         String ddl =
                 "CREATE TABLE MTable (\n"
@@ -93,7 +99,23 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + " 'filterable-fields' = 'a;b',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
-        util().tableEnv().executeSql(ddl);
-        util().verifyRelPlan("SELECT * FROM MTable WHERE LOWER(a) = 'foo' AND UPPER(b) = 'bar'");
+        util.tableEnv().executeSql(ddl);
+        super.testLowerUpperPushdown();
+    }
+
+    @Test
+    public void testWithInterval() {
+        String ddl =
+                "CREATE TABLE MTable (\n"
+                        + "a TIMESTAMP(3),\n"
+                        + "b TIMESTAMP(3)\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+        super.testWithInterval();
     }
 }

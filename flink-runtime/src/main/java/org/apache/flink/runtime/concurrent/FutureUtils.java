@@ -595,6 +595,21 @@ public class FutureUtils {
     }
 
     // ------------------------------------------------------------------------
+    //  Delayed completion
+    // ------------------------------------------------------------------------
+
+    /**
+     * Asynchronously completes the future after a certain delay.
+     *
+     * @param future The future to complete.
+     * @param success The element to complete the future with.
+     * @param delay The delay after which the future should be completed.
+     */
+    public static <T> void completeDelayed(CompletableFuture<T> future, T success, Duration delay) {
+        Delayer.delay(() -> future.complete(success), delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    // ------------------------------------------------------------------------
     //  Future actions
     // ------------------------------------------------------------------------
 
@@ -1343,5 +1358,27 @@ public class FutureUtils {
                 target.complete(value);
             }
         };
+    }
+
+    /**
+     * Switches the execution context of the given source future. This works for normally and
+     * exceptionally completed futures.
+     *
+     * @param source source to switch the execution context for
+     * @param executor executor representing the new execution context
+     * @param <T> type of the source
+     * @return future which is executed by the given executor
+     */
+    public static <T> CompletableFuture<T> switchExecutor(
+            CompletableFuture<? extends T> source, Executor executor) {
+        return source.handleAsync(
+                (t, throwable) -> {
+                    if (throwable != null) {
+                        throw new CompletionException(throwable);
+                    } else {
+                        return t;
+                    }
+                },
+                executor);
     }
 }

@@ -101,6 +101,18 @@ public class SqlDateTimeUtils {
     /** The local time zone. */
     private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 
+    /** The valid minimum epoch milliseconds ('0000-01-01 00:00:00.000 UTC+0'). */
+    private static final long MIN_EPOCH_MILLS = -62167219200000L;
+
+    /** The valid minimum epoch seconds ('0000-01-01 00:00:00 UTC+0'). */
+    private static final long MIN_EPOCH_SECONDS = -62167219200L;
+
+    /** The valid maximum epoch milliseconds ('9999-12-31 23:59:59.999 UTC+0'). */
+    private static final long MAX_EPOCH_MILLS = 253402300799999L;
+
+    /** The valid maximum epoch seconds ('9999-12-31 23:59:59 UTC+0'). */
+    private static final long MAX_EPOCH_SECONDS = 253402300799L;
+
     private static final String[] DEFAULT_DATETIME_FORMATS =
             new String[] {
                 "yyyy-MM-dd HH:mm:ss",
@@ -230,8 +242,79 @@ public class SqlDateTimeUtils {
     }
 
     // --------------------------------------------------------------------------------------------
-    // String --> String/timestamp conversion
+    // TO_TIMESTAMP_LTZ(numeric, precision) function supports precision 0 or 3.
     // --------------------------------------------------------------------------------------------
+    public static TimestampData toTimestampData(long v, int precision) {
+        switch (precision) {
+            case 0:
+                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
+                    return timestampDataFromEpochMills(v * MILLIS_PER_SECOND);
+                } else {
+                    return null;
+                }
+            case 3:
+                return timestampDataFromEpochMills(v);
+            default:
+                throw new TableException(
+                        "The precision value '"
+                                + precision
+                                + "' for function "
+                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
+                                + " the supported value is '0' for second or '3' for millisecond.");
+        }
+    }
+
+    public static TimestampData toTimestampData(double v, int precision) {
+        switch (precision) {
+            case 0:
+                if (MIN_EPOCH_SECONDS <= v && v <= MAX_EPOCH_SECONDS) {
+                    return timestampDataFromEpochMills((long) (v * MILLIS_PER_SECOND));
+                } else {
+                    return null;
+                }
+            case 3:
+                return timestampDataFromEpochMills((long) v);
+            default:
+                throw new TableException(
+                        "The precision value '"
+                                + precision
+                                + "' for function "
+                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
+                                + " the supported value is '0' for second or '3' for millisecond.");
+        }
+    }
+
+    public static TimestampData toTimestampData(DecimalData v, int precision) {
+        long epochMills;
+        switch (precision) {
+            case 0:
+                DecimalData timeInMills =
+                        DecimalDataUtils.multiply(
+                                v,
+                                DecimalData.fromUnscaledLong(MILLIS_PER_SECOND, 3, 0),
+                                v.precision() + 3,
+                                0);
+                epochMills = DecimalDataUtils.castToLong(timeInMills);
+                return timestampDataFromEpochMills(epochMills);
+            case 3:
+                epochMills = DecimalDataUtils.castToLong(v);
+                return timestampDataFromEpochMills(epochMills);
+            default:
+                throw new TableException(
+                        "The precision value '"
+                                + precision
+                                + "' for function "
+                                + "TO_TIMESTAMP_LTZ(numeric, precision) is unsupported,"
+                                + " the supported value is '0' for second or '3' for millisecond.");
+        }
+    }
+
+    private static TimestampData timestampDataFromEpochMills(long epochMills) {
+        if (MIN_EPOCH_MILLS <= epochMills && epochMills <= MAX_EPOCH_MILLS) {
+            return TimestampData.fromEpochMillis(epochMills);
+        }
+        return null;
+    }
 
     // --------------------------------------------------------------------------------------------
     // String --> Timestamp conversion
@@ -764,6 +847,7 @@ public class SqlDateTimeUtils {
             case MONTH:
             case YEAR:
             case QUARTER:
+            case WEEK:
                 int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
                 return julianDateFloor(range, days, true) * MILLIS_PER_DAY - offset;
             default:
@@ -794,6 +878,7 @@ public class SqlDateTimeUtils {
             case MONTH:
             case YEAR:
             case QUARTER:
+            case WEEK:
                 int days = (int) (utcTs / MILLIS_PER_DAY + EPOCH_JULIAN);
                 return julianDateFloor(range, days, false) * MILLIS_PER_DAY - offset;
             default:
@@ -856,6 +941,13 @@ public class SqlDateTimeUtils {
                     quarter += 1;
                 }
                 return DateTimeUtils.ymdToUnixDate(year, quarter * 3 - 2, 1);
+            case WEEK:
+                int dow = (int) DateTimeUtils.floorMod(julian + 1, 7); // sun=0, sat=6
+                int offset = dow;
+                if (!floor && offset > 0) {
+                    offset -= 7;
+                }
+                return DateTimeUtils.ymdToUnixDate(year, month, day) - offset;
             default:
                 throw new AssertionError(range);
         }
@@ -988,6 +1080,34 @@ public class SqlDateTimeUtils {
 
     public static String dateAdd(long ts, int days) {
         return dateAdd(ts, days, UTC_ZONE);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // TIMESTAMP to  DATE/TIME utils
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Get date from a timestamp.
+     *
+     * @param ts the timestamp in milliseconds.
+     * @return the date in days.
+     */
+    public static int getDateInDays(long ts) {
+        int days = (int) (ts / MILLIS_PER_DAY);
+        if (days < 0) {
+            days = days - 1;
+        }
+        return days;
+    }
+
+    /**
+     * Get time from a timestamp.
+     *
+     * @param ts the timestamp in milliseconds.
+     * @return the time in milliseconds.
+     */
+    public static int getTimeInMills(long ts) {
+        return (int) (ts % MILLIS_PER_DAY);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -501,8 +501,6 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                             .getAllocatedOrPendingSlot(secondAllocationId)
                                             .get();
 
-                            //                            assertThat(slot.getState(),
-                            // is(SlotState.ALLOCATED));
                             assertEquals(jobId, slot.getJobId());
 
                             assertFalse(

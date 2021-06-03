@@ -21,7 +21,7 @@ from typing import Union, TypeVar, Generic
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, _to_java_data_type
-from pyflink.util.utils import to_jarray
+from pyflink.util.java_utils import to_jarray
 
 __all__ = ['Expression', 'TimeIntervalUnit', 'TimePointUnit']
 
@@ -1228,7 +1228,7 @@ class Expression(Generic[T]):
         Declares a field as the rowtime attribute for indicating, accessing, and working in
         Flink's event time.
 
-        .. seealso:: :py:attr:`~Expression.proctime`
+        .. seealso:: :py:attr:`~Expression.rowtime`
         """
         return _unary_op("rowtime")(self)
 
@@ -1238,7 +1238,7 @@ class Expression(Generic[T]):
         Declares a field as the proctime attribute for indicating, accessing, and working in
         Flink's processing time.
 
-        .. seealso:: :py:attr:`~Expression.rowtime`
+        .. seealso:: :py:attr:`~Expression.proctime`
         """
         return _unary_op("proctime")(self)
 

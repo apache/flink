@@ -27,12 +27,15 @@ import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectPath}
+import org.apache.flink.table.catalog._
+import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.module.ModuleEntry
+import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
 import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
@@ -164,6 +167,117 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testAlterTableResetEmtpyOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "ALTER TABLE RESET does not support empty key")
+    tableEnv.executeSql("ALTER TABLE MyTable RESET ()")
+  }
+
+  @Test
+  def testAlterTableResetInvalidOptionKey(): Unit = {
+    // prepare DDL with invalid table option key
+    val statementWithTypo =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'datagen',
+        |  'invalid-key' = 'invalid-value'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statementWithTypo)
+    try {
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
+      fail("Expected an exception")
+    } catch {
+      case t: Throwable =>
+        assertThat(t,
+          containsMessage("Unable to create a source for reading table " +
+            "'default_catalog.default_database.MyTable'.\n\n" +
+            "Table options are:\n\n'connector'='datagen'\n" +
+            "'invalid-key'='invalid-value'" ))
+    }
+    // remove invalid key by RESET
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map("connector" -> "datagen").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+  }
+
+  @Test
+  def testAlterTableResetOptionalOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    checkTableSource("MyTable", false)
+
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('is-bounded')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map.apply("connector" -> "COLLECTION").asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    checkTableSource("MyTable", true)
+  }
+
+  @Test
+  def testAlterTableResetRequiredOptionKey(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+
+    val alterTableResetStatement = "ALTER TABLE MyTable RESET ('connector')"
+    val tableResult = tableEnv.executeSql(alterTableResetStatement)
+    assertEquals(ResultKind.SUCCESS, tableResult.getResultKind)
+    assertEquals(
+      Map.empty.asJava,
+      tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+        .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage(
+      "Unable to create a source for reading table 'default_catalog.default_database.MyTable'.")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT,
+      tableEnv.executeSql("explain plan for select * from MyTable where a > 10").getResultKind)
+  }
+
+  @Test
   def testExecuteSqlWithCreateAlterDropTable(): Unit = {
     val createTableStmt =
       """
@@ -207,7 +321,7 @@ class TableEnvironmentTest {
         |  'is-bounded' = 'false'
         |)
       """.stripMargin
-    // test crate table twice
+    // test create table twice
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
     val tableResult2 = tableEnv.executeSql(createTableStmt)
@@ -446,8 +560,8 @@ class TableEnvironmentTest {
     val tableResult = tableEnv.executeSql("SHOW CATALOGS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("catalog name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("catalog name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_catalog"), Row.of("my_catalog")).iterator(),
       tableResult.collect())
@@ -460,8 +574,8 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("SHOW DATABASES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("database name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("database name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("default_database"), Row.of("db1")).iterator(),
       tableResult2.collect())
@@ -486,8 +600,8 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql("SHOW TABLES")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     assertEquals(
-      TableSchema.builder().field("table name", DataTypes.STRING()).build(),
-      tableResult2.getTableSchema)
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
@@ -498,11 +612,23 @@ class TableEnvironmentTest {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult.getResultKind)
     assertEquals(
-      TableSchema.builder().field("function name", DataTypes.STRING()).build(),
-      tableResult.getTableSchema)
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult.getResolvedSchema)
     checkData(
       tableEnv.listFunctions().map(Row.of(_)).toList.asJava.iterator(),
       tableResult.collect())
+
+    val funcName = classOf[TestUDF].getName
+    val tableResult1 = tableEnv.executeSql(s"CREATE FUNCTION default_database.f1 AS '$funcName'")
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+    val tableResult2 = tableEnv.executeSql("SHOW USER FUNCTIONS")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("function name", DataTypes.STRING())),
+      tableResult2.getResolvedSchema)
+    checkData(
+      util.Arrays.asList(Row.of("f1")).iterator(),
+      tableResult2.collect())
   }
 
   @Test
@@ -642,6 +768,24 @@ class TableEnvironmentTest {
       "Could not execute USE MODULES: [core, core]. " +
         "Module 'core' appears more than once")
     tableEnv.executeSql("USE MODULES core, core")
+  }
+
+  @Test
+  def testExecuteSqlWithShowModules(): Unit = {
+    validateShowModules(("core", true))
+
+    // check result after loading module
+    val statement = "LOAD MODULE dummy"
+    tableEnv.executeSql(statement)
+    validateShowModules(("core", true), ("dummy", true))
+
+    // check result after using modules
+    tableEnv.executeSql("USE MODULES dummy")
+    validateShowModules(("dummy", true), ("core", false))
+
+    // check result after unloading module
+    tableEnv.executeSql("UNLOAD MODULE dummy")
+    validateShowModules(("core", false))
   }
 
   @Test
@@ -1040,8 +1184,8 @@ class TableEnvironmentTest {
     val tableResult3 = tableEnv.executeSql("SHOW VIEWS")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
     assertEquals(
-      TableSchema.builder().field("view name", DataTypes.STRING()).build(),
-      tableResult3.getTableSchema)
+      ResolvedSchema.of(Column.physical("view name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
     checkData(
       util.Arrays.asList(Row.of("view1")).iterator(),
       tableResult3.collect())
@@ -1238,6 +1382,9 @@ class TableEnvironmentTest {
     } catch {
       case e: TableException =>
         assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+            .contains("Was expecting:\n    \"FOR\" ..."))
       case e =>
         fail("This should not happen, " + e.getMessage)
     }
@@ -1275,6 +1422,11 @@ class TableEnvironmentTest {
         |  f24 int not null,
         |  f25 varchar not null,
         |  f26 row<f0 int not null, f1 int> not null,
+        |  f27 AS LOCALTIME,
+        |  f28 AS CURRENT_TIME,
+        |  f29 AS LOCALTIMESTAMP,
+        |  f30 AS CURRENT_TIMESTAMP,
+        |  f31 AS CURRENT_ROW_TIMESTAMP(),
         |  ts AS to_timestamp(f25),
         |  PRIMARY KEY(f24, f26) NOT ENFORCED,
         |  WATERMARK FOR ts AS ts - INTERVAL '1' SECOND
@@ -1290,10 +1442,7 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(viewDDL)
 
-    val tableResult1 = tableEnv.executeSql("describe T1")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
-    checkData(
-      util.Arrays.asList(
+    val expectedResult1 = util.Arrays.asList(
         Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
         Row.of("f2", "STRING", Boolean.box(true), null, null, null),
@@ -1313,8 +1462,8 @@ class TableEnvironmentTest {
         Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
         Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
         Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-        Row.of("f19", "TIMESTAMP(3) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
-        Row.of("f20", "TIMESTAMP(6) WITH LOCAL TIME ZONE", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
         Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
         Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
         Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
@@ -1322,20 +1471,32 @@ class TableEnvironmentTest {
         Row.of("f25", "STRING", Boolean.box(false), null, null, null),
         Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
           "PRI(f24, f26)", null, null),
+        Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
+        Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
+        Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
+        Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_TIMESTAMP", null),
+        Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_ROW_TIMESTAMP()", null),
         Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
-          "`ts` - INTERVAL '1' SECOND")
-      ).iterator(),
-      tableResult1.collect())
-
-    val tableResult2 = tableEnv.executeSql("describe T2")
+          "`ts` - INTERVAL '1' SECOND"))
+    val tableResult1 = tableEnv.executeSql("describe T1")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
+    checkData(expectedResult1.iterator(), tableResult1.collect())
+    val tableResult2 = tableEnv.executeSql("desc T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    checkData(
-      util.Arrays.asList(
-        Row.of("d", "INT", Boolean.box(false), null, null, null),
-        Row.of("e", "STRING", Boolean.box(false), null, null, null),
-        Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null)
-      ).iterator(),
-      tableResult2.collect())
+    checkData(expectedResult1.iterator(), tableResult2.collect())
+
+    val expectedResult2 = util.Arrays.asList(
+      Row.of("d", "INT", Boolean.box(false), null, null, null),
+      Row.of("e", "STRING", Boolean.box(false), null, null, null),
+      Row.of("f", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false), null, null, null))
+    val tableResult3 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult3.collect())
+    val tableResult4 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult4.getResultKind)
+    checkData(expectedResult2.iterator(), tableResult4.collect())
 
     // temporary view T2(x, y) masks permanent view T2(d, e, f)
     val temporaryViewDDL =
@@ -1344,13 +1505,17 @@ class TableEnvironmentTest {
       """.stripMargin
     tableEnv.executeSql(temporaryViewDDL)
 
-    val tableResult3 = tableEnv.executeSql("describe T2")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    val expectedResult3 = util.Arrays.asList(
+      Row.of("x", "INT", Boolean.box(false), null, null, null),
+      Row.of("y", "STRING", Boolean.box(false), null, null, null));
+    val tableResult5 = tableEnv.executeSql("describe T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult5.getResultKind)
+    checkData(expectedResult3.iterator(), tableResult5.collect())
+    val tableResult6 = tableEnv.executeSql("desc T2")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult6.getResultKind)
     checkData(
-      util.Arrays.asList(
-        Row.of("x", "INT", Boolean.box(false), null, null, null),
-        Row.of("y", "STRING", Boolean.box(false), null, null, null)).iterator(),
-      tableResult3.collect())
+      expectedResult3.iterator(),
+      tableResult6.collect())
   }
 
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
@@ -1360,19 +1525,55 @@ class TableEnvironmentTest {
     assertEquals(expected.hasNext, actual.hasNext)
   }
 
-  private def checkListModules(expected: String *): Unit = {
+  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
+    val showModules = tableEnv.executeSql("SHOW MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
+    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
+      showModules.getResolvedSchema)
+
+    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
+    assertEquals(ResolvedSchema.physical(
+      Array[String]("module name", "used"),
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
+      showFullModules.getResolvedSchema)
+
+    // show modules only list used modules
+    checkData(
+      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
+      showModules.collect()
+    )
+
+    checkData(
+      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
+      showFullModules.collect())
+  }
+
+  private def checkListModules(expected: String*): Unit = {
     val actual = tableEnv.listModules()
     for ((module, i) <- expected.zipWithIndex) {
       assertEquals(module, actual.apply(i))
     }
   }
 
-  private def checkListFullModules(expected: (String, java.lang.Boolean) *): Unit = {
+  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
     val actual = tableEnv.listFullModules()
-      for ((elem, i) <- expected.zipWithIndex) {
-        assertEquals(
-          new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
-          actual.apply(i).asInstanceOf[Object])
-      }
+    for ((elem, i) <- expected.zipWithIndex) {
+      assertEquals(
+        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
+        actual.apply(i).asInstanceOf[Object])
+    }
+  }
+
+  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
+    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
+    val context =
+      new TableSourceFactoryContextImpl(
+        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
+      resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
+    val source = TableFactoryUtil.findAndCreateTableSource(context)
+    assertTrue(source.isInstanceOf[CollectionTableSource])
+    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 }

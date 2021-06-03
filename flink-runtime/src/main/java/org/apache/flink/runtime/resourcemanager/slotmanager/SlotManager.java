@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -27,9 +28,11 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -70,6 +73,8 @@ public interface SlotManager extends AutoCloseable {
 
     ResourceProfile getFreeResourceOf(InstanceID instanceID);
 
+    Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID);
+
     int getNumberPendingSlotRequests();
 
     /**
@@ -86,6 +91,14 @@ public interface SlotManager extends AutoCloseable {
 
     /** Suspends the component. This clears the internal state of the slot manager. */
     void suspend();
+
+    /**
+     * Notifies the slot manager that the resource requirements for the given job should be cleared.
+     * The slot manager may assume that no further updates to the resource requirements will occur.
+     *
+     * @param jobId job for which to clear the requirements
+     */
+    void clearResourceRequirements(JobID jobId);
 
     /**
      * Notifies the slot manager about the resource requirements of a job.

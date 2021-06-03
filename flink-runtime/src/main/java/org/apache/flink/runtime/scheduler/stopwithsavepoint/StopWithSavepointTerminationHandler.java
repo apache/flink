@@ -27,8 +27,8 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@code StopWithSavepointTerminationHandler} handles the termination steps necessary for the
- * stop-with-savepoint operation to finish. The order of the terminations matter:
+ * {@code StopWithSavepointTerminationHandler} handles the steps necessary for the
+ * stop-with-savepoint operation to finish. The order of the operations matter:
  *
  * <ol>
  *   <li>Creating a savepoint needs to be completed

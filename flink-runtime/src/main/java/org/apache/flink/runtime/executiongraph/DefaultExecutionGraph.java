@@ -64,6 +64,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -224,6 +226,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     /** Future for an ongoing or completed scheduling action. */
     @Nullable private CompletableFuture<Void> schedulingFuture;
 
+    private final VertexAttemptNumberStore initialAttemptCounts;
+
+    private final VertexParallelismStore parallelismStore;
+
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
@@ -276,7 +282,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
             ExecutionDeploymentListener executionDeploymentListener,
             ExecutionStateUpdateListener executionStateUpdateListener,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            VertexAttemptNumberStore initialAttemptCounts,
+            VertexParallelismStore vertexParallelismStore)
             throws IOException {
 
         this.jobInformation = checkNotNull(jobInformation);
@@ -330,6 +338,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         this.executionDeploymentListener = executionDeploymentListener;
         this.executionStateUpdateListener = executionStateUpdateListener;
+
+        this.initialAttemptCounts = initialAttemptCounts;
+
+        this.parallelismStore = vertexParallelismStore;
 
         this.edgeManager = new EdgeManager();
         this.executionVerticesById = new HashMap<>();
@@ -446,10 +458,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);
 
-        // interval of max long value indicates disable periodic checkpoint,
-        // the CheckpointActivatorDeactivator should be created only if the interval is not max
-        // value
-        if (chkConfig.getCheckpointInterval() != Long.MAX_VALUE) {
+        if (checkpointCoordinator.isPeriodicCheckpointingConfigured()) {
             // the periodic checkpoint scheduler is activated and deactivated as a result of
             // job status changes (running -> on, all other states -> off)
             registerJobStatusListener(checkpointCoordinator.createActivatorDeactivator());
@@ -630,12 +639,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public Iterable<ExecutionVertex> getAllExecutionVertices() {
-        return new Iterable<ExecutionVertex>() {
-            @Override
-            public Iterator<ExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
-            }
-        };
+        return () -> new AllVerticesIterator<>(getVerticesTopologically().iterator());
     }
 
     @Override
@@ -768,15 +772,19 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 this.isStoppable = false;
             }
 
+            VertexParallelismInformation parallelismInfo =
+                    parallelismStore.getParallelismInfo(jobVertex.getID());
+
             // create the execution job vertex and attach it to the graph
             ExecutionJobVertex ejv =
                     new ExecutionJobVertex(
                             this,
                             jobVertex,
-                            1,
                             maxPriorAttemptsHistoryLength,
                             rpcTimeout,
-                            createTimestamp);
+                            createTimestamp,
+                            parallelismInfo,
+                            initialAttemptCounts.getAttemptCounts(jobVertex.getID()));
 
             ejv.connectToPredecessors(this.intermediateResults);
 
@@ -903,7 +911,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             // stay in a terminal state
             return;
         } else if (transitionState(state, JobStatus.SUSPENDED, suspensionCause)) {
-            initFailureCause(suspensionCause);
+            initFailureCause(suspensionCause, System.currentTimeMillis());
 
             incrementRestarts();
 
@@ -942,7 +950,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     void failGlobalIfExecutionIsStillRunning(Throwable cause, ExecutionAttemptID failingAttempt) {
         final Execution failedExecution = currentExecutions.get(failingAttempt);
-        if (failedExecution != null && failedExecution.getState() == ExecutionState.RUNNING) {
+        if (failedExecution != null
+                && (failedExecution.getState() == ExecutionState.RUNNING
+                        || failedExecution.getState() == ExecutionState.INITIALIZING)) {
             failGlobal(cause);
         } else {
             LOG.debug(
@@ -1043,9 +1053,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void initFailureCause(Throwable t) {
+    public void initFailureCause(Throwable t, long timestamp) {
         this.failureCause = t;
-        this.failureInfo = new ErrorInfo(t, System.currentTimeMillis());
+        this.failureInfo = new ErrorInfo(t, timestamp);
     }
 
     // ------------------------------------------------------------------------
@@ -1134,13 +1144,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void failJob(Throwable cause) {
+    public void failJob(Throwable cause, long timestamp) {
         if (state == JobStatus.FAILING || state.isTerminalState()) {
             return;
         }
 
         transitionState(JobStatus.FAILING, cause);
-        initFailureCause(cause);
+        initFailureCause(cause, timestamp);
 
         FutureUtils.assertNoException(
                 cancelVerticesAsync()
@@ -1211,6 +1221,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         Map<String, Accumulator<?, ?>> accumulators;
 
         switch (state.getExecutionState()) {
+            case INITIALIZING:
+                return attempt.switchToRecovering();
+
             case RUNNING:
                 return attempt.switchToRunning();
 

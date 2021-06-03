@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.PlannerType;
 import org.apache.flink.table.api.SqlDialect;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -33,6 +34,29 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 public class TableConfigOptions {
     private TableConfigOptions() {}
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<PlannerType> TABLE_PLANNER =
+            key("table.planner")
+                    .enumType(PlannerType.class)
+                    .defaultValue(PlannerType.BLINK)
+                    .withDescription(
+                            "Use either 'blink' planner or 'old' planner. Default is blink planner. "
+                                    + "For TableEnvironment, this option is used to construct a TableEnvironment, "
+                                    + "but this option can't be changed after that. "
+                                    + "However, there is no such limitation for SQL Client. "
+                                    + "Note: The old planner will be removed in Flink 1.14, "
+                                    + "so this option will become obsolete.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_DML_SYNC =
+            key("table.dml-sync")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies if the DML job (i.e. the insert operation) is executed asynchronously or synchronously. "
+                                    + "By default, the execution is async, so you can submit multiple DML jobs at the same time. "
+                                    + "If set this option to true, the insert operation will wait for the job to finish.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED =
@@ -65,8 +89,8 @@ public class TableConfigOptions {
                             "The local time zone defines current session time zone id. It is used when converting to/from "
                                     + "<code>TIMESTAMP WITH LOCAL TIME ZONE</code>. Internally, timestamps with local time zone are always represented in the UTC time zone. "
                                     + "However, when converting to data types that don't include a time zone (e.g. TIMESTAMP, TIME, or simply STRING), "
-                                    + "the session time zone is used during conversion. The input of option is either an abbreviation such as \"PST\", a full name "
-                                    + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-8:00\".");
+                                    + "the session time zone is used during conversion. The input of option is either a full name "
+                                    + "such as \"America/Los_Angeles\", or a custom timezone id such as \"GMT-08:00\".");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> MAX_LENGTH_GENERATED_CODE =

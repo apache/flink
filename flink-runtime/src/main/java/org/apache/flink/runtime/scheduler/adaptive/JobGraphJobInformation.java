@@ -21,7 +21,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
+import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -36,11 +39,14 @@ public class JobGraphJobInformation implements JobInformation {
     private final JobGraph jobGraph;
     private final JobID jobID;
     private final String name;
+    private final VertexParallelismStore vertexParallelismStore;
 
-    public JobGraphJobInformation(JobGraph jobGraph) {
+    public JobGraphJobInformation(
+            JobGraph jobGraph, VertexParallelismStore vertexParallelismStore) {
         this.jobGraph = jobGraph;
         this.jobID = jobGraph.getJobID();
         this.name = jobGraph.getName();
+        this.vertexParallelismStore = vertexParallelismStore;
     }
 
     @Override
@@ -50,7 +56,9 @@ public class JobGraphJobInformation implements JobInformation {
 
     @Override
     public JobInformation.VertexInformation getVertexInformation(JobVertexID jobVertexId) {
-        return new JobVertexInformation(jobGraph.findVertexByID(jobVertexId));
+        return new JobVertexInformation(
+                jobGraph.findVertexByID(jobVertexId),
+                vertexParallelismStore.getParallelismInfo(jobVertexId));
     }
 
     public JobID getJobID() {
@@ -61,13 +69,13 @@ public class JobGraphJobInformation implements JobInformation {
         return name;
     }
 
-    public Iterable<JobInformation.VertexInformation> getVertices() {
-        return jobGraphVerticesToVertexInformation(jobGraph.getVertices());
+    public JobCheckpointingSettings getCheckpointingSettings() {
+        return jobGraph.getCheckpointingSettings();
     }
 
-    public static Iterable<JobInformation.VertexInformation> jobGraphVerticesToVertexInformation(
-            Iterable<JobVertex> verticesIterable) {
-        return Iterables.transform(verticesIterable, JobVertexInformation::new);
+    public Iterable<JobInformation.VertexInformation> getVertices() {
+        return Iterables.transform(
+                jobGraph.getVertices(), (vertex) -> getVertexInformation(vertex.getID()));
     }
 
     /** Returns a copy of a jobGraph that can be mutated. */
@@ -79,8 +87,12 @@ public class JobGraphJobInformation implements JobInformation {
 
         private final JobVertex jobVertex;
 
-        private JobVertexInformation(JobVertex jobVertex) {
+        private final VertexParallelismInformation parallelismInfo;
+
+        private JobVertexInformation(
+                JobVertex jobVertex, VertexParallelismInformation parallelismInfo) {
             this.jobVertex = jobVertex;
+            this.parallelismInfo = parallelismInfo;
         }
 
         @Override
@@ -90,7 +102,7 @@ public class JobGraphJobInformation implements JobInformation {
 
         @Override
         public int getParallelism() {
-            return jobVertex.getParallelism();
+            return parallelismInfo.getParallelism();
         }
 
         @Override

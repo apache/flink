@@ -40,6 +40,7 @@ import java.util.Objects;
  */
 @PublicEvolving
 public final class UnresolvedUserDefinedType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private final UnresolvedIdentifier unresolvedIdentifier;
 

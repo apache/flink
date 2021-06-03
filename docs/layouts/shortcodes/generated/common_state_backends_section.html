@@ -12,13 +12,13 @@
             <td><h5>state.backend</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <span markdown="span">`StateBackendFactory`</span>. If a factory is specified it is instantiated via its zero argument constructor and its <span markdown="span">`StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)`</span> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
+            <td>The state backend to be used to store state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">StateBackendFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">StateBackendFactory#createFromConfig(ReadableConfig, ClassLoader)</code> method is called.<br />Recognized shortcut names are 'hashmap' and 'rocksdb'.</td>
         </tr>
         <tr>
             <td><h5>state.checkpoint-storage</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <span markdown="span">`CheckpointStorageFactory`</span>. If a factory is specified it is instantiated via its zero argument constructor and its <span markdown="span">`CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)`</span>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.</td>
+            <td>The checkpoint storage implementation to be used to checkpoint state.<br />The implementation can be specified either via their shortcut  name, or via the class name of a <code class="highlighter-rouge">CheckpointStorageFactory</code>. If a factory is specified it is instantiated via its zero argument constructor and its <code class="highlighter-rouge">CheckpointStorageFactory#createFromConfig(ReadableConfig, ClassLoader)</code>  method is called.<br />Recognized shortcut names are 'jobmanager' and 'filesystem'.</td>
         </tr>
         <tr>
             <td><h5>state.checkpoints.dir</h5></td>

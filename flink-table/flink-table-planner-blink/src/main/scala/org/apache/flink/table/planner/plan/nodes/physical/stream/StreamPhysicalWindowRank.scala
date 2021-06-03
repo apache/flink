@@ -17,9 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.runtime.operators.rank._
 
@@ -89,6 +92,17 @@ class StreamPhysicalWindowRank(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    ???
+    val fieldCollations = orderKey.getFieldCollations
+    new StreamExecWindowRank(
+      rankType,
+      new PartitionSpec(partitionKey.toArray),
+      SortUtil.getSortSpec(fieldCollations),
+      rankRange,
+      outputRankNumber,
+      windowing,
+      InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

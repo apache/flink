@@ -222,6 +222,13 @@ public class RemoteInputChannel extends InputChannel {
             return Optional.empty();
         }
 
+        NetworkActionsLogger.traceInput(
+                "RemoteInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
         numBytesIn.inc(next.buffer.getSize());
         numBuffersIn.inc();
         return Optional.of(
@@ -475,8 +482,10 @@ public class RemoteInputChannel extends InputChannel {
                 DataType dataType = buffer.getDataType();
                 if (dataType.hasPriority()) {
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
+                    recycleBuffer = false;
                 } else {
                     receivedBuffers.add(sequenceBuffer);
+                    recycleBuffer = false;
                     if (dataType.requiresAnnouncement()) {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
@@ -495,7 +504,6 @@ public class RemoteInputChannel extends InputChannel {
                 channelStatePersister.maybePersist(buffer);
                 ++expectedSequenceNumber;
             }
-            recycleBuffer = false;
 
             if (firstPriorityEvent) {
                 notifyPriorityEvent(sequenceNumber);

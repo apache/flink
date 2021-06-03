@@ -65,6 +65,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -73,6 +74,7 @@ import static org.apache.flink.formats.parquet.utils.ParquetWriterUtil.createTem
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 import static org.apache.parquet.schema.Types.primitive;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /** Test for {@link ParquetColumnarRowInputFormat}. */
@@ -393,9 +395,17 @@ public class ParquetColumnarRowInputFormatTest {
                                         CheckpointedPosition.NO_OFFSET, seekToRow)));
 
         AtomicInteger cnt = new AtomicInteger(0);
+        final AtomicReference<RowData> previousRow = new AtomicReference<>();
         forEachRemaining(
                 reader,
                 row -> {
+                    if (previousRow.get() == null) {
+                        previousRow.set(row);
+                    } else {
+                        // ParquetColumnarRowInputFormat should only have one row instance.
+                        assertSame(previousRow.get(), row);
+                    }
+
                     Integer v = expected.get(cnt.get());
                     if (v == null) {
                         assertTrue(row.isNullAt(0));

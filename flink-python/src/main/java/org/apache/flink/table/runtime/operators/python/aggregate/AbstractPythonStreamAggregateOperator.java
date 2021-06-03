@@ -33,9 +33,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.UpdatableRowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -64,10 +62,6 @@ public abstract class AbstractPythonStreamAggregateOperator
         extends AbstractOneInputPythonFunctionOperator<RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
-
-    @VisibleForTesting
-    protected static final String FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN =
-            "flink:coder:schema:aggregate_function:v1";
 
     @VisibleForTesting static final byte NORMAL_RECORD = 0;
 
@@ -103,6 +97,15 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private final int mapStateWriteCacheSize;
 
+    /** The Input DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType inputDataType;
+
+    /** The output DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType outputDataType;
+
+    /** The output mode of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.OutputMode outputMode;
+
     private transient Object keyForTimerService;
 
     /** The user-defined function input logical type. */
@@ -129,10 +132,6 @@ public abstract class AbstractPythonStreamAggregateOperator
     /** OutputStream Wrapper. */
     protected transient DataOutputViewStreamWrapper baosWrapper;
 
-    protected transient UpdatableRowData reuseRowData;
-
-    protected transient UpdatableRowData reuseTimerRowData;
-
     /** The collector used to collect records. */
     protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
 
@@ -144,7 +143,10 @@ public abstract class AbstractPythonStreamAggregateOperator
             DataViewUtils.DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
-            boolean generateUpdateBefore) {
+            boolean generateUpdateBefore,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
@@ -154,6 +156,9 @@ public abstract class AbstractPythonStreamAggregateOperator
         this.grouping = grouping;
         this.indexOfCountStar = indexOfCountStar;
         this.generateUpdateBefore = generateUpdateBefore;
+        this.inputDataType = Preconditions.checkNotNull(inputDataType);
+        this.outputDataType = Preconditions.checkNotNull(outputDataType);
+        this.outputMode = Preconditions.checkNotNull(outputMode);
         this.stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         this.mapStateReadCacheSize = config.get(PythonOptions.MAP_STATE_READ_CACHE_SIZE);
         this.mapStateWriteCacheSize = config.get(PythonOptions.MAP_STATE_WRITE_CACHE_SIZE);
@@ -172,13 +177,6 @@ public abstract class AbstractPythonStreamAggregateOperator
         userDefinedFunctionOutputType = getUserDefinedFunctionOutputType();
         udfOutputTypeSerializer =
                 PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
-        // The structure is:  [type]|[normal record]|[timestamp of timer]|[row key /timer data]
-        // If the type is 'NORMAL_RECORD', store the RowData object in the 2nd column.
-        // If the type is 'TRIGGER_TIMER', store the timestamp in 3rd column and the row key/timer
-        // data in 4th column.
-        reuseRowData = new UpdatableRowData(GenericRowData.of(NORMAL_RECORD, null, null, null), 4);
-        reuseTimerRowData =
-                new UpdatableRowData(GenericRowData.of(TRIGGER_TIMER, null, null, null), 4);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         super.open();
     }
@@ -201,11 +199,11 @@ public abstract class AbstractPythonStreamAggregateOperator
                 userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN,
                 jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
                 getKeySerializer(),
+                getWindowSerializer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -217,7 +215,10 @@ public abstract class AbstractPythonStreamAggregateOperator
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                inputDataType,
+                outputDataType,
+                outputMode);
     }
 
     /**
@@ -249,6 +250,10 @@ public abstract class AbstractPythonStreamAggregateOperator
         RowDataKeySelector selector =
                 KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputType));
         return selector.getProducedType().toRowType();
+    }
+
+    TypeSerializer getWindowSerializer() {
+        return null;
     }
 
     /**

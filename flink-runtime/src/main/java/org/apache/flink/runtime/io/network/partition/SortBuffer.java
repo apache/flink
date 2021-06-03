@@ -24,8 +24,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 /**
  * Data of different channels can be appended to a {@link SortBuffer} and after the {@link
  * SortBuffer} is finished, the appended data can be copied from it in channel index order.
@@ -67,25 +65,4 @@ public interface SortBuffer {
 
     /** Whether this {@link SortBuffer} is released or not. */
     boolean isReleased();
-
-    /** Buffer and the corresponding channel index returned to reader. */
-    class BufferWithChannel {
-
-        private final Buffer buffer;
-
-        private final int channelIndex;
-
-        BufferWithChannel(Buffer buffer, int channelIndex) {
-            this.buffer = checkNotNull(buffer);
-            this.channelIndex = channelIndex;
-        }
-
-        public Buffer getBuffer() {
-            return buffer;
-        }
-
-        public int getChannelIndex() {
-            return channelIndex;
-        }
-    }
 }

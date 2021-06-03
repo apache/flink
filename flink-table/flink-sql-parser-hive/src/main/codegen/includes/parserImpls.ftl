@@ -195,7 +195,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) ( <DATABASE> | <SCHEMA> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -287,7 +287,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean formatted = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ LOOKAHEAD(2)
       ( <EXTENDED> { extended = true; }
         |
@@ -1052,18 +1052,22 @@ SqlDrop SqlDropFunction(Span s, boolean replace) :
 }
 
 /**
- * Hive syntax:
- *
- * SHOW FUNCTIONS [LIKE "<pattern>"];
- */
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, null);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
@@ -1103,7 +1107,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -1589,5 +1593,76 @@ SqlUseModules SqlUseModules() :
     ]
     {
         return new SqlUseModules(s.end(this), moduleNames);
+    }
+}
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
+    }
+}
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    (
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlRichExplain(getPos(), stmt);
+    }
+}
+
+/**
+* Parses an ADD JAR statement.
+*/
+SqlAddJar SqlAddJar() :
+{
+    SqlCharStringLiteral jarPath;
+}
+{
+    <ADD> <JAR> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        jarPath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlAddJar(getPos(), jarPath);
+    }
+}
+
+/**
+* Parses a show jars statement.
+* SHOW JARS;
+*/
+SqlShowJars SqlShowJars() :
+{
+}
+{
+    <SHOW> <JARS>
+    {
+        return new SqlShowJars(getPos());
     }
 }

@@ -38,8 +38,6 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import java.util.HashSet;
 import java.util.Set;
 
-import static java.util.Arrays.asList;
-
 /** Utility class for creating a valid {@link JoinQueryOperation} operation. */
 @Internal
 final class JoinOperationFactory {
@@ -113,8 +111,8 @@ final class JoinOperationFactory {
     }
 
     private void validateNamesAmbiguity(QueryOperation left, QueryOperation right) {
-        Set<String> leftNames = new HashSet<>(asList(left.getTableSchema().getFieldNames()));
-        Set<String> rightNames = new HashSet<>(asList(right.getTableSchema().getFieldNames()));
+        Set<String> leftNames = new HashSet<>(left.getResolvedSchema().getColumnNames());
+        Set<String> rightNames = new HashSet<>(right.getResolvedSchema().getColumnNames());
         leftNames.retainAll(rightNames);
         if (!leftNames.isEmpty()) {
             throw new ValidationException(

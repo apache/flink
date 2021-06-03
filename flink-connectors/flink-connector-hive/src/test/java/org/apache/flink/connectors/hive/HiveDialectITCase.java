@@ -24,14 +24,21 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.DescribeTableOperation;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -61,16 +68,21 @@ import org.junit.Test;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
@@ -120,11 +132,24 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testParseCommand() {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        Parser parser = tableEnvInternal.getParser();
+
+        // hive dialect should use HiveParser
+        assertTrue(parser instanceof HiveParser);
+        assertThat(parser.parse("HELP").get(0), instanceOf(HelpOperation.class));
+        assertThat(parser.parse("clear").get(0), instanceOf(ClearOperation.class));
+        assertThat(parser.parse("SET").get(0), instanceOf(SetOperation.class));
+        assertThat(parser.parse("ResET").get(0), instanceOf(ResetOperation.class));
+        assertThat(parser.parse("Exit").get(0), instanceOf(QuitOperation.class));
+    }
+
+    @Test
     public void testCreateDatabase() throws Exception {
         tableEnv.executeSql("create database db1 comment 'db1 comment'");
         Database db = hiveCatalog.getHiveDatabase("db1");
         assertEquals("db1 comment", db.getDescription());
-        assertFalse(Boolean.parseBoolean(db.getParameters().get(CatalogConfig.IS_GENERIC)));
 
         String db2Location = warehouse + "/db2_location";
         tableEnv.executeSql(
@@ -142,8 +167,6 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create database db1 with dbproperties('k1'='v1')");
         tableEnv.executeSql("alter database db1 set dbproperties ('k1'='v11','k2'='v2')");
         Database db = hiveCatalog.getHiveDatabase("db1");
-        // there's an extra is_generic property
-        assertEquals(3, db.getParametersSize());
         assertEquals("v11", db.getParameters().get("k1"));
         assertEquals("v2", db.getParameters().get("k2"));
 
@@ -234,6 +257,27 @@ public class HiveDialectITCase {
         tableEnv.executeSql("create table if not exists tbl5 (m map<bigint,string>)");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl5"));
         assertEquals(createdTimeForTableExists, hiveTable.getCreateTime());
+
+        // test describe table
+        Parser parser = ((TableEnvironmentInternal) tableEnv).getParser();
+        DescribeTableOperation operation =
+                (DescribeTableOperation) parser.parse("desc tbl1").get(0);
+        assertFalse(operation.isExtended());
+        assertEquals(
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl1"),
+                operation.getSqlIdentifier());
+
+        operation = (DescribeTableOperation) parser.parse("describe default.tbl2").get(0);
+        assertFalse(operation.isExtended());
+        assertEquals(
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl2"),
+                operation.getSqlIdentifier());
+
+        operation = (DescribeTableOperation) parser.parse("describe extended tbl3").get(0);
+        assertTrue(operation.isExtended());
+        assertEquals(
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", "tbl3"),
+                operation.getSqlIdentifier());
     }
 
     @Test
@@ -241,7 +285,7 @@ public class HiveDialectITCase {
         Assume.assumeTrue(HiveVersionTestUtil.HIVE_310_OR_LATER);
         tableEnv.executeSql(
                 "create table tbl (x int,y int not null disable novalidate rely,z int not null disable novalidate norely,"
-                        + "constraint pk_name primary key (x) rely)");
+                        + "constraint pk_name primary key (x) disable rely)");
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
         TableSchema tableSchema = catalogTable.getSchema();
@@ -256,6 +300,27 @@ public class HiveDialectITCase {
         assertTrue(
                 "NORELY NOT NULL shouldn't be reflected in schema",
                 tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+    }
+
+    @Test
+    public void testCreateTableAs() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql("create table tbl1 as select x from src group by x").await();
+        Table hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl1"));
+        assertEquals(1, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("int", hiveTable.getSd().getCols().get(0).getType());
+        tableEnv.executeSql(
+                        "create table default.tbl2 stored as orc as select x,max(y) as m from src group by x order by x limit 1")
+                .await();
+        hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
+        assertEquals(2, hiveTable.getSd().getCols().size());
+        assertEquals("x", hiveTable.getSd().getCols().get(0).getName());
+        assertEquals("m", hiveTable.getSd().getCols().get(1).getName());
+        assertEquals(
+                OrcSerde.class.getName(), hiveTable.getSd().getSerdeInfo().getSerializationLib());
+        assertEquals(OrcInputFormat.class.getName(), hiveTable.getSd().getInputFormat());
+        assertEquals(OrcOutputFormat.class.getName(), hiveTable.getSd().getOutputFormat());
     }
 
     @Test
@@ -300,7 +365,7 @@ public class HiveDialectITCase {
         ObjectPath tablePath = new ObjectPath("default", "tbl1");
 
         // change properties
-        tableEnv.executeSql("alter table tbl1 set tblproperties ('k2'='v2')");
+        tableEnv.executeSql("alter table `default`.tbl1 set tblproperties ('k2'='v2')");
         Table hiveTable = hiveCatalog.getHiveTable(tablePath);
         assertEquals("v1", hiveTable.getParameters().get("k1"));
         assertEquals("v2", hiveTable.getParameters().get("k2"));
@@ -308,7 +373,7 @@ public class HiveDialectITCase {
         // change location
         String newLocation = warehouse + "/tbl1_new_location";
         tableEnv.executeSql(
-                String.format("alter table `default`.tbl1 set location '%s'", newLocation));
+                String.format("alter table default.tbl1 set location '%s'", newLocation));
         hiveTable = hiveCatalog.getHiveTable(tablePath);
         assertEquals(newLocation, locationPath(hiveTable.getSd().getLocation()));
 
@@ -523,7 +588,8 @@ public class HiveDialectITCase {
     public void testFunction() throws Exception {
         // create function
         tableEnv.executeSql(
-                String.format("create function my_abs as '%s'", GenericUDFAbs.class.getName()));
+                String.format(
+                        "create function default.my_abs as '%s'", GenericUDFAbs.class.getName()));
         List<Row> functions =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show functions").collect());
         assertTrue(functions.toString().contains("my_abs"));
@@ -537,6 +603,34 @@ public class HiveDialectITCase {
         tableEnv.executeSql("drop function my_abs");
         assertFalse(hiveCatalog.functionExists(new ObjectPath("default", "my_abs")));
         tableEnv.executeSql("drop function if exists foo");
+    }
+
+    @Test
+    public void testTemporaryFunction() throws Exception {
+        // create temp function
+        tableEnv.executeSql(
+                String.format(
+                        "create temporary function temp_abs as '%s'",
+                        GenericUDFAbs.class.getName()));
+        String[] functions = tableEnv.listUserDefinedFunctions();
+        assertArrayEquals(new String[] {"temp_abs"}, functions);
+        // call the function
+        tableEnv.executeSql("create table src(x int)");
+        tableEnv.executeSql("insert into src values (1),(-1)").await();
+        assertEquals(
+                "[+I[1], +I[1]]",
+                queryResult(tableEnv.sqlQuery("select temp_abs(x) from src")).toString());
+        // switch DB and the temp function can still be used
+        tableEnv.executeSql("create database db1");
+        tableEnv.useDatabase("db1");
+        assertEquals(
+                "[+I[1], +I[1]]",
+                queryResult(tableEnv.sqlQuery("select temp_abs(x) from `default`.src")).toString());
+        // drop the function
+        tableEnv.executeSql("drop temporary function temp_abs");
+        functions = tableEnv.listUserDefinedFunctions();
+        assertEquals(0, functions.length);
+        tableEnv.executeSql("drop temporary function if exists foo");
     }
 
     @Test
@@ -679,6 +773,40 @@ public class HiveDialectITCase {
                                 .collect());
         assertEquals(1, partitions.size());
         assertTrue(partitions.toString().contains("dt=2020-04-30 01:02:03/country=china"));
+    }
+
+    @Test
+    public void testUnsupportedOperation() {
+        List<String> statements =
+                Arrays.asList(
+                        "create or replace view v as select x from foo",
+                        "create materialized view v as select x from foo",
+                        "create temporary table foo (x int)",
+                        "create table foo (x int) stored by 'handler.class'",
+                        "create table foo (x int) clustered by (x) into 3 buckets",
+                        "create table foo (x int) skewed by (x) on (1,2,3)",
+                        "describe foo partition (p=1)",
+                        "describe db.tbl col",
+                        "show tables in db1",
+                        "show tables like 'tbl*'",
+                        "show views in db1",
+                        "show views like '*view'");
+
+        for (String statement : statements) {
+            verifyUnsupportedOperation(statement);
+        }
+    }
+
+    private void verifyUnsupportedOperation(String ddl) {
+        try {
+            tableEnv.executeSql(ddl);
+            fail("We don't support " + ddl);
+        } catch (ValidationException e) {
+            // expected
+            assertTrue(
+                    "Expect UnsupportedOperationException for " + ddl,
+                    e.getCause() instanceof UnsupportedOperationException);
+        }
     }
 
     private static String locationPath(String locationURI) throws URISyntaxException {

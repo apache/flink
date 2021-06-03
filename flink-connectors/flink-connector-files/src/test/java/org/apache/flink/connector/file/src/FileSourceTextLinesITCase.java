@@ -166,7 +166,7 @@ public class FileSourceTextLinesITCase extends TestLogger {
      * record format (text lines) and restarts TaskManager.
      */
     @Test
-    @Category(FailsWithAdaptiveScheduler.class)
+    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21450
     public void testContinuousTextFileSourceWithTaskManagerFailover() throws Exception {
         testContinuousTextFileSource(FailoverType.TM);
     }

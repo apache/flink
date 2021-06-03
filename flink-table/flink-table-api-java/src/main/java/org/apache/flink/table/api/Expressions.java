@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -186,29 +187,62 @@ public final class Expressions {
     public static final ApiExpression CURRENT_RANGE =
             apiCall(BuiltInFunctionDefinitions.CURRENT_RANGE);
 
-    /** Returns the current SQL date in UTC time zone. */
+    /**
+     * Returns the current SQL date in local time zone, the return type of this expression is {@link
+     * DataTypes#DATE()}.
+     */
     public static ApiExpression currentDate() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_DATE);
     }
 
-    /** Returns the current SQL time in UTC time zone. */
+    /**
+     * Returns the current SQL time in local time zone, the return type of this expression is {@link
+     * DataTypes#TIME()}.
+     */
     public static ApiExpression currentTime() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_TIME);
     }
 
-    /** Returns the current SQL timestamp in UTC time zone. */
+    /**
+     * Returns the current SQL timestamp in local time zone, the return type of this expression is
+     * {@link DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
+     */
     public static ApiExpression currentTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.CURRENT_TIMESTAMP);
     }
 
-    /** Returns the current SQL time in local time zone. */
+    /**
+     * Returns the current SQL time in local time zone, the return type of this expression is {@link
+     * DataTypes#TIME()}, this is a synonym for {@link Expressions#currentTime()}.
+     */
     public static ApiExpression localTime() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIME);
     }
 
-    /** Returns the current SQL timestamp in local time zone. */
+    /**
+     * Returns the current SQL timestamp in local time zone, the return type of this expression is
+     * {@link DataTypes#TIMESTAMP()}.
+     */
     public static ApiExpression localTimestamp() {
         return apiCall(BuiltInFunctionDefinitions.LOCAL_TIMESTAMP);
+    }
+
+    /**
+     * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
+     *
+     * <p>The supported precision is 0 or 3:
+     *
+     * <ul>
+     *   <li>0 means the numericEpochTime is in second.
+     *   <li>3 means the numericEpochTime is in millisecond.
+     * </ul>
+     *
+     * @param numericEpochTime The epoch time with numeric type.
+     * @param precision The precision to indicate the epoch time is in second or millisecond.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP_LTZ(int)} type.
+     */
+    public static ApiExpression toTimestampLtz(Object numericEpochTime, Object precision) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP_LTZ, numericEpochTime, precision);
     }
 
     /**
@@ -429,6 +463,21 @@ public final class Expressions {
     /** Calculates the logarithm of the given value to the given base. */
     public static ApiExpression log(Object base, Object value) {
         return apiCall(BuiltInFunctionDefinitions.LOG, base, value);
+    }
+
+    /**
+     * Source watermark declaration for {@link Schema}.
+     *
+     * <p>This is a marker function that doesn't have concrete runtime implementation. It can only
+     * be used as a single expression in {@link Schema.Builder#watermark(String, Expression)}. The
+     * declaration will be pushed down into a table source that implements the {@link
+     * SupportsSourceWatermark} interface. The source will emit system-defined watermarks
+     * afterwards.
+     *
+     * <p>Please check the documentation whether the connector supports source watermarks.
+     */
+    public static ApiExpression sourceWatermark() {
+        return apiCall(BuiltInFunctionDefinitions.SOURCE_WATERMARK);
     }
 
     /**

@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -381,6 +381,8 @@ under the License.
 
 									<!-- Tools to unify display format for different languages -->
 									<include>com.ibm.icu:icu4j</include>
+
+									<include>org.reflections:reflections</include>
 								</includes>
 							</artifactSet>
 							<relocations>

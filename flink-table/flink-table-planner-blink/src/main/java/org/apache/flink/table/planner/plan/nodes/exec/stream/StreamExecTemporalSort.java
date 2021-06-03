@@ -28,23 +28,35 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.EmptyRowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sort.ProcTimeSortOperator;
 import org.apache.flink.table.runtime.operators.sort.RowTimeSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link StreamExecNode} for time-ascending-order Sort without `limit`. */
 public class StreamExecTemporalSort extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
 
+    public static final String FIELD_NAME_SORT_SPEC = "orderBy";
+
+    @JsonProperty(FIELD_NAME_SORT_SPEC)
     private final SortSpec sortSpec;
 
     public StreamExecTemporalSort(
@@ -52,8 +64,24 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.sortSpec = sortSpec;
+        this(
+                sortSpec,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecTemporalSort(
+            @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.sortSpec = checkNotNull(sortSpec);
     }
 
     @SuppressWarnings("unchecked")
@@ -77,10 +105,15 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             TimestampType keyType = (TimestampType) timeType;
             if (keyType.getKind() == TimestampKind.ROWTIME) {
                 return createSortRowTime(inputType, inputTransform, config);
-            } else if (keyType.getKind() == TimestampKind.PROCTIME) {
+            }
+        }
+        if (timeType instanceof LocalZonedTimestampType) {
+            LocalZonedTimestampType keyType = (LocalZonedTimestampType) timeType;
+            if (keyType.getKind() == TimestampKind.PROCTIME) {
                 return createSortProcTime(inputType, inputTransform, config);
             }
         }
+
         throw new TableException(
                 String.format(
                         "Sort: Internal Error\n"

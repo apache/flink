@@ -266,4 +266,43 @@ public class ManagedMemoryUtilsTest extends TestLogger {
         assertEquals(expectedStateFractionOfSlot, stateFractionOfSlot, DELTA);
         assertEquals(expectedPythonFractionOfSlot, pythonFractionOfSlot, DELTA);
     }
+
+    @Test
+    public void testUseCaseWeightsConfiguredWithConsistentValue() {
+        final Map<ManagedMemoryUseCase, Integer> existingWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
+                    {
+                        put(ManagedMemoryUseCase.OPERATOR, 123);
+                    }
+                };
+
+        final Map<ManagedMemoryUseCase, Integer> newWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
+                    {
+                        put(ManagedMemoryUseCase.OPERATOR, 123);
+                        put(ManagedMemoryUseCase.STATE_BACKEND, 456);
+                    }
+                };
+
+        ManagedMemoryUtils.validateUseCaseWeightsNotConflict(existingWeights, newWeights);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testUseCaseWeightsConfiguredWithConflictValue() {
+        final Map<ManagedMemoryUseCase, Integer> existingWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
+                    {
+                        put(ManagedMemoryUseCase.OPERATOR, 123);
+                    }
+                };
+
+        final Map<ManagedMemoryUseCase, Integer> newWeights =
+                new HashMap<ManagedMemoryUseCase, Integer>() {
+                    {
+                        put(ManagedMemoryUseCase.OPERATOR, 456);
+                    }
+                };
+
+        ManagedMemoryUtils.validateUseCaseWeightsNotConflict(existingWeights, newWeights);
+    }
 }

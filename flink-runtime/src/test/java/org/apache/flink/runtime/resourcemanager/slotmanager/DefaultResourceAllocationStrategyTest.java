@@ -42,7 +42,8 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
             ResourceProfile.fromResources(1, 100);
     private static final int NUM_OF_SLOTS = 5;
     private static final DefaultResourceAllocationStrategy STRATEGY =
-            new DefaultResourceAllocationStrategy(DEFAULT_SLOT_RESOURCE, NUM_OF_SLOTS);
+            new DefaultResourceAllocationStrategy(
+                    DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS);
 
     @Test
     public void testFulfillRequirementWithRegisteredResources() {
@@ -94,8 +95,8 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
                         .setPendingTaskManagersSupplier(
                                 () -> Collections.singleton(pendingTaskManager))
                         .build();
-        requirements.add(ResourceRequirement.create(largeResource, 1));
-        requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 7));
+        requirements.add(ResourceRequirement.create(largeResource, 2));
+        requirements.add(ResourceRequirement.create(ResourceProfile.UNKNOWN, 4));
 
         final ResourceAllocationResult result =
                 STRATEGY.tryFulfillRequirements(
@@ -126,8 +127,8 @@ public class DefaultResourceAllocationStrategyTest extends TestLogger {
                             resourceWithCount.getKey(), resourceWithCount.getValue());
         }
 
-        assertThat(allFulfilledRequirements.getResourceCount(DEFAULT_SLOT_RESOURCE), is(7));
-        assertThat(allFulfilledRequirements.getResourceCount(largeResource), is(1));
+        assertThat(allFulfilledRequirements.getResourceCount(DEFAULT_SLOT_RESOURCE), is(4));
+        assertThat(allFulfilledRequirements.getResourceCount(largeResource), is(2));
     }
 
     @Test

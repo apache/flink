@@ -26,19 +26,10 @@ from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder,
     TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
     LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
     CountWindowCoder
-from pyflink.fn_execution.window import TimeWindow, CountWindow
+from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
-try:
-    from pyflink.fn_execution import coder_impl_fast  # noqa # pylint: disable=unused-import
 
-    have_cython = True
-except ImportError:
-    have_cython = False
-
-
-@unittest.skipIf(have_cython,
-                 "Found cython implementation, we don't need to test non-compiled implementation")
 class CodersTest(PyFlinkTestCase):
 
     def check_coder(self, coder, *values):
@@ -153,7 +144,7 @@ class CodersTest(PyFlinkTestCase):
         result = []
         for item in generator_result:
             result.append(item)
-        self.assertEqual([v], result)
+        self.assertEqual(v, result)
 
     def test_row_coder(self):
         from pyflink.common import Row, RowKind

@@ -131,6 +131,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-2.3.4.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.0.0" >}}
@@ -149,6 +152,9 @@ Please find the required dependencies for different Hive major versions below.
        // Orc dependencies -- required by the ORC vectorized optimizations
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -169,6 +175,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 1.2.1" >}}
@@ -188,6 +197,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3-nohive.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.0.0" >}}
@@ -201,6 +213,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-2.0.0.jar
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 2.1.0" >}}
@@ -213,6 +228,9 @@ Please find the required dependencies for different Hive major versions below.
 
        // Hive dependencies
        hive-exec-2.1.0.jar
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -231,6 +249,9 @@ Please find the required dependencies for different Hive major versions below.
        orc-core-1.4.3.jar
        aircompressor-0.8.jar // transitive dependency of orc-core
 
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
+
 ```
 {{< /tab >}}
 {{< tab "Hive 3.1.0" >}}
@@ -244,6 +265,9 @@ Please find the required dependencies for different Hive major versions below.
        // Hive dependencies
        hive-exec-3.1.0.jar
        libfb303-0.9.3.jar // libfb303 is not packed into hive-exec in some versions, need to add it separately
+
+       // add antlr-runtime if you need to use hive dialect
+       antlr-runtime-3.5.2.jar
 
 ```
 {{< /tab >}}
@@ -295,7 +319,7 @@ Following is an example of how to connect to Hive:
 
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().build();
+EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -313,7 +337,7 @@ tableEnv.useCatalog("myhive");
 
 ```scala
 
-val settings = EnvironmentSettings.newInstance().useBlinkPlanner().build()
+val settings = EnvironmentSettings.newInstance().build()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
@@ -332,7 +356,7 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.new_instance().in_batch_mode().build()
 t_env = TableEnvironment.create(settings)
 
 catalog_name = "myhive"

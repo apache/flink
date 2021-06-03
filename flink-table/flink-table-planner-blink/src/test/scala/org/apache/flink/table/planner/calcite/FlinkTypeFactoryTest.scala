@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
 
 import junit.framework.TestCase.{assertFalse, assertTrue}
 import org.junit.{Assert, Test}
@@ -90,9 +91,12 @@ class FlinkTypeFactoryTest {
   }
 
   @Test def testDecimalInferType(): Unit = {
-    Assert.assertEquals(new DecimalType(7, 0), FlinkTypeSystem.inferIntDivType(5, 2, 4))
-    Assert.assertEquals(new DecimalType(38, 5), FlinkTypeSystem.inferAggSumType(5))
-    Assert.assertEquals(new DecimalType(false, 38, 6), FlinkTypeSystem.inferAggAvgType(5))
+    Assert.assertEquals(
+      new DecimalType(38, 5),
+      LogicalTypeMerging.findSumAggType(new DecimalType(10, 5)))
+    Assert.assertEquals(
+      new DecimalType(38, 6),
+      LogicalTypeMerging.findAvgAggType(new DecimalType(10, 5)))
   }
 
   @Test

@@ -29,7 +29,9 @@ __all__ = [
     'MapStateDescriptor',
     'MapState',
     'ReducingStateDescriptor',
-    'ReducingState'
+    'ReducingState',
+    'AggregatingStateDescriptor',
+    'AggregatingState'
 ]
 
 T = TypeVar('T')
@@ -395,7 +397,7 @@ class AggregatingStateDescriptor(StateDescriptor):
         super(AggregatingStateDescriptor, self).__init__(name, state_type_info)
         from pyflink.datastream.functions import AggregateFunction
         if not isinstance(agg_function, AggregateFunction):
-            raise TypeError("The input must be a AggregateFunction!")
+            raise TypeError("The input must be a pyflink.datastream.functions.AggregateFunction!")
         self._agg_function = agg_function
 
     def get_agg_function(self):

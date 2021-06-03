@@ -50,7 +50,7 @@ import java.util.Optional;
 @PublicEvolving
 public class JdbcExactlyOnceOptions implements Serializable {
 
-    private static final boolean DEFAULT_RECOVERED_AND_ROLLBACK = false;
+    private static final boolean DEFAULT_RECOVERED_AND_ROLLBACK = true;
     private static final int DEFAULT_MAX_COMMIT_ATTEMPTS = 3;
     private static final boolean DEFAULT_ALLOW_OUT_OF_ORDER_COMMITS = false;
 
@@ -102,7 +102,11 @@ public class JdbcExactlyOnceOptions implements Serializable {
         private boolean allowOutOfOrderCommits = DEFAULT_ALLOW_OUT_OF_ORDER_COMMITS;
         private Optional<Integer> timeoutSec = Optional.empty();
 
-        /** Toggle discovery and rollback of transactions upon recovery. */
+        /**
+         * Toggle discovery and rollback of prepared transactions upon recovery to prevent new
+         * transactions from being blocked by the older ones. Each subtask rollbacks its own
+         * transaction. This flag must be disabled when rescaling to prevent data loss.
+         */
         public JDBCExactlyOnceOptionsBuilder withRecoveredAndRollback(
                 boolean recoveredAndRollback) {
             this.recoveredAndRollback = recoveredAndRollback;

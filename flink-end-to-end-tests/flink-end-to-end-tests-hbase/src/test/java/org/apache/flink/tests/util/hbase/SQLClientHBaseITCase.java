@@ -67,9 +67,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
 
 /** End-to-end test for the HBase connectors. */
-@Ignore // disabled because of stalling
 @RunWith(Parameterized.class)
 @Category(value = {TravisGroup1.class, PreCommit.class, FailsOnJava11.class})
+@Ignore("FLINK-21519")
 public class SQLClientHBaseITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(SQLClientHBaseITCase.class);

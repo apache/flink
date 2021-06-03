@@ -29,7 +29,13 @@ import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** The typed configuration settings associated with a Mesos scheduler. */
+/**
+ * The typed configuration settings associated with a Mesos scheduler.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosConfiguration {
 
     private final String masterUrl;

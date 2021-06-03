@@ -30,9 +30,11 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceFunctionProvider;
 import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,7 +48,8 @@ import java.util.Collections;
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
  */
-public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
+public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
+        implements MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
@@ -85,10 +88,19 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData> {
         } else if (provider instanceof SourceProvider) {
             Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            return env.fromSource(source, WatermarkStrategy.noWatermarks(), operatorName)
+            return env.fromSource(
+                            source, WatermarkStrategy.noWatermarks(), operatorName, outputTypeInfo)
                     .getTransformation();
         } else if (provider instanceof DataStreamScanProvider) {
-            return ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            Transformation<RowData> transformation =
+                    ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            transformation.setOutputType(outputTypeInfo);
+            return transformation;
+        } else if (provider instanceof TransformationScanProvider) {
+            final Transformation<RowData> transformation =
+                    ((TransformationScanProvider) provider).createTransformation();
+            transformation.setOutputType(outputTypeInfo);
+            return transformation;
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");

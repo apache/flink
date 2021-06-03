@@ -19,8 +19,6 @@
 
 set -Eeuo pipefail
 
-PLANNER="${1:-old}"
-
 KAFKA_VERSION="2.2.2"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
@@ -213,9 +211,6 @@ functions:
   - name: RegReplace
     from: class
     class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
-
-execution:
-  planner: "$PLANNER"
 EOF
 
 # submit SQL statements
@@ -231,7 +226,7 @@ INSERT INTO ElasticsearchUpsertSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
@@ -259,7 +254,7 @@ INSERT INTO ElasticsearchAppendSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
@@ -291,7 +286,7 @@ INSERT INTO ElasticsearchAppendSinkTable
 EOF
 )
 
-JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
+JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \

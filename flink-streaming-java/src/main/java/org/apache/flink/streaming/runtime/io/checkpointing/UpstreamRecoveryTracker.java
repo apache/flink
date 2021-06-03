@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.util.Preconditions;
@@ -25,8 +26,10 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.HashSet;
 
+/** Tracks status of upstream channels while they recover. */
 @Internal
-interface UpstreamRecoveryTracker {
+@VisibleForTesting
+public interface UpstreamRecoveryTracker {
 
     void handleEndOfRecovery(InputChannelInfo channelInfo) throws IOException;
 

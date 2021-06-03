@@ -116,7 +116,7 @@ public class HistoryServerTest extends TestLogger {
                         new MiniClusterResourceConfiguration.Builder()
                                 .setConfiguration(clusterConfig)
                                 .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(1)
+                                .setNumberSlotsPerTaskManager(2)
                                 .build());
         cluster.before();
     }

@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.cli;
 
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.table.api.TableColumn;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -29,6 +29,8 @@ import org.apache.flink.types.Row;
 
 import org.jline.terminal.Terminal;
 
+import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -41,11 +43,10 @@ import java.util.stream.Stream;
 /** Print result in tableau mode. */
 public class CliTableauResultView implements AutoCloseable {
 
-    private static final int DEFAULT_COLUMN_WIDTH = 20;
-
     private final Terminal terminal;
     private final Executor sqlExecutor;
     private final String sessionId;
+    private final ZoneId sessionTimeZone;
     private final ResultDescriptor resultDescriptor;
     private final ExecutorService displayResultExecutorService;
 
@@ -61,6 +62,7 @@ public class CliTableauResultView implements AutoCloseable {
         this.displayResultExecutorService =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("CliTableauResultView"));
+        this.sessionTimeZone = CliUtils.getSessionTimeZone(sqlExecutor.getSessionConfig(sessionId));
     }
 
     public void displayResults() throws SqlExecutionException {
@@ -68,7 +70,11 @@ public class CliTableauResultView implements AutoCloseable {
         Future<?> resultFuture =
                 displayResultExecutorService.submit(
                         () -> {
-                            printResults(receivedRowCount, resultDescriptor.isStreamingMode());
+                            if (resultDescriptor.isStreamingMode()) {
+                                printStreamingResults(receivedRowCount);
+                            } else {
+                                printBatchResults(receivedRowCount);
+                            }
                         });
 
         // capture CTRL-C
@@ -87,7 +93,8 @@ public class CliTableauResultView implements AutoCloseable {
                     .println(
                             "Query terminated, received a total of "
                                     + receivedRowCount.get()
-                                    + " rows");
+                                    + " "
+                                    + getRowTerm(receivedRowCount));
             terminal.flush();
         } catch (ExecutionException e) {
             if (e.getCause() instanceof SqlExecutionException) {
@@ -116,28 +123,29 @@ public class CliTableauResultView implements AutoCloseable {
         }
     }
 
-    private void printResults(AtomicInteger receivedRowCount, boolean isStreamingMode) {
-        List<TableColumn> columns = resultDescriptor.getResultSchema().getTableColumns();
-        final String[] fieldNames;
-        final int[] colWidths;
-        if (isStreamingMode) {
-            fieldNames =
-                    Stream.concat(
-                                    Stream.of(PrintUtils.ROW_KIND_COLUMN),
-                                    columns.stream().map(TableColumn::getName))
-                            .toArray(String[]::new);
-            colWidths =
-                    PrintUtils.columnWidthsByType(
-                            columns,
-                            DEFAULT_COLUMN_WIDTH,
-                            PrintUtils.NULL_COLUMN,
-                            PrintUtils.ROW_KIND_COLUMN);
-        } else {
-            fieldNames = columns.stream().map(TableColumn::getName).toArray(String[]::new);
-            colWidths =
-                    PrintUtils.columnWidthsByType(
-                            columns, DEFAULT_COLUMN_WIDTH, PrintUtils.NULL_COLUMN, null);
-        }
+    private void printBatchResults(AtomicInteger receivedRowCount) {
+        final List<Row> resultRows = waitBatchResults();
+        receivedRowCount.addAndGet(resultRows.size());
+        PrintUtils.printAsTableauForm(
+                resultDescriptor.getResultSchema(),
+                resultRows.iterator(),
+                terminal.writer(),
+                sessionTimeZone);
+    }
+
+    private void printStreamingResults(AtomicInteger receivedRowCount) {
+        List<Column> columns = resultDescriptor.getResultSchema().getColumns();
+        final String[] fieldNames =
+                Stream.concat(
+                                Stream.of(PrintUtils.ROW_KIND_COLUMN),
+                                columns.stream().map(Column::getName))
+                        .toArray(String[]::new);
+        final int[] colWidths =
+                PrintUtils.columnWidthsByType(
+                        columns,
+                        PrintUtils.MAX_COLUMN_WIDTH,
+                        PrintUtils.NULL_COLUMN,
+                        PrintUtils.ROW_KIND_COLUMN);
 
         String borderline = PrintUtils.genBorderLine(colWidths);
 
@@ -153,13 +161,19 @@ public class CliTableauResultView implements AutoCloseable {
 
             switch (result.getType()) {
                 case EMPTY:
-                    // do nothing
+                    try {
+                        // prevent busy loop
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        // get ctrl+c from terminal and fallback
+                        return;
+                    }
                     break;
                 case EOS:
                     if (receivedRowCount.get() > 0) {
                         terminal.writer().println(borderline);
                     }
-                    String rowTerm = receivedRowCount.get() > 1 ? "rows" : "row";
+                    String rowTerm = getRowTerm(receivedRowCount);
                     terminal.writer()
                             .println(
                                     "Received a total of "
@@ -173,7 +187,11 @@ public class CliTableauResultView implements AutoCloseable {
                     for (Row change : changes) {
                         final String[] row =
                                 PrintUtils.rowToString(
-                                        change, PrintUtils.NULL_COLUMN, isStreamingMode);
+                                        change,
+                                        PrintUtils.NULL_COLUMN,
+                                        true,
+                                        resultDescriptor.getResultSchema(),
+                                        sessionTimeZone);
                         PrintUtils.printSingleRow(colWidths, row, terminal.writer());
                         receivedRowCount.incrementAndGet();
                     }
@@ -182,5 +200,30 @@ public class CliTableauResultView implements AutoCloseable {
                     throw new SqlExecutionException("Unknown result type: " + result.getType());
             }
         }
+    }
+
+    private List<Row> waitBatchResults() {
+        List<Row> resultRows = new ArrayList<>();
+        do {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            TypedResult<List<Row>> result =
+                    sqlExecutor.retrieveResultChanges(sessionId, resultDescriptor.getResultId());
+
+            if (result.getType() == TypedResult.ResultType.EOS) {
+                break;
+            } else if (result.getType() == TypedResult.ResultType.PAYLOAD) {
+                resultRows.addAll(result.getPayload());
+            }
+        } while (true);
+
+        return resultRows;
+    }
+
+    private String getRowTerm(AtomicInteger receivedRowCount) {
+        return receivedRowCount.get() > 1 ? "rows" : "row";
     }
 }

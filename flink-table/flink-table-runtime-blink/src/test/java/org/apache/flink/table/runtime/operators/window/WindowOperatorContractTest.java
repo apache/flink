@@ -28,14 +28,15 @@ import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -43,6 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -65,6 +67,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
  */
 public class WindowOperatorContractTest {
 
+    private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
@@ -194,8 +197,8 @@ public class WindowOperatorContractTest {
 
         LogicalType[] inputTypes =
                 new LogicalType[] {new VarCharType(VarCharType.MAX_LENGTH), new IntType()};
-        BinaryRowDataKeySelector keySelector =
-                new BinaryRowDataKeySelector(new int[] {0}, inputTypes);
+        RowDataKeySelector keySelector =
+                HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputTypes);
         TypeInformation<RowData> keyType = keySelector.getProducedType();
         LogicalType[] accTypes = new LogicalType[] {new BigIntType(), new BigIntType()};
         LogicalType[] windowTypes = new LogicalType[] {new BigIntType(), new BigIntType()};
@@ -220,7 +223,8 @@ public class WindowOperatorContractTest {
                             windowTypes,
                             2,
                             sendRetraction,
-                            allowedLateness);
+                            allowedLateness,
+                            UTC_ZONE_ID);
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
         } else {
@@ -236,7 +240,8 @@ public class WindowOperatorContractTest {
                             windowTypes,
                             2,
                             sendRetraction,
-                            allowedLateness);
+                            allowedLateness,
+                            UTC_ZONE_ID);
 
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);

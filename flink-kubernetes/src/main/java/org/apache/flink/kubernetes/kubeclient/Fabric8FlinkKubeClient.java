@@ -33,7 +33,9 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -58,9 +60,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,12 +77,12 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     private final String namespace;
     private final int maxRetryAttempts;
 
-    private final Executor kubeClientExecutorService;
+    private final ExecutorService kubeClientExecutorService;
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
             NamespacedKubernetesClient client,
-            Supplier<Executor> asyncExecutorFactory) {
+            ExecutorService executorService) {
         this.internalClient = checkNotNull(client);
         this.clusterId = checkNotNull(flinkConfig.getString(KubernetesConfigOptions.CLUSTER_ID));
 
@@ -90,7 +92,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                 flinkConfig.getInteger(
                         KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
 
-        this.kubeClientExecutorService = asyncExecutorFactory.get();
+        this.kubeClientExecutorService = checkNotNull(executorService);
     }
 
     @Override
@@ -289,13 +291,17 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                                                                                             Throwable
                                                                                                     throwable) {
                                                                                         LOG.debug(
-                                                                                                "Failed to update ConfigMap {} with data {} because of concurrent "
-                                                                                                        + "modifications. Trying again.",
+                                                                                                "Failed to update ConfigMap {} with data {}. Trying again.",
                                                                                                 configMap
                                                                                                         .getName(),
                                                                                                 configMap
                                                                                                         .getData());
-                                                                                        throw throwable;
+                                                                                        // the
+                                                                                        // client
+                                                                                        // implementation does not expose the different kind of error causes to a degree that we could do a more fine-grained error handling here
+                                                                                        throw new CompletionException(
+                                                                                                new PossibleInconsistentStateException(
+                                                                                                        throwable));
                                                                                     }
                                                                                     return true;
                                                                                 })
@@ -343,6 +349,7 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     @Override
     public void close() {
         this.internalClient.close();
+        ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.kubeClientExecutorService);
     }
 
     @Override

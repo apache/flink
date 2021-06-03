@@ -52,6 +52,9 @@ public class FanOutRecordPublisherConfiguration {
     /** Base backoff millis for the deregister stream operation. */
     private final int subscribeToShardMaxRetries;
 
+    /** A timeout when waiting for a shard subscription to be established. */
+    private final Duration subscribeToShardTimeout;
+
     /** Maximum backoff millis for the subscribe to shard operation. */
     private final long subscribeToShardMaxBackoffMillis;
 
@@ -156,6 +159,13 @@ public class FanOutRecordPublisherConfiguration {
                                         ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_RETRIES))
                         .map(Integer::parseInt)
                         .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_RETRIES);
+        this.subscribeToShardTimeout =
+                Optional.ofNullable(
+                                configProps.getProperty(
+                                        ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_TIMEOUT_SECONDS))
+                        .map(Integer::parseInt)
+                        .map(Duration::ofSeconds)
+                        .orElse(ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
         this.subscribeToShardBaseBackoffMillis =
                 Optional.ofNullable(
                                 configProps.getProperty(
@@ -317,6 +327,11 @@ public class FanOutRecordPublisherConfiguration {
     /** Get maximum retry attempts for the subscribe to shard operation. */
     public int getSubscribeToShardMaxRetries() {
         return subscribeToShardMaxRetries;
+    }
+
+    /** Get timeout when waiting for a shard subscription to be established. */
+    public Duration getSubscribeToShardTimeout() {
+        return subscribeToShardTimeout;
     }
 
     /** Get maximum backoff millis for the subscribe to shard operation. */

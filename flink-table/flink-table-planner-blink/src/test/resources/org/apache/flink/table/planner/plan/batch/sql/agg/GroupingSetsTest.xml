@@ -755,6 +755,36 @@ Calc(select=[c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGroupingSetsOutputsNullability">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+ a,
+ b,
+ coalesce(c, 'empty'),
+ avg(d)
+FROM t1
+GROUP BY GROUPING SETS ((a, b), (a, b, c))
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[CASE(IS NOT NULL($2), CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, _UTF-16LE'empty':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], EXPR$3=[$3])
++- LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}]], EXPR$3=[AVG($3)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, CASE(c IS NOT NULL, CAST(c), _UTF-16LE'empty':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS EXPR$2, EXPR$3])
++- HashAggregate(isMerge=[true], groupBy=[a, b, c, $e], select=[a, b, c, $e, Final_AVG(sum$0, count$1) AS EXPR$3])
+   +- Exchange(distribution=[hash[a, b, c, $e]])
+      +- LocalHashAggregate(groupBy=[a, b, c, $e], select=[a, b, c, $e, Partial_AVG(d) AS (sum$0, count$1)])
+         +- Expand(projects=[{a, b, c, d, 0 AS $e}, {a, b, null AS c, d, 1 AS $e}])
+            +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupingSetsWithOneGrouping">
     <Resource name="sql">
       <![CDATA[

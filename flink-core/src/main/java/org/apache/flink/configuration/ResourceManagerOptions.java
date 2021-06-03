@@ -69,6 +69,32 @@ public class ResourceManagerOptions {
                                     + "for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take "
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    public static final ConfigOption<Double> MAX_TOTAL_CPU =
+            ConfigOptions.key("slotmanager.max-total-resource.cpu")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum cpu cores the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MAX_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    public static final ConfigOption<MemorySize> MAX_TOTAL_MEM =
+            ConfigOptions.key("slotmanager.max-total-resource.memory")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum memory size the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MAX_SLOT_NUM.key()
+                                    + "'.");
+
     /**
      * The number of redundant task managers. Redundant task managers are extra task managers
      * started by Flink, in order to speed up job recovery in case of failures due to task manager
@@ -201,6 +227,20 @@ public class ResourceManagerOptions {
      */
     public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX =
             "containerized.taskmanager.env.";
+
+    /** Timeout for TaskManagers to register at the active resource managers. */
+    public static final ConfigOption<Duration> TASK_MANAGER_REGISTRATION_TIMEOUT =
+            ConfigOptions.key("resourcemanager.taskmanager-registration.timeout")
+                    .durationType()
+                    .defaultValue(TaskManagerOptions.REGISTRATION_TIMEOUT.defaultValue())
+                    .withFallbackKeys(TaskManagerOptions.REGISTRATION_TIMEOUT.key())
+                    .withDescription(
+                            "Timeout for TaskManagers to register at the active resource managers. "
+                                    + "If exceeded, active resource manager will release and try to "
+                                    + "re-request the resource for the worker. If not configured, "
+                                    + "fallback to '"
+                                    + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
+                                    + "'.");
 
     // ---------------------------------------------------------------------------------------------
 

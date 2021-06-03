@@ -65,6 +65,7 @@ import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotInfo;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
+import org.apache.flink.runtime.jobmaster.JMTMRegistrationRejection;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -74,6 +75,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
+import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -122,7 +125,9 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.JvmUtils;
+import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -131,6 +136,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.StringUtils;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import javax.annotation.Nonnull;
@@ -158,6 +164,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -217,6 +225,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final TaskSlotTable<Task> taskSlotTable;
 
+    private final Map<JobID, UUID> currentSlotOfferPerJob = new HashMap<>();
+
     private final JobTable jobTable;
 
     private final JobLeaderService jobLeaderService;
@@ -253,6 +263,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private Map<JobID, Collection<CompletableFuture<ExecutionState>>>
             taskResultPartitionCleanupFuturesPerJob = new HashMap<>(8);
+
+    private final ThreadInfoSampleService threadInfoSampleService;
 
     public TaskExecutor(
             RpcService rpcService,
@@ -310,6 +322,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 createJobManagerHeartbeatManager(heartbeatServices, resourceId);
         this.resourceManagerHeartbeatManager =
                 createResourceManagerHeartbeatManager(heartbeatServices, resourceId);
+
+        ExecutorThreadFactory sampleThreadFactory =
+                new ExecutorThreadFactory.Builder()
+                        .setPoolName("flink-thread-info-sampler")
+                        .build();
+        ScheduledExecutorService sampleExecutor =
+                Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
+        this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -464,6 +484,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         Exception exception = null;
 
         try {
+            threadInfoSampleService.close();
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        try {
             jobLeaderService.stop();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -496,6 +522,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ======================================================================
     //  RPC methods
     // ======================================================================
+
+    @Override
+    public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
+            final ExecutionAttemptID taskExecutionAttemptId,
+            final ThreadInfoSamplesRequest requestParams,
+            final Time timeout) {
+
+        final Task task = taskSlotTable.getTask(taskExecutionAttemptId);
+        if (task == null) {
+            return FutureUtils.completedExceptionally(
+                    new IllegalStateException(
+                            String.format(
+                                    "Cannot sample task %s. "
+                                            + "Task is not known to the task manager.",
+                                    taskExecutionAttemptId)));
+        }
+
+        final CompletableFuture<List<ThreadInfoSample>> stackTracesFuture =
+                threadInfoSampleService.requestThreadInfoSamples(
+                        SampleableTaskAdapter.fromTask(task), requestParams);
+
+        return stackTracesFuture.thenApply(TaskThreadInfoResponse::new);
+    }
 
     // ----------------------------------------------------------------------
     // Task lifecycle RPCs
@@ -593,7 +642,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobManagerConnection.getJobManagerGateway(),
                             taskInformation.getJobVertexId(),
                             tdd.getExecutionAttemptId(),
-                            taskManagerConfiguration.getTimeout());
+                            taskManagerConfiguration.getRpcTimeout());
 
             final TaskOperatorEventGateway taskOperatorEventGateway =
                     new RpcTaskOperatorEventGateway(
@@ -1051,7 +1100,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     jobId,
                     allocationId,
                     resourceProfile,
-                    taskManagerConfiguration.getTimeout())) {
+                    taskManagerConfiguration.getSlotTimeout())) {
                 log.info("Allocated slot for {}.", allocationId);
             } else {
                 log.info("Could not allocate slot for {}.", allocationId);
@@ -1076,6 +1125,20 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         freeSlotInternal(allocationId, cause);
 
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public void freeInactiveSlots(JobID jobId, Time timeout) {
+        log.debug("Freeing inactive slots for job {}.", jobId);
+
+        // need a copy to prevent ConcurrentModificationExceptions
+        final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+        for (TaskSlot<Task> slot : inactiveSlots) {
+            freeSlotInternal(
+                    slot.getAllocationId(),
+                    new FlinkException("Slot was re-claimed by resource manager."));
+        }
     }
 
     @Override
@@ -1264,7 +1327,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getResourceID(),
                         taskExecutorRegistrationId,
                         taskSlotTable.createSlotReport(getResourceID()),
-                        taskManagerConfiguration.getTimeout());
+                        taskManagerConfiguration.getRpcTimeout());
 
         slotReportResponseFuture.whenCompleteAsync(
                 (acknowledge, throwable) -> {
@@ -1408,12 +1471,18 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 reservedSlots.add(offer);
             }
 
+            final UUID slotOfferId = UUID.randomUUID();
+            currentSlotOfferPerJob.put(jobId, slotOfferId);
+
             CompletableFuture<Collection<SlotOffer>> acceptedSlotsFuture =
                     jobMasterGateway.offerSlots(
-                            getResourceID(), reservedSlots, taskManagerConfiguration.getTimeout());
+                            getResourceID(),
+                            reservedSlots,
+                            taskManagerConfiguration.getRpcTimeout());
 
             acceptedSlotsFuture.whenCompleteAsync(
-                    handleAcceptedSlotOffers(jobId, jobMasterGateway, jobMasterId, reservedSlots),
+                    handleAcceptedSlotOffers(
+                            jobId, jobMasterGateway, jobMasterId, reservedSlots, slotOfferId),
                     getMainThreadExecutor());
         } else {
             log.debug("There are no unassigned slots for the job {}.", jobId);
@@ -1425,8 +1494,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             JobID jobId,
             JobMasterGateway jobMasterGateway,
             JobMasterId jobMasterId,
-            Collection<SlotOffer> offeredSlots) {
+            Collection<SlotOffer> offeredSlots,
+            UUID offerId) {
         return (Iterable<SlotOffer> acceptedSlots, Throwable throwable) -> {
+            // check if this is the latest offer
+            if (!offerId.equals(currentSlotOfferPerJob.get(jobId))) {
+                // If this offer is outdated then it can be safely ignored.
+                // If the response for a given slot is identical in both offers (accepted/rejected),
+                // then this is naturally the case since the end-result is the same.
+                // If the responses differ, then there are 2 cases to consider:
+                // 1) initially rejected, later accepted
+                //   This can happen when the resource requirements of a job increases between
+                //   offers.
+                //   In this case the first response MUST be ignored, so that
+                //   the the slot can be properly activated when the second response arrives.
+                // 2) initially accepted, later rejected
+                //   This can happen when the resource requirements of a job decrease between
+                //   offers.
+                //   In this case the first response MAY be ignored, because the job no longer
+                //   requires the slot (and already has initiated steps to free it) and we can thus
+                //   assume that any in-flight task submissions are no longer relevant for the job
+                //   execution.
+
+                log.debug(
+                        "Discard slot offer response since there is a newer offer for the job {}.",
+                        jobId);
+                return;
+            }
+
             if (throwable != null) {
                 if (throwable instanceof TimeoutException) {
                     log.info(
@@ -1449,22 +1544,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 if (isJobManagerConnectionValid(jobId, jobMasterId)) {
                     // mark accepted slots active
                     for (SlotOffer acceptedSlot : acceptedSlots) {
+                        final AllocationID allocationId = acceptedSlot.getAllocationId();
                         try {
-                            if (!taskSlotTable.markSlotActive(acceptedSlot.getAllocationId())) {
+                            if (!taskSlotTable.markSlotActive(allocationId)) {
                                 // the slot is either free or releasing at the moment
-                                final String message = "Could not mark slot " + jobId + " active.";
+                                final String message =
+                                        "Could not mark slot " + allocationId + " active.";
                                 log.debug(message);
                                 jobMasterGateway.failSlot(
-                                        getResourceID(),
-                                        acceptedSlot.getAllocationId(),
-                                        new FlinkException(message));
+                                        getResourceID(), allocationId, new FlinkException(message));
                             }
                         } catch (SlotNotFoundException e) {
-                            final String message = "Could not mark slot " + jobId + " active.";
+                            final String message =
+                                    "Could not mark slot " + allocationId + " active.";
                             jobMasterGateway.failSlot(
-                                    getResourceID(),
-                                    acceptedSlot.getAllocationId(),
-                                    new FlinkException(message));
+                                    getResourceID(), allocationId, new FlinkException(message));
                         }
 
                         offeredSlots.remove(acceptedSlot);
@@ -1478,7 +1572,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 } else {
                     // discard the response since there is a new leader for the job
                     log.debug(
-                            "Discard offer slot response since there is a new leader "
+                            "Discard slot offer response since there is a new leader "
                                     + "for the job {}.",
                             jobId);
                 }
@@ -1580,11 +1674,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         for (AllocationID activeSlotAllocationID : activeSlotAllocationIDs) {
             try {
                 if (!taskSlotTable.markSlotInactive(
-                        activeSlotAllocationID, taskManagerConfiguration.getTimeout())) {
+                        activeSlotAllocationID, taskManagerConfiguration.getSlotTimeout())) {
                     freeSlotInternal(activeSlotAllocationID, freeingCause);
                 }
             } catch (SlotNotFoundException e) {
-                log.debug("Could not mark the slot {} inactive.", jobId, e);
+                log.debug("Could not mark the slot {} inactive.", activeSlotAllocationID, e);
             }
         }
 
@@ -1616,7 +1710,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 new RpcResultPartitionConsumableNotifier(
                         jobMasterGateway,
                         getRpcService().getExecutor(),
-                        taskManagerConfiguration.getTimeout());
+                        taskManagerConfiguration.getRpcTimeout());
 
         PartitionProducerStateChecker partitionStateChecker =
                 new RpcPartitionStateChecker(jobMasterGateway);
@@ -1656,6 +1750,46 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         JobMasterGateway jobManagerGateway = jobManagerConnection.getJobManagerGateway();
         jobManagerGateway.disconnectTaskManager(getResourceID(), cause);
+    }
+
+    private void handleRejectedJobManagerConnection(
+            JobID jobId, String targetAddress, JMTMRegistrationRejection rejection) {
+        log.info(
+                "The JobManager under {} rejected the registration for job {}: {}. Releasing all job related resources.",
+                targetAddress,
+                jobId,
+                rejection.getReason());
+
+        releaseJobResources(
+                jobId,
+                new FlinkException(
+                        String.format("JobManager %s has rejected the registration.", jobId)));
+    }
+
+    private void releaseJobResources(JobID jobId, Exception cause) {
+        log.debug("Releasing job resources for job {}.", jobId, cause);
+
+        if (partitionTracker.isTrackingPartitionsFor(jobId)) {
+            // stop tracking job partitions
+            partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
+        }
+
+        // free slots
+        final Set<AllocationID> allocationIds = taskSlotTable.getAllocationIdsPerJob(jobId);
+
+        if (!allocationIds.isEmpty()) {
+            for (AllocationID allocationId : allocationIds) {
+                freeSlotInternal(allocationId, cause);
+            }
+        }
+
+        jobLeaderService.removeJob(jobId);
+        jobTable.getJob(jobId)
+                .ifPresent(
+                        job -> {
+                            closeJob(job, cause);
+                        });
+        currentSlotOfferPerJob.remove(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
@@ -1703,7 +1837,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 log.error("Could not fail task {}.", executionAttemptID, t);
             }
         } else {
-            log.debug("Cannot find task to fail for execution {}.", executionAttemptID);
+            log.info(
+                    "Cannot find task to fail for execution {} with exception:",
+                    executionAttemptID,
+                    cause);
         }
     }
 
@@ -1797,19 +1934,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         if (taskSlotTable.getAllocationIdsPerJob(jobId).isEmpty()
                 && !partitionTracker.isTrackingPartitionsFor(jobId)) {
             // we can remove the job from the job leader service
-            jobLeaderService.removeJob(jobId);
 
-            jobTable.getJob(jobId)
-                    .ifPresent(
-                            job ->
-                                    closeJob(
-                                            job,
-                                            new FlinkException(
-                                                    "TaskExecutor "
-                                                            + getAddress()
-                                                            + " has no more allocated slots for job "
-                                                            + jobId
-                                                            + '.')));
+            final FlinkException cause =
+                    new FlinkException(
+                            "TaskExecutor "
+                                    + getAddress()
+                                    + " has no more allocated slots for job "
+                                    + jobId
+                                    + '.');
+
+            releaseJobResources(jobId, cause);
         }
     }
 
@@ -2064,11 +2198,19 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         public void handleError(Throwable throwable) {
             onFatalError(throwable);
         }
+
+        @Override
+        public void jobManagerRejectedRegistration(
+                JobID jobId, String targetAddress, JMTMRegistrationRejection rejection) {
+            runAsync(() -> handleRejectedJobManagerConnection(jobId, targetAddress, rejection));
+        }
     }
 
     private final class ResourceManagerRegistrationListener
             implements RegistrationConnectionListener<
-                    TaskExecutorToResourceManagerConnection, TaskExecutorRegistrationSuccess> {
+                    TaskExecutorToResourceManagerConnection,
+                    TaskExecutorRegistrationSuccess,
+                    TaskExecutorRegistrationRejection> {
 
         @Override
         public void onRegistrationSuccess(
@@ -2102,6 +2244,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         @Override
         public void onRegistrationFailure(Throwable failure) {
             onFatalError(failure);
+        }
+
+        @Override
+        public void onRegistrationRejection(
+                String targetAddress, TaskExecutorRegistrationRejection rejection) {
+            onFatalError(
+                    new FlinkException(
+                            String.format(
+                                    "The TaskExecutor's registration at the ResourceManager %s has been rejected: %s",
+                                    targetAddress, rejection)));
         }
     }
 

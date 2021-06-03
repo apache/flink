@@ -17,18 +17,13 @@
 ################################################################################
 
 global-exclude *.py[cod] __pycache__ .DS_Store
-graft deps/lib
-recursive-include deps/opt *
-recursive-include deps/plugins *
 graft deps/bin
 graft deps/conf
 graft deps/log
 recursive-include deps/examples *.py
-graft deps/licenses
 include README.md
 include LICENSE
 include NOTICE
 include pyflink/README.txt
-recursive-exclude deps/opt/python *
 recursive-include pyflink/fn_execution *.pxd
 recursive-include pyflink/fn_execution *.pyx

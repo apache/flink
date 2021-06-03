@@ -27,24 +27,33 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
+import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -52,6 +61,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 /** Tests of {@link FineGrainedSlotManager}. */
 public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
@@ -565,7 +576,7 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 final List<CompletableFuture<Void>> checkRequirementFutures = new ArrayList<>();
                 checkRequirementFutures.add(new CompletableFuture<>());
                 checkRequirementFutures.add(new CompletableFuture<>());
-                final long requirementCheckDelay = 20;
+                final long requirementCheckDelay = 50;
                 resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
                         (ignored1, ignored2) -> {
                             if (checkRequirementFutures.get(0).isDone()) {
@@ -586,6 +597,9 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                     createResourceRequirementsForSingleSlot();
                             final TaskExecutorConnection taskExecutionConnection =
                                     createTaskExecutorConnection();
+                            final CompletableFuture<Void> registrationFuture =
+                                    new CompletableFuture<>();
+                            final long start = System.nanoTime();
                             runInMainThread(
                                     () -> {
                                         getSlotManager()
@@ -598,7 +612,15 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                                                         new SlotReport(),
                                                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                                                         DEFAULT_SLOT_RESOURCE_PROFILE);
+                                        registrationFuture.complete(null);
                                     });
+
+                            assertFutureCompleteAndReturn(registrationFuture);
+                            final long registrationTime = (System.nanoTime() - start) / 1_000_000;
+                            assumeTrue(
+                                    "The time of process requirement and register task manager must not take longer than the requirement check delay. If it does, then this indicates a very slow machine.",
+                                    registrationTime < requirementCheckDelay);
+
                             assertFutureCompleteAndReturn(checkRequirementFutures.get(0));
                             assertFutureNotComplete(checkRequirementFutures.get(1));
 
@@ -708,5 +730,268 @@ public class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                         });
             }
         };
+    }
+
+    @Test
+    public void testMaxTotalResourceCpuExceeded() throws Exception {
+        Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
+                (smConfigBuilder) ->
+                        smConfigBuilder.setMaxTotalCpu(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE
+                                        .getCpuCores()
+                                        .multiply(BigDecimal.valueOf(1.5)));
+
+        testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
+        testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);
+    }
+
+    @Test
+    public void testGetResourceOverview() throws Exception {
+        final TaskExecutorConnection taskExecutorConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection taskExecutorConnection2 = createTaskExecutorConnection();
+        final ResourceID resourceId1 = ResourceID.generate();
+        final ResourceID resourceId2 = ResourceID.generate();
+
+        final SlotID slotId1 = new SlotID(resourceId1, 0);
+        final SlotID slotId2 = new SlotID(resourceId2, 0);
+        final ResourceProfile resourceProfile1 = ResourceProfile.fromResources(1, 10);
+        final ResourceProfile resourceProfile2 = ResourceProfile.fromResources(2, 20);
+        final SlotStatus slotStatus1 =
+                new SlotStatus(slotId1, resourceProfile1, new JobID(), new AllocationID());
+        final SlotStatus slotStatus2 =
+                new SlotStatus(slotId2, resourceProfile2, new JobID(), new AllocationID());
+        final SlotReport slotReport1 = new SlotReport(slotStatus1);
+        final SlotReport slotReport2 = new SlotReport(slotStatus2);
+
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            final CompletableFuture<Boolean> registerTaskManagerFuture1 =
+                                    new CompletableFuture<>();
+                            final CompletableFuture<Boolean> registerTaskManagerFuture2 =
+                                    new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        registerTaskManagerFuture1.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection1,
+                                                                slotReport1,
+                                                                resourceProfile1.multiply(2),
+                                                                resourceProfile1));
+                                        registerTaskManagerFuture2.complete(
+                                                getSlotManager()
+                                                        .registerTaskManager(
+                                                                taskExecutorConnection2,
+                                                                slotReport2,
+                                                                resourceProfile2.multiply(2),
+                                                                resourceProfile2));
+                                    });
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture1),
+                                    is(true));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture2),
+                                    is(true));
+                            assertThat(
+                                    getSlotManager().getFreeResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1));
+                            assertThat(
+                                    getSlotManager()
+                                            .getFreeResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2));
+                            assertThat(
+                                    getSlotManager().getRegisteredResource(),
+                                    equalTo(resourceProfile1.merge(resourceProfile2).multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection1.getInstanceID()),
+                                    equalTo(resourceProfile1.multiply(2)));
+                            assertThat(
+                                    getSlotManager()
+                                            .getRegisteredResourceOf(
+                                                    taskExecutorConnection2.getInstanceID()),
+                                    equalTo(resourceProfile2.multiply(2)));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testMaxTotalResourceMemoryExceeded() throws Exception {
+        Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter =
+                (smConfigBuilder) ->
+                        smConfigBuilder.setMaxTotalMem(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE.getTotalMemory().multiply(1.5));
+
+        testMaxTotalResourceExceededAllocateResource(maxTotalResourceSetter);
+        testMaxTotalResourceExceededRegisterResource(maxTotalResourceSetter);
+    }
+
+    private void testMaxTotalResourceExceededAllocateResource(
+            Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter) throws Exception {
+        final JobID jobId = new JobID();
+        final List<CompletableFuture<Void>> allocateResourceFutures = new ArrayList<>();
+        allocateResourceFutures.add(new CompletableFuture<>());
+        allocateResourceFutures.add(new CompletableFuture<>());
+        final PendingTaskManager pendingTaskManager1 =
+                new PendingTaskManager(
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+        final PendingTaskManager pendingTaskManager2 =
+                new PendingTaskManager(
+                        DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+        new Context() {
+            {
+                maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
+
+                resourceActionsBuilder.setAllocateResourceConsumer(
+                        ignored -> {
+                            if (allocateResourceFutures.get(0).isDone()) {
+                                allocateResourceFutures.get(1).complete(null);
+                            } else {
+                                allocateResourceFutures.get(0).complete(null);
+                            }
+                        });
+
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
+                                ResourceAllocationResult.builder()
+                                        .addPendingTaskManagerAllocate(pendingTaskManager1)
+                                        .addPendingTaskManagerAllocate(pendingTaskManager2)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager1.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager2.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .build()));
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(jobId, 2)));
+                            assertFutureCompleteAndReturn(allocateResourceFutures.get(0));
+                            assertFutureNotComplete(allocateResourceFutures.get(1));
+                        });
+            }
+        };
+    }
+
+    private void testMaxTotalResourceExceededRegisterResource(
+            Consumer<SlotManagerConfigurationBuilder> maxTotalResourceSetter) throws Exception {
+        final TaskExecutorConnection taskManagerConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection taskManagerConnection2 = createTaskExecutorConnection();
+        final CompletableFuture<Boolean> registerTaskManagerFuture1 = new CompletableFuture<>();
+        final CompletableFuture<Boolean> registerTaskManagerFuture2 = new CompletableFuture<>();
+        final CompletableFuture<InstanceID> releaseResourceFuture = new CompletableFuture<>();
+
+        new Context() {
+            {
+                maxTotalResourceSetter.accept(slotManagerConfigurationBuilder);
+
+                resourceActionsBuilder.setReleaseResourceConsumer(
+                        (instanceId, ignore) -> releaseResourceFuture.complete(instanceId));
+
+                runTest(
+                        () -> {
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture1.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskManagerConnection1,
+                                                                    new SlotReport(),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture1),
+                                    is(true));
+                            assertFutureNotComplete(releaseResourceFuture);
+                            assertThat(
+                                    getTaskManagerTracker().getRegisteredTaskManagers().size(),
+                                    equalTo(1));
+                            assertTrue(
+                                    getTaskManagerTracker()
+                                            .getRegisteredTaskManager(
+                                                    taskManagerConnection1.getInstanceID())
+                                            .isPresent());
+
+                            runInMainThread(
+                                    () ->
+                                            registerTaskManagerFuture2.complete(
+                                                    getSlotManager()
+                                                            .registerTaskManager(
+                                                                    taskManagerConnection2,
+                                                                    new SlotReport(),
+                                                                    DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                                    DEFAULT_SLOT_RESOURCE_PROFILE)));
+                            assertThat(
+                                    assertFutureCompleteAndReturn(registerTaskManagerFuture2),
+                                    is(false));
+                            assertThat(
+                                    releaseResourceFuture.get(),
+                                    is(taskManagerConnection2.getInstanceID()));
+                            assertThat(
+                                    getTaskManagerTracker().getRegisteredTaskManagers().size(),
+                                    equalTo(1));
+                            assertFalse(
+                                    getTaskManagerTracker()
+                                            .getRegisteredTaskManager(
+                                                    taskManagerConnection2.getInstanceID())
+                                            .isPresent());
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenSuspending() throws Exception {
+        testAccessMetricValueDuringItsUnregister(SlotManager::suspend);
+    }
+
+    @Test
+    public void testMetricsUnregisteredWhenClosing() throws Exception {
+        testAccessMetricValueDuringItsUnregister(AutoCloseable::close);
+    }
+
+    private void testAccessMetricValueDuringItsUnregister(
+            ThrowingConsumer<SlotManager, Exception> closeFn) throws Exception {
+        final AtomicInteger registeredMetrics = new AtomicInteger();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer((a, b, c) -> registeredMetrics.incrementAndGet())
+                        .setUnregisterConsumer((a, b, c) -> registeredMetrics.decrementAndGet())
+                        .build();
+
+        final Context context = new Context();
+        context.setSlotManagerMetricGroup(
+                SlotManagerMetricGroup.create(metricRegistry, "localhost"));
+
+        context.runTest(
+                () -> {
+                    // sanity check to ensure metrics were actually registered
+                    assertThat(registeredMetrics.get(), greaterThan(0));
+                    context.runInMainThreadAndWait(
+                            () -> {
+                                try {
+                                    closeFn.accept(context.getSlotManager());
+                                } catch (Exception e) {
+                                    fail("Error when closing slot manager.");
+                                }
+                            });
+                    assertThat(registeredMetrics.get(), is(0));
+                });
     }
 }

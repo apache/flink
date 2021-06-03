@@ -21,16 +21,17 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /** {@link BatchExecNode} for temporal table join that implemented by lookup. */
@@ -38,19 +39,22 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
     public BatchExecLookupJoin(
             FlinkJoinType joinType,
             @Nullable RexNode joinCondition,
-            RelOptTable temporalTable,
-            @Nullable RexProgram calcOnTemporalTable,
+            TemporalTableSourceSpec temporalTableSourceSpec,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
+            @Nullable List<RexNode> projectionOnTemporalTable,
+            @Nullable RexNode filterOnTemporalTable,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
         super(
                 joinType,
                 joinCondition,
-                temporalTable,
-                calcOnTemporalTable,
+                temporalTableSourceSpec,
                 lookupKeys,
-                inputProperty,
+                projectionOnTemporalTable,
+                filterOnTemporalTable,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }

@@ -474,6 +474,7 @@ public class CheckpointCoordinatorMasterHooksTest {
                         true,
                         false,
                         false,
+                        0,
                         0);
         Executor executor = Executors.directExecutor();
         return new CheckpointCoordinator(

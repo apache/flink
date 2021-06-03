@@ -27,6 +27,8 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -34,6 +36,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
 import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -482,5 +485,27 @@ public class HiveCatalogITCase {
         tableEnv.executeSql(
                 "create temporary table blackhole(i int) with ('connector'='blackhole')");
         tableEnv.executeSql("insert into blackhole select * from datagen").await();
+    }
+
+    @Test
+    public void testCreateTableLike() throws Exception {
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+        tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
+        tableEnv.useCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG);
+        tableEnv.executeSql(
+                String.format(
+                        "create table copy like `%s`.`default`.generic_table",
+                        hiveCatalog.getName()));
+        Catalog builtInCat = tableEnv.getCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG).get();
+        CatalogBaseTable catalogTable =
+                builtInCat.getTable(
+                        new ObjectPath(EnvironmentSettings.DEFAULT_BUILTIN_DATABASE, "copy"));
+        assertEquals(1, catalogTable.getOptions().size());
+        assertEquals("COLLECTION", catalogTable.getOptions().get(FactoryUtil.CONNECTOR.key()));
+        assertEquals(1, catalogTable.getSchema().getFieldCount());
+        assertEquals("x", catalogTable.getSchema().getFieldNames()[0]);
+        assertEquals(DataTypes.INT(), catalogTable.getSchema().getFieldDataTypes()[0]);
     }
 }

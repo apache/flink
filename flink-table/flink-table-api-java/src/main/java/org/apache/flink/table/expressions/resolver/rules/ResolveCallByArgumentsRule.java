@@ -81,8 +81,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
     @Override
     public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
+        // only the top-level expressions may access the output data type
+        final SurroundingInfo surroundingInfo =
+                context.getOutputDataType().map(SurroundingInfo::of).orElse(null);
         return expression.stream()
-                .flatMap(expr -> expr.accept(new ResolvingCallVisitor(context, null)).stream())
+                .flatMap(e -> e.accept(new ResolvingCallVisitor(context, surroundingInfo)).stream())
                 .collect(Collectors.toList());
     }
 
@@ -120,21 +123,23 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
             // resolve the children with information from the current call
             final List<ResolvedExpression> resolvedArgs = new ArrayList<>();
             final int argCount = unresolvedCall.getChildren().size();
+
             for (int i = 0; i < argCount; i++) {
                 final int currentPos = i;
+                final SurroundingInfo surroundingInfo =
+                        typeInference
+                                .map(
+                                        inference ->
+                                                SurroundingInfo.of(
+                                                        name,
+                                                        definition,
+                                                        inference,
+                                                        argCount,
+                                                        currentPos,
+                                                        resolutionContext.isGroupedAggregation()))
+                                .orElse(null);
                 final ResolvingCallVisitor childResolver =
-                        new ResolvingCallVisitor(
-                                resolutionContext,
-                                typeInference
-                                        .map(
-                                                inference ->
-                                                        new SurroundingInfo(
-                                                                name,
-                                                                definition,
-                                                                inference,
-                                                                argCount,
-                                                                currentPos))
-                                        .orElse(null));
+                        new ResolvingCallVisitor(resolutionContext, surroundingInfo);
                 resolvedArgs.addAll(unresolvedCall.getChildren().get(i).accept(childResolver));
             }
 
@@ -225,7 +230,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                     resolutionContext.typeFactory(),
                                     name,
                                     unresolvedCall.getFunctionDefinition(),
-                                    resolvedArgs),
+                                    resolvedArgs,
+                                    resolutionContext.isGroupedAggregation()),
                             surroundingInfo);
 
             final List<ResolvedExpression> adaptedArguments =
@@ -324,15 +330,19 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
         private final List<ResolvedExpression> resolvedArgs;
 
+        private final boolean isGroupedAggregation;
+
         public TableApiCallContext(
                 DataTypeFactory typeFactory,
                 String name,
                 FunctionDefinition definition,
-                List<ResolvedExpression> resolvedArgs) {
+                List<ResolvedExpression> resolvedArgs,
+                boolean isGroupedAggregation) {
             this.typeFactory = typeFactory;
             this.name = name;
             this.definition = definition;
             this.resolvedArgs = resolvedArgs;
+            this.isGroupedAggregation = isGroupedAggregation;
         }
 
         @Override
@@ -396,6 +406,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public Optional<DataType> getOutputDataType() {
             return Optional.empty();
+        }
+
+        @Override
+        public boolean isGroupedAggregation() {
+            return isGroupedAggregation;
         }
 
         private ResolvedExpression getArgument(int pos) {

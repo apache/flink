@@ -26,15 +26,15 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.processor.utils.InputPriorityConflictResolver;
 
 /**
- * A {@link DAGProcessor} that finds out all deadlocks in the {@link ExecNodeGraph} and resolves
- * them.
+ * A {@link ExecNodeGraphProcessor} that finds out all deadlocks in the {@link ExecNodeGraph} and
+ * resolves them.
  *
  * <p>NOTE: This processor can be only applied on {@link BatchExecNode} DAG.
  */
-public class DeadlockBreakupProcessor implements DAGProcessor {
+public class DeadlockBreakupProcessor implements ExecNodeGraphProcessor {
 
     @Override
-    public ExecNodeGraph process(ExecNodeGraph execGraph, DAGProcessContext context) {
+    public ExecNodeGraph process(ExecNodeGraph execGraph, ProcessorContext context) {
         if (!execGraph.getRootNodes().stream().allMatch(r -> r instanceof BatchExecNode)) {
             throw new TableException("Only BatchExecNode DAG are supported now.");
         }

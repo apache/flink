@@ -223,7 +223,62 @@ public class HBaseSerde {
         return get;
     }
 
-    /** Converts HBase {@link Result} into {@link RowData}. */
+    /**
+     * Converts HBase {@link Result} into a new {@link RowData} instance.
+     *
+     * <p>Note: this method is thread-safe.
+     */
+    public RowData convertToNewRow(Result result) {
+        // The output rows needs to be initialized each time
+        // to prevent the possibility of putting the output object into the cache.
+        GenericRowData resultRow = new GenericRowData(fieldLength);
+        GenericRowData[] familyRows = new GenericRowData[families.length];
+        for (int f = 0; f < families.length; f++) {
+            familyRows[f] = new GenericRowData(qualifiers[f].length);
+        }
+        return convertToRow(result, resultRow, familyRows);
+    }
+
+    /**
+     * Converts HBase {@link Result} into a reused {@link RowData} instance.
+     *
+     * <p>Note: this method is NOT thread-safe.
+     */
+    public RowData convertToReusedRow(Result result) {
+        return convertToRow(result, reusedRow, reusedFamilyRows);
+    }
+
+    private RowData convertToRow(
+            Result result, GenericRowData resultRow, GenericRowData[] familyRows) {
+        for (int i = 0; i < fieldLength; i++) {
+            if (rowkeyIndex == i) {
+                assert keyDecoder != null;
+                Object rowkey = keyDecoder.decode(result.getRow());
+                resultRow.setField(rowkeyIndex, rowkey);
+            } else {
+                int f = (rowkeyIndex != -1 && i > rowkeyIndex) ? i - 1 : i;
+                // get family key
+                byte[] familyKey = families[f];
+                GenericRowData familyRow = familyRows[f];
+                for (int q = 0; q < this.qualifiers[f].length; q++) {
+                    // get quantifier key
+                    byte[] qualifier = qualifiers[f][q];
+                    // read value
+                    byte[] value = result.getValue(familyKey, qualifier);
+                    familyRow.setField(q, qualifierDecoders[f][q].decode(value));
+                }
+                resultRow.setField(i, familyRow);
+            }
+        }
+        return resultRow;
+    }
+
+    /**
+     * Converts HBase {@link Result} into {@link RowData}.
+     *
+     * @deprecated Use {@link #convertToReusedRow(Result)} instead.
+     */
+    @Deprecated
     public RowData convertToRow(Result result) {
         for (int i = 0; i < fieldLength; i++) {
             if (rowkeyIndex == i) {

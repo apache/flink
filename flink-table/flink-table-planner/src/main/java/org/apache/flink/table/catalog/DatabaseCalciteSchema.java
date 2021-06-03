@@ -102,7 +102,8 @@ class DatabaseCalciteSchema implements Schema {
             TableLookupResult lookupResult,
             @Nullable TableFactory tableFactory) {
         CatalogBaseTable table = lookupResult.getTable();
-        TableSchema resolvedSchema = lookupResult.getResolvedSchema();
+        TableSchema resolvedSchema =
+                TableSchema.fromResolvedSchema(lookupResult.getResolvedSchema());
         if (table instanceof QueryOperationCatalogView) {
             return QueryOperationCatalogViewTable.createCalciteTable(
                     ((QueryOperationCatalogView) table), resolvedSchema);

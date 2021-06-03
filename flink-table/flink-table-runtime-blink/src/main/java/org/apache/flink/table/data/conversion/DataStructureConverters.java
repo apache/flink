@@ -152,6 +152,10 @@ public final class DataStructureConverters {
                 long.class,
                 constructor(LocalZonedTimestampLongConverter::new));
         putConverter(
+                LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                java.sql.Timestamp.class,
+                constructor(LocalZonedTimestampTimestampConverter::new));
+        putConverter(
                 LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TimestampData.class, identity());
         putConverter(
                 LogicalTypeRoot.INTERVAL_YEAR_MONTH,

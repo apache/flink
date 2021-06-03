@@ -22,19 +22,21 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.RecordsWindowBuffer;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.CombineRecordsFunction;
-import org.apache.flink.table.runtime.operators.aggregate.window.combines.WindowCombineFunction;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.AggCombiner;
+import org.apache.flink.table.runtime.operators.aggregate.window.combines.GlobalAggCombiner;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceUnsharedWindowAggProcessor;
+import org.apache.flink.table.runtime.operators.window.combines.RecordsCombiner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceAssigners.HoppingSliceAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceSharedAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SliceUnsharedAssigner;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowOperator;
 import org.apache.flink.table.runtime.operators.window.slicing.SlicingWindowProcessor;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 
+import java.time.ZoneId;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -59,19 +61,29 @@ public class SlicingWindowAggOperatorBuilder {
     }
 
     private SliceAssigner assigner;
-    private RowType inputType;
-    private LogicalType[] keyTypes;
-    private LogicalType[] accumulatorTypes;
+    private AbstractRowDataSerializer<RowData> inputSerializer;
+    private PagedTypeSerializer<RowData> keySerializer;
+    private AbstractRowDataSerializer<RowData> accSerializer;
     private GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction;
+    private GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction;
     private int indexOfCountStart = -1;
+    private ZoneId shiftTimeZone;
 
-    public SlicingWindowAggOperatorBuilder inputType(RowType rowType) {
-        this.inputType = rowType;
+    public SlicingWindowAggOperatorBuilder inputSerializer(
+            AbstractRowDataSerializer<RowData> inputSerializer) {
+        this.inputSerializer = inputSerializer;
         return this;
     }
 
-    public SlicingWindowAggOperatorBuilder keyTypes(LogicalType[] keyTypes) {
-        this.keyTypes = keyTypes;
+    public SlicingWindowAggOperatorBuilder shiftTimeZone(ZoneId shiftTimeZone) {
+        this.shiftTimeZone = shiftTimeZone;
+        return this;
+    }
+
+    public SlicingWindowAggOperatorBuilder keySerializer(
+            PagedTypeSerializer<RowData> keySerializer) {
+        this.keySerializer = keySerializer;
         return this;
     }
 
@@ -82,9 +94,21 @@ public class SlicingWindowAggOperatorBuilder {
 
     public SlicingWindowAggOperatorBuilder aggregate(
             GeneratedNamespaceAggsHandleFunction<Long> generatedAggregateFunction,
-            LogicalType[] accumulatorTypes) {
+            AbstractRowDataSerializer<RowData> accSerializer) {
         this.generatedAggregateFunction = generatedAggregateFunction;
-        this.accumulatorTypes = accumulatorTypes;
+        this.accSerializer = accSerializer;
+        return this;
+    }
+
+    public SlicingWindowAggOperatorBuilder globalAggregate(
+            GeneratedNamespaceAggsHandleFunction<Long> localGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<Long> globalGeneratedAggregateFunction,
+            GeneratedNamespaceAggsHandleFunction<Long> stateGeneratedAggregateFunction,
+            AbstractRowDataSerializer<RowData> accSerializer) {
+        this.localGeneratedAggregateFunction = localGeneratedAggregateFunction;
+        this.globalGeneratedAggregateFunction = globalGeneratedAggregateFunction;
+        this.generatedAggregateFunction = stateGeneratedAggregateFunction;
+        this.accSerializer = accSerializer;
         return this;
     }
 
@@ -102,32 +126,43 @@ public class SlicingWindowAggOperatorBuilder {
 
     public SlicingWindowOperator<RowData, ?> build() {
         checkNotNull(assigner);
-        checkNotNull(inputType);
-        checkNotNull(keyTypes);
-        checkNotNull(accumulatorTypes);
+        checkNotNull(inputSerializer);
+        checkNotNull(keySerializer);
+        checkNotNull(accSerializer);
         checkNotNull(generatedAggregateFunction);
+
+        boolean isGlobalAgg =
+                localGeneratedAggregateFunction != null && globalGeneratedAggregateFunction != null;
+
+        RecordsCombiner.Factory combinerFactory;
+        if (isGlobalAgg) {
+            combinerFactory =
+                    new GlobalAggCombiner.Factory(
+                            localGeneratedAggregateFunction, globalGeneratedAggregateFunction);
+        } else {
+            combinerFactory = new AggCombiner.Factory(generatedAggregateFunction);
+        }
         final WindowBuffer.Factory bufferFactory =
-                new RecordsWindowBuffer.Factory(keyTypes, inputType);
-        final WindowCombineFunction.Factory combinerFactory =
-                new CombineRecordsFunction.Factory(generatedAggregateFunction, inputType);
+                new RecordsWindowBuffer.Factory(keySerializer, inputSerializer, combinerFactory);
+
         final SlicingWindowProcessor<Long> windowProcessor;
         if (assigner instanceof SliceSharedAssigner) {
             windowProcessor =
                     new SliceSharedWindowAggProcessor(
                             generatedAggregateFunction,
                             bufferFactory,
-                            combinerFactory,
                             (SliceSharedAssigner) assigner,
-                            accumulatorTypes,
-                            indexOfCountStart);
+                            accSerializer,
+                            indexOfCountStart,
+                            shiftTimeZone);
         } else if (assigner instanceof SliceUnsharedAssigner) {
             windowProcessor =
                     new SliceUnsharedWindowAggProcessor(
                             generatedAggregateFunction,
                             bufferFactory,
-                            combinerFactory,
                             (SliceUnsharedAssigner) assigner,
-                            accumulatorTypes);
+                            accSerializer,
+                            shiftTimeZone);
         } else {
             throw new IllegalArgumentException(
                     "assigner must be instance of SliceUnsharedAssigner or SliceSharedAssigner.");

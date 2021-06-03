@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -103,7 +104,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         return CompletableFuture.allOf(
                 processor1.prepareSnapshot(channelStateWriter, checkpointId),
                 processor2.prepareSnapshot(channelStateWriter, checkpointId));

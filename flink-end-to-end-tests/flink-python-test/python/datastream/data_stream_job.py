@@ -51,7 +51,7 @@ def python_data_stream_example():
 
     kafka_consumer.set_start_from_earliest()
     ds = env.add_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
-    ds.key_by(MyKeySelector(), key_type_info=Types.LONG()) \
+    ds.key_by(MyKeySelector(), key_type=Types.LONG()) \
         .process(MyProcessFunction(), output_type=Types.STRING()) \
         .add_sink(kafka_producer)
     env.execute_async("test data stream timer")

@@ -74,15 +74,17 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Datetime types are comparable",
                                 InputTypeStrategies.comparable(
-                                        ConstantArgumentCount.of(4), StructuredComparision.EQUALS))
+                                        ConstantArgumentCount.of(5), StructuredComparision.EQUALS))
                         .calledWithArgumentTypes(
                                 DataTypes.TIMESTAMP(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+                                DataTypes.TIMESTAMP_LTZ(),
                                 DataTypes.TIMESTAMP_WITH_TIME_ZONE(),
                                 DataTypes.DATE())
                         .expectArgumentTypes(
                                 DataTypes.TIMESTAMP(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
+                                DataTypes.TIMESTAMP_LTZ(),
                                 DataTypes.TIMESTAMP_WITH_TIME_ZONE(),
                                 DataTypes.DATE()),
                 TestSpec.forStrategy(

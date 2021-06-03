@@ -24,17 +24,17 @@ import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
+import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.inference.OperatorBindingCallContext
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSetTrait, ModifyKindSetTraitDef, RelModifiedMonotonicity}
+import org.apache.flink.table.planner.plan.logical.{HoppingWindowSpec, WindowSpec}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.typeutils.DataViewUtils
@@ -153,6 +153,7 @@ object AggregateUtil extends Enumeration {
   def getOutputIndexToAggCallIndexMap(
       aggregateCalls: Seq[AggregateCall],
       inputType: RelDataType,
+      isBounded: Boolean,
       orderKeyIndexes: Array[Int] = null): util.Map[Integer, Integer] = {
     val aggInfos = transformToAggregateInfoList(
       FlinkTypeFactory.toLogicalRowType(inputType),
@@ -161,7 +162,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false).aggInfos
+      needDistinctInfo = false,
+      isBounded).aggInfos
 
     val map = new util.HashMap[Integer, Integer]()
     var outputIndex = 0
@@ -248,6 +250,33 @@ object AggregateUtil extends Enumeration {
       isStateBackendDataViews = true)
   }
 
+  def deriveStreamWindowAggregateInfoList(
+      inputRowType: RowType,
+      aggCalls: Seq[AggregateCall],
+      windowSpec: WindowSpec,
+      isStateBackendDataViews: Boolean): AggregateInfoList = {
+    // Hopping window requires additional COUNT(*) to determine  whether to register next timer
+    // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
+    val needInputCount = windowSpec.isInstanceOf[HoppingWindowSpec]
+    val aggSize = if (needInputCount) {
+      // we may insert a count(*) when need input count
+      aggCalls.length + 1
+    } else {
+      aggCalls.length
+    }
+    // TODO: derive retraction flags from ChangelogMode trait when we support retraction for window
+    val aggCallNeedRetractions = new Array[Boolean](aggSize)
+    transformToAggregateInfoList(
+      inputRowType,
+      aggCalls,
+      aggCallNeedRetractions,
+      orderKeyIndexes = null,
+      needInputCount,
+      isStateBackendDataViews,
+      needDistinctInfo = true,
+      isBounded = false)
+  }
+
   def transformToBatchAggregateFunctions(
       inputRowType: RowType,
       aggregateCalls: Seq[AggregateCall],
@@ -261,7 +290,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false).aggInfos
+      needDistinctInfo = false,
+      isBounded = true).aggInfos
 
     val aggFields = aggInfos.map(_.argIndexes)
     val bufferTypes = aggInfos.map(_.externalAccTypes)
@@ -289,7 +319,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes,
       needInputCount = false,
       isStateBackedDataViews = false,
-      needDistinctInfo = false)
+      needDistinctInfo = false,
+      isBounded = true)
   }
 
   def transformToStreamAggregateInfoList(
@@ -306,7 +337,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes = null,
       needInputCount,
       isStateBackendDataViews,
-      needDistinctInfo)
+      needDistinctInfo,
+      isBounded = false)
   }
 
   /**
@@ -329,7 +361,8 @@ object AggregateUtil extends Enumeration {
       orderKeyIndexes: Array[Int],
       needInputCount: Boolean,
       isStateBackedDataViews: Boolean,
-      needDistinctInfo: Boolean): AggregateInfoList = {
+      needDistinctInfo: Boolean,
+      isBounded: Boolean): AggregateInfoList = {
 
     // Step-1:
     // if need inputCount, find count1 in the existed aggregate calls first,
@@ -349,12 +382,16 @@ object AggregateUtil extends Enumeration {
 
     // Step-3:
     // create aggregate information
-    val factory = new AggFunctionFactory(inputRowType, orderKeyIndexes, aggCallNeedRetractions)
+    val factory = new AggFunctionFactory(
+      inputRowType,
+      orderKeyIndexes,
+      aggCallNeedRetractions,
+      isBounded)
     val aggInfos = newAggCalls
       .zipWithIndex
       .map { case (call, index) =>
         val argIndexes = call.getAggregation match {
-          case _: SqlRankFunction => orderKeyIndexes
+          case _: SqlRankFunction => if (orderKeyIndexes != null) orderKeyIndexes else Array[Int]()
           case _ => call.getArgList.map(_.intValue()).toArray
         }
         transformToAggregateInfo(
@@ -843,7 +880,7 @@ object AggregateUtil extends Enumeration {
   def needRetraction(agg: StreamPhysicalRel): Boolean = {
     // need to call `retract()` if input contains update or delete
     val modifyKindSetTrait = agg.getInput(0).getTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
-    if (modifyKindSetTrait == null) {
+    if (modifyKindSetTrait == null || modifyKindSetTrait == ModifyKindSetTrait.EMPTY) {
       // FlinkChangelogModeInferenceProgram is not applied yet, false as default
       false
     } else {
@@ -973,23 +1010,23 @@ object AggregateUtil extends Enumeration {
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
       case (p, (s, e, rt, i)) => p match {
-        case PlannerNamedWindowProperty(_, prop) =>
-          prop match {
-            case PlannerWindowStart(_) if s.isDefined =>
+        case p: PlannerNamedWindowProperty =>
+          p.getProperty match {
+            case _: PlannerWindowStart if s.isDefined =>
               throw new TableException(
                 "Duplicate window start property encountered. This is a bug.")
-            case PlannerWindowStart(_) =>
+            case _: PlannerWindowStart =>
               (Some(i), e, rt, i - 1)
-            case PlannerWindowEnd(_) if e.isDefined =>
+            case _: PlannerWindowEnd if e.isDefined =>
               throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case PlannerWindowEnd(_) =>
+            case _: PlannerWindowEnd =>
               (s, Some(i), rt, i - 1)
-            case PlannerRowtimeAttribute(_) if rt.isDefined =>
+            case _: PlannerRowtimeAttribute if rt.isDefined =>
               throw new TableException(
                 "Duplicate window rowtime property encountered. This is a bug.")
-            case PlannerRowtimeAttribute(_) =>
+            case _: PlannerRowtimeAttribute =>
               (s, e, Some(i), i - 1)
-            case PlannerProctimeAttribute(_) =>
+            case _: PlannerProctimeAttribute =>
               // ignore this property, it will be null at the position later
               (s, e, rt, i - 1)
           }

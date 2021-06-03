@@ -77,7 +77,8 @@ class CalcITCase extends AbstractTestBase {
   @Test
   def testSelectStar(): Unit = {
     StreamITCase.testResults = mutable.MutableList()
-    val ds = StreamTestData.getSmallNestedTupleDataStream(env).toTable(tEnv).select('*)
+    val ds = StreamTestData.getSmallNestedTupleDataStream(env)
+      .toTable(tEnv, $("_1"), $("_2")).select('*)
 
     val results = ds.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])

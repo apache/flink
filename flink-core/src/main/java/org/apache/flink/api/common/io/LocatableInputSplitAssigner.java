@@ -103,9 +103,6 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
                         }
                     } else {
                         // all splits consumed
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("No more unassigned input splits remaining.");
-                        }
                         return null;
                     }
                 }
@@ -205,9 +202,6 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
                     }
                 } else {
                     // all splits consumed
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("No more input splits remaining.");
-                    }
                     return null;
                 }
             }

@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.13-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser-hive</artifactId>
@@ -91,7 +91,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
@@ -100,7 +100,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.vintage</groupId>
 			<artifactId>junit-vintage-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

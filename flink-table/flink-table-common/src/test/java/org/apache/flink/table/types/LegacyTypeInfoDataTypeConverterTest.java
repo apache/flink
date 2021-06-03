@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
@@ -114,6 +115,13 @@ public class LegacyTypeInfoDataTypeConverterTest {
                         TimeIndicatorTypeInfo.ROWTIME_INDICATOR,
                         new AtomicDataType(new TimestampType(true, TimestampKind.ROWTIME, 3))
                                 .bridgedTo(java.sql.Timestamp.class)
+                    },
+                    {
+                        TimeIndicatorTypeInfo.PROCTIME_INDICATOR,
+                        new AtomicDataType(
+                                        new LocalZonedTimestampType(
+                                                true, TimestampKind.PROCTIME, 3))
+                                .bridgedTo(java.time.Instant.class)
                     }
                 });
     }

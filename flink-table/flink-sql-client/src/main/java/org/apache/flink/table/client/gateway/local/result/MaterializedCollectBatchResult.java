@@ -31,10 +31,12 @@ public class MaterializedCollectBatchResult extends MaterializedCollectResultBas
     public MaterializedCollectBatchResult(
             TableResult tableResult, int maxRowCount, int overcommitThreshold) {
         super(tableResult, maxRowCount, overcommitThreshold);
+        // start listener thread
+        retrievalThread.start();
     }
 
     public MaterializedCollectBatchResult(TableResult tableResult, int maxRowCount) {
-        super(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
+        this(tableResult, maxRowCount, computeMaterializedTableOvercommit(maxRowCount));
     }
 
     @VisibleForTesting

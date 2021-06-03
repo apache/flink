@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 /** {@link Input} interface used in {@link MultipleInputStreamOperator}. */
 @PublicEvolving
@@ -49,4 +50,6 @@ public interface Input<IN> {
     void processLatencyMarker(LatencyMarker latencyMarker) throws Exception;
 
     void setKeyContextElement(StreamRecord<IN> record) throws Exception;
+
+    void emitStreamStatus(StreamStatus streamStatus) throws Exception;
 }

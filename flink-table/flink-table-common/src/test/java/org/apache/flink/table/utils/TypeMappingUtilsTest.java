@@ -25,6 +25,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
@@ -358,12 +359,12 @@ public class TypeMappingUtilsTest {
         TypeInformation legacyTypeInfo =
                 ((TupleTypeInfo) legacyDataType.getTypeInformation()).getTypeAt(1);
         DataType physicalType = TypeConversions.fromLegacyInfoToDataType(legacyTypeInfo);
-        TableSchema physicSchema = DataTypeUtils.expandCompositeTypeToSchema(physicalType);
+        ResolvedSchema physicSchema = DataTypeUtils.expandCompositeTypeToSchema(physicalType);
         DataType[] logicalDataTypes = tableSchema.getFieldDataTypes();
-        DataType[] physicalDataTypes = physicSchema.getFieldDataTypes();
+        List<DataType> physicalDataTypes = physicSchema.getColumnDataTypes();
         for (int i = 0; i < logicalDataTypes.length; i++) {
             TypeMappingUtils.checkPhysicalLogicalTypeCompatible(
-                    physicalDataTypes[i].getLogicalType(),
+                    physicalDataTypes.get(i).getLogicalType(),
                     logicalDataTypes[i].getLogicalType(),
                     "physicalField",
                     "logicalField",

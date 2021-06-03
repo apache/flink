@@ -346,7 +346,7 @@ class SqlITCase extends StreamingWithStateTestBase {
     )
 
     tEnv.registerTable("MyTable",
-      env.fromCollection(data).toTable(tEnv).as("a", "b", "c"))
+      env.fromCollection(data).toTable(tEnv, $("a"), $("b"), $("c")))
 
     val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
     result.addSink(new StreamITCase.RetractingSink).setParallelism(1)
@@ -368,7 +368,7 @@ class SqlITCase extends StreamingWithStateTestBase {
 
     val sqlQuery = "SELECT * FROM MyTable"
 
-    val t = StreamTestData.getSmallNestedTupleDataStream(env).toTable(tEnv).as("a", "b")
+    val t = StreamTestData.getSmallNestedTupleDataStream(env).toTable(tEnv, $("a"), $("b"))
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
@@ -635,7 +635,7 @@ class SqlITCase extends StreamingWithStateTestBase {
       (3, 2, (13, "41.6")),
       (4, 3, (14, "45.2136")),
       (5, 3, (18, "42.6")))
-    tEnv.registerTable("t1", env.fromCollection(data).toTable(tEnv).as("a", "b", "c"))
+    tEnv.registerTable("t1", env.fromCollection(data).toTable(tEnv, $("a"), $("b"), $("c")))
 
     val t2 = tEnv.sqlQuery("SELECT b, COLLECT(c) as `set` FROM t1 GROUP BY b")
     tEnv.registerTable("t2", t2)

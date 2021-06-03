@@ -136,15 +136,29 @@ public class FlinkDDLDataTypeTest {
                         nullable(FIXTURE.timestampWithLocalTimeZoneType),
                         "TIMESTAMP WITH LOCAL TIME ZONE"),
                 createTestItem(
+                        "TIMESTAMP_LTZ",
+                        nullable(FIXTURE.timestampWithLocalTimeZoneType),
+                        "TIMESTAMP_LTZ"),
+                createTestItem(
                         "TIMESTAMP(3) WITH LOCAL TIME ZONE",
                         nullable(FIXTURE.timestamp3WithLocalTimeZoneType),
                         "TIMESTAMP(3) WITH LOCAL TIME ZONE"),
+                createTestItem(
+                        "TIMESTAMP_LTZ(3)",
+                        nullable(FIXTURE.timestamp3WithLocalTimeZoneType),
+                        "TIMESTAMP_LTZ(3)"),
                 createTestItem(
                         "ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>",
                         nullable(
                                 FIXTURE.createArrayType(
                                         nullable(FIXTURE.timestamp3WithLocalTimeZoneType))),
                         "ARRAY< TIMESTAMP(3) WITH LOCAL TIME ZONE >"),
+                createTestItem(
+                        "ARRAY<TIMESTAMP_LTZ(3)>",
+                        nullable(
+                                FIXTURE.createArrayType(
+                                        nullable(FIXTURE.timestamp3WithLocalTimeZoneType))),
+                        "ARRAY< TIMESTAMP_LTZ(3) >"),
                 createTestItem(
                         "ARRAY<INT NOT NULL>",
                         nullable(FIXTURE.createArrayType(FIXTURE.intType)),

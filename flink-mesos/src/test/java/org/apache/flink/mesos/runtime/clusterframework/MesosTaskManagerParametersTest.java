@@ -314,6 +314,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
         assertEquals(expectedLabels, params.mesosLabels());
     }
 
+    @Test
+    public void testTaskUserConfiguration() {
+        Configuration conf = getConfiguration();
+        conf.setString(MesosTaskManagerParameters.MESOS_TM_USER, "flink");
+        MesosTaskManagerParameters params = MesosTaskManagerParameters.create(conf);
+        assertEquals("flink", params.user().get());
+    }
+
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, TOTAL_PROCESS_MEMORY_SIZE);

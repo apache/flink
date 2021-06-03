@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, FLINK_REL_BUILDER, RankFactory}
-import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
+import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
+import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
@@ -31,7 +30,7 @@ import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.`type`.RelDataTypeField
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlKind
@@ -85,11 +84,10 @@ class FlinkRelBuilder(
   }
 
   def expand(
-      outputRowType: RelDataType,
       projects: util.List[util.List[RexNode]],
       expandIdIndex: Int): RelBuilder = {
     val input = build()
-    val expand = expandFactory.createExpand(input, outputRowType, projects, expandIdIndex)
+    val expand = expandFactory.createExpand(input, projects, expandIdIndex)
     push(expand)
   }
 
@@ -190,13 +188,6 @@ class FlinkRelBuilder(
 }
 
 object FlinkRelBuilder {
-
-  /**
-    * Information necessary to create a window aggregate.
-    *
-    * Similar to [[RelBuilder.AggCall]] or [[RelBuilder.GroupKey]].
-    */
-  case class PlannerNamedWindowProperty(name: String, property: PlannerWindowProperty)
 
   case class NamedWindowProperty(name: String, property: WindowProperty)
 

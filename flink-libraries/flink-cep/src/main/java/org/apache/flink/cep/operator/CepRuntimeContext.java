@@ -44,7 +44,6 @@ import org.apache.flink.metrics.MetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -66,7 +65,7 @@ class CepRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public Optional<JobID> getJobId() {
+    public JobID getJobId() {
         return runtimeContext.getJobId();
     }
 

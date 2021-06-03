@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
@@ -69,10 +70,23 @@ import org.apache.flink.table.sinks.TableSink;
 @PublicEvolving
 public interface Table {
 
-    /** Returns the schema of this table. */
-    TableSchema getSchema();
+    /**
+     * Returns the schema of this table.
+     *
+     * @deprecated This method has been deprecated as part of FLIP-164. {@link TableSchema} has been
+     *     replaced by two more dedicated classes {@link Schema} and {@link ResolvedSchema}. Use
+     *     {@link Schema} for declaration in APIs. {@link ResolvedSchema} is offered by the
+     *     framework after resolution and validation.
+     */
+    @Deprecated
+    default TableSchema getSchema() {
+        return TableSchema.fromResolvedSchema(getResolvedSchema());
+    }
 
-    /** Prints the schema of this table to the console in a tree format. */
+    /** Returns the resolved schema of this table. */
+    ResolvedSchema getResolvedSchema();
+
+    /** Prints the schema of this table to the console in a summary format. */
     void printSchema();
 
     /** Returns underlying logical representation of this table. */

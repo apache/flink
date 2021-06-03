@@ -592,7 +592,7 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
-  def testUnsupportedWindowAggregateOnChangelogSource(): Unit = {
+  def testWindowAggregateOnChangelogSource(): Unit = {
     util.addTable(
       """
         |CREATE TABLE src (
@@ -610,10 +610,6 @@ class TableScanTest extends TableTestBase {
         |FROM src
         |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
         |""".stripMargin
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "GroupWindowAggregate doesn't support consuming update changes " +
-        "which is produced by node TableSourceScan")
     util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 
@@ -704,7 +700,8 @@ class TableScanTest extends TableTestBase {
   def testInvalidWatermarkOutputType(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Watermark strategy '' must be of type TIMESTAMP but is of type 'CHAR(0) NOT NULL'.")
+      "Watermark strategy '' must be of type TIMESTAMP or TIMESTAMP_LTZ" +
+        " but is of type 'CHAR(0) NOT NULL'.")
     util.addTable(
       """
         |CREATE TABLE src (

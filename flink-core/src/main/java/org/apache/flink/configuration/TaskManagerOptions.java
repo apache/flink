@@ -236,6 +236,16 @@ public class TaskManagerOptions {
                                     + " is typically proportional to the number of physical CPU cores that the TaskManager's machine has"
                                     + " (e.g., equal to the number of cores, or half the number of cores).");
 
+    /** Timeout for identifying inactive slots. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> SLOT_TIMEOUT =
+            ConfigOptions.key("taskmanager.slot.timeout")
+                    .durationType()
+                    .defaultValue(TimeUtils.parseDuration("10 s"))
+                    .withDescription(
+                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
+                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request.");
+
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
             key("taskmanager.debug.memory.log")
@@ -502,6 +512,28 @@ public class TaskManagerOptions {
                                     + " make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than"
                                     + " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
                                     + " explicitly specified by setting the min/max size to the same value.");
+
+    /**
+     * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
+     * sort-merge shuffle).
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
+            key("taskmanager.memory.framework.off-heap.batch-shuffle.size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("32m"))
+                    .withDescription(
+                            String.format(
+                                    "Size of memory used by blocking shuffle for shuffle data read "
+                                            + "(currently only used by sort-merge shuffle). Notes: "
+                                            + "1) The memory is cut from '%s' so must be smaller than"
+                                            + " that, which means you may also need to increase '%s' "
+                                            + "after you increase this config value; 2) This memory"
+                                            + " size can influence the shuffle performance and you "
+                                            + "can increase this config value for large-scale batch"
+                                            + " jobs (for example, to 128M or 256M).",
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key(),
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key()));
 
     /** JVM Metaspace Size for the TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)

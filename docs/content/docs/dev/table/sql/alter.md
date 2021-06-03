@@ -1,6 +1,6 @@
 ---
 title: "ALTER Statements"
-weight: 5
+weight: 6
 type: docs
 aliases:
   - /dev/table/sql/alter.html

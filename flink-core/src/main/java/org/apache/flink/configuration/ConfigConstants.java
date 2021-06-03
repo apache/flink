@@ -1013,7 +1013,7 @@ public final class ConfigConstants {
     public static final String HA_ZOOKEEPER_NAMESPACE_KEY =
             "high-availability.zookeeper.path.namespace";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LATCH_PATH}. */
+    /** @deprecated no longer used. */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_LATCH_PATH = "high-availability.zookeeper.path.latch";
 
@@ -1026,14 +1026,14 @@ public final class ConfigConstants {
     public static final String HA_ZOOKEEPER_JOBGRAPHS_PATH =
             "high-availability.zookeeper.path.jobgraphs";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LEADER_PATH}. */
+    /** @deprecated no longer used. */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_LEADER_PATH = "high-availability.zookeeper.path.leader";
 
     /**
      * ZooKeeper root path (ZNode) for completed checkpoints.
      *
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINTS_PATH}.
+     * @deprecated no longer used.
      */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_CHECKPOINTS_PATH =
@@ -1042,7 +1042,7 @@ public final class ConfigConstants {
     /**
      * ZooKeeper root path (ZNode) for checkpoint counters.
      *
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}.
+     * @deprecated no longer used.
      */
     @PublicEvolving @Deprecated
     public static final String HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
@@ -1691,21 +1691,19 @@ public final class ConfigConstants {
     /** @deprecated in favor of {@link HighAvailabilityOptions#HA_CLUSTER_ID}. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_NAMESPACE_KEY = "/default";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LATCH_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_LATCH_PATH = "/leaderlatch";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_LEADER_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_LEADER_PATH = "/leader";
 
     /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_JOBGRAPHS_PATH}. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_JOBGRAPHS_PATH = "/jobgraphs";
 
-    /** @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINTS_PATH}. */
+    /** @deprecated no longer used. */
     @Deprecated public static final String DEFAULT_ZOOKEEPER_CHECKPOINTS_PATH = "/checkpoints";
 
-    /**
-     * @deprecated in favor of {@link HighAvailabilityOptions#HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH}
-     */
+    /** @deprecated no longer used. */
     @Deprecated
     public static final String DEFAULT_ZOOKEEPER_CHECKPOINT_COUNTER_PATH = "/checkpoint-counter";
 

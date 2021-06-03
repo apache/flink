@@ -55,7 +55,7 @@ public class ZipUtils {
                     if (!file.exists()) {
                         if (!file.mkdirs()) {
                             throw new IOException(
-                                    "Create dir: " + file.getAbsolutePath() + "failed!");
+                                    "Create dir: " + file.getAbsolutePath() + " failed!");
                         }
                     }
                 } else {
@@ -64,14 +64,15 @@ public class ZipUtils {
                     if (!parentDir.exists()) {
                         if (!parentDir.mkdirs()) {
                             throw new IOException(
-                                    "Create dir: " + file.getAbsolutePath() + "failed!");
+                                    "Create dir: " + file.getAbsolutePath() + " failed!");
                         }
                     }
                     if (file.createNewFile()) {
                         OutputStream output = new FileOutputStream(file);
                         IOUtils.copyBytes(zipFile.getInputStream(entry), output);
                     } else {
-                        throw new IOException("Create file: " + file.getAbsolutePath() + "failed!");
+                        throw new IOException(
+                                "Create file: " + file.getAbsolutePath() + " failed!");
                     }
                 }
                 if (isUnix) {

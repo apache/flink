@@ -154,7 +154,7 @@ object TableSourceUtil {
       // patch proctime field with time indicator type
       proctimeAttributes.foreach { proctimeField =>
         val idx = fieldNames.indexOf(proctimeField)
-        val proctimeType = new TimestampType(
+        val proctimeType = new LocalZonedTimestampType(
           true, TimestampKind.PROCTIME, 3)
         fieldTypes = fieldTypes.patch(idx, Seq(proctimeType), 1)
       }

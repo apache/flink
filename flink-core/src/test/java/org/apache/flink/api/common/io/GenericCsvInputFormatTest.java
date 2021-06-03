@@ -27,6 +27,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
@@ -169,6 +170,46 @@ public class GenericCsvInputFormatTest {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
             final FileInputSplit split = createTempGzipFile(fileContent);
+
+            final Configuration parameters = new Configuration();
+
+            format.setFieldDelimiter("|");
+            format.setFieldTypesGeneric(
+                    IntValue.class, IntValue.class, IntValue.class, IntValue.class, IntValue.class);
+
+            format.configure(parameters);
+            format.open(split);
+
+            Value[] values = createIntValues(5);
+
+            values = format.nextRecord(values);
+            assertNotNull(values);
+            assertEquals(111, ((IntValue) values[0]).getValue());
+            assertEquals(222, ((IntValue) values[1]).getValue());
+            assertEquals(333, ((IntValue) values[2]).getValue());
+            assertEquals(444, ((IntValue) values[3]).getValue());
+            assertEquals(555, ((IntValue) values[4]).getValue());
+
+            values = format.nextRecord(values);
+            assertNotNull(values);
+            assertEquals(666, ((IntValue) values[0]).getValue());
+            assertEquals(777, ((IntValue) values[1]).getValue());
+            assertEquals(888, ((IntValue) values[2]).getValue());
+            assertEquals(999, ((IntValue) values[3]).getValue());
+            assertEquals(000, ((IntValue) values[4]).getValue());
+
+            assertNull(format.nextRecord(values));
+            assertTrue(format.reachedEnd());
+        } catch (Exception ex) {
+            fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void testReadNoPosAllZStandard() throws IOException {
+        try {
+            final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
+            final FileInputSplit split = createTempZStandardFile(fileContent);
 
             final Configuration parameters = new Configuration();
 
@@ -790,6 +831,24 @@ public class GenericCsvInputFormatTest {
 
         DataOutputStream dos =
                 new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tempFile)));
+        dos.writeBytes(content);
+        dos.close();
+
+        return new FileInputSplit(
+                0,
+                new Path(tempFile.toURI().toString()),
+                0,
+                tempFile.length(),
+                new String[] {"localhost"});
+    }
+
+    private FileInputSplit createTempZStandardFile(String content) throws IOException {
+        File tempFile = File.createTempFile("test_contents", "tmp.zst");
+        tempFile.deleteOnExit();
+
+        DataOutputStream dos =
+                new DataOutputStream(
+                        new ZstdCompressorOutputStream(new FileOutputStream(tempFile)));
         dos.writeBytes(content);
         dos.close();
 

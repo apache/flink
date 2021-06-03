@@ -20,12 +20,14 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -34,22 +36,23 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
+import org.apache.flink.streaming.runtime.tasks.WatermarkGaugeExposingOutput;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.api.graph.StreamConfig.requiresSorting;
@@ -69,7 +72,6 @@ public class StreamMultipleInputProcessorFactory {
             MemoryManager memoryManager,
             TaskIOMetricGroup ioMetricGroup,
             Counter mainOperatorRecordsIn,
-            StreamStatusMaintainer streamStatusMaintainer,
             MultipleInputStreamOperator<?> mainOperator,
             WatermarkGauge[] inputWatermarkGauges,
             StreamConfig streamConfig,
@@ -77,7 +79,10 @@ public class StreamMultipleInputProcessorFactory {
             Configuration jobConfig,
             ExecutionConfig executionConfig,
             ClassLoader userClassloader,
-            OperatorChain<?, ?> operatorChain) {
+            OperatorChain<?, ?> operatorChain,
+            InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners,
+            TaskInfo taskInfo) {
         checkNotNull(operatorChain);
 
         List<Input> operatorInputs = mainOperator.getInputs();
@@ -87,8 +92,6 @@ public class StreamMultipleInputProcessorFactory {
         Counter networkRecordsIn = new SimpleCounter();
         ioMetricGroup.reuseRecordsInputCounter(networkRecordsIn);
 
-        MultiStreamStreamStatusTracker streamStatusTracker =
-                new MultiStreamStreamStatusTracker(inputsCount);
         checkState(
                 configuredInputs.length == inputsCount,
                 "Number of configured inputs in StreamConfig [%s] doesn't match the main operator's number of inputs [%s]",
@@ -101,14 +104,17 @@ public class StreamMultipleInputProcessorFactory {
                 StreamConfig.NetworkInputConfig networkInput =
                         (StreamConfig.NetworkInputConfig) configuredInput;
                 inputs[i] =
-                        new StreamTaskNetworkInput<>(
+                        StreamTaskNetworkInputFactory.create(
                                 checkpointedInputGates[networkInput.getInputGateIndex()],
                                 networkInput.getTypeSerializer(),
                                 ioManager,
                                 new StatusWatermarkValve(
                                         checkpointedInputGates[networkInput.getInputGateIndex()]
                                                 .getNumberOfInputChannels()),
-                                i);
+                                i,
+                                inflightDataRescalingDescriptor,
+                                gatePartitioners,
+                                taskInfo);
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
@@ -194,10 +200,7 @@ public class StreamMultipleInputProcessorFactory {
                 StreamTaskNetworkOutput dataOutput =
                         new StreamTaskNetworkOutput<>(
                                 operatorInputs.get(i),
-                                streamStatusMaintainer,
                                 inputWatermarkGauges[i],
-                                streamStatusTracker,
-                                i,
                                 mainOperatorRecordsIn,
                                 networkRecordsIn);
 
@@ -206,18 +209,14 @@ public class StreamMultipleInputProcessorFactory {
             } else if (configuredInput instanceof StreamConfig.SourceInputConfig) {
                 StreamConfig.SourceInputConfig sourceInput =
                         (StreamConfig.SourceInputConfig) configuredInput;
-                Output<StreamRecord<?>> chainedSourceOutput =
+                WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput =
                         operatorChain.getChainedSourceOutput(sourceInput);
 
                 inputProcessors[i] =
                         new StreamOneInputProcessor(
                                 inputs[i],
                                 new StreamTaskSourceOutput(
-                                        chainedSourceOutput,
-                                        streamStatusMaintainer,
-                                        inputWatermarkGauges[i],
-                                        streamStatusTracker,
-                                        i),
+                                        chainedSourceOutput, inputWatermarkGauges[i]),
                                 operatorChain);
             } else {
                 throw new UnsupportedOperationException("Unknown input type: " + configuredInput);
@@ -229,48 +228,13 @@ public class StreamMultipleInputProcessorFactory {
     }
 
     /**
-     * Stream status tracker for the inputs. We need to keep track for determining when to forward
-     * stream status changes downstream.
-     */
-    private static class MultiStreamStreamStatusTracker {
-        private final StreamStatus[] streamStatuses;
-
-        private MultiStreamStreamStatusTracker(int numberOfInputs) {
-            this.streamStatuses = new StreamStatus[numberOfInputs];
-            Arrays.fill(streamStatuses, StreamStatus.ACTIVE);
-        }
-
-        public void setStreamStatus(int index, StreamStatus streamStatus) {
-            streamStatuses[index] = streamStatus;
-        }
-
-        public StreamStatus getStreamStatus(int index) {
-            return streamStatuses[index];
-        }
-
-        public boolean allStreamStatusesAreIdle() {
-            for (StreamStatus streamStatus : streamStatuses) {
-                if (streamStatus.isActive()) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    /**
      * The network data output implementation used for processing stream elements from {@link
      * StreamTaskNetworkInput} in two input selective processor.
      */
-    private static class StreamTaskNetworkOutput<T> extends AbstractDataOutput<T> {
+    private static class StreamTaskNetworkOutput<T> implements PushingAsyncDataInput.DataOutput<T> {
         private final Input<T> input;
 
         private final WatermarkGauge inputWatermarkGauge;
-
-        /** The input index to indicate how to process elements by two input operator. */
-        private final int inputIndex;
-
-        private final MultiStreamStreamStatusTracker streamStatusTracker;
 
         private final Counter mainOperatorRecordsIn;
 
@@ -278,18 +242,11 @@ public class StreamMultipleInputProcessorFactory {
 
         private StreamTaskNetworkOutput(
                 Input<T> input,
-                StreamStatusMaintainer streamStatusMaintainer,
                 WatermarkGauge inputWatermarkGauge,
-                MultiStreamStreamStatusTracker streamStatusTracker,
-                int inputIndex,
                 Counter mainOperatorRecordsIn,
                 Counter networkRecordsIn) {
-            super(streamStatusMaintainer);
-
             this.input = checkNotNull(input);
             this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
-            this.streamStatusTracker = streamStatusTracker;
-            this.inputIndex = inputIndex;
             this.mainOperatorRecordsIn = mainOperatorRecordsIn;
             this.networkRecordsIn = networkRecordsIn;
         }
@@ -309,18 +266,8 @@ public class StreamMultipleInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
-            streamStatusTracker.setStreamStatus(inputIndex, streamStatus);
-
-            // check if we need to toggle the task's stream status
-            if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
-                if (streamStatus.isActive()) {
-                    // we're no longer idle if at least one input has become active
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-                } else if (streamStatusTracker.allStreamStatusesAreIdle()) {
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
-                }
-            }
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            input.emitStreamStatus(streamStatus);
         }
 
         @Override
@@ -332,33 +279,18 @@ public class StreamMultipleInputProcessorFactory {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static class StreamTaskSourceOutput
             extends SourceOperatorStreamTask.AsyncDataOutputToOutput {
-        private final int inputIndex;
-        private final MultiStreamStreamStatusTracker streamStatusTracker;
+        private final WatermarkGaugeExposingOutput<StreamRecord<?>> chainedOutput;
 
         public StreamTaskSourceOutput(
-                Output<StreamRecord<?>> chainedSourceOutput,
-                StreamStatusMaintainer streamStatusMaintainer,
-                WatermarkGauge inputWatermarkGauge,
-                MultiStreamStreamStatusTracker streamStatusTracker,
-                int inputIndex) {
-            super(chainedSourceOutput, streamStatusMaintainer, inputWatermarkGauge);
-            this.streamStatusTracker = streamStatusTracker;
-            this.inputIndex = inputIndex;
+                WatermarkGaugeExposingOutput<StreamRecord<?>> chainedSourceOutput,
+                WatermarkGauge inputWatermarkGauge) {
+            super(chainedSourceOutput, new SimpleCounter(), inputWatermarkGauge);
+            this.chainedOutput = chainedSourceOutput;
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {
-            streamStatusTracker.setStreamStatus(inputIndex, streamStatus);
-
-            // check if we need to toggle the task's stream status
-            if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
-                if (streamStatus.isActive()) {
-                    // we're no longer idle if at least one input has become active
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-                } else if (streamStatusTracker.allStreamStatusesAreIdle()) {
-                    streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
-                }
-            }
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            chainedOutput.emitStreamStatus(streamStatus);
         }
     }
 }

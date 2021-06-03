@@ -18,13 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.Aggregate.Group
-import org.apache.calcite.rex.{RexInputRef, RexProgram}
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, RelWindowProperties}
 import org.apache.flink.table.planner.plan.logical.{WindowAttachedWindowingStrategy, WindowingStrategy}
@@ -35,6 +29,12 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalWindowAggregateRule.{WINDOW_END, WINDOW_START, WINDOW_TIME}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.WindowUtil
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.rex.{RexInputRef, RexProgram}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -119,11 +119,11 @@ class StreamPhysicalWindowAggregateRule
     val providedTraitSet = agg.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(agg.getInput, requiredTraitSet)
 
-    val windowingStrategy = WindowAttachedWindowingStrategy(
-      startColumns.head,
-      endColumns.head,
+    val windowingStrategy = new WindowAttachedWindowingStrategy(
+      relWindowProperties.getWindowSpec,
       relWindowProperties.getTimeAttributeType,
-      relWindowProperties.getWindowSpec)
+      startColumns.head,
+      endColumns.head)
 
     val windowProperties = createPlannerNamedWindowProperties(
       windowingStrategy,
@@ -182,20 +182,22 @@ class StreamPhysicalWindowAggregateRule
       endColumns: Array[Int],
       timeColumns: Array[Int]): Seq[PlannerNamedWindowProperty] = {
     val windowProperties = ArrayBuffer[PlannerNamedWindowProperty]()
-    val windowRef = PlannerWindowReference("w$", Some(windowingStrategy.timeAttributeType))
+    val windowRef = new PlannerWindowReference("w$", windowingStrategy.getTimeAttributeType)
     if (!startColumns.isEmpty) {
-      windowProperties += PlannerNamedWindowProperty(WINDOW_START, PlannerWindowStart(windowRef))
+      windowProperties +=
+        new PlannerNamedWindowProperty(WINDOW_START, new PlannerWindowStart(windowRef))
     }
     if (!endColumns.isEmpty) {
-      windowProperties += PlannerNamedWindowProperty(WINDOW_END, PlannerWindowEnd(windowRef))
+      windowProperties +=
+        new PlannerNamedWindowProperty(WINDOW_END, new PlannerWindowEnd(windowRef))
     }
     if (!timeColumns.isEmpty) {
       val property = if (windowingStrategy.isRowtime) {
-        PlannerRowtimeAttribute(windowRef)
+        new PlannerRowtimeAttribute(windowRef)
       } else {
-        PlannerProctimeAttribute(windowRef)
+        new PlannerProctimeAttribute(windowRef)
       }
-      windowProperties += PlannerNamedWindowProperty(WINDOW_TIME, property)
+      windowProperties += new PlannerNamedWindowProperty(WINDOW_TIME, property)
     }
     windowProperties
   }
@@ -241,11 +243,11 @@ class StreamPhysicalWindowAggregateRule
     var endPos = -1
     var timePos = -1
     windowProperties.zipWithIndex.foreach { case (p, idx) =>
-      if (WINDOW_START.equals(p.name)) {
+      if (WINDOW_START.equals(p.getName)) {
         startPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_END.equals(p.name)) {
+      } else if (WINDOW_END.equals(p.getName)) {
         endPos = windowPropsIndexOffset + idx
-      } else if (WINDOW_TIME.equals(p.name)) {
+      } else if (WINDOW_TIME.equals(p.getName)) {
         timePos = windowPropsIndexOffset + idx
       }
     }

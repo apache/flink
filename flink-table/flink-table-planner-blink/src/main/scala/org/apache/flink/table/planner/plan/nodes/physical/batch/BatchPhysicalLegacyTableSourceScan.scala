@@ -27,6 +27,7 @@ import org.apache.flink.table.sources.StreamTableSource
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import java.util
@@ -38,12 +39,13 @@ import java.util
 class BatchPhysicalLegacyTableSourceScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
+    hints: util.List[RelHint],
     tableSourceTable: LegacyTableSourceTable[_])
-  extends CommonPhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
+  extends CommonPhysicalLegacyTableSourceScan(cluster, traitSet, hints, tableSourceTable)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchPhysicalLegacyTableSourceScan(cluster, traitSet, tableSourceTable)
+    new BatchPhysicalLegacyTableSourceScan(cluster, traitSet, getHints, tableSourceTable)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {

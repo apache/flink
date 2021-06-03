@@ -35,6 +35,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class DateType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "DATE";
 

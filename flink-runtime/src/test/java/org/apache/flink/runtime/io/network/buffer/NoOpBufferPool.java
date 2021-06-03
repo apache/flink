@@ -22,8 +22,6 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import javax.annotation.Nullable;
-
 import java.util.concurrent.CompletableFuture;
 
 /** No-op implementation of {@link BufferPool}. */
@@ -96,12 +94,6 @@ public class NoOpBufferPool implements BufferPool {
     @Override
     public int bestEffortGetNumOfUsedBuffers() {
         throw new UnsupportedOperationException();
-    }
-
-    @Nullable
-    @Override
-    public BufferRecycler[] getSubpartitionBufferRecyclers() {
-        return new BufferRecycler[0];
     }
 
     @Override

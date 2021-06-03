@@ -1095,7 +1095,7 @@ public class FunctionITCase extends StreamingTestBase {
         TestCollectionTableFactory.initData(sourceData);
 
         tEnv().executeSql(
-                        "CREATE TABLE SourceTable(i INT, ts AS LOCALTIMESTAMP, WATERMARK FOR ts AS ts) "
+                        "CREATE TABLE SourceTable(i INT, ts AS CAST(LOCALTIMESTAMP AS TIMESTAMP(3)), WATERMARK FOR ts AS ts) "
                                 + "WITH ('connector' = 'COLLECTION')");
         tEnv().executeSql("CREATE FUNCTION MyYear AS '" + MyYear.class.getName() + "'");
         CollectionUtil.iteratorToList(

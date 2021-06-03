@@ -25,10 +25,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 /** Base class for row-time over window test. */
 public class RowTimeOverWindowTestBase {
@@ -46,8 +47,8 @@ public class RowTimeOverWindowTestBase {
             };
     protected LogicalType[] accTypes = new LogicalType[] {new BigIntType()};
 
-    protected BinaryRowDataKeySelector keySelector =
-            new BinaryRowDataKeySelector(new int[] {0}, inputFieldTypes);
+    protected RowDataKeySelector keySelector =
+            HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputFieldTypes);
     protected TypeInformation<RowData> keyType = keySelector.getProducedType();
 
     protected OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

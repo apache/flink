@@ -25,7 +25,8 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexNode;
+
+import java.util.Collections;
 
 /** Batch exec node which matches along with join a Python user defined table function. */
 public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
@@ -34,10 +35,15 @@ public class BatchExecPythonCorrelate extends CommonExecPythonCorrelate
     public BatchExecPythonCorrelate(
             FlinkJoinType joinType,
             RexCall invocation,
-            RexNode condition,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(joinType, invocation, condition, inputProperty, outputType, description);
+        super(
+                joinType,
+                invocation,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
     }
 }

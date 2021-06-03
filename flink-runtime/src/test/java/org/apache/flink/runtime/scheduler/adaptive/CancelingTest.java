@@ -96,7 +96,9 @@ public class CancelingTest extends TestLogger {
             StateTrackingMockExecutionGraph meg = new StateTrackingMockExecutionGraph();
             Canceling canceling = createCancelingState(ctx, meg);
             // register execution at EG
-            ExecutingTest.MockExecutionJobVertex ejv = new ExecutingTest.MockExecutionJobVertex();
+            ExecutingTest.MockExecutionJobVertex ejv =
+                    new ExecutingTest.MockExecutionJobVertex(
+                            ExecutingTest.MockExecutionVertex::new);
             TaskExecutionStateTransition update =
                     new TaskExecutionStateTransition(
                             new TaskExecutionState(
@@ -140,11 +142,7 @@ public class CancelingTest extends TestLogger {
                         ctx.getMainThreadExecutor(),
                         ctx.getMainThreadExecutor());
         final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new OperatorCoordinatorHandler(
-                        executionGraph,
-                        (throwable) -> {
-                            throw new RuntimeException("Error in test", throwable);
-                        });
+                new TestingOperatorCoordinatorHandler();
         executionGraph.transitionToRunning();
         Canceling canceling =
                 new Canceling(

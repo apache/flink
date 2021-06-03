@@ -413,8 +413,8 @@ public class StateTtlConfig implements Serializable {
 
         private IncrementalCleanupStrategy(int cleanupSize, boolean runCleanupForEveryRecord) {
             Preconditions.checkArgument(
-                    cleanupSize >= 0,
-                    "Number of incrementally cleaned up state entries cannot be negative.");
+                    cleanupSize > 0,
+                    "Number of incrementally cleaned up state entries should be positive.");
             this.cleanupSize = cleanupSize;
             this.runCleanupForEveryRecord = runCleanupForEveryRecord;
         }

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -28,6 +30,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -35,6 +39,8 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph implements ResourceConsumer {
@@ -53,8 +59,13 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
         this.context = context;
         this.userCodeClassLoader = userCodeClassLoader;
+        Preconditions.checkState(
+                executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
         deploy();
+
+        // check if new resources have come available in the meantime
+        context.runIfState(this, this::notifyNewResourcesAvailable, Duration.ZERO);
     }
 
     @Override
@@ -77,12 +88,14 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         final FailureResult failureResult = context.howToHandleFailure(cause);
 
         if (failureResult.canRestart()) {
+            getLogger().info("Restarting job.", failureResult.getFailureCause());
             context.goToRestarting(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
                     failureResult.getBackoffTime());
         } else {
+            getLogger().info("Failing job.", failureResult.getFailureCause());
             context.goToFailing(
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
@@ -98,7 +111,11 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         if (successfulUpdate) {
             if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionState.getError(userCodeClassLoader);
-                handleAnyFailure(cause);
+                handleAnyFailure(
+                        cause == null
+                                ? new FlinkException(
+                                        "Unknown failure cause. Probably related to FLINK-21376.")
+                                : cause);
             }
         }
 
@@ -114,7 +131,10 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         for (ExecutionJobVertex executionJobVertex :
                 getExecutionGraph().getVerticesTopologically()) {
             for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
-                deploySafely(executionVertex);
+                if (executionVertex.getExecutionState() == ExecutionState.CREATED
+                        || executionVertex.getExecutionState() == ExecutionState.SCHEDULED) {
+                    deploySafely(executionVertex);
+                }
             }
         }
     }
@@ -141,6 +161,35 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                     getOperatorCoordinatorHandler(),
                     Duration.ofMillis(0L));
         }
+    }
+
+    CompletableFuture<String> stopWithSavepoint(
+            @Nullable final String targetDirectory, boolean terminate) {
+        final ExecutionGraph executionGraph = getExecutionGraph();
+
+        StopWithSavepointTerminationManager.checkStopWithSavepointPreconditions(
+                executionGraph.getCheckpointCoordinator(),
+                targetDirectory,
+                executionGraph.getJobID(),
+                getLogger());
+
+        getLogger().info("Triggering stop-with-savepoint for job {}.", executionGraph.getJobID());
+
+        CheckpointScheduling schedulingProvider = new CheckpointSchedulingProvider(executionGraph);
+
+        schedulingProvider.stopCheckpointScheduler();
+
+        final CompletableFuture<String> savepointFuture =
+                executionGraph
+                        .getCheckpointCoordinator()
+                        .triggerSynchronousSavepoint(terminate, targetDirectory)
+                        .thenApply(CompletedCheckpoint::getExternalPointer);
+        return context.goToStopWithSavepoint(
+                executionGraph,
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                schedulingProvider,
+                savepointFuture);
     }
 
     /** Context of the {@link Executing} state. */
@@ -206,6 +255,35 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Throwable failureCause);
+
+        /**
+         * Transitions into the {@link StopWithSavepoint} state.
+         *
+         * @param executionGraph executionGraph to pass to the {@link StopWithSavepoint} state
+         * @param executionGraphHandler executionGraphHandler to pass to the {@link
+         *     StopWithSavepoint} state
+         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
+         *     StopWithSavepoint} state
+         * @param savepointFuture Future for the savepoint to complete.
+         * @return Location of the savepoint.
+         */
+        CompletableFuture<String> goToStopWithSavepoint(
+                ExecutionGraph executionGraph,
+                ExecutionGraphHandler executionGraphHandler,
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                CheckpointScheduling checkpointScheduling,
+                CompletableFuture<String> savepointFuture);
+
+        /**
+         * Runs the given action after a delay if the state at this time equals the expected state.
+         *
+         * @param expectedState expectedState describes the required state at the time of running
+         *     the action
+         * @param action action to run if the expected state equals the actual state
+         * @param delay delay after which to run the action
+         * @return a ScheduledFuture representing pending completion of the task
+         */
+        ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
     }
 
     /**
@@ -215,9 +293,9 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     static final class FailureResult {
         @Nullable private final Duration backoffTime;
 
-        @Nullable private final Throwable failureCause;
+        private final Throwable failureCause;
 
-        private FailureResult(@Nullable Duration backoffTime, @Nullable Throwable failureCause) {
+        private FailureResult(Throwable failureCause, @Nullable Duration backoffTime) {
             this.backoffTime = backoffTime;
             this.failureCause = failureCause;
         }
@@ -233,20 +311,18 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
 
         Throwable getFailureCause() {
-            Preconditions.checkState(
-                    failureCause != null,
-                    "Failure result must not be restartable to return a failure cause.");
             return failureCause;
         }
 
         /**
          * Creates a FailureResult which allows to restart the job.
          *
+         * @param failureCause failureCause for restarting the job
          * @param backoffTime backoffTime to wait before restarting the job
          * @return FailureResult which allows to restart the job
          */
-        static FailureResult canRestart(Duration backoffTime) {
-            return new FailureResult(backoffTime, null);
+        static FailureResult canRestart(Throwable failureCause, Duration backoffTime) {
+            return new FailureResult(failureCause, backoffTime);
         }
 
         /**
@@ -256,7 +332,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
          * @return FailureResult which does not allow to restart the job
          */
         static FailureResult canNotRestart(Throwable failureCause) {
-            return new FailureResult(null, failureCause);
+            return new FailureResult(failureCause, null);
         }
     }
 
@@ -269,7 +345,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
 
-        public Factory(
+        Factory(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,

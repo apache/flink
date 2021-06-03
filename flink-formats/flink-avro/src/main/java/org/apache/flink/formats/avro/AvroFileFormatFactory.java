@@ -41,6 +41,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -107,21 +108,23 @@ public class AvroFileFormatFactory implements BulkWriterFormatFactory {
             this.rowType = rowType;
             this.factory =
                     new AvroWriterFactory<>(
-                            (AvroBuilder<GenericRecord>)
-                                    out -> {
-                                        Schema schema =
-                                                AvroSchemaConverter.convertToSchema(rowType);
-                                        DatumWriter<GenericRecord> datumWriter =
-                                                new GenericDatumWriter<>(schema);
-                                        DataFileWriter<GenericRecord> dataFileWriter =
-                                                new DataFileWriter<>(datumWriter);
+                            new AvroBuilder<GenericRecord>() {
+                                @Override
+                                public DataFileWriter<GenericRecord> createWriter(OutputStream out)
+                                        throws IOException {
+                                    Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+                                    DatumWriter<GenericRecord> datumWriter =
+                                            new GenericDatumWriter<>(schema);
+                                    DataFileWriter<GenericRecord> dataFileWriter =
+                                            new DataFileWriter<>(datumWriter);
 
-                                        if (codec != null) {
-                                            dataFileWriter.setCodec(CodecFactory.fromString(codec));
-                                        }
-                                        dataFileWriter.create(schema, out);
-                                        return dataFileWriter;
-                                    });
+                                    if (codec != null) {
+                                        dataFileWriter.setCodec(CodecFactory.fromString(codec));
+                                    }
+                                    dataFileWriter.create(schema, out);
+                                    return dataFileWriter;
+                                }
+                            });
         }
 
         @Override

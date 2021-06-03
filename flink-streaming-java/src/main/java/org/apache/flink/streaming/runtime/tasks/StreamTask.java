@@ -44,6 +44,7 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterDelegate;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.SingleRecordWriter;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
+import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -76,7 +77,6 @@ import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction.Suspension;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorFactory;
@@ -109,6 +109,9 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 
 import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
+import static org.apache.flink.util.ExceptionUtils.rethrowException;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class for all streaming tasks. A task is the unit of local processing that is deployed and
@@ -201,6 +204,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      */
     protected final TimerService timerService;
 
+    /**
+     * In contrast to {@link #timerService} we should not register any user timers here. It should
+     * be used only for system level timers.
+     */
+    protected final TimerService systemTimerService;
+
     /** The currently active background materialization threads. */
     private final CloseableRegistry cancelables = new CloseableRegistry();
 
@@ -239,6 +248,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private Long activeSyncSavepointId = null;
 
     private long latestAsyncCheckpointStartDelayNanos;
+
+    private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     // ------------------------------------------------------------------------
 
@@ -338,15 +349,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // if the clock is not already set, then assign a default TimeServiceProvider
         if (timerService == null) {
-            ThreadFactory timerThreadFactory =
-                    new DispatcherThreadFactory(
-                            TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
-            this.timerService =
-                    new SystemProcessingTimeService(this::handleTimerException, timerThreadFactory);
+            this.timerService = createTimerService("Time Trigger for " + getName());
         } else {
             this.timerService = timerService;
         }
 
+        this.systemTimerService = createTimerService("System Time Trigger for " + getName());
         this.channelIOExecutor =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("channel-state-unspilling"));
@@ -354,6 +362,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         injectChannelStateWriterIntoChannels();
 
         environment.getMetricGroup().getIOMetricGroup().setEnableBusyTime(true);
+    }
+
+    private TimerService createTimerService(String timerThreadName) {
+        ThreadFactory timerThreadFactory =
+                new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, timerThreadName);
+        return new SystemProcessingTimeService(this::handleTimerException, timerThreadFactory);
     }
 
     private void injectChannelStateWriterIntoChannels() {
@@ -371,7 +385,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private CompletableFuture<Void> prepareInputSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         if (inputProcessor == null) {
             return FutureUtils.completedVoidFuture();
         }
@@ -439,7 +453,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void setSynchronousSavepointId(long checkpointId, boolean ignoreEndOfInput) {
-        Preconditions.checkState(
+        checkState(
                 syncSavepointId == null,
                 "at most one stop-with-savepoint checkpoint at a time is allowed");
         syncSavepointId = checkpointId;
@@ -517,7 +531,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         }
     }
 
-    protected void beforeInvoke() throws Exception {
+    @Override
+    public final void restore() throws Exception {
+        runWithCleanUpOnFail(this::executeRestore);
+    }
+
+    void executeRestore() throws Exception {
+        if (isRunning) {
+            LOG.debug("Re-restore attempt rejected.");
+            return;
+        }
         disposedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
@@ -528,86 +551,119 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         init();
 
         // save the work of reloading state, etc, if the task is already canceled
-        if (canceled) {
-            throw new CancelTaskException();
-        }
+        ensureNotCanceled();
 
         // -------- Invoke --------
         LOG.debug("Invoking {}", getName());
 
         // we need to make sure that any triggers scheduled in open() cannot be
         // executed before all operators are opened
-        actionExecutor.runThrowing(
-                () -> {
-                    SequentialChannelStateReader reader =
-                            getEnvironment()
-                                    .getTaskStateManager()
-                                    .getSequentialChannelStateReader();
-                    // TODO: for UC rescaling, reenable notifyAndBlockOnCompletion for non-iterative
-                    // jobs
-                    reader.readOutputData(getEnvironment().getAllWriters(), false);
+        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
 
-                    operatorChain.initializeStateAndOpenOperators(
-                            createStreamTaskStateInitializer());
+        // Run mailbox until all gates will be recovered.
+        mailboxProcessor.runMailboxLoop();
 
-                    channelIOExecutor.execute(
-                            () -> {
-                                try {
-                                    reader.readInputData(getEnvironment().getAllInputGates());
-                                } catch (Exception e) {
-                                    asyncExceptionHandler.handleAsyncException(
-                                            "Unable to read channel state", e);
-                                }
-                            });
+        ensureNotCanceled();
 
-                    for (InputGate inputGate : getEnvironment().getAllInputGates()) {
-                        inputGate
-                                .getStateConsumedFuture()
-                                .thenRun(
-                                        () ->
-                                                mainMailboxExecutor.execute(
-                                                        inputGate::requestPartitions,
-                                                        "Input gate request partitions"));
-                    }
-                });
+        checkState(
+                allGatesRecoveredFuture.isDone(),
+                "Mailbox loop interrupted before recovery was finished.");
 
         isRunning = true;
     }
 
+    private CompletableFuture<Void> restoreGates() throws Exception {
+        SequentialChannelStateReader reader =
+                getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
+        reader.readOutputData(
+                getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
+
+        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+
+        IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+        channelIOExecutor.execute(
+                () -> {
+                    try {
+                        reader.readInputData(inputGates);
+                    } catch (Exception e) {
+                        asyncExceptionHandler.handleAsyncException(
+                                "Unable to read channel state", e);
+                    }
+                });
+
+        List<CompletableFuture<?>> recoveredFutures = new ArrayList<>(inputGates.length);
+        for (InputGate inputGate : inputGates) {
+            recoveredFutures.add(inputGate.getStateConsumedFuture());
+
+            inputGate
+                    .getStateConsumedFuture()
+                    .thenRun(
+                            () ->
+                                    mainMailboxExecutor.execute(
+                                            inputGate::requestPartitions,
+                                            "Input gate request partitions"));
+        }
+
+        return CompletableFuture.allOf(recoveredFutures.toArray(new CompletableFuture[0]))
+                .thenRun(mailboxProcessor::suspend);
+    }
+
+    private void ensureNotCanceled() {
+        if (canceled) {
+            throw new CancelTaskException();
+        }
+    }
+
     @Override
     public final void invoke() throws Exception {
+        runWithCleanUpOnFail(this::executeInvoke);
+
+        cleanUpInvoke();
+    }
+
+    private void executeInvoke() throws Exception {
+        // Allow invoking method 'invoke' without having to call 'restore' before it.
+        if (!isRunning) {
+            LOG.debug("Restoring during invoke will be called.");
+            executeRestore();
+        }
+
+        // final check to exit early before starting to run
+        ensureNotCanceled();
+
+        // let the task do its work
+        runMailboxLoop();
+
+        // if this left the run() method cleanly despite the fact that this was canceled,
+        // make sure the "clean shutdown" is not attempted
+        ensureNotCanceled();
+
+        afterInvoke();
+    }
+
+    private void runWithCleanUpOnFail(RunnableWithException run) throws Exception {
         try {
-            beforeInvoke();
-
-            // final check to exit early before starting to run
-            if (canceled) {
-                throw new CancelTaskException();
-            }
-
-            // let the task do its work
-            runMailboxLoop();
-
-            // if this left the run() method cleanly despite the fact that this was canceled,
-            // make sure the "clean shutdown" is not attempted
-            if (canceled) {
-                throw new CancelTaskException();
-            }
-
-            afterInvoke();
+            run.run();
         } catch (Throwable invokeException) {
             failing = !canceled;
             try {
+                if (!canceled) {
+                    try {
+                        cancelTask();
+                    } catch (Throwable ex) {
+                        invokeException = firstOrSuppressed(ex, invokeException);
+                    }
+                }
+
                 cleanUpInvoke();
             }
             // TODO: investigate why Throwable instead of Exception is used here.
             catch (Throwable cleanUpException) {
-                Throwable throwable =
-                        ExceptionUtils.firstOrSuppressed(cleanUpException, invokeException);
-                ExceptionUtils.rethrowException(throwable);
+                rethrowException(firstOrSuppressed(cleanUpException, invokeException));
             }
-            ExceptionUtils.rethrowException(invokeException);
+
+            rethrowException(invokeException);
         }
-        cleanUpInvoke();
     }
 
     @VisibleForTesting
@@ -704,7 +760,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         suppressedException = runAndSuppressThrowable(mailboxProcessor::close, suppressedException);
 
-        if (suppressedException != null) {
+        if (suppressedException == null) {
+            terminationFuture.complete(null);
+        } else {
+            terminationFuture.completeExceptionally(suppressedException);
             throw suppressedException;
         }
     }
@@ -714,7 +773,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     @Override
-    public final void cancel() throws Exception {
+    public final Future<Void> cancel() throws Exception {
         isRunning = false;
         canceled = true;
 
@@ -738,6 +797,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                                 }
                             });
         }
+        return terminationFuture;
     }
 
     public MailboxExecutorFactory getMailboxExecutorFactory() {
@@ -780,7 +840,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } catch (Throwable t) {
             // TODO: investigate why Throwable instead of Exception is used here.
             Exception e = t instanceof Exception ? (Exception) t : new Exception(t);
-            return ExceptionUtils.firstOrSuppressed(e, originalException);
+            return firstOrSuppressed(e, originalException);
         }
 
         return originalException;
@@ -799,7 +859,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 try {
                     operator.dispose();
                 } catch (Exception e) {
-                    disposalException = ExceptionUtils.firstOrSuppressed(e, disposalException);
+                    disposalException = firstOrSuppressed(e, disposalException);
                 }
             }
             disposedOperators = true;
@@ -822,6 +882,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         if (!timerService.isTerminated()) {
             LOG.info("Timer service is shutting down.");
             timerService.shutdownService();
+        }
+
+        if (!systemTimerService.isTerminated()) {
+            LOG.info("System timer service is shutting down.");
+            systemTimerService.shutdownService();
         }
 
         cancelables.close();
@@ -863,10 +928,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     public StreamConfig getConfiguration() {
         return configuration;
-    }
-
-    public StreamStatusMaintainer getStreamStatusMaintainer() {
-        return operatorChain;
     }
 
     RecordWriterOutput<?>[] getStreamOutputs() {
@@ -915,7 +976,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                             .setAlignmentDurationNanos(0L)
                             .setBytesProcessedDuringAlignment(0L);
 
-            subtaskCheckpointCoordinator.initCheckpoint(
+            subtaskCheckpointCoordinator.initInputsCheckpoint(
                     checkpointMetaData.getCheckpointId(), checkpointOptions);
 
             boolean success =
@@ -1106,12 +1167,17 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     private void tryShutdownTimerService() {
+        final long timeoutMs =
+                getEnvironment()
+                        .getTaskManagerInfo()
+                        .getConfiguration()
+                        .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
+        tryShutdownTimerService(timeoutMs, timerService);
+        tryShutdownTimerService(timeoutMs, systemTimerService);
+    }
+
+    private void tryShutdownTimerService(long timeoutMs, TimerService timerService) {
         if (!timerService.isTerminated()) {
-            final long timeoutMs =
-                    getEnvironment()
-                            .getTaskManagerInfo()
-                            .getConfiguration()
-                            .getLong(TaskManagerOptions.TASK_CANCELLATION_TIMEOUT_TIMERS);
             if (!timerService.shutdownServiceUninterruptible(timeoutMs)) {
                 LOG.warn(
                         "Timer service shutdown exceeded time limit of {} ms while waiting for pending "
@@ -1370,5 +1436,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             timer.markEnd();
             suspendedDefaultAction.resume();
         }
+    }
+
+    @Override
+    public boolean isUsingNonBlockingInput() {
+        return true;
     }
 }

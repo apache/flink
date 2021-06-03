@@ -30,6 +30,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
+
 /**
  * The implementation of {@link InternalWindowProcessFunction} for {@link MergingWindowAssigner}.
  *
@@ -132,8 +134,10 @@ public class MergingWindowProcessFunction<K, W extends Window>
                 Collection<W> stateWindowsToBeMerged)
                 throws Exception {
 
+            long mergeResultMaxTs =
+                    toEpochMillsForTimer(mergeResult.maxTimestamp(), ctx.getShiftTimeZone());
             if ((windowAssigner.isEventTime()
-                    && mergeResult.maxTimestamp() + allowedLateness <= ctx.currentWatermark())) {
+                    && mergeResultMaxTs + allowedLateness <= ctx.currentWatermark())) {
                 throw new UnsupportedOperationException(
                         "The end timestamp of an "
                                 + "event-time window cannot become earlier than the current watermark "
@@ -142,7 +146,7 @@ public class MergingWindowProcessFunction<K, W extends Window>
                                 + " window: "
                                 + mergeResult);
             } else if (!windowAssigner.isEventTime()
-                    && mergeResult.maxTimestamp() <= ctx.currentProcessingTime()) {
+                    && mergeResultMaxTs <= ctx.currentProcessingTime()) {
                 throw new UnsupportedOperationException(
                         "The end timestamp of a "
                                 + "processing-time window cannot become earlier than the current processing time "

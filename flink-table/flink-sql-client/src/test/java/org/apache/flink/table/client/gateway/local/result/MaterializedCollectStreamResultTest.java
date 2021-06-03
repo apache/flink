@@ -21,7 +21,7 @@ package org.apache.flink.table.client.gateway.local.result;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.cli.utils.TestTableResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.types.DataType;
@@ -40,16 +40,14 @@ public class MaterializedCollectStreamResultTest {
 
     @Test
     public void testSnapshot() throws Exception {
-        TableSchema tableSchema =
-                TableSchema.builder()
-                        .fields(
-                                new String[] {"f0", "f1"},
-                                new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
-                        .build();
+        ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        new String[] {"f0", "f1"},
+                        new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
 
         try (TestMaterializedCollectStreamResult result =
                 new TestMaterializedCollectStreamResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema),
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema),
                         Integer.MAX_VALUE)) {
             result.isRetrieving = true;
 
@@ -86,18 +84,16 @@ public class MaterializedCollectStreamResultTest {
 
     @Test
     public void testLimitedSnapshot() throws Exception {
-        TableSchema tableSchema =
-                TableSchema.builder()
-                        .fields(
-                                new String[] {"f0", "f1"},
-                                new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()})
-                        .build();
+        ResolvedSchema schema =
+                ResolvedSchema.physical(
+                        new String[] {"f0", "f1"},
+                        new DataType[] {DataTypes.STRING(), DataTypes.BIGINT()});
 
         // limit the materialized table to 2 rows
         // with 3 rows overcommitment
         try (TestMaterializedCollectStreamResult result =
                 new TestMaterializedCollectStreamResult(
-                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, tableSchema), 2, 3)) {
+                        new TestTableResult(ResultKind.SUCCESS_WITH_CONTENT, schema), 2, 3)) {
 
             result.isRetrieving = true;
 

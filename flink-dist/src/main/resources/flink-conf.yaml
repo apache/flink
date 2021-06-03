@@ -160,6 +160,11 @@ jobmanager.execution.failover-strategy: region
 
 #web.submit.enable: false
 
+# Flag to specify whether job cancellation is enabled from the web-based
+# runtime monitor. Uncomment to disable.
+
+#web.cancel.enable: false
+
 #==============================================================================
 # Advanced
 #==============================================================================

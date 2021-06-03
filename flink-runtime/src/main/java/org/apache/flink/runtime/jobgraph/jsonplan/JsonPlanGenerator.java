@@ -46,6 +46,7 @@ public class JsonPlanGenerator {
             gen.writeStartObject();
             gen.writeStringField("jid", jg.getJobID().toString());
             gen.writeStringField("name", jg.getName());
+            gen.writeStringField("type", jg.getJobType().name());
             gen.writeArrayFieldStart("nodes");
 
             // info per vertex

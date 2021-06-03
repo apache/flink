@@ -34,8 +34,8 @@ from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
-from pyflink.util.utils import to_jarray
-from pyflink.util.utils import to_j_explain_detail_arr
+from pyflink.util.java_utils import to_jarray
+from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
@@ -44,7 +44,7 @@ class Table(object):
 
     """
     A :class:`~pyflink.table.Table` is the core component of the Table API.
-    Similar to how the batch and streaming APIs have DataSet and DataStream,
+    Similar to how the DataStream API has DataStream,
     the Table API is built around :class:`~pyflink.table.Table`.
 
     Use the methods of :class:`~pyflink.table.Table` to transform data.
@@ -995,9 +995,9 @@ class Table(object):
         gateway = get_gateway()
         max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
             .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
-        batches = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
+        batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
-        if batches.hasNext():
+        if batches_iterator.hasNext():
             import pytz
             timezone = pytz.timezone(
                 self._j_table.getTableEnvironment().getConfig().getLocalTimeZone().getId())
@@ -1007,7 +1007,7 @@ class Table(object):
                 self.get_schema().to_row_data_type(),
                 timezone)
             import pyarrow as pa
-            table = pa.Table.from_batches(serializer.load_from_iterator(batches))
+            table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
             pdf = table.to_pandas()
 
             schema = self.get_schema()
@@ -1019,7 +1019,7 @@ class Table(object):
             import pandas as pd
             return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
-    def get_schema(self) -> 'TableSchema':
+    def get_schema(self) -> TableSchema:
         """
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
@@ -1033,7 +1033,7 @@ class Table(object):
         """
         self._j_table.printSchema()
 
-    def execute_insert(self, table_path: str, overwrite: bool = False) -> 'TableResult':
+    def execute_insert(self, table_path: str, overwrite: bool = False) -> TableResult:
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
         registered under the specified name, and then execute the insert operation.
@@ -1055,7 +1055,7 @@ class Table(object):
         self._t_env._before_execute()
         return TableResult(self._j_table.executeInsert(table_path, overwrite))
 
-    def execute(self) -> 'TableResult':
+    def execute(self) -> TableResult:
         """
         Collects the contents of the current table local client.
 

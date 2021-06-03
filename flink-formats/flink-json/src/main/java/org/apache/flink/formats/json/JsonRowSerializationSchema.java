@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.TimeFormats.RFC3339_TIME_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.RFC3339_TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.common.TimeFormats.RFC3339_TIME_FORMAT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

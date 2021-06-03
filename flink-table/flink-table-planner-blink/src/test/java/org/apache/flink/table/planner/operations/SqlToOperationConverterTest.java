@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableColumn.ComputedColumn;
@@ -28,7 +29,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
-import org.apache.flink.table.api.internal.CatalogTableSchemaResolver;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -46,13 +46,23 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
+import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
+import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -62,7 +72,6 @@ import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
-import org.apache.flink.table.planner.calcite.CalciteParser;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
@@ -70,12 +79,15 @@ import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
+import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,7 +95,6 @@ import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -103,8 +114,10 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
@@ -122,24 +135,20 @@ public class SqlToOperationConverterTest {
                             .createFlinkPlanner(
                                     catalogManager.getCurrentCatalog(),
                                     catalogManager.getCurrentDatabase());
-    private final Parser parser =
-            new ParserImpl(
-                    catalogManager,
-                    plannerSupplier,
-                    () -> plannerSupplier.get().parser(),
-                    t ->
-                            getPlannerContext()
-                                    .createSqlExprToRexConverter(
-                                            getPlannerContext()
-                                                    .getTypeFactory()
-                                                    .buildRelNodeRowType(t)));
     private final PlannerContext plannerContext =
             new PlannerContext(
                     tableConfig,
                     functionCatalog,
                     catalogManager,
                     asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-                    new ArrayList<>());
+                    Collections.emptyList());
+
+    private final Parser parser =
+            new ParserImpl(
+                    catalogManager,
+                    plannerSupplier,
+                    () -> plannerSupplier.get().parser(),
+                    getPlannerContext().getSqlExprToRexConverterFactory());
 
     private PlannerContext getPlannerContext() {
         return plannerContext;
@@ -149,8 +158,10 @@ public class SqlToOperationConverterTest {
 
     @Before
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
-        catalogManager.setCatalogTableSchemaResolver(
-                new CatalogTableSchemaResolver(parser, isStreamingMode));
+        catalogManager.initSchemaResolver(
+                isStreamingMode,
+                ExpressionResolverMocks.basicResolver(catalogManager, functionCatalog, parser));
+
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
         final TableSchema tableSchema =
@@ -348,6 +359,37 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
+    public void testShowModules() {
+        final String sql = "SHOW MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertFalse(showModulesOperation.requireFull());
+        assertEquals("SHOW MODULES", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowFullModules() {
+        final String sql = "SHOW FULL MODULES";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowModulesOperation;
+        final ShowModulesOperation showModulesOperation = (ShowModulesOperation) operation;
+
+        assertTrue(showModulesOperation.requireFull());
+        assertEquals("SHOW FULL MODULES", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testShowFunctions() {
+        final String sql1 = "SHOW FUNCTIONS";
+        assertShowFunctions(sql1, sql1, FunctionScope.ALL);
+
+        final String sql2 = "SHOW USER FUNCTIONS";
+        assertShowFunctions(sql2, sql2, FunctionScope.USER);
+    }
+
+    @Test
     public void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
@@ -437,7 +479,7 @@ public class SqlToOperationConverterTest {
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
                 "Flink doesn't support ENFORCED mode for PRIMARY KEY "
-                        + "constaint. ENFORCED/NOT ENFORCED  controls if the constraint "
+                        + "constraint. ENFORCED/NOT ENFORCED  controls if the constraint "
                         + "checks are performed on the incoming/outgoing data. "
                         + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode");
         parse(sql, planner, parser);
@@ -576,14 +618,16 @@ public class SqlToOperationConverterTest {
     public void testBasicCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("f0", DataTypes.INT().notNull())
-                                .field("f1", DataTypes.TIMESTAMP(3))
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
                                 .build(),
-                        sourceProperties,
-                        null);
+                        null,
+                        Collections.emptyList(),
+                        sourceProperties);
+
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -603,14 +647,11 @@ public class SqlToOperationConverterTest {
                 operation,
                 isCreateTableOperation(
                         withSchema(
-                                TableSchema.builder()
-                                        .field("f0", DataTypes.INT().notNull())
-                                        .field("f1", DataTypes.TIMESTAMP(3))
-                                        .field("a", DataTypes.INT())
-                                        .watermark(
-                                                "f1",
-                                                "`f1` - INTERVAL '5' SECOND",
-                                                DataTypes.TIMESTAMP(3))
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .column("a", DataTypes.INT())
+                                        .watermark("f1", "`f1` - INTERVAL '5' SECOND")
                                         .build()),
                         withOptions(entry("connector.type", "kafka"), entry("format.type", "json")),
                         partitionedBy("a", "f0")));
@@ -621,14 +662,15 @@ public class SqlToOperationConverterTest {
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("connector.type", "kafka");
         sourceProperties.put("format.type", "json");
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("f0", DataTypes.INT().notNull())
-                                .field("f1", DataTypes.TIMESTAMP(3))
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
                                 .build(),
-                        sourceProperties,
-                        null);
+                        null,
+                        Collections.emptyList(),
+                        sourceProperties);
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
         final String sql = "create table mytable like `builtin`.`default`.sourceTable";
@@ -638,9 +680,9 @@ public class SqlToOperationConverterTest {
                 operation,
                 isCreateTableOperation(
                         withSchema(
-                                TableSchema.builder()
-                                        .field("f0", DataTypes.INT().notNull())
-                                        .field("f1", DataTypes.TIMESTAMP(3))
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
                                         .build()),
                         withOptions(
                                 entry("connector.type", "kafka"), entry("format.type", "json"))));
@@ -650,18 +692,18 @@ public class SqlToOperationConverterTest {
     public void testMergingCreateTableLike() {
         Map<String, String> sourceProperties = new HashMap<>();
         sourceProperties.put("format.type", "json");
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("f0", DataTypes.INT().notNull())
-                                .field("f1", DataTypes.TIMESTAMP(3))
-                                .field("f2", DataTypes.BIGINT(), "`f0` + 12345")
-                                .watermark(
-                                        "f1", "`f1` - interval '1' second", DataTypes.TIMESTAMP(3))
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .columnByExpression("f2", "`f0` + 12345")
+                                .watermark("f1", "`f1` - interval '1' second")
                                 .build(),
+                        null,
                         Arrays.asList("f0", "f1"),
-                        sourceProperties,
-                        null);
+                        sourceProperties);
+
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -686,14 +728,11 @@ public class SqlToOperationConverterTest {
                 operation,
                 isCreateTableOperation(
                         withSchema(
-                                TableSchema.builder()
-                                        .field("f0", DataTypes.INT().notNull())
-                                        .field("f1", DataTypes.TIMESTAMP(3))
-                                        .field("a", DataTypes.INT())
-                                        .watermark(
-                                                "f1",
-                                                "`f1` - INTERVAL '5' SECOND",
-                                                DataTypes.TIMESTAMP(3))
+                                Schema.newBuilder()
+                                        .column("f0", DataTypes.INT().notNull())
+                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                        .column("a", DataTypes.INT())
+                                        .watermark("f1", "`f1` - INTERVAL '5' SECOND")
                                         .build()),
                         withOptions(entry("connector.type", "kafka"), entry("format.type", "json")),
                         partitionedBy("a", "f0")));
@@ -712,11 +751,12 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateTableLikeInvalidPartition() {
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder().field("f0", DataTypes.INT().notNull()).build(),
-                        Collections.emptyMap(),
-                        null);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder().column("f0", DataTypes.INT().notNull()).build(),
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap());
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -751,11 +791,12 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateTableLikeInvalidWatermark() {
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder().field("f0", DataTypes.INT().notNull()).build(),
-                        Collections.emptyMap(),
-                        null);
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder().column("f0", DataTypes.INT().notNull()).build(),
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap());
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -776,17 +817,18 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateTableLikeNestedWatermark() {
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("f0", DataTypes.INT().notNull())
-                                .field(
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column(
                                         "f1",
                                         DataTypes.ROW(
                                                 DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
                                 .build(),
-                        Collections.emptyMap(),
-                        null);
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap());
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceTable"), false);
 
@@ -1091,17 +1133,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTable() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder().field("a", DataTypes.STRING()).build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(false);
         final String[] renameTableSqls =
                 new String[] {
                     "alter table cat1.db1.tb1 rename to tb2",
@@ -1124,34 +1156,25 @@ public class SqlToOperationConverterTest {
                 parse(
                         "alter table cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')",
                         SqlDialect.DEFAULT);
-        assert operation instanceof AlterTableOptionsOperation;
-        final AlterTableOptionsOperation alterTableOptionsOperation =
-                (AlterTableOptionsOperation) operation;
-        assertEquals(expectedIdentifier, alterTableOptionsOperation.getTableIdentifier());
-        assertEquals(2, alterTableOptionsOperation.getCatalogTable().getOptions().size());
-        Map<String, String> options = new HashMap<>();
-        options.put("k1", "v1");
-        options.put("K2", "V2");
-        assertEquals(options, alterTableOptionsOperation.getCatalogTable().getOptions());
+        Map<String, String> expectedOptions = new HashMap<>();
+        expectedOptions.put("k", "v");
+        expectedOptions.put("k1", "v1");
+        expectedOptions.put("K2", "V2");
+
+        assertAlterTableOptions(operation, expectedIdentifier, expectedOptions);
+
+        // test alter table reset
+        operation = parse("alter table cat1.db1.tb1 reset ('k')", SqlDialect.DEFAULT);
+        assertAlterTableOptions(operation, expectedIdentifier, Collections.emptyMap());
+
+        thrown.expect(ValidationException.class);
+        thrown.expectMessage("ALTER TABLE RESET does not support empty key");
+        parse("alter table cat1.db1.tb1 reset ()", SqlDialect.DEFAULT);
     }
 
     @Test
     public void testAlterTableAddPkConstraint() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING().notNull())
-                                .field("b", DataTypes.BIGINT().notNull())
-                                .field("c", DataTypes.BIGINT())
-                                .build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(false);
         // Test alter add table constraint.
         Operation operation =
                 parse(
@@ -1173,25 +1196,11 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddPkConstraintEnforced() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING().notNull())
-                                .field("b", DataTypes.BIGINT().notNull())
-                                .field("c", DataTypes.BIGINT())
-                                .build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(false);
         // Test alter table add enforced
         thrown.expect(ValidationException.class);
         thrown.expectMessage(
-                "Flink doesn't support ENFORCED mode for PRIMARY KEY constaint. "
+                "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
                         + "ENFORCED/NOT ENFORCED  controls if the constraint checks are performed on the "
                         + "incoming/outgoing data. Flink does not own the data therefore the "
                         + "only supported mode is the NOT ENFORCED mode");
@@ -1200,20 +1209,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddUniqueConstraint() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING().notNull())
-                                .field("b", DataTypes.BIGINT().notNull())
-                                .build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(false);
         // Test alter add table constraint.
         thrown.expect(UnsupportedOperationException.class);
         thrown.expectMessage("UNIQUE constraint is not supported yet");
@@ -1222,21 +1218,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableAddUniqueConstraintEnforced() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING().notNull())
-                                .field("b", DataTypes.BIGINT().notNull())
-                                .field("c", DataTypes.BIGINT())
-                                .build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(false);
         // Test alter table add enforced
         thrown.expect(UnsupportedOperationException.class);
         thrown.expectMessage("UNIQUE constraint is not supported yet");
@@ -1245,22 +1227,7 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testAlterTableDropConstraint() throws Exception {
-        Catalog catalog = new GenericInMemoryCatalog("default", "default");
-        catalogManager.registerCatalog("cat1", catalog);
-        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
-        CatalogTable catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("a", DataTypes.STRING().notNull())
-                                .field("b", DataTypes.BIGINT().notNull())
-                                .field("c", DataTypes.BIGINT())
-                                .primaryKey("ct1", new String[] {"a", "b"})
-                                .build(),
-                        new HashMap<>(),
-                        "tb1");
-        catalogManager.setCurrentCatalog("cat1");
-        catalogManager.setCurrentDatabase("db1");
-        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+        prepareTable(true);
         // Test alter table add enforced
         Operation operation = parse("alter table tb1 drop constraint ct1", SqlDialect.DEFAULT);
         assert operation instanceof AlterTableDropConstraintOperation;
@@ -1279,18 +1246,19 @@ public class SqlToOperationConverterTest {
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("id", DataTypes.INT().notNull())
-                                .field("measurement", DataTypes.BIGINT().notNull())
-                                .field(
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("id", DataTypes.INT().notNull())
+                                .column("measurement", DataTypes.BIGINT().notNull())
+                                .column(
                                         "ts",
                                         DataTypes.ROW(
                                                 DataTypes.FIELD("tmstmp", DataTypes.TIMESTAMP(3))))
                                 .build(),
-                        prop,
-                        null);
+                        null,
+                        Collections.emptyList(),
+                        prop);
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "events"), false);
@@ -1323,14 +1291,15 @@ public class SqlToOperationConverterTest {
         Map<String, String> prop = new HashMap<>();
         prop.put("connector", "values");
         prop.put("bounded", "true");
-        CatalogTableImpl catalogTable =
-                new CatalogTableImpl(
-                        TableSchema.builder()
-                                .field("f0", DataTypes.INT())
-                                .field("f1", DataTypes.VARCHAR(20))
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT())
+                                .column("f1", DataTypes.VARCHAR(20))
                                 .build(),
-                        prop,
-                        null);
+                        null,
+                        Collections.emptyList(),
+                        prop);
 
         catalogManager.createTable(
                 catalogTable, ObjectIdentifier.of("builtin", "default", "sourceA"), false);
@@ -1343,6 +1312,95 @@ public class SqlToOperationConverterTest {
 
         Operation operation = parse(sql, SqlDialect.DEFAULT);
         assertThat(operation, instanceOf(CreateViewOperation.class));
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        final String sql = "BEGIN STATEMENT SET";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof BeginStatementSetOperation;
+        final BeginStatementSetOperation beginStatementSetOperation =
+                (BeginStatementSetOperation) operation;
+
+        assertEquals("BEGIN STATEMENT SET", beginStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testEnd() {
+        final String sql = "END";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof EndStatementSetOperation;
+        final EndStatementSetOperation endStatementSetOperation =
+                (EndStatementSetOperation) operation;
+
+        assertEquals("END", endStatementSetOperation.asSummaryString());
+    }
+
+    @Test
+    public void testSqlRichExplainWithSelect() {
+        final String sql = "explain plan for select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testSqlRichExplainWithInsert() {
+        final String sql = "explain plan for insert into t1 select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse(sql, planner, parser);
+        assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testAddJar() {
+        List<String> jarPaths =
+                Arrays.asList(
+                        "./test.\njar",
+                        "file:///path/to/whatever",
+                        "../test-jar.jar",
+                        "/root/test.jar",
+                        "test\\ jar.jar",
+                        "oss://path/helloworld.go");
+        for (String path : jarPaths) {
+            validateJarPath(path, "ADD JAR '%s'");
+        }
+    }
+
+    @Test
+    public void testShowJars() {
+        final String sql = "SHOW JARS";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowJarsOperation;
+        final ShowJarsOperation showModulesOperation = (ShowJarsOperation) operation;
+        assertEquals("SHOW JARS", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testSet() {
+        Operation operation1 = parse("SET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof SetOperation);
+        assertFalse(((SetOperation) operation1).getKey().isPresent());
+        assertFalse(((SetOperation) operation1).getValue().isPresent());
+
+        Operation operation2 = parse("SET 'test-key' = 'test-value'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof SetOperation);
+        assertEquals("test-key", ((SetOperation) operation2).getKey().get());
+        assertEquals("test-value", ((SetOperation) operation2).getValue().get());
+    }
+
+    @Test
+    public void testReset() {
+        Operation operation1 = parse("RESET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof ResetOperation);
+        assertFalse(((ResetOperation) operation1).getKey().isPresent());
+
+        Operation operation2 = parse("RESET 'test-key'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof ResetOperation);
+        assertTrue(((ResetOperation) operation2).getKey().isPresent());
+        assertEquals("test-key", ((ResetOperation) operation2).getKey().get());
     }
 
     // ~ Tool Methods ----------------------------------------------------------
@@ -1359,6 +1417,30 @@ public class SqlToOperationConverterTest {
         return testItem;
     }
 
+    private void assertShowFunctions(
+            String sql, String expectedSummary, FunctionScope expectedScope) {
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowFunctionsOperation;
+        final ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
+
+        assertEquals(expectedScope, showFunctionsOperation.getFunctionScope());
+        assertEquals(expectedSummary, showFunctionsOperation.asSummaryString());
+    }
+
+    private void assertAlterTableOptions(
+            Operation operation,
+            ObjectIdentifier expectedIdentifier,
+            Map<String, String> expectedOptions) {
+        assert operation instanceof AlterTableOptionsOperation;
+        final AlterTableOptionsOperation alterTableOptionsOperation =
+                (AlterTableOptionsOperation) operation;
+        assertEquals(expectedIdentifier, alterTableOptionsOperation.getTableIdentifier());
+        assertEquals(
+                expectedOptions.size(),
+                alterTableOptionsOperation.getCatalogTable().getOptions().size());
+        assertEquals(expectedOptions, alterTableOptionsOperation.getCatalogTable().getOptions());
+    }
+
     private Operation parse(String sql, FlinkPlannerImpl planner, CalciteParser parser) {
         SqlNode node = parser.parse(sql);
         return SqlToOperationConverter.convert(planner, catalogManager, node).get();
@@ -1371,6 +1453,28 @@ public class SqlToOperationConverterTest {
         return SqlToOperationConverter.convert(planner, catalogManager, node).get();
     }
 
+    private void prepareTable(boolean hasConstraint) throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        catalogManager.registerCatalog("cat1", catalog);
+        catalog.createDatabase("db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        Schema.Builder builder =
+                Schema.newBuilder()
+                        .column("a", DataTypes.STRING().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .column("c", DataTypes.BIGINT());
+        CatalogTable catalogTable =
+                CatalogTable.of(
+                        hasConstraint
+                                ? builder.primaryKeyNamed("ct1", "a", "b").build()
+                                : builder.build(),
+                        "tb1",
+                        Collections.emptyList(),
+                        Collections.singletonMap("k", "v"));
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        catalog.createTable(new ObjectPath("db1", "tb1"), catalogTable, true);
+    }
+
     private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createFlinkPlanner(
@@ -1380,6 +1484,12 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
+    }
+
+    private void validateJarPath(String expected, String template) {
+        AddJarOperation operation =
+                (AddJarOperation) parser.parse(String.format(template, expected)).get(0);
+        Assert.assertEquals(expected, operation.getPath());
     }
 
     // ~ Inner Classes ----------------------------------------------------------

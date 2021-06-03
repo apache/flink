@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -40,17 +40,17 @@ public class CalculatedQueryOperation implements QueryOperation {
     private final FunctionDefinition functionDefinition;
     private final @Nullable FunctionIdentifier functionIdentifier;
     private final List<ResolvedExpression> arguments;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public CalculatedQueryOperation(
             FunctionDefinition functionDefinition,
             @Nullable FunctionIdentifier functionIdentifier,
             List<ResolvedExpression> arguments,
-            TableSchema tableSchema) {
+            ResolvedSchema resolvedSchema) {
         this.functionDefinition = functionDefinition;
         this.functionIdentifier = functionIdentifier;
         this.arguments = arguments;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     public FunctionDefinition getFunctionDefinition() {
@@ -66,8 +66,8 @@ public class CalculatedQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override

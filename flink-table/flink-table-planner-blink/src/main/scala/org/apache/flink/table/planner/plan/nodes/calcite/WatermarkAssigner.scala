@@ -26,6 +26,8 @@ import org.apache.calcite.rex.RexNode
 
 import java.util
 
+import org.apache.calcite.sql.`type`.SqlTypeName
+
 import scala.collection.JavaConversions._
 
 /**
@@ -45,7 +47,9 @@ abstract class WatermarkAssigner(
 
     val newFieldList = inputRowType.getFieldList.map { f =>
       if (f.getIndex == rowtimeFieldIndex) {
-        val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(f.getType.isNullable)
+        val rowtimeIndicatorType = typeFactory.createRowtimeIndicatorType(
+          f.getType.isNullable,
+          f.getType.getSqlTypeName == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
         new RelDataTypeFieldImpl(f.getName, f.getIndex, rowtimeIndicatorType)
       } else {
         f
@@ -65,11 +69,7 @@ abstract class WatermarkAssigner(
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    val rowtimeFieldName = inputRel.getRowType.getFieldNames.get(rowtimeFieldIndex)
-    val newInputRel = inputs.get(0)
-    // the input fields maybe reordered, re-computed the rowtime index
-    val newIndex = newInputRel.getRowType.getFieldNames.indexOf(rowtimeFieldName)
-    copy(traitSet, newInputRel, newIndex, watermarkExpr)
+    copy(traitSet, inputs.get(0), rowtimeFieldIndex, watermarkExpr)
   }
 
   /**

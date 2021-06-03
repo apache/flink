@@ -50,6 +50,9 @@ message UserDefinedFunction {
 
   // Whether the UDF takes row as input instead of each columns of a row
   bool takes_row_as_input = 4;
+
+  // Whether it's pandas UDF
+  bool is_pandas_udf = 5;
 }
 
 // A list of user-defined functions to be executed in a batch.
@@ -81,12 +84,13 @@ message UserDefinedDataStreamFunction {
   enum FunctionType {
     MAP = 0;
     FLAT_MAP = 1;
-    REDUCE = 2;
-    CO_MAP = 3;
-    CO_FLAT_MAP = 4;
-    PROCESS = 5;
-    KEYED_PROCESS = 6;
+    CO_MAP = 2;
+    CO_FLAT_MAP = 3;
+    PROCESS = 4;
+    KEYED_PROCESS = 5;
+    KEYED_CO_PROCESS = 6;
     TIMESTAMP_ASSIGNER = 7;
+    WINDOW = 8;
   }
 
   message JobParameter {
@@ -102,6 +106,7 @@ message UserDefinedDataStreamFunction {
     int32 index_of_this_subtask = 5;
     int32 attempt_number = 6;
     repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
   }
 
   FunctionType function_type = 1;
@@ -178,6 +183,8 @@ message GroupWindow {
   int64 allowedLateness = 8;
 
   repeated WindowProperty namedProperties = 9;
+
+  string shift_timezone = 10;
 }
 
 // A list of the user-defined aggregate functions to be executed in a group aggregate operation.
@@ -301,6 +308,41 @@ message Schema {
   }
 
   repeated Field fields = 1;
+}
+
+// A representation of the coder
+message CoderParam {
+  enum DataType {
+    // used in udf/udtf
+    FLATTEN_ROW = 0;
+    // used in udaf/udtaf
+    ROW = 1;
+    // used in datastream
+    RAW = 2;
+    // used pandas udf/udaf
+    ARROW = 3;
+    // only used in batch over window
+    // the data consists of [window data][arrow data]
+    OVER_WINDOW_ARROW=4;
+  }
+
+  enum OutputMode {
+    // output single result
+    SINGLE = 0;
+    // output multiple result
+    MULTIPLE = 1;
+    // output multiple result and a end message(0x00)
+    MULTIPLE_WITH_END = 2;
+  }
+
+  oneof field_type {
+    Schema schema = 1;
+    TypeInfo type_info = 2;
+  }
+
+  DataType data_type = 3;
+
+  OutputMode output_mode = 4;
 }
 
 // A representation of the data type information in DataStream.

@@ -57,7 +57,11 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
             FunctionDefinition definition,
             SqlCallBinding binding,
             @Nullable RelDataType outputType) {
-        super(dataTypeFactory, definition, binding.getOperator().getNameAsId().toString());
+        super(
+                dataTypeFactory,
+                definition,
+                binding.getOperator().getNameAsId().toString(),
+                binding.getGroupCount() > 0);
 
         this.adaptedArguments = binding.operands(); // reorders the operands
         this.argumentDataTypes =

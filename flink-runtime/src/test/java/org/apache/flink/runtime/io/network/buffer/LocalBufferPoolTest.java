@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -29,6 +30,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.mockito.Mockito;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -515,6 +518,22 @@ public class LocalBufferPoolTest extends TestLogger {
         assertTrue(availableFuture2.isDone());
     }
 
+    /** For FLINK-20547: https://issues.apache.org/jira/browse/FLINK-20547. */
+    @Test
+    public void testConsistentAvailability() throws Exception {
+        NetworkBufferPool globalPool = new TestNetworkBufferPool(numBuffers, memorySegmentSize);
+        try {
+            BufferPool localPool = new LocalBufferPool(globalPool, 1);
+            MemorySegment segment = localPool.requestBufferBuilderBlocking().getMemorySegment();
+            localPool.setNumBuffers(2);
+
+            localPool.recycle(segment);
+            localPool.lazyDestroy();
+        } finally {
+            globalPool.destroy();
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------
@@ -568,6 +587,24 @@ public class LocalBufferPoolTest extends TestLogger {
             }
 
             return true;
+        }
+    }
+
+    private static class TestNetworkBufferPool extends NetworkBufferPool {
+
+        private int requestCounter;
+
+        public TestNetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
+            super(numberOfSegmentsToAllocate, segmentSize);
+        }
+
+        @Nullable
+        @Override
+        public MemorySegment requestMemorySegment() {
+            if (requestCounter++ == 1) {
+                return null;
+            }
+            return super.requestMemorySegment();
         }
     }
 }

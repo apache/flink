@@ -90,12 +90,15 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             ObjectNode objectNode = (ObjectNode) jsonNode;
             if (objectNode.has(FIELD_NAME_TIMESTAMP_KIND)) {
                 boolean nullable = objectNode.get(FIELD_NAME_NULLABLE).booleanValue();
+                String typeName = objectNode.get(FIELD_NAME_TYPE_NAME).textValue();
+                boolean isTimestampLtz =
+                        SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE.name().equals(typeName);
                 TimestampKind timestampKind =
                         TimestampKind.valueOf(
                                 objectNode.get(FIELD_NAME_TIMESTAMP_KIND).asText().toUpperCase());
                 switch (timestampKind) {
                     case ROWTIME:
-                        return typeFactory.createRowtimeIndicatorType(nullable);
+                        return typeFactory.createRowtimeIndicatorType(nullable, isTimestampLtz);
                     case PROCTIME:
                         return typeFactory.createProctimeIndicatorType(nullable);
                     default:

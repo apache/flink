@@ -29,17 +29,15 @@ import java.util.concurrent.atomic.AtomicReference;
 /** A result that works through {@link TableResult#collect()}. */
 public abstract class CollectResultBase implements DynamicResult {
     private final CloseableIterator<Row> result;
-    private final ResultRetrievalThread retrievalThread;
 
     protected final Object resultLock;
     protected AtomicReference<SqlExecutionException> executionException = new AtomicReference<>();
+    protected final ResultRetrievalThread retrievalThread;
 
     public CollectResultBase(TableResult tableResult) {
         result = tableResult.collect();
         resultLock = new Object();
         retrievalThread = new ResultRetrievalThread();
-        // start listener thread
-        retrievalThread.start();
     }
 
     @Override
@@ -66,7 +64,8 @@ public abstract class CollectResultBase implements DynamicResult {
 
     // --------------------------------------------------------------------------------------------
 
-    private class ResultRetrievalThread extends Thread {
+    /** Thread to retrieve data from the {@link CloseableIterator} and process. */
+    protected class ResultRetrievalThread extends Thread {
         public volatile boolean isRunning = true;
 
         @Override

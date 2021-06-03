@@ -83,7 +83,8 @@ public class PushLimitIntoTableSourceScanRule extends RelOptRule {
 
         TableSourceTable newTableSourceTable = applyLimit(limit, scan);
         FlinkLogicalTableSourceScan newScan =
-                FlinkLogicalTableSourceScan.create(scan.getCluster(), newTableSourceTable);
+                FlinkLogicalTableSourceScan.create(
+                        scan.getCluster(), scan.getHints(), newTableSourceTable);
         Sort newSort = sort.copy(sort.getTraitSet(), Collections.singletonList(newScan));
         call.transformTo(newSort);
     }

@@ -19,46 +19,28 @@
 package org.apache.flink.table.planner.plan.schema;
 
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableColumn;
-import org.apache.flink.table.api.TableColumn.ComputedColumn;
-import org.apache.flink.table.api.TableColumn.MetadataColumn;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverter;
-import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
-import static org.apache.flink.table.planner.sources.DynamicSourceUtils.createProducedType;
-import static org.apache.flink.table.planner.sources.DynamicSourceUtils.prepareDynamicSource;
 
 /**
  * A {@link FlinkPreparingTableBase} implementation which defines the interfaces required to
@@ -72,14 +54,14 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
     private final CatalogSchemaTable schemaTable;
 
-    private final CatalogTable catalogTable;
+    private final ResolvedCatalogTable catalogTable;
 
     public CatalogSourceTable(
             RelOptSchema relOptSchema,
             List<String> names,
             RelDataType rowType,
             CatalogSchemaTable schemaTable,
-            CatalogTable catalogTable) {
+            ResolvedCatalogTable catalogTable) {
         super(relOptSchema, rowType, names, schemaTable.getStatistic());
         this.schemaTable = schemaTable;
         this.catalogTable = catalogTable;
@@ -90,150 +72,28 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         final RelOptCluster cluster = toRelContext.getCluster();
         final List<RelHint> hints = toRelContext.getTableHints();
         final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
-        final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
         final FlinkRelBuilder relBuilder = FlinkRelBuilder.of(cluster, relOptSchema);
 
-        // 0. finalize catalog table
+        // finalize catalog table
         final Map<String, String> hintedOptions = FlinkHints.getHintedOptions(hints);
-        final CatalogTable catalogTable = createFinalCatalogTable(context, hintedOptions);
+        final ResolvedCatalogTable catalogTable = createFinalCatalogTable(context, hintedOptions);
 
-        // 1. create and prepare table source
+        // create table source
         final DynamicTableSource tableSource = createDynamicTableSource(context, catalogTable);
-        prepareDynamicSource(
+
+        // prepare table source and convert to RelNode
+        return DynamicSourceUtils.convertSourceToRel(
+                schemaTable.isStreamingMode(),
+                context.getTableConfig().getConfiguration(),
+                relBuilder,
                 schemaTable.getTableIdentifier(),
                 catalogTable,
-                tableSource,
-                schemaTable.isStreamingMode(),
-                context.getTableConfig());
-
-        // 2. push table scan
-        pushTableScan(relBuilder, cluster, catalogTable, tableSource, typeFactory, hints);
-
-        // 3. push project for non-physical columns
-        final TableSchema schema = catalogTable.getSchema();
-        if (!TableSchemaUtils.containsPhysicalColumnsOnly(schema)) {
-            pushMetadataProjection(relBuilder, typeFactory, schema);
-            pushGeneratedProjection(context, relBuilder, schema);
-        }
-
-        // 4. push watermark assigner
-        if (schemaTable.isStreamingMode() && !schema.getWatermarkSpecs().isEmpty()) {
-            pushWatermarkAssigner(context, relBuilder, schema);
-        }
-
-        return relBuilder.build();
+                schemaTable.getStatistic(),
+                hints,
+                tableSource);
     }
 
-    /** Creates a specialized node for assigning watermarks. */
-    private void pushWatermarkAssigner(
-            FlinkContext context, FlinkRelBuilder relBuilder, TableSchema schema) {
-        final RelDataType inputRelDataType = relBuilder.peek().getRowType();
-        final SqlExprToRexConverterFactory factory = context.getSqlExprToRexConverterFactory();
-        final SqlExprToRexConverter converter = factory.create(inputRelDataType);
-
-        final WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
-
-        final String rowtimeColumn = watermarkSpec.getRowtimeAttribute();
-        final int rowtimeColumnIdx = inputRelDataType.getFieldNames().indexOf(rowtimeColumn);
-
-        final RexNode watermarkRexNode =
-                converter.convertToRexNode(watermarkSpec.getWatermarkExpr());
-
-        relBuilder.watermark(rowtimeColumnIdx, watermarkRexNode);
-    }
-
-    /** Creates a projection that adds computed columns and finalizes the the table schema. */
-    private void pushGeneratedProjection(
-            FlinkContext context, FlinkRelBuilder relBuilder, TableSchema schema) {
-        final SqlExprToRexConverterFactory factory = context.getSqlExprToRexConverterFactory();
-        final SqlExprToRexConverter converter = factory.create(relBuilder.peek().getRowType());
-
-        final List<RexNode> projection =
-                schema.getTableColumns().stream()
-                        .map(
-                                c -> {
-                                    if (c instanceof ComputedColumn) {
-                                        final ComputedColumn computedColumn = (ComputedColumn) c;
-                                        return converter.convertToRexNode(
-                                                computedColumn.getExpression());
-                                    } else {
-                                        return relBuilder.field(c.getName());
-                                    }
-                                })
-                        .collect(Collectors.toList());
-
-        relBuilder.projectNamed(projection, Arrays.asList(schema.getFieldNames()), true);
-    }
-
-    /**
-     * Creates a projection that reorders physical and metadata columns according to the given
-     * schema. It casts metadata columns into the expected data type to be accessed by computed
-     * columns in the next step. Computed columns are ignored here.
-     *
-     * @see SupportsReadingMetadata
-     */
-    private void pushMetadataProjection(
-            FlinkRelBuilder relBuilder, FlinkTypeFactory typeFactory, TableSchema schema) {
-        final RexBuilder rexBuilder = relBuilder.getRexBuilder();
-
-        final List<String> fieldNames =
-                schema.getTableColumns().stream()
-                        .filter(c -> !(c instanceof ComputedColumn))
-                        .map(TableColumn::getName)
-                        .collect(Collectors.toList());
-
-        final List<RexNode> fieldNodes =
-                schema.getTableColumns().stream()
-                        .filter(c -> !(c instanceof ComputedColumn))
-                        .map(
-                                c -> {
-                                    final RelDataType relDataType =
-                                            typeFactory.createFieldTypeFromLogicalType(
-                                                    c.getType().getLogicalType());
-                                    if (c instanceof MetadataColumn) {
-                                        final MetadataColumn metadataColumn = (MetadataColumn) c;
-                                        final String metadataKey =
-                                                metadataColumn
-                                                        .getMetadataAlias()
-                                                        .orElse(metadataColumn.getName());
-                                        return rexBuilder.makeAbstractCast(
-                                                relDataType, relBuilder.field(metadataKey));
-                                    } else {
-                                        return relBuilder.field(c.getName());
-                                    }
-                                })
-                        .collect(Collectors.toList());
-
-        relBuilder.projectNamed(fieldNodes, fieldNames, true);
-    }
-
-    private void pushTableScan(
-            FlinkRelBuilder relBuilder,
-            RelOptCluster cluster,
-            CatalogTable catalogTable,
-            DynamicTableSource tableSource,
-            FlinkTypeFactory typeFactory,
-            List<RelHint> hints) {
-        final RowType producedType = createProducedType(catalogTable.getSchema(), tableSource);
-        final RelDataType producedRelDataType = typeFactory.buildRelNodeRowType(producedType);
-
-        final TableSourceTable tableSourceTable =
-                new TableSourceTable(
-                        relOptSchema,
-                        schemaTable.getTableIdentifier(),
-                        producedRelDataType,
-                        statistic,
-                        tableSource,
-                        schemaTable.isStreamingMode(),
-                        catalogTable,
-                        new String[0],
-                        new SourceAbilitySpec[0]);
-
-        final LogicalTableScan scan = LogicalTableScan.create(cluster, tableSourceTable, hints);
-        relBuilder.push(scan);
-    }
-
-    private CatalogTable createFinalCatalogTable(
+    private ResolvedCatalogTable createFinalCatalogTable(
             FlinkContext context, Map<String, String> hintedOptions) {
         if (hintedOptions.isEmpty()) {
             return catalogTable;
@@ -251,7 +111,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
     }
 
     private DynamicTableSource createDynamicTableSource(
-            FlinkContext context, CatalogTable catalogTable) {
+            FlinkContext context, ResolvedCatalogTable catalogTable) {
         final ReadableConfig config = context.getTableConfig().getConfiguration();
         return FactoryUtil.createTableSource(
                 schemaTable.getCatalog(),

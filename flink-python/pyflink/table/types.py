@@ -32,7 +32,7 @@ from py4j.java_gateway import get_java_class
 from typing import List, Union
 
 from pyflink.common.types import _create_row
-from pyflink.util.utils import to_jarray, is_instance_of
+from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
 
@@ -2669,6 +2669,21 @@ class DataTypes(object):
 
         .. note:: `LocalZonedTimestampType` is currently only supported in blink planner and the
                   precision must be 3.
+        """
+        return LocalZonedTimestampType(precision, nullable)
+
+    @staticmethod
+    def TIMESTAMP_LTZ(precision: int = 6, nullable: bool = True) \
+            -> LocalZonedTimestampType:
+        """
+        Data type of a timestamp WITH LOCAL time zone.
+        This is a shortcut for ``DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)``.
+
+        :param precision: int, the number of digits of fractional seconds.
+                          It must have a value between 0 and 9 (both inclusive). (default: 6)
+        :param nullable: boolean, whether the type can be null (None) or not.
+
+        .. seealso:: :func:`~DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(precision, nullable)`
         """
         return LocalZonedTimestampType(precision, nullable)
 

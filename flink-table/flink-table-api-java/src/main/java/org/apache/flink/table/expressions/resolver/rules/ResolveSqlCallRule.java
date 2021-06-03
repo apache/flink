@@ -19,13 +19,19 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.RowType.RowField;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -37,32 +43,49 @@ final class ResolveSqlCallRule implements ResolverRule {
 
     @Override
     public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-        return expression.stream()
-                .map(expr -> expr.accept(new TranslateSqlCallsVisitor(context)))
-                .collect(Collectors.toList());
+        // only the top-level expressions may access the output data type
+        final LogicalType outputType =
+                context.getOutputDataType().map(DataType::getLogicalType).orElse(null);
+        final TranslateSqlCallsVisitor visitor = new TranslateSqlCallsVisitor(context, outputType);
+        return expression.stream().map(expr -> expr.accept(visitor)).collect(Collectors.toList());
     }
 
     private static class TranslateSqlCallsVisitor extends RuleExpressionVisitor<Expression> {
 
-        TranslateSqlCallsVisitor(ResolutionContext resolutionContext) {
+        private final @Nullable LogicalType outputType;
+
+        TranslateSqlCallsVisitor(
+                ResolutionContext resolutionContext, @Nullable LogicalType outputType) {
             super(resolutionContext);
+            this.outputType = outputType;
         }
 
         @Override
         public Expression visit(SqlCallExpression sqlCall) {
             final SqlExpressionResolver resolver = resolutionContext.sqlExpressionResolver();
 
-            final TableSchema.Builder builder = TableSchema.builder();
+            final List<RowField> fields = new ArrayList<>();
             // input references
             resolutionContext
                     .referenceLookup()
                     .getAllInputFields()
-                    .forEach(f -> builder.field(f.getName(), f.getOutputDataType()));
+                    .forEach(
+                            f ->
+                                    fields.add(
+                                            new RowField(
+                                                    f.getName(),
+                                                    f.getOutputDataType().getLogicalType())));
             // local references
             resolutionContext
                     .getLocalReferences()
-                    .forEach(refs -> builder.field(refs.getName(), refs.getOutputDataType()));
-            return resolver.resolveExpression(sqlCall.getSqlExpression(), builder.build());
+                    .forEach(
+                            refs ->
+                                    fields.add(
+                                            new RowField(
+                                                    refs.getName(),
+                                                    refs.getOutputDataType().getLogicalType())));
+            return resolver.resolveExpression(
+                    sqlCall.getSqlExpression(), new RowType(false, fields), outputType);
         }
 
         @Override
@@ -76,8 +99,10 @@ final class ResolveSqlCallRule implements ResolverRule {
         }
 
         private List<Expression> resolveChildren(List<Expression> lookupChildren) {
+            final TranslateSqlCallsVisitor visitor =
+                    new TranslateSqlCallsVisitor(resolutionContext, null);
             return lookupChildren.stream()
-                    .map(child -> child.accept(this))
+                    .map(child -> child.accept(visitor))
                     .collect(Collectors.toList());
         }
     }

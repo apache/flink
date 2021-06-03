@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -188,15 +187,30 @@ public class ExecutionCheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
-    @Documentation.ExcludeFromDocumentation(
-            "Do not advertise this option until rescaling of unaligned checkpoint is completed.")
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
+                                    .build());
+
+    public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
+            ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "It is better to keep this value empty until "
+                                                    + "there is explicit needs to restore from "
+                                                    + "the specific checkpoint without in-flight data.")
+                                    .linebreak()
                                     .build());
 }

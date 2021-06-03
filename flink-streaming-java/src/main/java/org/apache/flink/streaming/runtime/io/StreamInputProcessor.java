@@ -20,12 +20,12 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -44,5 +44,5 @@ public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
     InputStatus processInput() throws Exception;
 
     CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException;
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException;
 }

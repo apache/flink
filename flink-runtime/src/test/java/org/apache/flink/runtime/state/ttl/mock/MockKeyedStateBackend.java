@@ -30,7 +30,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -50,6 +49,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformers;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSet;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -104,6 +104,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             ClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
+            LatencyTrackingStateConfig latencyTrackingStateConfig,
             Map<String, Map<K, Map<Object, Object>>> stateValues,
             Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters,
             CloseableRegistry cancelStreamRegistry,
@@ -114,6 +115,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 userCodeClassLoader,
                 executionConfig,
                 ttlTimeProvider,
+                latencyTrackingStateConfig,
                 cancelStreamRegistry,
                 keyContext);
         this.stateValues = stateValues;
@@ -180,11 +182,6 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             }
         }
         return count;
-    }
-
-    @Override
-    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointOptions) {
-        return false;
     }
 
     @Override

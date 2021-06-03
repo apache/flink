@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.util.HadoopUtils;
@@ -43,8 +44,13 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
 
     private static final Resource MAX_CONTAINER_RESOURCE = Resource.newInstance(102400, 100);
 
-    private static final String SUPPORTED_EXTERNAL_RESOURCE_NAME = "testing-external-resource";
+    private static final String SUPPORTED_EXTERNAL_RESOURCE_NAME = "testing-resource-name";
+    private static final String SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY =
+            "testing-external-resource";
     private static final long SUPPORTED_EXTERNAL_RESOURCE_MAX = 10000L;
+    private static final String UNSUPPORTED_EXTERNAL_RESOURCE_NAME = "testing-unsupported-resource";
+    private static final String UNSUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY =
+            "testing-unsupported-resource";
 
     private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_1 =
             new TaskExecutorProcessSpec(
@@ -56,7 +62,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(100),
                     MemorySize.ofMebiBytes(100),
                     MemorySize.ofMebiBytes(100),
-                    MemorySize.ofMebiBytes(100));
+                    MemorySize.ofMebiBytes(100),
+                    Collections.emptyList());
 
     private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_2 =
             new TaskExecutorProcessSpec(
@@ -68,7 +75,56 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(200),
                     MemorySize.ofMebiBytes(200),
                     MemorySize.ofMebiBytes(200),
-                    MemorySize.ofMebiBytes(200));
+                    MemorySize.ofMebiBytes(200),
+                    Collections.emptyList());
+
+    private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE =
+            new TaskExecutorProcessSpec(
+                    new CPUResource(1.0),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    MemorySize.ofMebiBytes(100),
+                    Collections.singleton(
+                            new ExternalResource(
+                                    SUPPORTED_EXTERNAL_RESOURCE_NAME,
+                                    SUPPORTED_EXTERNAL_RESOURCE_MAX)));
+
+    private static final TaskExecutorProcessSpec
+            TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE_EXCEED_MAX =
+                    new TaskExecutorProcessSpec(
+                            new CPUResource(1.0),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            Collections.singleton(
+                                    new ExternalResource(
+                                            SUPPORTED_EXTERNAL_RESOURCE_NAME,
+                                            SUPPORTED_EXTERNAL_RESOURCE_MAX + 1)));
+
+    private static final TaskExecutorProcessSpec
+            TASK_EXECUTOR_PROCESS_SPEC_WITH_UNSUPPORTED_EXTERNAL_RESOURCE =
+                    new TaskExecutorProcessSpec(
+                            new CPUResource(1.0),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            MemorySize.ofMebiBytes(100),
+                            Collections.singleton(
+                                    new ExternalResource(UNSUPPORTED_EXTERNAL_RESOURCE_NAME, 1)));
 
     private static final TaskExecutorProcessSpec TASK_EXECUTOR_PROCESS_SPEC_EXCEED_MAX =
             new TaskExecutorProcessSpec(
@@ -80,7 +136,8 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
                     MemorySize.ofMebiBytes(102400),
                     MemorySize.ofMebiBytes(102400),
                     MemorySize.ofMebiBytes(102400),
-                    MemorySize.ofMebiBytes(102400));
+                    MemorySize.ofMebiBytes(102400),
+                    Collections.emptyList());
 
     @Test
     public void testGetResourceFromSpec() {
@@ -141,15 +198,18 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
     public void testExternalResource() {
         assumeTrue(isExternalResourceSupported());
 
-        final long amount = 1;
         final TaskExecutorProcessSpecContainerResourcePriorityAdapter adapter =
-                getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, amount);
-        final Resource resource = getResource(adapter, TASK_EXECUTOR_PROCESS_SPEC_1);
+                getAdapterWithExternalResources(
+                        SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY);
+        final Resource resource =
+                getResource(adapter, TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE);
 
         final Map<String, Long> resultExternalResources =
                 ResourceInformationReflector.INSTANCE.getExternalResources(resource);
         assertThat(resultExternalResources.size(), is(1));
-        assertThat(resultExternalResources.get(SUPPORTED_EXTERNAL_RESOURCE_NAME), is(amount));
+        assertThat(
+                resultExternalResources.get(SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY),
+                is(SUPPORTED_EXTERNAL_RESOURCE_MAX));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -157,21 +217,29 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
         assumeTrue(isExternalResourceSupported());
 
         getAdapterWithExternalResources(
-                SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX + 1);
+                        SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
+                .getPriorityAndResource(
+                        TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE_EXCEED_MAX);
     }
 
     @Test(expected = IllegalStateException.class)
     public void testExternalResourceFailResourceTypeNotSupported() {
         assumeTrue(isExternalResourceSupported());
 
-        getAdapterWithExternalResources("testing-unsupported-resource", 1);
+        getAdapterWithExternalResources(
+                        UNSUPPORTED_EXTERNAL_RESOURCE_NAME,
+                        UNSUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
+                .getPriorityAndResource(
+                        TASK_EXECUTOR_PROCESS_SPEC_WITH_UNSUPPORTED_EXTERNAL_RESOURCE);
     }
 
     @Test(expected = IllegalStateException.class)
     public void testExternalResourceFailHadoopVersionNotSupported() {
         assumeFalse(isExternalResourceSupported());
 
-        getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, 100);
+        getAdapterWithExternalResources(
+                        SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY)
+                .getPriorityAndResource(TASK_EXECUTOR_PROCESS_SPEC_WITH_EXTERNAL_RESOURCE);
     }
 
     private static TaskExecutorProcessSpecContainerResourcePriorityAdapter getAdapter() {
@@ -180,16 +248,18 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
     }
 
     private static TaskExecutorProcessSpecContainerResourcePriorityAdapter
-            getAdapterWithExternalResources(String name, long amount) {
+            getAdapterWithExternalResources(String resourceName, String configKey) {
         final Resource maxResource =
                 Resource.newInstance(
                         MAX_CONTAINER_RESOURCE.getMemory(),
                         MAX_CONTAINER_RESOURCE.getVirtualCores());
         ResourceInformationReflector.INSTANCE.setResourceInformation(
-                maxResource, SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX);
+                maxResource,
+                SUPPORTED_EXTERNAL_RESOURCE_CONFIG_KEY,
+                SUPPORTED_EXTERNAL_RESOURCE_MAX);
 
-        final Map<String, Long> externalResources = new HashMap<>();
-        externalResources.put(name, amount);
+        final Map<String, String> externalResources = new HashMap<>();
+        externalResources.put(resourceName, configKey);
 
         return new TaskExecutorProcessSpecContainerResourcePriorityAdapter(
                 maxResource, externalResources);

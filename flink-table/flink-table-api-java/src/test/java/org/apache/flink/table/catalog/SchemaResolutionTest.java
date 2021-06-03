@@ -21,27 +21,31 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
-import org.apache.flink.table.utils.FunctionLookupMock;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.callSql;
+import static org.apache.flink.table.api.Expressions.sourceWatermark;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRowtimeAttribute;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTimeAttribute;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertFalse;
@@ -62,11 +66,17 @@ public class SchemaResolutionTest {
     private static final ResolvedExpression WATERMARK_RESOLVED =
             new ResolvedExpressionMock(DataTypes.TIMESTAMP(3), () -> WATERMARK_SQL);
 
+    private static final String INVALID_WATERMARK_SQL =
+            "CAST(ts AS TIMESTAMP_LTZ(3)) - INTERVAL '5' SECOND";
+    private static final ResolvedExpression INVALID_WATERMARK_RESOLVED =
+            new ResolvedExpressionMock(DataTypes.TIMESTAMP_LTZ(3), () -> INVALID_WATERMARK_SQL);
+
     private static final String PROCTIME_SQL = "PROCTIME()";
 
     private static final ResolvedExpression PROCTIME_RESOLVED =
             new ResolvedExpressionMock(
-                    fromLogicalToDataType(new TimestampType(false, TimestampKind.PROCTIME, 3)),
+                    fromLogicalToDataType(
+                            new LocalZonedTimestampType(false, TimestampKind.PROCTIME, 3)),
                     () -> PROCTIME_SQL);
 
     private static final Schema SCHEMA =
@@ -82,6 +92,25 @@ public class SchemaResolutionTest {
                     .columnByExpression("proctime", PROCTIME_SQL)
                     .build();
 
+    // the type of ts_ltz is TIMESTAMP_LTZ
+    private static final String COMPUTED_SQL_WITH_TS_LTZ = "ts_ltz - INTERVAL '60' MINUTE";
+
+    private static final ResolvedExpression COMPUTED_COLUMN_RESOLVED_WITH_TS_LTZ =
+            new ResolvedExpressionMock(DataTypes.TIMESTAMP_LTZ(3), () -> COMPUTED_SQL_WITH_TS_LTZ);
+
+    private static final String WATERMARK_SQL_WITH_TS_LTZ = "ts1 - INTERVAL '5' SECOND";
+
+    private static final ResolvedExpression WATERMARK_RESOLVED_WITH_TS_LTZ =
+            new ResolvedExpressionMock(DataTypes.TIMESTAMP_LTZ(3), () -> WATERMARK_SQL_WITH_TS_LTZ);
+
+    private static final Schema SCHEMA_WITH_TS_LTZ =
+            Schema.newBuilder()
+                    .column("id", DataTypes.INT().notNull())
+                    .columnByExpression("ts1", callSql(COMPUTED_SQL_WITH_TS_LTZ))
+                    .columnByMetadata("ts_ltz", DataTypes.TIMESTAMP_LTZ(3), "timestamp")
+                    .watermark("ts1", WATERMARK_SQL_WITH_TS_LTZ)
+                    .build();
+
     @Test
     public void testSchemaResolution() {
         final ResolvedSchema expectedSchema =
@@ -95,27 +124,81 @@ public class SchemaResolutionTest {
                                                 DataTypes.FIELD("name", DataTypes.STRING()),
                                                 DataTypes.FIELD("age", DataTypes.INT()),
                                                 DataTypes.FIELD("flag", DataTypes.BOOLEAN()))),
-                                Column.metadata("topic", DataTypes.STRING(), true),
+                                Column.metadata("topic", DataTypes.STRING(), null, true),
                                 Column.computed("ts", COMPUTED_COLUMN_RESOLVED),
-                                Column.metadata("orig_ts", DataTypes.TIMESTAMP(3), "timestamp"),
+                                Column.metadata(
+                                        "orig_ts", DataTypes.TIMESTAMP(3), "timestamp", false),
                                 Column.computed("proctime", PROCTIME_RESOLVED)),
-                        Collections.singletonList(new WatermarkSpec("ts", WATERMARK_RESOLVED)),
+                        Collections.singletonList(WatermarkSpec.of("ts", WATERMARK_RESOLVED)),
                         UniqueConstraint.primaryKey(
                                 "primary_constraint", Collections.singletonList("id")));
 
-        final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true, true);
+        final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA, true);
         {
             assertThat(actualStreamSchema, equalTo(expectedSchema));
             assertTrue(isRowtimeAttribute(getType(actualStreamSchema, "ts")));
             assertTrue(isProctimeAttribute(getType(actualStreamSchema, "proctime")));
         }
 
-        final ResolvedSchema actualBatchSchema = resolveSchema(SCHEMA, false, true);
+        final ResolvedSchema actualBatchSchema = resolveSchema(SCHEMA, false);
         {
             assertThat(actualBatchSchema, equalTo(expectedSchema));
             assertFalse(isRowtimeAttribute(getType(actualBatchSchema, "ts")));
             assertTrue(isProctimeAttribute(getType(actualBatchSchema, "proctime")));
         }
+    }
+
+    @Test
+    public void testSchemaResolutionWithTimestampLtzRowtime() {
+        final ResolvedSchema expectedSchema =
+                new ResolvedSchema(
+                        Arrays.asList(
+                                Column.physical("id", DataTypes.INT().notNull()),
+                                Column.computed("ts1", COMPUTED_COLUMN_RESOLVED_WITH_TS_LTZ),
+                                Column.metadata(
+                                        "ts_ltz", DataTypes.TIMESTAMP_LTZ(3), "timestamp", false)),
+                        Collections.singletonList(
+                                WatermarkSpec.of("ts1", WATERMARK_RESOLVED_WITH_TS_LTZ)),
+                        null);
+
+        final ResolvedSchema actualStreamSchema = resolveSchema(SCHEMA_WITH_TS_LTZ, true);
+        {
+            assertThat(actualStreamSchema, equalTo(expectedSchema));
+            assertTrue(isRowtimeAttribute(getType(actualStreamSchema, "ts1")));
+        }
+
+        final ResolvedSchema actualBatchSchema = resolveSchema(SCHEMA_WITH_TS_LTZ, false);
+        {
+            assertThat(actualBatchSchema, equalTo(expectedSchema));
+            assertFalse(isRowtimeAttribute(getType(actualBatchSchema, "ts1")));
+        }
+    }
+
+    @Test
+    public void testSchemaResolutionWithSourceWatermark() {
+        final ResolvedSchema expectedSchema =
+                new ResolvedSchema(
+                        Collections.singletonList(
+                                Column.physical("ts_ltz", DataTypes.TIMESTAMP_LTZ(1))),
+                        Collections.singletonList(
+                                WatermarkSpec.of(
+                                        "ts_ltz",
+                                        new CallExpression(
+                                                FunctionIdentifier.of(
+                                                        BuiltInFunctionDefinitions.SOURCE_WATERMARK
+                                                                .getName()),
+                                                BuiltInFunctionDefinitions.SOURCE_WATERMARK,
+                                                Collections.emptyList(),
+                                                DataTypes.TIMESTAMP_LTZ(1)))),
+                        null);
+        final ResolvedSchema resolvedSchema =
+                resolveSchema(
+                        Schema.newBuilder()
+                                .column("ts_ltz", DataTypes.TIMESTAMP_LTZ(1))
+                                .watermark("ts_ltz", sourceWatermark())
+                                .build());
+
+        assertThat(resolvedSchema, equalTo(expectedSchema));
     }
 
     @Test
@@ -128,12 +211,6 @@ public class SchemaResolutionTest {
                 "Schema must not contain duplicate column names.");
 
         testError(
-                SCHEMA,
-                "Metadata columns are not supported in a schema at the current location.",
-                true,
-                false);
-
-        testError(
                 Schema.newBuilder().columnByExpression("invalid", callSql("INVALID")).build(),
                 "Invalid expression for computed column 'invalid'.");
 
@@ -144,7 +221,8 @@ public class SchemaResolutionTest {
                         .column("ts", DataTypes.BOOLEAN())
                         .watermark("ts", callSql(WATERMARK_SQL))
                         .build(),
-                "Invalid data type of time field for watermark definition. The field must be of type TIMESTAMP(3) WITHOUT TIME ZONE.");
+                "Invalid data type of time field for watermark definition."
+                        + " The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), the supported precision 'p' is from 0 to 3, but the time field type is BOOLEAN");
 
         testError(
                 Schema.newBuilder()
@@ -152,6 +230,14 @@ public class SchemaResolutionTest {
                         .watermark("ts", callSql("INVALID"))
                         .build(),
                 "Invalid expression for watermark 'WATERMARK FOR `ts` AS [INVALID]'.");
+
+        testError(
+                Schema.newBuilder()
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .watermark("ts", callSql(INVALID_WATERMARK_SQL))
+                        .build(),
+                "The watermark declaration's output data type 'TIMESTAMP_LTZ(3)' is "
+                        + "different from the time field's data type 'TIMESTAMP(3)'.");
 
         testError(
                 Schema.newBuilder()
@@ -203,14 +289,14 @@ public class SchemaResolutionTest {
                 SCHEMA.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>], \n"
-                                + "  `topic` METADATA VIRTUAL, \n"
-                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE], \n"
-                                + "  `orig_ts` METADATA FROM 'timestamp', \n"
-                                + "  `proctime` AS [PROCTIME()], \n"
-                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND], \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` [ROW<name STRING, age INT, flag BOOLEAN>],\n"
+                                + "  `topic` METADATA VIRTUAL,\n"
+                                + "  `ts` AS [orig_ts - INTERVAL '60' MINUTE],\n"
+                                + "  `orig_ts` METADATA FROM 'timestamp',\n"
+                                + "  `proctime` AS [PROCTIME()],\n"
+                                + "  WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }
@@ -222,14 +308,14 @@ public class SchemaResolutionTest {
                 resolvedSchema.toString(),
                 equalTo(
                         "(\n"
-                                + "  `id` INT NOT NULL, \n"
-                                + "  `counter` INT NOT NULL, \n"
-                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>, \n"
-                                + "  `topic` STRING METADATA VIRTUAL, \n"
-                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE, \n"
-                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp', \n"
-                                + "  `proctime` TIMESTAMP(3) NOT NULL *PROCTIME* AS PROCTIME(), \n"
-                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND, \n"
+                                + "  `id` INT NOT NULL,\n"
+                                + "  `counter` INT NOT NULL,\n"
+                                + "  `payload` ROW<`name` STRING, `age` INT, `flag` BOOLEAN>,\n"
+                                + "  `topic` STRING METADATA VIRTUAL,\n"
+                                + "  `ts` TIMESTAMP(3) *ROWTIME* AS orig_ts - INTERVAL '60' MINUTE,\n"
+                                + "  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',\n"
+                                + "  `proctime` TIMESTAMP_LTZ(3) NOT NULL *PROCTIME* AS PROCTIME(),\n"
+                                + "  WATERMARK FOR `ts`: TIMESTAMP(3) AS ts - INTERVAL '5' SECOND,\n"
                                 + "  CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED\n"
                                 + ")"));
     }
@@ -291,7 +377,7 @@ public class SchemaResolutionTest {
 
     @Test
     public void testSourceRowDataType() {
-        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA, true, true);
+        final ResolvedSchema resolvedSchema = resolveSchema(SCHEMA);
         final DataType expectedDataType =
                 DataTypes.ROW(
                                 DataTypes.FIELD("id", DataTypes.INT().notNull()),
@@ -305,21 +391,24 @@ public class SchemaResolutionTest {
                                 DataTypes.FIELD("topic", DataTypes.STRING()),
                                 DataTypes.FIELD("ts", DataTypes.TIMESTAMP(3)),
                                 DataTypes.FIELD("orig_ts", DataTypes.TIMESTAMP(3)),
-                                DataTypes.FIELD("proctime", DataTypes.TIMESTAMP(3).notNull()))
+                                DataTypes.FIELD("proctime", DataTypes.TIMESTAMP_LTZ(3).notNull()))
                         .notNull();
-        assertThat(resolvedSchema.toSourceRowDataType(), equalTo(expectedDataType));
+        final DataType sourceRowDataType = resolvedSchema.toSourceRowDataType();
+        assertThat(sourceRowDataType, equalTo(expectedDataType));
+
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(4).getLogicalType()));
+        assertFalse(isTimeAttribute(sourceRowDataType.getChildren().get(6).getLogicalType()));
     }
 
     // --------------------------------------------------------------------------------------------
 
     private static void testError(Schema schema, String errorMessage) {
-        testError(schema, errorMessage, true, true);
+        testError(schema, errorMessage, true);
     }
 
-    private static void testError(
-            Schema schema, String errorMessage, boolean isStreaming, boolean supportsMetadata) {
+    private static void testError(Schema schema, String errorMessage, boolean isStreaming) {
         try {
-            resolveSchema(schema, isStreaming, supportsMetadata);
+            resolveSchema(schema, isStreaming);
             fail("Error message expected: " + errorMessage);
         } catch (Throwable t) {
             assertThat(t, FlinkMatchers.containsMessage(errorMessage));
@@ -327,48 +416,46 @@ public class SchemaResolutionTest {
     }
 
     private static ResolvedSchema resolveSchema(Schema schema) {
-        return resolveSchema(schema, true, true);
+        return resolveSchema(schema, true);
     }
 
-    private static ResolvedSchema resolveSchema(
-            Schema schema, boolean isStreamingMode, boolean supportsMetadata) {
+    private static ResolvedSchema resolveSchema(Schema schema, boolean isStreamingMode) {
         final SchemaResolver resolver =
                 new DefaultSchemaResolver(
                         isStreamingMode,
-                        supportsMetadata,
-                        dataTypeFactory(),
-                        expressionResolverBuilder());
+                        new DataTypeFactoryMock(),
+                        ExpressionResolverMocks.forSqlExpression(
+                                SchemaResolutionTest::resolveSqlExpression));
         return resolver.resolve(schema);
     }
 
-    private static ExpressionResolver.ExpressionResolverBuilder expressionResolverBuilder() {
-        return ExpressionResolver.resolverFor(
-                new TableConfig(),
-                name -> Optional.empty(),
-                new FunctionLookupMock(Collections.emptyMap()),
-                dataTypeFactory(),
-                SchemaResolutionTest::resolveSqlExpression);
-    }
-
-    private static DataTypeFactory dataTypeFactory() {
-        return new DataTypeFactoryMock();
-    }
-
     private static ResolvedExpression resolveSqlExpression(
-            String sqlExpression, TableSchema inputSchema) {
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
         switch (sqlExpression) {
             case COMPUTED_SQL:
                 assertThat(
-                        inputSchema.getFieldDataType("orig_ts").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP(3)));
+                        getType(inputRowType, "orig_ts"),
+                        equalTo(DataTypes.TIMESTAMP(3).getLogicalType()));
                 return COMPUTED_COLUMN_RESOLVED;
+            case COMPUTED_SQL_WITH_TS_LTZ:
+                assertThat(
+                        getType(inputRowType, "ts_ltz"),
+                        equalTo(DataTypes.TIMESTAMP_LTZ(3).getLogicalType()));
+                return COMPUTED_COLUMN_RESOLVED_WITH_TS_LTZ;
             case WATERMARK_SQL:
                 assertThat(
-                        inputSchema.getFieldDataType("ts").orElse(null),
-                        equalTo(DataTypes.TIMESTAMP(3)));
+                        getType(inputRowType, "ts"),
+                        equalTo(DataTypes.TIMESTAMP(3).getLogicalType()));
                 return WATERMARK_RESOLVED;
+            case WATERMARK_SQL_WITH_TS_LTZ:
+                assertThat(
+                        getType(inputRowType, "ts1"),
+                        equalTo(DataTypes.TIMESTAMP_LTZ(3).getLogicalType()));
+                return WATERMARK_RESOLVED_WITH_TS_LTZ;
             case PROCTIME_SQL:
                 return PROCTIME_RESOLVED;
+            case INVALID_WATERMARK_SQL:
+                return INVALID_WATERMARK_RESOLVED;
             default:
                 throw new UnsupportedOperationException("Unknown SQL expression.");
         }
@@ -380,5 +467,10 @@ public class SchemaResolutionTest {
                 .orElseThrow(IllegalStateException::new)
                 .getDataType()
                 .getLogicalType();
+    }
+
+    private static LogicalType getType(RowType inputRowType, String field) {
+        final int pos = inputRowType.getFieldIndex(field);
+        return inputRowType.getTypeAt(pos);
     }
 }

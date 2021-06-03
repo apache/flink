@@ -92,6 +92,7 @@ import static org.apache.flink.table.api.DataTypes.SMALLINT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
@@ -183,6 +184,12 @@ public class DataTypesTest {
                 TestSpec.forDataType(TIMESTAMP_WITH_LOCAL_TIME_ZONE())
                         .expectLogicalType(new LocalZonedTimestampType(6))
                         .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ(3))
+                        .expectLogicalType(new LocalZonedTimestampType(3))
+                        .expectConversionClass(java.time.Instant.class),
+                TestSpec.forDataType(TIMESTAMP_LTZ())
+                        .expectLogicalType(new LocalZonedTimestampType(6))
+                        .expectConversionClass(java.time.Instant.class),
                 TestSpec.forDataType(INTERVAL(MINUTE(), SECOND(3)))
                         .expectLogicalType(
                                 new DayTimeIntervalType(MINUTE_TO_SECOND, DEFAULT_DAY_PRECISION, 3))
@@ -210,6 +217,9 @@ public class DataTypesTest {
                                                 new RowType.RowField("field1", new CharType(2)),
                                                 new RowType.RowField("field2", new BooleanType()))))
                         .expectConversionClass(Row.class),
+                TestSpec.forDataType(ROW(DataTypes.INT(), DataTypes.FLOAT()))
+                        .expectResolvedDataType(
+                                DataTypes.ROW(FIELD("f0", INT()), FIELD("f1", FLOAT()))),
                 TestSpec.forDataType(NULL())
                         .expectLogicalType(new NullType())
                         .expectConversionClass(Object.class),
@@ -260,6 +270,8 @@ public class DataTypesTest {
                         .expectUnresolvedString("[ROW<field1 [CHAR(2)], field2 BOOLEAN>]")
                         .expectResolvedDataType(
                                 ROW(FIELD("field1", CHAR(2)), FIELD("field2", BOOLEAN()))),
+                TestSpec.forUnresolvedDataType(ROW(DataTypes.of("CHAR(2)"), BOOLEAN()))
+                        .expectResolvedDataType(ROW(FIELD("f0", CHAR(2)), FIELD("f1", BOOLEAN()))),
                 TestSpec.forUnresolvedDataType(
                                 ARRAY(
                                         ROW(

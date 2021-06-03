@@ -45,9 +45,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 
     private static final long serialVersionUID = 1L;
 
-    private static final String SCHEMA_OVER_WINDOW_ARROW_CODER_URN =
-            "flink:coder:schema:batch_over_window:arrow:v1";
-
     private static final String PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN =
             "flink:transform:batch_over_window_aggregate_function:arrow:v1";
 
@@ -111,7 +108,9 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 outputType,
                 groupKey,
                 groupingSet,
-                udafInputOffsets);
+                udafInputOffsets,
+                FlinkFnApi.CoderParam.DataType.OVER_WINDOW_ARROW,
+                FlinkFnApi.CoderParam.DataType.ARROW);
         this.lowerBoundary = lowerBoundary;
         this.upperBoundary = upperBoundary;
         this.isRangeWindows = isRangeWindows;
@@ -322,11 +321,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     @Override
     public String getFunctionUrn() {
         return PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN;
-    }
-
-    @Override
-    public String getInputOutputCoderUrn() {
-        return SCHEMA_OVER_WINDOW_ARROW_CODER_URN;
     }
 
     private boolean isInCurrentOverWindow(RowData data, long time, boolean includeEqual) {

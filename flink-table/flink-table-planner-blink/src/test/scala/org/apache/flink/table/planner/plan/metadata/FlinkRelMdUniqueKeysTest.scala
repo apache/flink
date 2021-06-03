@@ -19,13 +19,19 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTableSourceScan
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
+import org.apache.calcite.prepare.CalciteCatalogReader
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
+
+import java.util.Collections
 
 import scala.collection.JavaConversions._
 
@@ -40,6 +46,33 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
       assertNull(mq.getUniqueKeys(scan))
     }
+
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(Seq("projected_table_source_table"))
+      .asInstanceOf[TableSourceTable]
+    val tableSourceScan = new StreamPhysicalTableSourceScan(
+      cluster,
+      streamPhysicalTraits,
+      Collections.emptyList[RelHint](),
+      table)
+    assertEquals(uniqueKeys(Array(0, 2)), mq.getUniqueKeys(tableSourceScan).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnProjectedTableScanWithPartialCompositePrimaryKey(): Unit = {
+    val table = relBuilder
+      .getRelOptSchema
+      .asInstanceOf[CalciteCatalogReader]
+      .getTable(Seq("projected_table_source_table_with_partial_pk"))
+      .asInstanceOf[TableSourceTable]
+    val tableSourceScan = new StreamPhysicalTableSourceScan(
+      cluster,
+      streamPhysicalTraits,
+      Collections.emptyList[RelHint](),
+      table)
+    assertNull(mq.getUniqueKeys(tableSourceScan))
   }
 
   @Test
@@ -103,12 +136,9 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
       expand => assertEquals(uniqueKeys(Array(0, 7)), mq.getUniqueKeys(expand).toSet)
     }
 
-    val expandOutputType = ExpandUtil.buildExpandRowType(
-      cluster.getTypeFactory, studentLogicalScan.getRowType, Array.empty[Integer])
     val expandProjects = ExpandUtil.createExpandProjects(
       studentLogicalScan.getCluster.getRexBuilder,
       studentLogicalScan.getRowType,
-      expandOutputType,
       ImmutableBitSet.of(0, 1, 2, 3),
       ImmutableList.of(
         ImmutableBitSet.of(0),
@@ -117,7 +147,7 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
         ImmutableBitSet.of(3)),
       Array.empty[Integer])
     val expand = new LogicalExpand(cluster, studentLogicalScan.getTraitSet,
-      studentLogicalScan, expandOutputType, expandProjects, 7)
+      studentLogicalScan, expandProjects, 7)
     assertNull(mq.getUniqueKeys(expand))
   }
 

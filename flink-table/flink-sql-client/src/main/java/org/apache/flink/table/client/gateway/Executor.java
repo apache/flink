@@ -18,9 +18,14 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -32,13 +37,13 @@ public interface Executor {
     void start() throws SqlExecutionException;
 
     /**
-     * Open a new session by using the given {@link SessionContext}.
+     * Open a new session by using the given session id.
      *
-     * @param session context to create new session.
-     * @return session identifier to track the session.
+     * @param sessionId session identifier.
+     * @return used session identifier to track the session.
      * @throws SqlExecutionException if any error happen
      */
-    String openSession(SessionContext session) throws SqlExecutionException;
+    String openSession(@Nullable String sessionId) throws SqlExecutionException;
 
     /**
      * Close the resources of session for given session id.
@@ -48,8 +53,23 @@ public interface Executor {
      */
     void closeSession(String sessionId) throws SqlExecutionException;
 
-    /** Lists all session properties that are defined by the executor and the session. */
-    Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException;
+    /**
+     * Returns a copy of {@link Map} of all session configurations that are defined by the executor
+     * and the session.
+     *
+     * <p>Both this method and {@link #getSessionConfig(String)} return the same configuration set,
+     * but different return type.
+     */
+    Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException;
+
+    /**
+     * Returns a {@link ReadableConfig} of all session configurations that are defined by the
+     * executor and the session.
+     *
+     * <p>Both this method and {@link #getSessionConfigMap(String)} return the same configuration
+     * set, but different return type.
+     */
+    ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException;
 
     /**
      * Reset all the properties for the given session identifier.
@@ -58,6 +78,16 @@ public interface Executor {
      * @throws SqlExecutionException if any error happen.
      */
     void resetSessionProperties(String sessionId) throws SqlExecutionException;
+
+    /**
+     * Reset given key's the session property for default value, if key is not defined in config
+     * file, then remove it.
+     *
+     * @param sessionId to identifier the session
+     * @param key of need to reset the session property
+     * @throws SqlExecutionException if any error happen.
+     */
+    void resetSessionProperty(String sessionId, String key) throws SqlExecutionException;
 
     /**
      * Set given key's session property to the specific value.
@@ -69,20 +99,23 @@ public interface Executor {
     void setSessionProperty(String sessionId, String key, String value)
             throws SqlExecutionException;
 
-    /** Executes a SQL statement, and return {@link TableResult} as execution result. */
-    TableResult executeSql(String sessionId, String statement) throws SqlExecutionException;
-
-    /** Lists used modules known to the executor in their resolution order. */
-    List<String> listModules(String sessionId) throws SqlExecutionException;
-
-    /** Returns a sql parser instance. */
-    Parser getSqlParser(String sessionId);
+    /** Parse a SQL statement to {@link Operation}. */
+    Operation parseStatement(String sessionId, String statement) throws SqlExecutionException;
 
     /** Returns a list of completion hints for the given statement at the given position. */
     List<String> completeStatement(String sessionId, String statement, int position);
 
+    /** Executes an operation, and return {@link TableResult} as execution result. */
+    TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException;
+
+    /** Executes modify operations, and return {@link TableResult} as execution result. */
+    TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+            throws SqlExecutionException;
+
     /** Submits a Flink SQL query job (detached) and returns the result descriptor. */
-    ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException;
+    ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+            throws SqlExecutionException;
 
     /** Asks for the next changelog results (non-blocking). */
     TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
@@ -106,4 +139,10 @@ public interface Executor {
      * has been sent to cluster.
      */
     void cancelQuery(String sessionId, String resultId) throws SqlExecutionException;
+
+    /** Add the JAR resource to into the classloader with specified session. */
+    void addJar(String sessionId, String jarPath);
+
+    /** List the JAR resources of the classloader with specified session. */
+    List<String> listJars(String sessionId);
 }

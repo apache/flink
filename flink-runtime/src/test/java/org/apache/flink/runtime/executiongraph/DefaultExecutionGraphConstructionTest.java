@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
@@ -41,6 +42,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
@@ -57,8 +60,10 @@ import static org.mockito.Mockito.when;
  */
 public class DefaultExecutionGraphConstructionTest {
 
-    private ExecutionGraph createDefaultExecutionGraph() throws Exception {
-        return TestingDefaultExecutionGraphBuilder.newBuilder().build();
+    private ExecutionGraph createDefaultExecutionGraph(List<JobVertex> vertices) throws Exception {
+        return TestingDefaultExecutionGraphBuilder.newBuilder()
+                .setVertexParallelismStore(SchedulerBase.computeVertexParallelismStore(vertices))
+                .build();
     }
 
     @Test
@@ -77,8 +82,8 @@ public class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2, v3));
 
-        ExecutionGraph eg1 = createDefaultExecutionGraph();
-        ExecutionGraph eg2 = createDefaultExecutionGraph();
+        ExecutionGraph eg1 = createDefaultExecutionGraph(ordered);
+        ExecutionGraph eg2 = createDefaultExecutionGraph(ordered);
         eg1.attachJobGraph(ordered);
         eg2.attachJobGraph(ordered);
 
@@ -135,7 +140,7 @@ public class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-        ExecutionGraph eg = createDefaultExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph(ordered);
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -172,18 +177,6 @@ public class DefaultExecutionGraphConstructionTest {
         IntermediateDataSet v3result_2 =
                 v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
-
-        ExecutionGraph eg = createDefaultExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // attach the second part of the graph
-
         JobVertex v4 = new JobVertex("vertex4");
         JobVertex v5 = new JobVertex("vertex5");
         v4.setParallelism(11);
@@ -198,7 +191,22 @@ public class DefaultExecutionGraphConstructionTest {
                 v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
         v5.connectDataSetAsInput(v3result_2, DistributionPattern.ALL_TO_ALL);
 
-        List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
+        List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
+
+        List<JobVertex> ordered2 = Arrays.asList(v4, v5);
+
+        ExecutionGraph eg =
+                createDefaultExecutionGraph(
+                        Stream.concat(ordered.stream(), ordered2.stream())
+                                .collect(Collectors.toList()));
+        try {
+            eg.attachJobGraph(ordered);
+        } catch (JobException e) {
+            e.printStackTrace();
+            fail("Job failed with exception: " + e.getMessage());
+        }
+
+        // attach the second part of the graph
 
         try {
             eg.attachJobGraph(ordered2);
@@ -237,18 +245,7 @@ public class DefaultExecutionGraphConstructionTest {
         IntermediateDataSet v3result_2 =
                 v3.createAndAddResultDataSet(ResultPartitionType.PIPELINED);
 
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
-
-        ExecutionGraph eg = createDefaultExecutionGraph();
-        try {
-            eg.attachJobGraph(ordered);
-        } catch (JobException e) {
-            e.printStackTrace();
-            fail("Job failed with exception: " + e.getMessage());
-        }
-
-        // attach the second part of the graph
-
+        // construct part two of the execution graph
         JobVertex v4 = new JobVertex("vertex4");
         JobVertex v5 = new JobVertex("vertex5");
         v4.setParallelism(11);
@@ -263,8 +260,21 @@ public class DefaultExecutionGraphConstructionTest {
                 v4, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
         v5.connectIdInput(v3result_2.getId(), DistributionPattern.ALL_TO_ALL);
 
-        List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v4, v5));
+        List<JobVertex> ordered = Arrays.asList(v1, v2, v3);
+        List<JobVertex> ordered2 = Arrays.asList(v4, v5);
 
+        ExecutionGraph eg =
+                createDefaultExecutionGraph(
+                        Stream.concat(ordered.stream(), ordered2.stream())
+                                .collect(Collectors.toList()));
+        try {
+            eg.attachJobGraph(ordered);
+        } catch (JobException e) {
+            e.printStackTrace();
+            fail("Job failed with exception: " + e.getMessage());
+        }
+
+        // attach the second part of the graph
         try {
             eg.attachJobGraph(ordered2);
         } catch (JobException e) {
@@ -302,9 +312,18 @@ public class DefaultExecutionGraphConstructionTest {
         v1.setParallelism(7);
         v1.setInvokableClass(AbstractInvokable.class);
 
-        List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1));
+        // construct part two of the execution graph
+        JobVertex v2 = new JobVertex("vertex2");
+        v2.setInvokableClass(AbstractInvokable.class);
+        v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
 
-        ExecutionGraph eg = createDefaultExecutionGraph();
+        List<JobVertex> ordered = Arrays.asList(v1);
+        List<JobVertex> ordered2 = Arrays.asList(v2);
+
+        ExecutionGraph eg =
+                createDefaultExecutionGraph(
+                        Stream.concat(ordered.stream(), ordered2.stream())
+                                .collect(Collectors.toList()));
         try {
             eg.attachJobGraph(ordered);
         } catch (JobException e) {
@@ -313,12 +332,6 @@ public class DefaultExecutionGraphConstructionTest {
         }
 
         // attach the second part of the graph
-        JobVertex v2 = new JobVertex("vertex2");
-        v2.setInvokableClass(AbstractInvokable.class);
-        v2.connectIdInput(new IntermediateDataSetID(), DistributionPattern.ALL_TO_ALL);
-
-        List<JobVertex> ordered2 = new ArrayList<JobVertex>(Arrays.asList(v2));
-
         try {
             eg.attachJobGraph(ordered2);
             fail("Attached wrong jobgraph");
@@ -360,7 +373,7 @@ public class DefaultExecutionGraphConstructionTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v5, v4));
 
-        ExecutionGraph eg = createDefaultExecutionGraph();
+        ExecutionGraph eg = createDefaultExecutionGraph(ordered);
         try {
             eg.attachJobGraph(ordered);
             fail("Attached wrong jobgraph");
@@ -425,7 +438,7 @@ public class DefaultExecutionGraphConstructionTest {
 
             List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-            ExecutionGraph eg = createDefaultExecutionGraph();
+            ExecutionGraph eg = createDefaultExecutionGraph(ordered);
             try {
                 eg.attachJobGraph(ordered);
             } catch (JobException e) {
@@ -459,7 +472,7 @@ public class DefaultExecutionGraphConstructionTest {
 
             List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3));
 
-            ExecutionGraph eg = createDefaultExecutionGraph();
+            ExecutionGraph eg = createDefaultExecutionGraph(ordered);
 
             try {
                 eg.attachJobGraph(ordered);

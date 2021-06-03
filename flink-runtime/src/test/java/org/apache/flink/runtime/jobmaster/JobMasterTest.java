@@ -282,6 +282,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -344,8 +345,9 @@ public class JobMasterTest extends TestLogger {
         final JobManagerSharedServices jobManagerSharedServices =
                 new TestingJobManagerSharedServicesBuilder().build();
 
+        final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobMaster jobMaster =
-                new JobMasterBuilder(JobGraphTestUtils.singleNoOpJobGraph(), rpcService)
+                new JobMasterBuilder(jobGraph, rpcService)
                         .withHeartbeatServices(new HeartbeatServices(5L, 1000L))
                         .withSlotPoolServiceSchedulerFactory(
                                 DefaultSlotPoolServiceSchedulerFactory.create(
@@ -365,6 +367,7 @@ public class JobMasterTest extends TestLogger {
                     jobMasterGateway.registerTaskManager(
                             taskExecutorGateway.getAddress(),
                             unresolvedTaskManagerLocation,
+                            jobGraph.getJobID(),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -642,7 +645,6 @@ public class JobMasterTest extends TestLogger {
      * submission.
      */
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
     public void testRestoringFromSavepoint() throws Exception {
 
         // create savepoint data
@@ -671,12 +673,24 @@ public class JobMasterTest extends TestLogger {
             // restore from the savepoint
             jobMaster.start();
 
+            final OneShotLatch taskSubmitLatch = new OneShotLatch();
+
             registerSlotsAtJobMaster(
                     1,
                     jobMaster.getSelfGateway(JobMasterGateway.class),
-                    new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway(),
+                    jobGraph.getJobID(),
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setSubmitTaskConsumer(
+                                    (taskDeploymentDescriptor, jobMasterId) -> {
+                                        taskSubmitLatch.trigger();
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    })
+                            .createTestingTaskExecutorGateway(),
                     new LocalUnresolvedTaskManagerLocation());
 
+            // wait until a task has submitted because this guarantees that the ExecutionGraph has
+            // been created
+            taskSubmitLatch.await();
             final CompletedCheckpoint savepointCheckpoint =
                     completedCheckpointStore.getLatestCheckpoint(false);
 
@@ -690,7 +704,6 @@ public class JobMasterTest extends TestLogger {
 
     /** Tests that an existing checkpoint will have precedence over an savepoint. */
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-21398
     public void testCheckpointPrecedesSavepointRecovery() throws Exception {
 
         // create savepoint data
@@ -945,7 +958,8 @@ public class JobMasterTest extends TestLogger {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
 
-            registerSlotsRequiredForJobExecution(jobMasterGateway, parallelism);
+            registerSlotsRequiredForJobExecution(
+                    jobMasterGateway, inputSplitJobGraph.getJobID(), parallelism);
 
             waitUntilAllExecutionsAreScheduledOrDeployed(jobMasterGateway);
 
@@ -1015,13 +1029,16 @@ public class JobMasterTest extends TestLogger {
         final Deadline deadline = Deadline.fromNow(duration);
 
         CommonTestUtils.waitUntilCondition(
-                () ->
-                        getExecutions(jobMasterGateway).stream()
-                                .allMatch(
-                                        execution ->
-                                                execution.getState() == ExecutionState.SCHEDULED
-                                                        || execution.getState()
-                                                                == ExecutionState.DEPLOYING),
+                () -> {
+                    final Collection<AccessExecution> executions = getExecutions(jobMasterGateway);
+                    return !executions.isEmpty()
+                            && executions.stream()
+                                    .allMatch(
+                                            execution ->
+                                                    execution.getState() == ExecutionState.SCHEDULED
+                                                            || execution.getState()
+                                                                    == ExecutionState.DEPLOYING);
+                },
                 deadline);
     }
 
@@ -1213,7 +1230,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            producerConsumerJobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             assertThat(slotOffers, hasSize(1));
 
@@ -1379,7 +1400,11 @@ public class JobMasterTest extends TestLogger {
 
             final Collection<SlotOffer> slotOffers =
                     registerSlotsAtJobMaster(
-                            1, jobMasterGateway, testingTaskExecutorGateway, taskManagerLocation);
+                            1,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            testingTaskExecutorGateway,
+                            taskManagerLocation);
 
             // check that we accepted the offered slot
             assertThat(slotOffers, hasSize(1));
@@ -1448,6 +1473,7 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             testingTaskExecutorGateway,
                             taskManagerUnresolvedLocation);
 
@@ -1592,6 +1618,61 @@ public class JobMasterTest extends TestLogger {
                         });
     }
 
+    /**
+     * Tests that the JobMaster rejects a TaskExecutor registration attempt if the expected and
+     * actual JobID are not equal. See FLINK-21606.
+     */
+    @Test
+    public void testJobMasterRejectsTaskExecutorRegistrationIfJobIdsAreNotEqual() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        try {
+            jobMaster.start();
+
+            final CompletableFuture<RegistrationResponse> registrationResponse =
+                    jobMaster.registerTaskManager(
+                            "foobar",
+                            new LocalUnresolvedTaskManagerLocation(),
+                            new JobID(),
+                            testingTimeout);
+
+            assertThat(registrationResponse.get(), instanceOf(JMTMRegistrationRejection.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testJobMasterOnlyTerminatesAfterTheSchedulerHasClosed() throws Exception {
+        final CompletableFuture<Void> schedulerTerminationFuture = new CompletableFuture<>();
+        final TestingSchedulerNG testingSchedulerNG =
+                TestingSchedulerNG.newBuilder()
+                        .setCloseAsyncSupplier(() -> schedulerTerminationFuture)
+                        .build();
+
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withSlotPoolServiceSchedulerFactory(
+                                DefaultSlotPoolServiceSchedulerFactory.create(
+                                        TestingSlotPoolServiceBuilder.newBuilder(),
+                                        new TestingSchedulerNGFactory(testingSchedulerNG)))
+                        .createJobMaster();
+
+        jobMaster.start();
+
+        final CompletableFuture<Void> jobMasterTerminationFuture = jobMaster.closeAsync();
+
+        try {
+            jobMasterTerminationFuture.get(10L, TimeUnit.MILLISECONDS);
+            fail("Expected TimeoutException because the JobMaster should not terminate.");
+        } catch (TimeoutException expected) {
+        }
+
+        schedulerTerminationFuture.complete(null);
+
+        jobMasterTerminationFuture.get();
+    }
+
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
             BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
@@ -1638,12 +1719,17 @@ public class JobMasterTest extends TestLogger {
                     registerSlotsAtJobMaster(
                             1,
                             jobMasterGateway,
+                            jobGraph.getJobID(),
                             taskExecutorGateway,
                             taskManagerUnresolvedLocation);
             assertThat(slotOffers, hasSize(1));
 
             final ExecutionAttemptID executionAttemptId = taskDeploymentFuture.get();
 
+            jobMasterGateway
+                    .updateTaskExecutionState(
+                            new TaskExecutionState(executionAttemptId, ExecutionState.INITIALIZING))
+                    .get();
             jobMasterGateway
                     .updateTaskExecutionState(
                             new TaskExecutionState(executionAttemptId, ExecutionState.RUNNING))
@@ -1666,6 +1752,7 @@ public class JobMasterTest extends TestLogger {
     private Collection<SlotOffer> registerSlotsAtJobMaster(
             int numberSlots,
             JobMasterGateway jobMasterGateway,
+            JobID jobId,
             TaskExecutorGateway taskExecutorGateway,
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation)
             throws ExecutionException, InterruptedException {
@@ -1675,6 +1762,7 @@ public class JobMasterTest extends TestLogger {
                 .registerTaskManager(
                         taskExecutorGateway.getAddress(),
                         unresolvedTaskManagerLocation,
+                        jobId,
                         testingTimeout)
                 .get();
 
@@ -1713,6 +1801,7 @@ public class JobMasterTest extends TestLogger {
             SavepointRestoreSettings savepointRestoreSettings) {
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
+        source.setParallelism(1);
 
         return TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                 savepointRestoreSettings, source);
@@ -1749,9 +1838,19 @@ public class JobMasterTest extends TestLogger {
     }
 
     private static void registerSlotsRequiredForJobExecution(
-            JobMasterGateway jobMasterGateway, int numSlots)
+            JobMasterGateway jobMasterGateway, JobID jobId, int numSlots)
             throws ExecutionException, InterruptedException {
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setCancelTaskFunction(
+                                executionAttemptId -> {
+                                    jobMasterGateway.updateTaskExecutionState(
+                                            new TaskExecutionState(
+                                                    executionAttemptId, ExecutionState.CANCELED));
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
         JobMasterTestUtils.registerTaskExecutorAndOfferSlots(
-                rpcService, jobMasterGateway, numSlots, testingTimeout);
+                rpcService, jobMasterGateway, jobId, numSlots, taskExecutorGateway, testingTimeout);
     }
 }

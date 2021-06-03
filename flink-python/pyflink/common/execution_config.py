@@ -23,7 +23,7 @@ from pyflink.common.execution_mode import ExecutionMode
 from pyflink.common.input_dependency_constraint import InputDependencyConstraint
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.java_gateway import get_gateway
-from pyflink.util.utils import load_java_class
+from pyflink.util.java_utils import load_java_class
 
 __all__ = ['ExecutionConfig']
 

@@ -87,7 +87,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
                                 + "'print-identifier' = 'test_print',"
                                 + "'sink.parallelism' = '2',"
                                 + "'standard-error'='false')");
-        DataType type = tEnv().from("print_t").getSchema().toRowDataType();
+        DataType type = tEnv().from("print_t").getResolvedSchema().toPhysicalRowDataType();
         Row row = Row.of(1, 1.1);
         tEnv().fromValues(type, Collections.singleton(row)).executeInsert("print_t").await();
 
@@ -119,7 +119,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
                                         + "'print-identifier' = '%s',"
                                         + "'standard-error'='%b')",
                                 "test_print", standardError));
-        DataType type = tEnv().from("print_t").getSchema().toRowDataType();
+        DataType type = tEnv().from("print_t").getResolvedSchema().toPhysicalRowDataType();
         Map<Integer, Integer> mapData = new HashMap<>();
         mapData.put(1, 1);
         mapData.put(2, 2);

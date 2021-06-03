@@ -19,8 +19,8 @@
 package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -33,7 +33,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -50,7 +49,7 @@ final class CalculatedTableFactory {
      * @param callExpr call to table function as expression
      * @return valid calculated table
      */
-    QueryOperation create(ResolvedExpression callExpr, String[] leftTableFieldNames) {
+    QueryOperation create(ResolvedExpression callExpr, List<String> leftTableFieldNames) {
         FunctionTableCallVisitor calculatedTableCreator =
                 new FunctionTableCallVisitor(leftTableFieldNames);
         return callExpr.accept(calculatedTableCreator);
@@ -58,11 +57,11 @@ final class CalculatedTableFactory {
 
     private static class FunctionTableCallVisitor
             extends ResolvedExpressionDefaultVisitor<CalculatedQueryOperation> {
-        private List<String> leftTableFieldNames;
+        private final List<String> leftTableFieldNames;
         private static final String ATOMIC_FIELD_NAME = "f0";
 
-        public FunctionTableCallVisitor(String[] leftTableFieldNames) {
-            this.leftTableFieldNames = Arrays.asList(leftTableFieldNames);
+        public FunctionTableCallVisitor(List<String> leftTableFieldNames) {
+            this.leftTableFieldNames = leftTableFieldNames;
         }
 
         @Override
@@ -103,7 +102,7 @@ final class CalculatedTableFactory {
                 List<ResolvedExpression> parameters) {
 
             FunctionDefinition functionDefinition = callExpression.getFunctionDefinition();
-            final TableSchema tableSchema =
+            final ResolvedSchema resolvedSchema =
                     adjustNames(
                             extractSchema(callExpression.getOutputDataType()),
                             aliases,
@@ -113,10 +112,10 @@ final class CalculatedTableFactory {
                     functionDefinition,
                     callExpression.getFunctionIdentifier().orElse(null),
                     parameters,
-                    tableSchema);
+                    resolvedSchema);
         }
 
-        private TableSchema extractSchema(DataType resultDataType) {
+        private ResolvedSchema extractSchema(DataType resultDataType) {
             if (LogicalTypeChecks.isCompositeType(resultDataType.getLogicalType())) {
                 return DataTypeUtils.expandCompositeTypeToSchema(resultDataType);
             }
@@ -126,17 +125,19 @@ final class CalculatedTableFactory {
             while (leftTableFieldNames.contains(fieldName)) {
                 fieldName = ATOMIC_FIELD_NAME + "_" + i++;
             }
-            return TableSchema.builder().field(fieldName, resultDataType).build();
+            return ResolvedSchema.physical(
+                    Collections.singletonList(fieldName),
+                    Collections.singletonList(resultDataType));
         }
 
-        private TableSchema adjustNames(
-                TableSchema tableSchema, List<String> aliases, String functionName) {
+        private ResolvedSchema adjustNames(
+                ResolvedSchema resolvedSchema, List<String> aliases, String functionName) {
             int aliasesSize = aliases.size();
             if (aliasesSize == 0) {
-                return tableSchema;
+                return resolvedSchema;
             }
 
-            int callArity = tableSchema.getFieldCount();
+            int callArity = resolvedSchema.getColumnCount();
             if (callArity != aliasesSize) {
                 throw new ValidationException(
                         String.format(
@@ -146,9 +147,7 @@ final class CalculatedTableFactory {
                                 functionName, callArity, aliasesSize));
             }
 
-            return TableSchema.builder()
-                    .fields(aliases.toArray(new String[0]), tableSchema.getFieldDataTypes())
-                    .build();
+            return ResolvedSchema.physical(aliases, resolvedSchema.getColumnDataTypes());
         }
 
         @Override

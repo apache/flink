@@ -33,7 +33,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sinks.UpsertStreamTableSink;
-import org.apache.flink.table.typeutils.TypeCheckUtils;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
@@ -305,7 +304,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
         final TypeInformation<?>[] types = getFieldTypes();
         for (int keyFieldIndex : keyFieldIndices) {
             final TypeInformation<?> type = types[keyFieldIndex];
-            if (!TypeCheckUtils.isSimpleStringRepresentation(type)) {
+            if (!type.isKeyType()) {
                 throw new ValidationException(
                         "Only simple types that can be safely converted into a string representation "
                                 + "can be used as keys. But was: "

@@ -33,7 +33,13 @@ import org.apache.commons.cli.PosixParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The entry point for running a TaskManager in a Mesos container. */
+/**
+ * The entry point for running a TaskManager in a Mesos container.
+ *
+ * @deprecated Apache Mesos support was deprecated in Flink 1.13 and is subject to removal in the
+ *     future (see FLINK-22352 for further details).
+ */
+@Deprecated
 public class MesosTaskExecutorRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(MesosTaskExecutorRunner.class);

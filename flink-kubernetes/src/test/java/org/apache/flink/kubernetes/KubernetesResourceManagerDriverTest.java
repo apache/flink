@@ -25,7 +25,6 @@ import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriver
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient.WatchCallbackHandler;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.TestingKubeClientFactory;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.TestingKubernetesPod;
@@ -87,7 +86,12 @@ public class KubernetesResourceManagerDriverTest
                                                     .requestResource(TASK_EXECUTOR_PROCESS_SPEC)
                                                     .thenAccept(requestResourceFuture::complete));
                             final KubernetesPod pod =
-                                    createPodFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);
+                                    new TestingKubernetesPod(
+                                            createPodFuture
+                                                    .get(TIMEOUT_SEC, TimeUnit.SECONDS)
+                                                    .getName(),
+                                            true,
+                                            false);
 
                             // prepare validation:
                             // - complete requestResourceFuture in main thread with correct
@@ -162,7 +166,7 @@ public class KubernetesResourceManagerDriverTest
         new Context() {
             {
                 final KubernetesPod previousAttemptPod =
-                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true);
+                        new TestingKubernetesPod(CLUSTER_ID + "-taskmanager-1-1", true, true);
                 final CompletableFuture<String> stopPodFuture = new CompletableFuture<>();
                 final CompletableFuture<Collection<KubernetesWorkerNode>> recoveredWorkersFuture =
                         new CompletableFuture<>();
@@ -261,7 +265,11 @@ public class KubernetesResourceManagerDriverTest
                         .setCreateTaskManagerPodFunction(
                                 (pod) -> {
                                     createTaskManagerPodFuture.complete(pod);
-                                    getPodCallbackHandler().onAdded(Collections.singletonList(pod));
+                                    getPodCallbackHandler()
+                                            .onAdded(
+                                                    Collections.singletonList(
+                                                            new TestingKubernetesPod(
+                                                                    pod.getName(), true, false)));
                                     return FutureUtils.completedVoidFuture();
                                 })
                         .setStopPodFunction(
@@ -270,7 +278,7 @@ public class KubernetesResourceManagerDriverTest
                                     return FutureUtils.completedVoidFuture();
                                 });
 
-        private TestingKubeClientFactory kubeClientFactory;
+        private TestingFlinkKubeClient flinkKubeClient;
 
         FlinkKubeClient.WatchCallbackHandler<KubernetesPod> getPodCallbackHandler() {
             try {
@@ -291,7 +299,7 @@ public class KubernetesResourceManagerDriverTest
             flinkConfig.setString(
                     TaskManagerOptions.RPC_PORT, String.valueOf(Constants.TASK_MANAGER_RPC_PORT));
 
-            kubeClientFactory = new TestingKubeClientFactory(flinkKubeClientBuilder);
+            flinkKubeClient = flinkKubeClientBuilder.build();
         }
 
         @Override
@@ -303,7 +311,7 @@ public class KubernetesResourceManagerDriverTest
         @Override
         protected ResourceManagerDriver<KubernetesWorkerNode> createResourceManagerDriver() {
             return new KubernetesResourceManagerDriver(
-                    flinkConfig, kubeClientFactory, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
+                    flinkConfig, flinkKubeClient, KUBERNETES_RESOURCE_MANAGER_CONFIGURATION);
         }
 
         @Override
@@ -354,7 +362,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
 
             assertThat(
                     resourceRequirements
@@ -368,7 +381,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
         }
 
         @Override
@@ -419,7 +437,7 @@ public class KubernetesResourceManagerDriverTest
 
                         sendPodTerminatedEvent.accept(
                                 Collections.singletonList(
-                                        new TestingKubernetesPod(pod.getName(), true)));
+                                        new TestingKubernetesPod(pod.getName(), true, true)));
 
                         // make sure finishing validation
                         validationFuture.get(TIMEOUT_SEC, TimeUnit.SECONDS);

@@ -38,13 +38,11 @@ import org.apache.flink.test.checkpointing.utils.FailingSource;
 import org.apache.flink.test.checkpointing.utils.IntType;
 import org.apache.flink.test.checkpointing.utils.ValidatingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Map;
 
@@ -58,7 +56,6 @@ import static org.junit.Assert.fail;
  * handled correctly.
  */
 @SuppressWarnings("serial")
-@Category(FailsWithAdaptiveScheduler.class) // FLINK-21400
 public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
 
     private static final int PARALLELISM = 4;

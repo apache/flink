@@ -20,7 +20,6 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.util.OutputTag;
 
 final class CopyingChainingOutput<T> extends ChainingOutput<T> {
@@ -30,9 +29,8 @@ final class CopyingChainingOutput<T> extends ChainingOutput<T> {
     public CopyingChainingOutput(
             OneInputStreamOperator<T, ?> operator,
             TypeSerializer<T> serializer,
-            OutputTag<T> outputTag,
-            StreamStatusProvider streamStatusProvider) {
-        super(operator, streamStatusProvider, outputTag);
+            OutputTag<T> outputTag) {
+        super(operator, outputTag);
         this.serializer = serializer;
     }
 

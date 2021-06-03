@@ -22,9 +22,9 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
-import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -149,7 +149,7 @@ public abstract class IncrSumAggFunction extends DeclarativeAggregateFunction {
 
         @Override
         public DataType getResultType() {
-            DecimalType sumType = FlinkTypeSystem.inferAggSumType(decimalType.getScale());
+            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
             return DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
         }
     }

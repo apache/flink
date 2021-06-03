@@ -200,8 +200,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(agg, children, providedTrait, requiredTrait, requester)
 
       case window: StreamPhysicalGroupWindowAggregateBase =>
-        // WindowAggregate and WindowTableAggregate support insert-only in input
-        val children = visitChildren(window, ModifyKindSetTrait.INSERT_ONLY)
+        // WindowAggregate and WindowTableAggregate support all changes in input
+        val children = visitChildren(window, ModifyKindSetTrait.ALL_CHANGES)
         val builder = ModifyKindSet.newBuilder()
           .addContainedKind(ModifyKind.INSERT)
         if (window.emitStrategy.produceUpdates) {
@@ -265,6 +265,12 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           ModifyKindSetTrait.ALL_CHANGES
         }
         createNewNode(join, children, providedTrait, requiredTrait, requester)
+
+      case windowJoin: StreamPhysicalWindowJoin =>
+        // Currently, window join only supports INSERT_ONLY in input
+        val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
+        createNewNode(
+          windowJoin, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
       case temporalJoin: StreamPhysicalTemporalJoin =>
         // currently, temporal join supports all kings of changes, including right side
@@ -464,20 +470,21 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamPhysicalGroupAggregate | _: StreamPhysicalGroupTableAggregate |
            _: StreamPhysicalLimit | _: StreamPhysicalPythonGroupAggregate |
-           _: StreamPhysicalPythonGroupTableAggregate =>
-        // Aggregate, TableAggregate and Limit requires update_before if there are updates
+           _: StreamPhysicalPythonGroupTableAggregate |
+           _: StreamPhysicalGroupWindowAggregateBase =>
+        // Aggregate, TableAggregate, Limit and GroupWindowAggregate requires update_before if
+        // there are updates
         val requiredChildTrait = beforeAfterOrNone(getModifyKindSet(rel.getInput(0)))
         val children = visitChildren(rel, requiredChildTrait)
         // use requiredTrait as providedTrait, because they should support all kinds of UpdateKind
         createNewNode(rel, children, requiredTrait)
 
-      case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
-           _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
+      case _: StreamPhysicalWindowAggregate | _: StreamPhysicalWindowRank |
            _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
            _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
-           _: StreamPhysicalPythonGroupWindowAggregate | _: StreamPhysicalPythonOverAggregate =>
-        // WindowAggregate, WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP,
-        // OverAggregate, and IntervalJoin require nothing about UpdateKind.
+           _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin =>
+        // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP,
+        // OverAggregate, and IntervalJoin, WindowJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)
         createNewNode(rel, children, requiredTrait)
 

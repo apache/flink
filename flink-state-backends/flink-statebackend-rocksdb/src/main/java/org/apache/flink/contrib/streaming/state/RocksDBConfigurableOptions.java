@@ -61,7 +61,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The maximum number of concurrent background flush and compaction jobs (per TaskManager). "
+                            "The maximum number of concurrent background flush and compaction jobs (per stateful operator). "
                                     + "RocksDB has default configuration as '1'.");
 
     public static final ConfigOption<Integer> MAX_OPEN_FILES =
@@ -69,7 +69,7 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. "
+                            "The maximum number of open files (per stateful operator) that can be used by the DB, '-1' means no limit. "
                                     + "RocksDB has default configuration as '-1'.");
 
     public static final ConfigOption<InfoLogLevel> LOG_LEVEL =

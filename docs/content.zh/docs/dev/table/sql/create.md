@@ -1,6 +1,6 @@
 ---
 title: "CREATE 语句"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /zh/dev/table/sql/create.html
@@ -149,7 +149,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 ##  CREATE TABLE
 
 ```text
-CREATE TABLE [catalog_name.][db_name.]table_name
+CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   (
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
@@ -227,7 +227,7 @@ The following statement creates a table with an additional metadata column that 
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `record_time` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
+  `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -235,7 +235,7 @@ CREATE TABLE MyTable (
 ```
 
 Every metadata field is identified by a string-based key and has a documented data type. For example,
-the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP(3) WITH LOCAL TIME ZONE`
+the Kafka connector exposes a metadata field with key `timestamp` and data type `TIMESTAMP_LTZ(3)`
 that can be used for both reading and writing records.
 
 In the example above, the metadata column `record_time` becomes part of the table's schema and can be
@@ -251,7 +251,7 @@ For convenience, the `FROM` clause can be omitted if the column name should be u
 CREATE TABLE MyTable (
   `user_id` BIGINT,
   `name` STRING,
-  `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE METADATA    -- use column name as metadata key
+  `timestamp` TIMESTAMP_LTZ(3) METADATA    -- use column name as metadata key
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -587,7 +587,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 PYTHON，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})。
 
-如果 language tag 是 PYTHON，而当前程序是 Java／Scala 程序或者纯 SQL 程序，则需要[配置 Python 相关的依赖]({{< ref "docs/dev/python/table/dependency_management" >}}#python-dependency-in-javascala-program)。
+如果 language tag 是 PYTHON，而当前程序是 Java／Scala 程序或者纯 SQL 程序，则需要[配置 Python 相关的依赖]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-javascala-program)。
 
 **TEMPORARY**
 

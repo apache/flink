@@ -76,4 +76,6 @@ public abstract class StreamPartitioner<T>
      * in-flight data.
      */
     public abstract SubtaskStateMapper getDownstreamSubtaskStateMapper();
+
+    public abstract boolean isPointwise();
 }

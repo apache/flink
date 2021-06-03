@@ -18,61 +18,54 @@
 
 package org.apache.flink.streaming.connectors.elasticsearch.table;
 
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 /** A utility class for mocking {@link DynamicTableFactory.Context}. */
 class TestContext {
-    private TableSchema schema;
-    private Map<String, String> properties = new HashMap<>();
+
+    private ResolvedSchema schema = ResolvedSchema.of(Column.physical("a", DataTypes.TIME()));
+
+    private final Map<String, String> options = new HashMap<>();
 
     public static TestContext context() {
         return new TestContext();
     }
 
-    public TestContext withSchema(TableSchema schema) {
+    public TestContext withSchema(ResolvedSchema schema) {
         this.schema = schema;
         return this;
     }
 
     DynamicTableFactory.Context build() {
-        return new DynamicTableFactory.Context() {
-            @Override
-            public ObjectIdentifier getObjectIdentifier() {
-                return null;
-            }
-
-            @Override
-            public CatalogTable getCatalogTable() {
-                return new CatalogTableImpl(schema, properties, "");
-            }
-
-            @Override
-            public ReadableConfig getConfiguration() {
-                return null;
-            }
-
-            @Override
-            public ClassLoader getClassLoader() {
-                return TestContext.class.getClassLoader();
-            }
-
-            @Override
-            public boolean isTemporary() {
-                return false;
-            }
-        };
+        return new FactoryUtil.DefaultDynamicTableContext(
+                ObjectIdentifier.of("default", "default", "t1"),
+                new ResolvedCatalogTable(
+                        CatalogTable.of(
+                                Schema.newBuilder().fromResolvedSchema(schema).build(),
+                                "mock context",
+                                Collections.emptyList(),
+                                options),
+                        schema),
+                new Configuration(),
+                TestContext.class.getClassLoader(),
+                false);
     }
 
     public TestContext withOption(String key, String value) {
-        properties.put(key, value);
+        options.put(key, value);
         return this;
     }
 }

@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
-import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isProctimeAttribute}
 import org.apache.flink.util.Preconditions.checkState
 
@@ -55,8 +55,9 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
   private def extractNameFromTimeAttribute(timeAttribute: Expression): String = {
     timeAttribute match {
       case f : FieldReferenceExpression
-        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) =>
-        f.getName
+        if hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITHOUT_TIME_ZONE) ||
+          hasRoot(f.getOutputDataType.getLogicalType, TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+      => f.getName
       case _ => throw new ValidationException(
         s"Invalid timeAttribute [$timeAttribute] in TemporalTableFunction")
     }

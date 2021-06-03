@@ -20,14 +20,17 @@ package org.apache.flink.table.planner.runtime.harness
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
+import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{binaryrow, row}
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.types.Row
 
 import org.junit.runner.RunWith
@@ -52,34 +55,8 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
-
-    val data = new mutable.MutableList[(Long, String, Long)]
-    val t = env.fromCollection(data).toTable(tEnv, 'currtime, 'b, 'c, 'proctime.proctime)
-    tEnv.registerTable("T", t)
-
-    val sql =
-      """
-        |SELECT currtime, b, c,
-        | min(c) OVER
-        |   (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
-        | max(c) OVER
-        |   (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
-        |FROM T
-      """.stripMargin
-    val t1 = tEnv.sqlQuery(sql)
-
-    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
-    val assertor = new RowDataHarnessAssertor(
-      Array(
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.STRING().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType,
-        DataTypes.BIGINT().getLogicalType))
-
+    val (testHarness, outputType) = createProcTimeBoundedRowsOver
+    val assertor = new RowDataHarnessAssertor(outputType)
     testHarness.open()
 
     // register cleanup timer with 3001
@@ -159,6 +136,36 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
 
     testHarness.close()
+  }
+
+  private def createProcTimeBoundedRowsOver()
+    : (KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData], Array[LogicalType]) = {
+    val data = new mutable.MutableList[(Long, String, Long)]
+    val t = env.fromCollection(data).toTable(tEnv, 'currtime, 'b, 'c, 'proctime.proctime)
+    tEnv.registerTable("T", t)
+
+    val sql =
+      """
+        |SELECT currtime, b, c,
+        | min(c) OVER
+        |   (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW),
+        | max(c) OVER
+        |   (PARTITION BY b ORDER BY proctime ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)
+        |FROM T
+      """.stripMargin
+    val t1 = tEnv.sqlQuery(sql)
+
+    tEnv.getConfig.setIdleStateRetentionTime(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val outputType = Array(
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.STRING().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.BIGINT().getLogicalType,
+      DataTypes.BIGINT().getLogicalType)
+    (testHarness, outputType)
   }
 
   /**
@@ -939,5 +946,13 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
+  }
+
+  @Test
+  def testCloseWithoutOpen(): Unit = {
+    val (testHarness, outputType) = createProcTimeBoundedRowsOver
+    testHarness.setup(new RowDataSerializer(outputType: _*))
+    // simulate a failover after a failed task open, expect no exception happens
+    testHarness.open()
   }
 }

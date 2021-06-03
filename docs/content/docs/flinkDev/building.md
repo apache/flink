@@ -89,13 +89,19 @@ mvn clean install -DskipTests -Dfast
 
 #### Installation
 
-Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
+Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of apache-flink and apache-flink-libraries:
 
 ```bash
-cd flink-python; python setup.py sdist bdist_wheel
+cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist bdist_wheel; cd ..;
 ```
 
-The sdist and wheel packages will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
+The sdist and wheel packages of will be found under `./flink-python/apache-flink-libraries/dist/`. Either of them could be used for pip installation, such as:
+
+```bash
+python -m pip install apache-flink-libraries/dist/*.tar.gz
+```
+
+The sdist and wheel packages of will be found under `./flink-python/dist/`. Either of them could be used for pip installation, such as:
 
 ```bash
 python -m pip install dist/*.tar.gz

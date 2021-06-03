@@ -100,7 +100,7 @@ public class KubernetesTestBase extends TestLogger {
         kubeClient = server.getClient().inNamespace(NAMESPACE);
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
-                        flinkConfig, kubeClient, Executors::newDirectExecutorService);
+                        flinkConfig, kubeClient, Executors.newDirectExecutorService());
 
         onSetup();
     }

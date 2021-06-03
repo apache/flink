@@ -37,8 +37,6 @@ import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -59,7 +57,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamSource} operators. */
 @SuppressWarnings("serial")
@@ -157,7 +154,6 @@ public class StreamSourceOperatorWatermarksTest {
                 TimeCharacteristic.IngestionTime,
                 processingTimeService,
                 task.getCheckpointLock(),
-                operator.getContainingTask().getStreamStatusMaintainer(),
                 new CollectorOutput<String>(output),
                 operator.getExecutionConfig().getAutoWatermarkInterval(),
                 -1);
@@ -201,14 +197,10 @@ public class StreamSourceOperatorWatermarksTest {
 
         Environment env = new DummyEnvironment("MockTwoInputTask", 1, 0);
 
-        StreamStatusMaintainer streamStatusMaintainer = mock(StreamStatusMaintainer.class);
-        when(streamStatusMaintainer.getStreamStatus()).thenReturn(StreamStatus.ACTIVE);
-
         MockStreamTask mockTask =
                 new MockStreamTaskBuilder(env)
                         .setConfig(cfg)
                         .setExecutionConfig(executionConfig)
-                        .setStreamStatusMaintainer(streamStatusMaintainer)
                         .setTimerService(timeProvider)
                         .build();
 

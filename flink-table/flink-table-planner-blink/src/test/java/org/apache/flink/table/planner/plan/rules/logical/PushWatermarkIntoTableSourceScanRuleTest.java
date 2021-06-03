@@ -195,7 +195,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
     public void testWatermarkWithMultiInputUdf() {
         JavaFunc5.closeCalled = false;
         JavaFunc5.openCalled = false;
-        util.addFunction("func", new JavaFunc5());
+        util.addTemporarySystemFunction("func", new JavaFunc5());
 
         String ddl =
                 "CREATE TABLE MyTable(\n"

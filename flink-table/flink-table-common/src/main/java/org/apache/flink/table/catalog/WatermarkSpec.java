@@ -39,11 +39,16 @@ public final class WatermarkSpec {
 
     private final ResolvedExpression watermarkExpression;
 
-    public WatermarkSpec(String rowtimeAttribute, ResolvedExpression watermarkExpression) {
+    private WatermarkSpec(String rowtimeAttribute, ResolvedExpression watermarkExpression) {
         this.rowtimeAttribute =
                 checkNotNull(rowtimeAttribute, "Rowtime attribute must not be null.");
         this.watermarkExpression =
                 checkNotNull(watermarkExpression, "Watermark expression must not be null.");
+    }
+
+    public static WatermarkSpec of(
+            String rowtimeAttribute, ResolvedExpression watermarkExpression) {
+        return new WatermarkSpec(rowtimeAttribute, watermarkExpression);
     }
 
     /**
@@ -63,7 +68,7 @@ public final class WatermarkSpec {
 
     public String asSummaryString() {
         return "WATERMARK FOR "
-                + String.join(".", EncodingUtils.escapeIdentifier(rowtimeAttribute))
+                + EncodingUtils.escapeIdentifier(rowtimeAttribute)
                 + ": "
                 + watermarkExpression.getOutputDataType()
                 + " AS "

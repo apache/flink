@@ -42,9 +42,8 @@ import java.util.Map;
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
     private final TypeInformation inputType;
-    private final TypeInformation outputTupe;
+    private final TypeInformation outputType;
     private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
-    private final String coderUrn;
 
     public BeamDataStreamPythonFunctionRunner(
             String taskName,
@@ -53,13 +52,16 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
             TypeInformation outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction,
-            String coderUrn,
             Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend stateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
-            double managedMemoryFraction) {
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(
                 taskName,
                 environmentManager,
@@ -68,12 +70,15 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 flinkMetricContainer,
                 stateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
-                managedMemoryFraction);
+                managedMemoryFraction,
+                inputDataType,
+                outputDataType,
+                outputMode);
         this.inputType = inputType;
-        this.outputTupe = outputType;
+        this.outputType = outputType;
         this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
-        this.coderUrn = coderUrn;
     }
 
     @Override
@@ -83,25 +88,30 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 
     @Override
     protected RunnerApi.Coder getInputCoderProto() {
-        return getInputOutputCoderProto(inputType);
+        return getInputOutputCoderProto(inputType, inputDataType);
     }
 
     @Override
     protected RunnerApi.Coder getOutputCoderProto() {
-        return getInputOutputCoderProto(outputTupe);
+        return getInputOutputCoderProto(outputType, outputDataType);
     }
 
-    private RunnerApi.Coder getInputOutputCoderProto(TypeInformation typeInformation) {
+    private RunnerApi.Coder getInputOutputCoderProto(
+            TypeInformation typeInformation, FlinkFnApi.CoderParam.DataType dataType) {
+        FlinkFnApi.CoderParam.Builder coderParamBuilder = FlinkFnApi.CoderParam.newBuilder();
+        FlinkFnApi.TypeInfo typeinfo =
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(typeInformation);
+        coderParamBuilder.setTypeInfo(typeinfo);
+        coderParamBuilder.setDataType(dataType);
+        coderParamBuilder.setOutputMode(outputMode);
         return RunnerApi.Coder.newBuilder()
                 .setSpec(
                         RunnerApi.FunctionSpec.newBuilder()
-                                .setUrn(this.coderUrn)
+                                .setUrn(FLINK_CODER_URN)
                                 .setPayload(
                                         org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf
                                                 .ByteString.copyFrom(
-                                                PythonTypeUtils.TypeInfoToProtoConverter
-                                                        .toTypeInfoProto(typeInformation)
-                                                        .toByteArray()))
+                                                coderParamBuilder.build().toByteArray()))
                                 .build())
                 .build();
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.memory.DataInputView;
@@ -35,7 +36,8 @@ import java.io.IOException;
  *
  * <p>The implementations are also located here as inner classes.
  */
-class StateTableByKeyGroupReaders {
+@Internal
+public class StateTableByKeyGroupReaders {
 
     /**
      * Creates a new StateTableByKeyGroupReader that inserts de-serialized mappings into the given
@@ -48,7 +50,7 @@ class StateTableByKeyGroupReaders {
      * @param version version for the de-serialization algorithm.
      * @return the appropriate reader.
      */
-    static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(
+    public static <K, N, S> StateSnapshotKeyGroupReader readerForVersion(
             StateTable<K, N, S> stateTable, int version) {
         switch (version) {
             case 1:

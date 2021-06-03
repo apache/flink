@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
@@ -236,7 +236,7 @@ object FlinkRelMdUtil {
    */
   def numDistinctVals(domainSize: Double, numSelected: Double): Double = {
     val EPS = 1e-9
-    if (Math.abs(1 / domainSize) < EPS) {
+    if (Math.abs(1 / domainSize) < EPS || domainSize < 1) {
       // ln(1+x) ~= x for small x
       val dSize = RelMdUtil.capInfinity(domainSize)
       val numSel = RelMdUtil.capInfinity(numSelected)

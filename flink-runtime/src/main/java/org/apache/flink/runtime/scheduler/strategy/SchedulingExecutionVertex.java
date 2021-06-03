@@ -23,6 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Vertex;
 
+import java.util.List;
+
 /** Scheduling representation of {@link ExecutionVertex}. */
 public interface SchedulingExecutionVertex
         extends Vertex<
@@ -37,4 +39,11 @@ public interface SchedulingExecutionVertex
      * @return state of the execution vertex
      */
     ExecutionState getState();
+
+    /**
+     * Gets the {@link ConsumedPartitionGroup}s.
+     *
+     * @return list of {@link ConsumedPartitionGroup}s
+     */
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

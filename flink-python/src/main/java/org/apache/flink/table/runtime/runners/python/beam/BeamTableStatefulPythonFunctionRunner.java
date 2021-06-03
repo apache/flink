@@ -24,22 +24,13 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.Preconditions;
-
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.getRowCoderProto;
-
 /** A {@link BeamTableStatefulPythonFunctionRunner} used to execute Python stateful functions. */
-public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRunner {
+public class BeamTableStatefulPythonFunctionRunner extends BeamTablePythonFunctionRunner {
 
-    private final RowType inputType;
-    private final RowType outputType;
-    private final String coderUrn;
     private final FlinkFnApi.UserDefinedAggregateFunctions userDefinedAggregateFunctions;
 
     public BeamTableStatefulPythonFunctionRunner(
@@ -49,41 +40,37 @@ public class BeamTableStatefulPythonFunctionRunner extends BeamPythonFunctionRun
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
             TypeSerializer keySerializer,
+            TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
-            double managedMemoryFraction) {
+            double managedMemoryFraction,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(
                 taskName,
                 environmentManager,
+                inputType,
+                outputType,
                 functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
                 keySerializer,
+                namespaceSerializer,
                 memoryManager,
-                managedMemoryFraction);
-        this.coderUrn = Preconditions.checkNotNull(coderUrn);
-        this.inputType = Preconditions.checkNotNull(inputType);
-        this.outputType = Preconditions.checkNotNull(outputType);
+                managedMemoryFraction,
+                inputDataType,
+                outputDataType,
+                outputMode);
         this.userDefinedAggregateFunctions = userDefinedFunctions;
     }
 
     @Override
     protected byte[] getUserDefinedFunctionsProtoBytes() {
         return this.userDefinedAggregateFunctions.toByteArray();
-    }
-
-    @Override
-    protected RunnerApi.Coder getInputCoderProto() {
-        return getRowCoderProto(inputType, coderUrn);
-    }
-
-    @Override
-    protected RunnerApi.Coder getOutputCoderProto() {
-        return getRowCoderProto(outputType, coderUrn);
     }
 }

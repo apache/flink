@@ -26,6 +26,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -211,7 +212,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return new Iterable<ArchivedExecutionVertex>() {
             @Override
             public Iterator<ArchivedExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
+                return new AllVerticesIterator<>(getVerticesTopologically().iterator());
             }
         };
     }
@@ -259,51 +260,6 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     @Override
     public Optional<String> getCheckpointStorageName() {
         return Optional.ofNullable(checkpointStorageName);
-    }
-
-    class AllVerticesIterator implements Iterator<ArchivedExecutionVertex> {
-
-        private final Iterator<ArchivedExecutionJobVertex> jobVertices;
-
-        private ArchivedExecutionVertex[] currVertices;
-
-        private int currPos;
-
-        public AllVerticesIterator(Iterator<ArchivedExecutionJobVertex> jobVertices) {
-            this.jobVertices = jobVertices;
-        }
-
-        @Override
-        public boolean hasNext() {
-            while (true) {
-                if (currVertices != null) {
-                    if (currPos < currVertices.length) {
-                        return true;
-                    } else {
-                        currVertices = null;
-                    }
-                } else if (jobVertices.hasNext()) {
-                    currVertices = jobVertices.next().getTaskVertices();
-                    currPos = 0;
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        @Override
-        public ArchivedExecutionVertex next() {
-            if (hasNext()) {
-                return currVertices[currPos++];
-            } else {
-                throw new NoSuchElementException();
-            }
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
     }
 
     /**
@@ -386,6 +342,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             String jobName,
             JobStatus jobStatus,
             @Nullable Throwable throwable,
+            @Nullable JobCheckpointingSettings checkpointingSettings,
             long initializationTimestamp) {
         Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = Collections.emptyMap();
         List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = Collections.emptyList();
@@ -421,9 +378,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 serializedUserAccumulators,
                 new ExecutionConfig().archive(),
                 false,
-                null,
-                null,
-                null,
-                null);
+                checkpointingSettings == null
+                        ? null
+                        : checkpointingSettings.getCheckpointCoordinatorConfiguration(),
+                checkpointingSettings == null ? null : CheckpointStatsSnapshot.empty(),
+                checkpointingSettings == null ? null : "Unknown",
+                checkpointingSettings == null ? null : "Unknown");
     }
 }

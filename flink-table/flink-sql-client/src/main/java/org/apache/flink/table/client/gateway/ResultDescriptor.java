@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.client.gateway;
 
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 /** Describes a result to be expected from a table program. */
 public class ResultDescriptor {
 
     private final String resultId;
 
-    private final TableSchema resultSchema;
+    private final ResolvedSchema resultSchema;
 
     private final boolean isMaterialized;
 
@@ -35,7 +35,7 @@ public class ResultDescriptor {
 
     public ResultDescriptor(
             String resultId,
-            TableSchema resultSchema,
+            ResolvedSchema resultSchema,
             boolean isMaterialized,
             boolean isTableauMode,
             boolean isStreamingMode) {
@@ -50,7 +50,7 @@ public class ResultDescriptor {
         return resultId;
     }
 
-    public TableSchema getResultSchema() {
+    public ResolvedSchema getResultSchema() {
         return resultSchema;
     }
 

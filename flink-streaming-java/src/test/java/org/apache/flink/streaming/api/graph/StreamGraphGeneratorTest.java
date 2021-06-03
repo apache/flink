@@ -19,24 +19,32 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -57,9 +65,11 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.NoOpIntMap;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Description;
+import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
@@ -71,11 +81,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.iterableWithSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -204,6 +215,25 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         instanceof ShufflePartitioner);
     }
 
+    @Test
+    public void testOutputTypeConfigurationWithUdfStreamOperator() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        OutputTypeConfigurableFunction<Integer> function = new OutputTypeConfigurableFunction<>();
+
+        DataStream<Integer> source = env.fromElements(1, 10);
+
+        NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator<>(function);
+
+        source.transform("no-op udf operator", BasicTypeInfo.INT_TYPE_INFO, udfOperator)
+                .addSink(new DiscardingSink<>());
+
+        env.getStreamGraph();
+
+        assertTrue(udfOperator instanceof AbstractUdfStreamOperator);
+        assertEquals(BasicTypeInfo.INT_TYPE_INFO, function.getTypeInformation());
+    }
+
     /**
      * Test whether an {@link OutputTypeConfigurable} implementation gets called with the correct
      * output type. In this test case the output type must be BasicTypeInfo.INT_TYPE_INFO.
@@ -288,6 +318,110 @@ public class StreamGraphGeneratorTest extends TestLogger {
         assertEquals(1, streamGraph.getStreamEdges(source2.getId()).size());
         assertEquals(1, streamGraph.getStreamEdges(source3.getId()).size());
         assertEquals(0, streamGraph.getStreamEdges(transform.getId()).size());
+    }
+
+    @Test
+    public void testUnalignedCheckpointDisabledOnPointwise() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(42);
+
+        DataStream<Long> source1 = env.fromSequence(1L, 10L);
+        DataStream<Long> map1 = source1.forward().map(l -> l);
+        DataStream<Long> source2 = env.fromSequence(2L, 11L);
+        DataStream<Long> map2 = source2.shuffle().map(l -> l);
+
+        final MapStateDescriptor<Long, Long> descriptor =
+                new MapStateDescriptor<>(
+                        "broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+        final BroadcastStream<Long> broadcast = map1.broadcast(descriptor);
+        final SingleOutputStreamOperator<Long> joined =
+                map2.connect(broadcast)
+                        .process(
+                                new BroadcastProcessFunction<Long, Long, Long>() {
+                                    @Override
+                                    public void processElement(
+                                            Long value, ReadOnlyContext ctx, Collector<Long> out) {}
+
+                                    @Override
+                                    public void processBroadcastElement(
+                                            Long value, Context ctx, Collector<Long> out) {}
+                                });
+
+        DataStream<Long> map3 = joined.shuffle().map(l -> l);
+        DataStream<Long> map4 = map3.rescale().map(l -> l).setParallelism(1337);
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertEquals(7, streamGraph.getStreamNodes().size());
+
+        // forward
+        assertThat(edge(streamGraph, source1, map1), supportsUnalignedCheckpoints(false));
+        // shuffle
+        assertThat(edge(streamGraph, source2, map2), supportsUnalignedCheckpoints(true));
+        // broadcast, but other channel is forwarded
+        assertThat(edge(streamGraph, map1, joined), supportsUnalignedCheckpoints(false));
+        // forward
+        assertThat(edge(streamGraph, map2, joined), supportsUnalignedCheckpoints(false));
+        // shuffle
+        assertThat(edge(streamGraph, joined, map3), supportsUnalignedCheckpoints(true));
+        // rescale
+        assertThat(edge(streamGraph, map3, map4), supportsUnalignedCheckpoints(false));
+    }
+
+    @Test
+    public void testUnalignedCheckpointDisabledOnBroadcast() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(42);
+
+        DataStream<Long> source1 = env.fromSequence(1L, 10L);
+        DataStream<Long> map1 = source1.broadcast().map(l -> l);
+        DataStream<Long> source2 = env.fromSequence(2L, 11L);
+        DataStream<Long> keyed = source2.keyBy(r -> 0L);
+
+        final MapStateDescriptor<Long, Long> descriptor =
+                new MapStateDescriptor<>(
+                        "broadcast", BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
+        final BroadcastStream<Long> broadcast = map1.broadcast(descriptor);
+        final SingleOutputStreamOperator<Long> joined =
+                keyed.connect(broadcast)
+                        .process(
+                                new KeyedBroadcastProcessFunction<Long, Long, Long, Long>() {
+                                    @Override
+                                    public void processElement(
+                                            Long value, ReadOnlyContext ctx, Collector<Long> out) {}
+
+                                    @Override
+                                    public void processBroadcastElement(
+                                            Long value, Context ctx, Collector<Long> out) {}
+                                });
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        assertEquals(4, streamGraph.getStreamNodes().size());
+
+        // single broadcast
+        assertThat(edge(streamGraph, source1, map1), supportsUnalignedCheckpoints(false));
+        // keyed, connected with broadcast
+        assertThat(edge(streamGraph, source2, joined), supportsUnalignedCheckpoints(false));
+        // broadcast, connected with keyed
+        assertThat(edge(streamGraph, map1, joined), supportsUnalignedCheckpoints(false));
+    }
+
+    private static StreamEdge edge(
+            StreamGraph streamGraph, DataStream<Long> op1, DataStream<Long> op2) {
+        List<StreamEdge> streamEdges = streamGraph.getStreamEdges(op1.getId(), op2.getId());
+        assertThat(streamEdges, iterableWithSize(1));
+        return streamEdges.get(0);
+    }
+
+    private static Matcher<StreamEdge> supportsUnalignedCheckpoints(boolean enabled) {
+        return new FeatureMatcher<StreamEdge, Boolean>(
+                equalTo(enabled),
+                "supports unaligned checkpoint",
+                "supports unaligned checkpoint") {
+            @Override
+            protected Boolean featureValueOf(StreamEdge actual) {
+                return actual.supportsUnalignedCheckpoints();
+            }
+        };
     }
 
     /**
@@ -572,6 +706,73 @@ public class StreamGraphGeneratorTest extends TestLogger {
                                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP)
                         .get(),
                 equalTo(resourceProfile3));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettings() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        final StreamGraph streamGraph =
+                new StreamGraphGenerator(
+                                Collections.emptyList(),
+                                new ExecutionConfig(),
+                                new CheckpointConfig(),
+                                config)
+                        .generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint")));
+    }
+
+    @Test
+    public void testSettingSavepointRestoreSettingsSetterOverrides() {
+        Configuration config = new Configuration();
+        config.set(SavepointConfigOptions.SAVEPOINT_PATH, "/tmp/savepoint");
+
+        StreamGraphGenerator generator =
+                new StreamGraphGenerator(
+                        Collections.emptyList(),
+                        new ExecutionConfig(),
+                        new CheckpointConfig(),
+                        config);
+        generator.setSavepointRestoreSettings(SavepointRestoreSettings.forPath("/tmp/savepoint1"));
+        final StreamGraph streamGraph = generator.generate();
+
+        SavepointRestoreSettings savepointRestoreSettings =
+                streamGraph.getSavepointRestoreSettings();
+        assertThat(
+                savepointRestoreSettings,
+                equalTo(SavepointRestoreSettings.forPath("/tmp/savepoint1")));
+    }
+
+    private static class OutputTypeConfigurableFunction<T>
+            implements OutputTypeConfigurable<T>, Function {
+        private TypeInformation<T> typeInformation;
+
+        public TypeInformation<T> getTypeInformation() {
+            return typeInformation;
+        }
+
+        @Override
+        public void setOutputType(TypeInformation<T> outTypeInfo, ExecutionConfig executionConfig) {
+            typeInformation = outTypeInfo;
+        }
+    }
+
+    static class NoOpUdfOperator<T> extends AbstractUdfStreamOperator<T, Function>
+            implements OneInputStreamOperator<T, T> {
+        NoOpUdfOperator(Function function) {
+            super(function);
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {
+            output.collect(element);
+        }
     }
 
     static class OutputTypeConfigurableOperationWithTwoInputs

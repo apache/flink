@@ -39,6 +39,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** Utils for configuration and calculations related to managed memory and its various use cases. */
 public enum ManagedMemoryUtils {
     ;
@@ -154,5 +156,17 @@ public enum ManagedMemoryUtils {
                         MANAGED_MEMORY_FRACTION_SCALE,
                         BigDecimal.ROUND_DOWN)
                 .doubleValue();
+    }
+
+    public static void validateUseCaseWeightsNotConflict(
+            Map<ManagedMemoryUseCase, Integer> weights1,
+            Map<ManagedMemoryUseCase, Integer> weights2) {
+        weights1.forEach(
+                (useCase, weight1) ->
+                        checkState(
+                                weights2.getOrDefault(useCase, weight1).equals(weight1),
+                                String.format(
+                                        "Conflict managed memory consumer weights for '%s' were configured: '%d' and '%d'.",
+                                        useCase, weight1, weights2.get(useCase))));
     }
 }

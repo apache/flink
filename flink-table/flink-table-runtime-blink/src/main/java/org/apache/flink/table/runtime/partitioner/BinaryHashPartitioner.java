@@ -72,6 +72,11 @@ public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
     }
 
     @Override
+    public boolean isPointwise() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "HASH" + Arrays.toString(hashFieldNames);
     }

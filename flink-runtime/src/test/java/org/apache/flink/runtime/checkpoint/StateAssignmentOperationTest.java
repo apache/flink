@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -45,8 +46,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -59,14 +58,22 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.InflightDataGateOrPartitionRescalingDescriptor.MappingType.RESCALING;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.array;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.rescalingDescriptor;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.set;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ARBITRARY;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -75,6 +82,8 @@ import static org.junit.Assert.assertThat;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
+
+    private static final int MAX_P = 256;
 
     @Test
     public void testRepartitionSplitDistributeStates() {
@@ -433,6 +442,52 @@ public class StateAssignmentOperationTest extends TestLogger {
     }
 
     @Test
+    public void testChannelStateAssignmentDownscalingTwoDifferentGates()
+            throws JobException, JobExecutionException {
+        JobVertex upstream1 = createJobVertex(new OperatorID(), 2);
+        JobVertex upstream2 = createJobVertex(new OperatorID(), 2);
+        JobVertex downstream = createJobVertex(new OperatorID(), 2);
+        List<OperatorID> operatorIds =
+                Stream.of(upstream1, upstream2, downstream)
+                        .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
+                        .collect(Collectors.toList());
+        Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 3);
+
+        connectVertices(upstream1, downstream, ARBITRARY, RANGE);
+        connectVertices(upstream2, downstream, ROUND_ROBIN, ROUND_ROBIN);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                toExecutionVertices(upstream1, upstream2, downstream);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        assertEquals(
+                new InflightDataRescalingDescriptor(
+                        array(
+                                gate(to(0, 1), mappings(to(0, 2), to(1)), set(1), RESCALING),
+                                gate(to(0, 2), mappings(to(0, 2), to(1)), emptySet(), RESCALING))),
+                getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 0)
+                        .getInputRescalingDescriptor());
+        assertEquals(
+                new InflightDataRescalingDescriptor(
+                        array(
+                                gate(to(0, 1), mappings(to(0, 2), to(1)), set(1), RESCALING),
+                                gate(to(0, 2), mappings(to(0, 2), to(1)), emptySet(), RESCALING))),
+                getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 0)
+                        .getInputRescalingDescriptor());
+    }
+
+    private InflightDataGateOrPartitionRescalingDescriptor gate(
+            int[] oldIndices,
+            RescaleMappings rescaleMapping,
+            Set<Integer> ambiguousSubtaskIndexes,
+            InflightDataGateOrPartitionRescalingDescriptor.MappingType mappingType) {
+        return new InflightDataGateOrPartitionRescalingDescriptor(
+                oldIndices, rescaleMapping, ambiguousSubtaskIndexes, mappingType);
+    }
+
+    @Test
     public void testChannelStateAssignmentDownscaling() throws JobException, JobExecutionException {
         List<OperatorID> operatorIds = buildOperatorIds(2);
         Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 3);
@@ -480,39 +535,151 @@ public class StateAssignmentOperationTest extends TestLogger {
         }
 
         assertEquals(
-                new InflightDataRescalingDescriptor(
-                        set(0, 2), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+                rescalingDescriptor(to(0, 2), array(mappings(to(0, 1), to(1, 2))), set()),
                 getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 0)
                         .getOutputRescalingDescriptor());
         assertEquals(
-                new InflightDataRescalingDescriptor(
-                        set(1), singletonMap(0, mapping(set(0, 1), set(1, 2)))),
+                rescalingDescriptor(to(1), array(mappings(to(0, 1), to(1, 2))), set()),
                 getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 1)
                         .getOutputRescalingDescriptor());
 
         assertEquals(
-                new InflightDataRescalingDescriptor(
-                        set(0, 1), singletonMap(0, mapping(set(0, 2), set(1)))),
+                rescalingDescriptor(to(0, 1), array(mappings(to(0, 2), to(1))), set(1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0)
                         .getInputRescalingDescriptor());
         assertEquals(
-                new InflightDataRescalingDescriptor(
-                        set(1, 2), singletonMap(0, mapping(set(0, 2), set(1)))),
+                rescalingDescriptor(to(1, 2), array(mappings(to(0, 2), to(1))), set(1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1)
                         .getInputRescalingDescriptor());
     }
 
-    @Nonnull
-    private RescaledChannelsMapping mapping(Set<Integer>... channelMappings) {
-        Map<Integer, Set<Integer>> mappings = new HashMap<>();
-        for (int newChannelIndex = 0; newChannelIndex < channelMappings.length; newChannelIndex++) {
-            mappings.put(newChannelIndex, channelMappings[newChannelIndex]);
+    @Test
+    public void testChannelStateAssignmentNoRescale() throws JobException, JobExecutionException {
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 2);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 2, RANGE, ROUND_ROBIN);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        for (OperatorID operatorId : operatorIds) {
+            // input is range partitioned, so there is an overlap
+            assertState(
+                    vertices, operatorId, states, 0, OperatorSubtaskState::getInputChannelState, 0);
+            assertState(
+                    vertices, operatorId, states, 1, OperatorSubtaskState::getInputChannelState, 1);
+            // output is round robin redistributed
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    0,
+                    OperatorSubtaskState::getResultSubpartitionState,
+                    0);
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    1,
+                    OperatorSubtaskState::getResultSubpartitionState,
+                    1);
         }
-        return new RescaledChannelsMapping(mappings);
+
+        assertEquals(
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 0)
+                        .getOutputRescalingDescriptor());
+        assertEquals(
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 1)
+                        .getOutputRescalingDescriptor());
+
+        assertEquals(
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0)
+                        .getInputRescalingDescriptor());
+        assertEquals(
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1)
+                        .getInputRescalingDescriptor());
     }
 
-    private Set<Integer> set(int... indexes) {
-        return IntStream.of(indexes).boxed().collect(Collectors.toSet());
+    @Test
+    public void testChannelStateAssignmentUpscaling() throws JobException, JobExecutionException {
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 2);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 3, RANGE, ROUND_ROBIN);
+
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        for (OperatorID operatorId : operatorIds) {
+            // input is range partitioned, so there is an overlap
+            assertState(
+                    vertices, operatorId, states, 0, OperatorSubtaskState::getInputChannelState, 0);
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    1,
+                    OperatorSubtaskState::getInputChannelState,
+                    0,
+                    1);
+            assertState(
+                    vertices, operatorId, states, 2, OperatorSubtaskState::getInputChannelState, 1);
+            // output is round robin redistributed
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    0,
+                    OperatorSubtaskState::getResultSubpartitionState,
+                    0);
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    1,
+                    OperatorSubtaskState::getResultSubpartitionState,
+                    1);
+            assertState(
+                    vertices,
+                    operatorId,
+                    states,
+                    2,
+                    OperatorSubtaskState::getResultSubpartitionState);
+        }
+
+        assertEquals(
+                rescalingDescriptor(to(0), array(mappings(to(0), to(0, 1), to(1))), set()),
+                getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 0)
+                        .getOutputRescalingDescriptor());
+        assertEquals(
+                rescalingDescriptor(to(1), array(mappings(to(0), to(0, 1), to(1))), set()),
+                getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 1)
+                        .getOutputRescalingDescriptor());
+        // unmapped subtask index, so nothing to do
+        assertEquals(
+                InflightDataRescalingDescriptor.NO_RESCALE,
+                getAssignedState(vertices.get(operatorIds.get(0)), operatorIds.get(0), 2)
+                        .getOutputRescalingDescriptor());
+
+        assertEquals(
+                rescalingDescriptor(to(0), array(mappings(to(0), to(1), to())), set(0, 1)),
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0)
+                        .getInputRescalingDescriptor());
+        assertEquals(
+                rescalingDescriptor(to(0, 1), array(mappings(to(0), to(1), to())), set(0, 1)),
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 1)
+                        .getInputRescalingDescriptor());
+        assertEquals(
+                rescalingDescriptor(to(1), array(mappings(to(0), to(1), to())), set(0, 1)),
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 2)
+                        .getInputRescalingDescriptor());
     }
 
     private void assertState(
@@ -574,7 +741,7 @@ public class StateAssignmentOperationTest extends TestLogger {
                                 Function.identity(),
                                 operatorID -> {
                                     OperatorState state =
-                                            new OperatorState(operatorID, numSubTasks, numSubTasks);
+                                            new OperatorState(operatorID, numSubTasks, MAX_P);
                                     for (int i = 0; i < numSubTasks; i++) {
                                         state.putState(
                                                 i,
@@ -643,23 +810,21 @@ public class StateAssignmentOperationTest extends TestLogger {
             throws JobException, JobExecutionException {
         final JobVertex[] jobVertices =
                 operatorIds.stream()
-                        .map(
-                                id -> {
-                                    final JobVertex jobVertex =
-                                            createJobVertex(id, id, parallelism);
-                                    return jobVertex;
-                                })
+                        .map(id -> createJobVertex(id, id, parallelism))
                         .toArray(JobVertex[]::new);
         for (int index = 1; index < jobVertices.length; index++) {
-            final JobEdge jobEdge =
-                    jobVertices[index].connectNewDataSetAsInput(
-                            jobVertices[index - 1],
-                            DistributionPattern.ALL_TO_ALL,
-                            ResultPartitionType.PIPELINED);
-            jobEdge.setDownstreamSubtaskStateMapper(downstreamRescaler);
-            jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
+            connectVertices(
+                    jobVertices[index - 1],
+                    jobVertices[index],
+                    upstreamRescaler,
+                    downstreamRescaler);
         }
 
+        return toExecutionVertices(jobVertices);
+    }
+
+    private Map<OperatorID, ExecutionJobVertex> toExecutionVertices(JobVertex... jobVertices)
+            throws JobException, JobExecutionException {
         JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
         ExecutionGraph eg =
                 TestingDefaultExecutionGraphBuilder.newBuilder().setJobGraph(jobGraph).build();
@@ -677,6 +842,18 @@ public class StateAssignmentOperationTest extends TestLogger {
                                 }));
     }
 
+    private void connectVertices(
+            JobVertex upstream,
+            JobVertex downstream,
+            SubtaskStateMapper upstreamRescaler,
+            SubtaskStateMapper downstreamRescaler) {
+        final JobEdge jobEdge =
+                downstream.connectNewDataSetAsInput(
+                        upstream, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+        jobEdge.setDownstreamSubtaskStateMapper(downstreamRescaler);
+        jobEdge.setUpstreamSubtaskStateMapper(upstreamRescaler);
+    }
+
     private ExecutionJobVertex buildExecutionJobVertex(
             OperatorID operatorID, OperatorID userDefinedOperatorId, int parallelism) {
         try {
@@ -685,6 +862,10 @@ public class StateAssignmentOperationTest extends TestLogger {
         } catch (Exception e) {
             throw new AssertionError("Cannot create ExecutionJobVertex", e);
         }
+    }
+
+    private JobVertex createJobVertex(OperatorID operatorID, int parallelism) {
+        return createJobVertex(operatorID, operatorID, parallelism);
     }
 
     private JobVertex createJobVertex(

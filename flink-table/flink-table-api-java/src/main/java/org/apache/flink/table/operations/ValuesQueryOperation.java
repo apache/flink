@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
@@ -37,11 +37,12 @@ import java.util.Objects;
 public class ValuesQueryOperation implements QueryOperation {
 
     private final List<List<ResolvedExpression>> values;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
-    public ValuesQueryOperation(List<List<ResolvedExpression>> values, TableSchema tableSchema) {
+    public ValuesQueryOperation(
+            List<List<ResolvedExpression>> values, ResolvedSchema resolvedSchema) {
         this.values = values;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
     }
 
     public List<List<ResolvedExpression>> getValues() {
@@ -49,8 +50,8 @@ public class ValuesQueryOperation implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     @Override
@@ -81,12 +82,13 @@ public class ValuesQueryOperation implements QueryOperation {
             return false;
         }
         ValuesQueryOperation that = (ValuesQueryOperation) o;
-        return Objects.equals(values, that.values) && Objects.equals(tableSchema, that.tableSchema);
+        return Objects.equals(values, that.values)
+                && Objects.equals(resolvedSchema, that.resolvedSchema);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(values, tableSchema);
+        return Objects.hash(values, resolvedSchema);
     }
 
     @Override

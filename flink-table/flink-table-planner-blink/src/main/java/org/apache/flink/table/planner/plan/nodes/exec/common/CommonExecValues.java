@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.codegen.ValuesCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.runtime.operators.values.ValuesInputFormat;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -33,7 +34,8 @@ import java.util.Collections;
 import java.util.List;
 
 /** Base {@link ExecNode} that read records from given values. */
-public abstract class CommonExecValues extends ExecNodeBase<RowData> {
+public abstract class CommonExecValues extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
     private final List<List<RexLiteral>> tuples;
 
     public CommonExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {

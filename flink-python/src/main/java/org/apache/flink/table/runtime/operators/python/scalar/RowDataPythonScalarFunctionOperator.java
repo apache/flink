@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -50,7 +51,15 @@ public class RowDataPythonScalarFunctionOperator
             RowType outputType,
             int[] udfInputOffsets,
             int[] forwardedFields) {
-        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        super(
+                config,
+                scalarFunctions,
+                inputType,
+                outputType,
+                udfInputOffsets,
+                forwardedFields,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW);
     }
 
     @Override

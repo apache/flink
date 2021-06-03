@@ -33,27 +33,36 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexProgram;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Base class for exec Python Calc. */
-public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
+        implements SingleTransformationTranslator<RowData> {
+
+    public static final String FIELD_NAME_PROJECTION = "projection";
 
     private static final String PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.scalar."
@@ -63,15 +72,18 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
             "org.apache.flink.table.runtime.operators.python.scalar.arrow."
                     + "RowDataArrowPythonScalarFunctionOperator";
 
-    private final RexProgram calcProgram;
+    @JsonProperty(FIELD_NAME_PROJECTION)
+    private final List<RexNode> projection;
 
     public CommonExecPythonCalc(
-            RexProgram calcProgram,
-            InputProperty inputProperty,
+            List<RexNode> projection,
+            int id,
+            List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.calcProgram = calcProgram;
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.projection = checkNotNull(projection);
     }
 
     @SuppressWarnings("unchecked")
@@ -83,12 +95,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
         final Configuration config =
                 CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> ret =
-                createPythonOneInputTransformation(
-                        inputTransform, calcProgram, getDescription(), config);
-        if (inputsContainSingleton()) {
-            ret.setParallelism(1);
-            ret.setMaxParallelism(1);
-        }
+                createPythonOneInputTransformation(inputTransform, getDescription(), config);
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
@@ -96,20 +103,15 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
     }
 
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
-            Transformation<RowData> inputTransform,
-            RexProgram calcProgram,
-            String name,
-            Configuration config) {
+            Transformation<RowData> inputTransform, String name, Configuration config) {
         List<RexCall> pythonRexCalls =
-                calcProgram.getProjectList().stream()
-                        .map(calcProgram::expandLocalRef)
+                projection.stream()
                         .filter(x -> x instanceof RexCall)
                         .map(x -> (RexCall) x)
                         .collect(Collectors.toList());
 
         List<Integer> forwardedFields =
-                calcProgram.getProjectList().stream()
-                        .map(calcProgram::expandLocalRef)
+                projection.stream()
                         .filter(x -> x instanceof RexInputRef)
                         .map(x -> ((RexInputRef) x).getIndex())
                         .collect(Collectors.toList());
@@ -144,7 +146,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
                         pythonUdfInputOffsets,
                         pythonFunctionInfos,
                         forwardedFields.stream().mapToInt(x -> x).toArray(),
-                        calcProgram.getExprList().stream()
+                        pythonRexCalls.stream()
                                 .anyMatch(
                                         x ->
                                                 PythonUtil.containsPythonCall(

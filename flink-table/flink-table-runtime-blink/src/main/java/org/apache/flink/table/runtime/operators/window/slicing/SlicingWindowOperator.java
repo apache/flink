@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 
@@ -196,7 +195,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData inputRow = element.getValue();
-        BinaryRowData currentKey = (BinaryRowData) getCurrentKey();
+        RowData currentKey = (RowData) getCurrentKey();
         boolean isElementDropped = windowProcessor.processElement(currentKey, inputRow);
         if (isElementDropped) {
             // markEvent will increase numLateRecordsDropped
@@ -217,12 +216,11 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
-        long timestamp = timer.getTimestamp();
-        if (timestamp > lastTriggeredProcessingTime) {
+        if (timer.getTimestamp() > lastTriggeredProcessingTime) {
             // similar to the watermark advance,
             // we need to notify WindowProcessor first to flush buffer into state
-            lastTriggeredProcessingTime = timestamp;
-            windowProcessor.advanceProgress(timestamp);
+            lastTriggeredProcessingTime = timer.getTimestamp();
+            windowProcessor.advanceProgress(timer.getTimestamp());
             // timers registered in advanceProgress() should always be smaller than current timer
             // so, it should be safe to trigger current timer straightforwards.
         }

@@ -25,7 +25,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.metrics import MetricGroup
 from pyflink.table import Expression
 from pyflink.table.types import DataType, _to_java_type, _to_java_data_type
-from pyflink.util import utils
+from pyflink.util import java_utils
 
 __all__ = ['FunctionContext', 'AggregateFunction', 'ScalarFunction', 'TableFunction',
            'TableAggregateFunction', 'udf', 'udtf', 'udaf', 'udtaf']
@@ -377,7 +377,7 @@ class UserDefinedFunctionWrapper(object):
                     raise TypeError("Unsupported func_type: %s." % self._func_type)
 
             if self._input_types is not None:
-                j_input_types = utils.to_jarray(
+                j_input_types = java_utils.to_jarray(
                     gateway.jvm.TypeInformation, [_to_java_type(i) for i in self._input_types])
             else:
                 j_input_types = None
@@ -458,8 +458,8 @@ class UserDefinedTableFunctionWrapper(UserDefinedFunctionWrapper):
 
     def _create_judf(self, serialized_func, j_input_types, j_function_kind):
         gateway = get_gateway()
-        j_result_types = utils.to_jarray(gateway.jvm.TypeInformation,
-                                         [_to_java_type(i) for i in self._result_types])
+        j_result_types = java_utils.to_jarray(gateway.jvm.TypeInformation,
+                                              [_to_java_type(i) for i in self._result_types])
         j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(j_result_types)
         PythonTableFunction = gateway.jvm \
             .org.apache.flink.table.functions.python.PythonTableFunction
@@ -514,7 +514,7 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
 
         if j_input_types is not None:
             gateway = get_gateway()
-            j_input_types = utils.to_jarray(
+            j_input_types = java_utils.to_jarray(
                 gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
         j_result_type = _to_java_data_type(self._result_type)
         j_accumulator_type = _to_java_data_type(self._accumulator_type)

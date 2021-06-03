@@ -28,7 +28,6 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
-import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -87,6 +86,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
 import static org.apache.flink.runtime.execution.ExecutionState.DEPLOYING;
 import static org.apache.flink.runtime.execution.ExecutionState.FAILED;
 import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
+import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -148,6 +148,13 @@ public class Execution
     private final CompletableFuture<?> releaseFuture;
 
     private final CompletableFuture<TaskManagerLocation> taskManagerLocationFuture;
+
+    /**
+     * Gets completed successfully when the task switched to {@link ExecutionState#INITIALIZING} or
+     * {@link ExecutionState#RUNNING}. If the task never switches to those state, but fails
+     * immediately, then this future never completes.
+     */
+    private final CompletableFuture<?> initializingOrRunningFuture;
 
     private volatile ExecutionState state = CREATED;
 
@@ -214,6 +221,7 @@ public class Execution
         this.terminalStateFuture = new CompletableFuture<>();
         this.releaseFuture = new CompletableFuture<>();
         this.taskManagerLocationFuture = new CompletableFuture<>();
+        this.initializingOrRunningFuture = new CompletableFuture<>();
 
         this.assignedResource = null;
     }
@@ -353,6 +361,23 @@ public class Execution
     }
 
     /**
+     * Gets a future that completes once the task execution reaches one of the states {@link
+     * ExecutionState#INITIALIZING} or {@link ExecutionState#RUNNING}. If this task never reaches
+     * these states (for example because the task is cancelled before it was properly deployed and
+     * restored), then this future will never complete.
+     *
+     * <p>The future is completed already in the {@link ExecutionState#INITIALIZING} state, because
+     * various running actions are already possible in that state (the task already accepts and
+     * sends events and network data for task recovery). (Note that in earlier versions, the
+     * INITIALIZING state was not separate but part of the RUNNING state).
+     *
+     * <p>This future is always completed from the job master's main thread.
+     */
+    public CompletableFuture<?> getInitializingOrRunningFuture() {
+        return initializingOrRunningFuture;
+    }
+
+    /**
      * Gets a future that completes once the task execution reaches a terminal state. The future
      * will be completed with specific state that the execution reached. This future is always
      * completed from the job master's main thread.
@@ -474,11 +499,11 @@ public class Execution
     private static int getPartitionMaxParallelism(
             IntermediateResultPartition partition,
             Function<ExecutionVertexID, ExecutionVertex> getVertexById) {
-        final List<ConsumerVertexGroup> consumers = partition.getConsumers();
+        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
         Preconditions.checkArgument(
-                consumers.size() == 1,
+                consumerVertexGroups.size() == 1,
                 "Currently there has to be exactly one consumer in real jobs");
-        final ConsumerVertexGroup consumerVertexGroup = consumers.get(0);
+        final ConsumerVertexGroup consumerVertexGroup = consumerVertexGroups.get(0);
         return getVertexById
                 .apply(consumerVertexGroup.getFirst())
                 .getJobVertex()
@@ -550,24 +575,6 @@ public class Execution
                     vertex.getCurrentExecutionAttempt().getAttemptId(),
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
-
-            if (taskRestore != null) {
-                checkState(
-                        taskRestore.getTaskStateSnapshot().getSubtaskStateMappings().stream()
-                                .allMatch(
-                                        entry ->
-                                                entry.getValue()
-                                                                .getInputRescalingDescriptor()
-                                                                .equals(
-                                                                        InflightDataRescalingDescriptor
-                                                                                .NO_RESCALE)
-                                                        && entry.getValue()
-                                                                .getOutputRescalingDescriptor()
-                                                                .equals(
-                                                                        InflightDataRescalingDescriptor
-                                                                                .NO_RESCALE)),
-                        "Rescaling from unaligned checkpoint is not yet supported.");
-            }
 
             final TaskDeploymentDescriptor deployment =
                     TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, attemptNumber)
@@ -641,7 +648,7 @@ public class Execution
             }
 
             // these two are the common cases where we need to send a cancel call
-            else if (current == RUNNING || current == DEPLOYING) {
+            else if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
                 // try to transition to canceling, if successful, send the cancel call
                 if (startCancelling(NUM_CANCEL_CALL_TRIES)) {
                     return;
@@ -681,6 +688,7 @@ public class Execution
     public CompletableFuture<?> suspend() {
         switch (state) {
             case RUNNING:
+            case INITIALIZING:
             case DEPLOYING:
             case CREATED:
             case SCHEDULED:
@@ -715,30 +723,32 @@ public class Execution
 
     private void updatePartitionConsumers(final IntermediateResultPartition partition) {
 
-        final List<ConsumerVertexGroup> allConsumers = partition.getConsumers();
+        final List<ConsumerVertexGroup> consumerVertexGroups = partition.getConsumerVertexGroups();
 
-        if (allConsumers.size() == 0) {
+        if (consumerVertexGroups.size() == 0) {
             return;
         }
-        if (allConsumers.size() > 1) {
+        if (consumerVertexGroups.size() > 1) {
             fail(
                     new IllegalStateException(
                             "Currently, only a single consumer group per partition is supported."));
             return;
         }
 
-        for (ExecutionVertexID consumerVertexId : allConsumers.get(0)) {
+        for (ExecutionVertexID consumerVertexId : consumerVertexGroups.get(0)) {
             final ExecutionVertex consumerVertex =
                     vertex.getExecutionGraphAccessor().getExecutionVertexOrThrow(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
             final ExecutionState consumerState = consumer.getState();
 
             // ----------------------------------------------------------------
-            // Consumer is running => send update message now
+            // Consumer is recovering or running => send update message now
             // Consumer is deploying => cache the partition info which would be
             // sent after switching to running
             // ----------------------------------------------------------------
-            if (consumerState == DEPLOYING || consumerState == RUNNING) {
+            if (consumerState == DEPLOYING
+                    || consumerState == RUNNING
+                    || consumerState == INITIALIZING) {
                 final PartitionInfo partitionInfo = createPartitionInfo(partition);
 
                 if (consumerState == DEPLOYING) {
@@ -869,9 +879,11 @@ public class Execution
      */
     public CompletableFuture<Acknowledge> sendOperatorEvent(
             OperatorID operatorId, SerializedValue<OperatorEvent> event) {
+
+        assertRunningInJobMasterMainThread();
         final LogicalSlot slot = assignedResource;
 
-        if (slot != null && getState() == RUNNING) {
+        if (slot != null && (getState() == RUNNING || getState() == INITIALIZING)) {
             final TaskExecutorOperatorEventGateway eventGateway = slot.getTaskManagerGateway();
             return eventGateway.sendOperatorEventToTask(getAttemptId(), operatorId, event);
         } else {
@@ -879,7 +891,8 @@ public class Execution
                     new TaskNotRunningException(
                             '"'
                                     + vertex.getTaskNameWithSubtaskIndex()
-                                    + "\" is currently not running or ready."));
+                                    + "\" is not running, but in state "
+                                    + getState()));
         }
     }
 
@@ -922,7 +935,7 @@ public class Execution
         while (true) {
             ExecutionState current = this.state;
 
-            if (current == RUNNING || current == DEPLOYING) {
+            if (current == INITIALIZING || current == RUNNING || current == DEPLOYING) {
 
                 if (transitionState(current, FINISHED)) {
                     try {
@@ -1012,7 +1025,10 @@ public class Execution
 
             if (current == CANCELED) {
                 return;
-            } else if (current == CANCELING || current == RUNNING || current == DEPLOYING) {
+            } else if (current == CANCELING
+                    || current == RUNNING
+                    || current == INITIALIZING
+                    || current == DEPLOYING) {
 
                 updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
@@ -1148,7 +1164,10 @@ public class Execution
 
         handlePartitionCleanup(releasePartitions, releasePartitions);
 
-        if (cancelTask && (stateBeforeFailed == RUNNING || stateBeforeFailed == DEPLOYING)) {
+        if (cancelTask
+                && (stateBeforeFailed == RUNNING
+                        || stateBeforeFailed == INITIALIZING
+                        || stateBeforeFailed == DEPLOYING)) {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Sending out cancel request, to remove task execution from TaskManager.");
             }
@@ -1167,10 +1186,22 @@ public class Execution
         }
     }
 
-    boolean switchToRunning() {
-
-        if (transitionState(DEPLOYING, RUNNING)) {
+    boolean switchToRecovering() {
+        if (switchTo(DEPLOYING, INITIALIZING)) {
             sendPartitionInfos();
+            return true;
+        }
+
+        return false;
+    }
+
+    boolean switchToRunning() {
+        return switchTo(INITIALIZING, RUNNING);
+    }
+
+    private boolean switchTo(ExecutionState from, ExecutionState to) {
+
+        if (transitionState(from, to)) {
             return true;
         } else {
             // something happened while the call was in progress.
@@ -1423,7 +1454,9 @@ public class Execution
                 }
             }
 
-            if (targetState.isTerminal()) {
+            if (targetState == INITIALIZING || targetState == RUNNING) {
+                initializingOrRunningFuture.complete(null);
+            } else if (targetState.isTerminal()) {
                 // complete the terminal state future
                 terminalStateFuture.complete(targetState);
             }

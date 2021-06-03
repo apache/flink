@@ -39,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
@@ -55,7 +55,7 @@ import java.util.concurrent.Executor;
 public class JobVertexDetailsHandler
         extends AbstractAccessExecutionGraphHandler<
                 JobVertexDetailsInfo, JobVertexMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
     private final MetricFetcher metricFetcher;
 
     public JobVertexDetailsHandler(

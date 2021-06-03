@@ -24,9 +24,8 @@ from pyflink.table import DataTypes
 from pyflink.table.tests.test_udf import SubtractOne
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, \
-    PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
+    PyFlinkBlinkStreamTableTestCase, PyFlinkTestCase
 
 
 class PandasUDFTests(PyFlinkTestCase):
@@ -283,8 +282,29 @@ class PandasUDFITTests(object):
              "1970-01-02 00:00:00.123, [hello, 中文, null], [1970-01-02 00:00:00.123], "
              "[1, 2], [hello, 中文, null], +I[1, hello, 1970-01-02 00:00:00.123, [1, 2]]]"])
 
+    def test_invalid_pandas_udf(self):
 
-class BlinkPandasUDFITTests(object):
+        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        def length_mismatch(i):
+            return i[1:]
+
+        @udf(result_type=DataTypes.INT(), udf_type="pandas")
+        def result_type_not_series(i):
+            return i.iloc[0]
+
+        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
+
+        msg = "The result length '0' of Pandas UDF 'length_mismatch' is not equal " \
+              "to the input length '1'"
+        from py4j.protocol import Py4JJavaError
+        with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
+            t.select(length_mismatch(t.a)).to_pandas()
+
+        msg = "The result type of Pandas UDF 'result_type_not_series' must be pandas.Series or " \
+              "pandas.DataFrame, got <class 'numpy.int64'>"
+        from py4j.protocol import Py4JJavaError
+        with self.assertRaisesRegex(Py4JJavaError, expected_regex=msg):
+            t.select(result_type_not_series(t.a)).to_pandas()
 
     def test_data_types_only_supported_in_blink_planner(self):
         import pandas as pd
@@ -318,34 +338,12 @@ class BlinkPandasUDFITTests(object):
         self.assert_equals(actual, ["+I[1970-01-02T00:00:00.123Z]"])
 
 
-class StreamPandasUDFITTests(PandasUDFITTests,
-                             PyFlinkOldStreamTableTestCase):
-    pass
-
-
-class BatchPandasUDFITTests(PyFlinkOldBatchTableTestCase):
-
-    def test_basic_functionality(self):
-        add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT(), func_type="pandas")
-
-        # general Python UDF
-        subtract_one = udf(SubtractOne(), result_type=DataTypes.BIGINT())
-
-        t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
-        t = t.where(add_one(t.b) <= 3) \
-            .select(t.a, t.b + 1, add(t.a + 1, subtract_one(t.c)) + 2, add(add_one(t.a), 1))
-        result = self.collect(t)
-        self.assert_equals(result, ["+I[1, 3, 6, 3]", "+I[3, 2, 14, 5]"])
-
-
 class BlinkBatchPandasUDFITTests(PandasUDFITTests,
-                                 BlinkPandasUDFITTests,
                                  PyFlinkBlinkBatchTableTestCase):
     pass
 
 
 class BlinkStreamPandasUDFITTests(PandasUDFITTests,
-                                  BlinkPandasUDFITTests,
                                   PyFlinkBlinkStreamTableTestCase):
     pass
 

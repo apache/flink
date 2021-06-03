@@ -105,9 +105,6 @@ class DeduplicateTest extends TableTestBase {
          |GROUP BY b, TUMBLE(ts, INTERVAL '0.004' SECOND)
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("GroupWindowAggregate doesn't support consuming update " +
-      "and delete changes which is produced by node Deduplicate(")
     util.verifyExplain(windowSql)
   }
 

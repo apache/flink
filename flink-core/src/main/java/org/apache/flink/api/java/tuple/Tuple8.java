@@ -82,32 +82,24 @@ public class Tuple8<T0, T1, T2, T3, T4, T5, T6, T7> extends Tuple {
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
-     * @param value3 The value for field 3
-     * @param value4 The value for field 4
-     * @param value5 The value for field 5
-     * @param value6 The value for field 6
-     * @param value7 The value for field 7
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
+     * @param f5 The value for field 5
+     * @param f6 The value for field 6
+     * @param f7 The value for field 7
      */
-    public Tuple8(
-            T0 value0,
-            T1 value1,
-            T2 value2,
-            T3 value3,
-            T4 value4,
-            T5 value5,
-            T6 value6,
-            T7 value7) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
-        this.f3 = value3;
-        this.f4 = value4;
-        this.f5 = value5;
-        this.f6 = value6;
-        this.f7 = value7;
+    public Tuple8(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
+        this.f5 = f5;
+        this.f6 = f6;
+        this.f7 = f7;
     }
 
     @Override
@@ -176,32 +168,24 @@ public class Tuple8<T0, T1, T2, T3, T4, T5, T6, T7> extends Tuple {
     /**
      * Sets new values to all fields of the tuple.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
-     * @param value2 The value for field 2
-     * @param value3 The value for field 3
-     * @param value4 The value for field 4
-     * @param value5 The value for field 5
-     * @param value6 The value for field 6
-     * @param value7 The value for field 7
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
+     * @param f2 The value for field 2
+     * @param f3 The value for field 3
+     * @param f4 The value for field 4
+     * @param f5 The value for field 5
+     * @param f6 The value for field 6
+     * @param f7 The value for field 7
      */
-    public void setFields(
-            T0 value0,
-            T1 value1,
-            T2 value2,
-            T3 value3,
-            T4 value4,
-            T5 value5,
-            T6 value6,
-            T7 value7) {
-        this.f0 = value0;
-        this.f1 = value1;
-        this.f2 = value2;
-        this.f3 = value3;
-        this.f4 = value4;
-        this.f5 = value5;
-        this.f6 = value6;
-        this.f7 = value7;
+    public void setFields(T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7) {
+        this.f0 = f0;
+        this.f1 = f1;
+        this.f2 = f2;
+        this.f3 = f3;
+        this.f4 = f4;
+        this.f5 = f5;
+        this.f6 = f6;
+        this.f7 = f7;
     }
 
     // -------------------------------------------------------------------------------------------------
@@ -310,14 +294,7 @@ public class Tuple8<T0, T1, T2, T3, T4, T5, T6, T7> extends Tuple {
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
     public static <T0, T1, T2, T3, T4, T5, T6, T7> Tuple8<T0, T1, T2, T3, T4, T5, T6, T7> of(
-            T0 value0,
-            T1 value1,
-            T2 value2,
-            T3 value3,
-            T4 value4,
-            T5 value5,
-            T6 value6,
-            T7 value7) {
-        return new Tuple8<>(value0, value1, value2, value3, value4, value5, value6, value7);
+            T0 f0, T1 f1, T2 f2, T3 f3, T4 f4, T5 f5, T6 f6, T7 f7) {
+        return new Tuple8<>(f0, f1, f2, f3, f4, f5, f6, f7);
     }
 }

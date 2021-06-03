@@ -50,7 +50,7 @@ Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你�
 在安装文件夹中运行 `sql-client` 脚本来启动 SQL 客户端。
 
  ```bash
-./bin/sql-client.sh embedded
+./bin/sql-client.sh
  ``` 
 
 ### Hello World

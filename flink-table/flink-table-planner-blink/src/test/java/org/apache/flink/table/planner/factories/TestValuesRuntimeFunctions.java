@@ -73,6 +73,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
 final class TestValuesRuntimeFunctions {
 
+    static final Object LOCK = TestValuesTableFactory.class;
+
     // [table_name, [task_id, List[value]]]
     private static final Map<String, Map<Integer, List<String>>> globalRawResult = new HashMap<>();
     // [table_name, [task_id, Map[key, value]]]
@@ -95,12 +97,18 @@ final class TestValuesRuntimeFunctions {
     }
 
     static List<Watermark> getWatermarks(String tableName) {
-        return watermarkHistory.getOrDefault(tableName, new ArrayList<>());
+        synchronized (LOCK) {
+            if (watermarkHistory.containsKey(tableName)) {
+                return new ArrayList<>(watermarkHistory.get(tableName));
+            } else {
+                return Collections.emptyList();
+            }
+        }
     }
 
     static List<String> getResults(String tableName) {
         List<String> result = new ArrayList<>();
-        synchronized (TestValuesTableFactory.class) {
+        synchronized (LOCK) {
             if (globalUpsertResult.containsKey(tableName)) {
                 globalUpsertResult
                         .get(tableName)
@@ -118,10 +126,11 @@ final class TestValuesRuntimeFunctions {
     }
 
     static void clearResults() {
-        synchronized (TestValuesTableFactory.class) {
+        synchronized (LOCK) {
             globalRawResult.clear();
             globalUpsertResult.clear();
             globalRetractResult.clear();
+            watermarkHistory.clear();
         }
     }
 
@@ -248,7 +257,11 @@ final class TestValuesRuntimeFunctions {
                 ctx.emitWatermark(
                         new org.apache.flink.streaming.api.watermark.Watermark(
                                 watermark.getTimestamp()));
-                watermarkHistory.computeIfAbsent(tableName, k -> new LinkedList<>()).add(watermark);
+                synchronized (LOCK) {
+                    watermarkHistory
+                            .computeIfAbsent(tableName, k -> new LinkedList<>())
+                            .add(watermark);
+                }
             }
 
             @Override
@@ -289,7 +302,7 @@ final class TestValuesRuntimeFunctions {
                 }
             }
             int taskId = getRuntimeContext().getIndexOfThisSubtask();
-            synchronized (TestValuesTableFactory.class) {
+            synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
                         .put(taskId, localRawResult);
@@ -299,7 +312,9 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             rawResultState.clear();
-            rawResultState.addAll(localRawResult);
+            synchronized (LOCK) {
+                rawResultState.addAll(localRawResult);
+            }
         }
     }
 
@@ -331,7 +346,9 @@ final class TestValuesRuntimeFunctions {
                         return;
                     }
                 }
-                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                synchronized (LOCK) {
+                    localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                }
             } else {
                 throw new RuntimeException(
                         "AppendingSinkFunction received " + value.getRowKind() + " messages.");
@@ -401,7 +418,7 @@ final class TestValuesRuntimeFunctions {
             }
 
             int taskId = getRuntimeContext().getIndexOfThisSubtask();
-            synchronized (TestValuesTableFactory.class) {
+            synchronized (LOCK) {
                 globalUpsertResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
                         .put(taskId, localUpsertResult);
@@ -412,9 +429,11 @@ final class TestValuesRuntimeFunctions {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             super.snapshotState(context);
             upsertResultState.clear();
-            for (Map.Entry<String, String> entry : localUpsertResult.entrySet()) {
-                upsertResultState.add(entry.getKey());
-                upsertResultState.add(entry.getValue());
+            synchronized (LOCK) {
+                for (Map.Entry<String, String> entry : localUpsertResult.entrySet()) {
+                    upsertResultState.add(entry.getKey());
+                    upsertResultState.add(entry.getValue());
+                }
             }
             receivedNumState.update(Collections.singletonList(receivedNum));
         }
@@ -427,30 +446,32 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assert row != null;
 
-            if (RowUtils.USE_LEGACY_TO_STRING) {
-                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
-            } else {
-                localRawResult.add(row.toString());
-            }
-
-            row.setKind(RowKind.INSERT);
-            Row key = Row.project(row, keyIndices);
-
-            if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
-                localUpsertResult.put(key.toString(), row.toString());
-            } else {
-                String oldValue = localUpsertResult.remove(key.toString());
-                if (oldValue == null) {
-                    throw new RuntimeException(
-                            "Tried to delete a value that wasn't inserted first. "
-                                    + "This is probably an incorrectly implemented test.");
+            synchronized (LOCK) {
+                if (RowUtils.USE_LEGACY_TO_STRING) {
+                    localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                } else {
+                    localRawResult.add(row.toString());
                 }
-            }
-            receivedNum++;
-            if (expectedSize != -1 && receivedNum == expectedSize) {
-                // some sources are infinite (e.g. kafka),
-                // we throw a SuccessException to indicate job is finished.
-                throw new SuccessException();
+
+                row.setKind(RowKind.INSERT);
+                Row key = Row.project(row, keyIndices);
+
+                if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                    localUpsertResult.put(key.toString(), row.toString());
+                } else {
+                    String oldValue = localUpsertResult.remove(key.toString());
+                    if (oldValue == null) {
+                        throw new RuntimeException(
+                                "Tried to delete a value that wasn't inserted first. "
+                                        + "This is probably an incorrectly implemented test.");
+                    }
+                }
+                receivedNum++;
+                if (expectedSize != -1 && receivedNum == expectedSize) {
+                    // some sources are infinite (e.g. kafka),
+                    // we throw a SuccessException to indicate job is finished.
+                    throw new SuccessException();
+                }
             }
         }
     }
@@ -485,7 +506,7 @@ final class TestValuesRuntimeFunctions {
             }
 
             int taskId = getRuntimeContext().getIndexOfThisSubtask();
-            synchronized (TestValuesTableFactory.class) {
+            synchronized (LOCK) {
                 globalRetractResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
                         .put(taskId, localRetractResult);
@@ -496,7 +517,9 @@ final class TestValuesRuntimeFunctions {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             super.snapshotState(context);
             retractResultState.clear();
-            retractResultState.addAll(localRetractResult);
+            synchronized (LOCK) {
+                retractResultState.addAll(localRetractResult);
+            }
         }
 
         @SuppressWarnings("rawtypes")
@@ -505,15 +528,19 @@ final class TestValuesRuntimeFunctions {
             RowKind kind = value.getRowKind();
             Row row = (Row) converter.toExternal(value);
             assert row != null;
-            localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
-            if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
-                localRetractResult.add(row.toString());
-            } else {
-                boolean contains = localRetractResult.remove(row.toString());
-                if (!contains) {
-                    throw new RuntimeException(
-                            "Tried to retract a value that wasn't inserted first. "
-                                    + "This is probably an incorrectly implemented test.");
+            synchronized (LOCK) {
+                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                    row.setKind(RowKind.INSERT);
+                    localRetractResult.add(row.toString());
+                } else {
+                    row.setKind(RowKind.INSERT);
+                    boolean contains = localRetractResult.remove(row.toString());
+                    if (!contains) {
+                        throw new RuntimeException(
+                                "Tried to retract a value that wasn't inserted first. "
+                                        + "This is probably an incorrectly implemented test.");
+                    }
                 }
             }
         }
@@ -540,7 +567,7 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void open(int taskNumber, int numTasks) throws IOException {
             this.localRawResult = new ArrayList<>();
-            synchronized (TestValuesTableFactory.class) {
+            synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
                         .put(taskNumber, localRawResult);
@@ -553,7 +580,9 @@ final class TestValuesRuntimeFunctions {
             if (value.getRowKind() == RowKind.INSERT) {
                 Row row = (Row) converter.toExternal(value);
                 assert row != null;
-                localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                synchronized (LOCK) {
+                    localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
+                }
             } else {
                 throw new RuntimeException(
                         "AppendingOutputFormat received " + value.getRowKind() + " messages.");

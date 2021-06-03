@@ -53,12 +53,6 @@ If nothing else is configured, the system will use the HashMapStateBackend.
 The *HashMapStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
 that store the values, triggers, etc.
 
-The HashMapStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a HashMapStateBackend with the corresponding boolean flag in the constructor set to `false`, e.g.:
-
-```java
-new HashMapStateBackend(false);
-```
-
 The HashMapStateBackend is encouraged for:
 
   - Jobs with large state, long windows, large key/value states.
@@ -71,6 +65,7 @@ This will ensure that the maximum amount of memory is allocated for user code on
 
 The EmbeddedRocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
 that is (per default) stored in the TaskManager local data directories.
+Unlike storing java objects in `HashMapStateBackend`, data is stored as serialized byte arrays, which are mainly defined by the type serializer, resulting in key comparisons being byte-wise instead of using Java's `hashCode()` and `equals()` methods.
 
 The EmbeddedRocksDBStateBackend always performs asynchronous snapshots.
 
@@ -327,3 +322,132 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 ```
 
 {{< top >}}
+
+## Migrating from Legacy Backends
+
+Beginning in **Flink 1.13**, the community reworked its public state backend classes to help users better understand the separation of local state storage and checkpoint storage.
+This change does not affect the runtime implementation or characteristics of Flink's state backend or checkpointing process; it is simply to communicate intent better.
+Users can migrate existing applications to use the new API without losing any state or consistency. 
+
+### MemoryStateBackend
+
+The legacy `MemoryStateBackend` is equivalent to using [`HashMapStateBackend`](#the-hashmapstatebackend) and [`JobManagerCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-jobmanagercheckpointstorage" >}}).
+
+#### `flink-conf.yaml` configuration 
+
+```yaml
+state.backend: hashmap
+
+# Optional, Flink will automatically default to JobManagerCheckpointStorage
+# when no checkpoint directory is specified.
+state.checkpoint-storage: jobmanager
+```
+
+#### Code Configuration
+
+{{< tabs "memorystatebackendmigration" >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setStateBackend(new HashMapStateBackend());
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend());
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setStateBackend(new HashMapStateBackend)
+env.getCheckpointConfig().setCheckpointStorage(new JobManagerStateBackend)
+```
+{{< /tab >}}
+{{< /tabs>}}
+
+### FsStateBackend 
+
+The legacy `FsStateBackend` is equivalent to using [`HashMapStateBackend`](#the-hashmapstatebackend) and [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-filesystemcheckpointstorage" >}}).
+
+#### `flink-conf.yaml` configuration
+
+```yaml
+state.backend: hashmap
+state.checkpoints.dir: file:///checkpoint-dir/
+
+# Optional, Flink will automatically default to FileSystemCheckpointStorage
+# when a checkpoint directory is specified.
+state.checkpoint-storage: filesystem
+```
+
+#### Code Configuration
+
+{{< tabs "fsstatebackendbackendmigration" >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setStateBackend(new HashMapStateBackend());
+env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir");
+
+
+// Advanced FsStateBackend configurations, such as write buffer size
+// can be set by manually instantiating a FileSystemCheckpointStorage object.
+env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setStateBackend(new HashMapStateBackend)
+env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
+
+
+// Advanced FsStateBackend configurations, such as write buffer size
+// can be set by using manually instantiating a FileSystemCheckpointStorage object.
+env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
+```
+{{< /tab >}}
+{{< /tabs>}}
+
+### RocksDBStateBackend 
+
+The legacy `RocksDBStateBackend` is equivalent to using [`EmbeddedRocksDBStateBackend`](#the-embeddedrocksdbstatebackend) and [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints#the-filesystemcheckpointstorage" >}}).
+
+#### `flink-conf.yaml` configuration 
+
+```yaml
+state.backend: rocksdb
+state.checkpoints.dir: file:///checkpoint-dir/
+
+# Optional, Flink will automatically default to FileSystemCheckpointStorage
+# when a checkpoint directory is specified.
+state.checkpoint-storage: filesystem
+```
+
+#### Code Configuration
+
+{{< tabs "rocksdbstatebackendmigration" >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setStateBackend(new EmbeddedRocksDBStateBackend());
+env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir");
+
+
+// If you manually passed FsStateBackend into the RocksDBStateBackend constructor
+// to specify advanced checkpointing configurations such as write buffer size,
+// you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
+env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```java
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+env.setStateBackend(new EmbeddedRocksDBStateBackend)
+env.getCheckpointConfig().setCheckpointStorage("file:///checkpoint-dir")
+
+
+// If you manually passed FsStateBackend into the RocksDBStateBackend constructor
+// to specify advanced checkpointing configurations such as write buffer size,
+// you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
+env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"))
+```
+{{< /tab >}}
+{{< /tabs>}}

@@ -169,7 +169,7 @@ public class EntropyInjectorTest {
     }
 
     @Test
-    public void testClassLoaderFixingFs() throws Exception {
+    public void testClassLoaderFixingFsWithSafeyNet() throws Exception {
         final String entropyKey = "__ekey__";
         final String entropyValue = "abc";
 
@@ -192,6 +192,26 @@ public class EntropyInjectorTest {
         } finally {
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
         }
+    }
+
+    @Test
+    public void testClassLoaderFixingFsWithoutSafeyNet() throws Exception {
+        final String entropyKey = "__ekey__";
+        final String entropyValue = "abc";
+
+        final File folder = TMP_FOLDER.newFolder();
+
+        final Path path = new Path(Path.fromLocalFile(folder), entropyKey + "/path/");
+        final Path pathWithEntropy = new Path(Path.fromLocalFile(folder), entropyValue + "/path/");
+
+        PluginFileSystemFactory pluginFsFactory =
+                PluginFileSystemFactory.of(new TestFileSystemFactory(entropyKey, entropyValue));
+        FileSystem testFs = pluginFsFactory.create(URI.create("test"));
+
+        OutputStreamAndPath streamAndPath =
+                EntropyInjector.createEntropyAware(testFs, path, WriteMode.NO_OVERWRITE);
+
+        assertEquals(pathWithEntropy, streamAndPath.path());
     }
 
     @Test

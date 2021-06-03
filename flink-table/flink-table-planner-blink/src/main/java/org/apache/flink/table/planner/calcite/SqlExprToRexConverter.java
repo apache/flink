@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.planner.calcite;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.calcite.rex.RexNode;
 
 /** Converts SQL expressions to {@link RexNode}. */
+@Internal
 public interface SqlExprToRexConverter {
 
     /**

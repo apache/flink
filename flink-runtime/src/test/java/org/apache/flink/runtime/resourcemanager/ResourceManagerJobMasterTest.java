@@ -135,7 +135,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
         HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
 
         JobLeaderIdService jobLeaderIdService =
-                new JobLeaderIdService(
+                new DefaultJobLeaderIdService(
                         haServices, rpcService.getScheduledExecutor(), Time.minutes(5L));
 
         final SlotManager slotManager =
@@ -244,7 +244,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         jobMasterGateway.getAddress(),
                         jobId,
                         TIMEOUT);
-        assertTrue(unMatchedLeaderFuture.get() instanceof RegistrationResponse.Decline);
+        assertTrue(unMatchedLeaderFuture.get() instanceof RegistrationResponse.Failure);
     }
 
     /** Test receive registration with invalid address from job master. */
@@ -262,7 +262,7 @@ public class ResourceManagerJobMasterTest extends TestLogger {
                         TIMEOUT);
         assertTrue(
                 invalidAddressFuture.get(5, TimeUnit.SECONDS)
-                        instanceof RegistrationResponse.Decline);
+                        instanceof RegistrationResponse.Failure);
     }
 
     /**

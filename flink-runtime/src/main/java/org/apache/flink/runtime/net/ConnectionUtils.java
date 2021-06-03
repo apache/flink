@@ -334,14 +334,12 @@ public class ConnectionUtils {
     private static boolean tryToConnect(
             InetAddress fromAddress, SocketAddress toSocket, int timeout, boolean logFailed)
             throws IOException {
+        String detailedMessage =
+                String.format(
+                        "connect to [%s] from local address [%s] with timeout [%s]",
+                        toSocket, fromAddress, timeout);
         if (LOG.isDebugEnabled()) {
-            LOG.debug(
-                    "Trying to connect to ("
-                            + toSocket
-                            + ") from local address "
-                            + fromAddress
-                            + " with timeout "
-                            + timeout);
+            LOG.debug("Trying to " + detailedMessage);
         }
         try (Socket socket = new Socket()) {
             // port 0 = let the OS choose the port
@@ -351,8 +349,7 @@ public class ConnectionUtils {
             socket.connect(toSocket, timeout);
             return true;
         } catch (Exception ex) {
-            String message =
-                    "Failed to connect from address '" + fromAddress + "': " + ex.getMessage();
+            String message = "Failed to " + detailedMessage + " due to: " + ex.getMessage();
             if (LOG.isDebugEnabled()) {
                 LOG.debug(message, ex);
             } else if (logFailed) {

@@ -271,11 +271,6 @@ public class HistoryServer {
             Router router = new Router();
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
-            if (!webDir.exists() && !webDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
-            }
-
             createDashboardConfigFile();
 
             archiveFetcher.start();
@@ -332,7 +327,7 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false)));
+                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");
