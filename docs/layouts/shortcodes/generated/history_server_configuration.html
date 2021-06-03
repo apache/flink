@@ -33,6 +33,12 @@
             <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
         </tr>
         <tr>
+            <td><h5>historyserver.security.basic.auth.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enable basic authentication to the HistoryServer web frontend.</td>
+        </tr>
+        <tr>
             <td><h5>historyserver.web.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -55,12 +61,6 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the global SSL flag security.ssl.enabled is set to true.</td>
-        </tr>
-        <tr>
-            <td><h5>historyserver.security.basic.auth.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>Enable basic authentication to the HistoryServer web frontend.</td>
         </tr>
         <tr>
             <td><h5>historyserver.web.tmpdir</h5></td>
