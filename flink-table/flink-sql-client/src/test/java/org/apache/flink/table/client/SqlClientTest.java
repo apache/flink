@@ -205,6 +205,14 @@ public class SqlClientTest {
         }
     }
 
+    @Test
+    public void testExecuteSqlWithHDFSFile() throws Exception {
+        String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
+        thrown.expect(SqlClientException.class);
+        thrown.expectMessage("SQL Client only supports to load files in local.");
+        runSqlClient(args);
+    }
+
     private String runSqlClient(String[] args) throws Exception {
         return runSqlClient(args, "QUIT;\n");
     }
