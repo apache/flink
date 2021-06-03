@@ -1291,28 +1291,28 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testExplain() {
         String sql = "explain select * from emps";
-        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
     public void testExplainPlanFor() {
         String sql = "explain plan for select * from emps";
-        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
     public void testExplainChangelogMode() {
         String sql = "explain changelog_mode select * from emps";
-        String expected = "EXPLAIN CHANGELOG_MODE SELECT *\n" + "FROM `EMPS`";
+        String expected = "EXPLAIN CHANGELOG_MODE SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
     @Test
     public void testExplainEstimatedCost() {
         String sql = "explain estimated_cost select * from emps";
-        String expected = "EXPLAIN ESTIMATED_COST SELECT *\n" + "FROM `EMPS`";
+        String expected = "EXPLAIN ESTIMATED_COST SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
@@ -1394,9 +1394,9 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testExplainRepeatExplainDetails() {
+    public void testExplainDuplicateExplainDetails() {
         String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
-        this.sql(sql).fails("EXPLAIN DETAIL must be unique.");
+        this.sql(sql).fails("EXPLAINDETAIL is duplicate.");
     }
 
     @Test

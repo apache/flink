@@ -27,10 +27,14 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** EXPLAIN (PLAN FOR)* | ESTIMATED_COST, CHANGELOG_MODE, JSON_EXECUTION_PLAN STATEMENT sql call. */
+/**
+ * EXPLAIN [PLAN FOR | (ESTIMATED_COST | CHANGELOG_MODE | JSON_EXECUTION_PLAN) (,(ESTIMATED_COST |
+ * CHANGELOG_MODE | JSON_EXECUTION_PLAN))*] STATEMENT sql call.
+ */
 public class SqlRichExplain extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
@@ -38,6 +42,10 @@ public class SqlRichExplain extends SqlCall {
 
     private SqlNode statement;
     private final Set<String> explainDetails;
+
+    public SqlRichExplain(SqlParserPos pos, SqlNode statement) {
+        this(pos, statement, new HashSet<>());
+    }
 
     public SqlRichExplain(SqlParserPos pos, SqlNode statement, Set<String> explainDetails) {
         super(pos);

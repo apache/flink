@@ -946,6 +946,12 @@ public class SqlToOperationConverter {
         Operation operation;
         SqlNode sqlNode = sqlExplain.getStatement();
         Set<String> explainDetails = sqlExplain.getExplainDetails();
+        /*
+            Link to FLINK-22155,EXPLAIN statement should validate insert and query.if sql is a insert statement,
+            it will parse to RichSqlInsert, But if sql is a select statement and union exists,
+            then it will be converted to sqlBasicCall with union as operator instead of SqlSelect SqlNode.
+            So if it is not an insert statement, we will use convertSqlQuery to parse the statement
+        */
         if (sqlNode instanceof RichSqlInsert) {
             operation = convertSqlInsert((RichSqlInsert) sqlNode);
         } else {

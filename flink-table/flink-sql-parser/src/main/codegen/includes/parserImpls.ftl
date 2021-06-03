@@ -1666,36 +1666,10 @@ SqlNode SqlRichExplain() :
     [
         <PLAN> <FOR> 
         |
-        (
-            <ESTIMATED_COST> 
-            | 
-            <CHANGELOG_MODE> 
-            | 
-            <JSON_EXECUTION_PLAN>
-        ) {
-            if (explainDetails.contains(token.image.toUpperCase())) {
-                throw SqlUtil.newContextException(getPos(), 
-                ParserResource.RESOURCE.explainDetailRepeat());
-            } else {
-                    explainDetails.add(token.image.toUpperCase());
-            }
-        }
+            ParseExplainDetail(explainDetails)
         (
             <COMMA>
-            (
-                <ESTIMATED_COST> 
-                | 
-                <CHANGELOG_MODE> 
-                | 
-                <JSON_EXECUTION_PLAN>
-            ) {
-                if (explainDetails.contains(token.image.toUpperCase())) {
-                    throw SqlUtil.newContextException(getPos(), 
-                    ParserResource.RESOURCE.explainDetailRepeat());
-                } else {
-                    explainDetails.add(token.image.toUpperCase());
-                }
-            }
+            ParseExplainDetail(explainDetails)
         )*
     ]
     (
@@ -1705,6 +1679,27 @@ SqlNode SqlRichExplain() :
     )
     {
         return new SqlRichExplain(getPos(), stmt, explainDetails);
+    }
+}
+
+void ParseExplainDetail(Set<String> explainDetails):
+{
+}
+{
+    (
+        <ESTIMATED_COST> 
+        | 
+        <CHANGELOG_MODE> 
+        | 
+        <JSON_EXECUTION_PLAN>
+    ) 
+    {
+        if (explainDetails.contains(token.image.toUpperCase())) {
+            throw SqlUtil.newContextException(getPos(), 
+            ParserResource.RESOURCE.explainDetailIsDuplicate());
+        } else {
+            explainDetails.add(token.image.toUpperCase());
+        }
     }
 }
 
