@@ -31,8 +31,8 @@ cdef class RowKeySelector:
 
 cdef class AggsHandleFunctionBase:
     cdef void open(self, object state_data_view_store)
-    cdef void accumulate(self, list input_data)
-    cdef void retract(self, list input_data)
+    cdef void accumulate(self, InternalRow input_data)
+    cdef void retract(self, InternalRow input_data)
     cdef void merge(self, list accumulators)
     cdef void set_accumulators(self, list accumulators)
     cdef list get_accumulators(self)

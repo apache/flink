@@ -64,7 +64,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
                 inputType,
                 outputType,
                 udtfInputOffsets,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                toCoderParam(tableFunction),
                 FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
                 FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
         this.tableFunction = Preconditions.checkNotNull(tableFunction);
@@ -102,6 +102,15 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
         builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
         return builder.build();
+    }
+
+    private static FlinkFnApi.CoderParam.DataType toCoderParam(
+            PythonFunctionInfo pythonFunctionInfo) {
+        if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
+            return FlinkFnApi.CoderParam.DataType.ROW;
+        } else {
+            return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
+        }
     }
 
     /** The received udtf execution result is a finish message when it is a byte with value 0x00. */

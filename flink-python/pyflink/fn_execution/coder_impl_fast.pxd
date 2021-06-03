@@ -29,6 +29,8 @@ cdef enum InternalRowKind:
 cdef class InternalRow:
     cdef readonly list values
     cdef readonly InternalRowKind row_kind
+    cdef list field_names
+    cpdef object to_row(self)
     cdef bint is_retract_msg(self)
     cdef bint is_accumulate_msg(self)
 
