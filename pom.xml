@@ -534,7 +534,7 @@ under the License.
 				<scope>import</scope>
 				<version>2.12.1</version>
 			</dependency>
-			
+
 			<dependency>
 				<groupId>com.squareup.okhttp3</groupId>
 				<artifactId>okhttp</artifactId>
@@ -1418,6 +1418,7 @@ under the License.
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-pulsar/src/test/resources/**</exclude>
+						<exclude>flink-connectors/flink-connector-dynamodb/src/test/resources/profile</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
