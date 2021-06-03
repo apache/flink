@@ -84,8 +84,13 @@ public class RowDataToCsvConverters implements Serializable {
             // top level reuses the object node container
             final ObjectNode objectNode = (ObjectNode) container;
             for (int i = 0; i < rowArity; i++) {
-                objectNode.set(
-                        fieldNames[i], fieldConverters[i].convert(csvMapper, container, row, i));
+                try {
+                    objectNode.set(
+                            fieldNames[i],
+                            fieldConverters[i].convert(csvMapper, container, row, i));
+                } catch (Throwable t) {
+                    throw new RuntimeException("at field: " + fieldNames[i], t);
+                }
             }
             return objectNode;
         };

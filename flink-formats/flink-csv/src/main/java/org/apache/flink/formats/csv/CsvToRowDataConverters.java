@@ -96,10 +96,14 @@ public class CsvToRowDataConverters implements Serializable {
                 } else {
                     field = jsonNode.get(i);
                 }
-                if (field == null) {
-                    row.setField(i, null);
-                } else {
-                    row.setField(i, fieldConverters[i].convert(field));
+                try {
+                    if (field == null) {
+                        row.setField(i, null);
+                    } else {
+                        row.setField(i, fieldConverters[i].convert(field));
+                    }
+                } catch (Throwable t) {
+                    throw new RuntimeException("at field: " + fieldNames[i], t);
                 }
             }
             return row;

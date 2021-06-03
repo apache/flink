@@ -348,6 +348,39 @@ public class CsvRowDataSerDeSchemaTest {
         testFieldDeserialization(STRING(), "\"abc", "\"abc", deserConfig, ",");
     }
 
+    @Test
+    public void testSerializationWithTypeMisMatch() {
+        DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+        CsvRowDataSerializationSchema.Builder serSchemaBuilder =
+                new CsvRowDataSerializationSchema.Builder(rowType);
+        RowData rowData = rowData("Test", 1, "Test");
+        String errorMessage = String.format("Could not serialize row '%s' at field: f2.", rowData);
+        try {
+            serialize(serSchemaBuilder, rowData);
+            fail("expecting exception message:" + errorMessage);
+        } catch (Throwable t) {
+            assertEquals(errorMessage, t.getMessage());
+        }
+    }
+
+    @Test
+    public void testDeserializationWithTypeMisMatch() {
+        DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+        CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
+                new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
+        String data = "Test,1,Test";
+        String errorMessage =
+                String.format("Failed to deserialize CSV row '%s' at field: f2.", data);
+        try {
+            deserialize(deserSchemaBuilder, data);
+            fail("expecting exception message:" + errorMessage);
+        } catch (Throwable t) {
+            assertEquals(errorMessage, t.getMessage());
+        }
+    }
+
     private void testNullableField(DataType fieldType, String string, Object value)
             throws Exception {
         testField(

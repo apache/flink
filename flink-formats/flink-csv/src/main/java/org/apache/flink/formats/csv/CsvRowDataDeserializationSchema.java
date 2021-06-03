@@ -159,7 +159,10 @@ public final class CsvRowDataDeserializationSchema implements DeserializationSch
                 return null;
             }
             throw new IOException(
-                    "Failed to deserialize CSV row '" + new String(message) + "'.", t);
+                    String.format(
+                            "Failed to deserialize CSV row '%s' %s.",
+                            new String(message), t.getMessage()),
+                    t);
         }
     }
 
