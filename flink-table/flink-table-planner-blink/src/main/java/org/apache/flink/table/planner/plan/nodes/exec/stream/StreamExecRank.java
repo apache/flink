@@ -43,6 +43,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.AbstractTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.AppendOnlyFirstNFunction;
 import org.apache.flink.table.runtime.operators.rank.AppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.ComparableRecordComparator;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
@@ -50,6 +51,7 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -207,18 +209,34 @@ public class StreamExecRank extends ExecNodeBase<RowData>
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
-            processFunction =
-                    new AppendOnlyTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
-                            inputRowTypeInfo,
-                            sortKeyComparator,
-                            sortKeySelector,
-                            rankType,
-                            rankRange,
-                            generateUpdateBefore,
-                            outputRankNumber,
-                            cacheSize);
+            if (sortFields.length == 1
+                    && TypeCheckUtils.isProcTime(inputType.getChildren().get(sortFields[0]))
+                    && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
+                processFunction =
+                        new AppendOnlyFirstNFunction(
+                                minIdleStateRetentionTime,
+                                maxIdleStateRetentionTime,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber);
+            } else {
+                processFunction =
+                        new AppendOnlyTopNFunction(
+                                minIdleStateRetentionTime,
+                                maxIdleStateRetentionTime,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber,
+                                cacheSize);
+            }
         } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
             RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
                     (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
