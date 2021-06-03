@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.operations;
 
-import org.apache.commons.collections.CollectionUtils;
-
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,10 +28,8 @@ public class ExplainOperation implements Operation {
     private final Operation child;
     private final Set<String> explainDetails;
 
-    // this construct used to adapt to the old API
     public ExplainOperation(Operation child) {
-        this.child = child;
-        this.explainDetails = new HashSet<>();
+        this(child, new HashSet<>());
     }
 
     public ExplainOperation(Operation child, Set<String> explainDetails) {
@@ -48,7 +44,7 @@ public class ExplainOperation implements Operation {
     @Override
     public String asSummaryString() {
         String operationName = "EXPLAIN";
-        if (CollectionUtils.isNotEmpty(explainDetails)) {
+        if (!explainDetails.isEmpty()) {
             operationName =
                     String.format(
                             "EXPLAIN %s",

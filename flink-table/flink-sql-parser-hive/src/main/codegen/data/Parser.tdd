@@ -103,10 +103,8 @@
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
-    "java.util.ArrayList"
-    "java.util.HashSet"
     "java.util.List"
-    "java.util.Set"
+    "java.util.ArrayList"
   ]
 
   # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
@@ -115,7 +113,6 @@
   keywords: [
     "BYTES"
     "CATALOGS"
-    "CHANGELOG_MODE"
     "CHANGE"
     "COLLECTION"
     "COLUMNS"
@@ -126,7 +123,6 @@
     "DISABLE"
     "ENABLE"
     "ESCAPED"
-    "ESTIMATED_COST"
     "EXTENDED"
     "FIELDS"
     "FILEFORMAT"
@@ -137,7 +133,6 @@
     "ITEMS"
     "JAR"
     "JARS"
-    "JSON_EXECUTION_PLAN"
     "KEYS"
     "LINES"
     "LOAD"
