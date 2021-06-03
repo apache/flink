@@ -49,7 +49,8 @@ It declares how much memory in total should be assigned to the Flink *JVM proces
 
 <span class="label label-info">Note</span> If you configure the *total Flink memory* Flink will implicitly add JVM memory components
 to derive the *total process memory* and request a container with the memory of that derived size.
-
+```
+```
 <div class="alert alert-warning">
   <strong>Warning:</strong> If Flink or user code allocates unmanaged off-heap (native) memory beyond the container size
   the job can fail because the deployment environment can kill the offending containers.
@@ -66,7 +67,8 @@ will dictate the optimal memory configurations of your cluster.
 ### HashMap state backend
 
 When running a stateless job or using the [HashMapStateBackend]({{< ref "docs/ops/state/state_backends#the-hashmapstatebackend" >}})), set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
-This will ensure that the maximum amount of heap memory is allocated for user code on the JVM.
+This will ensure that the maximum amount of heap memory is allocated for user code on the JVM. 
+Note: it can cause NullPointerException when using Window TVF by SQL when running locally, due to free page size is zero for allocating memory segment during startup.
 
 ### RocksDB state backend
 
