@@ -349,7 +349,7 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    public void testSerializationWithTypeMisMatch() {
+    public void testSerializationWithTypesMismatch() {
         DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
         RowType rowType = (RowType) dataType.getLogicalType();
         CsvRowDataSerializationSchema.Builder serSchemaBuilder =
@@ -365,7 +365,7 @@ public class CsvRowDataSerDeSchemaTest {
     }
 
     @Test
-    public void testDeserializationWithTypeMisMatch() {
+    public void testDeserializationWithTypesMismatch() {
         DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
         RowType rowType = (RowType) dataType.getLogicalType();
         CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
