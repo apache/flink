@@ -49,8 +49,7 @@ It declares how much memory in total should be assigned to the Flink *JVM proces
 
 <span class="label label-info">Note</span> If you configure the *total Flink memory* Flink will implicitly add JVM memory components
 to derive the *total process memory* and request a container with the memory of that derived size.
-```
-```
+
 <div class="alert alert-warning">
   <strong>Warning:</strong> If Flink or user code allocates unmanaged off-heap (native) memory beyond the container size
   the job can fail because the deployment environment can kill the offending containers.
