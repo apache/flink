@@ -26,6 +26,7 @@ from pyflink.fn_execution.beam.beam_stream_fast cimport BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 cdef class FunctionOperation(Operation):
     """
@@ -48,15 +49,23 @@ cdef class FunctionOperation(Operation):
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     cpdef start(self):
         with self.scoped_start_state:
             super(FunctionOperation, self).start()
+            if self._profiler:
+                self._profiler.start()
 
     cpdef finish(self):
         with self.scoped_finish_state:
             super(FunctionOperation, self).finish()
             self.operation.finish()
+            if self._profiler:
+                self._profiler.close()
 
     cpdef teardown(self):
         with self.scoped_finish_state:

@@ -21,6 +21,7 @@ from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 
 class FunctionOperation(Operation):
@@ -37,6 +38,10 @@ class FunctionOperation(Operation):
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
         self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     def setup(self):
         super(FunctionOperation, self).setup()
@@ -44,11 +49,15 @@ class FunctionOperation(Operation):
     def start(self):
         with self.scoped_start_state:
             super(FunctionOperation, self).start()
+            if self._profiler:
+                self._profiler.start()
 
     def finish(self):
         with self.scoped_finish_state:
             super(FunctionOperation, self).finish()
             self.operation.finish()
+            if self._profiler:
+                self._profiler.close()
 
     def needs_finalization(self):
         return False

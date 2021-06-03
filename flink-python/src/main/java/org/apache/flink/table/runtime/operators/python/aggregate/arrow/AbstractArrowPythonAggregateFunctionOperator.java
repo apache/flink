@@ -154,6 +154,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
         }
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         return builder.build();
     }
 
