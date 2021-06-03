@@ -58,20 +58,20 @@ class NamespaceAggsHandleFunctionBase(Generic[N], ABC):
         pass
 
     @abstractmethod
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
         pass
 
     @abstractmethod
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
 
     @abstractmethod
@@ -187,7 +187,7 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                 PickleCoder(),
                 PickleCoder())
 
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -218,7 +218,7 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                         "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -359,9 +359,9 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
             self._window_aggregator.set_accumulators(window, acc)
 
             if input_row._is_accumulate_msg():
-                self._window_aggregator.accumulate(input_value)
+                self._window_aggregator.accumulate(input_row)
             else:
-                self._window_aggregator.retract(input_value)
+                self._window_aggregator.retract(input_row)
             acc = self._window_aggregator.get_accumulators()
             self._window_state.update(acc)
 

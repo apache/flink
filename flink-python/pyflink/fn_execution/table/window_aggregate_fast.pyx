@@ -57,19 +57,19 @@ cdef class NamespaceAggsHandleFunctionBase:
         """
         pass
 
-    cdef void accumulate(self, list input_data):
+    cdef void accumulate(self, InternalRow input_data):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a InternalRow.
         """
         pass
 
-    cdef void retract(self, list input_data):
+    cdef void retract(self, InternalRow input_data):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a InternalRow.
         """
 
     cpdef void merge(self, object namespace, list accumulators):
@@ -183,13 +183,14 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                 PickleCoder(),
                 PickleCoder())
 
-    cdef void accumulate(self, list input_data):
+    cdef void accumulate(self, InternalRow input_data):
         cdef size_t i, j, filter_length
         cdef int distinct_index, filter_arg
         cdef int*filter_args
         cdef bint filtered
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
+        cdef InternalRow internal_row
         for i in range(self._udf_num):
             if i in self._distinct_data_views:
                 distinct_view_descriptor = self._distinct_view_descriptors[i]
@@ -224,14 +225,19 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                 else:
                     raise Exception(
                         "The args are not in the distinct data view, this should not happen.")
+            # Transfer InternalRow to Row in row-based operations
+            if len(args) == 1 and isinstance(args[0], InternalRow):
+                internal_row = <InternalRow> args[0]
+                args[0] = internal_row.to_row()
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    cdef void retract(self, list input_data):
+    cdef void retract(self, InternalRow input_data):
         cdef size_t i, j, filter_length
         cdef int distinct_index, filter_arg
         cdef bint filtered
         cdef DistinctViewDescriptor distinct_view_descriptor
         cdef object distinct_data_view
+        cdef InternalRow internal_row
         for i in range(self._udf_num):
             if i in self._distinct_data_views:
                 distinct_view_descriptor = self._distinct_view_descriptors[i]
@@ -259,6 +265,10 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
             distinct_index = self._distinct_indexes[i]
             if distinct_index >= 0 and args in self._distinct_data_views[distinct_index]:
                 continue
+            # Transfer InternalRow to Row in row-based operations
+            if len(args) == 1 and isinstance(args[0], InternalRow):
+                internal_row = <InternalRow> args[0]
+                args[0] = internal_row.to_row()
             self._udfs[i].retract(self._accumulators[i], *args)
 
     cpdef void merge(self, object namespace, list accumulators):
@@ -393,9 +403,9 @@ cdef class GroupWindowAggFunctionBase:
             self._window_aggregator.set_accumulators(window, acc)
 
             if input_row.is_accumulate_msg():
-                self._window_aggregator.accumulate(input_value)
+                self._window_aggregator.accumulate(input_row)
             else:
-                self._window_aggregator.retract(input_value)
+                self._window_aggregator.retract(input_row)
             acc = self._window_aggregator.get_accumulators()
             self._window_state.update(acc)
 

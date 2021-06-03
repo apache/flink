@@ -37,7 +37,21 @@ ROW_KIND_BIT_SIZE = 2
 cdef class InternalRow:
     def __cinit__(self, list values, InternalRowKind row_kind):
         self.values = values
-        self.row_kind = row_kind
+        self.field_names = []
+
+    cpdef object to_row(self):
+        row = Row()
+        row._values = self.values
+        row.set_field_names(self.field_names)
+        row.set_row_kind(RowKind(self.row_kind))
+        return row
+
+    @staticmethod
+    def from_row(row: Row) -> InternalRow:
+        cdef InternalRow internal_row
+        internal_row = InternalRow(row._values, row.get_row_kind().value)
+        internal_row.field_names = row._fields
+        return internal_row
 
     cdef bint is_retract_msg(self):
         return self.row_kind == InternalRowKind.UPDATE_BEFORE or \
