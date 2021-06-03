@@ -177,7 +177,7 @@ public abstract class AbstractJdbcRowConverter implements JdbcRowConverter {
                 return val -> StringData.fromString((String) val);
             case BINARY:
             case VARBINARY:
-                return val -> (byte[]) val;
+                return val -> val;
             case ARRAY:
             case ROW:
             case MAP:
