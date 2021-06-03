@@ -44,21 +44,26 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Tests migrating from {@link StreamingFileSink} to {@link FileSink}. It trigger a savepoint for
@@ -67,6 +72,8 @@ import java.util.concurrent.CountDownLatch;
 public class FileSinkMigrationITCase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
     private static final String SOURCE_UID = "source";
 
@@ -80,31 +87,34 @@ public class FileSinkMigrationITCase extends TestLogger {
 
     private static final int NUM_BUCKETS = 4;
 
-    private static final Map<String, CountDownLatch> SAVEPOINT_LATCH_MAP =
-            new ConcurrentHashMap<>();
+    private SharedReference<CountDownLatch> savepointLatch;
 
-    private static final Map<String, CountDownLatch> FINAL_CHECKPOINT_LATCH_MAP =
-            new ConcurrentHashMap<>();
-
-    private String latchId;
+    private SharedReference<CountDownLatch> finalCheckpointLatch;
 
     @Before
     public void setup() {
-        this.latchId = UUID.randomUUID().toString();
-        SAVEPOINT_LATCH_MAP.put(latchId, new CountDownLatch(NUM_SOURCES));
+        savepointLatch = sharedObjects.add(new CountDownLatch(NUM_SOURCES));
 
         // We wait for two successful checkpoints in sources before shutting down. This ensures that
         // the sink can commit its data.
         // We need to keep a "static" latch here because all sources need to be kept running
         // while we're waiting for the required number of checkpoints. Otherwise, we would lock up
         // because we can only do checkpoints while all operators are running.
-        FINAL_CHECKPOINT_LATCH_MAP.put(latchId, new CountDownLatch(NUM_SOURCES * 2));
+        finalCheckpointLatch = sharedObjects.add(new CountDownLatch(NUM_SOURCES * 2));
     }
 
-    @After
-    public void teardown() {
-        SAVEPOINT_LATCH_MAP.remove(latchId);
-        FINAL_CHECKPOINT_LATCH_MAP.remove(latchId);
+    @Test
+    public void test() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        SharedReference<Collection<Long>> list = sharedObjects.add(new ArrayList<>());
+        int n = 10000;
+        env.setParallelism(100);
+        env.fromSequence(0, n).map(i -> list.applySync(l -> l.add(i)));
+        env.execute();
+        assertEquals(n + 1, list.get().size());
+        assertEquals(
+                LongStream.rangeClosed(0, n).boxed().collect(Collectors.toList()),
+                list.get().stream().sorted().collect(Collectors.toList()));
     }
 
     @Test
@@ -144,10 +154,10 @@ public class FileSinkMigrationITCase extends TestLogger {
                         .withRollingPolicy(OnCheckpointRollingPolicy.build())
                         .build();
 
-        env.addSource(new StatefulSource(true, latchId))
+        env.addSource(new StatefulSource(true, finalCheckpointLatch))
                 .uid(SOURCE_UID)
                 .setParallelism(NUM_SOURCES)
-                .addSink(new WaitingRunningSink<>(latchId, sink))
+                .addSink(new WaitingRunningSink<>(savepointLatch, sink))
                 .setParallelism(NUM_SINKS)
                 .uid(SINK_UID);
         return env.getStreamGraph().getJobGraph();
@@ -165,7 +175,7 @@ public class FileSinkMigrationITCase extends TestLogger {
                         .withRollingPolicy(OnCheckpointRollingPolicy.build())
                         .build();
 
-        env.addSource(new StatefulSource(false, latchId))
+        env.addSource(new StatefulSource(false, finalCheckpointLatch))
                 .uid(SOURCE_UID)
                 .setParallelism(NUM_SOURCES)
                 .sinkTo(sink)
@@ -184,8 +194,7 @@ public class FileSinkMigrationITCase extends TestLogger {
             JobID jobId = jobSubmissionResultFuture.get().getJobID();
 
             // wait till we can taking savepoint
-            CountDownLatch latch = SAVEPOINT_LATCH_MAP.get(latchId);
-            latch.await();
+            savepointLatch.get().await();
 
             CompletableFuture<String> savepointResultFuture =
                     miniCluster.triggerSavepoint(jobId, savepointBasePath, true);
@@ -211,15 +220,17 @@ public class FileSinkMigrationITCase extends TestLogger {
                     SinkFunction<T>,
                     CheckpointedFunction,
                     CheckpointListener {
-        private final String latchId;
+        private final SharedReference<CountDownLatch> savepointLatch;
         private final StreamingFileSink<T> streamingFileSink;
 
         /**
          * Creates a new {@code StreamingFileSink} that writes files to the given base directory
          * with the give buckets properties.
          */
-        protected WaitingRunningSink(String latchId, StreamingFileSink<T> streamingFileSink) {
-            this.latchId = latchId;
+        protected WaitingRunningSink(
+                SharedReference<CountDownLatch> savepointLatch,
+                StreamingFileSink<T> streamingFileSink) {
+            this.savepointLatch = savepointLatch;
             this.streamingFileSink = streamingFileSink;
         }
 
@@ -261,7 +272,7 @@ public class FileSinkMigrationITCase extends TestLogger {
 
         @Override
         public void invoke(T value, Context context) throws Exception {
-            SAVEPOINT_LATCH_MAP.get(latchId).countDown();
+            savepointLatch.get().countDown();
 
             streamingFileSink.invoke(value, context);
         }
@@ -272,7 +283,7 @@ public class FileSinkMigrationITCase extends TestLogger {
 
         private final boolean takingSavepointMode;
 
-        private final String latchId;
+        private SharedReference<CountDownLatch> finalCheckpointLatch;
 
         private ListState<Integer> nextValueState;
 
@@ -284,9 +295,10 @@ public class FileSinkMigrationITCase extends TestLogger {
 
         private volatile boolean isCanceled;
 
-        public StatefulSource(boolean takingSavepointMode, String latchId) {
+        public StatefulSource(
+                boolean takingSavepointMode, SharedReference<CountDownLatch> finalCheckpointLatch) {
             this.takingSavepointMode = takingSavepointMode;
-            this.latchId = latchId;
+            this.finalCheckpointLatch = finalCheckpointLatch;
         }
 
         @Override
@@ -314,8 +326,7 @@ public class FileSinkMigrationITCase extends TestLogger {
 
                 // Wait the last checkpoint to commit all the pending records.
                 isWaitingCheckpointComplete = true;
-                CountDownLatch latch = FINAL_CHECKPOINT_LATCH_MAP.get(latchId);
-                latch.await();
+                finalCheckpointLatch.get().await();
             }
         }
 
@@ -345,8 +356,7 @@ public class FileSinkMigrationITCase extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
             if (isWaitingCheckpointComplete && snapshottedAfterAllRecordsOutput) {
-                CountDownLatch latch = FINAL_CHECKPOINT_LATCH_MAP.get(latchId);
-                latch.countDown();
+                finalCheckpointLatch.get().countDown();
             }
         }
 
