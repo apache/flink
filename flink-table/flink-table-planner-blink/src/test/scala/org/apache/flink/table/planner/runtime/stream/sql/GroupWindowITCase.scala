@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.{Ignore, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -50,15 +50,6 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
   extends StreamingWithStateTestBase(mode) {
 
   val SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai")
-
-  val upsertSourceCurrencyData = List(
-    changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
-    changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
-    changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
-    changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
-    changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
-    changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
-    changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
 
   override def before(): Unit = {
     super.before()
@@ -382,6 +373,20 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   @Test
   def testWindowAggregateOnUpsertSource(): Unit = {
+
+    def localDateTime(epochSecond: Long): LocalDateTime = {
+      LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
+    }
+
+    val upsertSourceCurrencyData = List(
+      changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
+      changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
+      changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
+      changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
+      changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
+
     val upsertSourceDataId = registerData(upsertSourceCurrencyData)
     tEnv.executeSql(
       s"""
@@ -420,8 +425,22 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Test
-  def testWindowAggregateOnUpsertSourcePushdownWatermark(): Unit = {
+  @Ignore("FLINK-22680")
+  def testUnResolvedWindowAggregateOnUpsertSource(): Unit = {
+
+    def localDateTime(epochSecond: Long): LocalDateTime = {
+      LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
+    }
+
+    val upsertSourceCurrencyData = List(
+      changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
+      changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
+      changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
+      changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
+      changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
+      changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
+
     val upsertSourceDataId = registerData(upsertSourceCurrencyData)
     tEnv.executeSql(
       s"""
@@ -450,10 +469,6 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
-    val expected = Seq(
-      "1970-01-01T00:00,1970-01-01T00:00:05,104",
-      "1970-01-01T00:00:05,1970-01-01T00:00:10,118")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
@@ -545,10 +560,6 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
     tableConfig.getConfiguration.set(
       TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
-  }
-
-  private def localDateTime(epochSecond: Long): LocalDateTime = {
-    LocalDateTime.ofEpochSecond(epochSecond, 0, ZoneOffset.UTC)
   }
 }
 
