@@ -42,7 +42,6 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -79,18 +78,6 @@ public class StreamSQLTestProgram {
 
         ParameterTool params = ParameterTool.fromArgs(args);
         String outputPath = params.getRequired("outputPath");
-        String planner = params.get("planner", "blink");
-
-        final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
-        builder.inStreamingMode();
-
-        if (planner.equals("old")) {
-            builder.useOldPlanner();
-        } else if (planner.equals("blink")) {
-            builder.useBlinkPlanner();
-        }
-
-        final EnvironmentSettings settings = builder.build();
 
         final StreamExecutionEnvironment sEnv =
                 StreamExecutionEnvironment.getExecutionEnvironment();
@@ -99,7 +86,7 @@ public class StreamSQLTestProgram {
         sEnv.enableCheckpointing(4000);
         sEnv.getConfig().setAutoWatermarkInterval(1000);
 
-        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, settings);
+        final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv);
 
         ((TableEnvironmentInternal) tEnv)
                 .registerTableSourceInternal("table1", new GeneratorTableSource(10, 100, 60, 0));
