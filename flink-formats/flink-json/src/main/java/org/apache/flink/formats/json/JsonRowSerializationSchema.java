@@ -398,11 +398,9 @@ public class JsonRowSerializationSchema implements SerializationSchema<Row> {
                                     .convert(mapper, node.get(fieldNames[i]), row.getField(i)));
                 } catch (Throwable t) {
                     throw new IllegalStateException(
-                            String.format(
-                                    "Failed to serialize at field: %s. ", fieldName), t);
-
+                            String.format("Failed to serialize at field: %s. ", fieldName), t);
                 }
-
+            }
             return node;
         };
     }

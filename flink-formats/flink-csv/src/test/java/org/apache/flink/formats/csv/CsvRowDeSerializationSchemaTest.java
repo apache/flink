@@ -300,7 +300,7 @@ public class CsvRowDeSerializationSchemaTest {
         try {
             serialize(serSchemaBuilder, Row.of("test", "test"));
         } catch (Throwable t) {
-            String expectedMessage = "Failed to serialize field: f1";
+            String expectedMessage = "Failed to serialize at field: f1";
             assertTrue(t.getMessage().contains(expectedMessage));
             return;
         }
