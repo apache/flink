@@ -27,7 +27,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
@@ -69,10 +71,14 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
                 new DeclarativeSlotPoolBridgeBuilder(
                         physicalSlotProviderResource.getMainThreadExecutor())
                         .build();
-        //        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
-
+        java.lang.reflect.Field checkDisabled =
+                slotPool.getClass().getField("isBatchSlotRequestTimeoutCheckDisabled");
+        checkDisabled.setAccessible(true);
+        Boolean checkDisabledFlag = (Boolean) checkDisabled.get(slotPool);
+        assertTrue(checkDisabledFlag);
         new PhysicalSlotProviderImpl(
                 LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-        //        assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(false));
+        checkDisabledFlag = (Boolean) checkDisabled.get(slotPool);
+        assertFalse(checkDisabledFlag);
     }
 }
