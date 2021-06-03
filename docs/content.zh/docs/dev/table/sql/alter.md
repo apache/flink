@@ -180,10 +180,12 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 
 ## ALTER FUNCTION
 
-{% highlight sql%}
+```sql
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF EXISTS] [catalog_name.][db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
+```
+
 ```
 
 修改一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个新的 identifier ，可指定 language tag 。若函数不存在，删除会抛出异常。
