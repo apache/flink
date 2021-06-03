@@ -50,4 +50,26 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
         List<String> expected = Arrays.asList("+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));
     }
+
+    @Test
+    public void testFirstN() throws ExecutionException, InterruptedException, IOException {
+        createTestValuesSourceTable(
+                "MyTable1",
+                JavaScalaConversionUtil.toJava(TestData.data4()),
+                "a varchar",
+                "b int",
+                "c int",
+                "t as proctime()");
+        createTestNonInsertOnlyValuesSinkTable("`result1`", "a varchar", "b int", "c bigint");
+        String sql =
+                "insert into `result1` select * from "
+                        + "(select a, b, row_number() over(partition by a order by t asc) as c from MyTable1)"
+                        + " where c <= 2";
+        executeSqlWithJsonPlanVerified(sql).await();
+
+        List<String> expected =
+                Arrays.asList(
+                        "+I[book, 1, 1]", "+I[book, 2, 2]", "+I[fruit, 4, 1]", "+I[fruit, 3, 2]");
+        assertResult(expected, TestValuesTableFactory.getResults("result1"));
+    }
 }
