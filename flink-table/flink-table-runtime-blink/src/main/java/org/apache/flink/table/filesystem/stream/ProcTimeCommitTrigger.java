@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.StringUtils;
 
@@ -34,11 +33,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
-
 /**
- * Partition commit trigger by creation time and processing time service, if 'current processing
- * time' > 'partition creation time' + 'delay', will commit the partition.
+ * Partition commit trigger by creation time and processing time service. It'll commit the partition
+ * that predicated to be committable by {@link PartitionCommitPredicate}
  */
 public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 
@@ -49,23 +46,22 @@ public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 
     private final ListState<Map<String, Long>> pendingPartitionsState;
     private final Map<String, Long> pendingPartitions;
-    private final long commitDelay;
     private final ProcessingTimeService procTimeService;
+    private final PartitionCommitPredicate partitionCommitPredicate;
 
     public ProcTimeCommitTrigger(
             boolean isRestored,
             OperatorStateStore stateStore,
-            Configuration conf,
-            ProcessingTimeService procTimeService)
+            ProcessingTimeService procTimeService,
+            PartitionCommitPredicate partitionCommitPredicate)
             throws Exception {
         this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
         this.pendingPartitions = new HashMap<>();
         if (isRestored) {
             pendingPartitions.putAll(pendingPartitionsState.get().iterator().next());
         }
-
         this.procTimeService = procTimeService;
-        this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
+        this.partitionCommitPredicate = partitionCommitPredicate;
     }
 
     @Override
@@ -79,12 +75,12 @@ public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
     @Override
     public List<String> committablePartitions(long checkpointId) {
         List<String> needCommit = new ArrayList<>();
-        long currentProcTime = procTimeService.getCurrentProcessingTime();
         Iterator<Map.Entry<String, Long>> iter = pendingPartitions.entrySet().iterator();
         while (iter.hasNext()) {
             Map.Entry<String, Long> entry = iter.next();
             long creationTime = entry.getValue();
-            if (commitDelay == 0 || currentProcTime > creationTime + commitDelay) {
+            // don't care about watermark in ProcTimeCommitTrigger
+            if (partitionCommitPredicate.isPartitionCommittable(entry.getKey(), creationTime, 0L)) {
                 needCommit.add(entry.getKey());
                 iter.remove();
             }

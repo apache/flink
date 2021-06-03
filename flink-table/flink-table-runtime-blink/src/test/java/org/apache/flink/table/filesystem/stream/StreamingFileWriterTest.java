@@ -172,7 +172,7 @@ public class StreamingFileWriterTest {
                 new FileSystemTableSink.TableRollingPolicy(
                         false, Long.MAX_VALUE, Duration.ofDays(1).toMillis());
         List<String> partitionKeys = Collections.singletonList("d");
-        // commit delay is 1 second with process commit trigger
+        // commit delay is 1 second with process-time trigger
         Configuration conf = getProcTimeCommitTriggerConf(Duration.ofSeconds(1).toMillis());
         OperatorSubtaskState state;
         long currentTimeMillis = System.currentTimeMillis();
@@ -186,7 +186,6 @@ public class StreamingFileWriterTest {
             harness.processElement(row("2"), 0);
             state = harness.snapshot(1, 1);
             harness.processElement(row("3"), 0);
-            harness.processElement(row("1"), 0);
             harness.notifyOfCompletedCheckpoint(1);
             // assert files aren't committed in {1, 2} partitions
             Assert.assertFalse(isPartitionFileCommitted("1", 0, 0));
@@ -200,19 +199,24 @@ public class StreamingFileWriterTest {
             harness.initializeState(state);
             harness.open();
             harness.processElement(row("3"), 0);
-            // simulate waiting for 2 seconds, now partition is committable
+
+            // simulate waiting for 2 seconds, now partition {3} is committable
             currentTimeMillis += Duration.ofSeconds(2).toMillis();
             harness.setProcessingTime(currentTimeMillis);
-            harness.processElement(row("1"), 0);
+            harness.processElement(row("4"), 0);
             harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
-            // now files in {1, 2, 3} partitions should be committed
+            // only file in partition {3} should be committed
             // assert files are committed
-            Assert.assertTrue(isPartitionFileCommitted("1", 0, 0));
-            Assert.assertTrue(isPartitionFileCommitted("2", 0, 1));
             Assert.assertTrue(isPartitionFileCommitted("3", 0, 2));
-            harness.processElement(row("3"), 0);
+            Assert.assertFalse(isPartitionFileCommitted("4", 0, 3));
+
+            // simulate waiting for 2 seconds again, now partition {1} is committable
+            currentTimeMillis += Duration.ofSeconds(2).toMillis();
+            harness.setProcessingTime(currentTimeMillis);
             state = harness.snapshot(3, 3);
+            harness.notifyOfCompletedCheckpoint(3);
+            Assert.assertTrue(isPartitionFileCommitted("4", 0, 3));
         }
 
         // second retry
@@ -225,12 +229,9 @@ public class StreamingFileWriterTest {
             harness.processElement(row("4"), 0);
             harness.processElement(row("4"), 0);
             harness.snapshot(4, 4);
-            harness.processElement(row("5"), 0);
+            harness.processElement(row("5"), 5);
             harness.endInput();
             // assert files in all partition have been committed
-            // the file for partition 3 will be a newer one with partCounter 3
-            // for previous in-progress file has closed in checkpoint 2
-            Assert.assertTrue(isPartitionFileCommitted("3", 0, 3));
             Assert.assertTrue(isPartitionFileCommitted("4", 0, 4));
             Assert.assertTrue(isPartitionFileCommitted("5", 0, 5));
         }
@@ -244,7 +245,7 @@ public class StreamingFileWriterTest {
                 new FileSystemTableSink.TableRollingPolicy(
                         false, Long.MAX_VALUE, Duration.ofDays(1).toMillis());
         List<String> partitionKeys = Collections.singletonList("d");
-        // commit delay is 1 day with partition commit trigger
+        // commit delay is 1 day with partition-time trigger
         Configuration conf = getPartitionCommitTriggerConf(Duration.ofDays(1).toMillis());
 
         long currentTimeMillis = System.currentTimeMillis();
@@ -264,17 +265,12 @@ public class StreamingFileWriterTest {
             harness.setup();
             harness.initializeEmptyState();
             harness.open();
-            harness.setProcessingTime(currentTimeMillis);
             harness.processElement(row(yesterdayPartition), 0);
-            harness.processElement(row(todayPartition), 0);
             harness.processWatermark(currentTimeMillis);
             state = harness.snapshot(1, 1);
-            harness.processElement(row(todayPartition), 0);
             harness.notifyOfCompletedCheckpoint(1);
             // assert yesterday partition file is committed
             Assert.assertTrue(isPartitionFileCommitted(yesterdayPartition, 0, 0));
-            // assert today partition file isn't committed
-            Assert.assertFalse(isPartitionFileCommitted(todayPartition, 0, 1));
         }
 
         // first retry
@@ -285,17 +281,24 @@ public class StreamingFileWriterTest {
             harness.open();
             harness.processElement(row(tomorrowPartition), 0);
             harness.processElement(row(todayPartition), 0);
+
             // simulate waiting for 1 day
             currentTimeMillis += Duration.ofDays(1).toMillis();
             harness.processWatermark(currentTimeMillis);
             harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
             // assert today partition file is committed
-            Assert.assertTrue(isPartitionFileCommitted(todayPartition, 0, 1));
+            Assert.assertTrue(isPartitionFileCommitted(todayPartition, 0, 2));
             // assert tomorrow partition file isn't committed
-            Assert.assertFalse(isPartitionFileCommitted(tomorrowPartition, 0, 2));
-            harness.processElement(row(tomorrowPartition), 0);
+            Assert.assertFalse(isPartitionFileCommitted(tomorrowPartition, 0, 1));
+
+            // simulate waiting for 1 day again, now tomorrow partition is committable
+            currentTimeMillis += Duration.ofDays(1).toMillis();
+            harness.processWatermark(currentTimeMillis);
             state = harness.snapshot(3, 3);
+            harness.notifyOfCompletedCheckpoint(3);
+            Assert.assertTrue(isPartitionFileCommitted(tomorrowPartition, 0, 1));
+
             harness.processElement(row(nextYearPartition), 0);
         }
 
@@ -307,9 +310,10 @@ public class StreamingFileWriterTest {
             harness.open();
 
             harness.processElement(row(nextYearPartition), 0);
+            harness.processElement(row(tomorrowPartition), 0);
             harness.endInput();
             // assert files in all partition have been committed
-            Assert.assertTrue(isPartitionFileCommitted(tomorrowPartition, 0, 2));
+            Assert.assertTrue(isPartitionFileCommitted(tomorrowPartition, 0, 4));
             Assert.assertTrue(isPartitionFileCommitted(nextYearPartition, 0, 3));
         }
     }
