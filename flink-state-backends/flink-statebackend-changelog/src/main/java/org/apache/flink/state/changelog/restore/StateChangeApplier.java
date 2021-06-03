@@ -15,35 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.changelog;
+package org.apache.flink.state.changelog.restore;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.state.changelog.StateChangeOperation;
 
-/** Change of state of a keyed operator. Used for generic incremental checkpoints. */
+/** Applies state data change to some state. */
 @Internal
-public class StateChange {
-
-    private final int keyGroup;
-    private final byte[] change;
-
-    public StateChange(int keyGroup, byte[] change) {
-        // todo: enable check in FLINK-23035
-        // Preconditions.checkArgument(keyGroup >= 0);
-        this.keyGroup = keyGroup;
-        this.change = Preconditions.checkNotNull(change);
-    }
-
-    @Override
-    public String toString() {
-        return String.format("keyGroup=%d, dataSize=%d", keyGroup, change.length);
-    }
-
-    public int getKeyGroup() {
-        return keyGroup;
-    }
-
-    public byte[] getChange() {
-        return change;
-    }
+public interface StateChangeApplier {
+    void apply(StateChangeOperation operation, DataInputView in) throws Exception;
 }

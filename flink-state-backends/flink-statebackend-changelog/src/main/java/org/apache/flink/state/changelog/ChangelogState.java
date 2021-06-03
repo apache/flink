@@ -1,3 +1,4 @@
+package org.apache.flink.state.changelog;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,35 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.changelog;
-
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
 
-/** Change of state of a keyed operator. Used for generic incremental checkpoints. */
+/**
+ * State used by {@link ChangelogKeyedStateBackend}. Allows replaying recorded changes on recovery
+ * using {@link StateChangeApplier}
+ */
 @Internal
-public class StateChange {
-
-    private final int keyGroup;
-    private final byte[] change;
-
-    public StateChange(int keyGroup, byte[] change) {
-        // todo: enable check in FLINK-23035
-        // Preconditions.checkArgument(keyGroup >= 0);
-        this.keyGroup = keyGroup;
-        this.change = Preconditions.checkNotNull(change);
-    }
-
-    @Override
-    public String toString() {
-        return String.format("keyGroup=%d, dataSize=%d", keyGroup, change.length);
-    }
-
-    public int getKeyGroup() {
-        return keyGroup;
-    }
-
-    public byte[] getChange() {
-        return change;
-    }
+public interface ChangelogState {
+    StateChangeApplier getChangeApplier(ChangelogApplierFactory factory);
 }
