@@ -96,7 +96,7 @@ public class JsonRowDataSerializationSchema implements SerializationSchema<RowDa
             runtimeConverter.convert(mapper, node, row);
             return mapper.writeValueAsBytes(node);
         } catch (Throwable t) {
-            throw new RuntimeException("Could not serialize row '" + row + "'. ", t);
+            throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
         }
     }
 

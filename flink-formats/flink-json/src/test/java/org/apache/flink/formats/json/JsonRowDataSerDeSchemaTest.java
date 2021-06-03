@@ -19,6 +19,7 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
@@ -72,6 +73,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
@@ -562,7 +564,7 @@ public class JsonRowDataSerDeSchemaTest {
             serializationSchema1.serialize(rowData);
             Assert.fail("expecting exception message: " + errorMessage1);
         } catch (Throwable t) {
-            assertEquals(errorMessage1, t.getCause().getMessage());
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage1));
         }
 
         // mapNullKey Mode is drop
@@ -626,6 +628,44 @@ public class JsonRowDataSerDeSchemaTest {
             if (spec.errorMessage != null) {
                 testParseErrors(spec);
             }
+        }
+    }
+
+    @Test
+    public void testSerializationWithTypesMismatch() {
+        RowType rowType = (RowType) ROW(FIELD("f0", INT()), FIELD("f1", STRING())).getLogicalType();
+        GenericRowData genericRowData = new GenericRowData(2);
+        genericRowData.setField(0, 1);
+        genericRowData.setField(1, 1);
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.SQL,
+                        JsonOptions.MapNullKeyMode.FAIL,
+                        "null",
+                        true);
+        String errorMessage = "Fail to serialize at field: f1.";
+        try {
+            serializationSchema.serialize(genericRowData);
+            fail("expecting exception message: " + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
+        }
+    }
+
+    @Test
+    public void testDeserializationWithTypesMismatch() {
+        RowType rowType = (RowType) ROW(FIELD("f0", STRING()), FIELD("f1", INT())).getLogicalType();
+        String json = "{\"f0\":\"abc\", \"f1\": \"abc\"}";
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
+        String errorMessage = "Fail to deserialize at field: f1.";
+        try {
+            deserializationSchema.deserialize(json.getBytes());
+            fail("expecting exception message: " + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
         }
     }
 

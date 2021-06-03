@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.api.common.typeutils.base.VoidSerializer;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -60,6 +61,7 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.TimestampData.fromInstant;
 import static org.apache.flink.table.data.TimestampData.fromLocalDateTime;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -346,6 +348,38 @@ public class CsvRowDataSerDeSchemaTest {
                         deserSchemaBuilder.disableQuoteCharacter().setFieldDelimiter(',');
 
         testFieldDeserialization(STRING(), "\"abc", "\"abc", deserConfig, ",");
+    }
+
+    @Test
+    public void testSerializationWithTypesMismatch() {
+        DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+        CsvRowDataSerializationSchema.Builder serSchemaBuilder =
+                new CsvRowDataSerializationSchema.Builder(rowType);
+        RowData rowData = rowData("Test", 1, "Test");
+        String errorMessage = "Fail to serialize at field: f2.";
+        try {
+            serialize(serSchemaBuilder, rowData);
+            fail("expecting exception message:" + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
+        }
+    }
+
+    @Test
+    public void testDeserializationWithTypesMismatch() {
+        DataType dataType = ROW(FIELD("f0", STRING()), FIELD("f1", INT()), FIELD("f2", INT()));
+        RowType rowType = (RowType) dataType.getLogicalType();
+        CsvRowDataDeserializationSchema.Builder deserSchemaBuilder =
+                new CsvRowDataDeserializationSchema.Builder(rowType, InternalTypeInfo.of(rowType));
+        String data = "Test,1,Test";
+        String errorMessage = "Fail to deserialize at field: f2.";
+        try {
+            deserialize(deserSchemaBuilder, data);
+            fail("expecting exception message:" + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
+        }
     }
 
     private void testNullableField(DataType fieldType, String string, Object value)

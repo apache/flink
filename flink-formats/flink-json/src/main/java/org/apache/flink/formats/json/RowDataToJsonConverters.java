@@ -330,8 +330,15 @@ public class RowDataToJsonConverters implements Serializable {
             RowData row = (RowData) value;
             for (int i = 0; i < fieldCount; i++) {
                 String fieldName = fieldNames[i];
-                Object field = fieldGetters[i].getFieldOrNull(row);
-                node.set(fieldName, fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                try {
+                    Object field = fieldGetters[i].getFieldOrNull(row);
+                    node.set(
+                            fieldName,
+                            fieldConverters[i].convert(mapper, node.get(fieldName), field));
+                } catch (Throwable t) {
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldName), t);
+                }
             }
             return node;
         };
