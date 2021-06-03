@@ -80,10 +80,10 @@ class TableEnvironmentTest(object):
             "python_scalar_func", udf(lambda i: i, result_type=DataTypes.INT()))
 
         t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+                                     "org.apache.flink.table.legacyutils.RichFunc0")
         t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
-        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
+            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.legacyutils.TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
@@ -148,11 +148,11 @@ class TableEnvironmentTest(object):
         t_env = self.t_env
 
         t_env.create_java_temporary_system_function(
-            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
         t_env.create_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
         t_env.create_java_temporary_function(
-            "table_func", "org.apache.flink.table.utils.TableFunc1")
+            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
         self.assert_equals(t_env.list_user_defined_functions(),
                            ['scalar_func', 'agg_func', 'table_func'])
 
@@ -354,13 +354,13 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         t_env = self.t_env
 
         t_env.register_java_function(
-            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
 
         t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
 
         t_env.register_java_function(
-            "table_func", "org.apache.flink.table.utils.TableFunc2")
+            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['scalar_func', 'agg_func', 'table_func']
@@ -432,11 +432,11 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         t_env = self.t_env
 
         t_env.create_java_temporary_system_function(
-            "scalar_func", "org.apache.flink.table.expressions.utils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
         t_env.create_java_function(
-            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
         t_env.create_java_temporary_function(
-            "table_func", "org.apache.flink.table.utils.TableFunc1")
+            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
         self.assert_equals(t_env.list_user_defined_functions(),
                            ['scalar_func', 'agg_func', 'table_func'])
 
