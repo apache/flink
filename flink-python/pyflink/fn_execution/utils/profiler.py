@@ -15,26 +15,19 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-# cython: language_level=3
 
-from apache_beam.coders.coder_impl cimport StreamCoderImpl
-from apache_beam.runners.worker.operations cimport Operation
+import cProfile
+import pstats
 
-from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
 
-cdef class FunctionOperation(Operation):
-    cdef Operation consumer
-    cdef bint _is_python_coder
-    cdef StreamCoderImpl _value_coder_impl
-    cdef LengthPrefixBaseCoderImpl _output_coder
-    cdef object process_element
-    cdef object operation
-    cdef object operation_cls
-    cdef object _profiler
-    cdef object generate_operation(self)
+class Profiler(object):
+    def __init__(self):
+        self._pr = cProfile.Profile()
 
-cdef class StatelessFunctionOperation(FunctionOperation):
-    pass
+    def start(self):
+        self._pr.enable()
 
-cdef class StatefulFunctionOperation(FunctionOperation):
-    cdef object keyed_state_backend
+    def close(self):
+        self._pr.disable()
+        ps = pstats.Stats(self._pr).sort_stats('cumulative')
+        ps.print_stats()

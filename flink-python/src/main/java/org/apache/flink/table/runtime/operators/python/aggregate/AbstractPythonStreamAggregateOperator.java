@@ -245,6 +245,7 @@ public abstract class AbstractPythonStreamAggregateOperator
         FlinkFnApi.UserDefinedAggregateFunctions.Builder builder =
                 FlinkFnApi.UserDefinedAggregateFunctions.newBuilder();
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         builder.addAllGrouping(Arrays.stream(grouping).boxed().collect(Collectors.toList()));
         builder.setGenerateUpdateBefore(generateUpdateBefore);
         builder.setIndexOfCountStar(indexOfCountStar);
