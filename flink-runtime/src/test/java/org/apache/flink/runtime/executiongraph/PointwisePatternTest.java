@@ -145,6 +145,7 @@ public class PointwisePatternTest {
         testLowToHigh(19, 21);
         testLowToHigh(15, 20);
         testLowToHigh(11, 31);
+        testLowToHigh(11, 29);
     }
 
     @Test
