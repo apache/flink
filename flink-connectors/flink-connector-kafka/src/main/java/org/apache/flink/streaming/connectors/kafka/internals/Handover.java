@@ -203,7 +203,7 @@ public final class Handover implements Closeable {
     }
 
     /**
-     * A special exception thrown bv the Handover in the {@link #produce(ConsumerRecords)} method
+     * A special exception thrown by the Handover in the {@link #produce(ConsumerRecords)} method
      * when the producer is woken up from a blocking call via {@link #wakeupProducer()}.
      */
     public static final class WakeupException extends Exception {
