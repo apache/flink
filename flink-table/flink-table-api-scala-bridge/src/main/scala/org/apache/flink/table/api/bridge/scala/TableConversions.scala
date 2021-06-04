@@ -26,7 +26,7 @@ import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.{Table, TableException, ValidationException}
 
 /**
-  * Holds methods to convert a [[Table]] into a [[DataSet]] or a [[DataStream]].
+  * Holds methods to convert a [[Table]] into a [[DataStream]].
   *
   * @param table The table to convert.
   */
@@ -34,28 +34,6 @@ import org.apache.flink.table.api.{Table, TableException, ValidationException}
 class TableConversions(table: Table) {
 
   private val internalTable = table.asInstanceOf[TableImpl]
-
-  /**
-    * Converts the given [[Table]] into a [[DataSet]] of a specified type.
-    *
-    * The fields of the [[Table]] are mapped to [[DataSet]] fields as follows:
-    * - [[org.apache.flink.types.Row]] and [[org.apache.flink.api.java.tuple.Tuple]]
-    * types: Fields are mapped by position, field types must match.
-    * - POJO [[DataSet]] types: Fields are mapped by field name, field types must match.
-    *
-    * @tparam T The type of the resulting [[DataSet]].
-    * @return The converted [[DataSet]].
-    */
-  def toDataSet[T: TypeInformation]: DataSet[T] = {
-
-    internalTable.getTableEnvironment match {
-      case tEnv: BatchTableEnvironment =>
-        tEnv.toDataSet(table)
-      case _ =>
-        throw new ValidationException(
-          "Only tables that originate from Scala DataSets can be converted to Scala DataSets.")
-    }
-  }
 
   /**
     * Converts the given [[Table]] into an append [[DataStream]] of a specified type.
