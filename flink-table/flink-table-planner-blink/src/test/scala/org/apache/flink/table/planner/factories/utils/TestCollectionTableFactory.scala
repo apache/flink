@@ -35,7 +35,7 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
-import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource}
+import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 import org.apache.flink.types.Row
@@ -118,21 +118,13 @@ object TestCollectionTableFactory {
     val emitIntervalMs: Long,
     val schema: TableSchema,
     val bounded: Boolean)
-    extends BatchTableSource[Row]
-      with StreamTableSource[Row]
+    extends StreamTableSource[Row]
       with LookupableTableSource[Row] {
 
     private val dataType = schema.toRowDataType
     private val typeInfo = fromDataTypeToTypeInfo(dataType).asInstanceOf[TypeInformation[Row]]
 
     override def isBounded: Boolean = bounded
-
-    def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-      execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
-        SOURCE_DATA,
-        typeInfo.createSerializer(new ExecutionConfig)),
-        typeInfo)
-    }
 
     override def getDataStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[Row] = {
       streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,

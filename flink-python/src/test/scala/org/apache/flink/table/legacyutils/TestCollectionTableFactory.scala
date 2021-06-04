@@ -32,11 +32,11 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
-import org.apache.flink.table.factories.{BatchTableSinkFactory, BatchTableSourceFactory, StreamTableSinkFactory, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{BatchTableSinkFactory, StreamTableSinkFactory, StreamTableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.legacyutils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
-import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource, TableSource}
+import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource, TableSource}
 import org.apache.flink.types.Row
 
 import java.io.IOException
@@ -52,7 +52,6 @@ import scala.collection.JavaConversions._
 class TestCollectionTableFactory
   extends StreamTableSourceFactory[Row]
   with StreamTableSinkFactory[Row]
-  with BatchTableSourceFactory[Row]
   with BatchTableSinkFactory[Row]
 {
 
@@ -70,10 +69,6 @@ class TestCollectionTableFactory
 
   override def createStreamTableSink(properties: JMap[String, String]): StreamTableSink[Row] = {
     getCollectionSink(properties)
-  }
-
-  override def createBatchTableSource(properties: JMap[String, String]): BatchTableSource[Row] = {
-    getCollectionSource(properties, isStreaming = false)
   }
 
   override def createBatchTableSink(properties: JMap[String, String]): BatchTableSink[Row] = {
@@ -141,24 +136,12 @@ object TestCollectionTableFactory {
       val schema: TableSchema,
       val isStreaming: Boolean,
       val parallelism: Optional[Integer])
-    extends BatchTableSource[Row]
-    with StreamTableSource[Row]
+    extends StreamTableSource[Row]
     with LookupableTableSource[Row] {
 
     private val rowType: TypeInformation[Row] = schema.toRowType
 
     override def isBounded: Boolean = !isStreaming
-
-    def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] = {
-      val dataSet = execEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
-        SOURCE_DATA,
-        rowType.createSerializer(new ExecutionConfig)),
-        rowType)
-      if (parallelism.isPresent) {
-        dataSet.setParallelism(parallelism.get())
-      }
-      dataSet
-    }
 
     override def getDataStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[Row] = {
       val dataStream = streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
