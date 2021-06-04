@@ -26,7 +26,7 @@ under the License.
 
 # Google Cloud Storage
 
-[Google Cloud storage](https://cloud.google.com/storage) (GCS) provides cloud storage for a variety of use cases. You can use it for **reading** and **writing data**.
+[Google Cloud storage](https://cloud.google.com/storage) (GCS) provides cloud storage for a variety of use cases. You can use it for **reading** and **writing data** as well in conjunction with the [streaming **state backends**]({{< ref "docs/ops/state/state_backends" >}}).
 
 
 
