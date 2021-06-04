@@ -331,7 +331,7 @@ class DataStreamOverAggregate(
       }
     }ORDER BY: ${orderingToString(inputSchema.relDataType,
         overWindow.orderKeys.getFieldCollations)}, " +
-      s"${if (overWindow.isRows) "ROWS" else "RANGE"}" +
+      s"${if (overWindow.isRows) "ROWS" else "RANGE"} " +
       s"${windowRange(logicWindow, overWindow, inputNode)}, " +
       s"select: (${
         aggregationToString(
