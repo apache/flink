@@ -641,4 +641,129 @@ class GroupWindowITCase extends BatchTestBase {
 
     checkResult(sqlQuery, Seq())
   }
+
+  @Test
+  def testWindowAggregateWithGroupingSet(): Unit = {
+    registerCollection(
+      "T",
+      data3WithTimestamp,
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
+      "a, b, c, ts")
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  b,
+         |  COUNT(a),
+         |  TUMBLE_START(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND),
+         |  GROUP_ID(),
+         |  GROUPING_ID(b),
+         |  GROUPING(b)
+         |  FROM T
+         |  GROUP BY GROUPING SETS (b, ()), TUMBLE(ts, INTERVAL '5' SECOND)
+    """.stripMargin
+
+    checkResult(sqlQuery, Seq(
+      row( 1, 1, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999"), 0, 0, 0),
+      row(2, 2, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999"), 0, 0, 0),
+      row(3, 1, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999"), 0, 0, 0),
+      row(null, 4, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999"), 0, 1, 1),
+      row(3, 2, localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999"), 0, 0, 0),
+      row(4, 3, localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999"), 0, 0, 0),
+      row(null, 5, localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999"), 0, 1, 1),
+      row(4, 1, localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999"), 0, 0, 0),
+      row(5, 4, localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999"), 0, 0, 0),
+      row(null, 5, localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999"), 0, 1, 1),
+      row(5, 1, localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999"), 0, 0, 0),
+      row(6, 4, localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999"), 0, 0, 0),
+      row(null, 5, localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999"), 0, 1, 1),
+      row(6, 2, localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:25.0"), localDateTime("1970-01-01 00:00:24.999"), 0, 0, 0),
+      row(null, 2, localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:25.0"), localDateTime("1970-01-01 00:00:24.999"), 0, 1, 1)
+    ))
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithGroupingSetError(): Unit = {
+    // Each grouping by keys must contain same window
+    registerCollection(
+      "T",
+      data3WithTimestamp,
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
+      "a, b, c, ts")
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  COUNT(a),
+         |  TUMBLE_START(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND)
+         |  FROM T
+         |  GROUP BY GROUPING SETS ((b, TUMBLE(ts, INTERVAL '5' SECOND)), ())
+    """.stripMargin
+    checkResult(sqlQuery, Seq())
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithCubeError(): Unit = {
+    // Each grouping by keys must contain same window
+    registerCollection(
+      "T",
+      data3WithTimestamp,
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
+      "a, b, c, ts")
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  COUNT(a),
+         |  TUMBLE_START(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND)
+         |  FROM T
+         |  GROUP BY cube(b, TUMBLE(ts, INTERVAL '5' SECOND))
+    """.stripMargin
+
+    checkResult(sqlQuery, Seq())
+  }
+
+  @Test(expected = classOf[RuntimeException])
+  def testWindowAggregateWithRollupError(): Unit = {
+    // Each grouping by keys must contain same window
+    registerCollection(
+      "T",
+      data3WithTimestamp,
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
+      "a, b, c, ts")
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  COUNT(a),
+         |  TUMBLE_START(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_END(ts, INTERVAL '5' SECOND),
+         |  TUMBLE_ROWTIME(ts, INTERVAL '5' SECOND)
+         |  FROM T
+         |  GROUP BY rollup(b, TUMBLE(ts, INTERVAL '5' SECOND))
+    """.stripMargin
+
+    checkResult(sqlQuery, Seq())
+  }
 }

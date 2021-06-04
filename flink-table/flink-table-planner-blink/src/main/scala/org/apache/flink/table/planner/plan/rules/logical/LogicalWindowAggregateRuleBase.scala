@@ -62,10 +62,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     if (windowExpressions.length > 1) {
       throw new TableException("Only a single window group function may be used in GROUP BY")
     }
-
-    // check if we have grouping sets
-    val groupSets = agg.getGroupType != Group.SIMPLE
-    !groupSets && windowExpressions.nonEmpty
+    windowExpressions.nonEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -80,6 +77,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     val inAggGroupExpression = getInAggregateGroupExpression(rexBuilder, windowExpr)
 
     val newGroupSet = agg.getGroupSet.except(ImmutableBitSet.of(windowExprIdx))
+    val newGroupSets = agg.getGroupSets.map(_.except(ImmutableBitSet.of(windowExprIdx)))
 
     val newProject = builder
       .push(project.getInput)
@@ -101,7 +99,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       newProject,
       agg.indicator,
       newGroupSet,
-      ImmutableList.of(newGroupSet),
+      newGroupSets,
       finalCalls)
 
     val transformed = call.builder()
@@ -286,10 +284,11 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   private[table] def getWindowExpressions(
       agg: LogicalAggregate,
       project: LogicalProject): Seq[(RexCall, Int)] = {
-    val groupKeys = agg.getGroupSet
+    // get common group key in each group sets
+    val commonGroupKeys = agg.getGroupSets.reduce((list1, list2) => list1.intersect(list2))
 
     // get grouping expressions
-    val groupExpr = project.getProjects.zipWithIndex.filter(p => groupKeys.get(p._2))
+    val groupExpr = project.getProjects.zipWithIndex.filter(p => commonGroupKeys.get(p._2))
 
     // filter grouping expressions for window expressions
     groupExpr.filter { g =>

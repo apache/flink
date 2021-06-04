@@ -67,7 +67,7 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
           CoreRules.PROJECT_TO_CALC,
           FlinkCalcMergeRule.INSTANCE,
           FlinkAggregateRemoveRule.INSTANCE,
-          DecomposeGroupingSetsRule.INSTANCE,
+          DecomposeGroupingSetsRule.AGGREGATE_INSTANCE,
           AggregateReduceGroupingRule.INSTANCE,
           FlinkLogicalAggregate.BATCH_CONVERTER,
           FlinkLogicalCalc.CONVERTER,

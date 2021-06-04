@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
@@ -33,14 +32,13 @@ import java.util
 
 /**
   * Relational operator that eliminates duplicates and computes totals with time window group.
-  *
-  * NOTES: complex group (GROUPING SETS, CUBE, ROLLUP) is not supported now
   */
 abstract class WindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
     groupSet: ImmutableBitSet,
+    groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty])
@@ -49,7 +47,7 @@ abstract class WindowAggregate(
     traitSet,
     child,
     groupSet,
-    ImmutableList.of(groupSet),
+    groupSets,
     aggCalls) {
 
   def getWindow: LogicalWindow = window

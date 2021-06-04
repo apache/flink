@@ -146,6 +146,7 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         windowTableAggregate.getTraitSet,
         windowTableAggregate.getInput,
         windowTableAggregate.getGroupSet,
+        windowTableAggregate.getGroupSets,
         windowTableAggregate.getAggCallList,
         windowTableAggregate.getWindow,
         windowTableAggregate.getNamedProperties)

@@ -34,6 +34,8 @@ import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
+import com.google.common.collect.ImmutableList
+
 import scala.collection.JavaConverters._
 
 class FlinkLogicalWindowAggregate(
@@ -44,7 +46,15 @@ class FlinkLogicalWindowAggregate(
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty])
-  extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties)
+  extends WindowAggregate(
+    cluster,
+    traitSet,
+    child,
+    groupSet,
+    ImmutableList.of(groupSet),
+    aggCalls,
+    window,
+    namedProperties)
   with FlinkLogicalRel {
 
   override def copy(
@@ -84,7 +94,9 @@ class FlinkLogicalWindowAggregateConverter
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg = call.rel(0).asInstanceOf[LogicalWindowAggregate]
-
+    if (agg.getGroupType != Group.SIMPLE) {
+      return false
+    }
     // we do not support these functions natively
     // they have to be converted using the WindowAggregateReduceFunctionsRule
     agg.getAggCallList.asScala.map(_.getAggregation.getKind).forall {

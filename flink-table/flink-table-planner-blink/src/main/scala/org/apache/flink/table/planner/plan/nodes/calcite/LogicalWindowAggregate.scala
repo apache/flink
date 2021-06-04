@@ -23,21 +23,43 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
+
+import com.google.common.collect.ImmutableList
 
 final class LogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
     groupSet: ImmutableBitSet,
+    groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty])
-  extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties) {
+  extends WindowAggregate(
+    cluster,
+    traitSet,
+    child,
+    groupSet,
+    groupSets,
+    aggCalls,
+    window,
+    namedProperties) {
+
+  def this(
+      cluster: RelOptCluster,
+      traitSet: RelTraitSet,
+      child: RelNode,
+      groupSet: ImmutableBitSet,
+      aggCalls: util.List[AggregateCall],
+      window: LogicalWindow,
+      namedProperties: Seq[PlannerNamedWindowProperty]) {
+    this(cluster, traitSet, child, groupSet,
+      ImmutableList.of(groupSet), aggCalls, window, namedProperties)
+  }
 
   override def copy(
       traitSet: RelTraitSet,
@@ -50,6 +72,7 @@ final class LogicalWindowAggregate(
       traitSet,
       input,
       groupSet,
+      groupSets,
       aggCalls,
       window,
       namedProperties)
@@ -61,6 +84,7 @@ final class LogicalWindowAggregate(
       traitSet,
       input,
       getGroupSet,
+      getGroupSets,
       aggCalls,
       window,
       namedProperties)
@@ -73,7 +97,6 @@ object LogicalWindowAggregate {
       window: LogicalWindow,
       namedProperties: Seq[PlannerNamedWindowProperty],
       agg: Aggregate): LogicalWindowAggregate = {
-    require(agg.getGroupType == Group.SIMPLE)
     val cluster: RelOptCluster = agg.getCluster
     val traitSet: RelTraitSet = cluster.traitSetOf(Convention.NONE)
 
@@ -82,6 +105,7 @@ object LogicalWindowAggregate {
       traitSet,
       agg.getInput,
       agg.getGroupSet,
+      agg.getGroupSets,
       agg.getAggCallList,
       window,
       namedProperties)
