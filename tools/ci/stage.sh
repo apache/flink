@@ -58,7 +58,6 @@ flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
-flink-table/flink-table-planner,\
 flink-table/flink-sql-client"
 
 MODULES_BLINK_PLANNER="\
