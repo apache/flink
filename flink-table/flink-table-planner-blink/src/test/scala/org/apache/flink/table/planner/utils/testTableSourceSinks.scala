@@ -1319,10 +1319,7 @@ class OptionsTableSource(
     isBounded: Boolean,
     tableSchema: TableSchema,
     props: JMap[String, String])
-  extends BatchTableSource[Row]
-    with StreamTableSource[Row] {
-  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] =
-    None.asInstanceOf[DataSet[Row]]
+  extends StreamTableSource[Row] {
 
   override def explainSource(): String = s"${classOf[OptionsTableSource].getSimpleName}" +
     s"(props=$props)"

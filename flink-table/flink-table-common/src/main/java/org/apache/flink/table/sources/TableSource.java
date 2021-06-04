@@ -32,9 +32,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 /**
  * Defines an external table with the schema that is provided by {@link TableSource#getTableSchema}.
  *
- * <p>The data of a {@link TableSource} is produced as a {@code DataSet} in case of a {@code
- * BatchTableSource} or as a {@code DataStream} in case of a {@code StreamTableSource}. The type of
- * ths produced {@code DataSet} or {@code DataStream} is specified by the {@link
+ * <p>The data of a {@link TableSource} is produced as a {@code DataStream} in case of a {@code
+ * StreamTableSource}. The type of this produced {@code DataStream} is specified by the {@link
  * TableSource#getProducedDataType()} method.
  *
  * <p>By default, the fields of the {@link TableSchema} are implicitly mapped by name to the fields
@@ -53,7 +52,7 @@ public interface TableSource<T> {
     /**
      * Returns the {@link DataType} for the produced data of the {@link TableSource}.
      *
-     * @return The data type of the returned {@code DataSet} or {@code DataStream}.
+     * @return The data type of the returned {@code DataStream}.
      */
     default DataType getProducedDataType() {
         final TypeInformation<T> legacyType = getReturnType();
