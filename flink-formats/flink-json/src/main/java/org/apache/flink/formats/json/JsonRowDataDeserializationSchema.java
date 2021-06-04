@@ -109,10 +109,7 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
                 return null;
             }
             throw new IOException(
-                    format(
-                            "Failed to deserialize JSON '%s' %s.",
-                            new String(message), t.getMessage()),
-                    t);
+                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
         }
     }
 

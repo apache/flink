@@ -137,8 +137,7 @@ public final class CsvRowDataSerializationSchema implements SerializationSchema<
             runtimeConverter.convert(csvMapper, root, row);
             return objectWriter.writeValueAsBytes(root);
         } catch (Throwable t) {
-            throw new RuntimeException(
-                    String.format("Could not serialize row '%s' %s.", row, t.getMessage()), t);
+            throw new RuntimeException(String.format("Could not serialize row '%s'.", row), t);
         }
     }
 

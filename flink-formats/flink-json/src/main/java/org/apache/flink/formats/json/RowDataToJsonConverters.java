@@ -336,7 +336,8 @@ public class RowDataToJsonConverters implements Serializable {
                             fieldName,
                             fieldConverters[i].convert(mapper, node.get(fieldName), field));
                 } catch (Throwable t) {
-                    throw new RuntimeException("at field: " + fieldName, t);
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldName), t);
                 }
             }
             return node;

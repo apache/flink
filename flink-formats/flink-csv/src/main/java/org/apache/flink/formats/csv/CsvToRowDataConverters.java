@@ -103,7 +103,8 @@ public class CsvToRowDataConverters implements Serializable {
                         row.setField(i, fieldConverters[i].convert(field));
                     }
                 } catch (Throwable t) {
-                    throw new RuntimeException("at field: " + fieldNames[i], t);
+                    throw new RuntimeException(
+                            String.format("Fail to deserialize at field: %s.", fieldNames[i]), t);
                 }
             }
             return row;

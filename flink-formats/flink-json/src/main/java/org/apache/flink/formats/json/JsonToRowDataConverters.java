@@ -351,7 +351,8 @@ public class JsonToRowDataConverters implements Serializable {
                     Object convertedField = convertField(fieldConverters[i], fieldName, field);
                     row.setField(i, convertedField);
                 } catch (Throwable t) {
-                    throw new JsonParseException("at field: " + fieldName, t);
+                    throw new JsonParseException(
+                            String.format("Fail to deserialize at field: %s.", fieldName), t);
                 }
             }
             return row;

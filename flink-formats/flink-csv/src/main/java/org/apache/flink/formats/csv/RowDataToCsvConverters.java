@@ -89,7 +89,8 @@ public class RowDataToCsvConverters implements Serializable {
                             fieldNames[i],
                             fieldConverters[i].convert(csvMapper, container, row, i));
                 } catch (Throwable t) {
-                    throw new RuntimeException("at field: " + fieldNames[i], t);
+                    throw new RuntimeException(
+                            String.format("Fail to serialize at field: %s.", fieldNames[i]), t);
                 }
             }
             return objectNode;
