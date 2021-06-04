@@ -2,7 +2,6 @@
 title: "配置参数"
 weight: 3
 type: docs
-bookToc: false
 aliases:
   - /zh/deployment/config.html
   - /zh/ops/config.html
