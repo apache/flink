@@ -45,11 +45,14 @@ env.readTextFile("gs://<bucket>/<endpoint>");
 // Write to GCS bucket
 stream.writeAsText("gs://<bucket>/<endpoint>");
 
+// Use GCS as checkpoint storage
+env.getCheckpointConfig().setCheckpointStorage("gs://<bucket>/<endpoint>");
+
 ```
 
 ### Libraries
 
-You must include the following libraries in Flink's `lib` directory to connect Flink with gcs:
+You must include the following jars in Flink's `lib` directory to connect Flink with gcs:
 
 ```xml
 <dependency>
@@ -65,12 +68,39 @@ You must include the following libraries in Flink's `lib` directory to connect F
 </dependency>
 ```
 
-We have tested with `flink-shared-hadoop2-uber version` >= `2.8.3-1.8.3`.
+We have tested with `flink-shared-hadoop2-uber` version >= `2.8.3-1.8.3`.
+You can track the latest version of the [gcs-connector hadoop 2](https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar).
 
 ### Authentication to access GCS
 
 Most operations on GCS require authentication. Please see [the documentation on Google Cloud Storage authentication](https://cloud.google.com/storage/docs/authentication) for more information.
 
-You can provide the necessary key via the `GOOGLE_APPLICATION_CREDENTIALS` environment variable. 
+You can use the following method for authentication
+* Configure via core-site.xml
+  You would need to add the following properties to `core-site.xml`
+
+  ```xml
+  <configuration>
+    <property>
+      <name>google.cloud.auth.service.account.enable</name>
+      <value>true</value>
+    </property>
+    <property>
+      <name>google.cloud.auth.service.account.json.keyfile</name>
+      <value><PATH TO GOOGLE AUTHENTICATION JSON></value>
+    </property>
+  </configuration>
+  ```
+
+  You would need to add the following to `flink-conf.yaml`
+
+  ```yaml
+  flinkConfiguration:
+    fs.hdfs.hadoopconf: <DIRECTORY PATH WHERE core-site.xml IS SAVED>
+  ```
+
+* You can provide the necessary key via the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
+
+
 
 {{< top >}}
