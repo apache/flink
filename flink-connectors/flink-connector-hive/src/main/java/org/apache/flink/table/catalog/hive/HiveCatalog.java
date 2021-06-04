@@ -782,8 +782,7 @@ public class HiveCatalog extends AbstractCatalog {
                                             tableSchemaProps
                                                     .getOptionalTableSchema("generic.table.schema")
                                                     .orElseGet(
-                                                            () ->
-                                                                    TableSchema.builder().build()));
+                                                            () -> TableSchema.builder().build()));
             partitionKeys = tableSchemaProps.getPartitionKeys();
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);
