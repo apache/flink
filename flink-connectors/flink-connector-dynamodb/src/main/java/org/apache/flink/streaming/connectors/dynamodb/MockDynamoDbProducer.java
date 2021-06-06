@@ -13,6 +13,9 @@ public class MockDynamoDbProducer implements DynamoDbProducer {
     public void close() throws Exception {}
 
     @Override
+    public void start() throws Exception {}
+
+    @Override
     public long getOutstandingRecordsCount() {
         return 0;
     }

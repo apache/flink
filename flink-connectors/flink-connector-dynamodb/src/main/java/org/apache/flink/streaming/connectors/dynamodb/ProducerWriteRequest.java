@@ -18,18 +18,35 @@
 
 package org.apache.flink.streaming.connectors.dynamodb;
 
-/** Exception is thrown when batch write has finally failed after retries. */
-public class BatchWriteFailedException extends Exception {
+import org.apache.flink.util.Preconditions;
 
-    private static final long serialVersionUID = 1L;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
 
-    private ProducerWriteResponse result;
+import java.util.List;
 
-    public BatchWriteFailedException(ProducerWriteResponse response) {
-        this.result = response;
+/** Wrapper class for DynamoDB request. */
+public class ProducerWriteRequest<T extends DynamoDbRequest> {
+    private final String id;
+    private final String tableName;
+    private final List<T> requests;
+
+    public ProducerWriteRequest(String id, String tableName, List<T> requests) {
+        Preconditions.checkNotNull(id);
+        Preconditions.checkNotNull(requests);
+        this.id = id;
+        this.tableName = tableName;
+        this.requests = requests;
     }
 
-    public ProducerWriteResponse getResult() {
-        return this.result;
+    public String getId() {
+        return id;
+    }
+
+    public List<T> getRequests() {
+        return requests;
+    }
+
+    public String getTableName() {
+        return tableName;
     }
 }

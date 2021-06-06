@@ -16,20 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.config;
 
-/** Exception is thrown when batch write has finally failed after retries. */
-public class BatchWriteFailedException extends Exception {
+import org.apache.flink.annotation.PublicEvolving;
 
-    private static final long serialVersionUID = 1L;
+/**
+ * Type of the DynamoDB producer: BatchAsync producer attempts to batch records and write them
+ * asynchronously by several processes. As batch may retry unprocessed records, the order of the
+ * write is not guaranteed.
+ */
+@PublicEvolving
+public enum ProducerType {
+    BatchAsync;
 
-    private ProducerWriteResponse result;
-
-    public BatchWriteFailedException(ProducerWriteResponse response) {
-        this.result = response;
-    }
-
-    public ProducerWriteResponse getResult() {
-        return this.result;
-    }
+    ProducerType() {}
 }
