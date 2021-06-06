@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.config;
 
-/** Exception is thrown when batch write has finally failed after retries. */
-public class BatchWriteFailedException extends Exception {
+import org.apache.flink.annotation.PublicEvolving;
 
-    private static final long serialVersionUID = 1L;
+/**
+ * If restart policy is FailOnError, the producer will attempt to do a clean shutdown (processing
+ * remaining items in the queue) in case of the write error. If restart policy is Restart, the
+ * producer will additionally attempt to restart the process.
+ */
+@PublicEvolving
+public enum RestartPolicy {
+    Restart,
+    FailOnError;
 
-    private ProducerWriteResponse result;
-
-    public BatchWriteFailedException(ProducerWriteResponse response) {
-        this.result = response;
-    }
-
-    public ProducerWriteResponse getResult() {
-        return this.result;
-    }
+    RestartPolicy() {}
 }

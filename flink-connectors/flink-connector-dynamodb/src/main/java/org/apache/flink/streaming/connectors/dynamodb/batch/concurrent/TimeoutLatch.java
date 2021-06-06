@@ -16,20 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb;
+package org.apache.flink.streaming.connectors.dynamodb.batch.concurrent;
 
-/** Exception is thrown when batch write has finally failed after retries. */
-public class BatchWriteFailedException extends Exception {
+/** Allows synchronization by timout. */
+public class TimeoutLatch {
+    private final Object lock = new Object();
+    private volatile boolean waiting;
 
-    private static final long serialVersionUID = 1L;
-
-    private ProducerWriteResponse result;
-
-    public BatchWriteFailedException(ProducerWriteResponse response) {
-        this.result = response;
+    public void await(long timeout) throws InterruptedException {
+        synchronized (lock) {
+            waiting = true;
+            lock.wait(timeout);
+        }
     }
 
-    public ProducerWriteResponse getResult() {
-        return this.result;
+    public void trigger() {
+        if (waiting) {
+            synchronized (lock) {
+                waiting = false;
+                lock.notifyAll();
+            }
+        }
     }
 }

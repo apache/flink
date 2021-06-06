@@ -18,5 +18,9 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-/** XX. */
-public class BatchRequest {}
+/** Exception is thrown if a DynamoDB request was invalid. */
+public class InvalidRequestException extends RuntimeException {
+    public InvalidRequestException(String message) {
+        super(message);
+    }
+}

@@ -33,11 +33,56 @@ under the License.
 	<name>Flink : Connectors : DynamoDB</name>
 	<properties>
 		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
+		<httpclient.version>4.5.9</httpclient.version>
+		<httpcore.version>4.4.11</httpcore.version>
 	</properties>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
+		<!-- Amazon AWS SDK v2.x dependencies -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>netty-nio-client</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>${httpcore.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-cbor</artifactId>
+		</dependency>
+
+		<!-- Other third-party dependencies -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+
+		<!-- Flink ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -100,8 +145,39 @@ under the License.
 
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/streaming/connectors/kinesis/testutils/**</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -122,7 +198,7 @@ under the License.
 							<relocations combine.children="override">
 								<relocation>
 									<pattern>software.amazon</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
+									<shadedPattern>org.apache.flink.dynamodb.shaded.software.amazon</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
@@ -145,5 +221,4 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

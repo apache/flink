@@ -6,11 +6,11 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.operators.StreamSink;
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchRequest;
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchResponse;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -369,13 +369,15 @@ public class DynamoDbSinkTest {
         public void manualCompletePendingRequest(Throwable throwable) {
             completed++;
             batchRequests.get(completed - 1);
-            BatchRequest batchRequest = new BatchRequest();
-            listener.beforeWrite(123L, batchRequest);
+            ProducerWriteRequest batchRequest =
+                    new ProducerWriteRequest("", "", ImmutableList.of());
+            listener.beforeWrite("123", batchRequest);
 
             if (throwable == null) {
-                listener.afterWrite(123L, batchRequest, new BatchResponse(true, 2, null, 10L));
+                listener.afterWrite(
+                        "123", batchRequest, new ProducerWriteResponse("123", true, 2, null, 10L));
             } else {
-                listener.afterWrite(123L, batchRequest, throwable);
+                listener.afterWrite("123", batchRequest, throwable);
             }
         }
 

@@ -18,14 +18,12 @@
 
 package org.apache.flink.streaming.connectors.dynamodb;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchRequest;
-
 /**
  * Represents one attempt at writing a batch to the backend. The attempt may or may not be
  * successful. If unsuccessful, an error code and error message are provided. In addition, data
  * about latency are also provided. Each batch may have multiple attempts.
  *
- * @see BatchRequest
+ * @see WriteRequest
  */
 public class Attempt {
     private int delay;
