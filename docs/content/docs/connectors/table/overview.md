@@ -161,7 +161,7 @@ In this situation, the recommended way is transforming these resource files unde
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-parquet_{{< scala_version >}}<</artifactId>
+            <artifactId>flink-parquet_{{< scala_version >}}</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 
