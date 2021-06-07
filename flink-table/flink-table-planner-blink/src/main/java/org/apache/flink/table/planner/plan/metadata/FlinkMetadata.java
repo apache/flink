@@ -32,6 +32,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import java.lang.reflect.Method;
+import java.util.Set;
 
 /** Contains the interfaces for several specified metadata of flink. */
 public abstract class FlinkMetadata {
@@ -236,6 +237,22 @@ public abstract class FlinkMetadata {
         /** Handler API. */
         interface Handler extends MetadataHandler<WindowProperties> {
             RelWindowProperties getWindowProperties(RelNode r, RelMetadataQuery mq);
+        }
+    }
+
+    /** Metadata about which combinations of columns are change log upsert identifiers. */
+    public interface ChangeLogUpsertKeys extends Metadata {
+        Method METHOD = Types.lookupMethod(ChangeLogUpsertKeys.class, "getChangeLogUpsertKeys");
+
+        MetadataDef<ChangeLogUpsertKeys> DEF =
+                MetadataDef.of(
+                        ChangeLogUpsertKeys.class, ChangeLogUpsertKeys.Handler.class, METHOD);
+
+        Set<ImmutableBitSet> getChangeLogUpsertKeys();
+
+        /** Handler API. */
+        interface Handler extends MetadataHandler<ChangeLogUpsertKeys> {
+            Set<ImmutableBitSet> getChangeLogUpsertKeys(RelNode r, RelMetadataQuery mq);
         }
     }
 }
