@@ -616,12 +616,8 @@ public class MultipleInputStreamTaskTest {
             // make source active once again, emit a watermark and go idle again.
             addSourceRecords(testHarness, 1, initialTime + 10);
 
-            // FLIP-27 sources do not emit active status on new records, we wrap a record with
-            // ACTIVE/IDLE sequence
-            expectedOutput.add(StreamStatus.ACTIVE);
             expectedOutput.add(
                     new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
-            expectedOutput.add(StreamStatus.IDLE);
             expectedOutput.add(StreamStatus.ACTIVE); // activate source on new watermark
             expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
             expectedOutput.add(StreamStatus.IDLE); // go idle after reading all records

@@ -44,6 +44,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
     @Nullable protected final OutputTag<T> outputTag;
     @Nullable protected final AutoCloseable closeable;
+    protected StreamStatus announcedStatus = StreamStatus.ACTIVE;
 
     public ChainingOutput(OneInputStreamOperator<T, ?> operator, @Nullable OutputTag<T> outputTag) {
         this(operator, (OperatorMetricGroup) operator.getMetricGroup(), outputTag, operator::close);
@@ -106,6 +107,9 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
     @Override
     public void emitWatermark(Watermark mark) {
+        if (announcedStatus.isIdle()) {
+            return;
+        }
         try {
             watermarkGauge.setCurrentWatermark(mark.getTimestamp());
             input.processWatermark(mark);
@@ -141,10 +145,13 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
-        try {
-            input.processStreamStatus(streamStatus);
-        } catch (Exception e) {
-            throw new ExceptionInChainedOperatorException(e);
+        if (!announcedStatus.equals(streamStatus)) {
+            announcedStatus = streamStatus;
+            try {
+                input.processStreamStatus(streamStatus);
+            } catch (Exception e) {
+                throw new ExceptionInChainedOperatorException(e);
+            }
         }
     }
 }
