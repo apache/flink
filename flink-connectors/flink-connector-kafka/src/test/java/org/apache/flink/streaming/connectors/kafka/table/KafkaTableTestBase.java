@@ -20,7 +20,6 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 
@@ -58,14 +57,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
     @Before
     public void setup() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                // Watermark is only supported in blink planner
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+        tEnv = StreamTableEnvironment.create(env);
         env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
     }
 

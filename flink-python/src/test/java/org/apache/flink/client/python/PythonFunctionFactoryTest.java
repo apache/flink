@@ -18,7 +18,6 @@
 package org.apache.flink.client.python;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -70,13 +69,7 @@ public class PythonFunctionFactoryTest {
             out.write(code.getBytes());
         }
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        blinkTableEnv =
-                StreamTableEnvironment.create(
-                        sEnv,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+        blinkTableEnv = StreamTableEnvironment.create(sEnv);
         blinkTableEnv
                 .getConfig()
                 .getConfiguration()

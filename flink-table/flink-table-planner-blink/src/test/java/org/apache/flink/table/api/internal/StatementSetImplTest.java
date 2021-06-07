@@ -36,9 +36,9 @@ public class StatementSetImplTest {
 
     @Before
     public void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
+        tableEnv =
+                (TableEnvironmentInternal)
+                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @Test

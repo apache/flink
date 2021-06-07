@@ -18,7 +18,6 @@
 package org.apache.flink.python.tests;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.types.Row;
 
@@ -33,13 +32,7 @@ public class BlinkStreamPythonUdfSqlJob {
     public static void main(String[] args) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        StreamTableEnvironment tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
         tEnv.executeSql(
                 "create temporary system function add_one as 'add_one.add_one' language python");
 

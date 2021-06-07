@@ -227,7 +227,7 @@ class DataStreamConversionTestCases(object):
         self.env.set_parallelism(1)
         t_env = StreamTableEnvironment.create(
             self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+            environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hi")], ["a", "b", "c"])
         new_table = table.select("a + 1, b + 'flink', c")
         ds = t_env.to_append_stream(table=new_table, type_info=Types.ROW([Types.LONG(),
@@ -244,7 +244,7 @@ class DataStreamConversionTestCases(object):
         self.env.set_parallelism(1)
         t_env = StreamTableEnvironment.create(
             self.env,
-            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+            environment_settings=EnvironmentSettings.in_streaming_mode())
         table = t_env.from_elements([(1, "Hi", "Hello"), (1, "Hi", "Hello")], ["a", "b", "c"])
         new_table = table.group_by("c").select("a.sum, c as b")
         ds = t_env.to_retract_stream(table=new_table, type_info=Types.ROW([Types.LONG(),

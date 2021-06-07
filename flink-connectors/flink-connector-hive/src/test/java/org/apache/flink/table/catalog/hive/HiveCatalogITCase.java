@@ -105,9 +105,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCsvTableViaSQL() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         tableEnv.registerCatalog("myhive", hiveCatalog);
         tableEnv.useCatalog("myhive");
@@ -148,9 +146,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCsvTableViaAPI() throws Exception {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tableEnv.getConfig()
                 .addConfiguration(new Configuration().set(CoreOptions.DEFAULT_PARALLELISM, 1));
 
@@ -229,9 +225,7 @@ public class HiveCatalogITCase {
     @Test
     public void testReadWriteCsv() throws Exception {
         // similar to CatalogTableITCase::testReadWriteCsvUsingDDL but uses HiveCatalog
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -311,13 +305,12 @@ public class HiveCatalogITCase {
     }
 
     private TableEnvironment prepareTable(boolean isStreaming) {
-        EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
+        EnvironmentSettings settings;
         if (isStreaming) {
-            builder = builder.inStreamingMode();
+            settings = EnvironmentSettings.inStreamingMode();
         } else {
-            builder = builder.inBatchMode();
+            settings = EnvironmentSettings.inBatchMode();
         }
-        EnvironmentSettings settings = builder.build();
         TableEnvironment tableEnv = TableEnvironment.create(settings);
         tableEnv.getConfig()
                 .getConfiguration()
@@ -349,9 +342,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testTableWithPrimaryKey() {
-        EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance().useBlinkPlanner();
-        EnvironmentSettings settings = builder.build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -454,9 +445,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testTemporaryGenericTable() throws Exception {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 
