@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
@@ -923,14 +924,9 @@ public interface Table {
     }
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
-     * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
+     * Writes the {@link Table} to a {@link DynamicTableSink} that was registered under the
+     * specified path. For the path resolution algorithm see {@link
+     * TableEnvironment#useDatabase(String)}.
      *
      * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
      *     written.
@@ -1299,17 +1295,12 @@ public interface Table {
     FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
-     * and then execute the insert operation.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
+     * executes the insert operation.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
      *
      * <p>Example:
      *
@@ -1319,23 +1310,18 @@ public interface Table {
      * tableResult...
      * }</pre>
      *
-     * @param tablePath The path of the registered TableSink to which the Table is written.
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
      * @return The insert operation execution result.
      */
     TableResult executeInsert(String tablePath);
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
-     * and then execute the insert operation.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
+     * executes the insert operation.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
      *
      * <p>Example:
      *
@@ -1345,7 +1331,7 @@ public interface Table {
      * tableResult...
      * }</pre>
      *
-     * @param tablePath The path of the registered TableSink to which the Table is written.
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
      * @param overwrite The flag that indicates whether the insert should overwrite existing data or
      *     not.
      * @return The insert operation execution result.
