@@ -17,11 +17,11 @@
 
 # set default streaming mode and tableau result mode
 
-SET execution.runtime-mode = streaming;
+SET 'execution.runtime-mode' = 'streaming';
 [INFO] Session property has been set.
 !info
 
-SET sql-client.execution.result-mode = tableau;
+SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Session property has been set.
 !info
 
@@ -71,7 +71,7 @@ Received a total of 4 rows
 # test TIMESTAMP and TIMESTAMP_LTZ type display with tableau result mode
 # ==========================================================================
 
-SET table.local-time-zone = Asia/Shanghai;
+SET 'table.local-time-zone' = 'Asia/Shanghai';
 [INFO] Session property has been set.
 !info
 
@@ -93,7 +93,7 @@ FROM (VALUES
 Received a total of 2 rows
 !ok
 
-SET table.local-time-zone = UTC;
+SET 'table.local-time-zone' = 'UTC';
 [INFO] Session property has been set.
 !info
 
@@ -120,7 +120,7 @@ Received a total of 2 rows
 # test batch query
 # ==========================================================================
 
-SET execution.runtime-mode = batch;
+SET 'execution.runtime-mode' = 'batch';
 [INFO] Session property has been set.
 !info
 
