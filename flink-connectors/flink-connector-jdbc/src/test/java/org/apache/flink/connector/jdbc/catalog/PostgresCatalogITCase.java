@@ -39,9 +39,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
 
     @Before
     public void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        this.tEnv = TableEnvironment.create(settings);
+        this.tEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         tEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);

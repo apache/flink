@@ -86,11 +86,8 @@ public abstract class HBaseTestBase extends HBaseTestingClusterAutoStarter {
 
     @Before
     public void before() {
-        EnvironmentSettings.Builder streamBuilder =
-                EnvironmentSettings.newInstance().inStreamingMode();
-        EnvironmentSettings.Builder batchBuilder = EnvironmentSettings.newInstance().inBatchMode();
-        this.streamSettings = streamBuilder.useBlinkPlanner().build();
-        this.batchSettings = batchBuilder.useBlinkPlanner().build();
+        this.streamSettings = EnvironmentSettings.inStreamingMode();
+        this.batchSettings = EnvironmentSettings.inBatchMode();
     }
 
     private static void prepareTables() throws IOException {

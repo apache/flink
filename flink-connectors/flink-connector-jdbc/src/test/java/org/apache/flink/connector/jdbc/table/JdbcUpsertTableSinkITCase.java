@@ -266,9 +266,7 @@ public class JdbcUpsertTableSinkITCase extends AbstractTestBase {
 
     @Test
     public void testBatchSink() throws Exception {
-        EnvironmentSettings bsSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tEnv = TableEnvironment.create(bsSettings);
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         tEnv.executeSql(
                 "CREATE TABLE USER_RESULT("

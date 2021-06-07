@@ -134,8 +134,7 @@ public class TpcdsTestProgram {
      */
     private static TableEnvironment prepareTableEnv(String sourceTablePath, Boolean useTableStats) {
         // init Table Env
-        EnvironmentSettings environmentSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
+        EnvironmentSettings environmentSettings = EnvironmentSettings.inBatchMode();
         TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
         // config Optimizer parameters

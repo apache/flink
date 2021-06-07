@@ -37,6 +37,9 @@ class EnvironmentSettings(object):
         ...     .with_built_in_catalog_name("my_catalog") \\
         ...     .with_built_in_database_name("my_database") \\
         ...     .build()
+
+    :func:`EnvironmentSettings.in_streaming_mode` or :func:`EnvironmentSettings.in_batch_mode`
+    might be convenient as shortcuts.
     """
 
     class Builder(object):
@@ -50,14 +53,9 @@ class EnvironmentSettings(object):
 
         def use_old_planner(self) -> 'EnvironmentSettings.Builder':
             """
-            Sets the old Flink planner as the required module.
-
-            This is the default behavior.
-
-            :return: This object.
-
-            .. note:: The old planner will be dropped in Flink 1.14. Please update to the new
-                      planner (i.e. Blink planner).
+            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
+                      planner left (previously called the 'blink' planner), this setting will
+                      throw an exception.
             """
             warnings.warn(
                 "Deprecated in 1.13. Please update to the new planner (i.e. Blink planner).",
@@ -69,8 +67,17 @@ class EnvironmentSettings(object):
             """
             Sets the Blink planner as the required module.
 
+            This is the default behavior.
+
+            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
+                      planner left (previously called the 'blink' planner), this setting is
+                      obsolete and will be removed in future versions.
+
             :return: This object.
             """
+            warnings.warn(
+                "Deprecated in 1.14. A planner declaration is not required anymore.",
+                DeprecationWarning)
             self._j_builder = self._j_builder.useBlinkPlanner()
             return self
 
@@ -82,8 +89,15 @@ class EnvironmentSettings(object):
 
             By default, :func:`use_blink_planner` is enabled.
 
+            .. note:: The old planner has been removed in Flink 1.14. Since there is only one
+                      planner left (previously called the 'blink' planner), this setting is
+                      obsolete and will be removed in future versions.
+
             :return: This object.
             """
+            warnings.warn(
+                "Deprecated in 1.14. A planner declaration is not required anymore.",
+                DeprecationWarning)
             self._j_builder = self._j_builder.useAnyPlanner()
             return self
 
@@ -109,11 +123,14 @@ class EnvironmentSettings(object):
                 -> 'EnvironmentSettings.Builder':
             """
             Specifies the name of the initial catalog to be created when instantiating
-            a :class:`~pyflink.table.TableEnvironment`. This catalog will be used to store all
-            non-serializable objects such as tables and functions registered via e.g.
-            :func:`~pyflink.table.TableEnvironment.register_table_sink` or
-            :func:`~pyflink.table.TableEnvironment.register_java_function`. It will also be the
-            initial value for the current catalog which can be altered via
+            a :class:`~pyflink.table.TableEnvironment`.
+
+            This catalog is an in-memory catalog that will be used to store all temporary objects
+            (e.g. from :func:`~pyflink.table.TableEnvironment.create_temporary_view` or
+            :func:`~pyflink.table.TableEnvironment.create_temporary_system_function`) that cannot
+            be persisted because they have no serializable representation.
+
+            It will also be the initial value for the current catalog which can be altered via
             :func:`~pyflink.table.TableEnvironment.use_catalog`.
 
             Default: "default_catalog".
@@ -128,12 +145,15 @@ class EnvironmentSettings(object):
                 -> 'EnvironmentSettings.Builder':
             """
             Specifies the name of the default database in the initial catalog to be
-            created when instantiating a :class:`~pyflink.table.TableEnvironment`. The database
-            will be used to store all non-serializable objects such as tables and functions
-            registered via e.g. :func:`~pyflink.table.TableEnvironment.register_table_sink` or
-            :func:`~pyflink.table.TableEnvironment.register_java_function`. It will also be the
-            initial value for the current database which can be altered via
-            :func:`~pyflink.table.TableEnvironment.use_database`.
+            created when instantiating a :class:`~pyflink.table.TableEnvironment`.
+
+            This database is an in-memory database that will be used to store all temporary
+            objects (e.g. from :func:`~pyflink.table.TableEnvironment.create_temporary_view` or
+            :func:`~pyflink.table.TableEnvironment.create_temporary_system_function`) that cannot
+            be persisted because they have no serializable representation.
+
+            It will also be the initial value for the current catalog which can be altered via
+            :func:`~pyflink.table.TableEnvironment.use_catalog`.
 
             Default: "default_database".
 
@@ -177,8 +197,15 @@ class EnvironmentSettings(object):
         Tells if :class:`~pyflink.table.TableEnvironment` should work in a blink or old
         planner.
 
+        .. note:: The old planner has been removed in Flink 1.14. Since there is only one
+                  planner left (previously called the 'blink' planner), this method is
+                  obsolete and will be removed in future versions.
+
         :return: True if the TableEnvironment should work in a blink planner, false otherwise.
         """
+        warnings.warn(
+            "Deprecated in 1.14. There is only one planner anymore.",
+            DeprecationWarning)
         return self._j_environment_settings.isBlinkPlanner()
 
     def is_streaming_mode(self) -> bool:
@@ -216,9 +243,42 @@ class EnvironmentSettings(object):
     @staticmethod
     def from_configuration(config: Configuration) -> 'EnvironmentSettings':
         """
-        Create the EnvironmentSetting with specified Configuration.
+        Creates the EnvironmentSetting with specified Configuration.
 
         :return: EnvironmentSettings.
         """
         return EnvironmentSettings(
             get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))
+
+    @staticmethod
+    def in_streaming_mode() -> 'EnvironmentSettings':
+        """
+        Creates a default instance of EnvironmentSettings in streaming execution mode.
+
+        In this mode, both bounded and unbounded data streams can be processed.
+
+        This method is a shortcut for creating a :class:`~pyflink.table.TableEnvironment` with
+        little code. Use the builder provided in :func:`EnvironmentSettings.new_instance` for
+        advanced settings.
+
+        :return: EnvironmentSettings.
+        """
+        return EnvironmentSettings(
+            get_gateway().jvm.EnvironmentSettings.inStreamingMode())
+
+    @staticmethod
+    def in_batch_mode() -> 'EnvironmentSettings':
+        """
+        Creates a default instance of EnvironmentSettings in batch execution mode.
+
+        This mode is highly optimized for batch scenarios. Only bounded data streams can be
+        processed in this mode.
+
+        This method is a shortcut for creating a :class:`~pyflink.table.TableEnvironment` with
+        little code. Use the builder provided in :func:`EnvironmentSettings.new_instance` for
+        advanced settings.
+
+        :return: EnvironmentSettings.
+        """
+        return EnvironmentSettings(
+            get_gateway().jvm.EnvironmentSettings.inBatchMode())

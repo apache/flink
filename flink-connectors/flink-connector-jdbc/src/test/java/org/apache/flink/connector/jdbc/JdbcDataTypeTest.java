@@ -19,7 +19,6 @@
 package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
@@ -164,9 +163,7 @@ public class JdbcDataTypeTest {
         String sqlDDL = String.format(DDL_FORMAT, testItem.dataTypeExpr, testItem.dialect);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(sqlDDL);
 

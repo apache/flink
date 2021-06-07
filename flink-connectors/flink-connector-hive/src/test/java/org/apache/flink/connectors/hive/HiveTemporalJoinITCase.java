@@ -56,9 +56,7 @@ public class HiveTemporalJoinITCase extends TableTestBase {
         if (!HiveVersionTestUtil.HIVE_310_OR_LATER) {
             return;
         }
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-        tableEnv = TableEnvironment.create(settings);
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         hiveCatalog = HiveTestUtils.createHiveCatalog();
 
         hiveCatalog = HiveTestUtils.createHiveCatalog(CatalogTest.TEST_CATALOG_NAME, "3.1.2");

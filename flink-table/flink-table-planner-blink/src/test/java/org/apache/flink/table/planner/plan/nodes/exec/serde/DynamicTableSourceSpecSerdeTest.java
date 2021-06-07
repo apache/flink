@@ -117,11 +117,7 @@ public class DynamicTableSourceSpecSerdeTest {
         actual.setReadableConfig(serdeCtx.getConfiguration());
         TableEnvironmentImpl tableEnv =
                 (TableEnvironmentImpl)
-                        TableEnvironment.create(
-                                EnvironmentSettings.newInstance()
-                                        .inStreamingMode()
-                                        .useBlinkPlanner()
-                                        .build());
+                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         assertNotNull(actual.getScanTableSource((PlannerBase) tableEnv.getPlanner()));
     }
 
