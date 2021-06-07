@@ -29,12 +29,12 @@ under the License.
 
 {{< img src="/fig/pyflink.svg" alt="PyFlink" class="offset" width="50%" >}}
 
-PyFlink 是 Apache Flink 的 Python API，你可以使用它构建可扩展的批处理和流工作负载，例如实时数据处理管道、大规模探索性数据分析、机器学习（ML）管道和 ETL 处理。
-如果你已经熟悉 Python 和 Pandas 等库，那么 PyFlink 可以让你更轻松地利用 Flink 生态系统的全部功能。
-根据你需要的抽象级别，有两种不同的 API 可以在 PyFlink 中使用：
+PyFlink 是 Apache Flink 的 Python API，你可以使用它构建可扩展的批处理和流处理任务，例如实时数据处理管道、大规模探索性数据分析、机器学习（ML）管道和 ETL 处理。
+如果你对 Python 和 Pandas 等库已经比较熟悉，那么 PyFlink 可以让你更轻松地利用 Flink 生态系统的全部功能。
+根据你需要的抽象级别的不同，有两种不同的 API 可以在 PyFlink 中使用：
 
-* **PyFlink Table API** 允许使用类似于 SQL 或在 Python 中处理表格数据的方式编写强大的关系查询。
-* 与此同时，**PyFlink DataStream API** 提供对 Flink 的核心构建块 [state]({{< ref "docs/concepts/stateful-stream-processing" >}}) 和 [time]({{< ref "docs/concepts/time" >}}) 进行较低级别（粒度）的控制，以便构建更复杂的流处理用例。
+* **PyFlink Table API** 允许你使用类似于 SQL 或在 Python 中处理表格数据的方式编写强大的关系查询。
+* 与此同时，**PyFlink DataStream API** 允许你对 Flink 的核心组件 [state]({{< ref "docs/concepts/stateful-stream-processing" >}}) 和 [time]({{< ref "docs/concepts/time" >}}) 进行细粒度的控制，以便构建更复杂的流处理应用。
 
 {{< columns >}}
 
@@ -47,9 +47,9 @@ PyFlink 是 Apache Flink 的 Python API，你可以使用它构建可扩展的�
 
 <--->
 
-### 探究 PyFlink
+### 深入 PyFlink
 
-参考文档涵盖了 PyFlink 所有细节。一些起始链接如下：
+这些参考文档涵盖了 PyFlink 的所有细节，可以从以下链接入手：
 
 * [PyFlink DataStream API]({{< ref "docs/dev/python/table/table_environment" >}})
 * [PyFlink Table API &amp; SQL]({{< ref "docs/dev/python/datastream/operators" >}})
@@ -58,4 +58,4 @@ PyFlink 是 Apache Flink 的 Python API，你可以使用它构建可扩展的�
 
 ### 获取有关 PyFlink 的帮助
 
-如果你遇到困难，请查看我们的[社区支持资源](https://flink.apache.org/community.html)。特别是 Apache Flink 的用户邮件列表，Apache Flink 的用户邮件列表一直被列为所有 Apache 项目中最活跃的项目邮件列表之一，是快速获得帮助的好方法。
+如果你遇到困难，请查看我们的[社区支持资源](https://flink.apache.org/community.html)，特别是 Apache Flink 的用户邮件列表，Apache Flink 的用户邮件列表一直是所有 Apache 项目中最活跃的项目邮件列表之一，是快速获得帮助的好方法。
