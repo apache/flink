@@ -28,62 +28,51 @@ under the License.
 
 # 监控反压
 
-Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行为。
+Flink Web 界面提供了一个选项卡来监控正在运行 jobs 的反压行为。
 
 ## 反压
 
-如果你看到一个 Task 发生 **反压警告**（例如： `High`），意味着它生产数据的速率比下游 Task 消费数据的速率要快。
+如果你看到一个 task 发生 **反压警告**（例如： `High`），意味着它生产数据的速率比下游 task 消费数据的速率要快。
 在工作流中数据记录是从上游向下游流动的（例如：从 Source 到 Sink）。反压沿着相反的方向传播，沿着数据流向上游传播。
 
-以一个简单的 `Source -> Sink` Job 为例。如果看到 `Source` 发生了警告，意味着 `Sink` 消费数据的速率比 `Source` 生产数据的速率要慢。
+以一个简单的 `Source -> Sink` job 为例。如果看到 `Source` 发生了警告，意味着 `Sink` 消费数据的速率比 `Source` 生产数据的速率要慢。
 `Sink` 正在向上游的 `Source` 算子产生反压。
 
+## Task 性能指标
 
-## 反压采样
+Task（SubTask）的每个并行实例都可以用三个一组的指标评价：
+- `backPressureTimeMsPerSecond`，subtask 被反压的时间
+- `idleTimeMsPerSecond`，subtask 等待某类处理的时间
+- `busyTimeMsPerSecond`，subtask 实际工作时间
+在任何时间点，这三个指标相加都约等于`1000ms`。
 
-通过不断对每个 Task 的反压状态采样来进行反压监控。JobManager 会触发对 Task `Task.isBackPressured()` 的重复调用。
+这些指标每两秒更新一次，上报的值表示 subtask 在最近两秒被反压（或闲或忙）的平均时长。
+当你的工作负荷是变化的时需要尤其引起注意。比如，一个以恒定50%负载工作的 subtask 和另一个每秒钟在满负载和闲置切换的 subtask 的`busyTimeMsPerSecond`值相同，都是`500ms`。 
 
-{{< img src="/fig/back_pressure_sampling.png" class="img-responsive" >}}
-<!-- https://docs.google.com/drawings/d/1O5Az3Qq4fgvnISXuSf-MqBlsLDpPolNB7EQG7A3dcTk/edit?usp=sharing -->
-
-Task 是否反压是基于输出 Buffer 的可用性判断的，如果一个用于数据输出的 Buffer 都没有了，则表明 Task 被反压了。
-
-默认情况下，JobManager 会触发 100 次采样，每次间隔 50ms 来确定反压。
-你在 Web 界面看到的比率表示在获得的样本中有多少表明 Task 正在被反压，例如: `0.01` 表示 100 个样本中只有 1 个反压了。
-
-- **OK**: 0 <= 比例 <= 0.10
-- **LOW**: 0.10 < 比例 <= 0.5
-- **HIGH**: 0.5 < 比例 <= 1
-
-为了不因为采样导致 TaskManager 负载过重，Web 界面仅在每 60 秒后重新采样。
-
-## 配置参数
-
-你可以使用以下键来配置 JobManager 的样本数：
-
-- `web.backpressure.refresh-interval`: 有效的反压结果被废弃并重新进行采样的时间 (默认: 60000, 1 min)。
-- `web.backpressure.num-samples`: 用于确定反压采样的样本数 (默认: 100)。
-- `web.backpressure.delay-between-samples`: 用于确定反压采样的间隔时间 (默认: 50, 50 ms)。
-
+在内部，反压根据输出 buffers 的可用性来进行判断的。
+如果一个 task 没有可用的输出 buffers，那么这个 task 就被认定是在被反压。
+相反，如果有可用的输入，则可认定为闲置，
 
 ## 示例
+WebUI 集合了所有 subTasks 的反压和繁忙指标的最大值，并在 JobGraph 中将集合的值进行显示。除了显示原始的数值，tasks 也用颜色进行了标记，使检查更加容易。
 
-你可以在 Job 的 Overview 选项卡后面找到 *Back Pressure* 。
+{{< img src="/fig/back_pressure_job_graph.png" class="img-responsive" >}}
 
-### 采样进行中
+闲置的 tasks 为蓝色，完全被反压的 tasks 为黑色，完全繁忙的 tasks 被标记为红色。
+中间的所有值都表示为这三种颜色之间的过渡色。
 
-这意味着 JobManager 对正在运行的 Task 触发了反压采样。默认情况下，大约需要 5 秒完成采样。
+## 反压状态
 
-注意，点击该行，可触发该算子所有 SubTask 的采样。
+在 Job Overview 旁的 *Back Pressure* 选项卡中，你可以找到更多细节指标。
 
-{{< img src="/fig/back_pressure_sampling_in_progress.png" class="img-responsive" >}}
+{{< img src="/fig/back_pressure_subtasks.png" class="img-responsive" >}}
 
-### 反压状态
+如果你看到 subtasks 的状态为 **OK** 表示没有反压。**HIGH** 表示这个 subtask 被反压。状态用如下定义：
 
-如果你看到 Task 的状态为 **OK** 表示没有反压。**HIGH** 表示这个 Task 被反压。
+- **OK**: 0% <= 反压比例 <= 10%
+- **LOW**: 10% < 反压比例 <= 50%
+- **HIGH**: 50% < 反压比例 <= 100%
 
-{{< img src="/fig/back_pressure_sampling_ok.png" class="img-responsive" >}}
-
-{{< img src="/fig/back_pressure_sampling_high.png" class="img-responsive" >}}
+除此之外，你还可以找到每一个 subtask 被反压、闲置或是繁忙的时间百分比。
 
 {{< top >}}
