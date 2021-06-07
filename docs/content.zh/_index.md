@@ -86,3 +86,5 @@ release notes if there is a leading '/' and file extension.
 请参阅 [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}})，[Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}})，[Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}})，[Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}})，[Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}})，或者 [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}) 的发行说明。
 
 {{< /columns >}}
+
+{{< build_time >}}
