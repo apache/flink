@@ -21,9 +21,7 @@ package org.apache.flink.table.planner.factories.utils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.{CollectionInputFormat, LocalCollectionOutputFormat}
-import org.apache.flink.api.java.operators.DataSink
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -34,7 +32,7 @@ import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
+import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
@@ -152,11 +150,7 @@ object TestCollectionTableFactory {
     * Table sink of collection.
     */
   class CollectionTableSink(val schema: TableSchema)
-    extends BatchTableSink[Row]
-      with AppendStreamTableSink[Row] {
-    override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
-      dataSet.output(new LocalCollectionOutputFormat[Row](RESULT)).setParallelism(1)
-    }
+      extends AppendStreamTableSink[Row] {
 
     override def getConsumedDataType: DataType = schema.toRowDataType
 
