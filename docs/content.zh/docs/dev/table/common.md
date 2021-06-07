@@ -140,7 +140,7 @@ EnvironmentSettings settings = EnvironmentSettings
     //.inBatchMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(setting);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -153,7 +153,7 @@ val settings = EnvironmentSettings
     //.inBatchMode()
     .build()
 
-val tEnv = TableEnvironment.create(setting)
+val tEnv = TableEnvironment.create(settings)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

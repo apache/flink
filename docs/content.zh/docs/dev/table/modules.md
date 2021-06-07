@@ -84,7 +84,7 @@ Users can use SQL to load/unload/use/list modules in both Table API and SQL CLI.
 {{< tab "Java" >}}
 ```java
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
-TableEnvironment tableEnv = TableEnvironment.create(setting);
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // Show initially loaded and enabled modules
 tableEnv.executeSql("SHOW MODULES").print();
@@ -457,7 +457,7 @@ Users can use Java, Scala or Python to load/unload/use/list modules programmatic
 {{< tab "Java" >}}
 ```java
 EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
-TableEnvironment tableEnv = TableEnvironment.create(setting);
+TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // Show initially loaded and enabled modules
 tableEnv.listModules();
