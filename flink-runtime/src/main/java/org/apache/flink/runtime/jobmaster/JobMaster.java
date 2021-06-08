@@ -109,6 +109,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -961,18 +962,19 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private void jobStatusChanged(final JobStatus newJobStatus) {
         validateRunsInMainThread();
-
         if (newJobStatus.isGloballyTerminalState()) {
             runAsync(
-                    () ->
-                            registeredTaskManagers
-                                    .keySet()
-                                    .forEach(
-                                            newJobStatus == JobStatus.FINISHED
-                                                    ? partitionTracker
-                                                            ::stopTrackingAndReleaseOrPromotePartitionsFor
-                                                    : partitionTracker
-                                                            ::stopTrackingAndReleasePartitionsFor));
+                    () -> {
+                        Collection<ResultPartitionID> allTracked =
+                                partitionTracker.getAllTrackedPartitions().stream()
+                                        .map(d -> d.getShuffleDescriptor().getResultPartitionID())
+                                        .collect(Collectors.toList());
+                        if (newJobStatus == JobStatus.FINISHED) {
+                            partitionTracker.stopTrackingAndReleaseOrPromotePartitions(allTracked);
+                        } else {
+                            partitionTracker.stopTrackingAndReleasePartitions(allTracked);
+                        }
+                    });
 
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
             scheduledExecutorService.execute(

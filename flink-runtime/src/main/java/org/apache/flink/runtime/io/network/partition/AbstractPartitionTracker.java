@@ -34,8 +34,8 @@ import java.util.stream.Stream;
  */
 public abstract class AbstractPartitionTracker<K, M> implements PartitionTracker<K, M> {
 
-    private final PartitionTable<K> partitionTable = new PartitionTable<>();
-    private final Map<ResultPartitionID, PartitionInfo<K, M>> partitionInfos = new HashMap<>();
+    protected final PartitionTable<K> partitionTable = new PartitionTable<>();
+    protected final Map<ResultPartitionID, PartitionInfo<K, M>> partitionInfos = new HashMap<>();
 
     void startTrackingPartition(K key, ResultPartitionID resultPartitionId, M metaInfo) {
         partitionInfos.put(resultPartitionId, new PartitionInfo<>(key, metaInfo));
@@ -94,7 +94,8 @@ public abstract class AbstractPartitionTracker<K, M> implements PartitionTracker
                         resultPartitionId, partitionInfo.key, partitionInfo.getMetaInfo()));
     }
 
-    private static class PartitionInfo<K, M> {
+    /** Information of tracked partition. */
+    static class PartitionInfo<K, M> {
 
         private final K key;
         private final M metaInfo;
@@ -104,11 +105,11 @@ public abstract class AbstractPartitionTracker<K, M> implements PartitionTracker
             this.metaInfo = metaInfo;
         }
 
-        public K getKey() {
+        K getKey() {
             return key;
         }
 
-        public M getMetaInfo() {
+        M getMetaInfo() {
             return metaInfo;
         }
     }
