@@ -270,8 +270,7 @@ tEnv.executeSql("SHOW FULL MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # show catalogs
 table_env.execute_sql("SHOW CATALOGS").print()

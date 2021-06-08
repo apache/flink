@@ -66,8 +66,7 @@ The following examples show how to run a single INSERT statement in SQL CLI.
 {{< tabs "15bc87ce-93fd-4fdd-8c51-3301a432c048" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tEnv = TableEnvironment.create(settings);
+TableEnvironment tEnv = TableEnvironment.create(...);
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
@@ -99,8 +98,7 @@ System.out.println(tableResult2.getJobClient().get().getJobStatus());
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tEnv = TableEnvironment.create(settings)
+val tEnv = TableEnvironment.create(...)
 
 // register a source table named "Orders" and a sink table named "RubberOrders"
 tEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -132,8 +130,7 @@ println(tableResult2.getJobClient().get().getJobStatus())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # register a source table named "Orders" and a sink table named "RubberOrders"
 table_env.execute_sql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")

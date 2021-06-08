@@ -117,7 +117,7 @@ from pyflink.table import *
 
 # environment configuration
 t_env = TableEnvironment.create(
-    environment_settings=EnvironmentSettings.new_instance().in_batch_mode().build())
+    environment_settings=EnvironmentSettings.in_batch_mode())
 
 # register Orders table and Result table sink in table environment
 source_data_path = "/path/to/source/directory/"

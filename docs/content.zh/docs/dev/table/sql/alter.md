@@ -69,8 +69,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 {{< tabs "147c58e0-44d1-4f78-b995-88b3edba7bec" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -89,8 +88,7 @@ String[] tables = tableEnv.listTables();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -109,8 +107,7 @@ val tables = tableEnv.listTables()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # 字符串数组： ["Orders"]
 tables = table_env.list_tables()

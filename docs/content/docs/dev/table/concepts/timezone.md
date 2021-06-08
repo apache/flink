@@ -87,7 +87,7 @@ Flink SQL> SET 'table.local-time-zone' = 'America/Los_Angeles';
 {{< /tab >}}
 {{< tab "Java" >}}
 ```java
- EnvironmentSettings envSetting = EnvironmentSettings.newInstance().build();
+ EnvironmentSettings envSetting = EnvironmentSettings.inStreamingMode();
  TableEnvironment tEnv = TableEnvironment.create(envSetting);
 
  // set to UTC time zone
@@ -102,7 +102,7 @@ Flink SQL> SET 'table.local-time-zone' = 'America/Los_Angeles';
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val envSetting = EnvironmentSettings.newInstance.build
+val envSetting = EnvironmentSettings.inStreamingMode()
 val tEnv = TableEnvironment.create(envSetting)
 
 // set to UTC time zone

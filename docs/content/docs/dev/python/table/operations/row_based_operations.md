@@ -37,7 +37,7 @@ from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table.expressions import col
 from pyflink.table.types import DataTypes
 
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -101,7 +101,7 @@ from pyflink.common import Row
 from pyflink.table.udf import udtf
 from pyflink.table import DataTypes, EnvironmentSettings, TableEnvironment
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 table = table_env.from_elements([(1, 'Hi,Flink'), (2, 'Hello')], ['id', 'data'])
@@ -181,7 +181,7 @@ agg = udaf(function,
 
 # aggregate with a python general aggregate function
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
 
@@ -196,7 +196,7 @@ result.to_pandas()
 # 1  2  1  1
 
 # aggregate with a python vectorized aggregate function
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 t = table_env.from_elements([(1, 2), (2, 1), (1, 3)], ['a', 'b'])
@@ -256,7 +256,7 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))

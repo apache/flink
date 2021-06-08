@@ -75,7 +75,7 @@ You can set dialect for your TableEnvironment with Table API.
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 // to use hive dialect
 tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
@@ -88,7 +88,7 @@ tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
 ```python
 from pyflink.table import *
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # to use hive dialect

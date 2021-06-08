@@ -312,7 +312,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "myhive";
@@ -330,7 +330,7 @@ tableEnv.useCatalog("myhive");
 
 ```scala
 
-val settings = EnvironmentSettings.newInstance().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "myhive"
@@ -349,7 +349,7 @@ tableEnv.useCatalog("myhive")
 from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 catalog_name = "myhive"
