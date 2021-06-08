@@ -107,9 +107,4 @@ public class GenericUDFLegacyGroupingID extends GenericUDF {
     public String getDisplayString(String[] children) {
         return HiveParserUtils.getStandardDisplayString("grouping", children);
     }
-
-    @Override
-    protected String getFuncName() {
-        return NAME;
-    }
 }
