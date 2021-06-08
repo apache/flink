@@ -198,8 +198,11 @@ public class ClusterEntrypointTest extends TestLogger {
         final File markerFile = new File(TEMPORARY_FOLDER.getRoot(), UUID.randomUUID() + ".marker");
         final TestingClusterEntrypointProcess clusterEntrypointProcess =
                 new TestingClusterEntrypointProcess(markerFile);
+
+        clusterEntrypointProcess.startProcess();
+
+        boolean success = false;
         try {
-            clusterEntrypointProcess.startProcess();
             final long pid = clusterEntrypointProcess.getProcessId();
             assertTrue("Cannot determine process ID", pid != -1);
 
@@ -218,7 +221,12 @@ public class ClusterEntrypointTest extends TestLogger {
                     "markerFile should be deleted in closeAsync shutdownHook",
                     markerFile.exists(),
                     is(false));
+            success = true;
         } finally {
+            if (!success) {
+                clusterEntrypointProcess.printProcessLog();
+            }
+
             clusterEntrypointProcess.destroy();
         }
     }
