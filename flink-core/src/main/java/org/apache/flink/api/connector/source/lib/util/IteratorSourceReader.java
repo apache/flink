@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source.lib.util;
 
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.core.io.InputStatus;
@@ -70,6 +71,8 @@ public class IteratorSourceReader<
      */
     @Nullable private SplitT currentSplit;
 
+    private SourceOutput<E> currentSplitOutput;
+
     /** The remaining splits that were assigned but not yet processed. */
     private final Queue<SplitT> remainingSplits;
 
@@ -95,19 +98,20 @@ public class IteratorSourceReader<
     public InputStatus pollNext(ReaderOutput<E> output) {
         if (iterator != null) {
             if (iterator.hasNext()) {
-                output.collect(iterator.next());
+                currentSplitOutput.collect(iterator.next());
                 return InputStatus.MORE_AVAILABLE;
             } else {
                 finishSplit();
             }
         }
 
-        return tryMoveToNextSplit();
+        return tryMoveToNextSplit(output);
     }
 
     private void finishSplit() {
         iterator = null;
         currentSplit = null;
+        currentSplitOutput = null;
 
         // request another split if no other is left
         // we do this only here in the finishSplit part to avoid requesting a split
@@ -117,10 +121,14 @@ public class IteratorSourceReader<
         }
     }
 
-    private InputStatus tryMoveToNextSplit() {
+    private InputStatus tryMoveToNextSplit(ReaderOutput<E> output) {
+        if (currentSplit != null) {
+            output.releaseOutputForSplit(currentSplit.splitId());
+        }
         currentSplit = remainingSplits.poll();
         if (currentSplit != null) {
             iterator = currentSplit.getIterator();
+            currentSplitOutput = output.createOutputForSplit(currentSplit.splitId());
             return InputStatus.MORE_AVAILABLE;
         } else if (noMoreSplits) {
             return InputStatus.END_OF_INPUT;
