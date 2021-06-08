@@ -19,7 +19,6 @@
 package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.List;
 
@@ -33,29 +32,67 @@ public interface PartitionCommitPredicate {
     String PARTITION_TIME = "partition-time";
     String PROCESS_TIME = "process-time";
 
-    boolean isPartitionCommittable(String partition, long creationTime, long watermark);
+    boolean isPartitionCommittable(PredicateContext predicateContext);
+
+    /**
+     * Context that {@link PartitionCommitPredicate} can use for getting context about a partition.
+     */
+    interface PredicateContext {
+        /** Return the partition. */
+        String partition();
+
+        /** Return the creation time of the partition. */
+        long createProcTime();
+
+        /** Return the current process time. */
+        long currentProcTime();
+
+        /** Returns the current event-time watermark. */
+        long currentWatermark();
+    }
+
+    static PredicateContext createPredicateContext(
+            String partition, long createProcTime, long currentProcTime, long currentWatermark) {
+        return new PredicateContext() {
+            @Override
+            public String partition() {
+                return partition;
+            }
+
+            @Override
+            public long createProcTime() {
+                return createProcTime;
+            }
+
+            @Override
+            public long currentProcTime() {
+                return currentProcTime;
+            }
+
+            @Override
+            public long currentWatermark() {
+                return currentWatermark;
+            }
+        };
+    }
 
     static PartitionCommitPredicate createPartitionTimeCommitPredicate(
             Configuration conf, ClassLoader cl, List<String> partitionKeys) {
         return new PartitionTimeCommitPredicate(conf, cl, partitionKeys);
     }
 
-    static PartitionCommitPredicate createProcTimeCommitPredicate(
-            Configuration conf, ProcessingTimeService procTimeService) {
-        return new ProcTimeCommitPredicate(conf, procTimeService);
+    static PartitionCommitPredicate createProcTimeCommitPredicate(Configuration conf) {
+        return new ProcTimeCommitPredicate(conf);
     }
 
     static PartitionCommitPredicate create(
-            Configuration conf,
-            ClassLoader cl,
-            List<String> partitionKeys,
-            ProcessingTimeService procTimeService) {
+            Configuration conf, ClassLoader cl, List<String> partitionKeys) {
         String trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
         switch (trigger) {
             case PARTITION_TIME:
                 return createPartitionTimeCommitPredicate(conf, cl, partitionKeys);
             case PROCESS_TIME:
-                return createProcTimeCommitPredicate(conf, procTimeService);
+                return createProcTimeCommitPredicate(conf);
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported partition commit predicate: " + trigger);

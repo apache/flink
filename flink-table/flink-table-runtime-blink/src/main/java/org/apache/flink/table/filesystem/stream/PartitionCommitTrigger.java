@@ -66,8 +66,7 @@ public interface PartitionCommitTrigger {
                         isRestored, stateStore, partitionCommitPredicate);
             case PROCESS_TIME:
                 partitionCommitPredicate =
-                        PartitionCommitPredicate.createProcTimeCommitPredicate(
-                                conf, procTimeService);
+                        PartitionCommitPredicate.createProcTimeCommitPredicate(conf);
                 return new ProcTimeCommitTrigger(
                         isRestored, stateStore, procTimeService, partitionCommitPredicate);
             default:

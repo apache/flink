@@ -36,6 +36,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PredicateContext;
 
 /** Writer for emitting {@link PartitionCommitInfo} to downstream. */
 public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, PartitionCommitInfo> {
@@ -68,11 +69,7 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
     public void initializeState(StateInitializationContext context) throws Exception {
         if (isPartitionCommitTriggerEnabled()) {
             partitionCommitPredicate =
-                    PartitionCommitPredicate.create(
-                            conf,
-                            getUserCodeClassloader(),
-                            partitionKeys,
-                            getProcessingTimeService());
+                    PartitionCommitPredicate.create(conf, getUserCodeClassloader(), partitionKeys);
         }
 
         currentNewPartitions = new HashSet<>();
@@ -121,8 +118,13 @@ public class StreamingFileWriter<IN> extends AbstractStreamingWriter<IN, Partiti
                 Map.Entry<String, Long> entry = iterator.next();
                 String partition = entry.getKey();
                 Long creationTime = entry.getValue();
-                if (partitionCommitPredicate.isPartitionCommittable(
-                        partition, creationTime, currentWatermark)) {
+                PredicateContext predicateContext =
+                        PartitionCommitPredicate.createPredicateContext(
+                                partition,
+                                creationTime,
+                                processingTimeService.getCurrentProcessingTime(),
+                                currentWatermark);
+                if (partitionCommitPredicate.isPartitionCommittable(predicateContext)) {
                     // if partition is committable, close in-progress part file in this partition
                     buckets.closePartFileForBucket(partition);
                     iterator.remove();

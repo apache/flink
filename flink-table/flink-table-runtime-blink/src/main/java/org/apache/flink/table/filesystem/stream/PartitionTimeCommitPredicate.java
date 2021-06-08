@@ -60,10 +60,13 @@ public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
     }
 
     @Override
-    public boolean isPartitionCommittable(String partition, long creationTime, long watermark) {
+    public boolean isPartitionCommittable(PredicateContext predicateContext) {
         LocalDateTime partitionTime =
-                extractor.extract(partitionKeys, extractPartitionValues(new Path(partition)));
-        return watermarkHasPassedWithDelay(watermark, partitionTime, commitDelay);
+                extractor.extract(
+                        partitionKeys,
+                        extractPartitionValues(new Path(predicateContext.partition())));
+        return watermarkHasPassedWithDelay(
+                predicateContext.currentWatermark(), partitionTime, commitDelay);
     }
 
     /**

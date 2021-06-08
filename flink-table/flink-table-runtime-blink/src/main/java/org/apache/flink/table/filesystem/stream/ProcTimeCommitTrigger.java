@@ -33,6 +33,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PredicateContext;
+
 /**
  * Partition commit trigger by creation time and processing time service. It'll commit the partition
  * predicated to be committable by {@link PartitionCommitPredicate}
@@ -79,13 +81,39 @@ public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
         while (iter.hasNext()) {
             Map.Entry<String, Long> entry = iter.next();
             long creationTime = entry.getValue();
-            // don't care about watermark in ProcTimeCommitTrigger
-            if (partitionCommitPredicate.isPartitionCommittable(entry.getKey(), creationTime, 0L)) {
+            PredicateContext predicateContext =
+                    createPredicateContext(entry.getKey(), creationTime);
+            if (partitionCommitPredicate.isPartitionCommittable(predicateContext)) {
                 needCommit.add(entry.getKey());
                 iter.remove();
             }
         }
         return needCommit;
+    }
+
+    private PredicateContext createPredicateContext(String partition, long createProcTime) {
+        return new PredicateContext() {
+            @Override
+            public String partition() {
+                return partition;
+            }
+
+            @Override
+            public long createProcTime() {
+                return createProcTime;
+            }
+
+            @Override
+            public long currentProcTime() {
+                return procTimeService.getCurrentProcessingTime();
+            }
+
+            @Override
+            public long currentWatermark() {
+                throw new UnsupportedOperationException(
+                        "Method currentWatermark isn't supported in ProcTimeCommitTrigger.");
+            }
+        };
     }
 
     @Override

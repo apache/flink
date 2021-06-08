@@ -19,7 +19,6 @@
 package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
 
@@ -29,16 +28,15 @@ import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION
  */
 public class ProcTimeCommitPredicate implements PartitionCommitPredicate {
     private final long commitDelay;
-    private final ProcessingTimeService procTimeService;
 
-    public ProcTimeCommitPredicate(Configuration conf, ProcessingTimeService procTimeService) {
-        this.procTimeService = procTimeService;
+    public ProcTimeCommitPredicate(Configuration conf) {
         this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
     }
 
     @Override
-    public boolean isPartitionCommittable(String partition, long creationTime, long watermark) {
-        long currentProcTime = procTimeService.getCurrentProcessingTime();
-        return commitDelay == 0 || currentProcTime > creationTime + commitDelay;
+    public boolean isPartitionCommittable(PredicateContext predicateContext) {
+        long currentProcTime = predicateContext.currentProcTime();
+        return commitDelay == 0
+                || currentProcTime > predicateContext.createProcTime() + commitDelay;
     }
 }

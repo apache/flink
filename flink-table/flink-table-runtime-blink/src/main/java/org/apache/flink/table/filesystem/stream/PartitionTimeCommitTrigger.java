@@ -36,9 +36,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PredicateContext;
+
 /**
- * Partition commit trigger by partition time and watermark. It'll commit the partition
- * predicated to be committable by {@link PartitionCommitPredicate}
+ * Partition commit trigger by partition time and watermark. It'll commit the partition predicated
+ * to be committable by {@link PartitionCommitPredicate}
  *
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
@@ -104,13 +106,39 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
         Iterator<String> iter = pendingPartitions.iterator();
         while (iter.hasNext()) {
             String partition = iter.next();
-            // don't care about creationTime in PartitionTimeCommitTrigger
-            if (partitionCommitPredicate.isPartitionCommittable(partition, 0L, watermark)) {
+            PredicateContext predicateContext = createPredicateContext(partition, watermark);
+            if (partitionCommitPredicate.isPartitionCommittable(predicateContext)) {
                 needCommit.add(partition);
                 iter.remove();
             }
         }
         return needCommit;
+    }
+
+    private PredicateContext createPredicateContext(String partition, long watermark) {
+        return new PredicateContext() {
+            @Override
+            public String partition() {
+                return partition;
+            }
+
+            @Override
+            public long createProcTime() {
+                throw new UnsupportedOperationException(
+                        "Method createProcTime isn't supported in PartitionTimeCommitTrigger.");
+            }
+
+            @Override
+            public long currentProcTime() {
+                throw new UnsupportedOperationException(
+                        "Method currentProcTime isn't supported in PartitionTimeCommitTrigger.");
+            }
+
+            @Override
+            public long currentWatermark() {
+                return watermark;
+            }
+        };
     }
 
     @Override
