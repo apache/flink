@@ -68,8 +68,9 @@ public class ZipUtils {
                         }
                     }
                     if (file.createNewFile()) {
-                        OutputStream output = new FileOutputStream(file);
-                        IOUtils.copyBytes(zipFile.getInputStream(entry), output);
+                        try (OutputStream output = new FileOutputStream(file)) {
+                            IOUtils.copyBytes(zipFile.getInputStream(entry), output);
+                        }
                     } else {
                         throw new IOException(
                                 "Create file: " + file.getAbsolutePath() + " failed!");
