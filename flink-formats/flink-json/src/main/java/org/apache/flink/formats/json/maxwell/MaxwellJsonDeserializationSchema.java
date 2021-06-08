@@ -54,7 +54,7 @@ import static java.lang.String.format;
  * @see <a href="http://maxwells-daemon.io/">Maxwell</a>
  */
 public class MaxwellJsonDeserializationSchema implements DeserializationSchema<RowData> {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "insert";
@@ -76,10 +76,10 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
     /** Flag indicating whether to ignore invalid fields/rows (default: throw an exception). */
     private final boolean ignoreParseErrors;
 
-    /** Names of fields. */
+    /** Names of physical fields. */
     private final List<String> fieldNames;
 
-    /** Number of fields. */
+    /** Number of physical fields. */
     private final int fieldCount;
 
     public MaxwellJsonDeserializationSchema(
@@ -95,8 +95,9 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                         // the result type is never used, so it's fine to pass in the produced type
                         // info
                         producedTypeInfo,
-                        false, // ignoreParseErrors already contains the functionality of
+                        // ignoreParseErrors already contains the functionality of
                         // failOnMissingField
+                        false,
                         ignoreParseErrors,
                         timestampFormat);
         this.hasMetadata = requestedMetadata.size() > 0;
@@ -130,7 +131,7 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                 emitRow(row, insert, out);
             } else if (OP_UPDATE.equals(type)) {
                 // "data" field is a row, contains new rows
-                // "old" field is an array of row, contains old values
+                // "old" field is a row, contains old values
                 // the underlying JSON deserialization schema always produce GenericRowData.
                 GenericRowData after = (GenericRowData) row.getRow(0, fieldCount); // "data" field
                 GenericRowData before = (GenericRowData) row.getRow(1, fieldCount); // "old" field
@@ -176,16 +177,15 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
             out.collect(physicalRow);
             return;
         }
-        final int physicalArity = physicalRow.getArity();
         final int metadataArity = metadataConverters.length;
         final GenericRowData producedRow =
-                new GenericRowData(physicalRow.getRowKind(), physicalArity + metadataArity);
-        for (int physicalPos = 0; physicalPos < physicalArity; physicalPos++) {
+                new GenericRowData(physicalRow.getRowKind(), fieldCount + metadataArity);
+        for (int physicalPos = 0; physicalPos < fieldCount; physicalPos++) {
             producedRow.setField(physicalPos, physicalRow.getField(physicalPos));
         }
         for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
             producedRow.setField(
-                    physicalArity + metadataPos, metadataConverters[metadataPos].convert(rootRow));
+                    fieldCount + metadataPos, metadataConverters[metadataPos].convert(rootRow));
         }
         out.collect(producedRow);
     }
@@ -226,7 +226,6 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
 
     private static RowType createJsonRowType(
             DataType physicalDataType, List<ReadableMetadata> readableMetadata) {
-        // Maxwell JSON contains other information, e.g. "database", "ts", but we don't need them
         DataType root =
                 DataTypes.ROW(
                         DataTypes.FIELD("data", physicalDataType),

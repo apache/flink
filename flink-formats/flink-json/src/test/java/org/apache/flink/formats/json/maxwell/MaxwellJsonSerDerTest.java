@@ -50,7 +50,6 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -95,7 +94,7 @@ public class MaxwellJsonSerDerTest {
                     assertThat(row.getFloat(3), equalTo(3.14f));
                     assertThat(row.getString(4).toString(), equalTo("test"));
                     assertThat(row.getString(5).toString(), equalTo("product"));
-                    assertThat(row.getArray(6), nullValue());
+                    assertThat(row.getArray(6).getString(0).toString(), equalTo("id"));
                     assertThat(row.getTimestamp(7, 3).getMillisecond(), equalTo(1596684883000L));
                 };
         consumer.accept(collector.list.get(0));

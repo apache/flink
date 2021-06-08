@@ -47,6 +47,7 @@ public class MaxwellJsonDecodingFormat implements DecodingFormat<Deserialization
     // Mutable attributes
     // --------------------------------------------------------------------------------------------
 
+    /** The requested metadata keys. */
     private List<String> metadataKeys;
 
     private final boolean ignoreParseErrors;
@@ -69,7 +70,12 @@ public class MaxwellJsonDecodingFormat implements DecodingFormat<Deserialization
                                         Stream.of(ReadableMetadata.values())
                                                 .filter(rm -> rm.key.equals(k))
                                                 .findFirst()
-                                                .orElseThrow(IllegalStateException::new))
+                                                .orElseThrow(
+                                                        () ->
+                                                                new IllegalStateException(
+                                                                        String.format(
+                                                                                "Could not find the requested metadata key: %s",
+                                                                                k))))
                         .collect(Collectors.toList());
         final List<DataTypes.Field> metadataFields =
                 readableMetadata.stream()
