@@ -126,7 +126,7 @@ public class WindowRankOperatorBuilder {
                 String.format("Illegal rank start %s, it should be positive!", rankStart));
         checkArgument(
                 rankEnd >= 1,
-                String.format("Illegal rank end %s, it should be bigger than 1!", rankEnd));
+                String.format("Illegal rank end %s, it should be at least 1!", rankEnd));
         checkArgument(
                 rankEnd >= rankStart,
                 String.format(
