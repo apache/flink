@@ -315,6 +315,12 @@ public class LocalExecutor implements Executor {
     }
 
     @Override
+    public void removeJar(String sessionId, String jarUrl) {
+        final SessionContext context = getSessionContext(sessionId);
+        context.removeJar(jarUrl);
+    }
+
+    @Override
     public List<String> listJars(String sessionId) {
         final SessionContext context = getSessionContext(sessionId);
         return context.listJars();

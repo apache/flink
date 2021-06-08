@@ -233,3 +233,11 @@ show user functions;
 +---------------+
 1 row in set
 !ok
+
+REMOVE JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is removed from session classloader.
+!info
+
+SHOW JARS;
+Empty set
+!ok

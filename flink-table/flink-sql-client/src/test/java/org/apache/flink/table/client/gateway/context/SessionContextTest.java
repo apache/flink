@@ -205,17 +205,42 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testRemoteJar() {
+    public void testAddRemoteJar() {
         validateAddJarWithException(
                 "hdfs://remote:10080/remote.jar", "SQL Client only supports to add local jars.");
     }
 
     @Test
-    public void testIllegalJarInConfig() {
+    public void testAddIllegalJarInConfig() {
         Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
         innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
 
         validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
+    }
+
+    @Test
+    public void testRemoveJarWithFullPath() {
+        validateRemoveJar(udfJar.getPath());
+    }
+
+    @Test
+    public void testRemoveJarWithRelativePath() throws IOException {
+        validateRemoveJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+    }
+
+    @Test
+    public void testRemoveIllegalJar() {
+        validateRemoveJarWithException("/path/to/illegal.jar", "JAR file does not exist");
+    }
+
+    @Test
+    public void testRemoveRemoteJar() {
+        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
+        innerConfig.set(JARS, Collections.singletonList("hdfs://remote:10080/remote.jar"));
+
+        validateRemoveJarWithException(
+                "hdfs://remote:10080/remote.jar", "SQL Client only supports to remove local jars.");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -272,6 +297,14 @@ public class SessionContextTest {
                 getConfiguration().get(JARS));
     }
 
+    private void validateRemoveJar(String jarPath) {
+        sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+
+        sessionContext.removeJar(jarPath);
+        assertEquals(Collections.emptyList(), sessionContext.listJars());
+    }
+
     private void validateAddJarWithException(String jarPath, String errorMessages) {
         Set<URL> originDependencies = sessionContext.getDependencies();
         try {
@@ -280,6 +313,18 @@ public class SessionContextTest {
         } catch (Exception e) {
             assertThat(e, containsMessage(errorMessages));
             // Keep dependencies as same as before if fail to add jar
+            assertEquals(originDependencies, sessionContext.getDependencies());
+        }
+    }
+
+    private void validateRemoveJarWithException(String jarPath, String errorMessages) {
+        Set<URL> originDependencies = sessionContext.getDependencies();
+        try {
+            sessionContext.removeJar(jarPath);
+            fail("Should fail.");
+        } catch (Exception e) {
+            assertThat(e, containsMessage(errorMessages));
+            // Keep dependencies as same as before if fail to remove jar
             assertEquals(originDependencies, sessionContext.getDependencies());
         }
     }
