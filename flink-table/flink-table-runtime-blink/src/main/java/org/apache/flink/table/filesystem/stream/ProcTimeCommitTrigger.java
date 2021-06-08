@@ -35,7 +35,7 @@ import java.util.Map;
 
 /**
  * Partition commit trigger by creation time and processing time service. It'll commit the partition
- * that predicated to be committable by {@link PartitionCommitPredicate}
+ * predicated to be committable by {@link PartitionCommitPredicate}
  */
 public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
 

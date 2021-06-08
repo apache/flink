@@ -37,7 +37,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Partition commit trigger by partition time and watermark. It'll commit the partition that
+ * Partition commit trigger by partition time and watermark. It'll commit the partition
  * predicated to be committable by {@link PartitionCommitPredicate}
  *
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
