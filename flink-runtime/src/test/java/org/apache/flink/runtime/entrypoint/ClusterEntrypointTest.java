@@ -84,7 +84,7 @@ import static org.junit.Assume.assumeTrue;
 /** Tests for the {@link ClusterEntrypoint}. */
 public class ClusterEntrypointTest extends TestLogger {
 
-    private static final long TIMEOUT_MS = 3000;
+    private static final long TIMEOUT_MS = 10000;
 
     private Configuration flinkConfig;
 
