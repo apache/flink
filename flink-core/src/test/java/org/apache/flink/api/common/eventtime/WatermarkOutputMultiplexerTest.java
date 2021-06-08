@@ -25,9 +25,9 @@ import java.util.UUID;
 import static org.apache.flink.api.common.eventtime.WatermarkMatchers.watermark;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link WatermarkOutputMultiplexer}. */
@@ -374,6 +374,19 @@ public class WatermarkOutputMultiplexerTest {
         final boolean unregistered = multiplexer.unregisterOutput("does-not-exist");
 
         assertFalse(unregistered);
+    }
+
+    @Test
+    public void testBecomingActiveOnNewSplit() {
+        final TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        final WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        multiplexer.onPeriodicEmit();
+        assertThat(underlyingWatermarkOutput.isIdle(), is(true));
+        multiplexer.registerNewOutput("new-output");
+
+        assertThat(underlyingWatermarkOutput.isIdle(), is(false));
     }
 
     /**

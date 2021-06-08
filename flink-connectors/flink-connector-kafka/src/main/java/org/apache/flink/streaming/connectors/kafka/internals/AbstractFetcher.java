@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.kafka.internals;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
+import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer.WatermarkOutputWithActive;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
@@ -76,7 +77,7 @@ public abstract class AbstractFetcher<T, KPH> {
      * org.apache.flink.api.common.eventtime.WatermarkGenerator} to emit watermarks and mark
      * idleness.
      */
-    protected final WatermarkOutput watermarkOutput;
+    protected final WatermarkOutputWithActive watermarkOutput;
 
     /** {@link WatermarkOutputMultiplexer} for supporting per-partition watermark generation. */
     private final WatermarkOutputMultiplexer watermarkOutputMultiplexer;

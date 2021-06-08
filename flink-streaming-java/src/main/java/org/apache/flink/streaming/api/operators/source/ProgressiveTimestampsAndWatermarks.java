@@ -24,6 +24,7 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
+import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer.WatermarkOutputWithActive;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
@@ -98,7 +99,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
                 currentMainOutput == null && currentPerSplitOutputs == null,
                 "already created a main output");
 
-        final WatermarkOutput watermarkOutput = new WatermarkToDataOutput(output);
+        final WatermarkOutputWithActive watermarkOutput = new WatermarkToDataOutput(output);
         final WatermarkGenerator<T> watermarkGenerator =
                 watermarksFactory.createWatermarkGenerator(watermarksContext);
 
@@ -202,7 +203,7 @@ public class ProgressiveTimestampsAndWatermarks<T> implements TimestampsAndWater
 
         private SplitLocalOutputs(
                 PushingAsyncDataInput.DataOutput<T> recordOutput,
-                WatermarkOutput watermarkOutput,
+                WatermarkOutputWithActive watermarkOutput,
                 TimestampAssigner<T> timestampAssigner,
                 WatermarkGeneratorSupplier<T> watermarksFactory,
                 WatermarkGeneratorSupplier.Context watermarkContext) {

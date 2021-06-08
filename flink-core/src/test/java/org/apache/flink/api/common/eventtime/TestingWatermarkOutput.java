@@ -19,7 +19,7 @@
 package org.apache.flink.api.common.eventtime;
 
 /** A testing implementation of {@link WatermarkOutput}. */
-final class TestingWatermarkOutput implements WatermarkOutput {
+final class TestingWatermarkOutput implements WatermarkOutputMultiplexer.WatermarkOutputWithActive {
 
     private Watermark lastWatermark;
 
@@ -42,5 +42,10 @@ final class TestingWatermarkOutput implements WatermarkOutput {
 
     public boolean isIdle() {
         return isIdle;
+    }
+
+    @Override
+    public void markActive() {
+        isIdle = false;
     }
 }

@@ -18,14 +18,15 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext;
 
 /**
  * A {@link org.apache.flink.api.common.eventtime.WatermarkOutput} that forwards calls to a {@link
  * org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext}.
  */
-public class SourceContextWatermarkOutputAdapter<T> implements WatermarkOutput {
+public class SourceContextWatermarkOutputAdapter<T>
+        implements WatermarkOutputMultiplexer.WatermarkOutputWithActive {
     private final SourceContext<T> sourceContext;
 
     public SourceContextWatermarkOutputAdapter(SourceContext<T> sourceContext) {
@@ -41,5 +42,10 @@ public class SourceContextWatermarkOutputAdapter<T> implements WatermarkOutput {
     @Override
     public void markIdle() {
         sourceContext.markAsTemporarilyIdle();
+    }
+
+    @Override
+    public void markActive() {
+        // we ignore the active signal, we mark the stream active on records and/or watermarks
     }
 }

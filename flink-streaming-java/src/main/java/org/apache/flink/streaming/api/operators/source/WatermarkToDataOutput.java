@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.operators.source;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ExceptionInChainedOperatorException;
@@ -32,7 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * PushingAsyncDataInput.DataOutput}.
  */
 @Internal
-public final class WatermarkToDataOutput implements WatermarkOutput {
+public final class WatermarkToDataOutput
+        implements WatermarkOutputMultiplexer.WatermarkOutputWithActive {
 
     private final PushingAsyncDataInput.DataOutput<?> output;
     private long maxWatermarkSoFar;
@@ -70,13 +72,34 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
 
     @Override
     public void markIdle() {
-        if (isIdle) {
+        updateIdleness(StreamStatus.IDLE);
+    }
+
+    @Override
+    public void markActive() {
+        updateIdleness(StreamStatus.ACTIVE);
+    }
+
+    private void updateIdleness(StreamStatus status) {
+        if (isIdle == status.isIdle()) {
             return;
         }
 
+        wrapExceptions(
+                () -> {
+                    output.emitStreamStatus(status);
+                    isIdle = status.isIdle();
+                });
+    }
+
+    @FunctionalInterface
+    private interface VoidFunction {
+        void execute() throws Exception;
+    }
+
+    private static void wrapExceptions(VoidFunction function) {
         try {
-            output.emitStreamStatus(StreamStatus.IDLE);
-            isIdle = true;
+            function.execute();
         } catch (ExceptionInChainedOperatorException e) {
             throw e;
         } catch (Exception e) {

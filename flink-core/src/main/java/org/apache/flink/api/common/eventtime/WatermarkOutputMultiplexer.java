@@ -50,11 +50,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class WatermarkOutputMultiplexer {
 
     /**
-     * The {@link WatermarkOutput} that we use to emit our multiplexed watermark updates. We assume
-     * that outside code holds a coordinating lock so we don't lock in this class when accessing
-     * this {@link WatermarkOutput}.
+     * The {@link WatermarkOutputWithActive} that we use to emit our multiplexed watermark updates.
+     * We assume that outside code holds a coordinating lock so we don't lock in this class when
+     * accessing this {@link WatermarkOutputWithActive}.
      */
-    private final WatermarkOutput underlyingOutput;
+    private final WatermarkOutputWithActive underlyingOutput;
 
     /**
      * Map view, to allow finding them when requesting the {@link WatermarkOutput} for a given id.
@@ -64,10 +64,23 @@ public class WatermarkOutputMultiplexer {
     private final CombinedWatermarkStatus combinedWatermarkStatus;
 
     /**
+     * We should remove this interface if we extend the {@link WatermarkOutput} with the possibility
+     * to mark the stream ACTIVE.
+     */
+    public interface WatermarkOutputWithActive extends WatermarkOutput {
+
+        /**
+         * Marks this output as active, meaning that downstream operations wait for watermarks from
+         * this output.
+         */
+        void markActive();
+    }
+
+    /**
      * Creates a new {@link WatermarkOutputMultiplexer} that emits combined updates to the given
      * {@link WatermarkOutput}.
      */
-    public WatermarkOutputMultiplexer(WatermarkOutput underlyingOutput) {
+    public WatermarkOutputMultiplexer(WatermarkOutputWithActive underlyingOutput) {
         this.underlyingOutput = underlyingOutput;
         this.watermarkPerOutputId = new HashMap<>();
         this.combinedWatermarkStatus = new CombinedWatermarkStatus();
@@ -86,6 +99,7 @@ public class WatermarkOutputMultiplexer {
         checkState(previouslyRegistered == null, "Already contains an output for ID %s", id);
 
         combinedWatermarkStatus.add(outputState);
+        underlyingOutput.markActive();
     }
 
     public boolean unregisterOutput(String id) {
@@ -138,11 +152,14 @@ public class WatermarkOutputMultiplexer {
      * deferred per-output updates.
      */
     private void updateCombinedWatermark() {
+        boolean wasIdle = combinedWatermarkStatus.isIdle();
         if (combinedWatermarkStatus.updateCombinedWatermark()) {
             underlyingOutput.emitWatermark(
                     new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
         } else if (combinedWatermarkStatus.isIdle()) {
             underlyingOutput.markIdle();
+        } else if (wasIdle) {
+            underlyingOutput.markActive();
         }
     }
 
