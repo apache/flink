@@ -354,7 +354,7 @@ USE CATALOG mypg;
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 String name            = "mypg";
@@ -373,7 +373,7 @@ tableEnv.useCatalog("mypg");
 {{< tab "Scala" >}}
 ```scala
 
-val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
+val settings = EnvironmentSettings.inStreamingMode()
 val tableEnv = TableEnvironment.create(settings)
 
 val name            = "mypg"
@@ -393,7 +393,7 @@ tableEnv.useCatalog("mypg")
 ```python
 from pyflink.table.catalog import JdbcCatalog
 
-environment_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+environment_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings)
 
 name = "mypg"
