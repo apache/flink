@@ -26,6 +26,7 @@ import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
 import org.apache.flink.connector.kafka.source.reader.fetcher.KafkaSourceFetcherManager;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitState;
@@ -54,13 +55,15 @@ public class KafkaSourceReader<T>
     // and the split fetcher thread in the callback.
     private final SortedMap<Long, Map<TopicPartition, OffsetAndMetadata>> offsetsToCommit;
     private final ConcurrentMap<TopicPartition, OffsetAndMetadata> offsetsOfFinishedSplits;
+    private final KafkaSourceReaderMetrics kafkaSourceReaderMetrics;
 
     public KafkaSourceReader(
             FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<T, Long, Long>>> elementsQueue,
             Supplier<KafkaPartitionSplitReader<T>> splitReaderSupplier,
             RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> recordEmitter,
             Configuration config,
-            SourceReaderContext context) {
+            SourceReaderContext context,
+            KafkaSourceReaderMetrics kafkaSourceReaderMetrics) {
         super(
                 elementsQueue,
                 new KafkaSourceFetcherManager<>(elementsQueue, splitReaderSupplier::get),
@@ -69,6 +72,7 @@ public class KafkaSourceReader<T>
                 context);
         this.offsetsToCommit = Collections.synchronizedSortedMap(new TreeMap<>());
         this.offsetsOfFinishedSplits = new ConcurrentHashMap<>();
+        this.kafkaSourceReaderMetrics = kafkaSourceReaderMetrics;
     }
 
     @Override
@@ -117,6 +121,7 @@ public class KafkaSourceReader<T>
                             // The offset commit here is needed by the external monitoring. It won't
                             // break Flink job's correctness if we fail to commit the offset here.
                             if (e != null) {
+                                kafkaSourceReaderMetrics.recordFailedCommit();
                                 LOG.warn(
                                         "Failed to commit consumer offsets for checkpoint {}",
                                         checkpointId,
@@ -129,6 +134,10 @@ public class KafkaSourceReader<T>
                                 // from the offsets of the finished splits map.
                                 Map<TopicPartition, OffsetAndMetadata> committedPartitions =
                                         offsetsToCommit.get(checkpointId);
+                                committedPartitions.forEach(
+                                        (tp, offset) ->
+                                                kafkaSourceReaderMetrics.recordCommittedOffset(
+                                                        tp, offset.offset()));
                                 offsetsOfFinishedSplits
                                         .entrySet()
                                         .removeIf(
