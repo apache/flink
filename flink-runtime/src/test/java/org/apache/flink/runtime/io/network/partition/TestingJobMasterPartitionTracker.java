@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Test {@link JobMasterPartitionTracker} implementation. */
 public class TestingJobMasterPartitionTracker implements JobMasterPartitionTracker {
@@ -32,13 +33,15 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
     private Function<ResourceID, Boolean> isTrackingPartitionsForFunction = ignored -> false;
     private Function<ResultPartitionID, Boolean> isPartitionTrackedFunction = ignored -> false;
     private Consumer<ResourceID> stopTrackingAllPartitionsConsumer = ignored -> {};
-    private Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer = ignored -> {};
-    private Consumer<ResourceID> stopTrackingAndReleaseOrPromotePartitionsConsumer = ignored -> {};
     private BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor>
             startTrackingPartitionsConsumer = (ignoredA, ignoredB) -> {};
     private Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer =
             ignored -> {};
+    private Consumer<Collection<ResultPartitionID>>
+            stopTrackingAndReleaseOrPromotePartitionsConsumer = ignored -> {};
     private Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer = ignored -> {};
+    private Supplier<Collection<ResultPartitionDeploymentDescriptor>>
+            getAllTrackedPartitionsSupplier = () -> Collections.emptyList();
 
     public void setStartTrackingPartitionsConsumer(
             BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor>
@@ -61,26 +64,27 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
         this.stopTrackingAllPartitionsConsumer = stopTrackingAllPartitionsConsumer;
     }
 
-    public void setStopTrackingAndReleaseAllPartitionsConsumer(
-            Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer) {
-        this.stopTrackingAndReleaseAllPartitionsConsumer =
-                stopTrackingAndReleaseAllPartitionsConsumer;
-    }
-
-    public void setStopTrackingAndReleaseOrPromotePartitionsConsumer(
-            Consumer<ResourceID> stopTrackingAndReleaseOrPromotePartitionsConsumer) {
-        this.stopTrackingAndReleaseOrPromotePartitionsConsumer =
-                stopTrackingAndReleaseOrPromotePartitionsConsumer;
-    }
-
     public void setStopTrackingAndReleasePartitionsConsumer(
             Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer) {
         this.stopTrackingAndReleasePartitionsConsumer = stopTrackingAndReleasePartitionsConsumer;
     }
 
+    public void setStopTrackingAndReleaseOrPromotePartitionsConsumer(
+            Consumer<Collection<ResultPartitionID>>
+                    stopTrackingAndReleaseOrPromotePartitionsConsumer) {
+        this.stopTrackingAndReleaseOrPromotePartitionsConsumer =
+                stopTrackingAndReleaseOrPromotePartitionsConsumer;
+    }
+
     public void setStopTrackingPartitionsConsumer(
             Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer) {
         this.stopTrackingPartitionsConsumer = stopTrackingPartitionsConsumer;
+    }
+
+    public void setGetAllTrackedPartitionsSupplier(
+            Supplier<Collection<ResultPartitionDeploymentDescriptor>>
+                    getAllTrackedPartitionsSupplier) {
+        this.getAllTrackedPartitionsSupplier = getAllTrackedPartitionsSupplier;
     }
 
     @Override
@@ -111,13 +115,14 @@ public class TestingJobMasterPartitionTracker implements JobMasterPartitionTrack
     }
 
     @Override
-    public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
-        stopTrackingAndReleaseAllPartitionsConsumer.accept(producingTaskExecutorId);
+    public void stopTrackingAndReleaseOrPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndReleaseOrPromotePartitionsConsumer.accept(resultPartitionIds);
     }
 
     @Override
-    public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {
-        stopTrackingAndReleaseOrPromotePartitionsConsumer.accept(producingTaskExecutorId);
+    public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
+        return getAllTrackedPartitionsSupplier.get();
     }
 
     @Override
