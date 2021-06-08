@@ -35,6 +35,7 @@ import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -742,8 +743,8 @@ public final class ExtractionUtils {
 
     private static ClassReader getClassReader(Class<?> cls) {
         final String className = cls.getName().replaceFirst("^.*\\.", "") + ".class";
-        try {
-            return new ClassReader(cls.getResourceAsStream(className));
+        try (InputStream i = cls.getResourceAsStream(className)) {
+            return new ClassReader(i);
         } catch (IOException e) {
             throw new IllegalStateException("Could not instantiate ClassReader.", e);
         }
