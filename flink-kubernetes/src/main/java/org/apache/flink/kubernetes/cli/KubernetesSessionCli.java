@@ -115,7 +115,6 @@ public class KubernetesSessionCli {
                                         kubernetesClusterClientFactory.getClusterSpecification(
                                                 configuration))
                                 .getClusterClient();
-                clusterId = clusterClient.getClusterId();
             }
 
             try {
@@ -131,7 +130,7 @@ public class KubernetesSessionCli {
                                 e);
                     }
                     if (continueRepl.f1) {
-                        kubernetesClusterDescriptor.killCluster(clusterId);
+                        clusterClient.shutDownCluster();
                     }
                 }
                 clusterClient.close();
