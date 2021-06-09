@@ -471,7 +471,7 @@ public class ExampleIntegrationTest {
         public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Long value) throws Exception {
+        public void invoke(Long value, SinkFunction.Context context) throws Exception {
             values.add(value);
         }
     }
@@ -518,10 +518,11 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values should contain allOf (2, 22, 23)
     }
 }
+
 // create a testing sink
 class CollectSink extends SinkFunction[Long] {
 
-  override def invoke(value: Long): Unit = {
+  override def invoke(value: Long, context: SinkFunction.Context): Unit = {
     CollectSink.values.add(value)
   }
 }
