@@ -462,4 +462,40 @@ class WindowRankITCase(mode: StateBackendMode)
       "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3")
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
+
+  @Test
+  def testTop1(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM
+        |(
+        |  SELECT *,
+        |    ROW_NUMBER() OVER(
+        |      PARTITION BY window_start, window_end ORDER BY sum_b DESC) as rownum
+        |  FROM (
+        |    SELECT
+        |      `name`,
+        |      window_start,
+        |      window_end,
+        |      COUNT(*) as cnt,
+        |      SUM(`bigdec`) as sum_b
+        |    FROM TABLE(
+        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))
+        |  GROUP BY `name`, window_start, window_end
+        |  )
+        |)
+        |WHERE rownum <= 1
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-10T00:00,2020-10-10T00:00:05,4,11.10,1",
+      "b,2020-10-10T00:00:05,2020-10-10T00:00:10,2,6.66,1",
+      "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,1",
+      "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,1")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
 }
