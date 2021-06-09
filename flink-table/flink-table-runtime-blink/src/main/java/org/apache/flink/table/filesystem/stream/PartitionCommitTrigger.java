@@ -26,15 +26,14 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER;
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PARTITION_TIME;
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PROCESS_TIME;
 
 /**
  * Partition commit trigger. See {@link PartitionTimeCommitTrigger}. See {@link
  * ProcTimeCommitTrigger}.
  */
 public interface PartitionCommitTrigger {
-
-    String PARTITION_TIME = "partition-time";
-    String PROCESS_TIME = "process-time";
 
     /** Add a pending partition. */
     void addPartition(String partition);
@@ -56,13 +55,20 @@ public interface PartitionCommitTrigger {
             List<String> partitionKeys,
             ProcessingTimeService procTimeService)
             throws Exception {
+        PartitionCommitPredicate partitionCommitPredicate;
         String trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
         switch (trigger) {
             case PARTITION_TIME:
+                partitionCommitPredicate =
+                        PartitionCommitPredicate.createPartitionTimeCommitPredicate(
+                                conf, cl, partitionKeys);
                 return new PartitionTimeCommitTrigger(
-                        isRestored, stateStore, conf, cl, partitionKeys);
+                        isRestored, stateStore, partitionCommitPredicate);
             case PROCESS_TIME:
-                return new ProcTimeCommitTrigger(isRestored, stateStore, conf, procTimeService);
+                partitionCommitPredicate =
+                        PartitionCommitPredicate.createProcTimeCommitPredicate(conf);
+                return new ProcTimeCommitTrigger(
+                        isRestored, stateStore, procTimeService, partitionCommitPredicate);
             default:
                 throw new UnsupportedOperationException(
                         "Unsupported partition commit trigger: " + trigger);
