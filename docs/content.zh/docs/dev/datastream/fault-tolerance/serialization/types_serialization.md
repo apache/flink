@@ -1,10 +1,11 @@
 ---
-title: "Overview"
+title: "概览"
 weight: 1
 type: docs
 aliases:
-  - /dev/types_serialization.html
-  - /internals/types_serialization.html
+  - /zh/dev/types_serialization.html
+  - /zh/internals/types_serialization.html
+  - /zh/docs/dev/serialization/types_serialization/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,14 +26,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Data Types & Serialization
+# 数据类型以及序列化
 
-Apache Flink handles data types and serialization in a unique way, containing its own type descriptors,
-generic type extraction, and type serialization framework. This document describes the concepts and the rationale behind them.
+Apache Flink 以其独特的方式来处理数据类型以及序列化，这种方式包括它自身的类型描述符、泛型类型提取以及类型序列化框架。 本文档描述了它们背后的概念和基本原理。
 
 ## Supported Data Types
 
-Flink places some restrictions on the type of elements that can be in a DataSet or DataStream.
+Flink places some restrictions on the type of elements that can be in a DataStream.
 The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
@@ -220,7 +220,7 @@ which is Flink's internal way of representing types.
 
 The type inference has its limits and needs the "cooperation" of the programmer in some cases.
 Examples for that are methods that create data sets from collections, such as
-`ExecutionEnvironment.fromCollection(),` where you can pass an argument that describes the type. But
+`StreamExecutionEnvironment.fromCollection(),` where you can pass an argument that describes the type. But
 also generic functions like `MapFunction<I, O>` may need extra type information.
 
 The
@@ -244,8 +244,7 @@ by itself. Having the type information allows Flink to do some cool things:
 
 * Finally, it also spares users in the majority of cases from worrying about serialization frameworks and having to register types.
 
-In general, the information about data types is needed during the *pre-flight phase* - that is, when the program's calls on `DataStream`
-and `DataSet` are made, and before any call to `execute()`, `print()`, `count()`, or `collect()`.
+In general, the information about data types is needed during the *pre-flight phase* - that is, when the program's calls on `DataStream` are made, and before any call to `execute()`, `print()`, `count()`, or `collect()`.
 
 
 ## Most Frequent Issues
@@ -254,13 +253,13 @@ The most frequent issues where users need to interact with Flink's data type han
 
 * **Registering subtypes:** If the function signatures describe only the supertypes, but they actually use subtypes of those during execution,
   it may increase performance a lot to make Flink aware of these subtypes.
-  For that, call `.registerType(clazz)` on the `StreamExecutionEnvironment` or `ExecutionEnvironment` for each subtype.
+  For that, call `.registerType(clazz)` on the `StreamExecutionEnvironment` for each subtype.
 
 * **Registering custom serializers:** Flink falls back to [Kryo](https://github.com/EsotericSoftware/kryo) for the types that it does not handle transparently
   by itself. Not all types are seamlessly handled by Kryo (and thus by Flink). For example, many Google Guava collection types do not work well
   by default. The solution is to register additional serializers for the types that cause problems.
-  Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment` or `ExecutionEnvironment`.
-  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{< ref "docs/dev/serialization/custom_serializers" >}}) for more details on working with custom serializers.
+  Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment`.
+  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{< ref "docs/dev/datastream/fault-tolerance/serialization/custom_serializers" >}}) for more details on working with custom serializers.
 
 * **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despite all tricks, a user must pass a *type hint*. That is generally
   only necessary in the Java API. The [Type Hints Section](#type-hints-in-the-java-api) describes that in more detail.
@@ -297,8 +296,7 @@ Internally, Flink makes the following distinctions between types:
 
 * Generic types: These will not be serialized by Flink itself, but by Kryo.
 
-POJOs are of particular interest, because they support the creation of complex types and the use of field
-names in the definition of keys: `dataSet.join(another).where("name").equalTo("personName")`.
+POJOs are of particular interest, because they support the creation of complex types.
 They are also transparent to the runtime and can be handled very efficiently by Flink.
 
 
@@ -358,7 +356,7 @@ To create a `TypeSerializer`, simply call `typeInfo.createSerializer(config)` on
 
 The `config` parameter is of type `ExecutionConfig` and holds the information about the program's registered
 custom serializers. Where ever possibly, try to pass the programs proper ExecutionConfig. You can usually
-obtain it from `DataStream` or `DataSet` via calling `getExecutionConfig()`. Inside functions (like `MapFunction`), you can
+obtain it from `DataStream` via calling `getExecutionConfig()`. Inside functions (like `MapFunction`), you can
 get it by making the function a [Rich Function]() and calling `getRuntimeContext().getExecutionConfig()`.
 
 --------
@@ -397,11 +395,11 @@ Another common cause are generic methods, which can be fixed as described in the
 Consider the following case below:
 
 ```scala
-def selectFirst[T](input: DataSet[(T, _)]) : DataSet[T] = {
+def selectFirst[T](input: DataStream[(T, _)]) : DataStream[T] = {
   input.map { v => v._1 }
 }
 
-val data : DataSet[(String, Long) = ...
+val data : DataStream[(String, Long) = ...
 
 val result = selectFirst(data)
 ```
@@ -418,7 +416,7 @@ information will then be generated at the sites where the method is invoked, rat
 method is defined.
 
 ```scala
-def selectFirst[T : TypeInformation](input: DataSet[(T, _)]) : DataSet[T] = {
+def selectFirst[T : TypeInformation](input: DataStream[(T, _)]) : DataStream[T] = {
   input.map { v => v._1 }
 }
 ```
@@ -453,7 +451,7 @@ offers so called *type hints*. The type hints tell the system the type of
 the data stream or data set produced by a function:
 
 ```java
-DataSet<SomeType> result = dataSet
+DataStream<SomeType> result = stream
     .map(new MyGenericNonInferrableFunction<Long, SomeType>())
         .returns(SomeType.class);
 ```
@@ -486,7 +484,7 @@ If Kryo is not able to handle the type, you can ask the `PojoTypeInfo` to serial
 To do so, you have to call
 
 ```java
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().enableForceAvro();
 ```
 
@@ -495,7 +493,7 @@ Note that Flink is automatically serializing POJOs generated by Avro with the Av
 If you want your **entire** POJO Type to be treated by the Kryo serializer, set
 
 ```java
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().enableForceKryo();
 ```
 

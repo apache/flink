@@ -831,7 +831,7 @@ from the DataStream API (which would be `RAW` in the Table API) with proper data
 
 Since `DataType` is richer than `TypeInformation`, we can easily enable immutable POJOs and other complex
 data structures. The following example in Java shows what is possible. Check also the
-[Data Types & Serialization]({{< ref "docs/dev/serialization/types_serialization" >}}) page of
+[Data Types & Serialization]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) page of
 the DataStream API for more information about the supported types there.
 
 ```java
@@ -2048,7 +2048,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO 类型 （Java 和 Scala）
 
-Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{< ref "docs/dev/serialization/types_serialization" >}}#pojos).
+Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos).
 
 在不指定字段名称的情况下将 POJO 类型的 `DataStream` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
