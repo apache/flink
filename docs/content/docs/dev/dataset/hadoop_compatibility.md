@@ -31,7 +31,7 @@ reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
-- use Hadoop's `Writable` [data types]({{< ref "docs/dev/serialization/types_serialization" >}}#supported-data-types) in Flink programs.
+- use Hadoop's `Writable` [data types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#supported-data-types) in Flink programs.
 - use any Hadoop `InputFormat` as a [DataSource]({{ ref "docs/dev/dataset/overview" >}}#data-sources).
 - use any Hadoop `OutputFormat` as a [DataSink]({{ ref "docs/dev/dataset/overview" >}}#data-sinks).
 - use a Hadoop `Mapper` as [FlatMapFunction]({{ ref "docs/dev/dataset/transformations" >}}#flatmap).

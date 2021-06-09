@@ -1,9 +1,10 @@
 ---
-title: Custom Serializers
-weight: 11
+title: 3rd Party Serializers
+weight: 4
 type: docs
 aliases:
   - /dev/custom_serializers.html
+  - /docs/dev/serialization/custom_serializers/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Register a custom serializer for your Flink program
+# 3rd Party Serializers
 
 If you use a custom type in your Flink program which cannot be serialized by the
 Flink type serializer, Flink falls back to using the generic Kryo
@@ -50,7 +51,7 @@ you:
 
 ```java
 
-final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 // register the Google Protobuf serializer with Kryo
 env.getConfig().registerTypeWithKryoSerializer(MyCustomType.class, ProtobufSerializer.class);

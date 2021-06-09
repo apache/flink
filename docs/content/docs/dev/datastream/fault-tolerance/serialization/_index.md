@@ -1,7 +1,7 @@
 ---
-title: 数据类型以及序列化
+title: Data Types & Serialization
 bookCollapseSection: true
-weight: 5
+weight: 7
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
