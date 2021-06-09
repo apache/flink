@@ -5,6 +5,8 @@ bookToc: false
 aliases:
   - /examples/index.html
   - /getting-started/examples/index.html
+  - /dev/execution_plans.html
+  - /docs/dev/execution/execution_plans/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

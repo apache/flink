@@ -1,7 +1,8 @@
 ---
-title: "Execution Configuration"
+title: "执行配置"
 weight: 11
 type: docs
+bookToc: false
 aliases:
   - /dev/execution_configuration.html
 ---
@@ -24,12 +25,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Execution Configuration
+# 执行配置
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 To change the defaults that affect all jobs, see [Configuration]({{< ref "docs/deployment/config" >}}).
 
-{{< tabs "7a5dedf9-9fb8-417d-9759-a8d4d848faa4" >}}
+{{< tabs "2c6dd8a9-a118-4cc4-afbd-a42b02432ad3" >}}
 {{< tab "Java" >}}
 ```java
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -54,9 +55,9 @@ With the closure cleaner disabled, it might happen that an anonymous user functi
 
 - `getMaxParallelism()` / `setMaxParallelism(int parallelism)` Set the default maximum parallelism for the job. This setting determines the maximum degree of parallelism and specifies the upper limit for dynamic scaling.
 
-- `getNumberOfExecutionRetries()` / `setNumberOfExecutionRetries(int numberOfExecutionRetries)` Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of `-1` indicates that the system default value (as defined in the configuration) should be used. This is deprecated, use [restart strategies]({{< ref "docs/dev/execution/task_failure_recovery" >}}#restart-strategies) instead.
+- `getNumberOfExecutionRetries()` / `setNumberOfExecutionRetries(int numberOfExecutionRetries)` Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of `-1` indicates that the system default value (as defined in the configuration) should be used. This is deprecated, use [restart strategies]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) instead.
 
-- `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)` Sets the delay in milliseconds that the system waits after a job has failed, before re-executing it. The delay starts after all tasks have been successfully stopped on the TaskManagers, and once the delay is past, the tasks are re-started. This parameter is useful to delay re-execution in order to let certain time-out related failures surface fully (like broken connections that have not fully timed out), before attempting a re-execution and immediately failing again due to the same problem. This parameter only has an effect if the number of execution re-tries is one or more. This is deprecated, use [restart strategies]({{< ref "docs/dev/execution/task_failure_recovery" >}}#restart-strategies) instead.
+- `getExecutionRetryDelay()` / `setExecutionRetryDelay(long executionRetryDelay)` Sets the delay in milliseconds that the system waits after a job has failed, before re-executing it. The delay starts after all tasks have been successfully stopped on the TaskManagers, and once the delay is past, the tasks are re-started. This parameter is useful to delay re-execution in order to let certain time-out related failures surface fully (like broken connections that have not fully timed out), before attempting a re-execution and immediately failing again due to the same problem. This parameter only has an effect if the number of execution re-tries is one or more. This is deprecated, use [restart strategies]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) instead.
 
 - `getExecutionMode()` / `setExecutionMode()`. The default execution mode is PIPELINED. Sets the execution mode to execute the program. The execution mode defines whether data exchanges are performed in a batch or on a pipelined manner.
 

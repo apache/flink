@@ -5,6 +5,7 @@ type: docs
 aliases:
   - /zh/dev/task_failure_recovery.html
   - /dev/restart_strategies.html
+  - /docs/dev/execution/task_failure_recovery/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -49,7 +50,7 @@ Flink 作业如果没有定义重启策略，则会遵循集群启动时加载�
 {{< generated/restart_strategy_configuration >}}
 
 除了定义默认的重启策略以外，还可以为每个 Flink 作业单独定义重启策略。
-这个重启策略通过在程序中的 `ExecutionEnvironment` 对象上调用 `setRestartStrategy` 方法来设置。
+这个重启策略通过在程序中的 `StreamExecutionEnvironment` 对象上调用 `setRestartStrategy` 方法来设置。
 当然，对于 `StreamExecutionEnvironment` 也同样适用。
 
 下例展示了如何给我们的作业设置固定延时重启策略。
@@ -58,7 +59,7 @@ Flink 作业如果没有定义重启策略，则会遵循集群启动时加载�
 {{< tabs "2b011473-9a34-4e7b-943b-be4a9071fe3c" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
   Time.of(10, TimeUnit.SECONDS) // 延时
@@ -67,7 +68,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
   Time.of(10, TimeUnit.SECONDS) // 延时
@@ -106,7 +107,7 @@ restart-strategy.fixed-delay.delay: 10 s
 {{< tabs "0877201b-96aa-4985-aebd-0780cf1d8e9e" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
   Time.of(10, TimeUnit.SECONDS) // 延时
@@ -115,7 +116,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // 尝试重启的次数
   Time.of(10, TimeUnit.SECONDS) // 延时
@@ -151,7 +152,7 @@ restart-strategy.failure-rate.delay: 10 s
 {{< tabs "f4fba671-e1a8-408d-9f3d-d679aa6473ea" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // 每个时间间隔的最大故障次数
   Time.of(5, TimeUnit.MINUTES), // 测量故障率的时间间隔
@@ -161,7 +162,7 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // 每个时间间隔的最大故障次数
   Time.of(5, TimeUnit.MINUTES), // 测量故障率的时间间隔
@@ -185,13 +186,13 @@ restart-strategy: none
 {{< tabs "46f873e1-9582-4303-9a5f-1cdaa31e7ac7" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.noRestart());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.noRestart())
 ```
 {{< /tab >}}
@@ -239,7 +240,7 @@ Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配�
 此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。也就是说，Batch 形式的数据交换会构成 Region 的边界。
 - DataStream 和 流式 Table/SQL 作业的所有数据交换都是 Pipelined 形式的。
 - 批处理式 Table/SQL 作业的所有数据交换默认都是 Batch 形式的。
-- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{< ref "docs/dev/execution/execution_configuration" >}}) 
+- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}) 
   中配置的 `ExecutionMode`
   决定。
 
