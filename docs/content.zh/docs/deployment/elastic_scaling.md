@@ -87,7 +87,7 @@ and will be ignored if explicitly set, either on individual operators or the ent
 The only way of influencing the parallelism is by setting a max parallelism for an operator
 (which will be respected by the scheduler). The maxParallelism is bounded by 2^15 (32768).
 If you do not set a max parallelism for individual operators or the entire job, the
-[default parallelism rules]({{< ref "docs/dev/execution/parallel" >}}#setting-the-maximum-parallelism) will be applied,
+[default parallelism rules]({{< ref "docs/dev/datastream/execution/parallel" >}}#setting-the-maximum-parallelism) will be applied,
 potentially applying lower bounds than the max possible value. As with the default scheduling mode, please take
 the [best practices for parallelism]({{< ref "docs/ops/production_ready" >}}#set-an-explicit-max-parallelism) into consideration.
 

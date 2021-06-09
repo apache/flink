@@ -1,6 +1,6 @@
 ---
 title: "Java Lambda Expressions"
-weight: 301
+weight: 300
 type: docs
 bookToc: false
 aliases:

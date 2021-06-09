@@ -157,6 +157,6 @@ Barrier 只有在需要提供精确一次的语义保证时需要进行对齐（
 - [Savepoints]({{< ref "docs/ops/state/savepoints" >}})
 - [大状态与 Checkpoint 调优]({{< ref "docs/ops/state/large_state_tuning" >}})
 - [监控 Checkpoint]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}})
-- [Task 故障恢复]({{< ref "docs/dev/execution/task_failure_recovery" >}})
+- [Task 故障恢复]({{< ref "docs/ops/state/task_failure_recovery" >}})
 
 {{< top >}}

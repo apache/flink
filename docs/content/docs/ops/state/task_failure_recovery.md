@@ -5,6 +5,7 @@ type: docs
 aliases:
   - /dev/task_failure_recovery.html
   - /dev/restart_strategies.html
+  - /docs/dev/execution_task_failure_recovery/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -52,8 +53,7 @@ The description of each restart strategy contains more information about the res
 {{< generated/restart_strategy_configuration >}}
 
 Apart from defining a default restart strategy, it is possible to define for each Flink job a specific restart strategy.
-This restart strategy is set programmatically by calling the `setRestartStrategy` method on the `ExecutionEnvironment`.
-Note that this also works for the `StreamExecutionEnvironment`.
+This restart strategy is set programmatically by calling the `setRestartStrategy` method on the `StreamExecutionEnvironment`.
 
 The following example shows how we can set a fixed delay restart strategy for our job.
 In case of a failure the system tries to restart the job 3 times and waits 10 seconds in-between successive restart attempts.
@@ -61,7 +61,7 @@ In case of a failure the system tries to restart the job 3 times and waits 10 se
 {{< tabs "4ab65f13-607a-411a-8d24-e709f701df6a" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
   Time.of(10, TimeUnit.SECONDS) // delay
@@ -70,7 +70,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
   Time.of(10, TimeUnit.SECONDS) // delay
@@ -108,7 +108,7 @@ The fixed delay restart strategy can also be set programmatically:
 {{< tabs "73f5d009-b9af-4bfe-be22-d1c4659fd1ec" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
   Time.of(10, TimeUnit.SECONDS) // delay
@@ -117,7 +117,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
   3, // number of restart attempts
   Time.of(10, TimeUnit.SECONDS) // delay
@@ -157,7 +157,7 @@ The exponential delay restart strategy can also be set programmatically:
 {{< tabs "e433f119-50e2-4eae-9977-7e6e44acab61" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
   Time.milliseconds(1),
   Time.milliseconds(1000),
@@ -169,7 +169,7 @@ env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
   Time.of(1, TimeUnit.MILLISECONDS), // initial delay between restarts
   Time.of(1000, TimeUnit.MILLISECONDS), // maximum delay between restarts
@@ -205,7 +205,7 @@ The failure rate restart strategy can also be set programmatically:
 {{< tabs "d8d547ce-003b-4821-afc0-3d95aca40f1e" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // max failures per interval
   Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
@@ -215,7 +215,7 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.failureRateRestart(
   3, // max failures per unit
   Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
@@ -239,13 +239,13 @@ The no restart strategy can also be set programmatically:
 {{< tabs "4812d55b-bb89-4000-be7c-d9dcdad6010e" >}}
 {{< tab "Java" >}}
 ```java
-ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setRestartStrategy(RestartStrategies.noRestart());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val env = ExecutionEnvironment.getExecutionEnvironment()
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.setRestartStrategy(RestartStrategies.noRestart())
 ```
 {{< /tab >}}
@@ -297,7 +297,7 @@ That is, batch data exchanges denote the boundaries of a region.
 - All data exchanges in a Batch Table/SQL job are batched by default.
 - The data exchange types in a DataSet job are determined by the 
   `ExecutionMode` 
-  which can be set through [ExecutionConfig]({{< ref "docs/dev/execution/execution_configuration" >}}).
+  which can be set through [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}).
 
 The regions to restart are decided as below:
 1. The region containing the failed task will be restarted.
