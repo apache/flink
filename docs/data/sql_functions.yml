@@ -487,12 +487,16 @@ temporal:
     description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp."
   - sql: CURRENT_WATERMARK(rowtime)
     description: |
-      Returns the current watermark for the given rowtime attribute, or NULL if no common watermark of all upstream operations is available at the current operation in the pipeline.
-      The return type of the function is inferred to match that of the provided rowtime attribute, but with an adjusted precision of 3. For example, if the rowtime attribute is TIMESTAMP_LTZ(9), the function will return TIMESTAMP_LTZ(3).
+      Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark of all upstream operations is available at the current operation in the pipeline.
+      The return type of the function is inferred to match that of the provided rowtime attribute, but with an adjusted precision of 3. For example, if the rowtime attribute is `TIMESTAMP_LTZ(9)`, the function will return `TIMESTAMP_LTZ(3)`.
 
-      Note that this function can return NULL, and you may have to consider this case. For example, if you want to filter out late data you can use:
+      Note that this function can return `NULL`, and you may have to consider this case. For example, if you want to filter out late data you can use:
 
-      WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+      ```
+      WHERE
+        CURRENT_WATERMARK(ts) IS NULL
+        OR ts > CURRENT_WATERMARK(ts)
+      ```
 
 conditional:
   - sql: |
