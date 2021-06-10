@@ -27,7 +27,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, TABLE_EXEC_EMIT_ALLOW_LATENESS}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
@@ -316,8 +316,8 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       return
     }
     // wait 10 millisecond for late elements
-    tEnv.getConfig.setIdleStateRetentionTime(
-      Time.milliseconds(10), Time.minutes(6))
+    tEnv.getConfig.getConfiguration.set(
+      TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofMillis(10))
     // emit result without delay after watermark
     withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
     val data = List(
