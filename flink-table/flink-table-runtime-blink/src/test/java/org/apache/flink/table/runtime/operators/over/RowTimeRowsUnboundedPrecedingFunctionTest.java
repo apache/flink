@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 
 import org.junit.Test;
 
@@ -36,7 +37,11 @@ public class RowTimeRowsUnboundedPrecedingFunctionTest extends RowTimeOverWindow
     public void testLateRecordMetrics() throws Exception {
         RowTimeRowsUnboundedPrecedingFunction<RowData> function =
                 new RowTimeRowsUnboundedPrecedingFunction<>(
-                        1000, 2000, aggsHandleFunction, accTypes, inputFieldTypes, 2);
+                        StateConfigUtil.createTtlConfig(1000),
+                        aggsHandleFunction,
+                        accTypes,
+                        inputFieldTypes,
+                        2);
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(function);
 

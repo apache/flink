@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
@@ -51,6 +52,7 @@ import org.apache.flink.table.runtime.operators.over.RowTimeRowsBoundedPreceding
 import org.apache.flink.table.runtime.operators.over.RowTimeRowsUnboundedPrecedingFunction;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -260,6 +262,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             boolean isRowsClause,
             TableConfig tableConfig,
             RelBuilder relBuilder) {
+        StateTtlConfig ttlConfig =
+                StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
+
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
                         // use aggInputType which considers constants as input instead of
@@ -295,28 +300,15 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 // ROWS unbounded over process function
                 return new RowTimeRowsUnboundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
-                        genAggsHandler,
-                        flattenAccTypes,
-                        fieldTypes,
-                        rowTimeIdx);
+                        ttlConfig, genAggsHandler, flattenAccTypes, fieldTypes, rowTimeIdx);
             } else {
                 // RANGE unbounded over process function
                 return new RowTimeRangeUnboundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
-                        genAggsHandler,
-                        flattenAccTypes,
-                        fieldTypes,
-                        rowTimeIdx);
+                        ttlConfig, genAggsHandler, flattenAccTypes, fieldTypes, rowTimeIdx);
             }
         } else {
             return new ProcTimeUnboundedPrecedingFunction<>(
-                    tableConfig.getMinIdleStateRetentionTime(),
-                    tableConfig.getMaxIdleStateRetentionTime(),
-                    genAggsHandler,
-                    flattenAccTypes);
+                    ttlConfig, genAggsHandler, flattenAccTypes);
         }
     }
 
@@ -343,6 +335,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             long precedingOffset,
             TableConfig tableConfig,
             RelBuilder relBuilder) {
+        StateTtlConfig ttlConfig =
+                StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
 
         boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
         Arrays.fill(aggCallNeedRetractions, true);
@@ -381,8 +375,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         if (rowTimeIdx >= 0) {
             if (isRowsClause) {
                 return new RowTimeRowsBoundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        ttlConfig,
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -395,12 +388,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         } else {
             if (isRowsClause) {
                 return new ProcTimeRowsBoundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
-                        genAggsHandler,
-                        flattenAccTypes,
-                        fieldTypes,
-                        precedingOffset);
+                        ttlConfig, genAggsHandler, flattenAccTypes, fieldTypes, precedingOffset);
             } else {
                 return new ProcTimeRangeBoundedPrecedingFunction<>(
                         genAggsHandler, flattenAccTypes, fieldTypes, precedingOffset);

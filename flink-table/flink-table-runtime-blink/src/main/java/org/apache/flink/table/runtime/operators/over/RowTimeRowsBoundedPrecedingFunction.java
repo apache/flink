@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.over;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -31,7 +32,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -43,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -54,8 +53,8 @@ import java.util.List;
  * AND CURRENT ROW) FROM T.
  */
 public class RowTimeRowsBoundedPrecedingFunction<K>
-        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
-    private static final long serialVersionUID = 1L;
+        extends KeyedProcessFunction<K, RowData, RowData> {
+    private static final long serialVersionUID = 2L;
 
     private static final Logger LOG =
             LoggerFactory.getLogger(RowTimeRowsBoundedPrecedingFunction.class);
@@ -65,6 +64,7 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
     private final LogicalType[] inputFieldTypes;
     private final long precedingOffset;
     private final int rowTimeIdx;
+    private final StateTtlConfig ttlConfig;
 
     private transient JoinedRowData output;
 
@@ -97,14 +97,13 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
     }
 
     public RowTimeRowsBoundedPrecedingFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             GeneratedAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             long precedingOffset,
             int rowTimeIdx) {
-        super(minRetentionTime, maxRetentionTime);
+        this.ttlConfig = ttlConfig;
         Preconditions.checkNotNull(precedingOffset);
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
@@ -122,15 +121,24 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
 
         ValueStateDescriptor<Long> lastTriggeringTsDescriptor =
                 new ValueStateDescriptor<Long>("lastTriggeringTsState", Types.LONG);
+        if (ttlConfig.isEnabled()) {
+            lastTriggeringTsDescriptor.enableTimeToLive(ttlConfig);
+        }
         lastTriggeringTsState = getRuntimeContext().getState(lastTriggeringTsDescriptor);
 
         ValueStateDescriptor<Long> dataCountStateDescriptor =
                 new ValueStateDescriptor<Long>("processedCountState", Types.LONG);
+        if (ttlConfig.isEnabled()) {
+            dataCountStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         counterState = getRuntimeContext().getState(dataCountStateDescriptor);
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accStateDesc =
                 new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            accStateDesc.enableTimeToLive(ttlConfig);
+        }
         accState = getRuntimeContext().getState(accStateDesc);
 
         // input element are all binary row as they are came from network
@@ -139,9 +147,10 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
         MapStateDescriptor<Long, List<RowData>> inputStateDesc =
                 new MapStateDescriptor<Long, List<RowData>>(
                         "inputState", Types.LONG, rowListTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            inputStateDesc.enableTimeToLive(ttlConfig);
+        }
         inputState = getRuntimeContext().getMapState(inputStateDesc);
-
-        initCleanupTimeState("RowTimeBoundedRowsOverCleanupTime");
 
         // metrics
         this.numLateRecordsDropped =
@@ -154,9 +163,6 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-
         // triggering timestamp for trigger calculation
         long triggeringTs = input.getLong(rowTimeIdx);
 
@@ -189,39 +195,6 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
             KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
             Collector<RowData> out)
             throws Exception {
-        if (isProcessingTimeTimer(ctx)) {
-            if (stateCleaningEnabled) {
-
-                Iterator<Long> keysIt = inputState.keys().iterator();
-                Long lastProcessedTime = lastTriggeringTsState.value();
-                if (lastProcessedTime == null) {
-                    lastProcessedTime = 0L;
-                }
-
-                // is data left which has not been processed yet?
-                boolean noRecordsToProcess = true;
-                while (keysIt.hasNext() && noRecordsToProcess) {
-                    if (keysIt.next() > lastProcessedTime) {
-                        noRecordsToProcess = false;
-                    }
-                }
-
-                if (noRecordsToProcess) {
-                    // We clean the state
-                    cleanupState(inputState, accState, counterState, lastTriggeringTsState);
-                    function.cleanup();
-                } else {
-                    // There are records left to process because a watermark has not been received
-                    // yet.
-                    // This would only happen if the input stream has stopped. So we don't need to
-                    // clean up.
-                    // We leave the state as it is and schedule a new cleanup timer
-                    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-                }
-            }
-            return;
-        }
-
         // gets all window data from state for the calculation
         List<RowData> inputs = inputState.get(timestamp);
 
@@ -304,9 +277,6 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
         }
 
         lastTriggeringTsState.update(timestamp);
-
-        // update cleanup timer
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
     }
 
     @Override

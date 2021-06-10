@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.over;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -30,7 +31,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -53,11 +53,13 @@ import java.util.List;
  * PRECEDING AND CURRENT ROW) FROM T.
  */
 public class ProcTimeRowsBoundedPrecedingFunction<K>
-        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
-    private static final long serialVersionUID = 1L;
+        extends KeyedProcessFunction<K, RowData, RowData> {
+    private static final long serialVersionUID = 2L;
 
     private static final Logger LOG =
             LoggerFactory.getLogger(ProcTimeRowsBoundedPrecedingFunction.class);
+
+    private final StateTtlConfig ttlConfig;
 
     private final GeneratedAggsHandleFunction genAggsHandler;
     private final LogicalType[] accTypes;
@@ -74,13 +76,12 @@ public class ProcTimeRowsBoundedPrecedingFunction<K>
     private transient JoinedRowData output;
 
     public ProcTimeRowsBoundedPrecedingFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             GeneratedAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             long precedingOffset) {
-        super(minRetentionTime, maxRetentionTime);
+        this.ttlConfig = ttlConfig;
         Preconditions.checkArgument(precedingOffset > 0);
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
@@ -105,22 +106,32 @@ public class ProcTimeRowsBoundedPrecedingFunction<K>
         MapStateDescriptor<Long, List<RowData>> mapStateDescriptor =
                 new MapStateDescriptor<Long, List<RowData>>(
                         "inputState", BasicTypeInfo.LONG_TYPE_INFO, rowListTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            mapStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         inputState = getRuntimeContext().getMapState(mapStateDescriptor);
 
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> stateDescriptor =
                 new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            stateDescriptor.enableTimeToLive(ttlConfig);
+        }
         accState = getRuntimeContext().getState(stateDescriptor);
 
         ValueStateDescriptor<Long> processedCountDescriptor =
                 new ValueStateDescriptor<Long>("processedCountState", Types.LONG);
+        if (ttlConfig.isEnabled()) {
+            processedCountDescriptor.enableTimeToLive(ttlConfig);
+        }
         counterState = getRuntimeContext().getState(processedCountDescriptor);
 
         ValueStateDescriptor<Long> smallestTimestampDescriptor =
                 new ValueStateDescriptor<Long>("smallestTSState", Types.LONG);
+        if (ttlConfig.isEnabled()) {
+            smallestTimestampDescriptor.enableTimeToLive(ttlConfig);
+        }
         smallestTsState = getRuntimeContext().getState(smallestTimestampDescriptor);
-
-        initCleanupTimeState("ProcTimeBoundedRowsOverCleanupTime");
     }
 
     @Override
@@ -130,8 +141,6 @@ public class ProcTimeRowsBoundedPrecedingFunction<K>
             Collector<RowData> out)
             throws Exception {
         long currentTime = ctx.timerService().currentProcessingTime();
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(ctx, currentTime);
 
         // initialize state for the processed element
         RowData accumulators = accState.value();
@@ -213,18 +222,6 @@ public class ProcTimeRowsBoundedPrecedingFunction<K>
         RowData aggValue = function.getValue();
         output.replace(input, aggValue);
         out.collect(output);
-    }
-
-    @Override
-    public void onTimer(
-            long timestamp,
-            KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
-            Collector<RowData> out)
-            throws Exception {
-        if (stateCleaningEnabled) {
-            cleanupState(inputState, accState, counterState, smallestTsState);
-            function.cleanup();
-        }
     }
 
     @Override

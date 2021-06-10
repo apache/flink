@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.over;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -31,7 +32,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -49,12 +49,13 @@ import java.util.ListIterator;
 
 /** A basic implementation to support unbounded event-time over-window. */
 public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
-        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
-    private static final long serialVersionUID = 1L;
+        extends KeyedProcessFunction<K, RowData, RowData> {
+    private static final long serialVersionUID = 2L;
 
     private static final Logger LOG =
             LoggerFactory.getLogger(AbstractRowTimeUnboundedPrecedingOver.class);
 
+    private final StateTtlConfig ttlConfig;
     private final GeneratedAggsHandleFunction genAggsHandler;
     private final LogicalType[] accTypes;
     private final LogicalType[] inputFieldTypes;
@@ -82,13 +83,12 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
     }
 
     public AbstractRowTimeUnboundedPrecedingOver(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             GeneratedAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             int rowTimeIdx) {
-        super(minRetentionTime, maxRetentionTime);
+        this.ttlConfig = ttlConfig;
         this.genAggsHandler = genAggsHandler;
         this.accTypes = accTypes;
         this.inputFieldTypes = inputFieldTypes;
@@ -108,6 +108,9 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
         ValueStateDescriptor<RowData> accStateDesc =
                 new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            accStateDesc.enableTimeToLive(ttlConfig);
+        }
         accState = getRuntimeContext().getState(accStateDesc);
 
         // input element are all binary row as they are came from network
@@ -116,9 +119,10 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
         MapStateDescriptor<Long, List<RowData>> inputStateDesc =
                 new MapStateDescriptor<Long, List<RowData>>(
                         "inputState", Types.LONG, rowListTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            inputStateDesc.enableTimeToLive(ttlConfig);
+        }
         inputState = getRuntimeContext().getMapState(inputStateDesc);
-
-        initCleanupTimeState("RowTimeUnboundedOverCleanupTime");
 
         // metrics
         this.numLateRecordsDropped =
@@ -142,9 +146,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-
         long timestamp = input.getLong(rowTimeIdx);
         long curWatermark = ctx.timerService().currentWatermark();
 
@@ -173,26 +174,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
             KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
             Collector<RowData> out)
             throws Exception {
-        if (isProcessingTimeTimer(ctx)) {
-            if (stateCleaningEnabled) {
-
-                // we check whether there are still records which have not been processed yet
-                if (inputState.isEmpty()) {
-                    // we clean the state
-                    cleanupState(inputState, accState);
-                    function.cleanup();
-                } else {
-                    // There are records left to process because a watermark has not been received
-                    // yet.
-                    // This would only happen if the input stream has stopped. So we don't need to
-                    // clean up.
-                    // We leave the state as it is and schedule a new cleanup timer
-                    registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
-                }
-            }
-            return;
-        }
-
         Iterator<Long> keyIterator = inputState.keys().iterator();
         if (keyIterator.hasNext()) {
             Long curWatermark = ctx.timerService().currentWatermark();
@@ -245,9 +226,6 @@ public abstract class AbstractRowTimeUnboundedPrecedingOver<K>
                 ctx.timerService().registerEventTimeTimer(curWatermark + 1);
             }
         }
-
-        // update cleanup timer
-        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
     }
 
     /**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.over;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -38,19 +39,12 @@ public class RowTimeRangeUnboundedPrecedingFunction<K>
     private static final long serialVersionUID = 1L;
 
     public RowTimeRangeUnboundedPrecedingFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             GeneratedAggsHandleFunction genAggsHandler,
             LogicalType[] accTypes,
             LogicalType[] inputFieldTypes,
             int rowTimeIdx) {
-        super(
-                minRetentionTime,
-                maxRetentionTime,
-                genAggsHandler,
-                accTypes,
-                inputFieldTypes,
-                rowTimeIdx);
+        super(ttlConfig, genAggsHandler, accTypes, inputFieldTypes, rowTimeIdx);
     }
 
     @Override
