@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ManualTicker;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 import org.apache.flink.util.Preconditions;
@@ -60,6 +62,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -341,9 +344,11 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
     /** Tests that a session cluster can terminate gracefully when jobs are still running. */
     @Test
     public void testPutSuspendedJobOnClusterShutdown() throws Exception {
+        final Duration timeout = Duration.ofSeconds(5);
         try (final MiniCluster miniCluster =
                 new PersistingMiniCluster(new MiniClusterConfiguration.Builder().build())) {
             miniCluster.start();
+            CommonTestUtils.waitUntilCondition(miniCluster::isRunning, Deadline.fromNow(timeout));
             final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
             miniCluster.submitJob(jobGraph);
         }
