@@ -44,8 +44,7 @@ fi
 cd ..
 
 #change version in all pom files
-#-DprocessAllModules is required for force-shading to be picked up
-$MVN org.codehaus.mojo:versions-maven-plugin:2.8.1:set -DnewVersion=$NEW_VERSION -DprocessAllModules -DgenerateBackupPoms=false --quiet
+$MVN org.codehaus.mojo:versions-maven-plugin:2.8.1:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false --quiet
 
 
 #change version of documentation
