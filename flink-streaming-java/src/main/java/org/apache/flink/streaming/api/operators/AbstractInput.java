@@ -67,8 +67,8 @@ public abstract class AbstractInput<IN, OUT> implements Input<IN> {
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-        owner.emitStreamStatus(streamStatus, inputId);
+    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
+        owner.processStreamStatus(streamStatus, inputId);
     }
 
     @Override
