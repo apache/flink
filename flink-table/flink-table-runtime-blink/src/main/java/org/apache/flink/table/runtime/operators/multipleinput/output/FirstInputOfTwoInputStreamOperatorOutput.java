@@ -53,7 +53,7 @@ public class FirstInputOfTwoInputStreamOperatorOutput extends OutputBase {
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
         try {
-            operator.emitStreamStatus1(streamStatus);
+            operator.processStreamStatus1(streamStatus);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

@@ -264,9 +264,9 @@ public class StreamTwoInputProcessorFactory {
         @Override
         public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
             if (inputIndex == 0) {
-                operator.emitStreamStatus1(streamStatus);
+                operator.processStreamStatus1(streamStatus);
             } else {
-                operator.emitStreamStatus2(streamStatus);
+                operator.processStreamStatus2(streamStatus);
             }
         }
 

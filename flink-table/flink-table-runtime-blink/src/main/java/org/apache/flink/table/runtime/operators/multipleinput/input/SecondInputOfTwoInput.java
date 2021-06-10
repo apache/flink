@@ -51,7 +51,7 @@ public class SecondInputOfTwoInput extends InputBase {
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-        operator.emitStreamStatus2(streamStatus);
+    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
+        operator.processStreamStatus2(streamStatus);
     }
 }

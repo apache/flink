@@ -142,7 +142,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
         try {
-            input.emitStreamStatus(streamStatus);
+            input.processStreamStatus(streamStatus);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }

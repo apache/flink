@@ -60,7 +60,7 @@ public class MultiInputStreamOperatorTestHarness<OUT>
     }
 
     public void emitStreamStatus(int idx, StreamStatus streamStatus) throws Exception {
-        getCastedOperator().getInputs().get(idx).emitStreamStatus(streamStatus);
+        getCastedOperator().getInputs().get(idx).processStreamStatus(streamStatus);
     }
 
     private MultipleInputStreamOperator<OUT> getCastedOperator() {

@@ -83,10 +83,10 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
     }
 
     public void emitStreamStatus1(StreamStatus streamStatus) throws Exception {
-        twoInputOperator.emitStreamStatus1(streamStatus);
+        twoInputOperator.processStreamStatus1(streamStatus);
     }
 
     public void emitStreamStatus2(StreamStatus streamStatus) throws Exception {
-        twoInputOperator.emitStreamStatus2(streamStatus);
+        twoInputOperator.processStreamStatus2(streamStatus);
     }
 }

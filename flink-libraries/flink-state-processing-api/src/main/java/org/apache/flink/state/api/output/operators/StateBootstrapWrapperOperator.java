@@ -95,8 +95,8 @@ public final class StateBootstrapWrapperOperator<
     }
 
     @Override
-    public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-        operator.emitStreamStatus(streamStatus);
+    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
+        operator.processStreamStatus(streamStatus);
     }
 
     @Override
