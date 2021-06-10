@@ -87,11 +87,6 @@ stages:
                 echo "##vso[task.setvariable variable=skip;]0"
               fi
             displayName: Check if PR contains docs change
-          - task: UseRubyVersion@0
-            condition: not(eq(variables['SKIP'], '1'))
-            inputs:
-              versionSpec: '= 2.4'
-              addToPath: true
           - script: ./tools/ci/docs.sh
             condition: not(eq(variables['SKIP'], '1'))
   # Special stage for nightly builds:
