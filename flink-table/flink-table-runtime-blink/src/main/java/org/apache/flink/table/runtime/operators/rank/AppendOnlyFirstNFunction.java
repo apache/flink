@@ -38,7 +38,7 @@ import org.apache.flink.util.Preconditions;
  */
 public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = -889227691088906246L;
+    private static final long serialVersionUID = -889227691088906247L;
 
     // state stores a counter to record the occurrence of key.
     private ValueState<Integer> state;

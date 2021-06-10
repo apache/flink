@@ -68,7 +68,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
-    private static final long serialVersionUID = 6786508184355952780L;
+    private static final long serialVersionUID = 6786508184355952781L;
 
     private static final Logger LOG = LoggerFactory.getLogger(UpdatableTopNFunction.class);
 

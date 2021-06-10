@@ -51,7 +51,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = -4708453213104128010L;
+    private static final long serialVersionUID = -4708453213104128011L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AppendOnlyTopNFunction.class);
 

@@ -53,7 +53,7 @@ import java.util.TreeMap;
  */
 public class RetractableTopNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = 1365312180599454479L;
+    private static final long serialVersionUID = 1365312180599454480L;
 
     private static final Logger LOG = LoggerFactory.getLogger(RetractableTopNFunction.class);
 
