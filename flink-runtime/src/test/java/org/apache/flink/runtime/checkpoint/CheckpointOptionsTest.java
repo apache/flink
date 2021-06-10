@@ -79,18 +79,29 @@ public class CheckpointOptionsTest {
         CheckpointStorageLocationReference location =
                 CheckpointStorageLocationReference.getDefault();
         assertFalse(
-                new CheckpointOptions(CHECKPOINT, location, AlignmentType.UNALIGNED, Long.MAX_VALUE)
-                        .needsAlignment());
-        assertTrue(
-                new CheckpointOptions(CHECKPOINT, location, AlignmentType.ALIGNED, Long.MAX_VALUE)
+                new CheckpointOptions(
+                                CHECKPOINT,
+                                location,
+                                AlignmentType.UNALIGNED,
+                                NO_ALIGNMENT_TIME_OUT)
                         .needsAlignment());
         assertTrue(
                 new CheckpointOptions(
-                                CHECKPOINT, location, AlignmentType.FORCED_ALIGNED, Long.MAX_VALUE)
+                                CHECKPOINT, location, AlignmentType.ALIGNED, NO_ALIGNMENT_TIME_OUT)
+                        .needsAlignment());
+        assertTrue(
+                new CheckpointOptions(
+                                CHECKPOINT,
+                                location,
+                                AlignmentType.FORCED_ALIGNED,
+                                NO_ALIGNMENT_TIME_OUT)
                         .needsAlignment());
         assertFalse(
                 new CheckpointOptions(
-                                CHECKPOINT, location, AlignmentType.AT_LEAST_ONCE, Long.MAX_VALUE)
+                                CHECKPOINT,
+                                location,
+                                AlignmentType.AT_LEAST_ONCE,
+                                NO_ALIGNMENT_TIME_OUT)
                         .needsAlignment());
     }
 

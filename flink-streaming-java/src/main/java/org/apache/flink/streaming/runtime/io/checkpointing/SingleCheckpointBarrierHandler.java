@@ -254,12 +254,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     public void processBarrierAnnouncement(
             CheckpointBarrier announcedBarrier, int sequenceNumber, InputChannelInfo channelInfo)
             throws IOException {
-        if (checkNewCheckpoint(announcedBarrier)) {
-            firstBarrierArrivalTime = getClock().relativeTimeNanos();
-            if (alternating) {
-                registerAlignmentTimer(announcedBarrier);
-            }
-        }
+        checkNewCheckpoint(announcedBarrier);
 
         long barrierId = announcedBarrier.getId();
         if (currentCheckpointId > barrierId
@@ -299,18 +294,23 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                                 announcedBarrier.getCheckpointOptions().getAlignmentTimeout()));
     }
 
-    private boolean checkNewCheckpoint(CheckpointBarrier barrier) throws IOException {
+    private void checkNewCheckpoint(CheckpointBarrier barrier) throws IOException {
         long barrierId = barrier.getId();
-        if (currentCheckpointId < barrierId) {
-            if (isCheckpointPending()) {
-                cancelSubsumedCheckpoint(barrierId);
-            }
-            currentCheckpointId = barrierId;
-            numBarriersReceived = 0;
-            allBarriersReceivedFuture = new CompletableFuture<>();
-            return true;
+        if (currentCheckpointId >= barrierId) {
+            return; // This barrier is not the first for this checkpoint.
         }
-        return false;
+
+        if (isCheckpointPending()) {
+            cancelSubsumedCheckpoint(barrierId);
+        }
+        currentCheckpointId = barrierId;
+        numBarriersReceived = 0;
+        allBarriersReceivedFuture = new CompletableFuture<>();
+        firstBarrierArrivalTime = getClock().relativeTimeNanos();
+
+        if (alternating && barrier.getCheckpointOptions().isTimeoutable()) {
+            registerAlignmentTimer(barrier);
+        }
     }
 
     @Override
