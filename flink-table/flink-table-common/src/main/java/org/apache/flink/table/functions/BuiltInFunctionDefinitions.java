@@ -25,6 +25,7 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
@@ -59,12 +60,6 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.sequenc
 import static org.apache.flink.table.types.inference.InputTypeStrategies.varyingSequence;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.wildcardWithCount;
 import static org.apache.flink.table.types.inference.TypeStrategies.COMMON;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_DIVIDE;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_MOD;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_PLUS;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_SCALE0;
-import static org.apache.flink.table.types.inference.TypeStrategies.DECIMAL_TIMES;
-import static org.apache.flink.table.types.inference.TypeStrategies.STRING_CONCAT;
 import static org.apache.flink.table.types.inference.TypeStrategies.argument;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 import static org.apache.flink.table.types.inference.TypeStrategies.first;
@@ -108,7 +103,7 @@ public final class BuiltInFunctionDefinitions {
                                     new ArgumentTypeStrategy[] {
                                         COMMON_ARG_NULLABLE, COMMON_ARG_NULLABLE
                                     }))
-                    .outputTypeStrategy(TypeStrategies.IF_NULL)
+                    .outputTypeStrategy(SpecificTypeStrategies.IF_NULL)
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.IfNullFunction")
                     .build();
 
@@ -117,7 +112,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("SOURCE_WATERMARK")
                     .kind(SCALAR)
                     .inputTypeStrategy(NO_ARGS)
-                    .outputTypeStrategy(TypeStrategies.SOURCE_WATERMARK)
+                    .outputTypeStrategy(SpecificTypeStrategies.SOURCE_WATERMARK)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction")
                     .build();
@@ -540,7 +535,7 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeRoot.INTEGER),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullable(STRING_CONCAT))
+                    .outputTypeStrategy(nullable(SpecificTypeStrategies.STRING_CONCAT))
                     .build();
 
     public static final BuiltInFunctionDefinition CONCAT =
@@ -555,7 +550,7 @@ public final class BuiltInFunctionDefinitions {
                                     varyingSequence(
                                             logical(LogicalTypeFamily.BINARY_STRING),
                                             logical(LogicalTypeFamily.BINARY_STRING))))
-                    .outputTypeStrategy(nullable(STRING_CONCAT))
+                    .outputTypeStrategy(nullable(SpecificTypeStrategies.STRING_CONCAT))
                     .build();
 
     public static final BuiltInFunctionDefinition CONCAT_WS =
@@ -716,7 +711,11 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.PREDEFINED))))
                     .outputTypeStrategy(
-                            nullable(first(DECIMAL_PLUS, COMMON, explicit(DataTypes.STRING()))))
+                            nullable(
+                                    first(
+                                            SpecificTypeStrategies.DECIMAL_PLUS,
+                                            COMMON,
+                                            explicit(DataTypes.STRING()))))
                     .build();
 
     /** Combines numeric subtraction and "datetime - interval" arithmetic. */
@@ -738,7 +737,8 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.DATETIME),
                                             logical(LogicalTypeFamily.INTERVAL))))
-                    .outputTypeStrategy(nullable(first(DECIMAL_PLUS, COMMON)))
+                    .outputTypeStrategy(
+                            nullable(first(SpecificTypeStrategies.DECIMAL_PLUS, COMMON)))
                     .build();
 
     public static final BuiltInFunctionDefinition DIVIDE =
@@ -756,7 +756,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(
                             nullable(
                                     first(
-                                            DECIMAL_DIVIDE,
+                                            SpecificTypeStrategies.DECIMAL_DIVIDE,
                                             matchFamily(0, LogicalTypeFamily.INTERVAL),
                                             COMMON)))
                     .build();
@@ -779,7 +779,7 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(
                             nullable(
                                     first(
-                                            DECIMAL_TIMES,
+                                            SpecificTypeStrategies.DECIMAL_TIMES,
                                             matchFamily(0, LogicalTypeFamily.INTERVAL),
                                             COMMON)))
                     .build();
@@ -814,7 +814,8 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.DATETIME),
                                             logical(LogicalTypeRoot.SYMBOL))))
-                    .outputTypeStrategy(nullable(first(DECIMAL_SCALE0, argument(0))))
+                    .outputTypeStrategy(
+                            nullable(first(SpecificTypeStrategies.DECIMAL_SCALE_0, argument(0))))
                     .build();
 
     public static final BuiltInFunctionDefinition CEIL =
@@ -828,7 +829,8 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.DATETIME),
                                             logical(LogicalTypeRoot.SYMBOL))))
-                    .outputTypeStrategy(nullable(first(DECIMAL_SCALE0, argument(0))))
+                    .outputTypeStrategy(
+                            nullable(first(SpecificTypeStrategies.DECIMAL_SCALE_0, argument(0))))
                     .build();
 
     public static final BuiltInFunctionDefinition LOG10 =
@@ -887,7 +889,8 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     logical(LogicalTypeFamily.EXACT_NUMERIC),
                                     logical(LogicalTypeFamily.EXACT_NUMERIC)))
-                    .outputTypeStrategy(nullable(first(DECIMAL_MOD, argument(1))))
+                    .outputTypeStrategy(
+                            nullable(first(SpecificTypeStrategies.DECIMAL_MOD, argument(1))))
                     .build();
 
     public static final BuiltInFunctionDefinition SQRT =
@@ -1035,7 +1038,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeFamily.NUMERIC),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(nullable(TypeStrategies.ROUND))
+                    .outputTypeStrategy(nullable(SpecificTypeStrategies.ROUND))
                     .build();
 
     public static final BuiltInFunctionDefinition PI =
@@ -1212,7 +1215,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("array")
                     .kind(SCALAR)
                     .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_ARRAY)
-                    .outputTypeStrategy(TypeStrategies.ARRAY)
+                    .outputTypeStrategy(SpecificTypeStrategies.ARRAY)
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_ELEMENT =
@@ -1227,7 +1230,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("map")
                     .kind(SCALAR)
                     .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_MAP)
-                    .outputTypeStrategy(TypeStrategies.MAP)
+                    .outputTypeStrategy(SpecificTypeStrategies.MAP)
                     .build();
 
     public static final BuiltInFunctionDefinition ROW =
@@ -1236,7 +1239,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .inputTypeStrategy(
                             InputTypeStrategies.wildcardWithCount(ConstantArgumentCount.from(1)))
-                    .outputTypeStrategy(TypeStrategies.ROW)
+                    .outputTypeStrategy(SpecificTypeStrategies.ROW)
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1267,7 +1270,7 @@ public final class BuiltInFunctionDefinitions {
                                             or(
                                                     logical(LogicalTypeRoot.INTEGER),
                                                     logical(LogicalTypeFamily.CHARACTER_STRING)))))
-                    .outputTypeStrategy(TypeStrategies.GET)
+                    .outputTypeStrategy(SpecificTypeStrategies.GET)
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1392,7 +1395,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("CURRENT_WATERMARK")
                     .kind(SCALAR)
                     .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
-                    .outputTypeStrategy(TypeStrategies.CURRENT_WATERMARK)
+                    .outputTypeStrategy(SpecificTypeStrategies.CURRENT_WATERMARK)
                     .notDeterministic()
                     .runtimeProvided()
                     .build();
