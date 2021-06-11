@@ -169,11 +169,6 @@ stages:
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-20.04'
-        steps:
-          - task: UseRubyVersion@0
-            inputs:
-              versionSpec: '= 2.4'
-              addToPath: true
           - script: ./tools/ci/docs.sh
       - template: build-python-wheels.yml
         parameters:
