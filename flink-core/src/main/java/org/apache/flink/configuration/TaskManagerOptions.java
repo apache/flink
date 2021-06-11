@@ -384,7 +384,7 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
                                     + " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-                                    + " Task Off-Heap Memory, Managed Memory and Network Memory.");
+                                    + " Framework Off-Heap Memory, Task Off-Heap Memory, Managed Memory and Network Memory.");
 
     /** Task Off-Heap Memory size for TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
