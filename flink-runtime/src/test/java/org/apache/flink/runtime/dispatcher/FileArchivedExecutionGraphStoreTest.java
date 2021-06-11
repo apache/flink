@@ -22,16 +22,19 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -59,6 +62,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -327,11 +331,35 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
     /** Tests that a session cluster can terminate gracefully when jobs are still running. */
     @Test
     public void testPutSuspendedJobOnClusterShutdown() throws Exception {
+        final Duration timeout = Duration.ofSeconds(5);
         try (final MiniCluster miniCluster =
                 new PersistingMiniCluster(new MiniClusterConfiguration.Builder().build())) {
             miniCluster.start();
-            final JobGraph jobGraph = JobGraphTestUtils.createSingleVertexJobGraph();
+            final JobVertex vertex = new JobVertex("blockingVertex");
+            vertex.setInvokableClass(SignallingBlockingNoOpInvokable.class);
+            final JobGraph jobGraph = new JobGraph(vertex);
             miniCluster.submitJob(jobGraph);
+            SignallingBlockingNoOpInvokable.LATCH.await();
+        }
+    }
+
+    /**
+     * Invokable which signals with {@link SignallingBlockingNoOpInvokable#LATCH} when it is invoked
+     * and blocks forever afterwards.
+     */
+    public static class SignallingBlockingNoOpInvokable extends AbstractInvokable {
+
+        /** Latch used to signal an initial invocation. */
+        public static final OneShotLatch LATCH = new OneShotLatch();
+
+        public SignallingBlockingNoOpInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            LATCH.trigger();
+            Thread.sleep(Long.MAX_VALUE);
         }
     }
 
