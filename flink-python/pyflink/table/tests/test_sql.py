@@ -83,6 +83,14 @@ class StreamSqlTests(SqlTests, PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
         table_result = t_env.execute_sql("insert into sinks select * from tbl")
+        from pyflink.common.job_status import JobStatus
+        from py4j.protocol import Py4JJavaError
+        try:
+            self.assertTrue(isinstance(table_result.get_job_client().get_job_status().result(),
+                                       JobStatus))
+        except Py4JJavaError as e:
+            self.assertIn('MiniCluster is not yet running or has already been shut down.', str(e))
+
         job_execution_result = table_result.get_job_client().get_job_execution_result().result()
         self.assertIsNotNone(job_execution_result.get_job_id())
         self.assert_equals(table_result.get_table_schema().get_field_names(),
