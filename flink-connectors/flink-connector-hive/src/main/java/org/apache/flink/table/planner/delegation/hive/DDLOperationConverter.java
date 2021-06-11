@@ -309,7 +309,6 @@ public class DDLOperationConverter {
             props.putAll(baseTable.getOptions());
             comment = baseTable.getComment();
         } else {
-            markHiveConnector(props);
             comment = desc.getComment();
             if (desc.getTblProps() != null) {
                 props.putAll(desc.getTblProps());

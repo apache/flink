@@ -26,8 +26,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -559,20 +561,20 @@ public class HiveDialectITCase {
         tableEnv.executeSql(
                 "create view v(vx) comment 'v comment' tblproperties ('k1'='v1') as select x from tbl");
         ObjectPath viewPath = new ObjectPath("default", "v");
-        Table hiveView = hiveCatalog.getHiveTable(viewPath);
-        assertEquals(TableType.VIRTUAL_VIEW.name(), hiveView.getTableType());
-        assertEquals("vx", hiveView.getSd().getCols().get(0).getName());
-        assertEquals("v1", hiveView.getParameters().get("k1"));
+        CatalogBaseTable catalogBaseTable = hiveCatalog.getTable(viewPath);
+        assertTrue(catalogBaseTable instanceof CatalogView);
+        assertEquals("vx", catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName());
+        assertEquals("v1", catalogBaseTable.getOptions().get("k1"));
 
         // change properties
         tableEnv.executeSql("alter view v set tblproperties ('k1'='v11')");
-        hiveView = hiveCatalog.getHiveTable(viewPath);
-        assertEquals("v11", hiveView.getParameters().get("k1"));
+        catalogBaseTable = hiveCatalog.getTable(viewPath);
+        assertEquals("v11", catalogBaseTable.getOptions().get("k1"));
 
         // change query
         tableEnv.executeSql("alter view v as select y from tbl");
-        hiveView = hiveCatalog.getHiveTable(viewPath);
-        assertEquals("y", hiveView.getSd().getCols().get(0).getName());
+        catalogBaseTable = hiveCatalog.getTable(viewPath);
+        assertEquals("y", catalogBaseTable.getUnresolvedSchema().getColumns().get(0).getName());
 
         // rename
         tableEnv.executeSql("alter view v rename to v1");

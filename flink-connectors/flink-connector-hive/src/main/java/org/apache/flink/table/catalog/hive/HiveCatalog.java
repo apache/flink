@@ -705,7 +705,6 @@ public class HiveCatalog extends AbstractCatalog {
             Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
             boolean isHiveTable;
             if (table.getParameters().containsKey(CatalogPropertiesUtil.IS_GENERIC)) {
-                // check is_generic to be backward compatible
                 isHiveTable =
                         !Boolean.parseBoolean(
                                 table.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC));

@@ -78,6 +78,9 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.catalog.CatalogPropertiesUtil.IS_GENERIC;
+import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -340,6 +343,7 @@ public class HiveTableUtil {
 
     public static Table instantiateHiveTable(
             ObjectPath tablePath, CatalogBaseTable table, HiveConf hiveConf) {
+        final boolean isView = table instanceof CatalogView;
         // let Hive set default parameters for us, e.g. serialization.format
         Table hiveTable =
                 org.apache.hadoop.hive.ql.metadata.Table.getEmptyTable(
@@ -358,7 +362,10 @@ public class HiveTableUtil {
         StorageDescriptor sd = hiveTable.getSd();
         HiveTableUtil.setDefaultStorageFormat(sd, hiveConf);
 
-        if (isHiveTable) {
+        // We always store schema as properties for view, because view schema may not be mapped to
+        // hive schema. This also means views created by flink cannot be used in hive, which is fine
+        // because hive cannot understand the expanded query anyway
+        if (isHiveTable && !isView) {
             HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
             List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
             // Table columns and partition keys
@@ -394,10 +401,19 @@ public class HiveTableUtil {
 
             properties.putAll(tableSchemaProps.asMap());
             properties = maskFlinkProperties(properties);
+            // we may need to explicitly set is_generic flag in the following cases:
+            // 1. user doesn't specify 'connector' or 'connector.type' when creating a table, w/o
+            // 'is_generic', such a table will be considered as a hive table upon retrieval
+            // 2. when creating views which don't have connector properties
+            if (isView
+                    || (!properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR.key())
+                            && !properties.containsKey(FLINK_PROPERTY_PREFIX + CONNECTOR_TYPE))) {
+                properties.put(IS_GENERIC, "true");
+            }
             hiveTable.setParameters(properties);
         }
 
-        if (table instanceof CatalogView) {
+        if (isView) {
             // TODO: [FLINK-12398] Support partitioned view in catalog API
             hiveTable.setPartitionKeys(new ArrayList<>());
 
