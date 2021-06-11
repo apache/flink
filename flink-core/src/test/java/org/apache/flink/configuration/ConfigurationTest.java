@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -344,6 +345,70 @@ public class ConfigurationTest extends TestLogger {
         assertEquals(listValues, configuration.toMap().get(LIST_STRING_OPTION.key()));
         assertEquals(mapValues, configuration.toMap().get(MAP_OPTION.key()));
         assertEquals("3 s", configuration.toMap().get(DURATION_OPTION.key()));
+    }
+
+    @Test
+    public void testPrefixAndNonPrefixMap() {
+        final Map<String, String> map = new HashMap<>();
+        map.put("prop1", "value1");
+        map.put("prop2", "12");
+
+        // not contained
+        {
+            final Configuration cfg = new Configuration();
+            assertFalse(cfg.getOptional(MAP_OPTION).isPresent());
+            assertFalse(cfg.contains(MAP_OPTION));
+        }
+
+        // read with prefix
+        {
+            final Configuration cfg = new Configuration();
+            cfg.setString("test-map-key.prop1", "value1");
+            cfg.setInteger("test-map-key.prop2", 12);
+            assertEquals(cfg.get(MAP_OPTION), map);
+            assertTrue(cfg.contains(MAP_OPTION));
+        }
+
+        // read without prefix
+        {
+            final Configuration cfg = new Configuration();
+            cfg.set(MAP_OPTION, map);
+            assertEquals(cfg.get(MAP_OPTION), map);
+            assertTrue(cfg.contains(MAP_OPTION));
+        }
+
+        // read non-prefix with precedence
+        {
+            final Configuration cfg = new Configuration();
+            cfg.set(MAP_OPTION, map);
+            cfg.setString("test-map-key.prop1", "value1");
+            cfg.setInteger("test-map-key.prop2", 99999);
+            assertEquals(cfg.get(MAP_OPTION), map);
+            assertTrue(cfg.contains(MAP_OPTION));
+            assertTrue(cfg.containsKey("test-map-key.prop1"));
+        }
+
+        // overwrite prefix
+        {
+            final Configuration cfg = new Configuration();
+            cfg.setString("test-map-key.prop1", "value1");
+            cfg.setInteger("test-map-key.prop2", 99999);
+            cfg.set(MAP_OPTION, map);
+            assertEquals(cfg.get(MAP_OPTION), map);
+            assertTrue(cfg.contains(MAP_OPTION));
+            assertFalse(cfg.containsKey("test-map-key.prop1"));
+        }
+
+        // remove prefix
+        {
+            final Configuration cfg = new Configuration();
+            cfg.setString("test-map-key.prop1", "value1");
+            cfg.setInteger("test-map-key.prop2", 99999);
+            cfg.removeConfig(MAP_OPTION);
+            assertFalse(cfg.contains(MAP_OPTION));
+            assertFalse(cfg.containsKey("test-map-key.prop1"));
+            assertFalse(cfg.containsKey("test-map-key.prop2"));
+        }
     }
 
     enum TestEnum {
