@@ -265,7 +265,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        RocksDBSnapshotStrategyBase<K, ?> checkpointStrategy;
+        RocksDBSnapshotStrategyBase<K, ?> checkpointStrategy = null;
         PriorityQueueSetFactory priorityQueueFactory;
         SerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
@@ -363,6 +363,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             IOUtils.closeQuietly(optionsContainer);
             ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
             kvStateInformation.clear();
+            IOUtils.closeQuietly(checkpointStrategy);
             try {
                 FileUtils.deleteDirectory(instanceBasePath);
             } catch (Exception ex) {
