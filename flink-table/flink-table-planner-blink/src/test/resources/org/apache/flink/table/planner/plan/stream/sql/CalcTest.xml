@@ -375,4 +375,39 @@ Calc(select=[ROW(1, _UTF-16LE'Hi', a) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testOrWithIsNullPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 10), IS NULL($0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[a, b, c], where=[OR(IS NULL(a), SEARCH(a, Sarg[1L:BIGINT, 10L:BIGINT]:BIGINT))])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrWithIsNullInIf">
+    <Resource name="sql">
+      <![CDATA[SELECT IF(c = '' OR c IS NULL, 'a', 'b') FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[IF(OR(=($2, _UTF-16LE''), IS NULL($2)), _UTF-16LE'a', _UTF-16LE'b')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[IF(OR(=(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"), IS NULL(c)), _UTF-16LE'a', _UTF-16LE'b') AS EXPR$0])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
