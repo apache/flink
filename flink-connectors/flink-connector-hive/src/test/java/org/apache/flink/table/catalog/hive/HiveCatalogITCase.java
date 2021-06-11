@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -31,6 +33,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.descriptors.FileSystem;
@@ -38,6 +41,7 @@ import org.apache.flink.table.descriptors.FormatDescriptor;
 import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -496,5 +500,59 @@ public class HiveCatalogITCase {
         assertEquals(1, catalogTable.getSchema().getFieldCount());
         assertEquals("x", catalogTable.getSchema().getFieldNames()[0]);
         assertEquals(DataTypes.INT(), catalogTable.getSchema().getFieldDataTypes()[0]);
+    }
+
+    @Test
+    public void testViewSchema() throws Exception {
+        TableEnvironment tableEnv =
+                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql(
+                    "create table src(x int,ts timestamp(3)) with ('connector'='datagen','number-of-rows'='10')");
+            tableEnv.executeSql("create view v1 as select x,ts from src order by x limit 3");
+
+            CatalogView catalogView =
+                    (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v1"));
+            Schema viewSchema = catalogView.getUnresolvedSchema();
+            assertEquals(
+                    Schema.newBuilder()
+                            .fromFields(
+                                    new String[] {"x", "ts"},
+                                    new AbstractDataType[] {
+                                        DataTypes.INT(), DataTypes.TIMESTAMP(3)
+                                    })
+                            .build(),
+                    viewSchema);
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x from v1").collect());
+            assertEquals(3, results.size());
+
+            tableEnv.executeSql(
+                    "create view v2 (v2_x,v2_ts) comment 'v2 comment' as select x,cast(ts as timestamp_ltz(3)) from v1");
+            catalogView = (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v2"));
+            assertEquals(
+                    Schema.newBuilder()
+                            .fromFields(
+                                    new String[] {"v2_x", "v2_ts"},
+                                    new AbstractDataType[] {
+                                        DataTypes.INT(), DataTypes.TIMESTAMP_LTZ(3)
+                                    })
+                            .build(),
+                    catalogView.getUnresolvedSchema());
+            assertEquals("v2 comment", catalogView.getComment());
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from v2").collect());
+            assertEquals(3, results.size());
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
+        }
     }
 }
