@@ -40,73 +40,16 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
     // ignore time zone
     val ctx = CodeGeneratorContext(new TableConfig)
     val className = newName(name)
-    val header =
-      s"""
-         |if ($LEFT_INPUT.getRowKind() != $RIGHT_INPUT.getRowKind()) {
-         |  return false;
-         |}
-       """.stripMargin
 
-    val codes = for (i <- fieldTypes.indices) yield {
-      val fieldType = fieldTypes(i)
-      val fieldTypeTerm = primitiveTypeTermForType(fieldType)
-      val result = s"cmp$i"
-      val leftNullTerm = "leftIsNull$" + i
-      val rightNullTerm = "rightIsNull$" + i
-      val leftFieldTerm = "leftField$" + i
-      val rightFieldTerm = "rightField$" + i
-
-      // TODO merge ScalarOperatorGens.generateEquals.
-      val (equalsCode, equalsResult) = if (isInternalPrimitive(fieldType)) {
-        ("", s"$leftFieldTerm == $rightFieldTerm")
-      } else if (isCompositeType(fieldType)) {
-        val equaliserGenerator = new EqualiserCodeGenerator(
-          getFieldTypes(fieldType).asScala.toArray)
-        val generatedEqualiser = equaliserGenerator
-          .generateRecordEqualiser("field$" + i + "GeneratedEqualiser")
-        val generatedEqualiserTerm = ctx.addReusableObject(
-          generatedEqualiser, "field$" + i + "GeneratedEqualiser")
-        val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
-        val equaliserTerm = newName("equaliser")
-        ctx.addReusableMember(s"private $equaliserTypeTerm $equaliserTerm = null;")
-        ctx.addReusableInitStatement(
-          s"""
-             |$equaliserTerm = ($equaliserTypeTerm)
-             |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
-             |""".stripMargin)
-        ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
-      } else {
-        val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
-        val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
-        val gen = generateEquals(ctx, left, right)
-        (gen.code, gen.resultTerm)
-      }
-      val leftReadCode = rowFieldReadAccess(ctx, i, LEFT_INPUT, fieldType)
-      val rightReadCode = rowFieldReadAccess(ctx, i, RIGHT_INPUT, fieldType)
-      s"""
-         |boolean $leftNullTerm = $LEFT_INPUT.isNullAt($i);
-         |boolean $rightNullTerm = $RIGHT_INPUT.isNullAt($i);
-         |boolean $result;
-         |if ($leftNullTerm && $rightNullTerm) {
-         |  $result = true;
-         |} else if ($leftNullTerm|| $rightNullTerm) {
-         |  $result = false;
-         |} else {
-         |  $fieldTypeTerm $leftFieldTerm = $leftReadCode;
-         |  $fieldTypeTerm $rightFieldTerm = $rightReadCode;
-         |  $equalsCode
-         |  $result = $equalsResult;
-         |}
-         |if (!$result) {
-         |  return false;
-         |}
-      """.stripMargin
+    val equalsMethodCodes = for (idx <- fieldTypes.indices) yield generateEqualsMethod(ctx, idx)
+    val equalsMethodCalls = for (idx <- fieldTypes.indices) yield {
+      val methodName = getEqualsMethodName(idx)
+      s"""result = result && $methodName($LEFT_INPUT, $RIGHT_INPUT);"""
     }
 
-    val functionCode =
+    val classCode =
       j"""
         public final class $className implements $RECORD_EQUALISER {
-
           ${ctx.reuseMemberCode()}
 
           public $className(Object[] references) throws Exception {
@@ -117,17 +60,98 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
           public boolean equals($ROW_DATA $LEFT_INPUT, $ROW_DATA $RIGHT_INPUT) {
             if ($LEFT_INPUT instanceof $BINARY_ROW && $RIGHT_INPUT instanceof $BINARY_ROW) {
               return $LEFT_INPUT.equals($RIGHT_INPUT);
-            } else {
-              $header
-              ${ctx.reuseLocalVariableCode()}
-              ${codes.mkString("\n")}
-              return true;
             }
+
+            if ($LEFT_INPUT.getRowKind() != $RIGHT_INPUT.getRowKind()) {
+              return false;
+            }
+
+            boolean result = true;
+            ${equalsMethodCalls.mkString("\n")}
+            return result;
           }
+
+          ${equalsMethodCodes.mkString("\n")}
         }
       """.stripMargin
 
-    new GeneratedRecordEqualiser(className, functionCode, ctx.references.toArray)
+    new GeneratedRecordEqualiser(className, classCode, ctx.references.toArray)
+  }
+
+  private def getEqualsMethodName(idx: Int) = s"""equalsAtIndex$idx"""
+
+  private def generateEqualsMethod(ctx: CodeGeneratorContext, idx: Int): String = {
+    val methodName = getEqualsMethodName(idx)
+    ctx.startNewLocalVariableStatement(methodName)
+
+    val Seq(leftNullTerm, rightNullTerm) = ctx.addReusableLocalVariables(
+      ("boolean", "isNullLeft"),
+      ("boolean", "isNullRight")
+    )
+
+    val fieldType = fieldTypes(idx)
+    val fieldTypeTerm = primitiveTypeTermForType(fieldType)
+    val Seq(leftFieldTerm, rightFieldTerm) = ctx.addReusableLocalVariables(
+      (fieldTypeTerm, "leftField"),
+      (fieldTypeTerm, "rightField")
+    )
+
+    val leftReadCode = rowFieldReadAccess(ctx, idx, LEFT_INPUT, fieldType)
+    val rightReadCode = rowFieldReadAccess(ctx, idx, RIGHT_INPUT, fieldType)
+
+    val (equalsCode, equalsResult) = generateEqualsCode(ctx, fieldType,
+      leftFieldTerm, rightFieldTerm, leftNullTerm, rightNullTerm)
+
+    s"""
+       |private boolean $methodName($ROW_DATA $LEFT_INPUT, $ROW_DATA $RIGHT_INPUT) {
+       |  ${ctx.reuseLocalVariableCode(methodName)}
+       |
+       |  $leftNullTerm = $LEFT_INPUT.isNullAt($idx);
+       |  $rightNullTerm = $RIGHT_INPUT.isNullAt($idx);
+       |  if ($leftNullTerm && $rightNullTerm) {
+       |    return true;
+       |  }
+       |
+       |  if ($leftNullTerm || $rightNullTerm) {
+       |    return false;
+       |  }
+       |
+       |  $leftFieldTerm = $leftReadCode;
+       |  $rightFieldTerm = $rightReadCode;
+       |  $equalsCode
+       |
+       |  return $equalsResult;
+       |}
+      """.stripMargin
+  }
+
+  private def generateEqualsCode(ctx: CodeGeneratorContext, fieldType: LogicalType,
+                  leftFieldTerm: String, rightFieldTerm: String,
+                  leftNullTerm: String, rightNullTerm: String) = {
+    // TODO merge ScalarOperatorGens.generateEquals.
+    if (isInternalPrimitive(fieldType)) {
+      ("", s"$leftFieldTerm == $rightFieldTerm")
+    } else if (isCompositeType(fieldType)) {
+      val equaliserGenerator = new EqualiserCodeGenerator(
+        getFieldTypes(fieldType).asScala.toArray)
+      val generatedEqualiser = equaliserGenerator.generateRecordEqualiser("fieldGeneratedEqualiser")
+      val generatedEqualiserTerm = ctx.addReusableObject(
+        generatedEqualiser, "fieldGeneratedEqualiser")
+      val equaliserTypeTerm = classOf[RecordEqualiser].getCanonicalName
+      val equaliserTerm = newName("equaliser")
+      ctx.addReusableMember(s"private $equaliserTypeTerm $equaliserTerm = null;")
+      ctx.addReusableInitStatement(
+        s"""
+           |$equaliserTerm = ($equaliserTypeTerm)
+           |  $generatedEqualiserTerm.newInstance(Thread.currentThread().getContextClassLoader());
+           |""".stripMargin)
+      ("", s"$equaliserTerm.equals($leftFieldTerm, $rightFieldTerm)")
+    } else {
+      val left = GeneratedExpression(leftFieldTerm, leftNullTerm, "", fieldType)
+      val right = GeneratedExpression(rightFieldTerm, rightNullTerm, "", fieldType)
+      val gen = generateEquals(ctx, left, right)
+      (gen.code, gen.resultTerm)
+    }
   }
 
   @tailrec
