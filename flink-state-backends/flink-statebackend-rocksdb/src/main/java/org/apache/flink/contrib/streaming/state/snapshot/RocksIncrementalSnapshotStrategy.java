@@ -204,6 +204,11 @@ public class RocksIncrementalSnapshotStrategy<K>
         }
     }
 
+    @Override
+    public void close() {
+        stateUploader.close();
+    }
+
     @Nonnull
     private SnapshotDirectory prepareLocalSnapshotDirectory(long checkpointId) throws IOException {
 
