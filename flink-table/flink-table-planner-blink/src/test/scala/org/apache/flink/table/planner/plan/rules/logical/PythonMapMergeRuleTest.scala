@@ -60,7 +60,7 @@ class PythonMapMergeRuleTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
     val func = new RowPythonScalarFunction("pyFunc2")
     val result = sourceTable.map(func(withColumns('*)))
-      .map(func(withColumns('*))).as("a", "b")
+      .map(func(withColumns('*)))
       .map(func(withColumns('*)))
     util.verifyRelPlan(result)
   }

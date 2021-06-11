@@ -84,7 +84,7 @@ def normalize_pandas_result(it):
     return arrays
 
 
-def wrap_input_series_as_datframe(*args):
+def wrap_input_series_as_dataframe(*args):
     import pandas as pd
     return pd.concat(args, axis=1)
 
@@ -166,14 +166,19 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     user_defined_funcs.extend(input_funcs)
     if user_defined_function_proto.takes_row_as_input:
         if input_variable_dict:
+            # for constant or other udfs as input arguments.
             func_str = "%s(%s)" % (func_name, func_args)
         elif user_defined_function_proto.is_pandas_udf or pandas_udaf:
             # for pandas udf/udaf, the input data structure is a List of Pandas.Series
             # we need to merge these Pandas.Series into a Pandas.DataFrame
-            variable_dict['wrap_input_series_as_datframe'] = wrap_input_series_as_datframe
-            func_str = "%s(wrap_input_series_as_datframe(%s))" % (func_name, func_args)
+            variable_dict['wrap_input_series_as_dataframe'] = wrap_input_series_as_dataframe
+            func_str = "%s(wrap_input_series_as_dataframe(%s))" % (func_name, func_args)
         else:
             # directly use `value` as input argument
+            # e.g.
+            # lambda value: Row(value[0], value[1])
+            #   can be optimized to
+            # lambda value: value
             func_str = "%s(value)" % func_name
     else:
         func_str = "%s(%s)" % (func_name, func_args)
@@ -252,6 +257,11 @@ def extract_user_defined_aggregate_function(
     else:
         distinct_index = -1
     if user_defined_function_proto.takes_row_as_input and not local_variable_dict:
+        # directly use `value` as input argument
+        # e.g.
+        # lambda value: Row(value[0], value[1])
+        #   can be optimized to
+        # lambda value: value
         func_str = "lambda value : [value]"
     else:
         func_str = "lambda value : (%s,)" % ",".join(args_str)

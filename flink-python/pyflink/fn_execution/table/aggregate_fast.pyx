@@ -253,7 +253,7 @@ cdef class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 else:
                     raise Exception(
                         "The args are not in the distinct data view, this should not happen.")
-            # Transfer InternalRow to Row in row-based operations
+            # Convert InternalRow to Row
             if len(args) == 1 and isinstance(args[0], InternalRow):
                 internal_row = <InternalRow> args[0]
                 args[0] = internal_row.to_row()
@@ -293,7 +293,7 @@ cdef class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
             distinct_index = self._distinct_indexes[i]
             if distinct_index >= 0 and args in self._distinct_data_views[distinct_index]:
                 continue
-            # Transfer InternalRow to Row in row-based operations
+            # Convert InternalRow to Row
             if len(args) == 1 and isinstance(args[0], InternalRow):
                 internal_row = <InternalRow> args[0]
                 args[0] = internal_row.to_row()

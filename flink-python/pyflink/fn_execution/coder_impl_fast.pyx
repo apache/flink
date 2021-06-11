@@ -37,6 +37,7 @@ ROW_KIND_BIT_SIZE = 2
 cdef class InternalRow:
     def __cinit__(self, list values, InternalRowKind row_kind):
         self.values = values
+        self.row_kind = row_kind
         self.field_names = []
 
     cpdef object to_row(self):
