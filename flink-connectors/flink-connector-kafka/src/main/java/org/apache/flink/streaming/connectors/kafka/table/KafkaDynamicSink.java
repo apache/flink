@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaSerializationSchema.MetadataConverter;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -50,6 +51,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.stream.Stream;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC_UNSPECIFIED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A version-agnostic Kafka {@link DynamicTableSink}. */
@@ -192,6 +194,10 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     public Map<String, DataType> listWritableMetadata() {
         final Map<String, DataType> metadataMap = new LinkedHashMap<>();
         Stream.of(WritableMetadata.values())
+                .filter(
+                        m ->
+                                TOPIC_UNSPECIFIED.equals(topic)
+                                        || !WritableMetadata.TOPIC.key.equals(m.key))
                 .forEachOrdered(m -> metadataMap.put(m.key, m.dataType));
         return metadataMap;
     }
@@ -355,6 +361,22 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     // --------------------------------------------------------------------------------------------
 
     enum WritableMetadata {
+        TOPIC(
+                "topic",
+                DataTypes.STRING(),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object read(RowData row, int pos) {
+                        if (row.isNullAt(pos)) {
+                            throw new ValidationException(
+                                    "The metadata column 'topic' must not be null or empty.");
+                        }
+                        return row.getString(pos).toString();
+                    }
+                }),
+
         HEADERS(
                 "headers",
                 // key and value of the map are nullable to make handling easier in queries
