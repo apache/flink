@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
@@ -30,13 +31,16 @@ import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link EqualiserCodeGenerator}. */
 public class EqualiserCodeGeneratorTest {
@@ -79,6 +83,36 @@ public class EqualiserCodeGeneratorTest {
                 };
         assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1024), true);
         assertBoolean(equaliser, func, fromEpochMillis(1024), fromEpochMillis(1025), false);
+    }
+
+    @Test
+    public void testManyFields() {
+        final LogicalType[] fieldTypes =
+                IntStream.range(0, 999)
+                        .mapToObj(i -> new VarCharType())
+                        .toArray(LogicalType[]::new);
+
+        RecordEqualiser equaliser;
+        try {
+            equaliser =
+                    new EqualiserCodeGenerator(fieldTypes)
+                            .generateRecordEqualiser("ManyFields")
+                            .newInstance(Thread.currentThread().getContextClassLoader());
+        } catch (Exception e) {
+            Assert.fail("Expected compilation to succeed");
+
+            // Unreachable
+            throw e;
+        }
+
+        final StringData[] fields =
+                IntStream.range(0, 999)
+                        .mapToObj(i -> StringData.fromString("Entry " + i))
+                        .toArray(StringData[]::new);
+        assertTrue(
+                equaliser.equals(
+                        GenericRowData.of((Object[]) fields),
+                        GenericRowData.of((Object[]) fields)));
     }
 
     private static <T> void assertBoolean(
