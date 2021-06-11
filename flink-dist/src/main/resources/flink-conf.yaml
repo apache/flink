@@ -107,8 +107,20 @@ parallelism.default: 1
 #==============================================================================
 
 # The backend that will be used to store operator state checkpoints if
-# checkpointing is enabled.
+# checkpointing is enabled. Checkpointing is enabled when execution.checkpointing.interval > 0.
+
+# Execution checkpointing related parameters.
 #
+# execution.checkpointing.interval: -1
+# execution.checkpointing.externalized-checkpoint-retention: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]
+# execution.checkpointing.max-concurrent-checkpoints: 1
+# execution.checkpointing.min-pause: 0
+# execution.checkpointing.mode: [EXACTLY_ONCE, AT_LEAST_ONCE]
+# execution.checkpointing.prefer-checkpoint-for-recovery: false
+# execution.checkpointing.timeout: 600000
+# execution.checkpointing.tolerable-failed-checkpoints: 3
+# execution.checkpointing.unaligned: false
+
 # Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
 # <class-name-of-factory>.
 #
