@@ -494,7 +494,7 @@ public class AbstractStreamOperatorTest {
             testHarness.processWatermark1(new Watermark(1L));
             assertThat(testHarness.getOutput(), empty());
 
-            testHarness.emitStreamStatus2(StreamStatus.IDLE);
+            testHarness.processStreamStatus2(StreamStatus.IDLE);
             expectedOutput.add(new StreamRecord<>(1L));
             expectedOutput.add(new Watermark(1L));
             TestHarnessUtil.assertOutputEquals(
@@ -506,7 +506,7 @@ public class AbstractStreamOperatorTest {
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
 
-            testHarness.emitStreamStatus2(StreamStatus.ACTIVE);
+            testHarness.processStreamStatus2(StreamStatus.ACTIVE);
             // the other input is active now, we should not emit the watermark
             testHarness.processWatermark1(new Watermark(4L));
             TestHarnessUtil.assertOutputEquals(
@@ -528,8 +528,8 @@ public class AbstractStreamOperatorTest {
             testHarness.setup();
             testHarness.open();
 
-            testHarness.emitStreamStatus1(StreamStatus.IDLE);
-            testHarness.emitStreamStatus2(StreamStatus.IDLE);
+            testHarness.processStreamStatus1(StreamStatus.IDLE);
+            testHarness.processStreamStatus2(StreamStatus.IDLE);
             expectedOutput.add(StreamStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());

@@ -59,7 +59,7 @@ public class MultiInputStreamOperatorTestHarness<OUT>
         getCastedOperator().getInputs().get(idx).processWatermark(mark);
     }
 
-    public void emitStreamStatus(int idx, StreamStatus streamStatus) throws Exception {
+    public void processStreamStatus(int idx, StreamStatus streamStatus) throws Exception {
         getCastedOperator().getInputs().get(idx).processStreamStatus(streamStatus);
     }
 

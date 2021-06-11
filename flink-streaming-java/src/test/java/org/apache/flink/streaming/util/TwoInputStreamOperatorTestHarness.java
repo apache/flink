@@ -82,11 +82,11 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
         twoInputOperator.processWatermark2(mark);
     }
 
-    public void emitStreamStatus1(StreamStatus streamStatus) throws Exception {
+    public void processStreamStatus1(StreamStatus streamStatus) throws Exception {
         twoInputOperator.processStreamStatus1(streamStatus);
     }
 
-    public void emitStreamStatus2(StreamStatus streamStatus) throws Exception {
+    public void processStreamStatus2(StreamStatus streamStatus) throws Exception {
         twoInputOperator.processStreamStatus2(streamStatus);
     }
 }
