@@ -69,7 +69,7 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
             throws Exception {
         SlotPool slotPool =
                 new DeclarativeSlotPoolBridgeBuilder(
-                        physicalSlotProviderResource.getMainThreadExecutor())
+                                physicalSlotProviderResource.getMainThreadExecutor())
                         .build();
         java.lang.reflect.Field checkDisabled =
                 slotPool.getClass().getField("isBatchSlotRequestTimeoutCheckDisabled");

@@ -194,7 +194,7 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
     }
 
     @Nonnull
-    public static DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(
+    static DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
         return new DeclarativeSlotPoolBridge(
                 jobId,

@@ -102,8 +102,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            testMainThreadExecutor.execute(
-                    () -> assertTrue(pool.getAllocatedSlotsInformation().isEmpty()));
+            assertTrue(pool.getAllocatedSlotsInformation().isEmpty());
         }
     }
 
@@ -128,8 +127,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            testMainThreadExecutor.execute(
-                    () -> assertTrue(pool.getAllocatedSlotsInformation().isEmpty()));
+            assertTrue(pool.getAllocatedSlotsInformation().isEmpty());
         }
     }
 
@@ -160,8 +158,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            testMainThreadExecutor.execute(
-                    () -> assertTrue(pool.getAllocatedSlotsInformation().isEmpty()));
+            assertTrue(pool.getAllocatedSlotsInformation().isEmpty());
 
             final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
             final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
@@ -178,8 +175,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
                                                     Lists.newArrayList(slotOffer))
                                             != null));
 
-            testMainThreadExecutor.execute(
-                    () -> assertTrue(pool.getAvailableSlotsInformation().isEmpty()));
+            assertTrue(pool.getAvailableSlotsInformation().isEmpty());
         }
     }
 

@@ -26,7 +26,6 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.SystemClock;
@@ -43,7 +42,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
     private JobID jobId = new JobID();
     private Time batchSlotTimeout =
             Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
-    private Time idleSlotTimeout = TestingUtils.infiniteTime();
+    private Time idleSlotTimeout = Time.days(1);
     private Clock clock = SystemClock.getInstance();
 
     @Nullable
@@ -89,7 +88,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
                         jobId,
                         new DefaultDeclarativeSlotPoolFactory(),
                         clock,
-                        TestingUtils.infiniteTime(),
+                        Time.days(1),
                         idleSlotTimeout,
                         batchSlotTimeout);
 
@@ -102,8 +101,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
         }
         if (resourceManagerGateway != null) {
             CompletableFuture.runAsync(
-                    () -> slotPool.connectToResourceManager(resourceManagerGateway),
-                    componentMainThreadExecutor)
+                            () -> slotPool.connectToResourceManager(resourceManagerGateway),
+                            componentMainThreadExecutor)
                     .join();
         }
 

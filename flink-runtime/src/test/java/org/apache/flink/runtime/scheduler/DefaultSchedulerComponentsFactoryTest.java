@@ -64,7 +64,8 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
     }
 
     @Test
-    public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery() {
+    public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery()
+            throws Exception {
         final Configuration configuration = new Configuration();
 
         try {
@@ -75,8 +76,6 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                     e,
                     containsMessage(
                             "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -95,7 +94,7 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                 iApproximateLocalRecoveryEnabled,
                 configuration,
                 new DeclarativeSlotPoolBridgeBuilder(
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .build(),
                 Time.milliseconds(10L));
     }

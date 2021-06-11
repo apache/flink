@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -56,8 +57,7 @@ public class SlotPoolUtils {
     static DeclarativeSlotPoolBridge createAndSetUpDeclarativeSlotPoolBridge(
             @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder(
-                        org.apache.flink.runtime.concurrent
-                                .ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
                 .setResourceManagerGateway(resourceManagerGateway)
                 .build();
     }
@@ -72,13 +72,6 @@ public class SlotPoolUtils {
             final SlotPool slotPool, final SlotRequestId slotRequestId, final Time timeout) {
 
         return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
-    }
-
-    static void requestNewAllocatedSlots(
-            final SlotPool slotPool, final SlotRequestId... slotRequestIds) {
-        for (SlotRequestId slotRequestId : slotRequestIds) {
-            requestNewAllocatedSlot(slotPool, slotRequestId);
-        }
     }
 
     public static CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
