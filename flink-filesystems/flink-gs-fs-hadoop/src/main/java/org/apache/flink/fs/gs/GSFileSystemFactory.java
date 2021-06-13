@@ -26,6 +26,8 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -49,7 +51,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     private final HadoopConfigLoader hadoopConfigLoader;
 
-    private Configuration flinkConfig;
+    @Nullable private Configuration flinkConfig;
 
     /** Constructs the Google Storage file system factory. */
     public GSFileSystemFactory() {
@@ -65,9 +67,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public void configure(Configuration flinkConfig) {
-        Preconditions.checkNotNull(flinkConfig);
-
-        this.flinkConfig = flinkConfig;
+        this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
         hadoopConfigLoader.setFlinkConfig(flinkConfig);
     }
 

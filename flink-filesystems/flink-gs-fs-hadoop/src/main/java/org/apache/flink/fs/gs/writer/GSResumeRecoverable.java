@@ -24,7 +24,8 @@ import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -41,8 +42,11 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
     /** Indicates if the write has been closed. */
     public final boolean closed;
 
-    /** The object ids for the temporary objects that should be composed to form the final blob. */
-    public final UUID[] componentObjectIds;
+    /**
+     * The object ids for the temporary objects that should be composed to form the final blob. This
+     * is an unmodifiable list.
+     */
+    public final List<UUID> componentObjectIds;
 
     GSResumeRecoverable(
             GSBlobIdentifier finalBlobIdentifier,
@@ -54,7 +58,8 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
         this.position = position;
         this.closed = closed;
         this.componentObjectIds =
-                Preconditions.checkNotNull(componentObjectIds).toArray(new UUID[0]);
+                Collections.unmodifiableList(
+                        new ArrayList<>(Preconditions.checkNotNull(componentObjectIds)));
     }
 
     /**
@@ -68,7 +73,7 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
      */
     List<GSBlobIdentifier> getComponentBlobIds(GSFileSystemOptions options) {
         String temporaryBucketName = BlobUtils.getTemporaryBucketName(finalBlobIdentifier, options);
-        return Arrays.stream(componentObjectIds)
+        return componentObjectIds.stream()
                 .map(
                         temporaryObjectId ->
                                 BlobUtils.getTemporaryObjectName(

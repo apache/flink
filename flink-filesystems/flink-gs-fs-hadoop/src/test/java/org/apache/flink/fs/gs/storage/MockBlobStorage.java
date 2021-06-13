@@ -18,10 +18,13 @@
 
 package org.apache.flink.fs.gs.storage;
 
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.fs.gs.utils.ChecksumUtils;
 
 import com.google.cloud.storage.StorageException;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -67,20 +70,16 @@ public class MockBlobStorage implements GSBlobStorage {
 
         private final GSBlobIdentifier blobIdentifier;
 
-        public int chunkSize;
+        @Nullable public final MemorySize chunkSize;
 
         private final ByteArrayOutputStream stream;
 
         private boolean closed;
 
-        WriteChannel(GSBlobIdentifier blobIdentifier) {
+        WriteChannel(GSBlobIdentifier blobIdentifier, @Nullable MemorySize chunkSize) {
             this.blobIdentifier = blobIdentifier;
             this.stream = new ByteArrayOutputStream();
             this.closed = false;
-        }
-
-        @Override
-        public void setChunkSize(int chunkSize) {
             this.chunkSize = chunkSize;
         }
 
@@ -111,7 +110,12 @@ public class MockBlobStorage implements GSBlobStorage {
 
     @Override
     public GSBlobStorage.WriteChannel writeBlob(GSBlobIdentifier blobId) {
-        return new WriteChannel(blobId);
+        return new WriteChannel(blobId, null);
+    }
+
+    @Override
+    public GSBlobStorage.WriteChannel writeBlob(GSBlobIdentifier blobId, MemorySize chunkSize) {
+        return new WriteChannel(blobId, chunkSize);
     }
 
     @Override

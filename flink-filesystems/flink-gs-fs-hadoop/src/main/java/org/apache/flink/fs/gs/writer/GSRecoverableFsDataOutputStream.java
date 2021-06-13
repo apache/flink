@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -101,9 +100,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
         Preconditions.checkArgument(recoverable.position >= 0);
         this.position = recoverable.position;
         this.closed = recoverable.closed;
-        this.componentObjectIds =
-                new ArrayList<>(
-                        Arrays.asList(Preconditions.checkNotNull(recoverable.componentObjectIds)));
+        this.componentObjectIds = new ArrayList<>(recoverable.componentObjectIds);
     }
 
     @Override
@@ -199,12 +196,12 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
                 BlobUtils.getTemporaryBlobIdentifier(
                         finalBlobIdentifier, componentObjectId, options);
 
-        // create the channel and set the chunk size if specified in options
-        GSBlobStorage.WriteChannel writeChannel = storage.writeBlob(blobIdentifier);
+        // create the channel, using an explicit chunk size if specified in options
         Optional<MemorySize> writerChunkSize = options.getWriterChunkSize();
-        writerChunkSize.ifPresent(
-                chunkSize -> writeChannel.setChunkSize((int) chunkSize.getBytes()));
-
+        GSBlobStorage.WriteChannel writeChannel =
+                writerChunkSize.isPresent()
+                        ? storage.writeBlob(blobIdentifier, writerChunkSize.get())
+                        : storage.writeBlob(blobIdentifier);
         return new GSChecksumWriteChannel(storage, writeChannel, blobIdentifier);
     }
 

@@ -71,7 +71,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
     }
 
     @Override
-    public RecoverableFsDataOutputStream recover(ResumeRecoverable resumable) throws IOException {
+    public RecoverableFsDataOutputStream recover(ResumeRecoverable resumable) {
         Preconditions.checkNotNull(resumable);
 
         GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;
@@ -79,15 +79,14 @@ public class GSRecoverableWriter implements RecoverableWriter {
     }
 
     @Override
-    public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+    public boolean cleanupRecoverableState(ResumeRecoverable resumable) {
         // we can't safely clean up any state prior to commit, so do nothing here
         // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
         return true;
     }
 
     @Override
-    public RecoverableFsDataOutputStream.Committer recoverForCommit(CommitRecoverable resumable)
-            throws IOException {
+    public RecoverableFsDataOutputStream.Committer recoverForCommit(CommitRecoverable resumable) {
         Preconditions.checkNotNull(resumable);
 
         GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;

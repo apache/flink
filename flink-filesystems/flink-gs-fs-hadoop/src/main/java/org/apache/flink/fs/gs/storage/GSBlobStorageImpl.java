@@ -18,6 +18,7 @@
 
 package org.apache.flink.fs.gs.storage;
 
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -55,6 +56,18 @@ public class GSBlobStorageImpl implements GSBlobStorage {
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
         com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        return new WriteChannel(writeChannel);
+    }
+
+    @Override
+    public GSBlobStorage.WriteChannel writeBlob(
+            GSBlobIdentifier blobIdentifier, MemorySize chunkSize) {
+        Preconditions.checkNotNull(blobIdentifier);
+        Preconditions.checkArgument(chunkSize.getBytes() > 0);
+
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
+        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        writeChannel.setChunkSize((int) chunkSize.getBytes());
         return new WriteChannel(writeChannel);
     }
 
@@ -140,13 +153,6 @@ public class GSBlobStorageImpl implements GSBlobStorage {
 
         private WriteChannel(com.google.cloud.WriteChannel writeChannel) {
             this.writeChannel = Preconditions.checkNotNull(writeChannel);
-        }
-
-        @Override
-        public void setChunkSize(int chunkSize) {
-            Preconditions.checkArgument(chunkSize > 0);
-
-            writeChannel.setChunkSize(chunkSize);
         }
 
         @Override

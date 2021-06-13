@@ -18,6 +18,8 @@
 
 package org.apache.flink.fs.gs.storage;
 
+import org.apache.flink.configuration.MemorySize;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -26,12 +28,21 @@ import java.util.Optional;
 public interface GSBlobStorage {
 
     /**
-     * Creates a write channel.
+     * Creates a write channel with the default chunk size.
      *
      * @param blobIdentifier The blob identifier to which to write
      * @return The WriteChannel helper
      */
     WriteChannel writeBlob(GSBlobIdentifier blobIdentifier);
+
+    /**
+     * Creates a write channel with the specified chunk size.
+     *
+     * @param blobIdentifier The blob identifier to which to write
+     * @param chunkSize The chunk size, must be > 0
+     * @return The WriteChannel helper
+     */
+    WriteChannel writeBlob(GSBlobIdentifier blobIdentifier, MemorySize chunkSize);
 
     /**
      * Gets blob metadata.
@@ -88,13 +99,6 @@ public interface GSBlobStorage {
 
     /** Abstract blob write channel. */
     interface WriteChannel {
-
-        /**
-         * Sets the chunk size for upload.
-         *
-         * @param chunkSize The chunk size
-         */
-        void setChunkSize(int chunkSize);
 
         /**
          * Writes data to the channel.

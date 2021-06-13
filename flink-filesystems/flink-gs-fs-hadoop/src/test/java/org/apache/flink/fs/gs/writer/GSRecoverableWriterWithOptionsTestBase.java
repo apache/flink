@@ -42,6 +42,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Test recoverable writer. */
@@ -153,8 +154,11 @@ public abstract class GSRecoverableWriterWithOptionsTestBase {
                 (MockBlobStorage.WriteChannel) checksumWriteChannel.writeChannel;
 
         Optional<MemorySize> writerChunkSize = options.getWriterChunkSize();
-        writerChunkSize.ifPresent(
-                chunkSize -> assertEquals((int) chunkSize.getBytes(), mockWriteChannel.chunkSize));
+        if (writerChunkSize.isPresent()) {
+            assertEquals(writerChunkSize.get(), mockWriteChannel.chunkSize);
+        } else {
+            assertNull(mockWriteChannel.chunkSize);
+        }
 
         // get the committer
         RecoverableFsDataOutputStream.Committer committer = stream.closeForCommit();

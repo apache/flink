@@ -28,8 +28,6 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 
-import java.io.IOException;
-
 /** Provides recoverable-writer functionality for the standard GoogleHadoopFileSystem. */
 class GSFileSystem extends HadoopFileSystem {
 
@@ -41,7 +39,7 @@ class GSFileSystem extends HadoopFileSystem {
     }
 
     @Override
-    public RecoverableWriter createRecoverableWriter() throws IOException {
+    public RecoverableWriter createRecoverableWriter() {
 
         // create the Google storage service instance
         Storage storage = StorageOptions.getDefaultInstance().getService();

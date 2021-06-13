@@ -137,7 +137,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
      *
      * @throws IOException On underlying failure.
      */
-    private void writeFinalBlob() throws IOException {
+    private void writeFinalBlob() {
 
         // compose all the component blob ids into the final blob id. if the component blob ids are
         // in the same bucket as the final blob id, this can be done directly. otherwise, we must
@@ -167,7 +167,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
      *
      * @throws IOException On underlying storage failure
      */
-    private void cleanupTemporaryBlobs() throws IOException {
+    private void cleanupTemporaryBlobs() {
 
         // determine the partial name for the temporary objects to be deleted
         String temporaryBucketName =

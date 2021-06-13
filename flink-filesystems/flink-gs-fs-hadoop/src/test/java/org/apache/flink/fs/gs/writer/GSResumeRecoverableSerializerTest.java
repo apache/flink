@@ -59,9 +59,10 @@ public class GSResumeRecoverableSerializerTest {
         assertEquals(objectName, deserializedState.finalBlobIdentifier.objectName);
         assertEquals(position, deserializedState.position);
         assertEquals(closed, deserializedState.closed);
-        assertEquals(componentObjectIdCount, deserializedState.componentObjectIds.length);
+        assertEquals(componentObjectIdCount, deserializedState.componentObjectIds.size());
         for (int i = 0; i < componentObjectIdCount; i++) {
-            assertEquals(state.componentObjectIds[i], deserializedState.componentObjectIds[i]);
+            assertEquals(
+                    state.componentObjectIds.get(i), deserializedState.componentObjectIds.get(i));
         }
     }
 

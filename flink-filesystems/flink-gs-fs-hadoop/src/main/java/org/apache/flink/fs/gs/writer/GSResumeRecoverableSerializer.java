@@ -66,7 +66,7 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
                 dataOutputStream.writeBoolean(recoverable.closed);
 
                 // componentObjectIds
-                dataOutputStream.writeInt(recoverable.componentObjectIds.length);
+                dataOutputStream.writeInt(recoverable.componentObjectIds.size());
                 for (UUID componentObjectId : recoverable.componentObjectIds) {
                     dataOutputStream.writeLong(componentObjectId.getMostSignificantBits());
                     dataOutputStream.writeLong(componentObjectId.getLeastSignificantBits());
