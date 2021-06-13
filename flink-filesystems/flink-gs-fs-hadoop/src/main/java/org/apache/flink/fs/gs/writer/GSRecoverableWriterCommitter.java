@@ -26,12 +26,18 @@ import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
 /** The committer for the GS recoverable writer. */
 class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Committer {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(GSRecoverableWriterCommitter.class);
 
     /** The underlying blob storage. */
     private final GSBlobStorage storage;
@@ -44,6 +50,10 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
 
     GSRecoverableWriterCommitter(
             GSBlobStorage storage, GSFileSystemOptions options, GSResumeRecoverable recoverable) {
+        LOGGER.trace(
+                "Creating GSRecoverableWriterCommitter with options {} for recoverable: {}",
+                options,
+                recoverable);
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
         this.recoverable = Preconditions.checkNotNull(recoverable);
@@ -51,6 +61,7 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
 
     @Override
     public void commit() throws IOException {
+        LOGGER.trace("Committing recoverable with options {}: {}", options, recoverable);
 
         // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
         // first, make sure the final blob doesn't already exist
@@ -72,6 +83,8 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
 
     @Override
     public void commitAfterRecovery() throws IOException {
+        LOGGER.trace(
+                "Committing recoverable after recovery with options {}: {}", options, recoverable);
 
         // see discussion: https://github.com/apache/flink/pull/15599#discussion_r623127365
         // only write the final blob if it doesn't already exist
@@ -99,6 +112,11 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
      */
     private void composeBlobs(
             List<GSBlobIdentifier> sourceBlobIdentifiers, GSBlobIdentifier targetBlobIdentifier) {
+        LOGGER.trace(
+                "Composing blobs {} to {} for commit with options {}",
+                sourceBlobIdentifiers,
+                targetBlobIdentifier,
+                options);
         Preconditions.checkNotNull(sourceBlobIdentifiers);
         Preconditions.checkArgument(sourceBlobIdentifiers.size() > 0);
         Preconditions.checkNotNull(targetBlobIdentifier);
@@ -168,6 +186,10 @@ class GSRecoverableWriterCommitter implements RecoverableFsDataOutputStream.Comm
      * @throws IOException On underlying storage failure
      */
     private void cleanupTemporaryBlobs() {
+        LOGGER.trace(
+                "Cleaning up temporary blobs for recoverable with options {}: {}",
+                options,
+                recoverable);
 
         // determine the partial name for the temporary objects to be deleted
         String temporaryBucketName =

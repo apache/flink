@@ -22,6 +22,9 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -32,6 +35,9 @@ import java.util.UUID;
 
 /** The serializer for the recoverable writer state. */
 class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResumeRecoverable> {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(GSResumeRecoverableSerializer.class);
 
     /** Current version of serializer. */
     private static final int SERIALIZER_VERSION = 0;
@@ -49,6 +55,7 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
 
     @Override
     public byte[] serialize(GSResumeRecoverable recoverable) throws IOException {
+        LOGGER.trace("Serializing recoverable {}", recoverable);
         Preconditions.checkNotNull(recoverable);
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
@@ -122,6 +129,9 @@ class GSResumeRecoverableSerializer implements SimpleVersionedSerializer<GSResum
             }
         }
 
-        return new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
+        GSResumeRecoverable recoverable =
+                new GSResumeRecoverable(finalBlobIdentifier, position, closed, componentObjectIds);
+        LOGGER.trace("Deserialized recoverable {}", recoverable);
+        return recoverable;
     }
 }

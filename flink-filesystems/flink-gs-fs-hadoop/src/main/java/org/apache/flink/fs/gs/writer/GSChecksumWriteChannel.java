@@ -26,11 +26,16 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.hash.Hasher;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Optional;
 
 /** A wrapper for a blob storage write channel that computes a checksum. */
 class GSChecksumWriteChannel {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSChecksumWriteChannel.class);
 
     /** The blob storage instance. */
     private final GSBlobStorage storage;
@@ -39,7 +44,7 @@ class GSChecksumWriteChannel {
     @VisibleForTesting final GSBlobStorage.WriteChannel writeChannel;
 
     /** The blob identifier to write. */
-    private final GSBlobIdentifier blobIdentifier;
+    final GSBlobIdentifier blobIdentifier;
 
     /** The hasher used to compute the checksum. */
     private final Hasher hasher;
@@ -55,6 +60,7 @@ class GSChecksumWriteChannel {
             GSBlobStorage storage,
             GSBlobStorage.WriteChannel writeChannel,
             GSBlobIdentifier blobIdentifier) {
+        LOGGER.trace("Creating GSChecksumWriteChannel for blob {}", blobIdentifier);
         this.storage = Preconditions.checkNotNull(storage);
         this.writeChannel = Preconditions.checkNotNull(writeChannel);
         this.blobIdentifier = Preconditions.checkNotNull(blobIdentifier);
@@ -71,6 +77,7 @@ class GSChecksumWriteChannel {
      * @throws IOException On underlying failure
      */
     public int write(byte[] content, int start, int length) throws IOException {
+        LOGGER.trace("Writing {} bytes to blob {}", length, blobIdentifier);
         Preconditions.checkNotNull(content);
         Preconditions.checkArgument(start >= 0);
         Preconditions.checkArgument(length >= 0);
@@ -87,6 +94,7 @@ class GSChecksumWriteChannel {
      * @throws IOException On underlying failure or non-matching checksums
      */
     public void close() throws IOException {
+        LOGGER.trace("Closing write channel to blob {}", blobIdentifier);
 
         // close channel and get blob metadata
         writeChannel.close();

@@ -27,6 +27,9 @@ import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -37,6 +40,9 @@ import java.util.UUID;
 
 /** The data output stream implementation for the GS recoverable writer. */
 class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(GSRecoverableFsDataOutputStream.class);
 
     /** The underlying blob storage. */
     private final GSBlobStorage storage;
@@ -77,6 +83,10 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
             GSBlobStorage storage,
             GSFileSystemOptions options,
             GSBlobIdentifier finalBlobIdentifier) {
+        LOGGER.debug(
+                "Creating new GSRecoverableFsDataOutputStream for blob {} with options {}",
+                finalBlobIdentifier,
+                options);
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
         this.finalBlobIdentifier = Preconditions.checkNotNull(finalBlobIdentifier);
@@ -94,6 +104,10 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
      */
     GSRecoverableFsDataOutputStream(
             GSBlobStorage storage, GSFileSystemOptions options, GSResumeRecoverable recoverable) {
+        LOGGER.debug(
+                "Recovering GSRecoverableFsDataOutputStream for blob {} with options {}",
+                recoverable.finalBlobIdentifier,
+                options);
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
         this.finalBlobIdentifier = Preconditions.checkNotNull(recoverable.finalBlobIdentifier);
@@ -134,6 +148,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
         // if necessary, create a write channel
         if (currentWriteChannel == null) {
+            LOGGER.debug("Creating write channel for blob {}", finalBlobIdentifier);
             currentWriteChannel = createWriteChannel();
         }
 
@@ -143,6 +158,7 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
         // WriteChannel; in any case, recoverable writers don't support partial writes, so if this
         // ever happens, we must fail the write.:
         // https://docs.oracle.com/javase/7/docs/api/java/nio/channels/WritableByteChannel.html#write(java.nio.ByteBuffer)
+        LOGGER.trace("Writing {} bytes to blob {}", length, currentWriteChannel.blobIdentifier);
         int bytesWritten = currentWriteChannel.write(content, start, length);
         if (bytesWritten != length) {
             throw new IOException(
@@ -157,28 +173,33 @@ class GSRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
     @Override
     public void flush() throws IOException {
+        LOGGER.trace("Flushing write channel for blob {}", finalBlobIdentifier);
         closeWriteChannelIfExists();
     }
 
     @Override
     public void sync() throws IOException {
+        LOGGER.trace("Syncing write channel for blob {}", finalBlobIdentifier);
         closeWriteChannelIfExists();
     }
 
     @Override
     public RecoverableWriter.ResumeRecoverable persist() throws IOException {
+        LOGGER.trace("Persisting write channel for blob {}", finalBlobIdentifier);
         closeWriteChannelIfExists();
         return createRecoverable();
     }
 
     @Override
     public void close() throws IOException {
+        LOGGER.trace("Closing write channel for blob {}", finalBlobIdentifier);
         closeWriteChannelIfExists();
         closed = true;
     }
 
     @Override
     public Committer closeForCommit() throws IOException {
+        LOGGER.trace("Closing write channel for commit for blob {}", finalBlobIdentifier);
         close();
         return new GSRecoverableWriterCommitter(storage, options, createRecoverable());
     }

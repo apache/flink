@@ -24,6 +24,9 @@ import org.apache.flink.fs.gs.storage.GSBlobIdentifier;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +35,8 @@ import java.util.stream.Collectors;
 
 /** A resumable state for a recoverable output stream. */
 class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSResumeRecoverable.class);
 
     /** The blob id to which the recoverable write operation is writing. */
     public final GSBlobIdentifier finalBlobIdentifier;
@@ -53,6 +58,12 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
             long position,
             boolean closed,
             List<UUID> componentObjectIds) {
+        LOGGER.trace(
+                "Creating GSResumeRecoverable for blob {} with position={}, closed={}, and componentObjectIds={}",
+                finalBlobIdentifier,
+                position,
+                closed,
+                componentObjectIds);
         this.finalBlobIdentifier = Preconditions.checkNotNull(finalBlobIdentifier);
         Preconditions.checkArgument(position >= 0);
         this.position = position;
@@ -73,14 +84,35 @@ class GSResumeRecoverable implements RecoverableWriter.ResumeRecoverable {
      */
     List<GSBlobIdentifier> getComponentBlobIds(GSFileSystemOptions options) {
         String temporaryBucketName = BlobUtils.getTemporaryBucketName(finalBlobIdentifier, options);
-        return componentObjectIds.stream()
-                .map(
-                        temporaryObjectId ->
-                                BlobUtils.getTemporaryObjectName(
-                                        finalBlobIdentifier, temporaryObjectId))
-                .map(
-                        temporaryObjectName ->
-                                new GSBlobIdentifier(temporaryBucketName, temporaryObjectName))
-                .collect(Collectors.toList());
+        List<GSBlobIdentifier> componentBlobIdentifiers =
+                componentObjectIds.stream()
+                        .map(
+                                temporaryObjectId ->
+                                        BlobUtils.getTemporaryObjectName(
+                                                finalBlobIdentifier, temporaryObjectId))
+                        .map(
+                                temporaryObjectName ->
+                                        new GSBlobIdentifier(
+                                                temporaryBucketName, temporaryObjectName))
+                        .collect(Collectors.toList());
+        LOGGER.trace(
+                "Resolved component blob identifiers for blob {}: {}",
+                finalBlobIdentifier,
+                componentBlobIdentifiers);
+        return componentBlobIdentifiers;
+    }
+
+    @Override
+    public String toString() {
+        return "GSResumeRecoverable{"
+                + "finalBlobIdentifier="
+                + finalBlobIdentifier
+                + ", position="
+                + position
+                + ", closed="
+                + closed
+                + ", componentObjectIds="
+                + componentObjectIds
+                + '}';
     }
 }

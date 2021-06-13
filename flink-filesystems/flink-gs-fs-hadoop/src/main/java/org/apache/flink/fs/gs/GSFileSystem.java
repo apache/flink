@@ -27,19 +27,26 @@ import org.apache.flink.util.Preconditions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Provides recoverable-writer functionality for the standard GoogleHadoopFileSystem. */
 class GSFileSystem extends HadoopFileSystem {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSFileSystem.class);
 
     private final GSFileSystemOptions options;
 
     GSFileSystem(GoogleHadoopFileSystem googleHadoopFileSystem, GSFileSystemOptions options) {
         super(Preconditions.checkNotNull(googleHadoopFileSystem));
+        LOGGER.info("Creating GSFileSystem with options {}", options);
+
         this.options = Preconditions.checkNotNull(options);
     }
 
     @Override
     public RecoverableWriter createRecoverableWriter() {
+        LOGGER.info("Creating recoverable writer with options {}", options);
 
         // create the Google storage service instance
         Storage storage = StorageOptions.getDefaultInstance().getService();

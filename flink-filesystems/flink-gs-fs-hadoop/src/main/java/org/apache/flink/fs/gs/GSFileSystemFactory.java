@@ -25,6 +25,8 @@ import org.apache.flink.runtime.util.HadoopConfigLoader;
 import org.apache.flink.util.Preconditions;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +39,8 @@ import java.util.Collections;
  * Google Storage.
  */
 public class GSFileSystemFactory implements FileSystemFactory {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSFileSystemFactory.class);
 
     /** The scheme for the Google Storage file system. */
     public static final String SCHEME = "gs";
@@ -55,6 +59,8 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     /** Constructs the Google Storage file system factory. */
     public GSFileSystemFactory() {
+        LOGGER.info("Creating GSFileSystemFactory");
+
         this.hadoopConfigLoader =
                 new HadoopConfigLoader(
                         FLINK_CONFIG_PREFIXES,
@@ -67,6 +73,8 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public void configure(Configuration flinkConfig) {
+        LOGGER.info("Configuring GSFileSystemFactory with Flink configuration {}", flinkConfig);
+
         this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
         hadoopConfigLoader.setFlinkConfig(flinkConfig);
     }
@@ -78,11 +86,17 @@ public class GSFileSystemFactory implements FileSystemFactory {
 
     @Override
     public FileSystem create(URI fsUri) throws IOException {
+        LOGGER.info("Creating GS file system for uri {}", fsUri);
+
         Preconditions.checkNotNull(fsUri);
 
         // create and configure the Google Hadoop file system
         org.apache.hadoop.conf.Configuration hadoopConfig =
                 hadoopConfigLoader.getOrLoadHadoopConfig();
+        LOGGER.info(
+                "Creating GoogleHadoopFileSystem for uri {} with Hadoop config {}",
+                fsUri,
+                hadoopConfig);
         GoogleHadoopFileSystem googleHadoopFileSystem = new GoogleHadoopFileSystem();
         googleHadoopFileSystem.initialize(fsUri, hadoopConfig);
 

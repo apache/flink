@@ -28,10 +28,15 @@ import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.BlobUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 
 /** The recoverable writer implementation for Google storage. */
 public class GSRecoverableWriter implements RecoverableWriter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSRecoverableWriter.class);
 
     /** The underlying blob storage. */
     private final GSBlobStorage storage;
@@ -46,6 +51,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
      * @param options The GS file system options
      */
     public GSRecoverableWriter(GSBlobStorage storage, GSFileSystemOptions options) {
+        LOGGER.debug("Creating GSRecoverableWriter with options {}", options);
         this.storage = Preconditions.checkNotNull(storage);
         this.options = Preconditions.checkNotNull(options);
     }
@@ -64,6 +70,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
 
     @Override
     public RecoverableFsDataOutputStream open(Path path) throws IOException {
+        LOGGER.trace("Opening output stream for path {}", path);
         Preconditions.checkNotNull(path);
 
         GSBlobIdentifier finalBlobIdentifier = BlobUtils.parseUri(path.toUri());
@@ -72,6 +79,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
 
     @Override
     public RecoverableFsDataOutputStream recover(ResumeRecoverable resumable) {
+        LOGGER.trace("Recovering output stream: {}", resumable);
         Preconditions.checkNotNull(resumable);
 
         GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;
@@ -87,6 +95,7 @@ public class GSRecoverableWriter implements RecoverableWriter {
 
     @Override
     public RecoverableFsDataOutputStream.Committer recoverForCommit(CommitRecoverable resumable) {
+        LOGGER.trace("Recovering output stream for commit: {}", resumable);
         Preconditions.checkNotNull(resumable);
 
         GSResumeRecoverable recoverable = (GSResumeRecoverable) resumable;

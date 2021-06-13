@@ -27,6 +27,8 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,6 +40,8 @@ import java.util.stream.StreamSupport;
 /** BlobStorage implementation for Google storage. */
 public class GSBlobStorageImpl implements GSBlobStorage {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(GSBlobStorageImpl.class);
+
     /** The wrapped Google Storage instance. */
     private final Storage storage;
 
@@ -47,51 +51,75 @@ public class GSBlobStorageImpl implements GSBlobStorage {
      * @param storage The wrapped Google Storage instance.
      */
     public GSBlobStorageImpl(Storage storage) {
+        LOGGER.debug("Creating GSBlobStorageImpl");
         this.storage = Preconditions.checkNotNull(storage);
     }
 
     @Override
     public GSBlobStorage.WriteChannel writeBlob(GSBlobIdentifier blobIdentifier) {
+        LOGGER.trace("Creating writeable blob for identifier {}", blobIdentifier);
         Preconditions.checkNotNull(blobIdentifier);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
         com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
-        return new WriteChannel(writeChannel);
+        return new WriteChannel(blobIdentifier, writeChannel);
     }
 
     @Override
     public GSBlobStorage.WriteChannel writeBlob(
             GSBlobIdentifier blobIdentifier, MemorySize chunkSize) {
+        LOGGER.trace(
+                "Creating writeable blob for identifier {} with chunk size {}",
+                blobIdentifier,
+                chunkSize);
         Preconditions.checkNotNull(blobIdentifier);
         Preconditions.checkArgument(chunkSize.getBytes() > 0);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
         com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
         writeChannel.setChunkSize((int) chunkSize.getBytes());
-        return new WriteChannel(writeChannel);
+        return new WriteChannel(blobIdentifier, writeChannel);
     }
 
     @Override
     public Optional<GSBlobStorage.BlobMetadata> getMetadata(GSBlobIdentifier blobIdentifier) {
+        LOGGER.trace("Getting metadata for blob {}", blobIdentifier);
         Preconditions.checkNotNull(blobIdentifier);
 
-        return Optional.ofNullable(storage.get(blobIdentifier.getBlobId())).map(BlobMetadata::new);
+        Optional<GSBlobStorage.BlobMetadata> metadata =
+                Optional.ofNullable(storage.get(blobIdentifier.getBlobId()))
+                        .map(blob -> new BlobMetadata(blobIdentifier, blob));
+        if (metadata.isPresent()) {
+            LOGGER.trace("Found metadata for blob {}", blobIdentifier);
+        } else {
+            LOGGER.trace("Did not find metadata for blob {}", blobIdentifier);
+        }
+        return metadata;
     }
 
     @Override
     public List<GSBlobIdentifier> list(String bucketName, String objectPrefix) {
+        LOGGER.trace("Listing blobs in bucket {} with object prefix {}", bucketName, objectPrefix);
         Preconditions.checkNotNull(bucketName);
         Preconditions.checkNotNull(objectPrefix);
 
         Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(objectPrefix));
-        return StreamSupport.stream(blobs.iterateAll().spliterator(), false)
-                .map(BlobInfo::getBlobId)
-                .map(GSBlobIdentifier::fromBlobId)
-                .collect(Collectors.toList());
+        List<GSBlobIdentifier> blobIdentifiers =
+                StreamSupport.stream(blobs.iterateAll().spliterator(), false)
+                        .map(BlobInfo::getBlobId)
+                        .map(GSBlobIdentifier::fromBlobId)
+                        .collect(Collectors.toList());
+        LOGGER.trace(
+                "Found blobs in bucket {} with object prefix {}: {}",
+                bucketName,
+                objectPrefix,
+                blobIdentifiers);
+        return blobIdentifiers;
     }
 
     @Override
     public void copy(GSBlobIdentifier sourceBlobIdentifier, GSBlobIdentifier targetBlobIdentifier) {
+        LOGGER.trace("Copying blob {} to blob {}", sourceBlobIdentifier, targetBlobIdentifier);
         Preconditions.checkNotNull(sourceBlobIdentifier);
         Preconditions.checkNotNull(targetBlobIdentifier);
 
@@ -103,6 +131,7 @@ public class GSBlobStorageImpl implements GSBlobStorage {
     @Override
     public void compose(
             List<GSBlobIdentifier> sourceBlobIdentifiers, GSBlobIdentifier targetBlobIdentifier) {
+        LOGGER.trace("Composing blobs {} to blob {}", sourceBlobIdentifiers, targetBlobIdentifier);
         Preconditions.checkNotNull(sourceBlobIdentifiers);
         Preconditions.checkArgument(sourceBlobIdentifiers.size() > 0);
         Preconditions.checkArgument(sourceBlobIdentifiers.size() <= BlobUtils.COMPOSE_MAX_BLOBS);
@@ -122,6 +151,7 @@ public class GSBlobStorageImpl implements GSBlobStorage {
 
     @Override
     public List<Boolean> delete(Iterable<GSBlobIdentifier> blobIdentifiers) {
+        LOGGER.trace("Deleting blobs {}", blobIdentifiers);
         Preconditions.checkNotNull(blobIdentifiers);
 
         Iterable<BlobId> blobIds =
@@ -134,39 +164,53 @@ public class GSBlobStorageImpl implements GSBlobStorage {
     /** Blob metadata, wraps Google storage Blob. */
     static class BlobMetadata implements GSBlobStorage.BlobMetadata {
 
+        private final GSBlobIdentifier blobIdentifier;
+
         private final Blob blob;
 
-        private BlobMetadata(Blob blob) {
+        private BlobMetadata(GSBlobIdentifier blobIdentifier, Blob blob) {
+            this.blobIdentifier = Preconditions.checkNotNull(blobIdentifier);
             this.blob = Preconditions.checkNotNull(blob);
         }
 
         @Override
         public String getChecksum() {
-            return blob.getCrc32c();
+            LOGGER.trace("Getting checksum for blob {}", blobIdentifier);
+            String checksum = blob.getCrc32c();
+            LOGGER.trace("Found checksum for blob {}: {}", blobIdentifier, checksum);
+            return checksum;
         }
     }
 
     /** Blob write channel, wraps Google storage WriteChannel. */
     static class WriteChannel implements GSBlobStorage.WriteChannel {
 
-        final com.google.cloud.WriteChannel writeChannel;
+        private final GSBlobIdentifier blobIdentifier;
 
-        private WriteChannel(com.google.cloud.WriteChannel writeChannel) {
+        private final com.google.cloud.WriteChannel writeChannel;
+
+        private WriteChannel(
+                GSBlobIdentifier blobIdentifier, com.google.cloud.WriteChannel writeChannel) {
+            this.blobIdentifier = Preconditions.checkNotNull(blobIdentifier);
             this.writeChannel = Preconditions.checkNotNull(writeChannel);
         }
 
         @Override
         public int write(byte[] content, int start, int length) throws IOException {
+            LOGGER.trace("Writing {} bytes to blob {}", length, blobIdentifier);
             Preconditions.checkNotNull(content);
             Preconditions.checkArgument(start >= 0);
             Preconditions.checkArgument(length >= 0);
 
             ByteBuffer byteBuffer = ByteBuffer.wrap(content, start, length);
-            return writeChannel.write(byteBuffer);
+            int written = writeChannel.write(byteBuffer);
+            LOGGER.trace("Wrote {} bytes to blob {}", written, blobIdentifier);
+            return written;
         }
 
         @Override
         public void close() throws IOException {
+            LOGGER.trace("Closing write channel to blob {}", blobIdentifier);
             writeChannel.close();
         }
     }

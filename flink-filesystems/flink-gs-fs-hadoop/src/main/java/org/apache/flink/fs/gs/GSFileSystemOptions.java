@@ -77,4 +77,14 @@ public class GSFileSystemOptions {
     public Optional<MemorySize> getWriterChunkSize() {
         return flinkConfig.getOptional(WRITER_CHUNK_SIZE);
     }
+
+    @Override
+    public String toString() {
+        return "GSFileSystemOptions{"
+                + "writerTemporaryBucketName="
+                + getWriterTemporaryBucketName()
+                + ", writerChunkSize="
+                + getWriterChunkSize()
+                + '}';
+    }
 }
