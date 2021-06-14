@@ -2762,6 +2762,36 @@
       "type" : "any"
     }
   }, {
+    "url" : "/logbundler",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "action",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:logbundler:LogBundlerStatus",
+      "properties" : {
+        "status" : {
+          "type" : "string",
+          "enum" : [ "IDLE", "PROCESSING", "BUNDLE_READY", "BUNDLE_FAILED" ]
+        },
+        "message" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
     "url" : "/overview",
     "method" : "GET",
     "status-code" : "200 OK",

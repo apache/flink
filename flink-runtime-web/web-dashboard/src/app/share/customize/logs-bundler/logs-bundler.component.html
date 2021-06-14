@@ -16,7 +16,10 @@
   ~ limitations under the License.
   -->
 
-<flink-overview-statistic></flink-overview-statistic>
-<flink-job-list [jobData$]="jobData$" [title]="'Running Job List'" [completed]="false"></flink-job-list>
-<flink-job-list [jobData$]="jobData$" [title]="'Completed Job List'" [completed]="true"></flink-job-list>
-<flink-logs-bundler></flink-logs-bundler>
+<p id="debugger" align="right">
+    <nz-spin id="spinner" nzSimple [hidden]="hideSpinner"></nz-spin>
+    Debugging: <a (click)="requestArchive()">Request archive with all JobManager and TaskManager logs</a>
+    <span [hidden]="hideDownloadButton">•</span> <a [hidden]="hideDownloadButton" (click)="downloadArchive()" id="download-button">Download Log Archive</a>
+</p>
+<p align="right" style="font-size: small" [innerText]="message"></p>
+

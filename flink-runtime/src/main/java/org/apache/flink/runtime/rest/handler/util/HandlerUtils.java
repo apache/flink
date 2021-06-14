@@ -247,6 +247,11 @@ public class HandlerUtils {
                 HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
                 response.headers().set(CONTENT_TYPE, "text/plain");
 
+                response.headers()
+                        .set(
+                                "Content-Disposition",
+                                "attachment; filename=\"" + file.getName() + "\"");
+
                 if (HttpHeaders.isKeepAlive(httpRequest)) {
                     response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
                 }

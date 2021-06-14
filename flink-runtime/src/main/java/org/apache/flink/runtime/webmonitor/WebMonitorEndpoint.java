@@ -83,6 +83,7 @@ import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.WebContentHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.logbundler.LogBundlerHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
@@ -123,6 +124,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHe
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
+import org.apache.flink.runtime.rest.messages.logbundler.LogBundlerHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
@@ -840,12 +842,25 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         JobManagerLogListHeaders.getInstance(),
                         logFileLocation.logDir);
 
+        final LogBundlerHandler logBundlerHandler =
+                new LogBundlerHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        LogBundlerHeaders.getInstance(),
+                        executor,
+                        clusterConfiguration,
+                        logFileLocation.logDir,
+                        resourceManagerRetriever,
+                        transientBlobService);
+
         handlers.add(Tuple2.of(JobManagerLogFileHeader.getInstance(), jobManagerLogFileHandler));
         handlers.add(
                 Tuple2.of(JobManagerStdoutFileHeader.getInstance(), jobManagerStdoutFileHandler));
         handlers.add(
                 Tuple2.of(JobManagerCustomLogHeaders.getInstance(), jobManagerCustomLogHandler));
         handlers.add(Tuple2.of(JobManagerLogListHeaders.getInstance(), jobManagerLogListHandler));
+        handlers.add(Tuple2.of(LogBundlerHeaders.getInstance(), logBundlerHandler));
 
         // TaskManager log and stdout file handler
 
