@@ -21,7 +21,8 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SinkMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSinkMetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -107,7 +108,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
         return new InitContextImpl(
                 getRuntimeContext().getIndexOfThisSubtask(),
                 processingTimeService,
-                getMetricGroup());
+                InternalSinkMetricGroup.wrap(getMetricGroup()));
     }
 
     /**
@@ -147,12 +148,12 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
         private final ProcessingTimeService processingTimeService;
 
-        private final MetricGroup metricGroup;
+        private final SinkMetricGroup metricGroup;
 
         public InitContextImpl(
                 int subtaskIdx,
                 ProcessingTimeService processingTimeService,
-                MetricGroup metricGroup) {
+                SinkMetricGroup metricGroup) {
             this.subtaskIdx = subtaskIdx;
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
@@ -169,7 +170,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
         }
 
         @Override
-        public MetricGroup metricGroup() {
+        public SinkMetricGroup metricGroup() {
             return metricGroup;
         }
     }

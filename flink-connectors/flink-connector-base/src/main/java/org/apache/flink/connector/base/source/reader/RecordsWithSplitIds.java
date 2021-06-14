@@ -18,12 +18,22 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.metrics.groups.SourceMetricGroup;
+
 import javax.annotation.Nullable;
 
 import java.util.Set;
 
 /** An interface for the elements passed from the fetchers to the source reader. */
 public interface RecordsWithSplitIds<E> {
+    /**
+     * Returns the timestamp of the last fetch. Will be used to automatically set {@link
+     * SourceMetricGroup#addLastFetchTimeGauge(Gauge)}.
+     */
+    @Nullable
+    default Long lastFetchTime() {
+        return null;
+    }
 
     /**
      * Moves to the next split. This method is also called initially to move to the first split.
