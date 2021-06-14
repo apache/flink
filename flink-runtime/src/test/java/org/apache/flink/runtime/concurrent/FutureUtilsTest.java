@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -220,7 +220,7 @@ public class FutureUtilsTest extends TestLogger {
                         TestingUtils.defaultScheduledExecutor());
 
         try {
-            retryFuture.get(TestingUtils.TIMEOUT().toMilliseconds(), TimeUnit.MILLISECONDS);
+            retryFuture.get(TestingUtils.TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException ee) {
             throw ExceptionUtils.stripExecutionException(ee);
         }
@@ -238,7 +238,7 @@ public class FutureUtilsTest extends TestLogger {
                         TestingUtils.defaultScheduledExecutor());
 
         try {
-            retryFuture.get(TestingUtils.TIMEOUT().toMilliseconds(), TimeUnit.MILLISECONDS);
+            retryFuture.get(TestingUtils.TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException ee) {
             throw ExceptionUtils.stripExecutionException(ee);
         }

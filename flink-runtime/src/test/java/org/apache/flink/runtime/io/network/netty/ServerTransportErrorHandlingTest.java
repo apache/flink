@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -111,10 +111,10 @@ public class ServerTransportErrorHandlingTest {
                             new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
                 fail(
                         "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + TestingUtils.TESTING_DURATION.toMillis()
                                 + " ms to be notified about released partition.");
             }
         } finally {

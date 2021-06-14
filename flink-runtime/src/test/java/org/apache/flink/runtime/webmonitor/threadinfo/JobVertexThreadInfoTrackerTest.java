@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -258,7 +258,7 @@ public class JobVertexThreadInfoTrackerTest extends TestLogger {
                         JobVertexThreadInfoTrackerTest::createMockResourceManagerGateway,
                         Function.identity(),
                         executor,
-                        TestingUtils.TIMEOUT())
+                        TestingUtils.TIMEOUT)
                 .setCoordinator(coordinator)
                 .setCleanUpInterval(cleanUpInterval)
                 .setNumSamples(NUMBER_OF_SAMPLES)
