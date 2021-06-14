@@ -94,6 +94,10 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredOperatorMetricGroup();
     }
 
+    public static SourceMetricGroup createUnregisteredSourceMetricGroup() {
+        return new UnregisteredSourceMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
@@ -130,6 +134,52 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         @Override
         public Counter getNumBytesOutCounter() {
             return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceMetricGroup extends UnregisteredMetricsGroup
+            implements SourceMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public TaskIOMetricGroup getTaskIOMetricGroup() {
+            return new UnregisteredTaskIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Gauge<Long> addLastFetchTimeGauge(Gauge<Long> lastFetchTimeGauge) {
+            return lastFetchTimeGauge;
+        }
+
+        @Override
+        public Gauge<Long> addPendingBytesGauge(Gauge<Long> pendingBytesGauge) {
+            return pendingBytesGauge;
+        }
+
+        @Override
+        public Gauge<Long> addPendingRecordsGauge(Gauge<Long> pendingRecordsGauge) {
+            return pendingRecordsGauge;
+        }
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
         }
     }
 }

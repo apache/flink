@@ -33,7 +33,7 @@ import org.apache.flink.connector.file.src.testutils.TestingFileSystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -195,8 +195,8 @@ public class FileSourceHeavyThroughputTest {
     private static final class NoOpReaderContext implements SourceReaderContext {
 
         @Override
-        public MetricGroup metricGroup() {
-            return new UnregisteredMetricsGroup();
+        public SourceMetricGroup metricGroup() {
+            return UnregisteredMetricsGroup.createUnregisteredSourceMetricGroup();
         }
 
         @Override
