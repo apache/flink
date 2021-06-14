@@ -57,6 +57,17 @@ public class ConfigurationTest extends TestLogger {
     private static final ConfigOption<Duration> DURATION_OPTION =
             ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
 
+    private static final Map<String, String> PROPERTIES_MAP = new HashMap<>();
+
+    static {
+        PROPERTIES_MAP.put("prop1", "value1");
+        PROPERTIES_MAP.put("prop2", "12");
+    }
+
+    private static final String MAP_PROPERTY_1 = MAP_OPTION.key() + ".prop1";
+
+    private static final String MAP_PROPERTY_2 = MAP_OPTION.key() + ".prop2";
+
     /** This test checks the serialization/deserialization of configuration objects. */
     @Test
     public void testConfigurationSerializationAndGetters() {
@@ -348,68 +359,71 @@ public class ConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testPrefixAndNonPrefixMap() {
-        final Map<String, String> map = new HashMap<>();
-        map.put("prop1", "value1");
-        map.put("prop2", "12");
+    public void testMapNotContained() {
+        final Configuration cfg = new Configuration();
 
-        // not contained
-        {
-            final Configuration cfg = new Configuration();
-            assertFalse(cfg.getOptional(MAP_OPTION).isPresent());
-            assertFalse(cfg.contains(MAP_OPTION));
-        }
-
-        // read with prefix
-        {
-            final Configuration cfg = new Configuration();
-            cfg.setString("test-map-key.prop1", "value1");
-            cfg.setInteger("test-map-key.prop2", 12);
-            assertEquals(cfg.get(MAP_OPTION), map);
-            assertTrue(cfg.contains(MAP_OPTION));
-        }
-
-        // read without prefix
-        {
-            final Configuration cfg = new Configuration();
-            cfg.set(MAP_OPTION, map);
-            assertEquals(cfg.get(MAP_OPTION), map);
-            assertTrue(cfg.contains(MAP_OPTION));
-        }
-
-        // read non-prefix with precedence
-        {
-            final Configuration cfg = new Configuration();
-            cfg.set(MAP_OPTION, map);
-            cfg.setString("test-map-key.prop1", "value1");
-            cfg.setInteger("test-map-key.prop2", 99999);
-            assertEquals(cfg.get(MAP_OPTION), map);
-            assertTrue(cfg.contains(MAP_OPTION));
-            assertTrue(cfg.containsKey("test-map-key.prop1"));
-        }
-
-        // overwrite prefix
-        {
-            final Configuration cfg = new Configuration();
-            cfg.setString("test-map-key.prop1", "value1");
-            cfg.setInteger("test-map-key.prop2", 99999);
-            cfg.set(MAP_OPTION, map);
-            assertEquals(cfg.get(MAP_OPTION), map);
-            assertTrue(cfg.contains(MAP_OPTION));
-            assertFalse(cfg.containsKey("test-map-key.prop1"));
-        }
-
-        // remove prefix
-        {
-            final Configuration cfg = new Configuration();
-            cfg.setString("test-map-key.prop1", "value1");
-            cfg.setInteger("test-map-key.prop2", 99999);
-            cfg.removeConfig(MAP_OPTION);
-            assertFalse(cfg.contains(MAP_OPTION));
-            assertFalse(cfg.containsKey("test-map-key.prop1"));
-            assertFalse(cfg.containsKey("test-map-key.prop2"));
-        }
+        assertFalse(cfg.getOptional(MAP_OPTION).isPresent());
+        assertFalse(cfg.contains(MAP_OPTION));
     }
+
+    @Test
+    public void testMapWithPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 12);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapWithoutPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+    }
+
+    @Test
+    public void testMapNonPrefixHasPrecedence() {
+        final Configuration cfg = new Configuration();
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertTrue(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapThatOverwritesPrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.set(MAP_OPTION, PROPERTIES_MAP);
+
+        assertEquals(cfg.get(MAP_OPTION), PROPERTIES_MAP);
+        assertTrue(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+    }
+
+    @Test
+    public void testMapRemovePrefix() {
+        final Configuration cfg = new Configuration();
+        cfg.setString(MAP_PROPERTY_1, "value1");
+        cfg.setInteger(MAP_PROPERTY_2, 99999);
+        cfg.removeConfig(MAP_OPTION);
+
+        assertFalse(cfg.contains(MAP_OPTION));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_1));
+        assertFalse(cfg.containsKey(MAP_PROPERTY_2));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Test classes
+    // --------------------------------------------------------------------------------------------
 
     enum TestEnum {
         VALUE1,
