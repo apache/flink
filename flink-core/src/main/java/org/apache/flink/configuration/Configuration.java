@@ -674,7 +674,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
             } else if (configOption.hasFallbackKeys()) {
                 // try the fallback keys
                 for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                    if (containsInternal(configOption.key(), canBePrefixMap)) {
+                    if (containsInternal(fallbackKey.getKey(), canBePrefixMap)) {
                         loggingFallback(fallbackKey, configOption);
                         return true;
                     }
