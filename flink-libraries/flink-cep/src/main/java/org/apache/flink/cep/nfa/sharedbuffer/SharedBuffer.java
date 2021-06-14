@@ -194,6 +194,12 @@ public class SharedBuffer<V> {
                 iterator.remove();
             }
         }
+
+        // we do that clear the namespace, removing based on the iterator, leaves an empty entry
+        // for the current key
+        if (eventsCount.isEmpty()) {
+            eventsCount.clear();
+        }
     }
 
     EventId registerEvent(V value, long timestamp) throws Exception {
@@ -311,8 +317,7 @@ public class SharedBuffer<V> {
         }
     }
 
-    @VisibleForTesting
-    Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
+    public Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
         return eventsCount.iterator();
     }
 

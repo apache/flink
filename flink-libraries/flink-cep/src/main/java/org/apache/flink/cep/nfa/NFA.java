@@ -139,19 +139,6 @@ public class NFA<T> {
         return states.get(state.getCurrentStateName());
     }
 
-    private boolean isStartState(ComputationState state) {
-        State<T> stateObject = getState(state);
-        if (stateObject == null) {
-            throw new FlinkRuntimeException(
-                    "State "
-                            + state.getCurrentStateName()
-                            + " does not exist in the NFA. NFA has states "
-                            + states.values());
-        }
-
-        return stateObject.isStart();
-    }
-
     private boolean isStopState(ComputationState state) {
         State<T> stateObject = getState(state);
         if (stateObject == null) {
@@ -297,7 +284,7 @@ public class NFA<T> {
     }
 
     private boolean isStateTimedOut(final ComputationState state, final long timestamp) {
-        return !isStartState(state)
+        return !state.isStartState()
                 && windowTime > 0L
                 && timestamp - state.getStartTimestamp() >= windowTime;
     }
@@ -603,7 +590,7 @@ public class NFA<T> {
             switch (edge.getAction()) {
                 case IGNORE:
                     {
-                        if (!isStartState(computationState)) {
+                        if (!computationState.isStartState()) {
                             final DeweyNumber version;
                             if (isEquivalentState(
                                     edge.getTargetState(), getState(computationState))) {
@@ -655,7 +642,7 @@ public class NFA<T> {
 
                     final long startTimestamp;
                     final EventId startEventId;
-                    if (isStartState(computationState)) {
+                    if (computationState.isStartState()) {
                         startTimestamp = event.getTimestamp();
                         startEventId = event.getEventId();
                     } else {
@@ -689,7 +676,7 @@ public class NFA<T> {
             }
         }
 
-        if (isStartState(computationState)) {
+        if (computationState.isStartState()) {
             int totalBranches =
                     calculateIncreasingSelfState(
                             outgoingEdges.getTotalIgnoreBranches(),
