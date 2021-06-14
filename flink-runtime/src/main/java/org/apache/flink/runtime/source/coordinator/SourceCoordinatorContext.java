@@ -27,7 +27,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -142,7 +142,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     @Override
-    public MetricGroup metricGroup() {
+    public SplitEnumeratorMetricGroup metricGroup() {
         return null;
     }
 

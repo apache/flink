@@ -94,16 +94,23 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredOperatorMetricGroup();
     }
 
+    public static OperatorIOMetricGroup createUnregisteredOperatorIOMetricGroup() {
+        return new UnregisteredOperatorIOMetricGroup();
+    }
+
+    public static SourceReaderMetricGroup createUnregisteredSourceReaderMetricGroup() {
+        return new UnregisteredSourceReaderMetricGroup();
+    }
+
+    public static SplitEnumeratorMetricGroup createUnregisteredSplitEnumeratorMetricGroup() {
+        return new UnregisteredSplitEnumeratorMetricGroup();
+    }
+
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
             implements OperatorMetricGroup {
         @Override
         public OperatorIOMetricGroup getIOMetricGroup() {
             return new UnregisteredOperatorIOMetricGroup();
-        }
-
-        @Override
-        public TaskIOMetricGroup getTaskIOMetricGroup() {
-            return new UnregisteredTaskIOMetricGroup();
         }
     }
 
@@ -118,10 +125,7 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         public Counter getNumRecordsOutCounter() {
             return new SimpleCounter();
         }
-    }
 
-    private static class UnregisteredTaskIOMetricGroup extends UnregisteredMetricsGroup
-            implements TaskIOMetricGroup {
         @Override
         public Counter getNumBytesInCounter() {
             return new SimpleCounter();
@@ -130,6 +134,50 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         @Override
         public Counter getNumBytesOutCounter() {
             return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
+            implements SourceReaderMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public <G extends Gauge<Long>> G setPendingBytesGauge(G pendingBytesGauge) {
+            return pendingBytesGauge;
+        }
+
+        @Override
+        public <G extends Gauge<Long>> G setPendingRecordsGauge(G pendingRecordsGauge) {
+            return pendingRecordsGauge;
+        }
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+    }
+
+    private static class UnregisteredSplitEnumeratorMetricGroup extends UnregisteredMetricsGroup
+            implements SplitEnumeratorMetricGroup {
+        @Override
+        public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
+            return null;
         }
     }
 }

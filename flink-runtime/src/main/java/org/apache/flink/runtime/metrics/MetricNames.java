@@ -20,6 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 /** Collection of metric names. */
 public class MetricNames {
+
     private MetricNames() {}
 
     public static final String SUFFIX_RATE = "PerSecond";
@@ -71,4 +72,17 @@ public class MetricNames {
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
     public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
     public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
+
+    // FLIP-33 source
+    public static final String NUM_RECORDS_IN_ERRORS = "numRecordsInErrors";
+    public static final String CURRENT_FETCH_EVENT_TIME_LAG_GAUGE = "currentFetchEventTimeLagGauge";
+    public static final String CURRENT_EMIT_EVENT_TIME_LAG = "currentEmitEventTimeLag";
+    public static final String WATERMARK_LAG = "watermarkLag";
+    public static final String PENDING_RECORDS_GAUGE = "pendingRecordsGauge";
+    public static final String PENDING_BYTES_GAUGE = "pendingBytesGauge";
+    public static final String SOURCE_IDLE_TIME_GAUGE = "sourceIdleTimeGauge";
+
+    // FLIP-33 sink
+    public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
+    public static final String CURRENT_SEND_TIME = "currentSendTime";
 }

@@ -31,7 +31,8 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -44,7 +45,11 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -130,6 +135,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     /** Indicating whether the source operator has been closed. */
     private boolean closed;
 
+    private InternalSourceReaderMetricGroup sourceMetricGroup;
+
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
                     readerFactory,
@@ -167,17 +174,15 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (sourceReader != null) {
             return;
         }
-
-        final MetricGroup metricGroup = getMetricGroup();
-        assert metricGroup != null;
+        sourceMetricGroup = InternalSourceReaderMetricGroup.wrap(getMetricGroup());
 
         final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
-                    public MetricGroup metricGroup() {
-                        return metricGroup;
+                    public SourceReaderMetricGroup metricGroup() {
+                        return sourceMetricGroup;
                     }
 
                     @Override
@@ -238,13 +243,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             eventTimeLogic =
                     TimestampsAndWatermarks.createProgressiveEventTimeLogic(
                             watermarkStrategy,
-                            getMetricGroup(),
+                            sourceMetricGroup,
                             getProcessingTimeService(),
                             getExecutionConfig().getAutoWatermarkInterval());
         } else {
             eventTimeLogic =
                     TimestampsAndWatermarks.createNoOpEventTimeLogic(
-                            watermarkStrategy, getMetricGroup());
+                            watermarkStrategy, sourceMetricGroup);
         }
 
         // restore the state if necessary.
@@ -291,13 +296,23 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // short circuit the common case (every invocation except the first)
         if (currentMainOutput != null) {
-            return sourceReader.pollNext(currentMainOutput);
+            return pollNext();
         }
 
         // this creates a batch or streaming output based on the runtime mode
-        currentMainOutput = eventTimeLogic.createMainOutput(output);
+        currentMainOutput =
+                eventTimeLogic.createMainOutput(
+                        new MetricTrackingOutput<>(output, sourceMetricGroup));
         lastInvokedOutput = output;
-        return sourceReader.pollNext(currentMainOutput);
+        return pollNext();
+    }
+
+    private InputStatus pollNext() throws Exception {
+        InputStatus inputStatus = sourceReader.pollNext(currentMainOutput);
+        if (inputStatus == InputStatus.NOTHING_AVAILABLE) {
+            sourceMetricGroup.idlingStarted();
+        }
+        return inputStatus;
     }
 
     @Override
@@ -365,5 +380,41 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @VisibleForTesting
     ListState<SplitT> getReaderState() {
         return readerState;
+    }
+
+    private static class MetricTrackingOutput<OUT> implements DataOutput<OUT> {
+        private final DataOutput<OUT> output;
+        private final InternalSourceReaderMetricGroup sourceMetricGroup;
+
+        public MetricTrackingOutput(
+                DataOutput<OUT> output, InternalSourceReaderMetricGroup sourceMetricGroup) {
+            this.output = output;
+            this.sourceMetricGroup = sourceMetricGroup;
+        }
+
+        @Override
+        public void emitRecord(StreamRecord<OUT> streamRecord) throws Exception {
+            output.emitRecord(streamRecord);
+            this.sourceMetricGroup.recordEmitted();
+            if (streamRecord.hasTimestamp()) {
+                this.sourceMetricGroup.eventTimeEmitted(streamRecord.getTimestamp());
+            }
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            output.emitWatermark(watermark);
+            this.sourceMetricGroup.watermarkEmitted(watermark.getTimestamp());
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+            output.emitStreamStatus(streamStatus);
+        }
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+            output.emitLatencyMarker(latencyMarker);
+        }
     }
 }
