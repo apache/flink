@@ -30,13 +30,13 @@
             <td><h5>resourcemanager.start-worker.max-failure-rate</h5></td>
             <td style="word-wrap: break-word;">10.0</td>
             <td>Double</td>
-            <td>The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute before pausing requesting new workers. Once the threshold is reached, subsequent worker requests will be postponed to after a configured retry interval ('resourcemanager.start-worker.retry-interval').</td>
+            <td>The maximum number of start worker failures (Native Kubernetes / Yarn) per minute before pausing requesting new workers. Once the threshold is reached, subsequent worker requests will be postponed to after a configured retry interval ('resourcemanager.start-worker.retry-interval').</td>
         </tr>
         <tr>
             <td><h5>resourcemanager.start-worker.retry-interval</h5></td>
             <td style="word-wrap: break-word;">3 s</td>
             <td>Duration</td>
-            <td>The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the max failure rate of starting workers ('resourcemanager.start-worker.max-failure-rate') is reached.</td>
+            <td>The time to wait before requesting new workers (Native Kubernetes / Yarn) once the max failure rate of starting workers ('resourcemanager.start-worker.max-failure-rate') is reached.</td>
         </tr>
         <tr>
             <td><h5>resourcemanager.taskmanager-registration.timeout</h5></td>
@@ -60,7 +60,7 @@
             <td><h5>slotmanager.redundant-taskmanager-num</h5></td>
             <td style="word-wrap: break-word;">0</td>
             <td>Integer</td>
-            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).</td>
+            <td>The number of redundant task managers. Redundant task managers are extra task managers started by Flink, in order to speed up job recovery in case of failures due to task manager lost. Note that this feature is available only to the active deployments (native K8s, Yarn).</td>
         </tr>
     </tbody>
 </table>

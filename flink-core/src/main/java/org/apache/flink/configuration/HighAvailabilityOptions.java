@@ -18,9 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
-import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -47,7 +45,7 @@ public class HighAvailabilityOptions {
 
     /**
      * The ID of the Flink cluster, used to separate multiple Flink clusters Needs to be set for
-     * standalone clusters, is automatically inferred in YARN and Mesos.
+     * standalone clusters, is automatically inferred in YARN.
      */
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_CLUSTER_ID =
@@ -58,7 +56,7 @@ public class HighAvailabilityOptions {
                             "recovery.zookeeper.path.namespace")
                     .withDescription(
                             "The ID of the Flink cluster, used to separate multiple Flink clusters from each other."
-                                    + " Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.");
+                                    + " Needs to be set for standalone clusters but is automatically inferred in YARN.");
 
     /** File system path (URI) where Flink persists metadata in high-availability setups. */
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
@@ -122,19 +120,6 @@ public class HighAvailabilityOptions {
                     .defaultValue("/jobgraphs")
                     .withDeprecatedKeys("recovery.zookeeper.path.jobgraphs")
                     .withDescription("ZooKeeper root path (ZNode) for job graphs");
-
-    /** ZooKeeper root path (ZNode) for Mesos workers. */
-    @PublicEvolving
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_MESOS_WORKERS_PATH =
-            key("high-availability.zookeeper.path.mesos-workers")
-                    .defaultValue("/mesos-workers")
-                    .withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The ZooKeeper root path for persisting the Mesos worker information.")
-                                    .build());
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Client Settings

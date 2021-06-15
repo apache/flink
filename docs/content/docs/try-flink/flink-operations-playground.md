@@ -332,7 +332,7 @@ windows and that every count is exactly one thousand. Since we are using the
 in its "at-least-once" mode, there is a chance that you will see some duplicate output records.
 
 {{< hint info >}}
-**Note**: Most production setups rely on a resource manager (Kubernetes, Yarn, Mesos) to automatically restart failed processes.
+**Note**: Most production setups rely on a resource manager (Kubernetes, Yarn) to automatically restart failed processes.
 {{< /hint >}}
 
 ### Upgrading & Rescaling a Job

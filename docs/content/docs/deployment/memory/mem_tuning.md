@@ -44,7 +44,7 @@ only physical resources of the executing machine matter in this case.
 
 It is recommended to configure [total process memory]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)
 ([`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) or [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size))
-for the containerized deployments ([Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}), [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) or [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}})).
+for the containerized deployments ([Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) or [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})).
 It declares how much memory in total should be assigned to the Flink *JVM process* and corresponds to the size of the requested container.
 
 <span class="label label-info">Note</span> If you configure the *total Flink memory* Flink will implicitly add JVM memory components

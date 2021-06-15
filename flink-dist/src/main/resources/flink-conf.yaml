@@ -26,7 +26,7 @@
 # is only used in Standalone mode and may be overwritten on the JobManager side
 # by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
 # In high availability mode, if you use the bin/start-cluster.sh script and setup
-# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# the conf/masters file, this will be taken care of automatically. Yarn
 # automatically configure the host name based on the hostname of the node where the
 # JobManager runs.
 
@@ -183,7 +183,7 @@ jobmanager.execution.failover-strategy: region
 # Override the directories for temporary files. If not specified, the
 # system-specific Java temporary directory (java.io.tmpdir property) is taken.
 #
-# For framework setups on Yarn or Mesos, Flink will automatically pick up the
+# For framework setups on Yarn, Flink will automatically pick up the
 # containers' temp directories without any need for configuration.
 #
 # Add a delimited list for multiple directories, using the system directory

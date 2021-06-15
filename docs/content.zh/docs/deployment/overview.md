@@ -85,7 +85,6 @@ When deploying Flink, there are often multiple options available for each buildi
                     </li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/native_kubernetes" >}}">Kubernetes</a></li>
                     <li><a href="{{< ref "docs/deployment/resource-providers/yarn" >}}">YARN</a></li>
-                    <li><a href="{{< ref "docs/deployment/resource-providers/mesos" >}}">Mesos</a></li>
                 </ul>
             </td>
         </tr>
@@ -124,7 +123,7 @@ When deploying Flink, there are often multiple options available for each buildi
         <tr>
             <td>Resource Provider</td>
             <td>
-                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes, YARN or Mesos.
+                Flink can be deployed through different Resource Provider Frameworks, such as Kubernetes or YARN.
             </td>
             <td>See <a href="#jmimpls">JobManager</a> implementations above.</td>
         </tr>

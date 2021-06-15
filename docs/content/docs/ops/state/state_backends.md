@@ -279,7 +279,7 @@ and options factory has a higher priority over the predefined options if ever co
 
 RocksDB is a native library that allocates memory directly from the process,
 and not from the JVM. Any memory you assign to RocksDB will have to be accounted for, typically by decreasing the JVM heap size
-of the TaskManagers by the same amount. Not doing that may result in YARN/Mesos/etc terminating the JVM processes for
+of the TaskManagers by the same amount. Not doing that may result in YARN/etc terminating the JVM processes for
 allocating more memory than configured.
 
 **Reading Column Family Options from flink-conf.yaml**

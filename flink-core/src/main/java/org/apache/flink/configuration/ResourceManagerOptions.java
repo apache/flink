@@ -98,8 +98,7 @@ public class ResourceManagerOptions {
     /**
      * The number of redundant task managers. Redundant task managers are extra task managers
      * started by Flink, in order to speed up job recovery in case of failures due to task manager
-     * lost. Note that this feature is available only to the active deployments (native K8s, Yarn
-     * and Mesos).
+     * lost. Note that this feature is available only to the active deployments (native K8s, Yarn).
      */
     public static final ConfigOption<Integer> REDUNDANT_TASK_MANAGER_NUM =
             ConfigOptions.key("slotmanager.redundant-taskmanager-num")
@@ -108,12 +107,12 @@ public class ResourceManagerOptions {
                     .withDescription(
                             "The number of redundant task managers. Redundant task managers are extra task managers "
                                     + "started by Flink, in order to speed up job recovery in case of failures due to task manager lost. "
-                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
+                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn).");
 
     /**
-     * The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute
-     * before pausing requesting new workers. Once the threshold is reached, subsequent worker
-     * requests will be postponed to after a configured retry interval ({@link
+     * The maximum number of start worker failures (Native Kubernetes / Yarn) per minute before
+     * pausing requesting new workers. Once the threshold is reached, subsequent worker requests
+     * will be postponed to after a configured retry interval ({@link
      * #START_WORKER_RETRY_INTERVAL}).
      */
     public static final ConfigOption<Double> START_WORKER_MAX_FAILURE_RATE =
@@ -121,22 +120,22 @@ public class ResourceManagerOptions {
                     .doubleType()
                     .defaultValue(10.0)
                     .withDescription(
-                            "The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute "
+                            "The maximum number of start worker failures (Native Kubernetes / Yarn) per minute "
                                     + "before pausing requesting new workers. Once the threshold is reached, subsequent "
                                     + "worker requests will be postponed to after a configured retry interval ('"
                                     + START_WORKER_RETRY_INTERVAL_KEY
                                     + "').");
 
     /**
-     * The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the
-     * max failure rate of starting workers ({@link #START_WORKER_MAX_FAILURE_RATE}) is reached.
+     * The time to wait before requesting new workers (Native Kubernetes / Yarn) once the max
+     * failure rate of starting workers ({@link #START_WORKER_MAX_FAILURE_RATE}) is reached.
      */
     public static final ConfigOption<Duration> START_WORKER_RETRY_INTERVAL =
             ConfigOptions.key(START_WORKER_RETRY_INTERVAL_KEY)
                     .durationType()
                     .defaultValue(Duration.ofSeconds(3))
                     .withDescription(
-                            "The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the "
+                            "The time to wait before requesting new workers (Native Kubernetes / Yarn) once the "
                                     + "max failure rate of starting workers ('"
                                     + START_WORKER_MAX_FAILURE_RATE.key()
                                     + "') is reached.");

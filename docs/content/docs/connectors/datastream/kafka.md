@@ -727,7 +727,6 @@ configured for Kerberos. Simply configure Flink in `flink-conf.yaml` to enable K
 1. Configure Kerberos credentials by setting the following -
  - `security.kerberos.login.use-ticket-cache`: By default, this is `true` and Flink will attempt to use Kerberos credentials in ticket caches managed by `kinit`.
  Note that when using the Kafka connector in Flink jobs deployed on YARN, Kerberos authorization using ticket caches will not work.
- This is also the case when deploying using Mesos, as authorization using ticket cache is not supported for Mesos deployments.
  - `security.kerberos.login.keytab` and `security.kerberos.login.principal`: To use Kerberos keytabs instead, set values for both of these properties.
  
 2. Append `KafkaClient` to `security.kerberos.login.contexts`: This tells Flink to provide the configured Kerberos credentials to the Kafka login context to be used for Kafka authentication.

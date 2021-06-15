@@ -75,7 +75,6 @@ under the License.
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
-		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
