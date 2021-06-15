@@ -476,7 +476,7 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 假设你的欺诈检测器所处理的交易数据如下：
 
 <p class="text-center">
-    <img alt="Transactions" width="80%" src="/fig/fraud-transactions.svg"/>
+    {{<img alt="Transactions" width="80%" src="/fig/fraud-transactions.svg">}}
 </p>
 
 交易 3 和交易 4 应该被标记为欺诈行为，因为交易 3 是一个 $0.09 的小额交易，而紧随着的交易 4 是一个 $510 的大额交易。
