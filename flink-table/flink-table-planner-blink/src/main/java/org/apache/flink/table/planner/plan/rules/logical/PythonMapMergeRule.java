@@ -66,7 +66,7 @@ public class PythonMapMergeRule extends RelOptRule {
                         .collect(Collectors.toList());
 
         if (topProjects.size() != 1
-                || PythonUtil.isNonPythonCall(topProjects.get(0))
+                || !PythonUtil.isPythonCall(topProjects.get(0), null)
                 || !PythonUtil.takesRowAsInput((RexCall) topProjects.get(0))) {
             return false;
         }
@@ -76,7 +76,7 @@ public class PythonMapMergeRule extends RelOptRule {
                 bottomProgram.getProjectList().stream()
                         .map(bottomProgram::expandLocalRef)
                         .collect(Collectors.toList());
-        if (bottomProjects.size() != 1 || PythonUtil.isNonPythonCall(bottomProjects.get(0))) {
+        if (bottomProjects.size() != 1 || !PythonUtil.isPythonCall(bottomProjects.get(0), null)) {
             return false;
         }
 
@@ -87,7 +87,9 @@ public class PythonMapMergeRule extends RelOptRule {
         }
 
         RexProgram middleProgram = middleCalc.getProgram();
-        if (middleProgram.getCondition() != null) {
+        if (topProgram.getCondition() != null
+                || middleProgram.getCondition() != null
+                || bottomProgram.getCondition() != null) {
             return false;
         }
 
