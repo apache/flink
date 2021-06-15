@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.rank;
 
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -52,7 +53,7 @@ import java.util.TreeMap;
  */
 public class RetractableTopNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = 1365312180599454479L;
+    private static final long serialVersionUID = 1365312180599454480L;
 
     private static final Logger LOG = LoggerFactory.getLogger(RetractableTopNFunction.class);
 
@@ -80,8 +81,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
     private final ComparableRecordComparator serializableComparator;
 
     public RetractableTopNFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             ComparableRecordComparator comparableRecordComparator,
             RowDataKeySelector sortKeySelector,
@@ -91,8 +91,7 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             boolean generateUpdateBefore,
             boolean outputRankNumber) {
         super(
-                minRetentionTime,
-                maxRetentionTime,
+                ttlConfig,
                 inputRowType,
                 comparableRecordComparator.getGeneratedRecordComparator(),
                 sortKeySelector,
@@ -116,6 +115,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
         ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
         MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor =
                 new MapStateDescriptor<>("data-state", sortKeyType, valueTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            mapStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
         ValueStateDescriptor<SortedMap<RowData, Long>> valueStateDescriptor =
@@ -123,15 +125,15 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
                         "sorted-map",
                         new SortedMapTypeInfo<>(
                                 sortKeyType, BasicTypeInfo.LONG_TYPE_INFO, serializableComparator));
+        if (ttlConfig.isEnabled()) {
+            valueStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         treeMap = getRuntimeContext().getState(valueStateDescriptor);
     }
 
     @Override
     public void processElement(RowData input, Context ctx, Collector<RowData> out)
             throws Exception {
-        long currentTime = ctx.timerService().currentProcessingTime();
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(ctx, currentTime);
         initRankEnd(input);
         SortedMap<RowData, Long> sortedMap = treeMap.value();
         if (sortedMap == null) {
@@ -218,14 +220,6 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
             }
         }
         treeMap.update(sortedMap);
-    }
-
-    @Override
-    public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
-            throws Exception {
-        if (stateCleaningEnabled) {
-            cleanupState(dataState, treeMap);
-        }
     }
 
     // ------------- ROW_NUMBER-------------------------------

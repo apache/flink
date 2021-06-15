@@ -37,8 +37,7 @@ public class AppendOnlyFirstNFunctionTest extends TopNFunctionTestBase {
             boolean generateUpdateBefore,
             boolean outputRankNumber) {
         return new AppendOnlyFirstNFunction(
-                minTime.toMilliseconds(),
-                maxTime.toMilliseconds(),
+                ttlConfig,
                 inputRowType,
                 generatedSortKeyComparator,
                 sortKeySelector,

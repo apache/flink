@@ -41,8 +41,7 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
             boolean generateUpdateBefore,
             boolean outputRankNumber) {
         return new UpdatableTopNFunction(
-                minTime.toMilliseconds(),
-                maxTime.toMilliseconds(),
+                ttlConfig,
                 inputRowType,
                 rowKeySelector,
                 generatedSortKeyComparator,
