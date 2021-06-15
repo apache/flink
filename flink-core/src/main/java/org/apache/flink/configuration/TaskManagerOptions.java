@@ -302,7 +302,7 @@ public class TaskManagerOptions {
     /**
      * The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the
      * RpcAddress:RpcPort and a 6-character random string. Notice that this option is not valid in
-     * Yarn / Mesos and Native Kubernetes mode.
+     * Yarn and Native Kubernetes mode.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID =
@@ -311,14 +311,14 @@ public class TaskManagerOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "
-                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.");
+                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.");
 
     // ------------------------------------------------------------------------
     //  Resource Options
     // ------------------------------------------------------------------------
 
     /**
-     * This config option describes number of cpu cores of task executors. In case of Yarn / Mesos /
+     * This config option describes number of cpu cores of task executors. In case of Yarn /
      * Kubernetes, it is used to launch a container for the task executor.
      *
      * <p>DO NOT USE THIS CONFIG OPTION. This config option is currently only used internally, for
@@ -326,9 +326,8 @@ public class TaskManagerOptions {
      * feature is not completed at the moment, and the config option is experimental and might be
      * changed / removed in the future. Thus, we do not expose this config option to users.
      *
-     * <p>For configuring the cpu cores of container on Yarn / Mesos / Kubernetes, please use {@link
-     * YarnConfigOptions#VCORES}, {@link MesosTaskManagerParameters#MESOS_RM_TASKS_CPUS} and {@link
-     * KubernetesConfigOptions#TASK_MANAGER_CPU}.
+     * <p>For configuring the cpu cores of container on Yarn / Kubernetes, please use {@link
+     * YarnConfigOptions#VCORES} and {@link KubernetesConfigOptions#TASK_MANAGER_CPU}.
      */
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Double> CPU_CORES =
@@ -338,8 +337,8 @@ public class TaskManagerOptions {
                     .withDescription(
                             "CPU cores for the TaskExecutors. In case of Yarn setups, this value will be rounded to "
                                     + "the closest positive integer. If not explicitly configured, legacy config options "
-                                    + "'yarn.containers.vcores', 'mesos.resourcemanager.tasks.cpus' and 'kubernetes.taskmanager.cpu' will be "
-                                    + "used for Yarn / Mesos / Kubernetes setups, and '"
+                                    + "'yarn.containers.vcores' and 'kubernetes.taskmanager.cpu' will be "
+                                    + "used for Yarn / Kubernetes setups, and '"
                                     + NUM_TASK_SLOTS.key()
                                     + "' will be used for "
                                     + "standalone setups (approximate number of slots).");

@@ -24,8 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
 /**
- * A descriptor to deploy a cluster (e.g. Yarn or Mesos) and return a Client for Cluster
- * communication.
+ * A descriptor to deploy a cluster (e.g. Yarn) and return a Client for Cluster communication.
  *
  * @param <T> Type of the cluster id
  */

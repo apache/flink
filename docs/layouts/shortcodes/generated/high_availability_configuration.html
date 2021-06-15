@@ -18,7 +18,7 @@
             <td><h5>high-availability.cluster-id</h5></td>
             <td style="word-wrap: break-word;">"/default"</td>
             <td>String</td>
-            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.</td>
+            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Needs to be set for standalone clusters but is automatically inferred in YARN.</td>
         </tr>
         <tr>
             <td><h5>high-availability.jobmanager.port</h5></td>
@@ -67,12 +67,6 @@
             <td style="word-wrap: break-word;">"/jobgraphs"</td>
             <td>String</td>
             <td>ZooKeeper root path (ZNode) for job graphs</td>
-        </tr>
-        <tr>
-            <td><h5>high-availability.zookeeper.path.mesos-workers</h5></td>
-            <td style="word-wrap: break-word;">"/mesos-workers"</td>
-            <td>String</td>
-            <td>The ZooKeeper root path for persisting the Mesos worker information.</td>
         </tr>
         <tr>
             <td><h5>high-availability.zookeeper.path.root</h5></td>

@@ -324,7 +324,7 @@ public class CoreOptions {
      * the system's {@link java.io.File#pathSeparator}.
      */
     @Documentation.OverrideDefault(
-            "'LOCAL_DIRS' on Yarn. '_FLINK_TMP_DIR' on Mesos. System.getProperty(\"java.io.tmpdir\") in standalone.")
+            "'LOCAL_DIRS' on Yarn. System.getProperty(\"java.io.tmpdir\") in standalone.")
     @Documentation.Section(Documentation.Sections.COMMON_MISCELLANEOUS)
     public static final ConfigOption<String> TMP_DIRS =
             key("io.tmp.dirs")

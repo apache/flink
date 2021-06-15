@@ -322,7 +322,7 @@ docker-compose up -d taskmanager
 由于我们使用的是 [FlinkKafkaProducer]({{< ref "docs/connectors/datastream/kafka" >}}#kafka-producers-and-fault-tolerance) "至少一次"模式，因此你可能会看到一些记录重复输出多次。
 
 {{< hint info >}}
-  **注意**：在大部分生产环境中都需要一个资源管理器 (Kubernetes、Yarn,、Mesos)对
+  **注意**：在大部分生产环境中都需要一个资源管理器 (Kubernetes、Yarn)对
   失败的 Job 进行自动重启。
 {{< /hint >}}
 

@@ -43,7 +43,7 @@ under the License.
 
 ## 容器（Container）的内存配置
 
-在容器化部署模式（Containerized Deployment）下（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}})、[Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) 或 [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}})），建议配置[进程总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）。
+在容器化部署模式（Containerized Deployment）下（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) 或 [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})），建议配置[进程总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）。
 该配置参数用于指定分配给 Flink *JVM 进程*的总内存，也就是需要申请的容器大小。
 
 <span class="label label-info">提示</span>

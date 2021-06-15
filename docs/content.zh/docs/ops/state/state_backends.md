@@ -288,7 +288,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
 <span class="label label-info">注意</span> RocksDB是一个本地库，它直接从进程分配内存，
 而不是从JVM分配内存。分配给 RocksDB 的任何内存都必须被考虑在内，通常需要将这部分内存从任务管理器（`TaskManager`）的JVM堆中减去。
-不这样做可能会导致JVM进程由于分配的内存超过申请值而被 YARN/Mesos 等资源管理框架终止。
+不这样做可能会导致JVM进程由于分配的内存超过申请值而被 YARN 等资源管理框架终止。
 
 **从 flink-conf.yaml 中读取列族选项**
 

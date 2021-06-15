@@ -333,8 +333,6 @@ parameter combinations:
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
   * `./bin/flink run-application --target kubernetes-application`: Submission spinning up a Flink on Kubernetes cluster in Application Mode
-* Mesos
-  * `./bin/flink run --target remote`: Submission to an already running Flink on Mesos cluster
 * Standalone:
   * `./bin/flink run --target local`: Local submission using a MiniCluster in Session Mode
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster

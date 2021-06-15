@@ -180,7 +180,7 @@ For more details, please read the [savepoint documentation]({{< ref "docs/ops/st
 
 In this step, we update the framework version of the cluster. What this basically means is replacing the content of
 the Flink installation with the new version. This step can depend on how you are running Flink in your cluster (e.g. 
-standalone, on Mesos, ...).
+standalone, ...).
 
 If you are unfamiliar with installing Flink in your cluster, please read the [deployment and cluster setup documentation]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}).
 
