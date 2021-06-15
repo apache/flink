@@ -134,7 +134,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
         @Override
         public int hashCode() {
-            return Objects.hash(dumm1, dumm2, dumm3, dumm4, nestedClass);
+            return Objects.hash(dumm1, dumm2, dumm3, dumm4, dumm5, nestedClass);
         }
 
         @Override
@@ -166,6 +166,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
                         return false;
                     }
                 }
+            }
+            if ((dumm5 == null && otherTUC.dumm5 != null)
+                    || (dumm5 != null && !dumm5.equals(otherTUC.dumm5))) {
+                return false;
             }
 
             if ((nestedClass == null && otherTUC.nestedClass != null)
