@@ -184,6 +184,15 @@ public class MultipleInputStreamTask<OUT>
     public Future<Boolean> triggerCheckpointAsync(
             CheckpointMetaData metadata, CheckpointOptions options) {
 
+        if (operatorChain.getSourceTaskInputs().size() == 0) {
+            return super.triggerCheckpointAsync(metadata, options);
+        }
+
+        // If there are chained sources, we would always only trigger
+        // the chained sources for checkpoint. This means that for
+        // the checkpoints during the upstream task finished and
+        // this task receives the EndOfPartitionEvent, the checkpoint
+        // would not subsume the pending ones.
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {

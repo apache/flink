@@ -31,11 +31,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.MultipleRecordWriters;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
@@ -74,6 +76,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -98,7 +101,9 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -946,9 +951,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         mainMailboxExecutor.execute(
                 () -> {
                     try {
-                        result.complete(
-                                triggerCheckpointAsyncInMailbox(
-                                        checkpointMetaData, checkpointOptions));
+                        boolean noUnfinishedInputGates =
+                                Arrays.stream(getEnvironment().getAllInputGates())
+                                        .allMatch(InputGate::isFinished);
+
+                        if (noUnfinishedInputGates) {
+                            result.complete(
+                                    triggerCheckpointAsyncInMailbox(
+                                            checkpointMetaData, checkpointOptions));
+                        } else {
+                            result.complete(
+                                    triggerUnfinishedChannelsCheckpoint(
+                                            checkpointMetaData, checkpointOptions));
+                        }
                     } catch (Exception ex) {
                         // Report the failure both via the Future result but also to the mailbox
                         result.completeExceptionally(ex);
@@ -1010,6 +1025,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         } finally {
             FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
         }
+    }
+
+    private boolean triggerUnfinishedChannelsCheckpoint(
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
+            throws Exception {
+        Optional<CheckpointBarrierHandler> checkpointBarrierHandler = getCheckpointBarrierHandler();
+        checkState(
+                checkpointBarrierHandler.isPresent(),
+                "CheckpointBarrier should exist for tasks with network inputs.");
+
+        CheckpointBarrier barrier =
+                new CheckpointBarrier(
+                        checkpointMetaData.getCheckpointId(),
+                        checkpointMetaData.getTimestamp(),
+                        checkpointOptions);
+
+        for (IndexedInputGate inputGate : getEnvironment().getAllInputGates()) {
+            if (!inputGate.isFinished()) {
+                for (InputChannelInfo channelInfo : inputGate.getUnfinishedChannels()) {
+                    checkpointBarrierHandler.get().processBarrier(barrier, channelInfo);
+                }
+            }
+        }
+
+        return true;
     }
 
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
