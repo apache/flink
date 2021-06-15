@@ -206,7 +206,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         private static final long serialVersionUID = 1L;
         private final SharedReference<AtomicInteger> lastCheckpointValue;
         private ListState<Integer> valueState;
-        private boolean isRunning = true;
+        private volatile boolean isRunning = true;
 
         public NumberSource(SharedReference<AtomicInteger> lastCheckpointValue) {
             this.lastCheckpointValue = lastCheckpointValue;
@@ -229,18 +229,19 @@ public class IgnoreInFlightDataITCase extends TestLogger {
                 }
             } else {
                 int next = 0;
-                while (isRunning) {
-                    synchronized (ctx.getCheckpointLock()) {
-                        // Emit data by batches to reduce the probability that before the first
-                        // checkpoint will be generated not enough data.
-                        do {
-                            next++;
-                            valueState.update(singletonList(next));
-                            ctx.collect(next);
-                        } while (next % 50 != 0 && isRunning);
-                    }
 
-                    // Avoid the huge backpressure.
+                synchronized (ctx.getCheckpointLock()) {
+                    // Emit batch of data in order to having the downstream data for each subtask of
+                    // the Map before the first checkpoint.
+                    do {
+                        next++;
+                        valueState.update(singletonList(next));
+                        ctx.collect(next);
+                    } while (next % 50 != 0 && isRunning);
+                }
+
+                while (isRunning) {
+                    // Wait for the checkpoint.
                     LockSupport.parkNanos(100000);
                 }
             }
