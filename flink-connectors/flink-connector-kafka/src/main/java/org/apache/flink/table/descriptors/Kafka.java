@@ -94,7 +94,8 @@ public class Kafka extends ConnectorDescriptor {
             this.kafkaProperties = new HashMap<>();
         }
         this.kafkaProperties.clear();
-        properties.forEach((k, v) -> this.kafkaProperties.put((String) k, (String) v));
+        properties.forEach(
+                (k, v) -> this.kafkaProperties.put(String.valueOf(k), String.valueOf(v)));
         return this;
     }
 

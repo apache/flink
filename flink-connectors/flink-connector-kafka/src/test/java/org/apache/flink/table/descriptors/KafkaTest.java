@@ -49,7 +49,7 @@ public class KafkaTest extends DescriptorTestBase {
 
         final Properties properties = new Properties();
         properties.put("zookeeper.stuff", "12");
-        properties.put("kafka.stuff", "42");
+        properties.put("kafka.stuff", 42);
 
         final Descriptor specificOffsetsMapDesc =
                 new Kafka()
