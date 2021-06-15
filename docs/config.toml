@@ -72,6 +72,7 @@ pygmentsUseClasses = true
   ]
 
   PreviousDocs = [
+    ["1.13", "http://ci.apache.org/projects/flink/flink-docs-release-1.13"],
     ["1.12", "http://ci.apache.org/projects/flink/flink-docs-release-1.12"],
     ["1.11", "http://ci.apache.org/projects/flink/flink-docs-release-1.11"],
     ["1.10", "http://ci.apache.org/projects/flink/flink-docs-release-1.10"],
