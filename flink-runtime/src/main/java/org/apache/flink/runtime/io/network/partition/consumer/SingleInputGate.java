@@ -350,6 +350,22 @@ public class SingleInputGate extends IndexedInputGate {
         return gateIndex;
     }
 
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        List<InputChannelInfo> unfinishedChannels =
+                new ArrayList<>(
+                        numberOfInputChannels - channelsWithEndOfPartitionEvents.cardinality());
+        synchronized (inputChannelsWithData) {
+            for (int i = channelsWithEndOfPartitionEvents.nextClearBit(0);
+                    i < numberOfInputChannels;
+                    i = channelsWithEndOfPartitionEvents.nextClearBit(i + 1)) {
+                unfinishedChannels.add(getChannel(i).getChannelInfo());
+            }
+        }
+
+        return unfinishedChannels;
+    }
+
     /**
      * Returns the type of this input channel's consumed result partition.
      *
