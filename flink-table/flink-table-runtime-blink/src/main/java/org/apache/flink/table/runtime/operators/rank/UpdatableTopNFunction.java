@@ -122,10 +122,13 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+        if (ttlConfig.isEnabled()) {
+            cacheBuilder.expireAfterWrite(
+                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+        }
         kvRowKeyMap =
-                CacheBuilder.newBuilder()
-                        .expireAfterWrite(
-                                ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS)
+                cacheBuilder
                         .maximumSize(lruCacheSize)
                         .removalListener(new CacheRemovalListener())
                         .build();

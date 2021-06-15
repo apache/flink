@@ -96,12 +96,12 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
-        kvSortedMap =
-                CacheBuilder.newBuilder()
-                        .expireAfterWrite(
-                                ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS)
-                        .maximumSize(lruCacheSize)
-                        .build();
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+        if (ttlConfig.isEnabled()) {
+            cacheBuilder.expireAfterWrite(
+                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+        }
+        kvSortedMap = cacheBuilder.maximumSize(lruCacheSize).build();
         LOG.info(
                 "Top{} operator is using LRU caches key-size: {}",
                 getDefaultTopNSize(),
