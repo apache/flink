@@ -912,7 +912,7 @@ env.sqlQuery(
 
 自定义聚合函数（UDAGG）是把一个表（一行或者多行，每行可以有一列或者多列）聚合成一个标量值。
 
-<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">}}
 
 上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
 
@@ -1387,7 +1387,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 
 自定义表值聚合函数（UDTAGG）可以把一个表（一行或者多行，每行有一列或者多列）聚合成另一张表，结果中可以有多行多列。
 
-<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">}}
 
 上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
 
