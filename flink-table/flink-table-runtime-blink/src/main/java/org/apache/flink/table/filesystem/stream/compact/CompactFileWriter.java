@@ -51,8 +51,8 @@ public class CompactFileWriter<T>
     }
 
     @Override
-    public void notifyCheckpointComplete(long checkpointId) throws Exception {
-        super.notifyCheckpointComplete(checkpointId);
+    protected void commitUpToCheckpoint(long checkpointId) throws Exception {
+        super.commitUpToCheckpoint(checkpointId);
         output.collect(
                 new StreamRecord<>(
                         new EndCheckpoint(
