@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Function;
 
 import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
 import static org.apache.flink.configuration.ConfigurationUtils.containsPrefixMap;
@@ -667,22 +668,35 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
     public boolean contains(ConfigOption<?> configOption) {
         final boolean canBePrefixMap = canBePrefixMap(configOption);
 
-        // first try the current key
         synchronized (this.confData) {
-            if (containsInternal(configOption.key(), canBePrefixMap)) {
-                return true;
-            } else if (configOption.hasFallbackKeys()) {
-                // try the fallback keys
-                for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                    if (containsInternal(fallbackKey.getKey(), canBePrefixMap)) {
-                        loggingFallback(fallbackKey, configOption);
-                        return true;
-                    }
+            final Function<String, Optional<Boolean>> applier =
+                    key -> {
+                        if (canBePrefixMap && containsPrefixMap(this.confData, key)
+                                || this.confData.containsKey(key)) {
+                            return Optional.of(true);
+                        }
+                        return Optional.empty();
+                    };
+            return applyOption(configOption, applier).orElse(false);
+        }
+    }
+
+    private <T> Optional<T> applyOption(
+            ConfigOption<?> option, Function<String, Optional<T>> applier) {
+        final Optional<T> valueFromExactKey = applier.apply(option.key());
+        if (valueFromExactKey.isPresent()) {
+            return valueFromExactKey;
+        } else if (option.hasFallbackKeys()) {
+            // try the fallback keys
+            for (FallbackKey fallbackKey : option.fallbackKeys()) {
+                final Optional<T> valueFromFallbackKey = applier.apply(fallbackKey.getKey());
+                if (valueFromFallbackKey.isPresent()) {
+                    loggingFallback(fallbackKey, option);
+                    return valueFromFallbackKey;
                 }
             }
-
-            return false;
         }
+        return Optional.empty();
     }
 
     @Override
@@ -739,44 +753,20 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
      */
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
         final boolean canBePrefixMap = canBePrefixMap(configOption);
-
         synchronized (this.confData) {
-            // try the current key
-            boolean keysRemoved = removeConfigInternal(configOption.key(), canBePrefixMap);
-            if (!keysRemoved) {
-                // try the fallback keys
-                for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                    keysRemoved = removeConfigInternal(fallbackKey.getKey(), canBePrefixMap);
-                    if (keysRemoved) {
-                        loggingFallback(fallbackKey, configOption);
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return true;
+            final Function<String, Optional<Boolean>> applier =
+                    key -> {
+                        if (canBePrefixMap && removePrefixMap(this.confData, key)
+                                || this.confData.remove(key) != null) {
+                            return Optional.of(true);
+                        }
+                        return Optional.empty();
+                    };
+            return applyOption(configOption, applier).orElse(false);
         }
     }
 
     // --------------------------------------------------------------------------------------------
-
-    private boolean removeConfigInternal(String key, boolean canBePrefixMap) {
-        final boolean keysRemoved;
-        if (canBePrefixMap) {
-            keysRemoved = removePrefixMap(this.confData, key);
-        } else {
-            keysRemoved = false;
-        }
-        return keysRemoved || this.confData.remove(key) != null;
-    }
-
-    private boolean containsInternal(String key, boolean canBePrefixMap) {
-        final boolean containsExactKey = this.confData.containsKey(key);
-        if (!canBePrefixMap || containsExactKey) {
-            return containsExactKey;
-        }
-        return containsPrefixMap(this.confData, key);
-    }
 
     <T> void setValueInternal(String key, T value) {
         setValueInternal(key, value, false);
@@ -823,25 +813,7 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
 
     private Optional<Object> getRawValueFromOption(ConfigOption<?> configOption) {
         final boolean canBePrefixMap = canBePrefixMap(configOption);
-
-        // first try the current key
-        final Optional<Object> o = getRawValue(configOption.key(), canBePrefixMap);
-
-        if (o.isPresent()) {
-            // found a value for the current proper key
-            return o;
-        } else if (configOption.hasFallbackKeys()) {
-            // try the fallback keys
-            for (FallbackKey fallbackKey : configOption.fallbackKeys()) {
-                Optional<Object> oo = getRawValue(fallbackKey.getKey(), canBePrefixMap);
-                if (oo.isPresent()) {
-                    loggingFallback(fallbackKey, configOption);
-                    return oo;
-                }
-            }
-        }
-
-        return Optional.empty();
+        return applyOption(configOption, key -> getRawValue(key, canBePrefixMap));
     }
 
     private void loggingFallback(FallbackKey fallbackKey, ConfigOption<?> configOption) {
