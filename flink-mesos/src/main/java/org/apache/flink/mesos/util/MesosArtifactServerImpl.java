@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.util;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -109,7 +110,7 @@ public class MesosArtifactServerImpl implements MesosArtifactServer {
         // Config to enable https access to the artifact server
         final boolean enableSSL =
                 config.getBoolean(MesosOptions.ARTIFACT_SERVER_SSL_ENABLED)
-                        && SSLUtils.isRestSSLEnabled(config);
+                        && SecurityOptions.isRestSSLEnabled(config);
 
         final SSLHandlerFactory sslFactory;
         if (enableSSL) {

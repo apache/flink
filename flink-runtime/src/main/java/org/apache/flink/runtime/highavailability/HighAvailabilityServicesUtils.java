@@ -24,6 +24,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaSe
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -205,7 +205,7 @@ public class HighAvailabilityServicesUtils {
         }
 
         final int port = configuration.getInteger(RestOptions.PORT);
-        final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+        final boolean enableSSL = SecurityOptions.isRestSSLEnabled(configuration);
         final String protocol = enableSSL ? "https://" : "http://";
 
         return String.format("%s%s:%s", protocol, address, port);

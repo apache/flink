@@ -30,7 +30,6 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils
-import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
 import org.apache.flink.util.NetUtils
 import org.apache.flink.util.TimeUtils
@@ -427,7 +426,7 @@ object AkkaUtils {
     val logLifecycleEvents = if (lifecycleEvents) "on" else "off"
 
     val akkaEnableSSLConfig = configuration.getBoolean(AkkaOptions.SSL_ENABLED) &&
-          SSLUtils.isInternalSSLEnabled(configuration)
+          SecurityOptions.isInternalSSLEnabled(configuration)
 
     val retryGateClosedFor = configuration.getLong(AkkaOptions.RETRY_GATE_CLOSED_FOR)
 
