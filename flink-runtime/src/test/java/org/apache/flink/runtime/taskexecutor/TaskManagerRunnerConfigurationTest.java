@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.containsString;
@@ -221,7 +222,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         final Configuration config = new Configuration();
         config.setString(TaskManagerOptions.HOST_BIND_POLICY, bindPolicy.toString());
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(AkkaOptions.LOOKUP_TIMEOUT, "10 ms");
+        config.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMillis(10));
         return new UnmodifiableConfiguration(config);
     }
 

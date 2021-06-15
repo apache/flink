@@ -20,8 +20,8 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -47,8 +47,8 @@ public class TestingSlotPoolImpl extends SlotPoolImpl {
         this(
                 jobId,
                 SystemClock.getInstance(),
-                AkkaUtils.getDefaultTimeout(),
-                AkkaUtils.getDefaultTimeout(),
+                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
+                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
                 Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
     }
 

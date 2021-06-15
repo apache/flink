@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 
 import javax.annotation.Nonnull;
 
@@ -69,7 +68,7 @@ public class AkkaRpcServiceConfiguration {
     }
 
     public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
-        final Time timeout = AkkaUtils.getTimeoutAsTime(configuration);
+        final Time timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         final long maximumFramesize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 

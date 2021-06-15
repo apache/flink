@@ -98,7 +98,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
         Configuration config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
