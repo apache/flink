@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.runtime.stream.table
 
+import java.util
+
 import org.apache.flink.api.scala._
 import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
@@ -391,6 +393,17 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testOptimizeNestingInvokeScalarFunction(): Unit = {
+
+    val t = env.fromElements(1, 2, 3, 4).toTable(tEnv).as("f1")
+    tEnv.createTemporaryView("t1", t)
+    tEnv.createTemporaryFunction("func", NestingFunc)
+    tEnv.sqlQuery("select func(func(f1)) from t1")
+        .toAppendStream[Row].addSink(new TestingAppendSink)
+    env.execute()
+  }
+
   @SerialVersionUID(1L)
   object ValidSubStringFilter extends ScalarFunction {
     @varargs
@@ -406,6 +419,18 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   object SubstringFunc extends ScalarFunction {
     def eval(str: String, begin: Int, end: Int): String = {
       str.substring(begin, end)
+    }
+  }
+
+  @SerialVersionUID(1L)
+  object NestingFunc extends ScalarFunction {
+    val expected = new util.HashMap[Integer, Integer]()
+    def eval(a: Integer): util.Map[Integer, Integer] = {
+      expected
+    }
+    def eval(map: util.Map[Integer, Integer] ): util.Map[Integer, Integer] = {
+      Assert.assertTrue(map.eq(expected))
+      map
     }
   }
 

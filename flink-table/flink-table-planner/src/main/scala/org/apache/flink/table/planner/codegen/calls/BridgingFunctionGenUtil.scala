@@ -34,7 +34,7 @@ import org.apache.flink.table.types.inference.{CallContext, TypeInference, TypeI
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, isCompositeType}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
-import org.apache.flink.table.types.utils.DataTypeUtils.{validateInputDataType, validateOutputDataType}
+import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
 import java.util.concurrent.CompletableFuture
@@ -288,16 +288,23 @@ object BridgingFunctionGenUtil {
       s"($externalResultTypeTerm) (${typeTerm(externalResultClassBoxed)})"
     }
     val externalResultTerm = ctx.addReusableLocalVariable(externalResultTypeTerm, "externalResult")
+    val externalCode =
+      s"""
+         |${externalOperands.map(_.code).mkString("\n")}
+         |$externalResultTerm = $externalResultCasting $functionTerm
+         |  .$SCALAR_EVAL(${externalOperands.map(_.resultTerm).mkString(", ")});
+         |""".stripMargin
+
     val internalExpr = genToInternalConverterAll(ctx, outputDataType, externalResultTerm)
 
-    // function call
-    internalExpr.copy(code =
+    val copy = internalExpr.copy(code =
       s"""
-        |${externalOperands.map(_.code).mkString("\n")}
-        |$externalResultTerm = $externalResultCasting $functionTerm
-        |  .$SCALAR_EVAL(${externalOperands.map(_.resultTerm).mkString(", ")});
-        |${internalExpr.code}
-        |""".stripMargin)
+         |$externalCode
+         |${internalExpr.code}
+         |""".stripMargin)
+
+    ExternalGeneratedExpression.fromGeneratedExpression(
+      outputDataType, externalResultTerm, externalCode, copy)
   }
 
   private def prepareExternalOperands(
@@ -308,7 +315,15 @@ object BridgingFunctionGenUtil {
     operands
       .zip(argumentDataTypes)
       .map { case (operand, dataType) =>
-        operand.copy(resultTerm = genToExternalConverterAll(ctx, dataType, operand))
+        operand match {
+          case external: ExternalGeneratedExpression
+            if !isInternal(dataType) && (external.getDataType == dataType) =>
+            operand.copy(
+              resultTerm = external.getExternalTerm,
+              code = external.getExternalCode)
+          case _ => operand.copy(
+            resultTerm = genToExternalConverterAll(ctx, dataType, operand))
+        }
       }
   }
 
