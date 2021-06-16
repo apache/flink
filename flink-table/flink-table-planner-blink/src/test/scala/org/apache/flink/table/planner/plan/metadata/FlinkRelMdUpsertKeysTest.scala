@@ -36,16 +36,16 @@ import java.util.Collections
 
 import scala.collection.JavaConversions._
 
-class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
+class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
 
   @Test
-  def testGetChangeLogUpsertKeysOnTableScan(): Unit = {
+  def testGetUpsertKeysOnTableScan(): Unit = {
     Array(studentLogicalScan, studentBatchScan, studentStreamScan).foreach { scan =>
-      assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(scan).toSet)
+      assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(scan).toSet)
     }
 
     Array(empLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
-      assertNull(mq.getChangeLogUpsertKeys(scan))
+      assertNull(mq.getUpsertKeys(scan))
     }
 
     val table = relBuilder
@@ -58,11 +58,11 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       Collections.emptyList[RelHint](),
       table)
-    assertEquals(toBitSet(Array(0, 2)), mq.getChangeLogUpsertKeys(tableSourceScan).toSet)
+    assertEquals(toBitSet(Array(0, 2)), mq.getUpsertKeys(tableSourceScan).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnProjectedTableScanWithPartialCompositePrimaryKey(): Unit = {
+  def testGetUpsertKeysOnProjectedTableScanWithPartialCompositePrimaryKey(): Unit = {
     val table = relBuilder
       .getRelOptSchema
       .asInstanceOf[CalciteCatalogReader]
@@ -73,18 +73,18 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       streamPhysicalTraits,
       Collections.emptyList[RelHint](),
       table)
-    assertNull(mq.getChangeLogUpsertKeys(tableSourceScan))
+    assertNull(mq.getUpsertKeys(tableSourceScan))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnValues(): Unit = {
-    assertNull(mq.getChangeLogUpsertKeys(logicalValues))
-    assertNull(mq.getChangeLogUpsertKeys(emptyValues))
+  def testGetUpsertKeysOnValues(): Unit = {
+    assertNull(mq.getUpsertKeys(logicalValues))
+    assertNull(mq.getUpsertKeys(emptyValues))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnProject(): Unit = {
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(logicalProject).toSet)
+  def testGetUpsertKeysOnProject(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(logicalProject).toSet)
 
     relBuilder.push(studentLogicalScan)
     // id=1, id, cast(id AS bigint not null), cast(id AS int), $1
@@ -95,27 +95,27 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       rexBuilder.makeCast(intType, relBuilder.field(0)),
       relBuilder.field(1))
     val project1 = relBuilder.project(exprs).build()
-    assertEquals(toBitSet(Array(1)), mq.getChangeLogUpsertKeys(project1).toSet)
+    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(project1).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnFilter(): Unit = {
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(logicalFilter).toSet)
+  def testGetUpsertKeysOnFilter(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(logicalFilter).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnWatermark(): Unit = {
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(logicalWatermarkAssigner).toSet)
+  def testGetUpsertKeysOnWatermark(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(logicalWatermarkAssigner).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnCalc(): Unit = {
+  def testGetUpsertKeysOnCalc(): Unit = {
     relBuilder.push(studentLogicalScan)
     // id < 100
     val expr = relBuilder.call(LESS_THAN, relBuilder.field(0), relBuilder.literal(100))
     val calc1 = createLogicalCalc(
       studentLogicalScan, logicalProject.getRowType, logicalProject.getProjects, List(expr))
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(logicalCalc).toSet)
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(logicalCalc).toSet)
 
     // id=1, id, cast(id AS bigint not null), cast(id AS int), $1
     val exprs = List(
@@ -126,13 +126,13 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       relBuilder.field(1))
     val rowType = relBuilder.project(exprs).build().getRowType
     val calc2 = createLogicalCalc(studentLogicalScan, rowType, exprs, List(expr))
-    assertEquals(toBitSet(Array(1)), mq.getChangeLogUpsertKeys(calc2).toSet)
+    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(calc2).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnExpand(): Unit = {
+  def testGetUpsertKeysOnExpand(): Unit = {
     Array(logicalExpand, flinkLogicalExpand, batchExpand, streamExpand).foreach {
-      expand => assertEquals(toBitSet(Array(0, 7)), mq.getChangeLogUpsertKeys(expand).toSet)
+      expand => assertEquals(toBitSet(Array(0, 7)), mq.getUpsertKeys(expand).toSet)
     }
 
     val expandProjects = ExpandUtil.createExpandProjects(
@@ -147,47 +147,47 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
       Array.empty[Integer])
     val expand = new LogicalExpand(cluster, studentLogicalScan.getTraitSet,
       studentLogicalScan, expandProjects, 7)
-    assertNull(mq.getChangeLogUpsertKeys(expand))
+    assertNull(mq.getUpsertKeys(expand))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnExchange(): Unit = {
+  def testGetUpsertKeysOnExchange(): Unit = {
     Array(batchExchange, streamExchange).foreach { exchange =>
-      assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(exchange).toSet)
+      assertEquals(toBitSet(), mq.getUpsertKeys(exchange).toSet)
     }
 
     Array(batchExchangeById, streamExchangeById).foreach { exchange =>
-      assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(exchange).toSet)
+      assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(exchange).toSet)
     }
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnRank(): Unit = {
+  def testGetUpsertKeysOnRank(): Unit = {
     Array(logicalRank, flinkLogicalRank, batchLocalRank, batchGlobalRank, streamRank).foreach {
       rank =>
-        assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(rank).toSet)
+        assertEquals(toBitSet(), mq.getUpsertKeys(rank).toSet)
     }
 
     Array(logicalRankById, flinkLogicalRankById,
       batchLocalRankById, batchGlobalRankById, streamRankById).foreach {
       rank =>
-        assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(rank).toSet)
+        assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(rank).toSet)
     }
 
     Array(logicalRowNumber, flinkLogicalRowNumber, streamRowNumber)
       .foreach { rank =>
-        assertEquals(toBitSet(Array(0), Array(7)), mq.getChangeLogUpsertKeys(rank).toSet)
+        assertEquals(toBitSet(Array(0), Array(7)), mq.getUpsertKeys(rank).toSet)
       }
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnSort(): Unit = {
+  def testGetUpsertKeysOnSort(): Unit = {
     def testWithoutKey(rel: RelNode): Unit = {
-      assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(rel).toSet)
+      assertEquals(toBitSet(), mq.getUpsertKeys(rel).toSet)
     }
 
     def testWithKey(rel: RelNode): Unit = {
-      assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(rel).toSet)
+      assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(rel).toSet)
     }
 
     testWithoutKey(logicalSort)
@@ -219,151 +219,151 @@ class FlinkRelMdChangeLogUpsertKeysTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnStreamExecDeduplicate(): Unit = {
+  def testGetUpsertKeysOnStreamExecDeduplicate(): Unit = {
     assertEquals(
       toBitSet(Array(1)),
-      mq.getChangeLogUpsertKeys(streamProcTimeDeduplicateFirstRow).toSet)
+      mq.getUpsertKeys(streamProcTimeDeduplicateFirstRow).toSet)
     assertEquals(
       toBitSet(Array(1, 2)),
-      mq.getChangeLogUpsertKeys(streamProcTimeDeduplicateLastRow).toSet)
+      mq.getUpsertKeys(streamProcTimeDeduplicateLastRow).toSet)
     assertEquals(
       toBitSet(Array(1)),
-      mq.getChangeLogUpsertKeys(streamRowTimeDeduplicateFirstRow).toSet)
+      mq.getUpsertKeys(streamRowTimeDeduplicateFirstRow).toSet)
     assertEquals(
       toBitSet(Array(1, 2)),
-      mq.getChangeLogUpsertKeys(streamRowTimeDeduplicateLastRow).toSet)
+      mq.getUpsertKeys(streamRowTimeDeduplicateLastRow).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnStreamExecChangelogNormalize(): Unit = {
-    assertEquals(toBitSet(Array(1, 0)), mq.getChangeLogUpsertKeys(streamChangelogNormalize).toSet)
+  def testGetUpsertKeysOnStreamExecChangelogNormalize(): Unit = {
+    assertEquals(toBitSet(Array(1, 0)), mq.getUpsertKeys(streamChangelogNormalize).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnStreamExecDropUpdateBefore(): Unit = {
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(streamDropUpdateBefore).toSet)
+  def testGetUpsertKeysOnStreamExecDropUpdateBefore(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(streamDropUpdateBefore).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnAggregate(): Unit = {
+  def testGetUpsertKeysOnAggregate(): Unit = {
     Array(logicalAgg, flinkLogicalAgg, batchGlobalAggWithLocal, batchGlobalAggWithoutLocal,
       streamGlobalAggWithLocal, streamGlobalAggWithoutLocal).foreach { agg =>
-      assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(agg).toSet)
+      assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(agg).toSet)
     }
-    assertNull(mq.getChangeLogUpsertKeys(batchLocalAgg))
-    assertNull(mq.getChangeLogUpsertKeys(streamLocalAgg))
+    assertNull(mq.getUpsertKeys(batchLocalAgg))
+    assertNull(mq.getUpsertKeys(streamLocalAgg))
 
     Array(logicalAggWithAuxGroup, flinkLogicalAggWithAuxGroup, batchGlobalAggWithLocalWithAuxGroup,
       batchGlobalAggWithoutLocalWithAuxGroup).foreach { agg =>
-      assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(agg).toSet)
+      assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(agg).toSet)
     }
-    assertNull(mq.getChangeLogUpsertKeys(batchLocalAggWithAuxGroup))
+    assertNull(mq.getUpsertKeys(batchLocalAggWithAuxGroup))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnWindowAgg(): Unit = {
+  def testGetUpsertKeysOnWindowAgg(): Unit = {
     Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithoutLocalAgg,
       batchGlobalWindowAggWithLocalAgg).foreach { agg =>
       assertEquals(ImmutableSet.of(ImmutableBitSet.of(0, 1, 3), ImmutableBitSet.of(0, 1, 4),
         ImmutableBitSet.of(0, 1, 5), ImmutableBitSet.of(0, 1, 6)),
-        mq.getChangeLogUpsertKeys(agg))
+        mq.getUpsertKeys(agg))
     }
-    assertNull(mq.getChangeLogUpsertKeys(batchLocalWindowAgg))
+    assertNull(mq.getUpsertKeys(batchLocalWindowAgg))
 
     Array(logicalWindowAggWithAuxGroup, flinkLogicalWindowAggWithAuxGroup,
       batchGlobalWindowAggWithoutLocalAggWithAuxGroup,
       batchGlobalWindowAggWithLocalAggWithAuxGroup).foreach { agg =>
       assertEquals(ImmutableSet.of(ImmutableBitSet.of(0, 3), ImmutableBitSet.of(0, 4),
         ImmutableBitSet.of(0, 5), ImmutableBitSet.of(0, 6)),
-        mq.getChangeLogUpsertKeys(agg))
+        mq.getUpsertKeys(agg))
     }
-    assertNull(mq.getChangeLogUpsertKeys(batchLocalWindowAggWithAuxGroup))
+    assertNull(mq.getUpsertKeys(batchLocalWindowAggWithAuxGroup))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnOverAgg(): Unit = {
+  def testGetUpsertKeysOnOverAgg(): Unit = {
     Array(flinkLogicalOverAgg, batchOverAgg, streamOverAgg).foreach { agg =>
-      assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(agg).toSet)
+      assertEquals(toBitSet(), mq.getUpsertKeys(agg).toSet)
     }
 
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(streamOverAggById).toSet)
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(streamOverAggById).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnJoin(): Unit = {
+  def testGetUpsertKeysOnJoin(): Unit = {
     assertEquals(toBitSet(Array(1), Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
-      mq.getChangeLogUpsertKeys(logicalInnerJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalInnerJoinNotOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalInnerJoinOnRHSUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalInnerJoinWithoutEquiCond).toSet)
+      mq.getUpsertKeys(logicalInnerJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinNotOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinOnRHSUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinWithoutEquiCond).toSet)
     assertEquals(
-      toBitSet(), mq.getChangeLogUpsertKeys(logicalInnerJoinWithEquiAndNonEquiCond).toSet)
+      toBitSet(), mq.getUpsertKeys(logicalInnerJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(toBitSet(Array(1), Array(1, 5), Array(1, 5, 6)),
-      mq.getChangeLogUpsertKeys(logicalLeftJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalLeftJoinNotOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalLeftJoinOnRHSUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalLeftJoinWithoutEquiCond).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalLeftJoinWithEquiAndNonEquiCond).toSet)
+      mq.getUpsertKeys(logicalLeftJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinNotOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinOnRHSUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinWithoutEquiCond).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(toBitSet(Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
-      mq.getChangeLogUpsertKeys(logicalRightJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalRightJoinNotOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalRightJoinOnLHSUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalRightJoinWithoutEquiCond).toSet)
+      mq.getUpsertKeys(logicalRightJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinNotOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinOnLHSUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinWithoutEquiCond).toSet)
     assertEquals(
-      toBitSet(), mq.getChangeLogUpsertKeys(logicalRightJoinWithEquiAndNonEquiCond).toSet)
+      toBitSet(), mq.getUpsertKeys(logicalRightJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(toBitSet(Array(1, 5), Array(1, 5, 6)),
-      mq.getChangeLogUpsertKeys(logicalFullJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalFullJoinNotOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalFullJoinOnRHSUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalFullJoinWithoutEquiCond).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalFullJoinWithEquiAndNonEquiCond).toSet)
+      mq.getUpsertKeys(logicalFullJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinNotOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinOnRHSUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinWithoutEquiCond).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinWithEquiAndNonEquiCond).toSet)
 
-    assertEquals(toBitSet(Array(1)), mq.getChangeLogUpsertKeys(logicalSemiJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalSemiJoinNotOnUniqueKeys).toSet)
-    assertNull(mq.getChangeLogUpsertKeys(logicalSemiJoinOnRHSUniqueKeys))
+    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(logicalSemiJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalSemiJoinNotOnUniqueKeys).toSet)
+    assertNull(mq.getUpsertKeys(logicalSemiJoinOnRHSUniqueKeys))
     assertEquals(
-      toBitSet(Array(1)), mq.getChangeLogUpsertKeys(logicalSemiJoinWithoutEquiCond).toSet)
+      toBitSet(Array(1)), mq.getUpsertKeys(logicalSemiJoinWithoutEquiCond).toSet)
     assertEquals(toBitSet(Array(1)),
-      mq.getChangeLogUpsertKeys(logicalSemiJoinWithEquiAndNonEquiCond).toSet)
+      mq.getUpsertKeys(logicalSemiJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(toBitSet(Array(1)),
-      mq.getChangeLogUpsertKeys(logicalAntiJoinOnUniqueKeys).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalAntiJoinNotOnUniqueKeys).toSet)
-    assertNull(mq.getChangeLogUpsertKeys(logicalAntiJoinOnRHSUniqueKeys))
+      mq.getUpsertKeys(logicalAntiJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalAntiJoinNotOnUniqueKeys).toSet)
+    assertNull(mq.getUpsertKeys(logicalAntiJoinOnRHSUniqueKeys))
     assertEquals(
-      toBitSet(Array(1)), mq.getChangeLogUpsertKeys(logicalAntiJoinWithoutEquiCond).toSet)
-    assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(logicalAntiJoinWithEquiAndNonEquiCond).toSet)
+      toBitSet(Array(1)), mq.getUpsertKeys(logicalAntiJoinWithoutEquiCond).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalAntiJoinWithEquiAndNonEquiCond).toSet)
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnLookupJoin(): Unit = {
+  def testGetUpsertKeysOnLookupJoin(): Unit = {
     Array(batchLookupJoin, streamLookupJoin).foreach { join =>
-      assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(join).toSet)
+      assertEquals(toBitSet(), mq.getUpsertKeys(join).toSet)
     }
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnSetOp(): Unit = {
+  def testGetUpsertKeysOnSetOp(): Unit = {
     Array(logicalUnionAll, logicalIntersectAll, logicalMinusAll).foreach { setOp =>
-      assertEquals(toBitSet(), mq.getChangeLogUpsertKeys(setOp).toSet)
+      assertEquals(toBitSet(), mq.getUpsertKeys(setOp).toSet)
     }
 
     Array(logicalUnion, logicalIntersect, logicalMinus).foreach { setOp =>
-      assertEquals(toBitSet(Array(0, 1, 2, 3, 4)), mq.getChangeLogUpsertKeys(setOp).toSet)
+      assertEquals(toBitSet(Array(0, 1, 2, 3, 4)), mq.getUpsertKeys(setOp).toSet)
     }
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnDefault(): Unit = {
-    assertNull(mq.getChangeLogUpsertKeys(testRel))
+  def testGetUpsertKeysOnDefault(): Unit = {
+    assertNull(mq.getUpsertKeys(testRel))
   }
 
   @Test
-  def testGetChangeLogUpsertKeysOnIntermediateScan(): Unit = {
-    assertEquals(toBitSet(Array(0)), mq.getChangeLogUpsertKeys(intermediateScan).toSet)
+  def testGetUpsertKeysOnIntermediateScan(): Unit = {
+    assertEquals(toBitSet(Array(0)), mq.getUpsertKeys(intermediateScan).toSet)
   }
 
   private def toBitSet(keys: Array[Int]*): Set[ImmutableBitSet] = {

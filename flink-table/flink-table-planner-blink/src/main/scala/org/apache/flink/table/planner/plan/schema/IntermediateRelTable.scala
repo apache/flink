@@ -44,7 +44,7 @@ class IntermediateRelTable(
     val relNode: RelNode,
     val modifyKindSet: ModifyKindSet,
     val isUpdateBeforeRequired: Boolean,
-    val changeLogUpsertKeys: util.Set[ImmutableBitSet],
+    val upsertKeys: util.Set[ImmutableBitSet],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
   extends FlinkPreparingTableBase(null, relNode.getRowType, names, statistic) {
 

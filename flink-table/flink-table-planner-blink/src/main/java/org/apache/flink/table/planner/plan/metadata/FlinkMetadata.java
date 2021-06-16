@@ -240,19 +240,18 @@ public abstract class FlinkMetadata {
         }
     }
 
-    /** Metadata about which combinations of columns are change log upsert identifiers. */
-    public interface ChangeLogUpsertKeys extends Metadata {
-        Method METHOD = Types.lookupMethod(ChangeLogUpsertKeys.class, "getChangeLogUpsertKeys");
+    /** Metadata about which combinations of columns are upsert identifiers. */
+    public interface UpsertKeys extends Metadata {
+        Method METHOD = Types.lookupMethod(UpsertKeys.class, "getUpsertKeys");
 
-        MetadataDef<ChangeLogUpsertKeys> DEF =
-                MetadataDef.of(
-                        ChangeLogUpsertKeys.class, ChangeLogUpsertKeys.Handler.class, METHOD);
+        MetadataDef<UpsertKeys> DEF =
+                MetadataDef.of(UpsertKeys.class, UpsertKeys.Handler.class, METHOD);
 
-        Set<ImmutableBitSet> getChangeLogUpsertKeys();
+        Set<ImmutableBitSet> getUpsertKeys();
 
         /** Handler API. */
-        interface Handler extends MetadataHandler<ChangeLogUpsertKeys> {
-            Set<ImmutableBitSet> getChangeLogUpsertKeys(RelNode r, RelMetadataQuery mq);
+        interface Handler extends MetadataHandler<UpsertKeys> {
+            Set<ImmutableBitSet> getUpsertKeys(RelNode r, RelMetadataQuery mq);
         }
     }
 }

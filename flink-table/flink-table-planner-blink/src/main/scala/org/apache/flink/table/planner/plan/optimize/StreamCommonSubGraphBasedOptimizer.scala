@@ -317,7 +317,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       relNode,
       modifyKindSet,
       isUpdateBeforeRequired,
-      fmq.getChangeLogUpsertKeys(relNode),
+      fmq.getUpsertKeys(relNode),
       statistic)
   }
 
