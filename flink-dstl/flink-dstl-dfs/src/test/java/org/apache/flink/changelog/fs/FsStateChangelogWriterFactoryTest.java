@@ -15,25 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.changelog.inmemory;
+package org.apache.flink.changelog.fs;
 
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
+import org.apache.flink.runtime.state.changelog.inmemory.StateChangelogWriterFactoryTest;
 
-/** An in-memory (non-production) implementation of {@link StateChangelogWriterFactory}. */
-public class InMemoryStateChangelogWriterFactory
-        implements StateChangelogWriterFactory<InMemoryStateChangelogHandle> {
+import java.io.IOException;
 
+/** {@link FsStateChangelogWriterFactory} test. */
+public class FsStateChangelogWriterFactoryTest extends StateChangelogWriterFactoryTest {
     @Override
-    public InMemoryStateChangelogWriter createWriter(
-            OperatorID operatorID,
-            KeyGroupRange keyGroupRange,
-            ChangelogCallbackExecutor executor) {
-        return new InMemoryStateChangelogWriter();
+    protected StateChangelogWriterFactory<?> getFactory() throws IOException {
+        return new FsStateChangelogWriterFactory(Path.fromLocalFile(temporaryFolder.newFolder()));
     }
 
     @Override
-    public void configure(ReadableConfig config) {}
+    protected Object getContext() {
+        return new StateChangeFormat();
+    }
 }

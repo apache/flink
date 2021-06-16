@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.plugin.PluginManager;
 
 import java.util.Iterator;
@@ -34,6 +35,10 @@ public class StateChangelogWriterFactoryLoader {
         this.pluginManager = pluginManager;
     }
 
+    /**
+     * Returned factory must be {@link StateChangelogWriterFactory#configure(ReadableConfig)
+     * configured} before use.
+     */
     @SuppressWarnings({"rawtypes"})
     public Iterator<StateChangelogWriterFactory> load() {
         return concat(

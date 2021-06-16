@@ -30,6 +30,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -54,9 +55,9 @@ public class StateChangelogWriterFactoryTest {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @Test(expected = IllegalStateException.class)
-    public void testNoAppendAfterClose() {
+    public void testNoAppendAfterClose() throws IOException {
         StateChangelogWriter<?> writer =
-                getFactory().createWriter(new OperatorID(), KeyGroupRange.of(0, 0));
+                getFactory().createWriter(new OperatorID(), KeyGroupRange.of(0, 0), Runnable::run);
         writer.close();
         writer.append(0, new byte[0]);
     }
@@ -67,7 +68,8 @@ public class StateChangelogWriterFactoryTest {
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
 
         try (StateChangelogWriterFactory<?> client = getFactory();
-                StateChangelogWriter<?> writer = client.createWriter(new OperatorID(), kgRange)) {
+                StateChangelogWriter<?> writer =
+                        client.createWriter(new OperatorID(), kgRange, Runnable::run)) {
             SequenceNumber prev = writer.lastAppendedSequenceNumber();
             appendsByKeyGroup.forEach(
                     (group, appends) -> appends.forEach(bytes -> writer.append(group, bytes)));
@@ -125,11 +127,11 @@ public class StateChangelogWriterFactoryTest {
         return bytes;
     }
 
-    private InMemoryStateChangelogWriterFactory getFactory() {
+    protected StateChangelogWriterFactory<?> getFactory() throws IOException {
         return new InMemoryStateChangelogWriterFactory();
     }
 
-    private Object getContext() {
+    protected Object getContext() {
         return null;
     }
 }
