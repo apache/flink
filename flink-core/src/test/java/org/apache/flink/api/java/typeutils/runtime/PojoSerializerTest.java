@@ -48,6 +48,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -417,7 +419,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         // reconfigure - check reconfiguration result and that registration ids remains the same
         // assertEquals(ReconfigureResult.COMPATIBLE,
@@ -487,7 +489,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         PojoSerializer<TestUserClass> reconfiguredPojoSerializer =
                 (PojoSerializer<TestUserClass>) compatResult.getReconfiguredSerializer();
@@ -571,7 +573,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         PojoSerializer<TestUserClass> reconfiguredPojoSerializer =
                 (PojoSerializer<TestUserClass>) compatResult.getReconfiguredSerializer();
