@@ -71,12 +71,12 @@ public class FailureHandlingResultSnapshot {
      * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
      * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
      *
-     * @param failingExecutionVertexId, an {@link Optional} of the {@link ExecutionVertexID} the
+     * @param failingExecutionVertexId an {@link Optional} of the {@link ExecutionVertexID} the
      *     failure originates from, or {@code None}.
-     * @param rootCause, the failure reason.
+     * @param rootCause the failure reason.
      * @param concurrentVertexIds {@link ExecutionVertexID} Task vertices concurrently failing with
      *     the {@code failingExecutionVertexID}.
-     * @param timestamp, the failure timestamp.
+     * @param timestamp the failure timestamp.
      * @param latestExecutionLookup The look-up function for retrieving the latest {@link Execution}
      *     instance for a given {@link ExecutionVertexID}.
      * @return The {@code FailureHandlingResultSnapshot}.
