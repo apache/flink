@@ -577,19 +577,30 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testRichExplain() {
-        final String sql = "explain select * from a";
-        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
-        SqlNode node = parser.parse(sql);
-        assert node instanceof SqlRichExplain;
-        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
-        assert operation instanceof ExplainOperation;
+    public void testExplainWithSelect() {
+        final String sql = "explain select * from t1";
+        runExplainSql(sql);
     }
 
     @Test
-    void testRichExplainWithUnion() {
-        final String sql = "explain select * from a union select * from b";
+    public void testExplainWithInsert() {
+        final String sql = "explain insert into t2 select * from t1";
+        runExplainSql(sql);
+    }
+
+    @Test
+    public void testExplainWithUnion() {
+        final String sql = "explain select * from t1 union select * from t2";
+        runExplainSql(sql);
+    }
+
+    @Test
+    public void testExplainWithExplainDetails() {
+        String sql = "explain changelog_mode, estimated_cost, json_execution_plan select * from t1";
+        runExplainSql(sql);
+    }
+
+    private void runExplainSql(String sql) {
         final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
