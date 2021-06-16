@@ -176,7 +176,7 @@ jobs:
     - script: ./tools/azure-pipelines/free_disk_space.sh
       displayName: Free up disk space
     - script: sudo apt-get install -y bc
-    - script: ${{parameters.environment}} STAGE=compile ./tools/azure_controller.sh compile
+    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" STAGE=compile ./tools/azure_controller.sh compile
       displayName: Build Flink
     # TODO remove pre-commit tests script by adding the tests to the nightly script
 #    - script: FLINK_DIR=build-target ./flink-end-to-end-tests/run-pre-commit-tests.sh
