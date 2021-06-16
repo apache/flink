@@ -626,7 +626,7 @@ When the path to savepoint is specified, Flink will try to restore the state fro
 Because the specified savepoint path will affect all the following DML statements, you can use `RESET` command to reset this config option, i.e. disable restoring from savepoint.
 
 ```sql
-Flink SQL> RESET execution.savepoint.path;
+Flink SQL> RESET 'execution.savepoint.path';
 [INFO] Session property has been reset.
 ```
 
@@ -647,7 +647,7 @@ Flink SQL> INSERT INTO ...
 Because the specified job name will affect all the following queries and DML statements, you can also use `RESET` command to reset this configuration, i.e. use default job names.
 
 ```sql
-Flink SQL> RESET pipeline.name;
+Flink SQL> RESET 'pipeline.name';
 [INFO] Session property has been reset.
 ```
 
