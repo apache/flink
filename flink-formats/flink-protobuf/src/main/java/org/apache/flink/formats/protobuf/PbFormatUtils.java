@@ -21,8 +21,10 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import com.google.protobuf.Descriptors;
+import org.apache.commons.lang3.StringUtils;
 
 /** Protobuf function util. */
 public class PbFormatUtils {
@@ -52,8 +54,25 @@ public class PbFormatUtils {
         return result.toString();
     }
 
+    private static String getJavaPackageFromProtoFile(Descriptors.Descriptor descriptor) {
+        boolean hasJavaPackage = descriptor.getFile().getOptions().hasJavaPackage();
+        if (hasJavaPackage) {
+            String javaPackage = descriptor.getFile().getOptions().getJavaPackage();
+            if (StringUtils.isBlank(javaPackage)) {
+                throw new FlinkRuntimeException("java_package cannot be blank string");
+            }
+            return javaPackage;
+        } else {
+            String packageName = descriptor.getFile().getPackage();
+            if (StringUtils.isBlank(packageName)) {
+                throw new FlinkRuntimeException("package and java_package cannot both be empty");
+            }
+            return packageName;
+        }
+    }
+
     public static String getFullJavaName(Descriptors.Descriptor descriptor) {
-        String javaPackageName = descriptor.getFile().getOptions().getJavaPackage();
+        String javaPackageName = getJavaPackageFromProtoFile(descriptor);
         if (descriptor.getFile().getOptions().getJavaMultipleFiles()) {
             // multiple_files=true
             if (null != descriptor.getContainingType()) {
@@ -80,6 +99,7 @@ public class PbFormatUtils {
                             + PbConstant.PB_OUTER_CLASS_SUFFIX
                             + "."
                             + descriptor.getName();
+
                 } else {
                     String outerName = descriptor.getFile().getOptions().getJavaOuterClassname();
                     // user define outer class name in proto file
