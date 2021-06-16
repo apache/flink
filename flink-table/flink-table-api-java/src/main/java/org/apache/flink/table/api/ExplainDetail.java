@@ -48,7 +48,7 @@ public enum ExplainDetail {
                 return ExplainDetail.JSON_EXECUTION_PLAN;
             default:
                 throw new TableException(
-                        String.format("Unsupported EXPLAIN DETAIL: %s", detailName));
+                        String.format("Unsupported EXPLAIN DETAIL: %s.", detailName));
         }
     }
 }

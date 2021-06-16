@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.api
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
@@ -38,6 +36,8 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -50,10 +50,6 @@ class TableEnvironmentTest {
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()
-
-  @Rule
-  def thrown: ExpectedException = expectedException
-
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -211,7 +207,7 @@ class TableEnvironmentTest {
           containsMessage("Unable to create a source for reading table " +
             "'default_catalog.default_database.MyTable'.\n\n" +
             "Table options are:\n\n'connector'='datagen'\n" +
-            "'invalid-key'='invalid-value'" ))
+            "'invalid-key'='invalid-value'"))
     }
     // remove invalid key by RESET
     val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
@@ -249,6 +245,18 @@ class TableEnvironmentTest {
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     checkTableSource("MyTable", true)
+  }
+
+  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
+    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
+    val context =
+      new TableSourceFactoryContextImpl(
+        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
+        resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
+    val source = TableFactoryUtil.findAndCreateTableSource(context)
+    assertTrue(source.isInstanceOf[CollectionTableSource])
+    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 
   @Test
@@ -609,6 +617,13 @@ class TableEnvironmentTest {
       tableResult2.collect())
   }
 
+  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
+    while (expected.hasNext && actual.hasNext) {
+      assertEquals(expected.next(), actual.next())
+    }
+    assertEquals(expected.hasNext, actual.hasNext)
+  }
+
   @Test
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
@@ -754,6 +769,22 @@ class TableEnvironmentTest {
     checkListFullModules(("core", true), ("dummy", false))
   }
 
+  private def checkListModules(expected: String*): Unit = {
+    val actual = tableEnv.listModules()
+    for ((module, i) <- expected.zipWithIndex) {
+      assertEquals(module, actual.apply(i))
+    }
+  }
+
+  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
+    val actual = tableEnv.listFullModules()
+    for ((elem, i) <- expected.zipWithIndex) {
+      assertEquals(
+        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
+        actual.apply(i).asInstanceOf[Object])
+    }
+  }
+
   @Test
   def testExecuteSqlWithUseUnloadedModules(): Unit = {
     expectedException.expect(classOf[ValidationException])
@@ -788,6 +819,30 @@ class TableEnvironmentTest {
     // check result after unloading module
     tableEnv.executeSql("UNLOAD MODULE dummy")
     validateShowModules(("core", false))
+  }
+
+  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
+    val showModules = tableEnv.executeSql("SHOW MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
+    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
+      showModules.getResolvedSchema)
+
+    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
+    assertEquals(ResolvedSchema.physical(
+      Array[String]("module name", "used"),
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
+      showFullModules.getResolvedSchema)
+
+    // show modules only list used modules
+    checkData(
+      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
+      showModules.collect()
+    )
+
+    checkData(
+      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
+      showFullModules.collect())
   }
 
   @Test
@@ -878,6 +933,9 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(viewDDL)
   }
+
+  @Rule
+  def thrown: ExpectedException = expectedException
 
   @Test
   def testCreateViewTwice(): Unit = {
@@ -1219,16 +1277,8 @@ class TableEnvironmentTest {
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
-    val tableResult2 = tableEnv.executeSql("explain plan for select * from MyTable where a > 10")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    val it = tableResult2.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = row.getField(0).toString
-    val expected = TableTestUtil.readFromResource("/explain/testExecuteSqlWithExplainSelect.out")
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
+    runExplainTest("explain plan for select * from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainSelect.out")
   }
 
   @Test
@@ -1260,17 +1310,8 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
-    val tableResult3 = tableEnv.executeSql(
-      "explain plan for insert into MySink select a, b from MyTable where a > 10")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
-    val it = tableResult3.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = row.getField(0).toString
-    val expected = TableTestUtil.readFromResource("/explain/testExecuteSqlWithExplainInsert.out")
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
+    runExplainTest("explain plan for insert into MySink select a, b from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainInsert.out")
   }
 
   @Test
@@ -1296,6 +1337,21 @@ class TableEnvironmentTest {
     testUnsupportedExplain("explain plan without implementation for select * from MyTable")
     testUnsupportedExplain("explain plan as xml for select * from MyTable")
     testUnsupportedExplain("explain plan as json for select * from MyTable")
+  }
+
+  private def testUnsupportedExplain(explain: String): Unit = {
+    try {
+      tableEnv.executeSql(explain)
+      fail("This should not happen")
+    } catch {
+      case e: TableException =>
+        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+          .contains("Was expecting:\n    \"FOR\" ..."))
+      case e =>
+        fail("This should not happen, " + e.getMessage)
+    }
   }
 
   @Test
@@ -1393,9 +1449,12 @@ class TableEnvironmentTest {
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
-    val tableResult2 = tableEnv
-      .executeSql("explain changelog_mode, estimated_cost, json_execution_plan " +
-        "select * from MyTable where a > 10")
+    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
+      "select * from MyTable where a > 10", "/explain/testExecuteSqlWithExplainDetailsSelect.out");
+  }
+
+  private def runExplainTest(sql: String, resultPath: String): Unit = {
+    val tableResult2 = tableEnv.executeSql(sql)
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
     val it = tableResult2.collect()
     assertTrue(it.hasNext)
@@ -1403,7 +1462,7 @@ class TableEnvironmentTest {
     assertEquals(1, row.getArity)
     val actual = replaceStreamNodeId(row.getField(0).toString.trim)
     val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource("/explain/testExecuteSqlWithExplainDetailsSelect.out").trim)
+      .readFromResource(resultPath).trim)
     assertEquals(replaceStageId(expected), replaceStageId(actual))
     assertFalse(it.hasNext)
   }
@@ -1438,19 +1497,9 @@ class TableEnvironmentTest {
     val tableResult3 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
 
-    val tableResult2 = tableEnv
-      .executeSql("explain changelog_mode, estimated_cost, json_execution_plan " +
-        "select * from MyTable union all select * from MyTable2")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    val it = tableResult2.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
-    val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource("/explain/testExecuteSqlWithExplainDetailsAndUnion.out").trim)
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
+    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
+      "select * from MyTable union all select * from MyTable2",
+      "/explain/testExecuteSqlWithExplainDetailsAndUnion.out")
   }
 
   @Test
@@ -1482,34 +1531,9 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
-    val tableResult3 = tableEnv.executeSql(
-      "explain changelog_mode, estimated_cost, json_execution_plan " +
-        "insert into MySink select a, b from MyTable where a > 10")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
-    val it = tableResult3.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
-    val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource("/explain/testExecuteSqlWithExplainDetailsInsert.out").trim)
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
-  }
-
-  private def testUnsupportedExplain(explain: String): Unit = {
-    try {
-      tableEnv.executeSql(explain)
-      fail("This should not happen")
-    } catch {
-      case e: TableException =>
-        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
-      case e: SqlParserException =>
-        assertTrue(e.getMessage
-            .contains("Was expecting:\n    \"FOR\" ..."))
-      case e =>
-        fail("This should not happen, " + e.getMessage)
-    }
+    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
+      "insert into MySink select a, b from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainDetailsInsert.out")
   }
 
   @Test
@@ -1565,43 +1589,43 @@ class TableEnvironmentTest {
     tableEnv.executeSql(viewDDL)
 
     val expectedResult1 = util.Arrays.asList(
-        Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
-        Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
-        Row.of("f2", "STRING", Boolean.box(true), null, null, null),
-        Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
-        Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
-        Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
-        Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
-        Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
-        Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
-        Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
-        Row.of("f10", "INT", Boolean.box(true), null, null, null),
-        Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
-        Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
-        Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
-        Row.of("f14", "DATE", Boolean.box(true), null, null, null),
-        Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
-        Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-        Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
-        Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-        Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
-        Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
-        Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
-        Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
-        Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
-        Row.of("f24", "INT", Boolean.box(false), "PRI(f24, f26)", null, null),
-        Row.of("f25", "STRING", Boolean.box(false), null, null, null),
-        Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
-          "PRI(f24, f26)", null, null),
-        Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
-        Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
-        Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
-        Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
-          "AS CURRENT_TIMESTAMP", null),
-        Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
-          "AS CURRENT_ROW_TIMESTAMP()", null),
-        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
-          "`ts` - INTERVAL '1' SECOND"))
+      Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
+      Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
+      Row.of("f2", "STRING", Boolean.box(true), null, null, null),
+      Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
+      Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
+      Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
+      Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
+      Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
+      Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
+      Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
+      Row.of("f10", "INT", Boolean.box(true), null, null, null),
+      Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
+      Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
+      Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
+      Row.of("f14", "DATE", Boolean.box(true), null, null, null),
+      Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
+      Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+      Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+      Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+      Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
+      Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
+      Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
+      Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
+      Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
+      Row.of("f24", "INT", Boolean.box(false), "PRI(f24, f26)", null, null),
+      Row.of("f25", "STRING", Boolean.box(false), null, null, null),
+      Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
+        "PRI(f24, f26)", null, null),
+      Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
+      Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
+      Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
+      Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+        "AS CURRENT_TIMESTAMP", null),
+      Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+        "AS CURRENT_ROW_TIMESTAMP()", null),
+      Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
+        "`ts` - INTERVAL '1' SECOND"))
     val tableResult1 = tableEnv.executeSql("describe T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(expectedResult1.iterator(), tableResult1.collect())
@@ -1638,64 +1662,5 @@ class TableEnvironmentTest {
     checkData(
       expectedResult3.iterator(),
       tableResult6.collect())
-  }
-
-  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
-    while (expected.hasNext && actual.hasNext) {
-      assertEquals(expected.next(), actual.next())
-    }
-    assertEquals(expected.hasNext, actual.hasNext)
-  }
-
-  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
-    val showModules = tableEnv.executeSql("SHOW MODULES")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
-    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
-      showModules.getResolvedSchema)
-
-    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
-    assertEquals(ResolvedSchema.physical(
-      Array[String]("module name", "used"),
-      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
-      showFullModules.getResolvedSchema)
-
-    // show modules only list used modules
-    checkData(
-      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
-      showModules.collect()
-    )
-
-    checkData(
-      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
-      showFullModules.collect())
-  }
-
-  private def checkListModules(expected: String*): Unit = {
-    val actual = tableEnv.listModules()
-    for ((module, i) <- expected.zipWithIndex) {
-      assertEquals(module, actual.apply(i))
-    }
-  }
-
-  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
-    val actual = tableEnv.listFullModules()
-    for ((elem, i) <- expected.zipWithIndex) {
-      assertEquals(
-        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
-        actual.apply(i).asInstanceOf[Object])
-    }
-  }
-
-  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
-    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
-    val context =
-      new TableSourceFactoryContextImpl(
-        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
-      resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
-    val source = TableFactoryUtil.findAndCreateTableSource(context)
-    assertTrue(source.isInstanceOf[CollectionTableSource])
-    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 }
