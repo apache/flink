@@ -123,6 +123,7 @@ import static java.util.concurrent.CompletableFuture.allOf;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -300,6 +301,7 @@ public class SavepointITCase extends TestLogger {
         try {
             client.submitJob(jobGraph).get();
 
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobId);
             StatefulCounter.getProgressLatch().await();
 
             return client.cancelWithSavepoint(jobId, null).get();
