@@ -57,7 +57,7 @@ public class CopyingSecondInputOfTwoInputStreamOperatorOutput extends OutputBase
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
         try {
-            operator.emitStreamStatus2(streamStatus);
+            operator.processStreamStatus2(streamStatus);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

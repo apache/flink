@@ -610,7 +610,7 @@ public class SubtaskCheckpointCoordinatorTest {
         public void processLatencyMarker(LatencyMarker latencyMarker) {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void processStreamStatus(StreamStatus streamStatus) throws Exception {}
     }
 
     private static SubtaskCheckpointCoordinator coordinator(

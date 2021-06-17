@@ -88,10 +88,10 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.processWatermark(0, new Watermark(1L));
             assertThat(testHarness.getOutput(), empty());
 
-            testHarness.emitStreamStatus(1, StreamStatus.IDLE);
+            testHarness.processStreamStatus(1, StreamStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
-            testHarness.emitStreamStatus(2, StreamStatus.IDLE);
+            testHarness.processStreamStatus(2, StreamStatus.IDLE);
             expectedOutput.add(new StreamRecord<>(1L));
             expectedOutput.add(new Watermark(1L));
             TestHarnessUtil.assertOutputEquals(
@@ -103,7 +103,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
 
-            testHarness.emitStreamStatus(1, StreamStatus.ACTIVE);
+            testHarness.processStreamStatus(1, StreamStatus.ACTIVE);
             // the other input is active now, we should not emit the watermark
             testHarness.processWatermark(0, new Watermark(4L));
             TestHarnessUtil.assertOutputEquals(
@@ -120,11 +120,11 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.setup();
             testHarness.open();
 
-            testHarness.emitStreamStatus(0, StreamStatus.IDLE);
-            testHarness.emitStreamStatus(1, StreamStatus.IDLE);
+            testHarness.processStreamStatus(0, StreamStatus.IDLE);
+            testHarness.processStreamStatus(1, StreamStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
-            testHarness.emitStreamStatus(2, StreamStatus.IDLE);
+            testHarness.processStreamStatus(2, StreamStatus.IDLE);
             expectedOutput.add(StreamStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());

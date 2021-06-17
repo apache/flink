@@ -52,7 +52,7 @@ public class OneInputStreamOperatorOutput extends OutputBase {
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
         try {
-            operator.emitStreamStatus(streamStatus);
+            operator.processStreamStatus(streamStatus);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

@@ -209,7 +209,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
         @Override
         public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            operator.emitStreamStatus(streamStatus);
+            operator.processStreamStatus(streamStatus);
         }
 
         @Override
