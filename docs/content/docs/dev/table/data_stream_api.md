@@ -1135,14 +1135,16 @@ import org.apache.flink.table.api.DataTypes
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
 
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
@@ -1166,7 +1168,7 @@ val dataStream: DataStream[Row] = tableEnv.toDataStream(table)
 // since `event_time` is a single rowtime attribute, it is inserted into the DataStream
 // metadata and watermarks are propagated
 
-val dataStream: DataStream[User] = tableEnv.toDataStream(table, User.class)
+val dataStream: DataStream[User] = tableEnv.toDataStream(table, classOf[User])
 
 // data types can be extracted reflectively as above or explicitly defined
 
@@ -1174,7 +1176,7 @@ val dataStream: DataStream[User] =
     tableEnv.toDataStream(
         table,
         DataTypes.STRUCTURED(
-            User.class,
+            classOf[User],
             DataTypes.FIELD("name", DataTypes.STRING()),
             DataTypes.FIELD("score", DataTypes.INT()),
             DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))
@@ -1184,8 +1186,9 @@ val dataStream: DataStream[User] =
 
 Note that only non-updating tables are supported by `toDataStream`. Usually, time-based operations
 such as windows, interval joins, or the `MATCH_RECOGNIZE` clause are a good fit for insert-only
-pipelines next to simple operations like projections and filters. Pipelines with operations that
-produce updates can use `toChangelogStream`.
+pipelines next to simple operations like projections and filters.
+
+Pipelines with operations that produce updates can use `toChangelogStream`.
 
 {{< top >}}
 
@@ -1546,14 +1549,16 @@ import java.time.Instant
 
 // create Table with event-time
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
