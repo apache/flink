@@ -28,16 +28,24 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
 
 import org.junit.Test;
@@ -59,6 +67,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for {@link MultipleInputStreamTask} combined with {@link
@@ -262,13 +271,13 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                     new SourceOperatorFactory<>(
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
-                                                    Boundedness.BOUNDED, 1),
+                                                    Boundedness.CONTINUOUS_UNBOUNDED, 1),
                                             WatermarkStrategy.noWatermarks()))
                             .addSourceInput(
                                     new SourceOperatorFactory<>(
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
-                                                    Boundedness.BOUNDED, 1),
+                                                    Boundedness.CONTINUOUS_UNBOUNDED, 1),
                                             WatermarkStrategy.noWatermarks()))
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(4))
@@ -330,6 +339,62 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         }
     }
 
+    @Test
+    public void testSkipExecutionsIfFinishedOnRestoreWithSourceChained() throws Exception {
+        OperatorID firstSourceOperatorId = new OperatorID();
+        OperatorID secondSourceOperatorId = new OperatorID();
+        OperatorID nonSourceOperatorId = new OperatorID();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .modifyExecutionConfig(ExecutionConfig::enableObjectReuse)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addSourceInput(
+                                firstSourceOperatorId,
+                                new SourceOperatorFactory<>(
+                                        new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
+                                                Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .addSourceInput(
+                                secondSourceOperatorId,
+                                new SourceOperatorFactory<>(
+                                        new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
+                                                Boundedness.CONTINUOUS_UNBOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setupOperatorChain(
+                                nonSourceOperatorId,
+                                new LifeCycleMonitorMultipleInputOperatorFactory())
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+
+            testHarness.processAll();
+            testHarness.waitForTaskCompletion();
+
+            for (StreamOperatorWrapper<?, ?> wrapper :
+                    testHarness.getStreamTask().operatorChain.getAllOperators()) {
+                if (wrapper.getStreamOperator() instanceof SourceOperator<?, ?>) {
+                    SourceOperatorStreamTaskTest.LifeCycleMonitorSourceReader sourceReader =
+                            (SourceOperatorStreamTaskTest.LifeCycleMonitorSourceReader)
+                                    ((SourceOperator<?, ?>) wrapper.getStreamOperator())
+                                            .getSourceReader();
+                    sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+                } else if (wrapper.getStreamOperator()
+                        instanceof LifeCycleMonitorMultipleInputOperator) {
+                    ((LifeCycleMonitorMultipleInputOperator) wrapper.getStreamOperator())
+                            .getLifeCycleMonitor()
+                            .assertCallTimes(0, LifeCyclePhase.values());
+                } else {
+                    fail("Unexpected operator type for " + wrapper.getStreamOperator());
+                }
+            }
+        }
+    }
+
     private void addRecordsAndBarriers(
             StreamTaskMailboxTestHarness<String> testHarness, CheckpointBarrier checkpointBarrier)
             throws Exception {
@@ -379,5 +444,58 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             testHarness.processSingleStep();
         }
         assertTrue(condition.get());
+    }
+
+    static class LifeCycleMonitorMultipleInputOperator
+            extends MultipleInputStreamTaskTest.MapToStringMultipleInputOperator {
+
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        public LifeCycleMonitorMultipleInputOperator(StreamOperatorParameters<String> parameters) {
+            super(parameters, 3);
+        }
+
+        @Override
+        public void open() throws Exception {
+            super.open();
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+        }
+
+        @Override
+        public void initializeState(StateInitializationContext context) throws Exception {
+            super.initializeState(context);
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.INITIALIZE_STATE);
+        }
+
+        @Override
+        public void finish() throws Exception {
+            super.finish();
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.FINISH);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
+    }
+
+    static class LifeCycleMonitorMultipleInputOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new LifeCycleMonitorMultipleInputOperator(parameters);
+        }
+
+        @Override
+        public Class<? extends StreamOperator<String>> getStreamOperatorClass(
+                ClassLoader classLoader) {
+            return LifeCycleMonitorMultipleInputOperator.class;
+        }
     }
 }
