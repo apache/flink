@@ -42,8 +42,7 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
             boolean generateUpdateBefore,
             boolean outputRankNumber) {
         return new RetractableTopNFunction(
-                minTime.toMilliseconds(),
-                maxTime.toMilliseconds(),
+                ttlConfig,
                 inputRowType,
                 comparableRecordComparator,
                 sortKeySelector,
@@ -367,17 +366,17 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
         // register cleanup timer with 20L
-        testHarness.setProcessingTime(0L);
+        testHarness.setStateTtlProcessingTime(0L);
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("fruit", 5L, 22));
 
         // register cleanup timer with 29L
-        testHarness.setProcessingTime(9L);
+        testHarness.setStateTtlProcessingTime(9_000_000L);
         testHarness.processElement(updateBeforeRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("fruit", 4L, 11));
 
         // trigger the first cleanup timer and register cleanup timer with 4000
-        testHarness.setProcessingTime(20L);
+        testHarness.setStateTtlProcessingTime(20_000_000L);
         testHarness.processElement(insertRecord("fruit", 8L, 100));
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.close();

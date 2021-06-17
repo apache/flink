@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -71,9 +72,10 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
             Integer configuredParallelism =
                     Configuration.fromMap(context.getCatalogTable().getOptions())
                             .get(FileSystemOptions.SINK_PARALLELISM);
+            JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
             return new HiveTableSink(
                     context.getConfiguration(),
-                    new JobConf(hiveConf),
+                    jobConf,
                     context.getObjectIdentifier(),
                     context.getCatalogTable(),
                     configuredParallelism);
@@ -114,17 +116,18 @@ public class HiveDynamicTableFactory implements DynamicTableSourceFactory, Dynam
                                                     STREAMING_SOURCE_PARTITION_INCLUDE.key(),
                                                     STREAMING_SOURCE_PARTITION_INCLUDE
                                                             .defaultValue()));
+            JobConf jobConf = JobConfUtils.createJobConfWithCredentials(hiveConf);
             // hive table source that has not lookup ability
             if (isStreamingSource && includeAllPartition) {
                 return new HiveTableSource(
-                        new JobConf(hiveConf),
+                        jobConf,
                         context.getConfiguration(),
                         context.getObjectIdentifier().toObjectPath(),
                         catalogTable);
             } else {
                 // hive table source that has scan and lookup ability
                 return new HiveLookupTableSource(
-                        new JobConf(hiveConf),
+                        jobConf,
                         context.getConfiguration(),
                         context.getObjectIdentifier().toObjectPath(),
                         catalogTable);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
@@ -506,5 +507,10 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 throw new UncheckedIOException(e);
             }
         }
+    }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
     }
 }

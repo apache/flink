@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -52,6 +53,7 @@ import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -204,8 +206,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
         long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
-        long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
-        long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
+        StateTtlConfig ttlConfig =
+                StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
@@ -214,8 +216,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                     && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
                 processFunction =
                         new AppendOnlyFirstNFunction(
-                                minIdleStateRetentionTime,
-                                maxIdleStateRetentionTime,
+                                ttlConfig,
                                 inputRowTypeInfo,
                                 sortKeyComparator,
                                 sortKeySelector,
@@ -226,8 +227,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
             } else {
                 processFunction =
                         new AppendOnlyTopNFunction(
-                                minIdleStateRetentionTime,
-                                maxIdleStateRetentionTime,
+                                ttlConfig,
                                 inputRowTypeInfo,
                                 sortKeyComparator,
                                 sortKeySelector,
@@ -245,8 +245,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                     KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
             processFunction =
                     new UpdatableTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
+                            ttlConfig,
                             inputRowTypeInfo,
                             rowKeySelector,
                             sortKeyComparator,
@@ -274,8 +273,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                             sortSpec.getNullsIsLast());
             processFunction =
                     new RetractableTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
+                            ttlConfig,
                             inputRowTypeInfo,
                             comparator,
                             sortKeySelector,

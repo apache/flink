@@ -84,15 +84,9 @@ def normalize_pandas_result(it):
     return arrays
 
 
-def wrap_inputs_as_row(*args):
-    from pyflink.common.types import Row
+def wrap_input_series_as_dataframe(*args):
     import pandas as pd
-    if type(args[0]) == pd.Series:
-        return pd.concat(args, axis=1)
-    elif len(args) == 1 and isinstance(args[0], (pd.DataFrame, Row, Tuple)):
-        return args[0]
-    else:
-        return Row(*args)
+    return pd.concat(args, axis=1)
 
 
 def check_pandas_udf_result(f, *input_args):
@@ -171,8 +165,21 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
     variable_dict.update(input_variable_dict)
     user_defined_funcs.extend(input_funcs)
     if user_defined_function_proto.takes_row_as_input:
-        variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
-        func_str = "%s(wrap_inputs_as_row(%s))" % (func_name, func_args)
+        if input_variable_dict:
+            # for constant or other udfs as input arguments.
+            func_str = "%s(%s)" % (func_name, func_args)
+        elif user_defined_function_proto.is_pandas_udf or pandas_udaf:
+            # for pandas udf/udaf, the input data structure is a List of Pandas.Series
+            # we need to merge these Pandas.Series into a Pandas.DataFrame
+            variable_dict['wrap_input_series_as_dataframe'] = wrap_input_series_as_dataframe
+            func_str = "%s(wrap_input_series_as_dataframe(%s))" % (func_name, func_args)
+        else:
+            # directly use `value` as input argument
+            # e.g.
+            # lambda value: Row(value[0], value[1])
+            #   can be optimized to
+            # lambda value: value
+            func_str = "%s(value)" % func_name
     else:
         func_str = "%s(%s)" % (func_name, func_args)
     return func_str, variable_dict, user_defined_funcs
@@ -249,9 +256,13 @@ def extract_user_defined_aggregate_function(
             distinct_index = current_index
     else:
         distinct_index = -1
-    if user_defined_function_proto.takes_row_as_input:
-        local_variable_dict['wrap_inputs_as_row'] = wrap_inputs_as_row
-        func_str = "lambda value : [wrap_inputs_as_row(%s)]" % ",".join(args_str)
+    if user_defined_function_proto.takes_row_as_input and not local_variable_dict:
+        # directly use `value` as input argument
+        # e.g.
+        # lambda value: Row(value[0], value[1])
+        #   can be optimized to
+        # lambda value: value
+        func_str = "lambda value : [value]"
     else:
         func_str = "lambda value : (%s,)" % ",".join(args_str)
     return user_defined_agg, \

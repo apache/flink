@@ -2205,7 +2205,7 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 
 def map_function(a: Row) -> Row:
-    return Row(a[0] + 1, a[1] * a[1])
+    return Row(a.a + 1, a.b * a.b)
 
 # map operation with a python general scalar function
 func = udf(map_function, result_type=DataTypes.ROW(
@@ -2297,8 +2297,8 @@ from pyflink.common import Row
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x[1].split(","):
-        yield x[0], s
+    for s in x.b.split(","):
+        yield x.a, s
 
 input.flat_map(split)
 ```
@@ -2418,13 +2418,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
     def create_accumulator(self):
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row: Row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row: Row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.b
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -2675,16 +2675,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
-
-    def retract(self, accumulator, *args):
-        accumulator[0] = accumulator[0] - 1
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:

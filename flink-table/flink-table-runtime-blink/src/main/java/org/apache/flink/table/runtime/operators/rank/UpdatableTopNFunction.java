@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -34,8 +35,13 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalCause;
+import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalListener;
+import org.apache.flink.shaded.guava18.com.google.common.cache.RemovalNotification;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +54,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -61,7 +68,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class UpdatableTopNFunction extends AbstractTopNFunction implements CheckpointedFunction {
 
-    private static final long serialVersionUID = 6786508184355952780L;
+    private static final long serialVersionUID = 6786508184355952781L;
 
     private static final Logger LOG = LoggerFactory.getLogger(UpdatableTopNFunction.class);
 
@@ -76,21 +83,17 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     // a buffer stores mapping from sort key to rowKey list
     private transient TopNBuffer buffer;
 
-    // the kvSortedMap stores mapping from partition key to it's buffer
-    private transient Map<RowData, TopNBuffer> kvSortedMap;
-
     // a HashMap stores mapping from rowKey to record, a heap mirror to dataState
     private transient Map<RowData, RankRow> rowKeyMap;
 
     // the kvRowKeyMap store mapping from partitionKey to its rowKeyMap.
-    private transient LRUMap<RowData, Map<RowData, RankRow>> kvRowKeyMap;
+    private transient Cache<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> kvRowKeyMap;
 
     private final TypeSerializer<RowData> inputRowSer;
     private final KeySelector<RowData, RowData> rowKeySelector;
 
     public UpdatableTopNFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             RowDataKeySelector rowKeySelector,
             GeneratedRecordComparator generatedRecordComparator,
@@ -101,8 +104,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
             boolean outputRankNumber,
             long cacheSize) {
         super(
-                minRetentionTime,
-                maxRetentionTime,
+                ttlConfig,
                 inputRowType,
                 generatedRecordComparator,
                 sortKeySelector,
@@ -120,9 +122,16 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
-        // make sure the cached map is in a fixed size, avoid OOM
-        kvSortedMap = new HashMap<>(lruCacheSize);
-        kvRowKeyMap = new LRUMap<>(lruCacheSize, new CacheRemovalListener());
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+        if (ttlConfig.isEnabled()) {
+            cacheBuilder.expireAfterWrite(
+                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+        }
+        kvRowKeyMap =
+                cacheBuilder
+                        .maximumSize(lruCacheSize)
+                        .removalListener(new CacheRemovalListener())
+                        .build();
 
         LOG.info(
                 "Top{} operator is using LRU caches key-size: {}",
@@ -133,22 +142,13 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 new TupleTypeInfo<>(inputRowType, Types.INT);
         MapStateDescriptor<RowData, Tuple2<RowData, Integer>> mapStateDescriptor =
                 new MapStateDescriptor<>("data-state-with-update", rowKeyType, valueTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            mapStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
         // metrics
-        registerMetric(kvSortedMap.size() * getDefaultTopNSize());
-    }
-
-    @Override
-    public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
-            throws Exception {
-        if (stateCleaningEnabled) {
-            RowData partitionKey = (RowData) keyContext.getCurrentKey();
-            // cleanup cache
-            kvRowKeyMap.remove(partitionKey);
-            kvSortedMap.remove(partitionKey);
-            cleanupState(dataState);
-        }
+        registerMetric(cacheSize);
     }
 
     @Override
@@ -159,10 +159,6 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     @Override
     public void processElement(RowData input, Context context, Collector<RowData> out)
             throws Exception {
-        long currentTime = context.timerService().currentProcessingTime();
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(context, currentTime);
-
         initHeapStates();
         initRankEnd(input);
         if (outputRankNumber || hasOffset()) {
@@ -176,12 +172,10 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        Iterator<Map.Entry<RowData, Map<RowData, RankRow>>> iter =
-                kvRowKeyMap.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<RowData, Map<RowData, RankRow>> entry = iter.next();
+        for (Map.Entry<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> entry :
+                kvRowKeyMap.asMap().entrySet()) {
             RowData partitionKey = entry.getKey();
-            Map<RowData, RankRow> currentRowKeyMap = entry.getValue();
+            Map<RowData, RankRow> currentRowKeyMap = entry.getValue().f1;
             keyContext.setCurrentKey(partitionKey);
             flushBufferToState(currentRowKeyMap);
         }
@@ -190,13 +184,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     private void initHeapStates() throws Exception {
         requestCount += 1;
         RowData partitionKey = (RowData) keyContext.getCurrentKey();
-        buffer = kvSortedMap.get(partitionKey);
-        rowKeyMap = kvRowKeyMap.get(partitionKey);
-        if (buffer == null) {
+        Tuple2<TopNBuffer, Map<RowData, RankRow>> tuple2 = kvRowKeyMap.getIfPresent(partitionKey);
+        if (tuple2 == null) {
             buffer = new TopNBuffer(sortKeyComparator, LinkedHashSet::new);
             rowKeyMap = new HashMap<>();
-            kvSortedMap.put(partitionKey, buffer);
-            kvRowKeyMap.put(partitionKey, rowKeyMap);
+            kvRowKeyMap.put(partitionKey, new Tuple2<>(buffer, rowKeyMap));
 
             // restore sorted map
             Iterator<Map.Entry<RowData, Tuple2<RowData, Integer>>> iter = dataState.iterator();
@@ -213,25 +205,17 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 
                     // insert into temp sort map to preserve the record order in the same sort key
                     RowData sortKey = sortKeySelector.getKey(record);
-                    TreeMap<Integer, RowData> treeMap = tempSortedMap.get(sortKey);
-                    if (treeMap == null) {
-                        treeMap = new TreeMap<>();
-                        tempSortedMap.put(sortKey, treeMap);
-                    }
+                    TreeMap<Integer, RowData> treeMap =
+                            tempSortedMap.computeIfAbsent(sortKey, k -> new TreeMap<>());
                     treeMap.put(innerRank, rowKey);
                 }
 
                 // build sorted map from the temp map
-                Iterator<Map.Entry<RowData, TreeMap<Integer, RowData>>> tempIter =
-                        tempSortedMap.entrySet().iterator();
-                while (tempIter.hasNext()) {
-                    Map.Entry<RowData, TreeMap<Integer, RowData>> entry = tempIter.next();
+                for (Map.Entry<RowData, TreeMap<Integer, RowData>> entry :
+                        tempSortedMap.entrySet()) {
                     RowData sortKey = entry.getKey();
                     TreeMap<Integer, RowData> treeMap = entry.getValue();
-                    Iterator<Map.Entry<Integer, RowData>> treeMapIter =
-                            treeMap.entrySet().iterator();
-                    while (treeMapIter.hasNext()) {
-                        Map.Entry<Integer, RowData> treeMapEntry = treeMapIter.next();
+                    for (Map.Entry<Integer, RowData> treeMapEntry : treeMap.entrySet()) {
                         Integer innerRank = treeMapEntry.getKey();
                         RowData recordRowKey = treeMapEntry.getValue();
                         int size = buffer.put(sortKey, recordRowKey);
@@ -251,6 +235,8 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
             }
         } else {
             hitCount += 1;
+            buffer = tuple2.f0;
+            rowKeyMap = tuple2.f1;
         }
     }
 
@@ -413,9 +399,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         while (iterator.hasNext()) {
             Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
             Collection<RowData> rowKeys = entry.getValue();
-            Iterator<RowData> rowKeyIter = rowKeys.iterator();
-            while (rowKeyIter.hasNext()) {
-                RowData rowKey = rowKeyIter.next();
+            for (RowData rowKey : rowKeys) {
                 rowKeyMap.remove(rowKey);
                 dataState.remove(rowKey);
             }
@@ -471,9 +455,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     }
 
     private void flushBufferToState(Map<RowData, RankRow> curRowKeyMap) throws Exception {
-        Iterator<Map.Entry<RowData, RankRow>> iter = curRowKeyMap.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<RowData, RankRow> entry = iter.next();
+        for (Map.Entry<RowData, RankRow> entry : curRowKeyMap.entrySet()) {
             RowData key = entry.getKey();
             RankRow rankRow = entry.getValue();
             if (rankRow.dirty) {
@@ -502,17 +484,27 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
     }
 
     private class CacheRemovalListener
-            implements LRUMap.RemovalListener<RowData, Map<RowData, RankRow>> {
+            implements RemovalListener<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>> {
 
         @Override
-        public void onRemoval(Map.Entry<RowData, Map<RowData, RankRow>> eldest) {
+        public void onRemoval(
+                RemovalNotification<RowData, Tuple2<TopNBuffer, Map<RowData, RankRow>>>
+                        notification) {
+            if (notification.getCause() != RemovalCause.SIZE) {
+                // Don't flush values to state if cause is ttl expired
+                return;
+            }
+
+            RowData partitionKey = notification.getKey();
+            Tuple2<TopNBuffer, Map<RowData, RankRow>> value = notification.getValue();
+            if (partitionKey == null || value == null) {
+                return;
+            }
+
             RowData previousKey = (RowData) keyContext.getCurrentKey();
-            RowData partitionKey = eldest.getKey();
-            Map<RowData, RankRow> currentRowKeyMap = eldest.getValue();
             keyContext.setCurrentKey(partitionKey);
-            kvSortedMap.remove(partitionKey);
             try {
-                flushBufferToState(currentRowKeyMap);
+                flushBufferToState(value.f1);
             } catch (Throwable e) {
                 LOG.error("Fail to synchronize state!", e);
                 throw new RuntimeException(e);
@@ -522,7 +514,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         }
     }
 
-    private class RankRow {
+    private static class RankRow {
         private final RowData row;
         private int innerRank;
         private boolean dirty;

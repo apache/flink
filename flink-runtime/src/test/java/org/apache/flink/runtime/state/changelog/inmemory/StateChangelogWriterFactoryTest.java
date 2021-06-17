@@ -56,7 +56,7 @@ public class StateChangelogWriterFactoryTest {
     @Test(expected = IllegalStateException.class)
     public void testNoAppendAfterClose() {
         StateChangelogWriter<?> writer =
-                getFactory().createWriter(new OperatorID(), KeyGroupRange.of(0, 0));
+                getFactory().createWriter(new OperatorID().toString(), KeyGroupRange.of(0, 0));
         writer.close();
         writer.append(0, new byte[0]);
     }
@@ -67,7 +67,8 @@ public class StateChangelogWriterFactoryTest {
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
 
         try (StateChangelogWriterFactory<?> client = getFactory();
-                StateChangelogWriter<?> writer = client.createWriter(new OperatorID(), kgRange)) {
+                StateChangelogWriter<?> writer =
+                        client.createWriter(new OperatorID().toString(), kgRange)) {
             SequenceNumber prev = writer.lastAppendedSequenceNumber();
             appendsByKeyGroup.forEach(
                     (group, appends) -> appends.forEach(bytes -> writer.append(group, bytes)));

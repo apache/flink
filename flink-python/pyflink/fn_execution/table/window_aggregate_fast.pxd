@@ -21,8 +21,8 @@ from pyflink.fn_execution.coder_impl_fast cimport InternalRow
 
 cdef class NamespaceAggsHandleFunctionBase:
     cdef void open(self, object state_data_view_store)
-    cdef void accumulate(self, list input_data)
-    cdef void retract(self, list input_data)
+    cdef void accumulate(self, InternalRow input_data)
+    cdef void retract(self, InternalRow input_data)
     cpdef void merge(self, object namespace, list accumulators)
     cpdef void set_accumulators(self, object namespace, list accumulators)
     cdef list get_accumulators(self)

@@ -31,8 +31,6 @@ import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
-
 /**
  * A variant of {@link AppendOnlyTopNFunction} to handle first-n case.
  *
@@ -40,15 +38,13 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfi
  */
 public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = -889227691088906246L;
+    private static final long serialVersionUID = -889227691088906247L;
 
-    private final long minRetentionTime;
     // state stores a counter to record the occurrence of key.
     private ValueState<Integer> state;
 
     public AppendOnlyFirstNFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator sortKeyGeneratedRecordComparator,
             RowDataKeySelector sortKeySelector,
@@ -57,8 +53,7 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
             boolean generateUpdateBefore,
             boolean outputRankNumber) {
         super(
-                minRetentionTime,
-                maxRetentionTime,
+                ttlConfig,
                 inputRowType,
                 sortKeyGeneratedRecordComparator,
                 sortKeySelector,
@@ -66,7 +61,6 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
                 rankRange,
                 generateUpdateBefore,
                 outputRankNumber);
-        this.minRetentionTime = minRetentionTime;
     }
 
     @Override
@@ -74,7 +68,6 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
         super.open(configure);
         ValueStateDescriptor<Integer> stateDesc =
                 new ValueStateDescriptor<>("counterState", Types.INT);
-        StateTtlConfig ttlConfig = createTtlConfig(minRetentionTime);
         if (ttlConfig.isEnabled()) {
             stateDesc.enableTimeToLive(ttlConfig);
         }

@@ -15,18 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.changelog.inmemory;
+package org.apache.flink.state.changelog;
 
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.changelog.StateChangelogWriterFactory;
+import java.io.IOException;
+import java.util.Collection;
 
-/** An in-memory (non-production) implementation of {@link StateChangelogWriterFactory}. */
-public class InMemoryStateChangelogWriterFactory
-        implements StateChangelogWriterFactory<InMemoryStateChangelogHandle> {
+/**
+ * A logger for some key-partitioned state (not only {@link
+ * org.apache.flink.api.common.state.ValueState}.
+ *
+ * @param <Value> the type of state values
+ * @param <Namespace> the type of namespace
+ */
+interface KvStateChangeLogger<Value, Namespace> extends StateChangeLogger<Value, Namespace> {
 
-    @Override
-    public InMemoryStateChangelogWriter createWriter(
-            String operatorID, KeyGroupRange keyGroupRange) {
-        return new InMemoryStateChangelogWriter();
-    }
+    void namespacesMerged(Namespace target, Collection<Namespace> sources) throws IOException;
 }

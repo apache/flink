@@ -58,7 +58,7 @@ public class RowDataPythonScalarFunctionOperator
                 outputType,
                 udfInputOffsets,
                 forwardedFields,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                toCoderParam(scalarFunctions),
                 FlinkFnApi.CoderParam.DataType.FLATTEN_ROW);
     }
 
@@ -89,5 +89,15 @@ public class RowDataPythonScalarFunctionOperator
         bais.setBuffer(rawUdfResult, 0, length);
         RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
         rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
+    }
+
+    private static FlinkFnApi.CoderParam.DataType toCoderParam(
+            PythonFunctionInfo[] pythonFunctionInfos) {
+        for (PythonFunctionInfo pythonFunctionInfo : pythonFunctionInfos) {
+            if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
+                return FlinkFnApi.CoderParam.DataType.ROW;
+            }
+        }
+        return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
     }
 }

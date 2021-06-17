@@ -552,7 +552,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -626,7 +626,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -693,7 +693,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -763,7 +763,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();

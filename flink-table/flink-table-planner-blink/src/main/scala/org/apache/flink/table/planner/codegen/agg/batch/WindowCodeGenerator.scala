@@ -553,6 +553,7 @@ abstract class WindowCodeGenerator(
          |  ${ctx.reuseLocalVariableCode()}
          |  // assign timestamp (pane/window)
          |  ${ctx.reuseInputUnboxingCode(inputTerm)}
+         |  ${ctx.reusePerRecordCode()}
          |  ${assignedTsExpr.code}
          |  $processEachInput
          |}
