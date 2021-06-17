@@ -244,13 +244,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
       areColumnsUpsertKeys(rightKeys, joinInfo.rightSet))
   }
 
-  def getUpsertKeys(rel: SetOp, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
-    if (!rel.all) {
-      ImmutableSet.of(ImmutableBitSet.range(rel.getRowType.getFieldCount))
-    } else {
-      ImmutableSet.of()
-    }
-  }
+  def getUpsertKeys(rel: SetOp, mq: RelMetadataQuery): JSet[ImmutableBitSet] =
+    FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeys(rel, mq, ignoreNulls = false)
 
   def getUpsertKeys(
       subset: RelSubset, mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
