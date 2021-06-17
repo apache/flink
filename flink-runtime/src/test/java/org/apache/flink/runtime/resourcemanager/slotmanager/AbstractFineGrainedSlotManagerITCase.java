@@ -336,10 +336,12 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                             if (secondRequirementDeclarationTime
                                     == SecondRequirementDeclarationTime.BEFORE_FREE) {
                                 runInMainThread(
-                                        () ->
-                                                getSlotManager()
-                                                        .processResourceRequirements(
-                                                                resourceRequirements2));
+                                        () -> {
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            resourceRequirements2);
+                                            log.error("Process requirements2 finished.");
+                                        });
                             }
 
                             // clear resource requirements first so that the freed slot isn't
@@ -353,10 +355,12 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
                                                                 resourceRequirements1
                                                                         .getTargetAddress(),
                                                                 Collections.emptyList()));
+                                        log.error("Clear requirements1 finished.");
                                         getSlotManager()
                                                 .freeSlot(
                                                         SlotID.getDynamicSlotID(resourceID),
                                                         allocationId1);
+                                        log.error("Free slot1 finished.");
                                     });
 
                             if (secondRequirementDeclarationTime
@@ -370,9 +374,7 @@ public abstract class AbstractFineGrainedSlotManagerITCase extends FineGrainedSl
 
                             slot =
                                     getTaskManagerTracker()
-                                            .getAllocatedOrPendingSlot(
-                                                    assertFutureCompleteAndReturn(
-                                                            allocationIdFuture2))
+                                            .getAllocatedOrPendingSlot(allocationIdFuture2.get())
                                             .get();
                             assertEquals(
                                     "The slot has not been allocated to the expected job id.",

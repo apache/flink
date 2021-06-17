@@ -267,9 +267,9 @@ public class FineGrainedSlotManager implements SlotManager {
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         checkInit();
         if (resourceRequirements.getResourceRequirements().isEmpty()) {
-            LOG.info("Clearing resource requirements of job {}", resourceRequirements.getJobId());
+            LOG.error("Clearing resource requirements of job {}", resourceRequirements.getJobId());
         } else {
-            LOG.info(
+            LOG.error(
                     "Received resource requirements from job {}: {}",
                     resourceRequirements.getJobId(),
                     resourceRequirements.getResourceRequirements());
