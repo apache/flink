@@ -116,9 +116,8 @@ parallelism.default: 1
 # execution.checkpointing.max-concurrent-checkpoints: 1
 # execution.checkpointing.min-pause: 0
 # execution.checkpointing.mode: [EXACTLY_ONCE, AT_LEAST_ONCE]
-# execution.checkpointing.prefer-checkpoint-for-recovery: false
 # execution.checkpointing.timeout: 600000
-# execution.checkpointing.tolerable-failed-checkpoints: 3
+# execution.checkpointing.tolerable-failed-checkpoints: 0
 # execution.checkpointing.unaligned: false
 
 # Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
