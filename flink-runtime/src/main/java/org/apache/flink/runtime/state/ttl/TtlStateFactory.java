@@ -71,8 +71,7 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
                 : stateBackend.createInternalState(namespaceSerializer, stateDesc);
     }
 
-    private final Map<Class<? extends StateDescriptor>, SupplierWithException<IS, Exception>>
-            stateFactories;
+    private final Map<StateDescriptor.Type, SupplierWithException<IS, Exception>> stateFactories;
 
     @Nonnull private final TypeSerializer<N> namespaceSerializer;
     @Nonnull private final StateDescriptor<S, SV> stateDesc;
@@ -97,23 +96,22 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
         this.incrementalCleanup = getTtlIncrementalCleanup();
     }
 
-    private Map<Class<? extends StateDescriptor>, SupplierWithException<IS, Exception>>
-            createStateFactories() {
+    private Map<StateDescriptor.Type, SupplierWithException<IS, Exception>> createStateFactories() {
         return Stream.of(
                         Tuple2.of(
-                                ValueStateDescriptor.class,
+                                StateDescriptor.Type.VALUE,
                                 (SupplierWithException<IS, Exception>) this::createValueState),
                         Tuple2.of(
-                                ListStateDescriptor.class,
+                                StateDescriptor.Type.LIST,
                                 (SupplierWithException<IS, Exception>) this::createListState),
                         Tuple2.of(
-                                MapStateDescriptor.class,
+                                StateDescriptor.Type.MAP,
                                 (SupplierWithException<IS, Exception>) this::createMapState),
                         Tuple2.of(
-                                ReducingStateDescriptor.class,
+                                StateDescriptor.Type.REDUCING,
                                 (SupplierWithException<IS, Exception>) this::createReducingState),
                         Tuple2.of(
-                                AggregatingStateDescriptor.class,
+                                StateDescriptor.Type.AGGREGATING,
                                 (SupplierWithException<IS, Exception>)
                                         this::createAggregatingState))
                 .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
@@ -121,13 +119,12 @@ public class TtlStateFactory<K, N, SV, TTLSV, S extends State, IS extends S> {
 
     @SuppressWarnings("unchecked")
     private IS createState() throws Exception {
-        SupplierWithException<IS, Exception> stateFactory =
-                stateFactories.get(stateDesc.getClass());
+        SupplierWithException<IS, Exception> stateFactory = stateFactories.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
-                            "State %s is not supported by %s",
-                            stateDesc.getClass(), TtlStateFactory.class);
+                            "State type: %s is not supported by %s",
+                            stateDesc.getType(), TtlStateFactory.class);
             throw new FlinkRuntimeException(message);
         }
         IS state = stateFactory.get();
