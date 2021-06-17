@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -163,6 +164,33 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                     TestingExternallyInducedSourceReader.CHECKPOINT_ID,
                     runtimeTestingReader.checkpointedId);
             assertEquals(numEventsBeforeCheckpoint, runtimeTestingReader.checkpointedAt);
+        }
+    }
+
+    @Test
+    public void testSkipExecutionIfFinishedOnRestore() throws Exception {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+
+        LifeCycleMonitorSource testingSource =
+                new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(testingSource, WatermarkStrategy.noWatermarks());
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, taskStateSnapshot)
+                        .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
+                        .build()) {
+
+            testHarness.getStreamTask().invoke();
+            testHarness.waitForTaskCompletion();
+
+            LifeCycleMonitorSourceReader sourceReader =
+                    (LifeCycleMonitorSourceReader)
+                            ((SourceOperator<?, ?>) testHarness.getStreamTask().getMainOperator())
+                                    .getSourceReader();
+            sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
         }
     }
 
@@ -380,5 +408,44 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public void close() throws Exception {}
+    }
+
+    static class LifeCycleMonitorSource extends MockSource {
+
+        public LifeCycleMonitorSource(Boundedness boundedness, int numSplits) {
+            super(boundedness, numSplits);
+        }
+
+        @Override
+        public SourceReader<Integer, MockSourceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new LifeCycleMonitorSourceReader();
+        }
+    }
+
+    static class LifeCycleMonitorSourceReader extends MockSourceReader {
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void start() {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+            super.start();
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+            return super.pollNext(sourceOutput);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+            super.close();
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
     }
 }

@@ -141,7 +141,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
     public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
             SourceOperatorFactory<?> sourceOperatorFactory) {
-        inputs.add(new SourceInputConfigPlaceHolder(sourceOperatorFactory));
+        return addSourceInput(new OperatorID(), sourceOperatorFactory);
+    }
+
+    public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId, SourceOperatorFactory<?> sourceOperatorFactory) {
+        inputs.add(new SourceInputConfigPlaceHolder(operatorId, sourceOperatorFactory));
         return this;
     }
 
@@ -292,7 +297,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         sourceConfig.setOutEdgesInOrder(outEdgesInOrder);
         sourceConfig.setChainedOutputs(outEdgesInOrder);
         sourceConfig.setTypeSerializerOut(outputSerializer);
-        sourceConfig.setOperatorID(new OperatorID());
+        sourceConfig.setOperatorID(sourceInput.getOperatorId());
         sourceConfig.setStreamOperatorFactory(sourceInput.getSourceOperatorFactory());
 
         transitiveChainedTaskConfigs.put(sourceToMainEdge.getSourceId(), sourceConfig);
@@ -379,10 +384,17 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
      * it is replaced with {@link SourceInputConfig}.
      */
     public static class SourceInputConfigPlaceHolder implements InputConfig {
+        private OperatorID operatorId;
         private SourceOperatorFactory<?> sourceOperatorFactory;
 
-        public SourceInputConfigPlaceHolder(SourceOperatorFactory<?> sourceOperatorFactory) {
+        public SourceInputConfigPlaceHolder(
+                OperatorID operatorId, SourceOperatorFactory<?> sourceOperatorFactory) {
+            this.operatorId = operatorId;
             this.sourceOperatorFactory = sourceOperatorFactory;
+        }
+
+        public OperatorID getOperatorId() {
+            return operatorId;
         }
 
         public SourceOperatorFactory<?> getSourceOperatorFactory() {

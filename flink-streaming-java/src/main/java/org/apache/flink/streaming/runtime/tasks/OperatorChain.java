@@ -345,8 +345,11 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
                     sourceInput,
                     new ChainedSource(
                             chainedSourceOutput,
-                            new StreamTaskSourceInput<>(
-                                    sourceOperator, sourceInputGateIndex++, inputId)));
+                            finishedOnRestore
+                                    ? new StreamTaskFinishedOnRestoreSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)
+                                    : new StreamTaskSourceInput<>(
+                                            sourceOperator, sourceInputGateIndex++, inputId)));
         }
         return chainedSourceInputs;
     }
