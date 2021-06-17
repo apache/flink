@@ -34,7 +34,6 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
     protected final Output<StreamRecord<T>>[] outputs;
     private final Random random = new XORShiftRandom();
     private final WatermarkGauge watermarkGauge = new WatermarkGauge();
-    private StreamStatus announcedStatus = StreamStatus.ACTIVE;
 
     public BroadcastingOutputCollector(Output<StreamRecord<T>>[] outputs) {
         this.outputs = outputs;
@@ -42,10 +41,6 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
 
     @Override
     public void emitWatermark(Watermark mark) {
-        if (announcedStatus.isIdle()) {
-            return;
-        }
-
         watermarkGauge.setCurrentWatermark(mark.getTimestamp());
         for (Output<StreamRecord<T>> output : outputs) {
             output.emitWatermark(mark);
@@ -54,11 +49,8 @@ class BroadcastingOutputCollector<T> implements WatermarkGaugeExposingOutput<Str
 
     @Override
     public void emitStreamStatus(StreamStatus streamStatus) {
-        if (!announcedStatus.equals(streamStatus)) {
-            announcedStatus = streamStatus;
-            for (Output<StreamRecord<T>> output : outputs) {
-                output.emitStreamStatus(streamStatus);
-            }
+        for (Output<StreamRecord<T>> output : outputs) {
+            output.emitStreamStatus(streamStatus);
         }
     }
 
