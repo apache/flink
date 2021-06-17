@@ -120,7 +120,7 @@ tEnv.getConfig.setLocalTimeZone(ZoneId.of("America/Los_Angeles"))
 The session time zone is useful in Flink SQL, the main usages are:
 
 ### Decide time functions return value
-The following time functions is influenced by the configured time zone.
+The following time functions are influenced by the configured time zone:
 * LOCALTIME
 * LOCALTIMESTAMP
 * CURRENT_DATE
@@ -320,7 +320,7 @@ Flink SQL> DESC MyView3;
 |    window_start |                TIMESTAMP(3) | false |     |        |           |
 |      window_end |                TIMESTAMP(3) | false |     |        |           |
 | window_proctime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
-|            item |                      STRING | true |     |        |           |
+|            item |                      STRING | true  |     |        |           |
 |       max_price |                      DOUBLE |  true |     |        |           |
 +-----------------+-----------------------------+-------+-----+--------+-----------+
 ```
@@ -544,7 +544,7 @@ Flink SQL supports defining time attributes on TIMESTAMP_LTZ column, base on thi
 
 
 Flink use timestamp literal to split the window and assigns window to data according to the epoch time of the each row. It means Flink uses `TIMESTAMP` type for window start and window end (e.g. `TUMBLE_START` and `TUMBLE_END`), uses `TIMESTAMP_LTZ` for window time attribute (e.g. `TUMBLE_PROCTIME`, `TUMBLE_ROWTIME`).
-Given a example of tumble window, the DaylightTime in Los_Angele starts at time 2021-03-14 02:00:00:
+Given an example of tumble window, the DaylightTime in Los_Angeles starts at time 2021-03-14 02:00:00:
 ```
 long epoch1 = 1615708800000L; // 2021-03-14 00:00:00
 long epoch2 = 1615712400000L; // 2021-03-14 01:00:00

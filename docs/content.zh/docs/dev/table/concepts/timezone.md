@@ -319,7 +319,7 @@ Flink SQL> DESC MyView3;
 |    window_start |                TIMESTAMP(3) | false |     |        |           |
 |      window_end |                TIMESTAMP(3) | false |     |        |           |
 | window_proctime | TIMESTAMP_LTZ(3) *PROCTIME* | false |     |        |           |
-|            item |                      STRING | true |     |        |           |
+|            item |                      STRING | true  |     |        |           |
 |       max_price |                      DOUBLE |  true |     |        |           |
 +-----------------+-----------------------------+-------+-----+--------+-----------+
 ```
@@ -542,7 +542,7 @@ Flink SQL> SELECT * FROM MyView5;
 Flink SQL支持在 `TIMESTAMP_LTZ`列上定义时间属性， 基于这一特征，Flink SQL 在窗口中使用 `TIMESTAMP` 和 `TIMESTAMP_LTZ` 类型优雅地支持了夏令时。
 
 Flink 使用时间戳的字符格式来分割窗口并通过每条记录对应的 epoch 时间来分配窗口。 这意味着 Flink 窗口开始时间和窗口结束时间使用的是 `TIMESTAMP` 类型（例如: `TUMBLE_START` 和 `TUMBLE_END`）， 窗口的时间属性使用的是 `TIMESTAMP_LTZ` 类型（例如: `TUMBLE_PROCTIME`， `TUMBLE_ROWTIME`）。
-给定一个 tumble window示例， 在 Los_Angele 时区下夏令时从 `2021-03-14 02:00:00` 开始：
+给定一个 tumble window示例， 在 Los_Angeles 时区下夏令时从 `2021-03-14 02:00:00` 开始：
 ```
 long epoch1 = 1615708800000L; // 2021-03-14 00:00:00
 long epoch2 = 1615712400000L; // 2021-03-14 01:00:00
