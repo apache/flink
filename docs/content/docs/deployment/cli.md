@@ -78,6 +78,14 @@ There is another action called `run-application` available to run the job in
 [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode). This documentation does not address
 this action individually as it works similarly to the `run` action in terms of the CLI frontend.
 
+The `run` and `run-application` commands support passing additional configuration parameters via the
+`-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
+for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
+configuring per-job or application mode clusters, because you can pass any configuration parameter 
+to the cluster, without changing the configuration file.
+
+When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
+
 ### Job Monitoring
 
 You can monitor any running jobs using the `list` action:
