@@ -25,6 +25,7 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -47,9 +48,6 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.COMMON_
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.SPECIFIC_FOR_CAST;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.TWO_EQUALS_COMPARABLE;
-import static org.apache.flink.table.types.inference.InputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
@@ -66,6 +64,8 @@ import static org.apache.flink.table.types.inference.TypeStrategies.first;
 import static org.apache.flink.table.types.inference.TypeStrategies.matchFamily;
 import static org.apache.flink.table.types.inference.TypeStrategies.nullable;
 import static org.apache.flink.table.types.inference.TypeStrategies.varyingString;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
@@ -1214,7 +1214,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("array")
                     .kind(SCALAR)
-                    .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_ARRAY)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.ARRAY)
                     .outputTypeStrategy(SpecificTypeStrategies.ARRAY)
                     .build();
 
@@ -1229,7 +1229,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("map")
                     .kind(SCALAR)
-                    .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_MAP)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.MAP)
                     .outputTypeStrategy(SpecificTypeStrategies.MAP)
                     .build();
 
@@ -1394,7 +1394,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("CURRENT_WATERMARK")
                     .kind(SCALAR)
-                    .inputTypeStrategy(InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.CURRENT_WATERMARK)
                     .outputTypeStrategy(SpecificTypeStrategies.CURRENT_WATERMARK)
                     .notDeterministic()
                     .runtimeProvided()
@@ -1472,7 +1472,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("cast")
                     .kind(SCALAR)
-                    .inputTypeStrategy(SPECIFIC_FOR_CAST)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
                     .outputTypeStrategy(
                             nullable(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
                     .build();

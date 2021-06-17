@@ -29,7 +29,7 @@ import org.apache.flink.table.types.inference.TypeStrategy;
  * implementations to avoid polluting the API classpath.
  */
 @Internal
-public class SpecificTypeStrategies {
+public final class SpecificTypeStrategies {
 
     /** See {@link RowTypeStrategy}. */
     public static final TypeStrategy ROW = new RowTypeStrategy();

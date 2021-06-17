@@ -19,21 +19,17 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.CastInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.CurrentWatermarkInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.MapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OutputArgumentTypeStrategy;
@@ -301,47 +297,6 @@ public final class InputTypeStrategies {
     public static InputTypeStrategy commonType(int count) {
         return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
     }
-
-    // --------------------------------------------------------------------------------------------
-    // Specific input type strategies
-    // --------------------------------------------------------------------------------------------
-
-    /** Strategy specific for {@link BuiltInFunctionDefinitions#CAST}. */
-    public static final InputTypeStrategy SPECIFIC_FOR_CAST = new CastInputTypeStrategy();
-
-    /**
-     * Strategy specific for {@link BuiltInFunctionDefinitions#ARRAY}.
-     *
-     * <p>It expects at least one argument. All the arguments must have a common super type.
-     */
-    public static final InputTypeStrategy SPECIFIC_FOR_ARRAY =
-            new CommonInputTypeStrategy(ConstantArgumentCount.from(1));
-
-    /**
-     * Strategy specific for {@link BuiltInFunctionDefinitions#MAP}.
-     *
-     * <p>It expects at least two arguments. There must be even number of arguments. All the keys
-     * and values must have a common super type respectively.
-     */
-    public static final InputTypeStrategy SPECIFIC_FOR_MAP = new MapInputTypeStrategy();
-
-    /**
-     * Strategy that checks all types are fully comparable with each other. Requires exactly two
-     * arguments.
-     */
-    public static final InputTypeStrategy TWO_FULLY_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredComparision.FULL);
-
-    /**
-     * Strategy that checks all types are equals comparable with each other. Requires exactly two
-     * arguments.
-     */
-    public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredComparision.EQUALS);
-
-    /** Strategy specific for {@link BuiltInFunctionDefinitions#CURRENT_WATERMARK}. */
-    public static final InputTypeStrategy SPECIFIC_FOR_CURRENT_WATERMARK =
-            new CurrentWatermarkInputTypeStrategy();
 
     // --------------------------------------------------------------------------------------------
 

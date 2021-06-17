@@ -42,7 +42,7 @@ import java.util.Optional;
  * <p>It expects a single argument representing a rowtime attribute.
  */
 @Internal
-public class CurrentWatermarkInputTypeStrategy implements InputTypeStrategy {
+class CurrentWatermarkInputTypeStrategy implements InputTypeStrategy {
 
     @Override
     public ArgumentCount getArgumentCount() {

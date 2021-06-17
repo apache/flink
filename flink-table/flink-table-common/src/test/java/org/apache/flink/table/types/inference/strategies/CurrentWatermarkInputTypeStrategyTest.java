@@ -20,7 +20,6 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimestampKind;
@@ -41,29 +40,29 @@ public class CurrentWatermarkInputTypeStrategyTest extends InputTypeStrategiesTe
         return asList(
                 TestSpec.forStrategy(
                                 "TIMESTAMP(3) *ROWTIME* works",
-                                InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                                SpecificInputTypeStrategies.CURRENT_WATERMARK)
                         .calledWithArgumentTypes(createRowtimeType(TimestampKind.ROWTIME, 3))
                         .expectArgumentTypes(createRowtimeType(TimestampKind.ROWTIME, 3)),
                 TestSpec.forStrategy(
                                 "TIMESTAMP_LTZ(3) *ROWTIME* works",
-                                InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                                SpecificInputTypeStrategies.CURRENT_WATERMARK)
                         .calledWithArgumentTypes(createRowtimeLtzType(TimestampKind.ROWTIME, 3))
                         .expectArgumentTypes(createRowtimeLtzType(TimestampKind.ROWTIME, 3)),
                 TestSpec.forStrategy(
                                 "TIMESTAMP(3) doesn't work",
-                                InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                                SpecificInputTypeStrategies.CURRENT_WATERMARK)
                         .calledWithArgumentTypes(createRowtimeType(TimestampKind.REGULAR, 3))
                         .expectErrorMessage(
                                 "The argument of CURRENT_WATERMARK() must be a rowtime attribute, but was 'TIMESTAMP(3) NOT NULL'."),
                 TestSpec.forStrategy(
                                 "TIMESTAMP_LTZ(3) doesn't work",
-                                InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                                SpecificInputTypeStrategies.CURRENT_WATERMARK)
                         .calledWithArgumentTypes(createRowtimeLtzType(TimestampKind.REGULAR, 3))
                         .expectErrorMessage(
                                 "The argument of CURRENT_WATERMARK() must be a rowtime attribute, but was 'TIMESTAMP_LTZ(3) NOT NULL'."),
                 TestSpec.forStrategy(
                                 "BIGINT doesn't work",
-                                InputTypeStrategies.SPECIFIC_FOR_CURRENT_WATERMARK)
+                                SpecificInputTypeStrategies.CURRENT_WATERMARK)
                         .calledWithArgumentTypes(DataTypes.BIGINT())
                         .expectErrorMessage(
                                 "CURRENT_WATERMARK() must be called with a single rowtime attribute argument, but 'BIGINT' cannot be a time attribute."));
