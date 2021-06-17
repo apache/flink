@@ -34,8 +34,10 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
+import org.hamcrest.CoreMatchers;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,7 +52,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -127,10 +128,15 @@ public abstract class BuiltInFunctionTestBase {
 
     private static void testTableApiError(Table inputTable, TableApiErrorTestItem testItem) {
         try {
-            inputTable.select(testItem.expression).execute();
+            // we are calling hasNext here to trigger runtime exceptions
+            inputTable.select(testItem.expression).execute().collect().hasNext();
             fail("Error expected: " + testItem.errorMessage);
         } catch (Throwable t) {
-            assertThat(t, containsCause(new ValidationException(testItem.errorMessage)));
+            assertThat(
+                    t,
+                    CoreMatchers.anyOf(
+                            containsCause(new ValidationException(testItem.errorMessage)),
+                            containsCause(new FlinkRuntimeException(testItem.errorMessage))));
         }
     }
 
@@ -148,11 +154,18 @@ public abstract class BuiltInFunctionTestBase {
     private static void testSqlError(
             TableEnvironment env, Table inputTable, SqlErrorTestItem testItem) {
         try {
-            env.sqlQuery("SELECT " + testItem.expression + " FROM " + inputTable).execute();
+            // we are calling hasNext here to trigger runtime exceptions
+            env.sqlQuery("SELECT " + testItem.expression + " FROM " + inputTable)
+                    .execute()
+                    .collect()
+                    .hasNext();
             fail("Error expected: " + testItem.errorMessage);
         } catch (Throwable t) {
-            assertTrue(t instanceof ValidationException);
-            assertThat(t.getMessage(), containsString(testItem.errorMessage));
+            assertThat(
+                    t,
+                    CoreMatchers.anyOf(
+                            containsCause(new ValidationException(testItem.errorMessage)),
+                            containsCause(new FlinkRuntimeException(testItem.errorMessage))));
         }
     }
 
@@ -175,7 +188,7 @@ public abstract class BuiltInFunctionTestBase {
                 expectedDataType.getLogicalType(),
                 result.getResolvedSchema().getColumnDataTypes().get(0).getLogicalType());
 
-        assertEquals("Result doesn't match.", testItem.result, row.getField(0));
+        assertEquals("Result doesn't match.", Row.of(testItem.result), row);
     }
 
     /**

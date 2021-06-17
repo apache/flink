@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
@@ -434,6 +435,39 @@ public final class TypeStrategies {
                 return Optional.of(timestampDataType);
             };
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
+    public static final TypeStrategy SPECIFIC_FOR_MAP_KEYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    callContext
+                                            .getArgumentDataTypes()
+                                            .get(0)
+                                            .getChildren()
+                                            .get(0)));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
+    public static final TypeStrategy SPECIFIC_FOR_MAP_VALUES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    callContext
+                                            .getArgumentDataTypes()
+                                            .get(0)
+                                            .getChildren()
+                                            .get(1)));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_FROM_ARRAYS}. */
+    public static final TypeStrategy SPECIFIC_FOR_MAP_FROM_ARRAYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.MAP(
+                                    callContext.getArgumentDataTypes().get(0).getChildren().get(0),
+                                    callContext
+                                            .getArgumentDataTypes()
+                                            .get(1)
+                                            .getChildren()
+                                            .get(0)));
     /**
      * Type strategy specific for aggregations that partially produce different nullability
      * depending whether the result is grouped or not.
