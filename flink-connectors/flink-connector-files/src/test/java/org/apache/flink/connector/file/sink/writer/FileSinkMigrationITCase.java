@@ -20,9 +20,6 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
-import org.apache.flink.api.common.functions.IterationRuntimeContext;
-import org.apache.flink.api.common.functions.RichFunction;
-import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -40,7 +37,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -54,7 +50,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -63,6 +58,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -87,14 +83,10 @@ public class FileSinkMigrationITCase extends TestLogger {
 
     private static final int NUM_BUCKETS = 4;
 
-    private SharedReference<CountDownLatch> savepointLatch;
-
     private SharedReference<CountDownLatch> finalCheckpointLatch;
 
     @Before
     public void setup() {
-        savepointLatch = sharedObjects.add(new CountDownLatch(NUM_SOURCES));
-
         // We wait for two successful checkpoints in sources before shutting down. This ensures that
         // the sink can commit its data.
         // We need to keep a "static" latch here because all sources need to be kept running
@@ -157,7 +149,7 @@ public class FileSinkMigrationITCase extends TestLogger {
         env.addSource(new StatefulSource(true, finalCheckpointLatch))
                 .uid(SOURCE_UID)
                 .setParallelism(NUM_SOURCES)
-                .addSink(new WaitingRunningSink<>(savepointLatch, sink))
+                .addSink(sink)
                 .setParallelism(NUM_SINKS)
                 .uid(SINK_UID);
         return env.getStreamGraph().getJobGraph();
@@ -193,8 +185,7 @@ public class FileSinkMigrationITCase extends TestLogger {
                     miniCluster.submitJob(jobGraph);
             JobID jobId = jobSubmissionResultFuture.get().getJobID();
 
-            // wait till we can taking savepoint
-            savepointLatch.get().await();
+            waitForAllTaskRunning(miniCluster, jobId);
 
             CompletableFuture<String> savepointResultFuture =
                     miniCluster.triggerSavepoint(jobId, savepointBasePath, true);
@@ -211,70 +202,6 @@ public class FileSinkMigrationITCase extends TestLogger {
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
             miniCluster.executeJobBlocking(jobGraph);
-        }
-    }
-
-    private static class WaitingRunningSink<T>
-            implements RichFunction,
-                    Serializable,
-                    SinkFunction<T>,
-                    CheckpointedFunction,
-                    CheckpointListener {
-        private final SharedReference<CountDownLatch> savepointLatch;
-        private final StreamingFileSink<T> streamingFileSink;
-
-        /**
-         * Creates a new {@code StreamingFileSink} that writes files to the given base directory
-         * with the give buckets properties.
-         */
-        protected WaitingRunningSink(
-                SharedReference<CountDownLatch> savepointLatch,
-                StreamingFileSink<T> streamingFileSink) {
-            this.savepointLatch = savepointLatch;
-            this.streamingFileSink = streamingFileSink;
-        }
-
-        public void setRuntimeContext(RuntimeContext t) {
-            streamingFileSink.setRuntimeContext(t);
-        }
-
-        public RuntimeContext getRuntimeContext() {
-            return streamingFileSink.getRuntimeContext();
-        }
-
-        public IterationRuntimeContext getIterationRuntimeContext() {
-            return streamingFileSink.getIterationRuntimeContext();
-        }
-
-        public void open(Configuration parameters) throws Exception {
-            streamingFileSink.open(parameters);
-        }
-
-        public void close() throws Exception {
-            streamingFileSink.close();
-        }
-
-        public void initializeState(FunctionInitializationContext context) throws Exception {
-            streamingFileSink.initializeState(context);
-        }
-
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            streamingFileSink.notifyCheckpointComplete(checkpointId);
-        }
-
-        public void notifyCheckpointAborted(long checkpointId) {
-            streamingFileSink.notifyCheckpointAborted(checkpointId);
-        }
-
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            streamingFileSink.snapshotState(context);
-        }
-
-        @Override
-        public void invoke(T value, Context context) throws Exception {
-            savepointLatch.get().countDown();
-
-            streamingFileSink.invoke(value, context);
         }
     }
 
