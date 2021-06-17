@@ -349,6 +349,8 @@ public class FileExecutionGraphInfoStoreTest extends TestLogger {
                 new PersistingMiniCluster(new MiniClusterConfiguration.Builder().build())) {
             miniCluster.start();
             final JobVertex vertex = new JobVertex("blockingVertex");
+            // The adaptive scheduler expects that every vertex has a configured parallelism
+            vertex.setParallelism(1);
             vertex.setInvokableClass(SignallingBlockingNoOpInvokable.class);
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
             miniCluster.submitJob(jobGraph);
