@@ -138,7 +138,9 @@ object FlinkStreamRuleSets {
         // optimize limit 0
         FlinkLimit0RemoveRule.INSTANCE,
         // unnest rule
-        LogicalUnnestRule.INSTANCE
+        LogicalUnnestRule.INSTANCE,
+        // rewrite constant table function scan to correlate
+        JoinTableFunctionScanToCorrelateRule.INSTANCE
       )
     ).asJava)
 

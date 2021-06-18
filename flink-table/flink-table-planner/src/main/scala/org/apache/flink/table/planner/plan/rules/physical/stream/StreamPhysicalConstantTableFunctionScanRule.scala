@@ -26,7 +26,7 @@ import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.calcite.rex.{RexLiteral, RexUtil}
+import org.apache.calcite.rex.{RexCall, RexLiteral, RexUtil}
 
 /**
   * Converts [[FlinkLogicalTableFunctionScan]] with constant RexCall to
@@ -51,7 +51,7 @@ class StreamPhysicalConstantTableFunctionScanRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
-    RexUtil.isConstant(scan.getCall) && scan.getInputs.isEmpty
+    !RexUtil.containsInputRef(scan.getCall) && scan.getInputs.isEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
