@@ -22,6 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ArrayUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
@@ -42,19 +45,24 @@ import java.util.ServiceLoader;
 @ThreadSafe
 public class PluginLoader {
 
+    private static final Logger LOG = LoggerFactory.getLogger(PluginLoader.class);
+
+    private final String pluginId;
+
     /**
      * Classloader which is used to load the plugin classes. We expect this classloader is
      * thread-safe.
      */
-    private final ClassLoader pluginClassLoader;
+    private final URLClassLoader pluginClassLoader;
 
     @VisibleForTesting
-    public PluginLoader(ClassLoader pluginClassLoader) {
+    public PluginLoader(String pluginId, URLClassLoader pluginClassLoader) {
+        this.pluginId = pluginId;
         this.pluginClassLoader = pluginClassLoader;
     }
 
     @VisibleForTesting
-    public static ClassLoader createPluginClassLoader(
+    public static URLClassLoader createPluginClassLoader(
             PluginDescriptor pluginDescriptor,
             ClassLoader parentClassLoader,
             String[] alwaysParentFirstPatterns) {
@@ -70,6 +78,7 @@ public class PluginLoader {
             ClassLoader parentClassLoader,
             String[] alwaysParentFirstPatterns) {
         return new PluginLoader(
+                pluginDescriptor.getPluginId(),
                 createPluginClassLoader(
                         pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns));
     }
@@ -88,6 +97,14 @@ public class PluginLoader {
                 TemporaryClassLoaderContext.of(pluginClassLoader)) {
             return new ContextClassLoaderSettingIterator<>(
                     ServiceLoader.load(service, pluginClassLoader).iterator(), pluginClassLoader);
+        }
+    }
+
+    public void close() {
+        try {
+            pluginClassLoader.close();
+        } catch (IOException e) {
+            LOG.warn("An error occurred while closing the classloader for plugin {}.", pluginId);
         }
     }
 
