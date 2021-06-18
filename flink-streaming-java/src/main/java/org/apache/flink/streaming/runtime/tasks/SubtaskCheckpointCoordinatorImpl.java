@@ -81,7 +81,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
      * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
      * removed in the last PR.
      */
-    protected boolean enableCheckpointAfterTasksFinished;
+    private boolean enableCheckpointAfterTasksFinished;
 
     private final CachingCheckpointStorageWorkerView checkpointStorage;
     private final String taskName;

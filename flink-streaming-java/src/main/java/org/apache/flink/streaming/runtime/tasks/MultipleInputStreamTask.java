@@ -188,11 +188,12 @@ public class MultipleInputStreamTask<OUT>
             return super.triggerCheckpointAsync(metadata, options);
         }
 
-        // If there are chained sources, we would always only trigger
-        // the chained sources for checkpoint. This means that for
-        // the checkpoints during the upstream task finished and
-        // this task receives the EndOfPartitionEvent, the checkpoint
-        // would not subsume the pending ones.
+        // If there are chained sources, we would always only trigger the
+        // chained sources for checkpoint. This means that for the checkpoints
+        // during the upstream task finished and this task receives the
+        // EndOfPartitionEvent, we would not complement barriers for the
+        // unfinished network inputs, and the checkpoint would be triggered
+        // after received all the EndOfPartitionEvent.
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {

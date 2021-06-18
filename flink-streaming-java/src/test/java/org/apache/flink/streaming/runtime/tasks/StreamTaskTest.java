@@ -154,11 +154,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
@@ -170,6 +172,7 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleto
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -1727,82 +1730,60 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testTriggeringCheckpointWithFinishedChannels() throws Exception {
-        OneInputStreamTaskTestHarness<String, String> testHarness =
-                new OneInputStreamTaskTestHarness<>(
-                        HoldingOnAfterInvokeStreamTask::new,
-                        1,
-                        3,
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        BasicTypeInfo.STRING_TYPE_INFO);
+        AtomicReference<Future<?>> lastCheckpointTriggerFuture = new AtomicReference<>();
 
-        testHarness
-                .setupOperatorChain(new OperatorID(), new EmptyOperator())
-                .finishForSingletonOperatorChain(StringSerializer.INSTANCE);
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                env ->
+                                        new HoldingOnAfterInvokeStreamTask(
+                                                env, lastCheckpointTriggerFuture),
+                                BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setupOutputForSingletonOperatorChain(new EmptyOperator())
+                        .build()) {
+            // Tests triggering checkpoint when all the inputs are alive.
+            Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+            processMailTillCheckpointSuccess(testHarness, checkpointFuture);
+            assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
-        StreamMockEnvironment env =
-                new StreamMockEnvironment(
-                        testHarness.jobConfig,
-                        testHarness.taskConfig,
-                        testHarness.memorySize,
-                        new MockInputSplitProvider(),
-                        testHarness.bufferSize,
-                        testHarness.getTaskStateManager());
+            // Tests trigger checkpoint after some inputs have received EndOfPartition
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+            checkpointFuture = triggerCheckpoint(testHarness, 4);
+            processMailTillCheckpointSuccess(testHarness, checkpointFuture);
+            assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
 
-        testHarness.invoke(env);
-        testHarness.waitForTaskRunning();
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
+            checkpointFuture = triggerCheckpoint(testHarness, 6);
+            lastCheckpointTriggerFuture.set(checkpointFuture);
 
-        testHarness
-                .getTask()
-                .getCheckpointCoordinator()
-                .setEnableCheckpointAfterTasksFinished(true);
-
-        // Tests triggering checkpoint when all the inputs are alive.
-        testTriggerCheckpoint(testHarness, 2);
-
-        // Tests trigger checkpoint after some inputs have received EndOfPartition
-        testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
-        testHarness.waitForInputProcessing();
-        testTriggerCheckpoint(testHarness, 4);
-
-        AtomicBoolean lastCheckpointDone = new AtomicBoolean(false);
-        new Thread(
-                        () -> {
-                            HoldingOnAfterInvokeStreamTask task =
-                                    (HoldingOnAfterInvokeStreamTask) testHarness.getTask();
-                            try {
-                                task.getHoldingLatch().await();
-
-                                while (!lastCheckpointDone.get()) {
-                                    Thread.sleep(200);
-                                }
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-
-                            task.getContinueLatch().countDown();
-                        })
-                .start();
-
-        // Tests trigger checkpoint after all the inputs have received EndOfPartition
-        testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
-        testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
-        testTriggerCheckpoint(testHarness, 6);
-        lastCheckpointDone.set(true);
-        testHarness.waitForInputProcessing();
+            // The checkpoint 6 would be triggered successfully.
+            // TODO: Would also check the checkpoint succeed after we also waiting
+            // for the asynchronous step to finish on finish.
+            testHarness.finishProcessing();
+            assertTrue(checkpointFuture.isDone());
+        }
     }
 
-    static void testTriggerCheckpoint(StreamTaskTestHarness<?> testHarness, long checkpointId)
-            throws InterruptedException {
+    static Future<Boolean> triggerCheckpoint(
+            StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
         testHarness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
-        testHarness
-                .getTask()
+        return testHarness
+                .getStreamTask()
                 .triggerCheckpointAsync(
                         new CheckpointMetaData(checkpointId, checkpointId * 1000),
                         CheckpointOptions.alignedNoTimeout(
                                 CheckpointType.CHECKPOINT,
                                 CheckpointStorageLocationReference.getDefault()));
+    }
+
+    static void processMailTillCheckpointSuccess(
+            StreamTaskMailboxTestHarness<String> testHarness, Future<Boolean> checkpointFuture)
+            throws Exception {
+        while (!checkpointFuture.isDone()) {
+            testHarness.processSingleStep();
+        }
         testHarness.getTaskStateManager().getWaitForReportLatch().await();
-        assertEquals(checkpointId, testHarness.getTaskStateManager().getReportedCheckpointId());
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
@@ -2815,27 +2796,18 @@ public class StreamTaskTest extends TestLogger {
      */
     private static class HoldingOnAfterInvokeStreamTask extends OneInputStreamTask<String, String> {
 
-        private final CountDownLatch holdingLatch = new CountDownLatch(1);
+        private final AtomicReference<Future<?>> lastCheckpointTriggerFuture;
 
-        private final CountDownLatch continueLatch = new CountDownLatch(1);
-
-        public HoldingOnAfterInvokeStreamTask(Environment env) throws Exception {
+        public HoldingOnAfterInvokeStreamTask(
+                Environment env, AtomicReference<Future<?>> lastCheckpointTriggerFuture)
+                throws Exception {
             super(env);
-        }
-
-        public CountDownLatch getHoldingLatch() {
-            return holdingLatch;
-        }
-
-        public CountDownLatch getContinueLatch() {
-            return continueLatch;
+            this.lastCheckpointTriggerFuture = checkNotNull(lastCheckpointTriggerFuture);
         }
 
         @Override
         protected void afterInvoke() throws Exception {
-            holdingLatch.countDown();
-
-            while (!(continueLatch.getCount() == 0)) {
+            while (!lastCheckpointTriggerFuture.get().isDone()) {
                 Thread.sleep(200);
                 mainMailboxExecutor.tryYield();
             }
