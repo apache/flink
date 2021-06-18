@@ -131,7 +131,7 @@ class PartitionRequestClientFactory {
     private NettyPartitionRequestClient connect(ConnectionID connectionId)
             throws RemoteTransportException, InterruptedException {
         try {
-            Channel channel = nettyClient.connect(connectionId.getAddress()).await().channel();
+            Channel channel = nettyClient.connect(connectionId.getAddress()).sync().channel();
             NetworkClientHandler clientHandler = channel.pipeline().get(NetworkClientHandler.class);
             return new NettyPartitionRequestClient(channel, clientHandler, connectionId, this);
         } catch (InterruptedException e) {
