@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 
+
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
@@ -67,7 +68,6 @@ public class CompositeKeySerializationUtils {
         }
         return namespace;
     }
-
 
     public static <N> void writeNameSpace(
             N namespace,
