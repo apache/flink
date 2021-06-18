@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
@@ -28,21 +26,15 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAdapter;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -217,6 +209,24 @@ public class PartitionRequestClientFactoryTest {
         serverAndClient.server().shutdown();
     }
 
+    @Test(expected = RemoteTransportException.class)
+    public void testThrowsWhenNetworkFailure() throws Exception {
+        NettyTestUtil.NettyServerAndClient nettyServerAndClient = createNettyServerAndClient();
+        try {
+            NettyClient client = nettyServerAndClient.client();
+            PartitionRequestClientFactory factory = new PartitionRequestClientFactory(client, 0);
+
+            // Connect to a wrong address
+            InetSocketAddress addr =
+                    new InetSocketAddress(InetAddress.getLocalHost(), NetUtils.getAvailablePort());
+            ConnectionID connectionID = new ConnectionID(addr, 0);
+            factory.createPartitionRequestClient(connectionID);
+        } finally {
+            nettyServerAndClient.client().shutdown();
+            nettyServerAndClient.server().shutdown();
+        }
+    }
+
     private NettyTestUtil.NettyServerAndClient createNettyServerAndClient() throws Exception {
         return NettyTestUtil.initServerAndClient(
                 new NettyProtocol(null, null) {
@@ -288,67 +298,5 @@ public class PartitionRequestClientFactoryTest {
                 throw new RuntimeException(exception);
             }
         }
-    }
-
-    private static class CountDownLatchOnConnectHandler extends ChannelOutboundHandlerAdapter {
-
-        private final CountDownLatch syncOnConnect;
-
-        public CountDownLatchOnConnectHandler(CountDownLatch syncOnConnect) {
-            this.syncOnConnect = syncOnConnect;
-        }
-
-        @Override
-        public void connect(
-                ChannelHandlerContext ctx,
-                SocketAddress remoteAddress,
-                SocketAddress localAddress,
-                ChannelPromise promise) {
-            syncOnConnect.countDown();
-        }
-    }
-
-    private static class UncaughtTestExceptionHandler implements UncaughtExceptionHandler {
-
-        private final List<Throwable> errors = new ArrayList<>(1);
-
-        @Override
-        public void uncaughtException(Thread t, Throwable e) {
-            errors.add(e);
-        }
-
-        private List<Throwable> getErrors() {
-            return errors;
-        }
-    }
-
-    // ------------------------------------------------------------------------
-
-    private static Tuple2<NettyServer, NettyClient> createNettyServerAndClient(
-            NettyProtocol protocol) throws IOException {
-        final NettyConfig config =
-                new NettyConfig(
-                        InetAddress.getLocalHost(), SERVER_PORT, 32 * 1024, 1, new Configuration());
-
-        final NettyServer server = new NettyServer(config);
-        final NettyClient client = new NettyClient(config);
-
-        boolean success = false;
-
-        try {
-            NettyBufferPool bufferPool = new NettyBufferPool(1);
-
-            server.init(protocol, bufferPool);
-            client.init(protocol, bufferPool);
-
-            success = true;
-        } finally {
-            if (!success) {
-                server.shutdown();
-                client.shutdown();
-            }
-        }
-
-        return new Tuple2<>(server, client);
     }
 }
