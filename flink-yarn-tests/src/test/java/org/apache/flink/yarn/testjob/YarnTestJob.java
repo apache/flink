@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * Testing job for {@link org.apache.flink.runtime.jobmaster.JobMaster} failover. Covering stream
  * case that have a infinite source and a sink, scheduling by EAGER mode, with PIPELINED edges.
@@ -63,6 +65,9 @@ public class YarnTestJob {
         /** Signals that the job should stop. */
         public void signal() {
             try {
+                checkState(
+                        Files.exists(Paths.get(stopJobMarkerFile)),
+                        "Marker file is deleted before signal.");
                 Files.delete(Paths.get(stopJobMarkerFile));
             } catch (final IOException e) {
                 throw new RuntimeException(e);
