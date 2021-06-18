@@ -26,6 +26,8 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Objects;
+
 /**
  * A tuple with 18 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
@@ -413,58 +415,58 @@ public class Tuple18<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13,
         }
         @SuppressWarnings("rawtypes")
         Tuple18 tuple = (Tuple18) o;
-        if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+        if (!Objects.equals(f0, tuple.f0)) {
             return false;
         }
-        if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+        if (!Objects.equals(f1, tuple.f1)) {
             return false;
         }
-        if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) {
+        if (!Objects.equals(f2, tuple.f2)) {
             return false;
         }
-        if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
+        if (!Objects.equals(f3, tuple.f3)) {
             return false;
         }
-        if (f4 != null ? !f4.equals(tuple.f4) : tuple.f4 != null) {
+        if (!Objects.equals(f4, tuple.f4)) {
             return false;
         }
-        if (f5 != null ? !f5.equals(tuple.f5) : tuple.f5 != null) {
+        if (!Objects.equals(f5, tuple.f5)) {
             return false;
         }
-        if (f6 != null ? !f6.equals(tuple.f6) : tuple.f6 != null) {
+        if (!Objects.equals(f6, tuple.f6)) {
             return false;
         }
-        if (f7 != null ? !f7.equals(tuple.f7) : tuple.f7 != null) {
+        if (!Objects.equals(f7, tuple.f7)) {
             return false;
         }
-        if (f8 != null ? !f8.equals(tuple.f8) : tuple.f8 != null) {
+        if (!Objects.equals(f8, tuple.f8)) {
             return false;
         }
-        if (f9 != null ? !f9.equals(tuple.f9) : tuple.f9 != null) {
+        if (!Objects.equals(f9, tuple.f9)) {
             return false;
         }
-        if (f10 != null ? !f10.equals(tuple.f10) : tuple.f10 != null) {
+        if (!Objects.equals(f10, tuple.f10)) {
             return false;
         }
-        if (f11 != null ? !f11.equals(tuple.f11) : tuple.f11 != null) {
+        if (!Objects.equals(f11, tuple.f11)) {
             return false;
         }
-        if (f12 != null ? !f12.equals(tuple.f12) : tuple.f12 != null) {
+        if (!Objects.equals(f12, tuple.f12)) {
             return false;
         }
-        if (f13 != null ? !f13.equals(tuple.f13) : tuple.f13 != null) {
+        if (!Objects.equals(f13, tuple.f13)) {
             return false;
         }
-        if (f14 != null ? !f14.equals(tuple.f14) : tuple.f14 != null) {
+        if (!Objects.equals(f14, tuple.f14)) {
             return false;
         }
-        if (f15 != null ? !f15.equals(tuple.f15) : tuple.f15 != null) {
+        if (!Objects.equals(f15, tuple.f15)) {
             return false;
         }
-        if (f16 != null ? !f16.equals(tuple.f16) : tuple.f16 != null) {
+        if (!Objects.equals(f16, tuple.f16)) {
             return false;
         }
-        if (f17 != null ? !f17.equals(tuple.f17) : tuple.f17 != null) {
+        if (!Objects.equals(f17, tuple.f17)) {
             return false;
         }
         return true;
