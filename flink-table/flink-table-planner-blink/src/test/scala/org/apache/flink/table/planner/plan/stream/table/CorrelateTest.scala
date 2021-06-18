@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFuncTuple12
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{JavaTableFuncTuple12, NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils._
 
 import org.apache.calcite.rel.rules.CoreRules
@@ -200,6 +200,62 @@ class CorrelateTest extends TableTestBase {
       """
         |SELECT *
         |FROM MyTable, LATERAL TABLE(func1(c)) AS T
+        |""".stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinConstantFunction(): Unit = {
+    val util = streamTestUtil()
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTemporarySystemFunction("str_split", new StringSplit())
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable, LATERAL TABLE(str_split('Jack,John', ',')) AS T
+        |""".stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testLeftJoinConstantFunction(): Unit = {
+    val util = streamTestUtil()
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTemporarySystemFunction("str_split", new StringSplit())
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John', ',')) AS T ON TRUE
+        |""".stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testInnerJoinConstantNonDeterministicFunction(): Unit = {
+    val util = streamTestUtil()
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable, LATERAL TABLE(str_split('Jack,John')) AS T
+        |""".stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testLeftJoinConstantNonDeterministicFunction(): Unit = {
+    val util = streamTestUtil()
+    util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    util.addTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
+    val sql =
+      """
+        |SELECT *
+        |FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John')) AS T ON TRUE
         |""".stripMargin
 
     util.verifyExecPlan(sql)

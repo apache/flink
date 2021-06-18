@@ -22,12 +22,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.{Before, Test}
 
 import java.lang.{Boolean => JBoolean}
@@ -107,6 +107,66 @@ class CorrelateITCase extends StreamingTestBase {
 
     val expected = List("Jack", "John")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testConstantTableFunc3(): Unit = {
+    val data = List(
+      (1, 2, "abc-bcd"),
+      (1, 2, "hhh"),
+      (1, 2, "xxx"))
+
+    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T1", t1)
+
+    tEnv.registerFunction("str_split", new StringSplit())
+    val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,2,abc-bcd,Jack",
+      "1,2,abc-bcd,John",
+      "1,2,hhh,Jack",
+      "1,2,hhh,John",
+      "1,2,xxx,Jack",
+      "1,2,xxx,John")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testConstantNonDeterministicTableFunc(): Unit = {
+    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    val query = "SELECT * FROM LATERAL TABLE(str_split('Jack#John')) as T0(d)"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val res = sink.getAppendResults;
+    assertEquals(1, res.size)
+    assertTrue(res(0).equals("Jack") || res(0).equals("John"))
+  }
+
+  @Test
+  def testConstantNonDeterministicTableFunc2(): Unit = {
+    val data = List(
+      (1, 2, "abc-bcd"),
+      (1, 2, "hhh"),
+      (1, 2, "xxx"))
+
+    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
+    tEnv.registerTable("T1", t1)
+
+    tEnv.registerFunction("str_split", new NonDeterministicTableFunc())
+    val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack#John')) as T0(d)"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+
+    val res = sink.getAppendResults;
+    assertEquals(3, res.size)
   }
 
   @Test

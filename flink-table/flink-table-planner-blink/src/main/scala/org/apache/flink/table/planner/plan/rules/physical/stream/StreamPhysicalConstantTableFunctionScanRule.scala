@@ -51,7 +51,7 @@ class StreamPhysicalConstantTableFunctionScanRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: FlinkLogicalTableFunctionScan = call.rel(0)
-    RexUtil.isConstant(scan.getCall) && scan.getInputs.isEmpty
+    !RexUtil.containsInputRef(scan.getCall) && scan.getInputs.isEmpty
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
