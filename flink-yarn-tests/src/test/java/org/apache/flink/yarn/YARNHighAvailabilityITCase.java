@@ -258,6 +258,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                             >= attemptId;
                 },
                 Deadline.fromNow(TIMEOUT));
+        log.info("Attempt {} id detected.", attemptId);
     }
 
     /** Stops a container running {@link YarnTaskExecutorRunner}. */
@@ -319,6 +320,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
     private void waitForJobTermination(
             final RestClusterClient<ApplicationId> restClusterClient, final JobID jobId)
             throws Exception {
+        log.info("Sending stop job signal");
         stopJobSignal.signal();
         final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
         jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
