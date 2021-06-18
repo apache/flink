@@ -57,12 +57,12 @@ cd "${CI_DIR}/java-ci-tools/" || exit
 run_mvn exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args=\""${dependency_plugin_output}" "${FLINK_ROOT}"\"
 EXIT_CODE=$?
 
-if [ $EXIT_CODE != 0 ]; then
-    echo "=============================================================================="
-    echo "Suffix Check failed. See previous output for details."
-    echo "=============================================================================="
-    exit 1
+if [ $EXIT_CODE == 0 ]; then
+    exit 0
 fi
 
-exit 0
+echo "=============================================================================="
+echo "Suffix Check failed. See previous output for details."
+echo "=============================================================================="
+exit 1
 
