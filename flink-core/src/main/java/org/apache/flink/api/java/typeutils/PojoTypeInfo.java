@@ -52,7 +52,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <ul>
  *   <li>It is a public class, and standalone (not a non-static inner class)
  *   <li>It has a public no-argument constructor.
- *   <li>All fields are either public, or have public getters and setters.
+ *   <li>All non-static, non-transient fields in the class (and all superclasses) are either public
+ *       (and non-final) or have a public getter and a setter method that follows the Java beans
+ *       naming conventions for getters and setters.
+ *   <li>It is a fixed-length, null-aware composite type with non-deterministic field order. Every
+ *       field can be null independent of the field's type.
  * </ul>
  *
  * @param <T> The type represented by this type information.
