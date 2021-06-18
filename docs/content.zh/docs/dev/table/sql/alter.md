@@ -186,8 +186,6 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 ```
 
-```
-
 修改一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个新的 identifier ，可指定 language tag 。若函数不存在，删除会抛出异常。
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
