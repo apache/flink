@@ -61,8 +61,17 @@ public class ScalaSuffixChecker {
         final Path mavenOutputPath = Paths.get(args[0]);
         final Path flinkRootPath = Paths.get(args[1]);
 
-        final Collection<String> violations =
-                checkScalaSuffixes(parseMavenOutput(mavenOutputPath), flinkRootPath);
+        final ParseResult parseResult = parseMavenOutput(mavenOutputPath);
+        if (parseResult.getCleanModules().isEmpty()) {
+            LOG.error("Parsing found 0 scala-free modules; the parsing is likely broken.");
+            System.exit(1);
+        }
+        if (parseResult.getInfectedModules().isEmpty()) {
+            LOG.error("Parsing found 0 scala-dependent modules; the parsing is likely broken.");
+            System.exit(1);
+        }
+
+        final Collection<String> violations = checkScalaSuffixes(parseResult, flinkRootPath);
 
         if (!violations.isEmpty()) {
             LOG.error(
