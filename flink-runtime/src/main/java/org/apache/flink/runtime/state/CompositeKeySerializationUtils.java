@@ -68,6 +68,7 @@ public class CompositeKeySerializationUtils {
         return namespace;
     }
 
+
     public static <N> void writeNameSpace(
             N namespace,
             TypeSerializer<N> namespaceSerializer,
@@ -76,8 +77,13 @@ public class CompositeKeySerializationUtils {
             throws IOException {
 
         int beforeWrite = keySerializationDataOutputView.length();
-        namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
 
+        // If the passed namespaceSerializer does not match the namespace, it should not serialize and should not write backendState
+        // Sharing state between trigger and TimeWindow causes inconsistencies in the namespace and NamespaceSerializer
+        if ((namespaceSerializer instanceof VoidNamespaceSerializer) && !(namespace instanceof VoidNamespace)){
+           return;
+        }
+        namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
         if (ambiguousKeyPossible) {
             // write length of namespace
             writeLengthFrom(beforeWrite, keySerializationDataOutputView);
