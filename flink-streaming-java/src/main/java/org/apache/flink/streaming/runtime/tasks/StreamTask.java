@@ -88,6 +88,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -1213,9 +1214,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
+        final TernaryBoolean isChangeLogStateBackendEnableFromApplication =
+                configuration.isChangeLogStateBackendEnabled(getUserCodeClassLoader());
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
+                isChangeLogStateBackendEnableFromApplication == null
+                        ? TernaryBoolean.UNDEFINED
+                        : isChangeLogStateBackendEnableFromApplication,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

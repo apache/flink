@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.util.TernaryBoolean;
 
 import java.util.List;
 
@@ -44,6 +45,7 @@ public class ExecutorUtils {
                 new StreamGraphGenerator(
                                 transformations, execEnv.getConfig(), execEnv.getCheckpointConfig())
                         .setStateBackend(execEnv.getStateBackend())
+                        .setChangeLogStateBackendEnabled(execEnv.isChangelogStateBackendEnabled())
                         .setSavepointDir(execEnv.getDefaultSavepointDirectory())
                         .setChaining(execEnv.isChainingEnabled())
                         .setUserArtifacts(execEnv.getCachedFiles())
@@ -73,6 +75,7 @@ public class ExecutorUtils {
         // scheduler)
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setStateBackend(null);
+        streamGraph.setChangeLogStateBackendEnabled(TernaryBoolean.FALSE);
         streamGraph.setCheckpointStorage(null);
         if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");

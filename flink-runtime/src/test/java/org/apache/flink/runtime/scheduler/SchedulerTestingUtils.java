@@ -70,6 +70,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -185,7 +186,11 @@ public class SchedulerTestingUtils {
 
         jobGraph.setSnapshotSettings(
                 new JobCheckpointingSettings(
-                        config, serializedStateBackend, serializedCheckpointStorage, null));
+                        config,
+                        serializedStateBackend,
+                        TernaryBoolean.UNDEFINED,
+                        serializedCheckpointStorage,
+                        null));
     }
 
     public static Collection<ExecutionAttemptID> getAllCurrentExecutionAttempts(

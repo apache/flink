@@ -43,6 +43,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TernaryBoolean;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -100,6 +101,7 @@ public class StreamConfig implements Serializable {
     private static final String SAVEPOINT_DIR = "savepointdir";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
+    private static final String ENABLE_CHANGE_LOG_STATE_BACKEND = "enablechangelog";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
     private static final String STATE_PARTITIONER = "statePartitioner";
 
@@ -553,6 +555,16 @@ public class StreamConfig implements Serializable {
         }
     }
 
+    public void setChangeLogStateBackendEnabled(TernaryBoolean enabled) {
+        try {
+            InstantiationUtil.writeObjectToConfig(
+                    enabled, this.config, ENABLE_CHANGE_LOG_STATE_BACKEND);
+        } catch (Exception e) {
+            throw new StreamTaskException(
+                    "Could not serialize change log state backend enable flag.", e);
+        }
+    }
+
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
         this.config.setBoolean(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
@@ -563,6 +575,16 @@ public class StreamConfig implements Serializable {
             return InstantiationUtil.readObjectFromConfig(this.config, STATE_BACKEND, cl);
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate statehandle provider.", e);
+        }
+    }
+
+    public TernaryBoolean isChangeLogStateBackendEnabled(ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(
+                    this.config, ENABLE_CHANGE_LOG_STATE_BACKEND, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException(
+                    "Could not instantiate change log state backend enable flag.", e);
         }
     }
 

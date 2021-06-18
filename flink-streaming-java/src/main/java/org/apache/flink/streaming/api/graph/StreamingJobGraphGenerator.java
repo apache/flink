@@ -720,6 +720,7 @@ public class StreamingJobGraphGenerator {
         final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
         config.setStateBackend(streamGraph.getStateBackend());
+        config.setChangeLogStateBackendEnabled(streamGraph.isChangeLogStateBackendEnabled());
         config.setCheckpointStorage(streamGraph.getCheckpointStorage());
         config.setSavepointDir(streamGraph.getSavepointDirectory());
         config.setGraphContainingLoops(streamGraph.isIterative());
@@ -1317,6 +1318,7 @@ public class StreamingJobGraphGenerator {
                                 .setAlignmentTimeout(cfg.getAlignmentTimeout().toMillis())
                                 .build(),
                         serializedStateBackend,
+                        streamGraph.isChangeLogStateBackendEnabled(),
                         serializedCheckpointStorage,
                         serializedHooks);
 

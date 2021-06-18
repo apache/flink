@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.scala
 
 import java.net.URI
-
 import com.esotericsoftware.kryo.Serializer
 import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolving}
 import org.apache.flink.api.common.RuntimeExecutionMode
@@ -40,7 +39,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.functions.source.SourceFunction.SourceContext
 import org.apache.flink.streaming.api.functions.source._
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.util.SplittableIterator
+import org.apache.flink.util.{SplittableIterator, TernaryBoolean}
 
 import _root_.scala.language.implicitConversions
 import scala.collection.JavaConverters._
@@ -293,6 +292,49 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   @PublicEvolving
   def getStateBackend: StateBackend = javaEnv.getStateBackend()
+
+  /**
+   * Enable the change log for current state backend. this changelog allows operators to persist
+   * state changes in a very fine-grained manner, as described below:
+   *
+   * Stateful operators write the state changes to that log (logging the state), in addition to
+   * applying them to the state tables in RocksDB or the in-mem Hashtable.
+   *
+   * An operator can acknowledge a checkpoint as soon as the changes in the log have reached
+   * the durable checkpoint storage.
+   *
+   * The state tables are persisted periodically, independent of the checkpoints. We call this
+   * the materialization of the state on the checkpoint storage.
+   *
+   * Once the state is materialized on checkpoint storage, the state changelog can be truncated
+   * to the corresponding point.
+   *
+   * It establish a way to drastically reduce the checkpoint interval for streaming
+   * applications across state backends. For more details please check the FLIP-158.
+   *
+   * If this method is not called explicitly, it means no preference for enabling the change log.
+   * Configs for change log enabling will override in different config levels (job/local/cluster).
+   *
+   * @param enabled true if enable the change log for state backend explicitly, otherwise disable
+   *                the change log.
+   * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+   * @see #isChangelogStateBackendEnabled()
+   */
+  @PublicEvolving
+  def enableChangelogStateBackend(enabled: Boolean): StreamExecutionEnvironment = {
+    javaEnv.enableChangelogStateBackend(enabled)
+    this
+  }
+
+  /**
+   * Gets the enable status of change log for state backend.
+   *
+   * @return a [[TernaryBoolean]] for the enable status of change log for state backend. Could
+   *         be [[TernaryBoolean#UNDEFINED]] if user never specify this by calling
+   *         [[enableChangelogStateBackend(boolean)]].
+   */
+  @PublicEvolving
+  def isChangelogStateBackendEnabled: TernaryBoolean = javaEnv.isChangelogStateBackendEnabled
 
   /**
    * Sets the default savepoint directory, where savepoints will be written to

@@ -74,6 +74,7 @@ import org.apache.flink.streaming.runtime.translators.SourceTransformationTransl
 import org.apache.flink.streaming.runtime.translators.TimestampsAndWatermarksTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,6 +147,8 @@ public class StreamGraphGenerator {
     private Path savepointDir;
 
     private StateBackend stateBackend;
+
+    private TernaryBoolean changeLogStateBackendEnabled;
 
     private CheckpointStorage checkpointStorage;
 
@@ -245,6 +248,12 @@ public class StreamGraphGenerator {
 
     public StreamGraphGenerator setStateBackend(StateBackend stateBackend) {
         this.stateBackend = stateBackend;
+        return this;
+    }
+
+    public StreamGraphGenerator setChangeLogStateBackendEnabled(
+            TernaryBoolean changeLogStateBackendEnabled) {
+        this.changeLogStateBackendEnabled = changeLogStateBackendEnabled;
         return this;
     }
 
@@ -348,6 +357,7 @@ public class StreamGraphGenerator {
             setBatchStateBackendAndTimerService(graph);
         } else {
             graph.setStateBackend(stateBackend);
+            graph.setChangeLogStateBackendEnabled(changeLogStateBackendEnabled);
             graph.setCheckpointStorage(checkpointStorage);
             graph.setSavepointDirectory(savepointDir);
 
@@ -377,10 +387,12 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
+            graph.setChangeLogStateBackendEnabled(TernaryBoolean.FALSE);
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
             graph.setStateBackend(stateBackend);
+            graph.setChangeLogStateBackendEnabled(changeLogStateBackendEnabled);
         }
     }
 

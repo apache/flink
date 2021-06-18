@@ -58,7 +58,14 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
 
     private final StateBackend delegatedStateBackend;
 
-    public ChangelogStateBackend(StateBackend stateBackend) {
+    /**
+     * Delegate a state backend by a ChangelogStateBackend.
+     *
+     * <p>As FLINK-22678 mentioned, we currently hide this constructor from user.
+     *
+     * @param stateBackend the delegated state backend.
+     */
+    ChangelogStateBackend(StateBackend stateBackend) {
         this.delegatedStateBackend = Preconditions.checkNotNull(stateBackend);
 
         Preconditions.checkArgument(

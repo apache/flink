@@ -102,13 +102,17 @@ public class CheckpointingOptions {
 
     /** Whether to enable state change log. */
     @Documentation.Section(value = Documentation.Sections.COMMON_STATE_BACKENDS)
-    @Documentation.ExcludeFromDocumentation("Hidden for now")
     public static final ConfigOption<Boolean> ENABLE_STATE_CHANGE_LOG =
             ConfigOptions.key("state.backend.changelog.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to enable state backend to write state changes to StateChangelog.");
+                            "Whether to enable state backend to write state changes to StateChangelog. "
+                                    + "If this config is not set explicitly, it means no preference "
+                                    + "for enabling the change log, and the value in lower config "
+                                    + "level will take effect. The default value 'false' here means "
+                                    + "if no value set (job or cluster), the change log will not be"
+                                    + "enabled.");
 
     /** The maximum number of completed checkpoints to retain. */
     @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
