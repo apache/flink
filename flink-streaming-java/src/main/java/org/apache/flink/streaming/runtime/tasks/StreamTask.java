@@ -1052,6 +1052,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         return true;
     }
 
+    /**
+     * Acquires the optional {@link CheckpointBarrierHandler} associated with this stream task. The
+     * {@code CheckpointBarrierHandler} should exist if the task has data inputs and requires to
+     * align the barriers.
+     */
     protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
         return Optional.empty();
     }
