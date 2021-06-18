@@ -236,29 +236,6 @@ under the License.
 			<artifactId>snappy-java</artifactId>
 		</dependency>
 
-		<!--
-		The KryoSerializer dynamically loads Kryo instances via Chill and requires that Chill
-		is in the classpath. Because we do not want to have transitive Scala dependencies
-		in Flink's API modules (such as flink-java) due to Chill, Chill is added to flink-runtime
-		to ensure that Chill is always present in the classpath.
-		-->
-		<dependency>
-			<groupId>com.twitter</groupId>
-			<artifactId>chill_${scala.binary.version}</artifactId>
-			<version>${chill.version}</version>
-			<!-- exclusions for dependency conversion -->
-			<exclusions>
-				<exclusion>
-					<groupId>com.esotericsoftware.kryo</groupId>
-					<artifactId>kryo</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.scala-lang</groupId>
-					<artifactId>scala-library</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- Lz4 compression library -->
 		<dependency>
 			<groupId>org.lz4</groupId>
