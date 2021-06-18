@@ -503,19 +503,21 @@ public class HiveCatalogITCase {
     }
 
     @Test
-    public void testGenericView() throws Exception {
+    public void testViewSchema() throws Exception {
         TableEnvironment tableEnv =
                 HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 
+        tableEnv.executeSql("create database db1");
         try {
+            tableEnv.useDatabase("db1");
             tableEnv.executeSql(
                     "create table src(x int,ts timestamp(3)) with ('connector'='datagen','number-of-rows'='10')");
-            tableEnv.executeSql("create view v as select x,ts from src order by x limit 3");
+            tableEnv.executeSql("create view v1 as select x,ts from src order by x limit 3");
 
             CatalogView catalogView =
-                    (CatalogView) hiveCatalog.getTable(new ObjectPath("default", "v"));
+                    (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v1"));
             Schema viewSchema = catalogView.getUnresolvedSchema();
             assertEquals(
                     Schema.newBuilder()
@@ -528,11 +530,29 @@ public class HiveCatalogITCase {
                     viewSchema);
 
             List<Row> results =
-                    CollectionUtil.iteratorToList(tableEnv.executeSql("select x from v").collect());
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select x from v1").collect());
+            assertEquals(3, results.size());
+
+            tableEnv.executeSql(
+                    "create view v2 (v2_x,v2_ts) comment 'v2 comment' as select x,cast(ts as timestamp_ltz(3)) from v1");
+            catalogView = (CatalogView) hiveCatalog.getTable(new ObjectPath("db1", "v2"));
+            assertEquals(
+                    Schema.newBuilder()
+                            .fromFields(
+                                    new String[] {"v2_x", "v2_ts"},
+                                    new AbstractDataType[] {
+                                        DataTypes.INT(), DataTypes.TIMESTAMP_LTZ(3)
+                                    })
+                            .build(),
+                    catalogView.getUnresolvedSchema());
+            assertEquals("v2 comment", catalogView.getComment());
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from v2").collect());
             assertEquals(3, results.size());
         } finally {
-            tableEnv.executeSql("drop table if exists src");
-            tableEnv.executeSql("drop view if exists v");
+            tableEnv.executeSql("drop database db1 cascade");
         }
     }
 }
