@@ -270,8 +270,8 @@ public class StateBackendLoader {
      * If delegation is not enabled, the underlying wrapped state backend is returned instead.
      *
      * @param fromApplication StateBackend defined from application
-     * @param isChangeLogStateBackendEnableFromApplication whether to enable the
-     *     ChangeLogStateBackend from application
+     * @param isChangelogStateBackendEnableFromApplication whether to enable the
+     *     ChangelogStateBackend from application
      * @param config The configuration to load the state backend from
      * @param classLoader The class loader that should be used to load the state backend
      * @param logger Optionally, a logger to log actions to (may be null)
@@ -285,7 +285,7 @@ public class StateBackendLoader {
      */
     public static StateBackend fromApplicationOrConfigOrDefault(
             @Nullable StateBackend fromApplication,
-            TernaryBoolean isChangeLogStateBackendEnableFromApplication,
+            TernaryBoolean isChangelogStateBackendEnableFromApplication,
             Configuration config,
             ClassLoader classLoader,
             @Nullable Logger logger)
@@ -297,9 +297,9 @@ public class StateBackendLoader {
 
         // Configuration from application will override the one from env.
         boolean enableChangeLog =
-                TernaryBoolean.TRUE.equals(isChangeLogStateBackendEnableFromApplication)
+                TernaryBoolean.TRUE.equals(isChangelogStateBackendEnableFromApplication)
                         || (TernaryBoolean.UNDEFINED.equals(
-                                        isChangeLogStateBackendEnableFromApplication)
+                                        isChangelogStateBackendEnableFromApplication)
                                 && config.get(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG));
 
         StateBackend backend;

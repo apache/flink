@@ -118,7 +118,7 @@ public class StreamGraph implements Pipeline {
     protected Map<Integer, String> vertexIDtoBrokerID;
     protected Map<Integer, Long> vertexIDtoLoopTimeout;
     private StateBackend stateBackend;
-    private TernaryBoolean changeLogStateBackendEnabled;
+    private TernaryBoolean changelogStateBackendEnabled;
     private CheckpointStorage checkpointStorage;
     private Path savepointDir;
     private Set<Tuple2<StreamNode, StreamNode>> iterationSourceSinkPairs;
@@ -187,12 +187,12 @@ public class StreamGraph implements Pipeline {
         return this.stateBackend;
     }
 
-    public void setChangeLogStateBackendEnabled(TernaryBoolean changeLogStateBackendEnabled) {
-        this.changeLogStateBackendEnabled = changeLogStateBackendEnabled;
+    public void setChangelogStateBackendEnabled(TernaryBoolean changelogStateBackendEnabled) {
+        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
     }
 
-    public TernaryBoolean isChangeLogStateBackendEnabled() {
-        return changeLogStateBackendEnabled;
+    public TernaryBoolean isChangelogStateBackendEnabled() {
+        return changelogStateBackendEnabled;
     }
 
     public void setCheckpointStorage(CheckpointStorage checkpointStorage) {

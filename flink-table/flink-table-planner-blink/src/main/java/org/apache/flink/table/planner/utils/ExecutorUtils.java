@@ -45,7 +45,7 @@ public class ExecutorUtils {
                 new StreamGraphGenerator(
                                 transformations, execEnv.getConfig(), execEnv.getCheckpointConfig())
                         .setStateBackend(execEnv.getStateBackend())
-                        .setChangeLogStateBackendEnabled(execEnv.isChangelogStateBackendEnabled())
+                        .setChangelogStateBackendEnabled(execEnv.isChangelogStateBackendEnabled())
                         .setSavepointDir(execEnv.getDefaultSavepointDirectory())
                         .setChaining(execEnv.isChainingEnabled())
                         .setUserArtifacts(execEnv.getCachedFiles())
@@ -75,7 +75,7 @@ public class ExecutorUtils {
         // scheduler)
         streamGraph.setJobType(JobType.BATCH);
         streamGraph.setStateBackend(null);
-        streamGraph.setChangeLogStateBackendEnabled(TernaryBoolean.FALSE);
+        streamGraph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
         streamGraph.setCheckpointStorage(null);
         if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");

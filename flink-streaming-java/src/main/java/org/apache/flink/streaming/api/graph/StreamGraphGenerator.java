@@ -148,7 +148,7 @@ public class StreamGraphGenerator {
 
     private StateBackend stateBackend;
 
-    private TernaryBoolean changeLogStateBackendEnabled;
+    private TernaryBoolean changelogStateBackendEnabled;
 
     private CheckpointStorage checkpointStorage;
 
@@ -251,9 +251,9 @@ public class StreamGraphGenerator {
         return this;
     }
 
-    public StreamGraphGenerator setChangeLogStateBackendEnabled(
-            TernaryBoolean changeLogStateBackendEnabled) {
-        this.changeLogStateBackendEnabled = changeLogStateBackendEnabled;
+    public StreamGraphGenerator setChangelogStateBackendEnabled(
+            TernaryBoolean changelogStateBackendEnabled) {
+        this.changelogStateBackendEnabled = changelogStateBackendEnabled;
         return this;
     }
 
@@ -357,7 +357,7 @@ public class StreamGraphGenerator {
             setBatchStateBackendAndTimerService(graph);
         } else {
             graph.setStateBackend(stateBackend);
-            graph.setChangeLogStateBackendEnabled(changeLogStateBackendEnabled);
+            graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
             graph.setCheckpointStorage(checkpointStorage);
             graph.setSavepointDirectory(savepointDir);
 
@@ -387,12 +387,12 @@ public class StreamGraphGenerator {
         if (useStateBackend) {
             LOG.debug("Using BATCH execution state backend and timer service.");
             graph.setStateBackend(new BatchExecutionStateBackend());
-            graph.setChangeLogStateBackendEnabled(TernaryBoolean.FALSE);
+            graph.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
             graph.setCheckpointStorage(new BatchExecutionCheckpointStorage());
             graph.setTimerServiceProvider(BatchExecutionInternalTimeServiceManager::create);
         } else {
             graph.setStateBackend(stateBackend);
-            graph.setChangeLogStateBackendEnabled(changeLogStateBackendEnabled);
+            graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
         }
     }
 

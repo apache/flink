@@ -1214,14 +1214,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     private StateBackend createStateBackend() throws Exception {
         final StateBackend fromApplication =
                 configuration.getStateBackend(getUserCodeClassLoader());
-        final TernaryBoolean isChangeLogStateBackendEnableFromApplication =
-                configuration.isChangeLogStateBackendEnabled(getUserCodeClassLoader());
+        final TernaryBoolean isChangelogStateBackendEnableFromApplication =
+                configuration.isChangelogStateBackendEnabled(getUserCodeClassLoader());
 
         return StateBackendLoader.fromApplicationOrConfigOrDefault(
                 fromApplication,
-                isChangeLogStateBackendEnableFromApplication == null
+                isChangelogStateBackendEnableFromApplication == null
                         ? TernaryBoolean.UNDEFINED
-                        : isChangeLogStateBackendEnableFromApplication,
+                        : isChangelogStateBackendEnableFromApplication,
                 getEnvironment().getTaskManagerInfo().getConfiguration(),
                 getUserCodeClassLoader(),
                 LOG);

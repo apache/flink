@@ -2082,7 +2082,7 @@ public class StreamExecutionEnvironment {
         return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
-                .setChangeLogStateBackendEnabled(changelogStateBackendEnabled)
+                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
                 .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)

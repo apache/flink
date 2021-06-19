@@ -352,7 +352,7 @@ public class ChangelogStateBackendLoadingTest {
 
         StreamGraph streamGraph =
                 env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false);
-        assertEquals(isChangelogEnabled, streamGraph.isChangeLogStateBackendEnabled());
+        assertEquals(isChangelogEnabled, streamGraph.isChangelogStateBackendEnabled());
         if (rootStateBackendClass == null) {
             assertNull(streamGraph.getStateBackend());
         } else {

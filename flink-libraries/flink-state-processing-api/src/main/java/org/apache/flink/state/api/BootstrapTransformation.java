@@ -216,7 +216,7 @@ public class BootstrapTransformation<T> {
         config.setOperatorID(operatorID);
         config.setStateBackend(stateBackend);
         // This means leaving this stateBackend unwrapped.
-        config.setChangeLogStateBackendEnabled(TernaryBoolean.FALSE);
+        config.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
         return config;
     }

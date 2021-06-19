@@ -555,7 +555,7 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setChangeLogStateBackendEnabled(TernaryBoolean enabled) {
+    public void setChangelogStateBackendEnabled(TernaryBoolean enabled) {
         try {
             InstantiationUtil.writeObjectToConfig(
                     enabled, this.config, ENABLE_CHANGE_LOG_STATE_BACKEND);
@@ -578,7 +578,7 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public TernaryBoolean isChangeLogStateBackendEnabled(ClassLoader cl) {
+    public TernaryBoolean isChangelogStateBackendEnabled(ClassLoader cl) {
         try {
             return InstantiationUtil.readObjectFromConfig(
                     this.config, ENABLE_CHANGE_LOG_STATE_BACKEND, cl);
