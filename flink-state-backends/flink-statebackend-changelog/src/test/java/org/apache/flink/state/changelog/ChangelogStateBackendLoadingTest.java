@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -80,9 +82,11 @@ public class ChangelogStateBackendLoadingTest {
     public void testLoadingDefault() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config(true), cl, null);
+                        null, TernaryBoolean.UNDEFINED, config(), cl, null);
+        final CheckpointStorage storage =
+                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
 
-        assertDelegateStateBackend(backend, HashMapStateBackend.class);
+        assertTrue(backend instanceof HashMapStateBackend);
     }
 
     @Test
@@ -92,8 +96,11 @@ public class ChangelogStateBackendLoadingTest {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         appBackend, TernaryBoolean.UNDEFINED, config("rocksdb", true), cl, null);
+        final CheckpointStorage storage =
+                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
 
-        assertDelegateStateBackend(backend, MockStateBackend.class);
+        assertDelegateStateBackend(
+                backend, MockStateBackend.class, storage, MockStateBackend.class);
         assertTrue(
                 ((MockStateBackend) (((ChangelogStateBackend) backend).getDelegatedStateBackend()))
                         .isConfigUpdated());
@@ -106,8 +113,11 @@ public class ChangelogStateBackendLoadingTest {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         appBackend, TernaryBoolean.TRUE, config("rocksdb", false), cl, null);
+        final CheckpointStorage storage =
+                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
 
-        assertDelegateStateBackend(backend, MockStateBackend.class);
+        assertDelegateStateBackend(
+                backend, MockStateBackend.class, storage, MockStateBackend.class);
         assertTrue(
                 ((MockStateBackend) (((ChangelogStateBackend) backend).getDelegatedStateBackend()))
                         .isConfigUpdated());
@@ -118,8 +128,11 @@ public class ChangelogStateBackendLoadingTest {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
                         null, TernaryBoolean.TRUE, config(false), cl, null);
+        final CheckpointStorage storage =
+                CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
 
-        assertDelegateStateBackend(backend, HashMapStateBackend.class);
+        assertDelegateStateBackend(
+                backend, HashMapStateBackend.class, storage, JobManagerCheckpointStorage.class);
     }
 
     @Test
@@ -149,42 +162,56 @@ public class ChangelogStateBackendLoadingTest {
     //
     @Test
     public void testLoadingMemoryStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend("jobmanager", MemoryStateBackend.class, true);
+        testLoadingStateBackend(
+                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, true);
     }
 
     @Test
     public void testLoadingMemoryStateBackend() throws Exception {
-        testLoadingStateBackend("jobmanager", MemoryStateBackend.class, false);
+        testLoadingStateBackend(
+                "jobmanager", MemoryStateBackend.class, MemoryStateBackend.class, false);
     }
 
     @Test
     public void testLoadingFsStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend("filesystem", HashMapStateBackend.class, true);
+        testLoadingStateBackend(
+                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
     }
 
     @Test
     public void testLoadingFsStateBackend() throws Exception {
-        testLoadingStateBackend("filesystem", HashMapStateBackend.class, false);
+        testLoadingStateBackend(
+                "filesystem", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
     }
 
     @Test
     public void testLoadingHashMapStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend("hashmap", HashMapStateBackend.class, true);
+        testLoadingStateBackend(
+                "hashmap", HashMapStateBackend.class, JobManagerCheckpointStorage.class, true);
     }
 
     @Test
     public void testLoadingHashMapStateBackend() throws Exception {
-        testLoadingStateBackend("hashmap", HashMapStateBackend.class, false);
+        testLoadingStateBackend(
+                "hashmap", HashMapStateBackend.class, JobManagerCheckpointStorage.class, false);
     }
 
     @Test
     public void testLoadingRocksDBStateBackendFromConfig() throws Exception {
-        testLoadingStateBackend("rocksdb", EmbeddedRocksDBStateBackend.class, true);
+        testLoadingStateBackend(
+                "rocksdb",
+                EmbeddedRocksDBStateBackend.class,
+                JobManagerCheckpointStorage.class,
+                true);
     }
 
     @Test
     public void testLoadingRocksDBStateBackend() throws Exception {
-        testLoadingStateBackend("rocksdb", EmbeddedRocksDBStateBackend.class, false);
+        testLoadingStateBackend(
+                "rocksdb",
+                EmbeddedRocksDBStateBackend.class,
+                JobManagerCheckpointStorage.class,
+                false);
     }
 
     @Test
@@ -239,20 +266,32 @@ public class ChangelogStateBackendLoadingTest {
         return config;
     }
 
+    private Configuration config() {
+        final Configuration config = new Configuration();
+
+        return config;
+    }
+
     private void assertDelegateStateBackend(
-            StateBackend backend, Class<?> delegatedStateBackendClass) {
+            StateBackend backend,
+            Class<?> delegatedStateBackendClass,
+            CheckpointStorage storage,
+            Class<?> storageClass) {
         assertTrue(backend instanceof ChangelogStateBackend);
         assertSame(
                 ((DelegatingStateBackend) backend).getDelegatedStateBackend().getClass(),
                 delegatedStateBackendClass);
+        assertSame(storage.getClass(), storageClass);
     }
 
     private void testLoadingStateBackend(
-            String backendName, Class<?> delegatedStateBackendClass, boolean configOnly)
+            String backendName,
+            Class<?> delegatedStateBackendClass,
+            Class<?> storageClass,
+            boolean configOnly)
             throws Exception {
         final Configuration config = config(backendName, true);
         StateBackend backend;
-        CheckpointStorage storage;
         StateBackend appBackend = StateBackendLoader.loadStateBackendFromConfig(config, cl, null);
 
         if (configOnly) {
@@ -265,7 +304,10 @@ public class ChangelogStateBackendLoadingTest {
                             appBackend, TernaryBoolean.TRUE, config, cl, null);
         }
 
-        assertDelegateStateBackend(backend, delegatedStateBackendClass);
+        final CheckpointStorage storage =
+                CheckpointStorageLoader.load(null, null, backend, config, cl, null);
+
+        assertDelegateStateBackend(backend, delegatedStateBackendClass, storage, storageClass);
     }
 
     private StreamExecutionEnvironment getEnvironment() {
@@ -327,11 +369,19 @@ public class ChangelogStateBackendLoadingTest {
                     checkpointingSettings.getDefaultStateBackend().deserializeValue(cl).getClass());
             assertSame(
                     rootStateBackendClass,
-                    StateBackendLoader.unwrapFromDelegatingStateBackend(
+                    unwrapFromDelegatingStateBackend(
                                     checkpointingSettings
                                             .getDefaultStateBackend()
                                             .deserializeValue(cl))
                             .getClass());
+        }
+    }
+
+    private StateBackend unwrapFromDelegatingStateBackend(StateBackend backend) {
+        if (backend instanceof DelegatingStateBackend) {
+            return ((DelegatingStateBackend) backend).getDelegatedStateBackend();
+        } else {
+            return backend;
         }
     }
 

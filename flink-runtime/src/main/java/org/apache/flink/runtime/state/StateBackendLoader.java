@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -356,22 +355,6 @@ public class StateBackendLoader {
 
         // (3) use the default MemoryStateBackend
         return false;
-    }
-
-    /**
-     * Try to unwrap a DelegatingStateBackend and get the inner delegated StateBackend. If the
-     * provided StateBackend is not a delegated StateBackend, just return itself.
-     *
-     * @param backend the provided StateBackend that may delegate another StateBackend.
-     * @return the root StateBackend W/O delegation.
-     */
-    @VisibleForTesting
-    public static StateBackend unwrapFromDelegatingStateBackend(StateBackend backend) {
-        if (backend != null && backend instanceof DelegatingStateBackend) {
-            return ((DelegatingStateBackend) backend).getDelegatedStateBackend();
-        } else {
-            return backend;
-        }
     }
 
     private static StateBackend loadChangelogStateBackend(

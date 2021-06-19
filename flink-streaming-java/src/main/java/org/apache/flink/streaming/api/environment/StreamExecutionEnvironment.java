@@ -613,8 +613,10 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Enable the change log for current state backend. this changelog allows operators to persist
-     * state changes in a very fine-grained manner, as described below:
+     * Enable the change log for current state backend. This change log allows operators to persist
+     * state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+     * state, so non-keyed operator state and channel state are persisted as usual. The 'state' here
+     * refers to 'keyed state'. Details are as follows:
      *
      * <p>Stateful operators write the state changes to that log (logging the state), in addition to
      * applying them to the state tables in RocksDB or the in-mem Hashtable.

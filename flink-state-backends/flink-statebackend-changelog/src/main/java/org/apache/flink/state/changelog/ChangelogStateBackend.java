@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -50,6 +51,7 @@ import java.util.Collection;
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
  * state changes to State Changelog.
  */
+@Internal
 public class ChangelogStateBackend implements DelegatingStateBackend, ConfigurableStateBackend {
 
     private static final long serialVersionUID = 1000L;
