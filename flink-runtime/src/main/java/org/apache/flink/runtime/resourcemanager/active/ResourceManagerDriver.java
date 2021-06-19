@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
@@ -44,7 +45,8 @@ public interface ResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
     void initialize(
             ResourceEventHandler<WorkerType> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            ResourceManagerMetricGroup resourceManagerMetricGroup)
             throws Exception;
 
     /** Terminate the deployment specific components. */

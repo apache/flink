@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -40,6 +41,7 @@ public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceI
     private ResourceEventHandler<WorkerType> resourceEventHandler = null;
     private ScheduledExecutor mainThreadExecutor = null;
     private Executor ioExecutor = null;
+    protected ResourceManagerMetricGroup resourceManagerMetricGroup = null;
 
     public AbstractResourceManagerDriver(
             final Configuration flinkConfig, final Configuration flinkClientConfig) {
@@ -72,11 +74,13 @@ public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceI
     public final void initialize(
             ResourceEventHandler<WorkerType> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            ResourceManagerMetricGroup resourceManagerMetricGroup)
             throws Exception {
         this.resourceEventHandler = Preconditions.checkNotNull(resourceEventHandler);
         this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
         this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+        this.resourceManagerMetricGroup = resourceManagerMetricGroup;
 
         initializeInternal();
     }

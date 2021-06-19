@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.metrics.groups.ResourceManagerMetricGroup;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -69,7 +70,8 @@ public class TestingResourceManagerDriver implements ResourceManagerDriver<Resou
     public void initialize(
             ResourceEventHandler<ResourceID> resourceEventHandler,
             ScheduledExecutor mainThreadExecutor,
-            Executor ioExecutor)
+            Executor ioExecutor,
+            ResourceManagerMetricGroup resourceManagerMetricGroup)
             throws Exception {
         initializeFunction.apply(resourceEventHandler, mainThreadExecutor, ioExecutor);
     }
