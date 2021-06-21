@@ -22,7 +22,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -145,7 +144,7 @@ public class InfluxdbReporterTest extends TestLogger {
                 InfluxdbReporterOptions.CONSISTENCY.key(), consistencyLevel.name());
 
         return new MetricRegistryImpl(
-                MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                 Collections.singletonList(
                         ReporterSetup.forReporter("test", metricConfig, new InfluxdbReporter())));
     }

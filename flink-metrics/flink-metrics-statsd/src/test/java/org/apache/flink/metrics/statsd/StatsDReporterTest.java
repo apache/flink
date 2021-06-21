@@ -35,7 +35,6 @@ import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
@@ -89,7 +88,7 @@ public class StatsDReporterTest extends TestLogger {
 
         MetricRegistryImpl metricRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(configuration),
+                        MetricRegistryTestUtils.fromConfiguration(configuration),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("test", new TestingStatsDReporter())));
 

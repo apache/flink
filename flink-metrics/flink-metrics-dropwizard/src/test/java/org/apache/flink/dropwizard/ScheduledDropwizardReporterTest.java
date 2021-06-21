@@ -85,7 +85,7 @@ public class ScheduledDropwizardReporterTest {
         configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
         MetricRegistryConfiguration metricRegistryConfiguration =
-                MetricRegistryConfiguration.fromConfiguration(configuration);
+                MetricRegistryTestUtils.fromConfiguration(configuration);
 
         MetricRegistryImpl metricRegistry =
                 new MetricRegistryImpl(

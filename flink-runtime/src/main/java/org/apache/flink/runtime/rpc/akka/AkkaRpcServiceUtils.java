@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.rpc.AddressResolution;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -67,7 +68,7 @@ public class AkkaRpcServiceUtils {
     //  RPC instantiation
     // ------------------------------------------------------------------------
 
-    public static AkkaRpcService createRemoteRpcService(
+    static AkkaRpcService createRemoteRpcService(
             Configuration configuration,
             @Nullable String externalAddress,
             String externalPortRange,
@@ -87,7 +88,7 @@ public class AkkaRpcServiceUtils {
         return akkaRpcServiceBuilder.createAndStart();
     }
 
-    public static AkkaRpcServiceBuilder remoteServiceBuilder(
+    static AkkaRpcServiceBuilder remoteServiceBuilder(
             Configuration configuration,
             @Nullable String externalAddress,
             String externalPortRange) {
@@ -95,12 +96,12 @@ public class AkkaRpcServiceUtils {
     }
 
     @VisibleForTesting
-    public static AkkaRpcServiceBuilder remoteServiceBuilder(
+    static AkkaRpcServiceBuilder remoteServiceBuilder(
             Configuration configuration, @Nullable String externalAddress, int externalPort) {
         return remoteServiceBuilder(configuration, externalAddress, String.valueOf(externalPort));
     }
 
-    public static AkkaRpcServiceBuilder localServiceBuilder(Configuration configuration) {
+    static AkkaRpcServiceBuilder localServiceBuilder(Configuration configuration) {
         return new AkkaRpcServiceBuilder(configuration, LOG);
     }
 
@@ -238,7 +239,7 @@ public class AkkaRpcServiceUtils {
     // ------------------------------------------------------------------------
 
     /** Builder for {@link AkkaRpcService}. */
-    public static class AkkaRpcServiceBuilder {
+    static class AkkaRpcServiceBuilder implements RpcSystem.RpcServiceBuilder {
 
         private final Configuration configuration;
         private final Logger logger;
@@ -247,9 +248,7 @@ public class AkkaRpcServiceUtils {
 
         private String actorSystemName = AkkaUtils.getFlinkActorSystemName();
 
-        @Nullable
-        private AkkaBootstrapTools.ActorSystemExecutorConfiguration
-                actorSystemExecutorConfiguration = null;
+        @Nullable private Config actorSystemExecutorConfiguration = null;
 
         @Nullable private Config customConfig = null;
         private String bindAddress = NetUtils.getWildcardIPAddress();
@@ -278,15 +277,9 @@ public class AkkaRpcServiceUtils {
             this.externalPortRange = null;
         }
 
-        public AkkaRpcServiceBuilder withActorSystemName(final String actorSystemName) {
+        @Override
+        public AkkaRpcServiceBuilder withComponentName(final String actorSystemName) {
             this.actorSystemName = Preconditions.checkNotNull(actorSystemName);
-            return this;
-        }
-
-        public AkkaRpcServiceBuilder withActorSystemExecutorConfiguration(
-                final AkkaBootstrapTools.ActorSystemExecutorConfiguration
-                        actorSystemExecutorConfiguration) {
-            this.actorSystemExecutorConfiguration = actorSystemExecutorConfiguration;
             return this;
         }
 
@@ -295,15 +288,33 @@ public class AkkaRpcServiceUtils {
             return this;
         }
 
+        @Override
         public AkkaRpcServiceBuilder withBindAddress(final String bindAddress) {
             this.bindAddress = Preconditions.checkNotNull(bindAddress);
             return this;
         }
 
+        @Override
         public AkkaRpcServiceBuilder withBindPort(int bindPort) {
             Preconditions.checkArgument(
                     NetUtils.isValidHostPort(bindPort), "Invalid port number: " + bindPort);
             this.bindPort = bindPort;
+            return this;
+        }
+
+        @Override
+        public RpcSystem.RpcServiceBuilder withExecutorConfiguration(
+                RpcSystem.FixedThreadPoolExecutorConfiguration executorConfiguration) {
+            this.actorSystemExecutorConfiguration =
+                    AkkaUtils.getThreadPoolExecutorConfig(executorConfiguration);
+            return this;
+        }
+
+        @Override
+        public RpcSystem.RpcServiceBuilder withExecutorConfiguration(
+                RpcSystem.ForkJoinExecutorConfiguration executorConfiguration) {
+            this.actorSystemExecutorConfiguration =
+                    AkkaUtils.getForkJoinExecutorConfig(executorConfiguration);
             return this;
         }
 
@@ -316,8 +327,8 @@ public class AkkaRpcServiceUtils {
                 throws Exception {
             if (actorSystemExecutorConfiguration == null) {
                 actorSystemExecutorConfiguration =
-                        AkkaBootstrapTools.ForkJoinExecutorConfiguration.fromConfiguration(
-                                configuration);
+                        AkkaUtils.getForkJoinExecutorConfig(
+                                AkkaBootstrapTools.getForkJoinExecutorConfiguration(configuration));
             }
 
             final ActorSystem actorSystem;

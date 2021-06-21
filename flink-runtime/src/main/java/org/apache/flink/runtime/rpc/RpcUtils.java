@@ -158,6 +158,10 @@ public class RpcUtils {
                 : rpcServiceAddress;
     }
 
+    public static RpcSystem.ForkJoinExecutorConfiguration getTestForkJoinExecutorConfiguration() {
+        return new RpcSystem.ForkJoinExecutorConfiguration(1.0, 2, 4);
+    }
+
     // We don't want this class to be instantiable
     private RpcUtils() {}
 }

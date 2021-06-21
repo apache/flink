@@ -24,8 +24,8 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.management.JMXService;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
@@ -112,7 +112,7 @@ public class JMXReporterTest extends TestLogger {
 
         MetricRegistryImpl reg =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(reporterSetup1, reporterSetup2));
 
         TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
@@ -179,7 +179,7 @@ public class JMXReporterTest extends TestLogger {
 
         MetricRegistryImpl reg =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(reporterSetup1, reporterSetup2));
 
         TaskManagerMetricGroup mg = new TaskManagerMetricGroup(reg, "host", "tm");
@@ -272,7 +272,7 @@ public class JMXReporterTest extends TestLogger {
         try {
             registry =
                     new MetricRegistryImpl(
-                            MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                            MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                             Collections.singletonList(
                                     ReporterSetup.forReporter("test", new JMXReporter(null))));
 
@@ -336,7 +336,7 @@ public class JMXReporterTest extends TestLogger {
         try {
             registry =
                     new MetricRegistryImpl(
-                            MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                            MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                             Collections.singletonList(
                                     ReporterSetup.forReporter("test", new JMXReporter(null))));
 

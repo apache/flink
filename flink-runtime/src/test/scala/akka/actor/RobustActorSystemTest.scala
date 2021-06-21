@@ -19,6 +19,7 @@
 package akka.actor
 
 import org.apache.flink.runtime.akka.AkkaUtils
+import org.apache.flink.runtime.rpc.RpcUtils
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler
 import org.junit.{After, Before, Test}
 import org.scalatest.Matchers
@@ -36,7 +37,7 @@ class RobustActorSystemTest extends JUnitSuite with Matchers {
     testingUncaughtExceptionHandler = new TestingUncaughtExceptionHandler
     robustActorSystem = RobustActorSystem.create(
       "testSystem",
-      AkkaUtils.testDispatcherConfig,
+      AkkaUtils.getForkJoinExecutorConfig(RpcUtils.getTestForkJoinExecutorConfiguration),
       testingUncaughtExceptionHandler)
   }
 

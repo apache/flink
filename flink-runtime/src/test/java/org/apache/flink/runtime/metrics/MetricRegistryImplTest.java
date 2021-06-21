@@ -69,7 +69,7 @@ public class MetricRegistryImplTest extends TestLogger {
     public void testIsShutdown() throws Exception {
         MetricRegistryImpl metricRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
         Assert.assertFalse(metricRegistry.isShutdown());
 
@@ -92,7 +92,7 @@ public class MetricRegistryImplTest extends TestLogger {
     public void testMetricQueryServiceSetup() throws Exception {
         MetricRegistryImpl metricRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
         Assert.assertNull(metricRegistry.getMetricQueryServiceGatewayRpcAddress());
 
@@ -146,7 +146,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("test", config, new TestReporter3())));
 
@@ -187,7 +187,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("test", config, new TestReporter3())),
                         manuallyTriggeredScheduledExecutorService);
@@ -230,7 +230,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", new TestReporter6()),
                                 ReporterSetup.forReporter("test2", new TestReporter7())));
@@ -329,7 +329,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(config),
+                        MetricRegistryTestUtils.fromConfiguration(config),
                         ReporterSetup.fromConfiguration(config, null));
 
         TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "host", "id");
@@ -351,7 +351,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", config1, new TestReporter()),
                                 ReporterSetup.forReporter("test2", config2, new TestReporter()),
@@ -419,7 +419,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(config),
+                        MetricRegistryTestUtils.fromConfiguration(config),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", config1, new TestReporter8()),
                                 ReporterSetup.forReporter("test2", config2, new TestReporter8()),
@@ -449,7 +449,7 @@ public class MetricRegistryImplTest extends TestLogger {
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
         final RpcService rpcService = new TestingRpcService();
 
@@ -492,7 +492,7 @@ public class MetricRegistryImplTest extends TestLogger {
     public void testExceptionIsolation() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", new FailingReporter()),
                                 ReporterSetup.forReporter("test2", new TestReporter7())));
