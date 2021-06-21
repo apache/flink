@@ -82,7 +82,7 @@ Please stick to the "logical order" when using the headlines, e.g. start with le
 #### Table of Contents
 
 Table of contents are added automatically to every page, based on heading levels 2 - 4. 
-The ToC can be ommitted by adding the following to the front matter of the page:
+The ToC can be omitted by adding the following to the front matter of the page:
 
     ---
     bookToc: false
@@ -95,7 +95,7 @@ to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
-    {{< artfiact flink-streaming-java withScalaVersion >}}
+    {{< artifact flink-streaming-java withScalaVersion >}}
 
 This will be replaced by the maven artifact for flink-streaming-java that users should copy into their pom.xml file. It will render out to:
 
@@ -162,7 +162,7 @@ Interpolates the current Flink version
 
 #### Scala Version
 
-    {{< scala_verison >}}
+    {{< scala_version >}}
     
 Interpolates the default scala version
 
