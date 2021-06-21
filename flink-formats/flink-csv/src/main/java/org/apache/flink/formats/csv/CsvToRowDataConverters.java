@@ -259,7 +259,7 @@ public class CsvToRowDataConverters implements Serializable {
     private TimestampData convertToTimestamp(
             JsonNode jsonNode, DateTimeFormatter dateTimeFormatter) {
         return TimestampData.fromLocalDateTime(
-                LocalDateTime.parse(jsonNode.asText(), dateTimeFormatter));
+                LocalDateTime.parse(jsonNode.asText().trim(), dateTimeFormatter));
     }
 
     private StringData convertToString(JsonNode jsonNode) {
