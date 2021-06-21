@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
  * {@link StateChangelogStorageLoader} to obtain an instance.
  */
 @Internal
-public interface StateChangelogStorage<Handle extends StateChangelogHandle> extends AutoCloseable {
+public interface StateChangelogStorage<Handle extends ChangelogStateHandle> extends AutoCloseable {
 
     StateChangelogWriter<Handle> createWriter(String operatorID, KeyGroupRange keyGroupRange);
 

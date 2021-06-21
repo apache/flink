@@ -21,18 +21,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 
 import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
-/** In-memory {@link StateChangelogHandle}. */
+/** In-memory {@link ChangelogStateHandle}. */
 @Internal
-public class InMemoryStateChangelogHandle implements StateChangelogHandle {
+public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
 
     private static final long serialVersionUID = 1L;
 
@@ -41,12 +41,12 @@ public class InMemoryStateChangelogHandle implements StateChangelogHandle {
     private final SequenceNumber to; // for debug purposes
     private final KeyGroupRange keyGroupRange;
 
-    public InMemoryStateChangelogHandle(
+    public InMemoryChangelogStateHandle(
             List<StateChange> changes, long from, long to, KeyGroupRange keyGroupRange) {
         this(changes, SequenceNumber.of(from), SequenceNumber.of(to), keyGroupRange);
     }
 
-    public InMemoryStateChangelogHandle(
+    public InMemoryChangelogStateHandle(
             List<StateChange> changes,
             SequenceNumber from,
             SequenceNumber to,

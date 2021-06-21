@@ -46,17 +46,17 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public interface ChangelogStateBackendHandle extends KeyedStateHandle {
     List<KeyedStateHandle> getMaterializedStateHandles();
 
-    List<StateChangelogHandle> getNonMaterializedStateHandles();
+    List<ChangelogStateHandle> getNonMaterializedStateHandles();
 
     class ChangelogStateBackendHandleImpl implements ChangelogStateBackendHandle {
         private static final long serialVersionUID = 1L;
         private final List<KeyedStateHandle> materialized;
-        private final List<StateChangelogHandle> nonMaterialized;
+        private final List<ChangelogStateHandle> nonMaterialized;
         private final KeyGroupRange keyGroupRange;
 
         public ChangelogStateBackendHandleImpl(
                 List<KeyedStateHandle> materialized,
-                List<StateChangelogHandle> nonMaterialized,
+                List<ChangelogStateHandle> nonMaterialized,
                 KeyGroupRange keyGroupRange) {
             this.materialized = unmodifiableList(materialized);
             this.nonMaterialized = unmodifiableList(nonMaterialized);
@@ -96,11 +96,11 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                             .map(handle -> handle.getIntersection(keyGroupRange))
                             .filter(Objects::nonNull)
                             .collect(Collectors.toList());
-            List<StateChangelogHandle> deltaPart =
+            List<ChangelogStateHandle> deltaPart =
                     this.nonMaterialized.stream()
                             .map(
                                     handle ->
-                                            (StateChangelogHandle)
+                                            (ChangelogStateHandle)
                                                     handle.getIntersection(keyGroupRange))
                             .filter(Objects::nonNull)
                             .collect(Collectors.toList());
@@ -119,7 +119,7 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         }
 
         @Override
-        public List<StateChangelogHandle> getNonMaterializedStateHandles() {
+        public List<ChangelogStateHandle> getNonMaterializedStateHandles() {
             return nonMaterialized;
         }
 

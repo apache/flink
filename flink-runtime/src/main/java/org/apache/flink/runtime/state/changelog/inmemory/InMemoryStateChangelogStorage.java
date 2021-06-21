@@ -24,7 +24,7 @@ import org.apache.flink.util.CloseableIterator;
 
 /** An in-memory (non-production) implementation of {@link StateChangelogStorage}. */
 public class InMemoryStateChangelogStorage
-        implements StateChangelogStorage<InMemoryStateChangelogHandle> {
+        implements StateChangelogStorage<InMemoryChangelogStateHandle> {
 
     @Override
     public InMemoryStateChangelogWriter createWriter(
@@ -33,7 +33,7 @@ public class InMemoryStateChangelogStorage
     }
 
     @Override
-    public StateChangelogHandleReader<InMemoryStateChangelogHandle> createReader() {
+    public StateChangelogHandleReader<InMemoryChangelogStateHandle> createReader() {
         return handle -> CloseableIterator.fromList(handle.getChanges(), change -> {});
     }
 }

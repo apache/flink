@@ -46,8 +46,8 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
@@ -130,7 +130,7 @@ public class ChangelogKeyedStateBackend<K>
 
     private final TtlTimeProvider ttlTimeProvider;
 
-    private final StateChangelogWriter<StateChangelogHandle> stateChangelogWriter;
+    private final StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter;
 
     private long lastCheckpointId = -1L;
 
@@ -150,7 +150,7 @@ public class ChangelogKeyedStateBackend<K>
 
     /** Updated initially on restore and later cleared upon materialization (in FLINK-21357). */
     @GuardedBy("materialized")
-    private final List<StateChangelogHandle> restoredNonMaterialized = new ArrayList<>();
+    private final List<ChangelogStateHandle> restoredNonMaterialized = new ArrayList<>();
 
     /**
      * {@link SequenceNumber} denoting last upload range <b>start</b>, inclusive. Updated to {@link
@@ -181,7 +181,7 @@ public class ChangelogKeyedStateBackend<K>
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
-            StateChangelogWriter<StateChangelogHandle> stateChangelogWriter,
+            StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
@@ -324,13 +324,13 @@ public class ChangelogKeyedStateBackend<K>
                         .thenApply(this::buildSnapshotResult));
     }
 
-    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(StateChangelogHandle delta) {
+    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(ChangelogStateHandle delta) {
         // Can be called by either task thread during the sync checkpoint phase (if persist future
         // was already completed); or by the writer thread otherwise. So need to synchronize.
         // todo: revisit after FLINK-21357 - use mailbox action?
         synchronized (materialized) {
             // collections don't change once started and handles are immutable
-            List<StateChangelogHandle> prevDeltaCopy = new ArrayList<>(restoredNonMaterialized);
+            List<ChangelogStateHandle> prevDeltaCopy = new ArrayList<>(restoredNonMaterialized);
             if (delta != null && delta.getStateSize() > 0) {
                 prevDeltaCopy.add(delta);
             }
