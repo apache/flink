@@ -21,7 +21,7 @@ import pickle
 
 from pyflink.common.typeinfo import RowTypeInfo, TupleTypeInfo, Types, \
     BasicArrayTypeInfo, \
-    PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo
+    PrimitiveArrayTypeInfo, MapTypeInfo, ListTypeInfo, ObjectArrayTypeInfo
 from pyflink.java_gateway import get_gateway
 
 
@@ -66,7 +66,8 @@ def pickled_bytes_to_python_converter(data, field_type):
         elif field_type == Types.FLOAT():
             return field_type.from_internal_type(ast.literal_eval(data))
         elif isinstance(field_type, BasicArrayTypeInfo) or \
-                isinstance(field_type, PrimitiveArrayTypeInfo):
+                isinstance(field_type, PrimitiveArrayTypeInfo) or \
+                isinstance(field_type, ObjectArrayTypeInfo):
             element_type = field_type._element_type
             elements = []
             for element_bytes in data:
