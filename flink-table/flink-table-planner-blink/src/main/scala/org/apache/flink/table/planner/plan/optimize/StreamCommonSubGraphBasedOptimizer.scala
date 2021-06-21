@@ -272,6 +272,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       relNode,
       modifyKindSet,
       isUpdateBeforeRequired,
+      fmq.getUpsertKeys(relNode),
       statistic)
   }
 

@@ -39,7 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite._
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.Top3
@@ -288,8 +288,12 @@ class FlinkRelMdHandlerTestBase {
   }
 
   // hash exchange on class
-  protected lazy val (batchExchange, streamExchange) = {
-    val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
+  protected lazy val (batchExchange, streamExchange) = createExchange(6)
+
+  protected lazy val (batchExchangeById, streamExchangeById) = createExchange(0)
+
+  protected def createExchange(hash: Int): (RelNode, RelNode) = {
+    val hash6 = FlinkRelDistribution.hash(Array(hash), requireStrict = true)
     val batchExchange = new BatchPhysicalExchange(
       cluster,
       batchPhysicalTraits.replace(hash6),
@@ -305,13 +309,27 @@ class FlinkRelMdHandlerTestBase {
     (batchExchange, streamExchange)
   }
 
+  protected lazy val intermediateTable = new IntermediateRelTable(
+    Seq(""), streamExchangeById, null, false, Set(ImmutableBitSet.of(0)))
+
+  protected lazy val intermediateScan = new FlinkLogicalIntermediateTableScan(
+    cluster, streamExchangeById.getTraitSet, intermediateTable)
+
   // equivalent SQL is
   // select * from student order by class asc, score desc
-  protected lazy val (logicalSort, flinkLogicalSort, batchSort, streamSort) = {
-    val logicalSort = relBuilder.scan("student").sort(
-      relBuilder.field("class"),
-      relBuilder.desc(relBuilder.field("score")))
-      .build.asInstanceOf[LogicalSort]
+  protected lazy val (logicalSort, flinkLogicalSort, batchSort, streamSort) =
+    createSorts(() =>
+      Seq(relBuilder.field("class"),
+      relBuilder.desc(relBuilder.field("score"))))
+
+  // equivalent SQL is
+  // select * from student order by id asc
+  protected lazy val (logicalSortById, flinkLogicalSortById, batchSortById, streamSortById) =
+    createSorts(() => Seq(relBuilder.field("id")))
+
+  protected def createSorts(sortKeys: () => Seq[RexNode]): (RelNode, RelNode, RelNode, RelNode) = {
+    val logicalSort = relBuilder.scan("student")
+        .sort(sortKeys()).build.asInstanceOf[LogicalSort]
     val collation = logicalSort.getCollation
     val flinkLogicalSort = new FlinkLogicalSort(cluster, flinkLogicalTraits.replace(collation),
       studentFlinkLogicalScan, collation, null, null)
@@ -372,11 +390,25 @@ class FlinkRelMdHandlerTestBase {
     batchSortLimit,
     batchLocalSortLimit,
     batchGlobalSortLimit,
-    streamSortLimit) = {
-    val logicalSortLimit = relBuilder.scan("student").sort(
-      relBuilder.field("class"),
-      relBuilder.desc(relBuilder.field("score")))
-      .limit(10, 20).build.asInstanceOf[LogicalSort]
+    streamSortLimit) = createSortLimits(() => Seq(
+    relBuilder.field("class"),
+    relBuilder.desc(relBuilder.field("score"))))
+
+  // equivalent SQL is
+  // select * from student order by id asc limit 20 offset 10
+  protected lazy val (
+      logicalSortLimitById,
+      flinkLogicalSortLimitById,
+      batchSortLimitById,
+      batchLocalSortLimitById,
+      batchGlobalSortLimitById,
+      streamSortLimitById) = createSortLimits(() => Seq(
+      relBuilder.field("id")))
+
+  protected def createSortLimits(sortKeys: () => Seq[RexNode])
+    : (RelNode, RelNode, RelNode, RelNode, RelNode, RelNode) = {
+    val logicalSortLimit = relBuilder.scan("student").sort(sortKeys())
+        .limit(10, 20).build.asInstanceOf[LogicalSort]
 
     val collection = logicalSortLimit.collation
     val offset = logicalSortLimit.offset
@@ -386,7 +418,7 @@ class FlinkRelMdHandlerTestBase {
       flinkLogicalTraits.replace(collection), studentFlinkLogicalScan, collection, offset, fetch)
 
     val batchSortLimit = new BatchPhysicalSortLimit(
-        cluster, batchPhysicalTraits.replace(collection),
+      cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), studentBatchScan,
         FlinkRelDistribution.SINGLETON),
@@ -398,7 +430,7 @@ class FlinkRelMdHandlerTestBase {
       relBuilder.literal(SortUtil.getLimitEnd(offset, fetch)),
       false)
     val batchSortGlobal = new BatchPhysicalSortLimit(
-        cluster, batchPhysicalTraits.replace(collection),
+      cluster, batchPhysicalTraits.replace(collection),
       new BatchPhysicalExchange(
         cluster, batchPhysicalTraits.replace(FlinkRelDistribution.SINGLETON), batchSortLocalLimit,
         FlinkRelDistribution.SINGLETON),
@@ -408,7 +440,7 @@ class FlinkRelMdHandlerTestBase {
       studentStreamScan, collection, offset, fetch, RankProcessStrategy.UNDEFINED_STRATEGY)
 
     (logicalSortLimit, flinkLogicalSortLimit,
-      batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
+        batchSortLimit, batchSortLocalLimit, batchSortGlobal, streamSort)
   }
 
   // equivalent SQL is
@@ -417,16 +449,30 @@ class FlinkRelMdHandlerTestBase {
   //  RANK() over (partition by class order by score) rk from student
   // ) t where rk <= 5
   protected lazy val (
-    logicalRank,
-    flinkLogicalRank,
-    batchLocalRank,
-    batchGlobalRank,
-    streamRank) = {
+      logicalRank,
+      flinkLogicalRank,
+      batchLocalRank,
+      batchGlobalRank,
+      streamRank) = createRanks(6)
+
+  // equivalent SQL is
+  // select * from (
+  //  select id, name, score, age, height, sex, class,
+  //  RANK() over (partition by id order by score) rk from student
+  // ) t where rk <= 5
+  protected lazy val (
+      logicalRankById,
+      flinkLogicalRankById,
+      batchLocalRankById,
+      batchGlobalRankById,
+      streamRankById) = createRanks(0)
+
+  protected def createRanks(partitionKey: Int): (RelNode, RelNode, RelNode, RelNode, RelNode) = {
     val logicalRank = new LogicalRank(
       cluster,
       logicalTraits,
       studentLogicalScan,
-      ImmutableBitSet.of(6),
+      ImmutableBitSet.of(partitionKey),
       RelCollations.of(2),
       RankType.RANK,
       new ConstantRankRange(1, 5),
@@ -438,7 +484,7 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       flinkLogicalTraits,
       studentFlinkLogicalScan,
-      ImmutableBitSet.of(6),
+      ImmutableBitSet.of(partitionKey),
       RelCollations.of(2),
       RankType.RANK,
       new ConstantRankRange(1, 5),
@@ -450,7 +496,7 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
-      ImmutableBitSet.of(6),
+      ImmutableBitSet.of(partitionKey),
       RelCollations.of(2),
       RankType.RANK,
       new ConstantRankRange(1, 5),
@@ -459,14 +505,14 @@ class FlinkRelMdHandlerTestBase {
       isGlobal = false
     )
 
-    val hash6 = FlinkRelDistribution.hash(Array(6), requireStrict = true)
+    val hash6 = FlinkRelDistribution.hash(Array(partitionKey), requireStrict = true)
     val batchExchange = new BatchPhysicalExchange(
       cluster, batchLocalRank.getTraitSet.replace(hash6), batchLocalRank, hash6)
     val batchGlobalRank = new BatchPhysicalRank(
       cluster,
       batchPhysicalTraits,
       batchExchange,
-      ImmutableBitSet.of(6),
+      ImmutableBitSet.of(partitionKey),
       RelCollations.of(2),
       RankType.RANK,
       new ConstantRankRange(1, 5),
@@ -481,7 +527,7 @@ class FlinkRelMdHandlerTestBase {
       cluster,
       streamPhysicalTraits,
       streamExchange,
-      ImmutableBitSet.of(6),
+      ImmutableBitSet.of(partitionKey),
       RelCollations.of(2),
       RankType.RANK,
       new ConstantRankRange(1, 5),
@@ -1975,7 +2021,29 @@ class FlinkRelMdHandlerTestBase {
   //  dense_rank() over (partition by class order by score) as drk,
   //  avg(score) over (partition by class order by score) as avg_score
   //  from student
-  protected lazy val streamOverAgg: StreamPhysicalRel = {
+  protected lazy val streamOverAgg: StreamPhysicalRel = createStreamOverAgg(overAggGroups.get(1), 4)
+
+  protected lazy val streamOverAggById: StreamPhysicalRel = createStreamOverAgg(
+    new Window.Group(
+      ImmutableBitSet.of(0),
+      true,
+      RexWindowBound.create(SqlWindow.createUnboundedPreceding(new SqlParserPos(0, 0)), null),
+      RexWindowBound.create(SqlWindow.createCurrentRow(new SqlParserPos(0, 0)), null),
+      RelCollationImpl.of(new RelFieldCollation(
+        1, RelFieldCollation.Direction.ASCENDING, RelFieldCollation.NullDirection.FIRST)),
+      ImmutableList.of(
+        new Window.RexWinAggCall(
+          SqlStdOperatorTable.ROW_NUMBER,
+          longType,
+          ImmutableList.of[RexNode](),
+          0,
+          false
+        )
+      )
+    ), 0
+  )
+
+  protected def createStreamOverAgg(group: Window.Group, hash: Int): StreamPhysicalRel = {
     val types = Map(
       "id" -> longType,
       "name" -> stringType,
@@ -2014,14 +2082,14 @@ class FlinkRelMdHandlerTestBase {
       new FlinkLogicalCalc(cluster, flinkLogicalTraits, studentFlinkLogicalScan, rexProgram),
       ImmutableList.of(),
       rowTypeOfWindowAgg,
-      util.Arrays.asList(overAggGroups.get(1))
+      util.Arrays.asList(group)
     )
 
     val streamScan: StreamPhysicalDataStreamScan =
       createDataStreamScan(ImmutableList.of("student"), streamPhysicalTraits)
     val calc = new StreamPhysicalCalc(
       cluster, streamPhysicalTraits, streamScan, rexProgram, rowTypeOfCalc)
-    val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
+    val hash4 = FlinkRelDistribution.hash(Array(hash), requireStrict = true)
     val exchange = new StreamPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
 
     val windowAgg = new StreamPhysicalOverAggregate(
