@@ -153,20 +153,4 @@ public class Tasks {
         public void invoke() throws Exception {
         }
     }
-
-    /** An {@link AbstractInvokable} that throws blocks indefinitely. */
-    public static class BlockingReceiver extends AbstractInvokable {
-
-        public BlockingReceiver(Environment environment) {
-            super(environment);
-        }
-
-        @Override
-        public void invoke() throws Exception {
-            final Object o = new Object();
-            synchronized (o) {
-                o.wait();
-            }
-        }
-    }
 }
