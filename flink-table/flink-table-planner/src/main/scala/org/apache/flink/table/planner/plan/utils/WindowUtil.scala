@@ -191,18 +191,33 @@ object WindowUtil {
     val windowFunction = windowCall.getOperator.asInstanceOf[SqlWindowTableFunction]
     val windowSpec = windowFunction match {
       case FlinkSqlOperatorTable.TUMBLE =>
+        val offset: Duration = if (windowCall.operands.size() == 4) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(3)))
+        } else {
+          null
+        }
         val interval = getOperandAsLong(windowCall.operands(2))
-        new TumblingWindowSpec(Duration.ofMillis(interval))
+        new TumblingWindowSpec(Duration.ofMillis(interval), offset)
 
       case FlinkSqlOperatorTable.HOP =>
+        val offset = if (windowCall.operands.size() == 5) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
+        } else {
+          null
+        }
         val slide = getOperandAsLong(windowCall.operands(2))
         val size = getOperandAsLong(windowCall.operands(3))
-        new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide))
+        new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
+        val offset = if (windowCall.operands.size() == 5) {
+          Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
+        } else {
+          null
+        }
         val step = getOperandAsLong(windowCall.operands(2))
         val maxSize = getOperandAsLong(windowCall.operands(3))
-        new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step))
+        new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)

@@ -19,8 +19,11 @@
 package org.apache.flink.table.planner.plan.logical;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -33,6 +36,7 @@ import static org.apache.flink.util.TimeUtils.formatWithHighestUnit;
 public class HoppingWindowSpec implements WindowSpec {
     public static final String FIELD_NAME_SIZE = "size";
     public static final String FIELD_NAME_SLIDE = "slide";
+    public static final String FIELD_NAME_OFFSET = "offset";
 
     @JsonProperty(FIELD_NAME_SIZE)
     private final Duration size;
@@ -40,19 +44,35 @@ public class HoppingWindowSpec implements WindowSpec {
     @JsonProperty(FIELD_NAME_SLIDE)
     private final Duration slide;
 
+    @JsonProperty(FIELD_NAME_OFFSET)
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
+    @Nullable
+    private final Duration offset;
+
     @JsonCreator
     public HoppingWindowSpec(
             @JsonProperty(FIELD_NAME_SIZE) Duration size,
-            @JsonProperty(FIELD_NAME_SLIDE) Duration slide) {
+            @JsonProperty(FIELD_NAME_SLIDE) Duration slide,
+            @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset) {
         this.size = checkNotNull(size);
         this.slide = checkNotNull(slide);
+        this.offset = offset;
     }
 
     @Override
     public String toSummaryString(String windowing) {
-        return String.format(
-                "HOP(%s, size=[%s], slide=[%s])",
-                windowing, formatWithHighestUnit(size), formatWithHighestUnit(slide));
+        if (offset == null) {
+            return String.format(
+                    "HOP(%s, size=[%s], slide=[%s])",
+                    windowing, formatWithHighestUnit(size), formatWithHighestUnit(slide));
+        } else {
+            return String.format(
+                    "HOP(%s, size=[%s], slide=[%s], offset=[%s])",
+                    windowing,
+                    formatWithHighestUnit(size),
+                    formatWithHighestUnit(slide),
+                    formatWithHighestUnit(offset));
+        }
     }
 
     public Duration getSize() {
@@ -61,6 +81,10 @@ public class HoppingWindowSpec implements WindowSpec {
 
     public Duration getSlide() {
         return slide;
+    }
+
+    public Duration getOffset() {
+        return offset;
     }
 
     @Override
@@ -72,18 +96,28 @@ public class HoppingWindowSpec implements WindowSpec {
             return false;
         }
         HoppingWindowSpec that = (HoppingWindowSpec) o;
-        return size.equals(that.size) && slide.equals(that.slide);
+        return size.equals(that.size)
+                && slide.equals(that.slide)
+                && Objects.equals(offset, that.offset);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(HoppingWindowSpec.class, size, slide);
+        return Objects.hash(HoppingWindowSpec.class, size, slide, offset);
     }
 
     @Override
     public String toString() {
-        return String.format(
-                "HOP(size=[%s], slide=[%s])",
-                formatWithHighestUnit(size), formatWithHighestUnit(slide));
+        if (offset == null) {
+            return String.format(
+                    "HOP(size=[%s], slide=[%s])",
+                    formatWithHighestUnit(size), formatWithHighestUnit(slide));
+        } else {
+            return String.format(
+                    "HOP(size=[%s], slide=[%s], offset=[%s])",
+                    formatWithHighestUnit(size),
+                    formatWithHighestUnit(slide),
+                    formatWithHighestUnit(offset));
+        }
     }
 }

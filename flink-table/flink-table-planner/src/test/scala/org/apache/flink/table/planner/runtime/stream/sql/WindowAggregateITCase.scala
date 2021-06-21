@@ -207,6 +207,98 @@ class WindowAggregateITCase(
   }
 
   @Test
+  def testEventTimeTumbleWindowWithOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testCascadeEventTimeTumbleWindowWithOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  cnt,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*)
+        |  FROM
+        |  (
+        |    SELECT
+        |    `name`,
+        |    window_start,
+        |    window_end,
+        |    COUNT(DISTINCT `string`) AS cnt
+        |    FROM TABLE(
+        |      TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '8' HOUR))
+        |    GROUP BY `name`, window_start, window_end
+        |) GROUP BY cnt, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "0,2020-10-09T08:00,2020-10-10T08:00,1",
+      "3,2020-10-09T08:00,2020-10-10T08:00,2")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeTumbleWindowWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   TUMBLE(TABLE T1, DESCRIPTOR(rowtime), INTERVAL '1' DAY, INTERVAL '-8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
   def testEventTimeTumbleWindow_GroupingSets(): Unit = {
     val sql =
       """
@@ -430,6 +522,82 @@ class WindowAggregateITCase(
   }
 
   @Test
+  def testEventTimeHopWindowWithOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   HOP(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '12' HOUR,
+        |     INTERVAL '1' DAY,
+        |     INTERVAL '8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T20:00,2020-10-10T20:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "b,2020-10-09T20:00,2020-10-10T20:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null",
+      "null,2020-10-09T20:00,2020-10-10T20:00,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeHopWindowWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   HOP(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '12' HOUR,
+        |     INTERVAL '1' DAY,
+        |     INTERVAL '-8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T04:00,2020-10-10T04:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T04:00,2020-10-10T04:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T04:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
   def testEventTimeHopWindow_GroupingSets(): Unit = {
     val sql =
       """
@@ -558,6 +726,79 @@ class WindowAggregateITCase(
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeCumulateWindowWithOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '12' HOUR,
+        |     INTERVAL '1' DAY,
+        |     INTERVAL '8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T08:00,2020-10-10T08:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null")
+    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+  }
+
+  @Test
+  def testEventTimeCumulateWindowWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  `name`,
+        |  window_start,
+        |  window_end,
+        |  COUNT(*),
+        |  SUM(`bigdec`),
+        |  MAX(`double`),
+        |  MIN(`float`),
+        |  COUNT(DISTINCT `string`),
+        |  concat_distinct_agg(`string`)
+        |FROM TABLE(
+        |   CUMULATE(
+        |     TABLE T1,
+        |     DESCRIPTOR(rowtime),
+        |     INTERVAL '12' HOUR,
+        |     INTERVAL '1' DAY,
+        |     INTERVAL '-8' HOUR))
+        |GROUP BY `name`, window_start, window_end
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "a,2020-10-09T16:00,2020-10-10T04:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "a,2020-10-09T16:00,2020-10-10T16:00,6,19.98,5.0,1.0,3,Hi|Comment#1|Comment#2",
+      "b,2020-10-09T16:00,2020-10-10T04:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
+      "null,2020-10-09T16:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
+      "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null")
     assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
   }
 

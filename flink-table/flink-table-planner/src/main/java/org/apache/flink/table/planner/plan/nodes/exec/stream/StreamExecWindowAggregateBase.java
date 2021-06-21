@@ -100,8 +100,13 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
             WindowSpec windowSpec, int timeAttributeIndex, ZoneId shiftTimeZone) {
         if (windowSpec instanceof TumblingWindowSpec) {
             Duration size = ((TumblingWindowSpec) windowSpec).getSize();
-            return SliceAssigners.tumbling(timeAttributeIndex, shiftTimeZone, size);
-
+            SliceAssigners.TumblingSliceAssigner assigner =
+                    SliceAssigners.tumbling(timeAttributeIndex, shiftTimeZone, size);
+            Duration offset = ((TumblingWindowSpec) windowSpec).getOffset();
+            if (offset != null) {
+                assigner = assigner.withOffset(offset);
+            }
+            return assigner;
         } else if (windowSpec instanceof HoppingWindowSpec) {
             Duration size = ((HoppingWindowSpec) windowSpec).getSize();
             Duration slide = ((HoppingWindowSpec) windowSpec).getSlide();
@@ -112,8 +117,13 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
                                         + "integral multiple of slide, but got size %s ms and slide %s ms",
                                 size.toMillis(), slide.toMillis()));
             }
-            return SliceAssigners.hopping(timeAttributeIndex, shiftTimeZone, size, slide);
-
+            SliceAssigners.HoppingSliceAssigner assigner =
+                    SliceAssigners.hopping(timeAttributeIndex, shiftTimeZone, size, slide);
+            Duration offset = ((HoppingWindowSpec) windowSpec).getOffset();
+            if (offset != null) {
+                assigner = assigner.withOffset(offset);
+            }
+            return assigner;
         } else if (windowSpec instanceof CumulativeWindowSpec) {
             Duration maxSize = ((CumulativeWindowSpec) windowSpec).getMaxSize();
             Duration step = ((CumulativeWindowSpec) windowSpec).getStep();
@@ -124,8 +134,13 @@ public abstract class StreamExecWindowAggregateBase extends StreamExecAggregateB
                                         + "integral multiple of step, but got maxSize %s ms and step %s ms",
                                 maxSize.toMillis(), step.toMillis()));
             }
-            return SliceAssigners.cumulative(timeAttributeIndex, shiftTimeZone, maxSize, step);
-
+            SliceAssigners.CumulativeSliceAssigner assigner =
+                    SliceAssigners.cumulative(timeAttributeIndex, shiftTimeZone, maxSize, step);
+            Duration offset = ((CumulativeWindowSpec) windowSpec).getOffset();
+            if (offset != null) {
+                assigner = assigner.withOffset(offset);
+            }
+            return assigner;
         } else {
             throw new UnsupportedOperationException(windowSpec + " is not supported yet.");
         }
