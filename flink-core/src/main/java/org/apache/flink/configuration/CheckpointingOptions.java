@@ -111,7 +111,7 @@ public class CheckpointingOptions {
                                     + "If this config is not set explicitly, it means no preference "
                                     + "for enabling the change log, and the value in lower config "
                                     + "level will take effect. The default value 'false' here means "
-                                    + "if no value set (job or cluster), the change log will not be"
+                                    + "if no value set (job or cluster), the change log will not be "
                                     + "enabled.");
 
     /** The maximum number of completed checkpoints to retain. */
