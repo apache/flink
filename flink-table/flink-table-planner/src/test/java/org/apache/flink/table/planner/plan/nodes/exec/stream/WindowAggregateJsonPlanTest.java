@@ -82,6 +82,39 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
+    public void testEventTimeTumbleWindowWithOffset() {
+        tEnv.createFunction("concat_distinct_agg", ConcatDistinctAggFunction.class);
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " b BIGINT,\n"
+                        + " window_start TIMESTAMP(3),\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT,\n"
+                        + " sum_a INT,\n"
+                        + " distinct_cnt BIGINT,\n"
+                        + " concat_distinct STRING\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  b,\n"
+                        + "  window_start,\n"
+                        + "  window_end,\n"
+                        + "  COUNT(*),\n"
+                        + "  SUM(a),\n"
+                        + "  COUNT(DISTINCT c),\n"
+                        + "  concat_distinct_agg(c)\n"
+                        + "FROM TABLE(\n"
+                        + "   TUMBLE(\n"
+                        + "     TABLE MyTable,\n"
+                        + "     DESCRIPTOR(rowtime),\n"
+                        + "     INTERVAL '5' SECOND,\n"
+                        + "     INTERVAL '5' SECOND))\n"
+                        + "GROUP BY b, window_start, window_end");
+    }
+
+    @Test
     public void testProcTimeTumbleWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
@@ -118,6 +151,31 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
                         + "  SUM(a)\n"
                         + "FROM TABLE(\n"
                         + "   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))\n"
+                        + "GROUP BY b, window_start, window_end");
+    }
+
+    @Test
+    public void testEventTimeHopWindowWithOffset() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " b BIGINT,\n"
+                        + " cnt BIGINT,\n"
+                        + " sum_a INT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  b,\n"
+                        + "  COUNT(c),\n"
+                        + "  SUM(a)\n"
+                        + "FROM TABLE(\n"
+                        + "   HOP(\n"
+                        + "     TABLE MyTable,\n"
+                        + "     DESCRIPTOR(rowtime),\n"
+                        + "     INTERVAL '5' SECOND,\n"
+                        + "     INTERVAL '10' SECOND,\n"
+                        + "     INTERVAL '5' SECOND))\n"
                         + "GROUP BY b, window_start, window_end");
     }
 
@@ -161,6 +219,33 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
                         + "     TABLE MyTable,\n"
                         + "     DESCRIPTOR(rowtime),\n"
                         + "     INTERVAL '5' SECOND,\n"
+                        + "     INTERVAL '15' SECOND))\n"
+                        + "GROUP BY b, window_start, window_end");
+    }
+
+    @Test
+    public void testEventTimeCumulateWindowWithOffset() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + " b BIGINT,\n"
+                        + " window_end TIMESTAMP(3),\n"
+                        + " cnt BIGINT,\n"
+                        + " sum_a INT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values')\n";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink select\n"
+                        + "  b,\n"
+                        + "  window_end,\n"
+                        + "  COUNT(c),\n"
+                        + "  SUM(a)\n"
+                        + "FROM TABLE(\n"
+                        + "   CUMULATE(\n"
+                        + "     TABLE MyTable,\n"
+                        + "     DESCRIPTOR(rowtime),\n"
+                        + "     INTERVAL '5' SECOND,\n"
+                        + "     INTERVAL '15' SECOND,\n"
                         + "     INTERVAL '15' SECOND))\n"
                         + "GROUP BY b, window_start, window_end");
     }

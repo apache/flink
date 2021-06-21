@@ -141,22 +141,29 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
-  def testInvalidTumbleParameters(): Unit = {
+  def testTumbleTVFWithOffset(): Unit = {
     val sql =
       """
         |SELECT *
         |FROM TABLE(TUMBLE(
         |   TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE, INTERVAL '5' MINUTE))
         |""".stripMargin
-
-    thrown.expectMessage("Supported form(s): " +
-      "TUMBLE(TABLE table_name, DESCRIPTOR(timecol), datetime interval)")
-    thrown.expect(classOf[ValidationException])
-    util.verifyExplain(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testInvalidHopParameters(): Unit = {
+  def testTumbleTVFWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE, INTERVAL '-5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHopTVFWithOffset(): Unit = {
     val sql =
       """
         |SELECT *
@@ -168,15 +175,27 @@ class WindowTableFunctionTest extends TableTestBase {
         |    INTERVAL '15' MINUTE,
         |    INTERVAL '5' MINUTE))
         |""".stripMargin
-
-    thrown.expectMessage("Supported form(s): " +
-      "HOP(TABLE table_name, DESCRIPTOR(timecol), datetime interval, datetime interval)")
-    thrown.expect(classOf[ValidationException])
-    util.verifyExplain(sql)
+    util.verifyRelPlan(sql)
   }
 
   @Test
-  def testInvalidCumulateParameters(): Unit = {
+  def testHopTVFWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |  HOP(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(rowtime),
+        |    INTERVAL '1' MINUTE,
+        |    INTERVAL '15' MINUTE,
+        |    INTERVAL '-5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testCumulateTVFWithOffset(): Unit = {
     val sql =
       """
         |SELECT *
@@ -188,11 +207,22 @@ class WindowTableFunctionTest extends TableTestBase {
         |    INTERVAL '15' MINUTE,
         |    INTERVAL '5' MINUTE))
         |""".stripMargin
-
-    thrown.expectMessage("Supported form(s): " +
-      "CUMULATE(TABLE table_name, DESCRIPTOR(timecol), datetime interval, datetime interval)")
-    thrown.expect(classOf[ValidationException])
-    util.verifyExplain(sql)
+    util.verifyRelPlan(sql)
   }
 
+  @Test
+  def testCumulateTVFWithNegativeOffset(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(
+        |  CUMULATE(
+        |    TABLE MyTable,
+        |    DESCRIPTOR(rowtime),
+        |    INTERVAL '1' MINUTE,
+        |    INTERVAL '15' MINUTE,
+        |    INTERVAL '-5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
 }
