@@ -34,8 +34,8 @@ anymore.
 
 You should use unaligned checkpoints if your checkpointing durations are very high due to
 backpressure. Then, checkpointing time becomes mostly independent of the end-to-end latency. Be
-aware unaligned checkpointing adds to I/O to the state backends, so you shouldn't use it when the
-I/O to the state backend is actually the bottleneck during checkpointing.
+aware unaligned checkpointing adds to I/O to the state storage, so you shouldn't use it when the
+I/O to the state storage is actually the bottleneck during checkpointing.
 
 ### Alignment timeout
 
@@ -75,7 +75,7 @@ aligned checkpoints. If your operator depends on the latest watermark being alwa
 workaround is to store the watermark in the operator state. In that case, watermarks should be
 stored per key group in a union state to support rescaling.
 
-### Certain connections are not checkpointed
+### Certain data distribution patterns are not checkpointed
 
 There are types of connections with properties that are impossible to keep with channel data stored
 in checkpoints. To preserve these characteristics and ensure no state corruption or unexpected
@@ -84,7 +84,7 @@ perform unaligned checkpoints.
 
 **Pointwise connections**
 
-We currently do not have any hard guarantees on pointwise connections regarding data consistency.
+We currently do not have any hard guarantees on pointwise connections regarding data orderliness.
 However, since data was structured implicitly in the same way as any preceding source or keyby, some
 users relied on this behaviour to divide compute-intensive tasks into smaller chunks while depending
 on orderliness guarantees.
