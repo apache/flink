@@ -71,7 +71,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/** Tests for {@link BootstrapToolsTest}. */
+/** Tests for {@link BootstrapTools}. */
 public class BootstrapToolsTest extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(BootstrapToolsTest.class);
