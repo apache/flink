@@ -105,6 +105,8 @@ public class PipelinedSubpartition extends ResultSubpartition
     /** The total number of bytes (both data and event buffers). */
     private long totalNumberOfBytes;
 
+    private long writingThreadTotalNumberOfSentBytes;
+
     /** Writes in-flight data. */
     private ChannelStateWriter channelStateWriter;
 
@@ -526,12 +528,18 @@ public class PipelinedSubpartition extends ResultSubpartition
         return totalNumberOfBytes;
     }
 
+    @Override
+    protected long getWritingThreadTotalNumberOfSentBytes() {
+        return writingThreadTotalNumberOfSentBytes;
+    }
+
     Throwable getFailureCause() {
         return parent.getFailureCause();
     }
 
     private void updateStatistics(BufferConsumer buffer) {
         totalNumberOfBuffers++;
+        writingThreadTotalNumberOfSentBytes = totalNumberOfBytes;
     }
 
     private void updateStatistics(Buffer buffer) {

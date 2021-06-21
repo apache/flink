@@ -26,6 +26,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Dummy behaviours of {@link ResultPartitionWriter} for test purpose. */
@@ -109,4 +111,14 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
 
     @Override
     public void close() {}
+
+    @Override
+    public List<SubpartitionStatistic> getSubpartitionsStatistics() {
+        ArrayList<SubpartitionStatistic> stats = new ArrayList<>(getNumberOfSubpartitions());
+        for (int i = 0; i < getNumberOfSubpartitions(); i++) {
+            stats.add(new SimpleSubpartitionStatistic());
+        }
+
+        return stats;
+    }
 }

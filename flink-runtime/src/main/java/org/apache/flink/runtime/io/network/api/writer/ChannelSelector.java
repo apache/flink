@@ -36,6 +36,16 @@ public interface ChannelSelector<T extends IOReadableWritable> {
     void setup(int numberOfChannels);
 
     /**
+     * Initializes the channel selector with the {@link ResultPartitionWriter} if possible.
+     *
+     * @param writer the total number of output channels which are attached to respective output
+     *     gate.
+     */
+    default void optionalSetup(ResultPartitionWriter writer) {
+        setup(writer.getNumberOfSubpartitions());
+    }
+
+    /**
      * Returns the logical channel index, to which the given record should be written. It is illegal
      * to call this method for broadcast channel selectors and this method can remain not
      * implemented in that case (for example by throwing {@link UnsupportedOperationException}).

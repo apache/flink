@@ -290,6 +290,15 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
         return numDataBuffersWritten;
     }
 
+    @Override
+    protected long getWritingThreadTotalNumberOfSentBytes() {
+        return getTotalNumberOfBytes();
+    }
+
+    int getBuffersInBacklog() {
+        return numDataBuffersWritten;
+    }
+
     // ---------------------------- factories --------------------------------
 
     /**

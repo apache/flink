@@ -100,6 +100,7 @@ import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.LoadRebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ShufflePartitioner;
@@ -468,6 +469,10 @@ public class DataStream<T> {
      */
     public DataStream<T> rebalance() {
         return setConnectionType(new RebalancePartitioner<T>());
+    }
+
+    public DataStream<T> loadRebalance() {
+        return setConnectionType(new LoadRebalancePartitioner<>());
     }
 
     /**

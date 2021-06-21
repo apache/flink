@@ -52,6 +52,8 @@ public abstract class ResultSubpartition {
 
     protected abstract long getTotalNumberOfBytes();
 
+    protected abstract long getWritingThreadTotalNumberOfSentBytes();
+
     public int getSubPartitionIndex() {
         return subpartitionInfo.getSubPartitionIdx();
     }
