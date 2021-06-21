@@ -22,4 +22,4 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 
 /** A handle to saved {@link StateChange state changes}. */
 @Internal
-public interface StateChangelogHandle extends KeyedStateHandle {}
+public interface ChangelogStateHandle extends KeyedStateHandle {}

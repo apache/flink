@@ -21,8 +21,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.state.changelog.ChangelogKeyedStateBackend;
 import org.apache.flink.util.CloseableIterator;
@@ -55,7 +55,7 @@ public class ChangelogBackendRestoreOperation {
                     ChangelogKeyedStateBackend<K>,
                     Exception> {}
 
-    public static <K, T extends StateChangelogHandle> ChangelogKeyedStateBackend<K> restore(
+    public static <K, T extends ChangelogStateHandle> ChangelogKeyedStateBackend<K> restore(
             StateChangelogHandleReader<T> changelogHandleReader,
             ClassLoader classLoader,
             Collection<ChangelogStateBackendHandle> stateHandles,
@@ -76,13 +76,13 @@ public class ChangelogBackendRestoreOperation {
     }
 
     @SuppressWarnings("unchecked")
-    private static <T extends StateChangelogHandle> void readBackendHandle(
+    private static <T extends ChangelogStateHandle> void readBackendHandle(
             ChangelogKeyedStateBackend<?> backend,
             ChangelogStateBackendHandle backendHandle,
             StateChangelogHandleReader<T> changelogHandleReader,
             ClassLoader classLoader)
             throws Exception {
-        for (StateChangelogHandle changelogHandle :
+        for (ChangelogStateHandle changelogHandle :
                 backendHandle.getNonMaterializedStateHandles()) {
             try (CloseableIterator<StateChange> changes =
                     changelogHandleReader.getChanges((T) changelogHandle)) {

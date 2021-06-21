@@ -19,9 +19,9 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
-import org.apache.flink.runtime.state.changelog.StateChangelogHandle;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -49,7 +49,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 /** {@link InMemoryStateChangelogStorage} test. */
-public class StateChangelogStorageTest<T extends StateChangelogHandle> {
+public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
 
     private final Random random = new Random();
 

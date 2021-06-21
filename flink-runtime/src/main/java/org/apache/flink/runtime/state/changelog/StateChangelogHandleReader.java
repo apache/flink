@@ -22,8 +22,8 @@ import org.apache.flink.util.CloseableIterator;
 
 import java.io.IOException;
 
-/** Allows to read state changelog referenced by the provided {@link StateChangelogHandle}. */
+/** Allows to read state changelog referenced by the provided {@link ChangelogStateHandle}. */
 @Internal
-public interface StateChangelogHandleReader<Handle extends StateChangelogHandle> {
+public interface StateChangelogHandleReader<Handle extends ChangelogStateHandle> {
     CloseableIterator<StateChange> getChanges(Handle handle) throws IOException;
 }

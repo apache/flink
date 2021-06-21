@@ -36,9 +36,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** {@link StateChangelogHandle} implementation based on {@link StreamStateHandle}. */
+/** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
-public final class StateChangelogHandleStreamImpl implements StateChangelogHandle {
+public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandle {
 
     private static final long serialVersionUID = -8070326169926626355L;
 
@@ -49,7 +49,7 @@ public final class StateChangelogHandleStreamImpl implements StateChangelogHandl
     private transient SharedStateRegistry stateRegistry;
     private final long size;
 
-    public StateChangelogHandleStreamImpl(
+    public ChangelogStateHandleStreamImpl(
             List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
             KeyGroupRange keyGroupRange,
             long size) {
@@ -58,7 +58,7 @@ public final class StateChangelogHandleStreamImpl implements StateChangelogHandl
         this.size = size;
     }
 
-    public StateChangelogHandleStreamImpl(
+    public ChangelogStateHandleStreamImpl(
             List<Tuple3<StreamStateHandle, Long, Long>> sorted, KeyGroupRange keyGroupRange) {
         this(
                 sorted.stream().map(t -> Tuple2.of(t.f0, t.f1)).collect(Collectors.toList()),
@@ -87,7 +87,7 @@ public final class StateChangelogHandleStreamImpl implements StateChangelogHandl
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new StateChangelogHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
     }
 
     @Override

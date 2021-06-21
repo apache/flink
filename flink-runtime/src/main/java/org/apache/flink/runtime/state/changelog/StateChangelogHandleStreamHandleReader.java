@@ -30,16 +30,16 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * A reader for {@link StateChangelogHandleStreamImpl} that iterates over its underlying {@link
+ * A reader for {@link ChangelogStateHandleStreamImpl} that iterates over its underlying {@link
  * StreamStateHandle stream handles} and offsets. Starting from each offset, it enumerates the
  * {@link StateChange state changes} using the provided {@link StateChangeIterator}. Different
  * {@link StateChangelogStorage} implementations may have different <b>iterator</b> implementations.
- * Using a different {@link StateChangelogHandle} (and reader) is problematic as it needs to be
+ * Using a different {@link ChangelogStateHandle} (and reader) is problematic as it needs to be
  * serialized.
  */
 @Internal
 public class StateChangelogHandleStreamHandleReader
-        implements StateChangelogHandleReader<StateChangelogHandleStreamImpl> {
+        implements StateChangelogHandleReader<ChangelogStateHandleStreamImpl> {
     private static final Logger LOG =
             LoggerFactory.getLogger(StateChangelogHandleStreamHandleReader.class);
 
@@ -56,7 +56,7 @@ public class StateChangelogHandleStreamHandleReader
     }
 
     @Override
-    public CloseableIterator<StateChange> getChanges(StateChangelogHandleStreamImpl handle)
+    public CloseableIterator<StateChange> getChanges(ChangelogStateHandleStreamImpl handle)
             throws IOException {
         return new CloseableIterator<StateChange>() {
             private final Iterator<Tuple2<StreamStateHandle, Long>> handleIterator =
