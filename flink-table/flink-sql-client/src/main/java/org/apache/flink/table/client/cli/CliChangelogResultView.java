@@ -1,4 +1,4 @@
-    /*
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
+import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.utils.PrintUtils.NULL_COLUMN;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
@@ -68,7 +69,7 @@ public class CliChangelogResultView
                 resultDescriptor,
                 PrintUtils.columnWidthsByType(
                         resultDescriptor.getResultSchema().getColumns(),
-                        PrintUtils.MAX_COLUMN_WIDTH,
+                        resultDescriptor.config.get(DISPLAY_MAX_COLUMN_WIDTH),
                         PrintUtils.NULL_COLUMN,
                         PrintUtils.ROW_KIND_COLUMN));
 
