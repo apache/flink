@@ -150,7 +150,6 @@ public class Tasks {
         }
 
         @Override
-        public void invoke() throws Exception {
-        }
+        public void invoke() throws Exception {}
     }
 }
