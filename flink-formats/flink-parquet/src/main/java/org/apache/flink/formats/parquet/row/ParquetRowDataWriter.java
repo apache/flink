@@ -320,7 +320,7 @@ public class ParquetRowDataWriter {
         }
 
         private void writeTimestamp(TimestampData value) {
-            recordConsumer.addBinary(timestampToInt96(value));
+            recordConsumer.addBinary(timestampToInt96(value, utcTimestamp));
         }
     }
 
@@ -471,7 +471,7 @@ public class ParquetRowDataWriter {
         public void write(ArrayData arrayData, int ordinal) {}
     }
 
-    private Binary timestampToInt96(TimestampData timestampData) {
+    public static Binary timestampToInt96(TimestampData timestampData, boolean utcTimestamp) {
         int julianDay;
         long nanosOfDay;
         if (utcTimestamp) {

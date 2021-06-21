@@ -142,6 +142,7 @@ public class HiveInputFormat implements BulkFormat<RowData, HiveSourceSplit> {
                     InternalTypeInfo.of(producedRowType),
                     partitionKeys,
                     partitionFieldExtractor,
+                    Collections.emptyList(),
                     DEFAULT_SIZE,
                     hiveVersion.startsWith("3"),
                     false);

@@ -79,14 +79,14 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
      * @param producedTypeInfo the produced row type info for this input format, includes extra
      *     fields.
      * @param batchFactory factory for creating column batch, can cram in extra fields.
-     * @param pushDownFilters the push down filter predicates for parquet format.
+     * @param conjunctPredicates the filter predicates for parquet format.
      */
     ParquetColumnarRowInputFormat(
             Configuration hadoopConfig,
             RowType projectedType,
             TypeInformation<RowData> producedTypeInfo,
             ColumnBatchFactory<SplitT> batchFactory,
-            List<FilterPredicate> pushDownFilters,
+            List<FilterPredicate> conjunctPredicates,
             int batchSize,
             boolean isUtcTimestamp,
             boolean isCaseSensitive) {
@@ -94,7 +94,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                 new SerializableConfiguration(hadoopConfig),
                 projectedType,
                 batchFactory,
-                pushDownFilters,
+                conjunctPredicates,
                 batchSize,
                 isUtcTimestamp,
                 isCaseSensitive);
@@ -154,7 +154,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                     TypeInformation<RowData> producedTypeInfo,
                     List<String> partitionKeys,
                     PartitionFieldExtractor<SplitT> extractor,
-                    List<FilterPredicate> pushDownFilters,
+                    List<FilterPredicate> conjunctPredicates,
                     int batchSize,
                     boolean isUtcTimestamp,
                     boolean isCaseSensitive) {
@@ -193,7 +193,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                 projectedRowType,
                 producedTypeInfo,
                 factory,
-                pushDownFilters,
+                conjunctPredicates,
                 batchSize,
                 isUtcTimestamp,
                 isCaseSensitive);

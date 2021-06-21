@@ -43,7 +43,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
+import org.apache.parquet.filter2.predicate.FilterApi;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.ParquetInputFormat;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.GroupType;
@@ -85,6 +88,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
     private final String[] projectedFields;
     private final LogicalType[] projectedTypes;
     private final ColumnBatchFactory<SplitT> batchFactory;
+    private final List<FilterPredicate> conjunctPredicates;
     private final int batchSize;
     private final boolean isUtcTimestamp;
     private final boolean isCaseSensitive;
@@ -94,6 +98,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
             SerializableConfiguration hadoopConfig,
             RowType projectedType,
             ColumnBatchFactory<SplitT> batchFactory,
+            List<FilterPredicate> conjunctPredicates,
             int batchSize,
             boolean isUtcTimestamp,
             boolean isCaseSensitive) {
@@ -101,6 +106,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         this.projectedFields = projectedType.getFieldNames().toArray(new String[0]);
         this.projectedTypes = projectedType.getChildren().toArray(new LogicalType[0]);
         this.batchFactory = batchFactory;
+        this.conjunctPredicates = conjunctPredicates;
         this.batchSize = batchSize;
         this.isUtcTimestamp = isUtcTimestamp;
         this.isCaseSensitive = isCaseSensitive;
@@ -121,6 +127,11 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                         hadoopPath,
                         range(splitOffset, splitOffset + splitLength));
         MessageType fileSchema = footer.getFileMetaData().getSchema();
+
+        conjunctPredicates.stream()
+                .reduce(FilterApi::and)
+                .ifPresent(f -> ParquetInputFormat.setFilterPredicate(hadoopConfig.conf(), f));
+
         FilterCompat.Filter filter = getFilter(hadoopConfig.conf());
         List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
 
