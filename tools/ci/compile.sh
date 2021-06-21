@@ -94,7 +94,7 @@ cd ..
 
 echo "============ Checking scala suffixes ============"
 
-${CI_DIR}/verify_scala_suffixes.sh "${PROFILE}" || exit $?
+${CI_DIR}/verify_scala_suffixes.sh "$CI_DIR" "$(pwd)" || exit $?
 
 echo "============ Checking shaded dependencies ============"
 
