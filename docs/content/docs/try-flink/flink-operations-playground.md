@@ -93,13 +93,24 @@ We assume that you have [Docker](https://docs.docker.com/) (1.12+) and
 [docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
-[flink-playgrounds](https://github.com/apache/flink-playgrounds) repository. Check it out and spin
-up the environment:
+[flink-playgrounds](https://github.com/apache/flink-playgrounds) repository. First checkout the code and build the docker image:
 
 ```bash
-git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
+git clone https://github.com/apache/flink-playgrounds.git
 cd flink-playgrounds/operations-playground
 docker-compose build
+```
+
+Then before starting the playground, create the checkpoint and savepoint directories on the Docker host machine (these volumes are mounted by the jobmanager and taskmanager, as specified in docker-compose.yaml):
+
+```bash
+mkdir -p /tmp/flink-checkpoints-directory
+mkdir -p /tmp/flink-savepoints-directory
+```
+
+Then start the playground:
+
+```bash
 docker-compose up -d
 ```
 
