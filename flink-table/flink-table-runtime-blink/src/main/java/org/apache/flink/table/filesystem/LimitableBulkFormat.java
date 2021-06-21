@@ -51,12 +51,14 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
 
     @Override
     public Reader<T> createReader(Configuration config, SplitT split) throws IOException {
-        return wrapReader(format.createReader(config, split));
+        Reader<T> reader = reachLimit() ? null : format.createReader(config, split);
+        return wrapReader(reader);
     }
 
     @Override
     public Reader<T> restoreReader(Configuration config, SplitT split) throws IOException {
-        return wrapReader(format.restoreReader(config, split));
+        Reader<T> reader = reachLimit() ? null : format.restoreReader(config, split);
+        return wrapReader(reader);
     }
 
     private synchronized Reader<T> wrapReader(Reader<T> reader) {
@@ -64,6 +66,10 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
             globalNumberRead = new AtomicLong(0);
         }
         return new LimitableReader<>(reader, globalNumberRead, limit);
+    }
+
+    private boolean reachLimit() {
+        return globalNumberRead != null && globalNumberRead.get() >= limit;
     }
 
     @Override
@@ -105,7 +111,9 @@ public class LimitableBulkFormat<T, SplitT extends FileSourceSplit>
 
         @Override
         public void close() throws IOException {
-            reader.close();
+            if (reader != null) {
+                reader.close();
+            }
         }
 
         private class LimitableIterator implements RecordIterator<T> {
