@@ -25,7 +25,7 @@ import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
 import org.apache.flink.mesos.scheduler.Tasks;
-import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorRef;
