@@ -756,36 +756,41 @@ public final class FactoryUtil {
             final F factory =
                     discoverFactory(context.getClassLoader(), formatFactoryClass, identifier);
             String formatPrefix = formatPrefix(factory, formatOption);
+
             // log all used options of other factories
-            consumedOptionKeys.addAll(
-                    factory.requiredOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
-            consumedOptionKeys.addAll(
-                    factory.optionalOptions().stream()
-                            .map(ConfigOption::key)
-                            .map(k -> formatPrefix + k)
-                            .collect(Collectors.toSet()));
+            final List<ConfigOption<?>> consumedOptions = new ArrayList<>();
+            consumedOptions.addAll(factory.requiredOptions());
+            consumedOptions.addAll(factory.optionalOptions());
+
+            consumedOptions.stream()
+                    .flatMap(FactoryUtil::allKeys)
+                    .map(k -> formatPrefix + k)
+                    .forEach(consumedOptionKeys::add);
+
+            consumedOptions.stream()
+                    .flatMap(FactoryUtil::deprecatedKeys)
+                    .map(k -> formatPrefix + k)
+                    .forEach(deprecatedOptionKeys::add);
+
             return Optional.of(factory);
         }
 
         private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
+            final String formatOptionKey = formatOption.key();
             String identifier = formatFactory.factoryIdentifier();
-            if (formatOption.key().equals(FORMAT.key())) {
+            if (formatOptionKey.equals(FORMAT.key())) {
                 return identifier + ".";
-            } else if (formatOption.key().endsWith(FORMAT_SUFFIX)) {
+            } else if (formatOptionKey.endsWith(FORMAT_SUFFIX)) {
                 // extract the key prefix, e.g. extract 'key' from 'key.format'
                 String keyPrefix =
-                        formatOption
-                                .key()
-                                .substring(0, formatOption.key().length() - FORMAT_SUFFIX.length());
+                        formatOptionKey.substring(
+                                0, formatOptionKey.length() - FORMAT_SUFFIX.length());
                 return keyPrefix + "." + identifier + ".";
             } else {
                 throw new ValidationException(
                         "Format identifier key should be 'format' or suffix with '.format', "
                                 + "don't support format identifier key '"
-                                + formatOption.key()
+                                + formatOptionKey
                                 + "'.");
             }
         }
