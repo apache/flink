@@ -58,8 +58,6 @@ public class Tasks {
 
                     writer.emit(record);
                 }
-
-                // writer.flushAll();
             } finally {
                 writer.close();
             }
