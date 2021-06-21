@@ -24,6 +24,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.akka.ActorSystemScheduledExecutorAdapter;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -414,7 +415,7 @@ public class AkkaRpcService implements RpcService {
         final CompletableFuture<Void> actorSystemTerminationFuture =
                 FutureUtils.composeAfterwards(
                         supervisorTerminationFuture,
-                        () -> FutureUtils.toJava(actorSystem.terminate()));
+                        () -> AkkaFutureUtils.toJava(actorSystem.terminate()));
 
         actorSystemTerminationFuture.whenComplete(
                 (Void ignored, Throwable throwable) -> {
@@ -487,7 +488,7 @@ public class AkkaRpcService implements RpcService {
     public <T> CompletableFuture<T> execute(Callable<T> callable) {
         Future<T> scalaFuture = Futures.<T>future(callable, actorSystem.dispatcher());
 
-        return FutureUtils.toJava(scalaFuture);
+        return AkkaFutureUtils.toJava(scalaFuture);
     }
 
     // ---------------------------------------------------------------------------------------
@@ -523,7 +524,7 @@ public class AkkaRpcService implements RpcService {
         final CompletableFuture<HandshakeSuccessMessage> handshakeFuture =
                 actorRefFuture.thenCompose(
                         (ActorRef actorRef) ->
-                                FutureUtils.toJava(
+                                AkkaFutureUtils.toJava(
                                         Patterns.ask(
                                                         actorRef,
                                                         new RemoteHandshakeMessage(

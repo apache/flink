@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedMainThreadExecutable;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -113,7 +113,7 @@ public class FencedAkkaInvocationHandler<F extends Serializable> extends AkkaInv
             @SuppressWarnings("unchecked")
             CompletableFuture<V> resultFuture =
                     (CompletableFuture<V>)
-                            FutureUtils.toJava(
+                            AkkaFutureUtils.toJava(
                                     Patterns.ask(
                                             getActorRef(),
                                             new UnfencedMessage<>(new CallAsync(callable)),
