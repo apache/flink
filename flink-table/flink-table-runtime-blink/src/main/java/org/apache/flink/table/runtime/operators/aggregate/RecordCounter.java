@@ -33,7 +33,7 @@ public abstract class RecordCounter implements Serializable {
      *
      * @return true if input record count is zero, false if not.
      */
-    abstract boolean recordCountIsZero(RowData acc);
+    public abstract boolean recordCountIsZero(RowData acc);
 
     /**
      * Creates a {@link RecordCounter} depends on the index of count(*). If index is less than zero,

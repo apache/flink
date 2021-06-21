@@ -27,10 +27,11 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, TABLE_EXEC_EMIT_ALLOW_LATENESS}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_ALLOW_LATENESS, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -53,10 +54,11 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
 
   val upsertSourceCurrencyData = List(
     changelogRow("+U", "Euro", "no1", JLong.valueOf(114L), localDateTime(1L)),
+    changelogRow("+U", "US Dollar", "no1", JLong.valueOf(100L), localDateTime(1L)),
     changelogRow("+U", "US Dollar", "no1", JLong.valueOf(102L), localDateTime(2L)),
     changelogRow("+U", "Yen", "no1", JLong.valueOf(1L), localDateTime(3L)),
     changelogRow("+U", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)),
-    changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(6L)),
+    changelogRow("+U", "Euro",  "no1", JLong.valueOf(118L), localDateTime(18L)),
     changelogRow("+U", "US Dollar", "no1", JLong.valueOf(104L), localDateTime(4L)),
     changelogRow("-D", "RMB", "no1", JLong.valueOf(702L), localDateTime(4L)))
 
@@ -403,6 +405,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |SELECT
         |currency,
         |COUNT(1) AS cnt,
+        |MAX(rate),
         |TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
         |TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
         |FROM upsert_currency
@@ -412,12 +415,59 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
     val expected = Seq(
-      "Euro,0,1970-01-01T00:00,1970-01-01T00:00:05",
-      "US Dollar,1,1970-01-01T00:00,1970-01-01T00:00:05",
-      "Yen,1,1970-01-01T00:00,1970-01-01T00:00:05",
-      "RMB,0,1970-01-01T00:00,1970-01-01T00:00:05",
-      "Euro,1,1970-01-01T00:00:05,1970-01-01T00:00:10")
+      "US Dollar,1,102,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Yen,1,1,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Euro,1,118,1970-01-01T00:00:15,1970-01-01T00:00:20")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testWindowAggregateOnUpsertSourceWithAllowLateness(): Unit = {
+    // wait 15 second for late elements
+    tEnv.getConfig.getConfiguration.set(
+      TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(15))
+    // emit result without delay after watermark
+    withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
+    val upsertSourceDataId = registerData(upsertSourceCurrencyData)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE upsert_currency (
+         |  currency STRING,
+         |  currency_no STRING,
+         |  rate  BIGINT,
+         |  currency_time TIMESTAMP(3),
+         |  WATERMARK FOR currency_time AS currency_time - interval '5' SECOND,
+         |  PRIMARY KEY(currency) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'UA,D',
+         |  'data-id' = '$upsertSourceDataId'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |SELECT
+        |currency,
+        |COUNT(1) AS cnt,
+        |MAX(rate),
+        |TUMBLE_START(currency_time, INTERVAL '5' SECOND) as w_start,
+        |TUMBLE_END(currency_time, INTERVAL '5' SECOND) as w_end
+        |FROM upsert_currency
+        |GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
+        |""".stripMargin
+    val table = tEnv.sqlQuery(sql)
+    val schema = table.getSchema
+    val sink = new TestingRetractTableSink().
+      configure(schema.getFieldNames,
+        schema.getFieldDataTypes.map(_.nullable()).map(fromDataTypeToTypeInfo))
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink1", sink)
+    table.executeInsert("MySink1").await()
+
+    val expected = Seq(
+      "US Dollar,1,104,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Yen,1,1,1970-01-01T00:00,1970-01-01T00:00:05",
+      "Euro,1,118,1970-01-01T00:00:15,1970-01-01T00:00:20")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
@@ -451,8 +501,8 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
     val expected = Seq(
-      "1970-01-01T00:00,1970-01-01T00:00:05,104",
-      "1970-01-01T00:00:05,1970-01-01T00:00:10,118")
+      "1970-01-01T00:00,1970-01-01T00:00:05,102",
+      "1970-01-01T00:00:15,1970-01-01T00:00:20,118")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -483,9 +533,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
     val expected = Seq(
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
       "Hallo,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
-      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.005,0",
       "Hello,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,1",
-      "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,0",
       "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1",
       "null,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035,1")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)

@@ -224,7 +224,8 @@ public class WindowOperatorContractTest {
                             2,
                             sendRetraction,
                             allowedLateness,
-                            UTC_ZONE_ID);
+                            UTC_ZONE_ID,
+                            -1);
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
         } else {
@@ -241,7 +242,8 @@ public class WindowOperatorContractTest {
                             2,
                             sendRetraction,
                             allowedLateness,
-                            UTC_ZONE_ID);
+                            UTC_ZONE_ID,
+                            -1);
 
             return new KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>(
                     operator, keySelector, keyType);
@@ -255,7 +257,12 @@ public class WindowOperatorContractTest {
 
     private static <W extends Window>
             NamespaceTableAggsHandleFunction<W> mockTableAggsHandleFunction() throws Exception {
-        return mock(NamespaceTableAggsHandleFunction.class);
+        NamespaceTableAggsHandleFunction tableAggWindowAggregator =
+                mock(NamespaceTableAggsHandleFunction.class);
+
+        when(tableAggWindowAggregator.getAccumulators()).thenReturn(GenericRowData.of());
+
+        return tableAggWindowAggregator;
     }
 
     private <W extends Window> Trigger<W> mockTrigger() throws Exception {

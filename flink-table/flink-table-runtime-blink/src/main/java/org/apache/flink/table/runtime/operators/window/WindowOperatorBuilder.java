@@ -74,6 +74,7 @@ public class WindowOperatorBuilder {
     protected boolean produceUpdates = false;
     protected int rowtimeIndex = -1;
     protected ZoneId shiftTimeZone = ZoneId.of("UTC");
+    protected int inputCountIndex = -1;
 
     public static WindowOperatorBuilder builder() {
         return new WindowOperatorBuilder();
@@ -180,6 +181,16 @@ public class WindowOperatorBuilder {
 
     public WindowOperatorBuilder produceUpdates() {
         this.produceUpdates = true;
+        return this;
+    }
+
+    /**
+     * The index of COUNT(*) in the aggregates. -1 when the input doesn't * contain COUNT(*), i.e.
+     * doesn't contain retraction messages. We make sure there is a * COUNT(*) if input stream
+     * contains retraction.
+     */
+    public WindowOperatorBuilder withInputCountIndex(int inputCountIndex) {
+        this.inputCountIndex = inputCountIndex;
         return this;
     }
 
@@ -291,7 +302,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
                         windowOperatorBuilder.allowedLateness,
-                        windowOperatorBuilder.shiftTimeZone);
+                        windowOperatorBuilder.shiftTimeZone,
+                        windowOperatorBuilder.inputCountIndex);
             } else {
                 //noinspection unchecked
                 return new TableAggregateWindowOperator(
@@ -307,7 +319,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
                         windowOperatorBuilder.allowedLateness,
-                        windowOperatorBuilder.shiftTimeZone);
+                        windowOperatorBuilder.shiftTimeZone,
+                        windowOperatorBuilder.inputCountIndex);
             }
         }
     }
@@ -356,7 +369,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
                         windowOperatorBuilder.allowedLateness,
-                        windowOperatorBuilder.shiftTimeZone);
+                        windowOperatorBuilder.shiftTimeZone,
+                        windowOperatorBuilder.inputCountIndex);
             } else {
                 //noinspection unchecked
                 return new AggregateWindowOperator(
@@ -373,7 +387,8 @@ public class WindowOperatorBuilder {
                         windowOperatorBuilder.rowtimeIndex,
                         windowOperatorBuilder.produceUpdates,
                         windowOperatorBuilder.allowedLateness,
-                        windowOperatorBuilder.shiftTimeZone);
+                        windowOperatorBuilder.shiftTimeZone,
+                        windowOperatorBuilder.inputCountIndex);
             }
         }
     }

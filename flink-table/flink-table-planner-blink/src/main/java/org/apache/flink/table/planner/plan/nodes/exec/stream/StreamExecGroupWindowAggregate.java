@@ -245,6 +245,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final LogicalType[] aggValueTypes = extractLogicalTypes(aggInfoList.getActualValueTypes());
         final LogicalType[] accTypes = extractLogicalTypes(aggInfoList.getAccTypes());
+        final int inputCountIndex = aggInfoList.getIndexOfCountStar();
 
         final WindowOperator<?, ?> operator =
                 createWindowOperator(
@@ -256,7 +257,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                         aggValueTypes,
                         inputRowType.getChildren().toArray(new LogicalType[0]),
                         inputTimeFieldIndex,
-                        shiftTimeZone);
+                        shiftTimeZone,
+                        inputCountIndex);
 
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
@@ -351,11 +353,13 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             LogicalType[] aggValueTypes,
             LogicalType[] inputFields,
             int timeFieldIndex,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            int inputCountIndex) {
         WindowOperatorBuilder builder =
                 WindowOperatorBuilder.builder()
                         .withInputFields(inputFields)
-                        .withShiftTimezone(shiftTimeZone);
+                        .withShiftTimezone(shiftTimeZone)
+                        .withInputCountIndex(inputCountIndex);
 
         if (window instanceof TumblingGroupWindow) {
             TumblingGroupWindow tumblingWindow = (TumblingGroupWindow) window;
