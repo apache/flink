@@ -66,7 +66,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
             int rowtimeIndex,
             boolean produceUpdates,
             long allowedLateness,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            int inputCountIndex) {
         super(
                 windowTableAggregator,
                 windowAssigner,
@@ -79,7 +80,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
                 rowtimeIndex,
                 produceUpdates,
                 allowedLateness,
-                shiftTimeZone);
+                shiftTimeZone,
+                inputCountIndex);
         this.tableAggWindowAggregator = windowTableAggregator;
     }
 
@@ -95,7 +97,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
             int rowtimeIndex,
             boolean sendRetraction,
             long allowedLateness,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            int inputCountIndex) {
         super(
                 windowAssigner,
                 trigger,
@@ -107,7 +110,8 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
                 rowtimeIndex,
                 sendRetraction,
                 allowedLateness,
-                shiftTimeZone);
+                shiftTimeZone,
+                inputCountIndex);
         this.generatedTableAggWindowAggregator = generatedTableAggWindowAggregator;
     }
 
@@ -124,6 +128,9 @@ public class TableAggregateWindowOperator<K, W extends Window> extends WindowOpe
     @Override
     protected void emitWindowResult(W window) throws Exception {
         windowFunction.prepareAggregateAccumulatorForEmit(window);
-        tableAggWindowAggregator.emitValue(window, (RowData) getCurrentKey(), collector);
+        RowData acc = tableAggWindowAggregator.getAccumulators();
+        if (!recordCounter.recordCountIsZero(acc)) {
+            tableAggWindowAggregator.emitValue(window, (RowData) getCurrentKey(), collector);
+        }
     }
 }

@@ -82,7 +82,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             int rowtimeIndex,
             boolean produceUpdates,
             long allowedLateness,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            int inputCountIndex) {
         super(
                 windowAggregator,
                 windowAssigner,
@@ -95,7 +96,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 rowtimeIndex,
                 produceUpdates,
                 allowedLateness,
-                shiftTimeZone);
+                shiftTimeZone,
+                inputCountIndex);
         this.aggWindowAggregator = windowAggregator;
         this.equaliser = checkNotNull(equaliser);
     }
@@ -113,7 +115,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             int rowtimeIndex,
             boolean sendRetraction,
             long allowedLateness,
-            ZoneId shiftTimeZone) {
+            ZoneId shiftTimeZone,
+            int inputCountIndex) {
         super(
                 windowAssigner,
                 trigger,
@@ -125,7 +128,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 rowtimeIndex,
                 sendRetraction,
                 allowedLateness,
-                shiftTimeZone);
+                shiftTimeZone,
+                inputCountIndex);
         this.generatedAggWindowAggregator = generatedAggWindowAggregator;
         this.generatedEqualiser = checkNotNull(generatedEqualiser);
     }
@@ -156,35 +160,55 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
     @Override
     protected void emitWindowResult(W window) throws Exception {
         windowFunction.prepareAggregateAccumulatorForEmit(window);
+        RowData acc = aggWindowAggregator.getAccumulators();
         RowData aggResult = aggWindowAggregator.getValue(window);
         if (produceUpdates) {
             previousState.setCurrentNamespace(window);
             RowData previousAggResult = previousState.value();
 
-            // has emitted result for the window
-            if (previousAggResult != null) {
-                // current agg is not equal to the previous emitted, should emit retract
-                if (!equaliser.equals(aggResult, previousAggResult)) {
-                    // send UPDATE_BEFORE
-                    collect(RowKind.UPDATE_BEFORE, (RowData) getCurrentKey(), previousAggResult);
-                    // send UPDATE_AFTER
-                    collect(RowKind.UPDATE_AFTER, (RowData) getCurrentKey(), aggResult);
+            if (!recordCounter.recordCountIsZero(acc)) {
+                // has emitted result for the window
+                if (previousAggResult != null) {
+                    // current agg is not equal to the previous emitted, should emit retract
+                    if (!equaliser.equals(aggResult, previousAggResult)) {
+                        // send UPDATE_BEFORE
+                        collect(
+                                RowKind.UPDATE_BEFORE,
+                                (RowData) getCurrentKey(),
+                                previousAggResult);
+                        // send UPDATE_AFTER
+                        collect(RowKind.UPDATE_AFTER, (RowData) getCurrentKey(), aggResult);
+                        // update previousState
+                        previousState.update(aggResult);
+                    }
+                    // if the previous agg equals to the current agg, no need to send retract and
+                    // accumulate
+                }
+                // the first fire for the window, only send INSERT
+                else {
+                    // send INSERT
+                    collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
                     // update previousState
                     previousState.update(aggResult);
                 }
-                // if the previous agg equals to the current agg, no need to send retract and
-                // accumulate
-            }
-            // the first fire for the window, only send INSERT
-            else {
-                // send INSERT
-                collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
-                // update previousState
-                previousState.update(aggResult);
+            } else {
+                // has emitted result for the window
+                // we retracted the last record for this key
+                if (previousAggResult != null) {
+                    // send DELETE
+                    collect(RowKind.DELETE, (RowData) getCurrentKey(), previousAggResult);
+                    // clear previousState
+                    previousState.clear();
+                }
+                // if the counter is zero, no need to send accumulate
             }
         } else {
-            // send INSERT
-            collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
+            if (!recordCounter.recordCountIsZero(acc)) {
+                // send INSERT
+                collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
+            }
+            // if the counter is zero, no need to send accumulate
+            // there is no possible skip `if` branch when `produceUpdates` is false
         }
     }
 
