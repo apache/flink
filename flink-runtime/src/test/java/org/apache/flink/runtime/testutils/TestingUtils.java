@@ -29,7 +29,6 @@ import java.util.concurrent.ScheduledExecutorService;
 public class TestingUtils {
 
     public static final Duration TESTING_DURATION = Duration.ofMinutes(2L);
-    public static final Duration TESTING_TIMEOUT = Duration.ofMinutes(1L);
     public static final Time TIMEOUT = Time.minutes(1L);
     public static final String DEFAULT_AKKA_ASK_TIMEOUT = "200 s";
 
