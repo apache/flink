@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -70,13 +70,19 @@ public class MetricRegistryConfiguration {
     //  Static factory methods
     // ------------------------------------------------------------------------
 
+    @VisibleForTesting
+    public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
+        return fromConfiguration(configuration, 10485760);
+    }
+
     /**
      * Create a metric registry configuration object from the given {@link Configuration}.
      *
      * @param configuration to generate the metric registry configuration from
      * @return Metric registry configuration generated from the configuration
      */
-    public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
+    public static MetricRegistryConfiguration fromConfiguration(
+            Configuration configuration, long maximumFrameSize) {
         ScopeFormats scopeFormats;
         try {
             scopeFormats = ScopeFormats.fromConfig(configuration);
@@ -92,8 +98,6 @@ public class MetricRegistryConfiguration {
             LOG.warn("Failed to parse delimiter, using default delimiter.", e);
             delim = '.';
         }
-
-        final long maximumFrameSize = AkkaRpcServiceUtils.extractMaximumFramesize(configuration);
 
         // padding to account for serialization overhead
         final long messageSizeLimitPadding = 256;

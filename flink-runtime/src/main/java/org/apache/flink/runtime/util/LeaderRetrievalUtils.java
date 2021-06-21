@@ -22,6 +22,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,11 +73,11 @@ public class LeaderRetrievalUtils {
     }
 
     public static InetAddress findConnectingAddress(
-            LeaderRetrievalService leaderRetrievalService, Duration timeout)
+            LeaderRetrievalService leaderRetrievalService, Duration timeout, RpcSystem rpcSystem)
             throws LeaderRetrievalException {
 
         ConnectionUtils.LeaderConnectingAddressListener listener =
-                new ConnectionUtils.LeaderConnectingAddressListener();
+                new ConnectionUtils.LeaderConnectingAddressListener(rpcSystem);
 
         try {
             leaderRetrievalService.start(listener);
