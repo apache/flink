@@ -42,8 +42,7 @@ import java.util.concurrent.TimeoutException;
 import scala.Option;
 import scala.Tuple2;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an
