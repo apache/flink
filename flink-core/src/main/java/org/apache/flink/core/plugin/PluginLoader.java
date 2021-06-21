@@ -43,7 +43,7 @@ import java.util.ServiceLoader;
  * construction.
  */
 @ThreadSafe
-public class PluginLoader {
+public class PluginLoader implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(PluginLoader.class);
 
@@ -100,6 +100,7 @@ public class PluginLoader {
         }
     }
 
+    @Override
     public void close() {
         try {
             pluginClassLoader.close();
