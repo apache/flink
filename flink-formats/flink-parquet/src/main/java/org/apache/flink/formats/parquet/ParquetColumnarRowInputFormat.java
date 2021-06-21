@@ -35,7 +35,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -64,6 +66,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                 projectedType,
                 projectedType,
                 ColumnBatchFactory.withoutExtraFields(),
+                new ArrayList<>(),
                 batchSize,
                 isUtcTimestamp,
                 isCaseSensitive);
@@ -75,12 +78,14 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
      * @param projectedType the projected row type for parquet format, excludes extra fields.
      * @param producedType the produced row type for this input format, includes extra fields.
      * @param batchFactory factory for creating column batch, can cram in extra fields.
+     * @param pushDownFilters the push down filter predicates for parquet format.
      */
     public ParquetColumnarRowInputFormat(
             Configuration hadoopConfig,
             RowType projectedType,
             RowType producedType,
             ColumnBatchFactory<SplitT> batchFactory,
+            List<FilterPredicate> pushDownFilters,
             int batchSize,
             boolean isUtcTimestamp,
             boolean isCaseSensitive) {
@@ -88,6 +93,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                 new SerializableConfiguration(hadoopConfig),
                 projectedType,
                 batchFactory,
+                pushDownFilters,
                 batchSize,
                 isUtcTimestamp,
                 isCaseSensitive);
@@ -146,6 +152,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                     RowType producedRowType,
                     List<String> partitionKeys,
                     PartitionFieldExtractor<SplitT> extractor,
+                    List<FilterPredicate> pushDownFilters,
                     int batchSize,
                     boolean isUtcTimestamp,
                     boolean isCaseSensitive) {
@@ -180,6 +187,7 @@ public class ParquetColumnarRowInputFormat<SplitT extends FileSourceSplit>
                 projectedRowType,
                 producedRowType,
                 factory,
+                pushDownFilters,
                 batchSize,
                 isUtcTimestamp,
                 isCaseSensitive);

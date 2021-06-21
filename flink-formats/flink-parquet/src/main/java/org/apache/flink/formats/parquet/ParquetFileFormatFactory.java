@@ -31,6 +31,8 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -40,8 +42,11 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
@@ -65,9 +70,25 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
     public BulkDecodingFormat<RowData> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         return new BulkDecodingFormat<RowData>() {
+
+            private List<ResolvedExpression> filters;
+
             @Override
             public BulkFormat<RowData, FileSourceSplit> createRuntimeDecoder(
                     DynamicTableSource.Context sourceContext, DataType producedDataType) {
+                List<FilterPredicate> parquetPredicates = new ArrayList<>();
+
+                ParquetFilters parquetFilters = new ParquetFilters(formatOptions.get(UTC_TIMEZONE));
+
+                if (filters != null) {
+                    for (Expression pred : filters) {
+                        FilterPredicate parquetPred = parquetFilters.toParquetPredicate(pred);
+                        if (parquetPred != null) {
+                            parquetPredicates.add(parquetPred);
+                        }
+                    }
+                }
+
                 String defaultPartName =
                         context.getCatalogTable()
                                 .getOptions()
@@ -79,6 +100,7 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
                         (RowType) producedDataType.getLogicalType(),
                         context.getCatalogTable().getPartitionKeys(),
                         PartitionFieldExtractor.forFileSystem(defaultPartName),
+                        parquetPredicates,
                         VectorizedColumnBatch.DEFAULT_SIZE,
                         formatOptions.get(UTC_TIMEZONE),
                         true);
@@ -87,6 +109,11 @@ public class ParquetFileFormatFactory implements BulkReaderFormatFactory, BulkWr
             @Override
             public ChangelogMode getChangelogMode() {
                 return ChangelogMode.insertOnly();
+            }
+
+            @Override
+            public void applyFilters(List<ResolvedExpression> filters) {
+                this.filters = filters;
             }
         };
     }

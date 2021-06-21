@@ -222,11 +222,12 @@ public class ParquetRowDataWriter {
 
         @Override
         public void write(RowData row, int ordinal) {
-            recordConsumer.addBinary(timestampToInt96(row.getTimestamp(ordinal, precision)));
+            recordConsumer.addBinary(
+                    timestampToInt96(row.getTimestamp(ordinal, precision), utcTimestamp));
         }
     }
 
-    private Binary timestampToInt96(TimestampData timestampData) {
+    public static Binary timestampToInt96(TimestampData timestampData, boolean utcTimestamp) {
         int julianDay;
         long nanosOfDay;
         if (utcTimestamp) {

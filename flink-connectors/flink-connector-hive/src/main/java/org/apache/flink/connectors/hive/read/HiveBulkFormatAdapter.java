@@ -140,6 +140,7 @@ public class HiveBulkFormatAdapter implements BulkFormat<RowData, HiveSourceSpli
                     producedRowType,
                     partitionKeys,
                     partitionFieldExtractor,
+                    Collections.emptyList(),
                     DEFAULT_SIZE,
                     hiveVersion.startsWith("3"),
                     false);
