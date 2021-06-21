@@ -22,8 +22,8 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util.Collections
 
 import org.apache.flink.configuration.{AkkaOptions, Configuration, IllegalConfigurationException, SecurityOptions}
-import org.apache.flink.runtime.clusterframework.BootstrapTools.FixedThreadPoolExecutorConfiguration
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution
+import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools.FixedThreadPoolExecutorConfiguration
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils.AkkaProtocol
 import org.apache.flink.util.NetUtils
