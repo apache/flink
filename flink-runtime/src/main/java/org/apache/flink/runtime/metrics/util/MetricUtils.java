@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -214,7 +214,7 @@ public class MetricUtils {
         return rpcServiceBuilder
                 .withActorSystemName(METRICS_ACTOR_SYSTEM_NAME)
                 .withActorSystemExecutorConfiguration(
-                        new BootstrapTools.FixedThreadPoolExecutorConfiguration(
+                        new AkkaBootstrapTools.FixedThreadPoolExecutorConfiguration(
                                 1, 1, threadPriority))
                 .createAndStart();
     }
