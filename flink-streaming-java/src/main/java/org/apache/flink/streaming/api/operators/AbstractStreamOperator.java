@@ -638,7 +638,7 @@ public abstract class AbstractStreamOperator<OUT>
         processWatermark(mark, 1);
     }
 
-    public final void processStreamStatus(StreamStatus streamStatus) throws Exception {
+    public void processStreamStatus(StreamStatus streamStatus) throws Exception {
         output.emitStreamStatus(streamStatus);
     }
 
