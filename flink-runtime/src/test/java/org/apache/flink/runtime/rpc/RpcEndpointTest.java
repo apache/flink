@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.util.TestLogger;
@@ -66,7 +67,7 @@ public class RpcEndpointTest extends TestLogger {
 
         final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                FutureUtils.toJava(actorSystem.terminate());
+                AkkaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
                 .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);

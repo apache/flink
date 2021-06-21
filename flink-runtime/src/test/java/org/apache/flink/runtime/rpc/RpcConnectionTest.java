@@ -22,6 +22,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
@@ -95,7 +96,7 @@ public class RpcConnectionTest extends TestLogger {
             final CompletableFuture<Terminated> actorSystemTerminationFuture;
 
             if (actorSystem != null) {
-                actorSystemTerminationFuture = FutureUtils.toJava(actorSystem.terminate());
+                actorSystemTerminationFuture = AkkaFutureUtils.toJava(actorSystem.terminate());
             } else {
                 actorSystemTerminationFuture = CompletableFuture.completedFuture(null);
             }

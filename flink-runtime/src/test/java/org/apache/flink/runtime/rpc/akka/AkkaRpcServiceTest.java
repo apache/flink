@@ -23,6 +23,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -80,7 +81,7 @@ public class AkkaRpcServiceTest extends TestLogger {
             throws InterruptedException, ExecutionException, TimeoutException {
         final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.stopService();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                FutureUtils.toJava(actorSystem.terminate());
+                AkkaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
                 .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
