@@ -108,4 +108,7 @@ echo $$ >> "$pid" 2>/dev/null
 # Release the lock because the java process runs in the foreground and would block other processes from modifying the pid file
 [[ ${flock_exist} -eq 0 ]] &&  flock -u 200
 
+# Evaluate user options for local variable expansion
+FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
+
 exec "$JAVA_RUN" $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}"
