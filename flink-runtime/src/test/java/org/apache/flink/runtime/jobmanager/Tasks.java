@@ -151,7 +151,6 @@ public class Tasks {
 
         @Override
         public void invoke() throws Exception {
-            throw new Exception("Test exception");
         }
     }
 
