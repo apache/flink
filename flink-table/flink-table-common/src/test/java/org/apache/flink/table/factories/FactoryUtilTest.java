@@ -157,14 +157,18 @@ public class FactoryUtilTest {
                         + "key.format\n"
                         + "key.test-format.changelog-mode\n"
                         + "key.test-format.delimiter\n"
+                        + "key.test-format.deprecated-delimiter (deprecated)\n"
                         + "key.test-format.fail-on-missing\n"
+                        + "key.test-format.fallback-fail-on-missing\n"
                         + "key.test-format.readable-metadata\n"
                         + "property-version\n"
                         + "target\n"
                         + "value.format\n"
                         + "value.test-format.changelog-mode\n"
                         + "value.test-format.delimiter\n"
+                        + "value.test-format.deprecated-delimiter (deprecated)\n"
                         + "value.test-format.fail-on-missing\n"
+                        + "value.test-format.fallback-fail-on-missing\n"
                         + "value.test-format.readable-metadata");
         testError(
                 options -> {
@@ -347,11 +351,16 @@ public class FactoryUtilTest {
         final Map<String, String> options = new HashMap<>();
         options.put("deprecated-target", "MyTarget");
         options.put("fallback-buffer-size", "1000");
+        options.put("value.format", "test-format");
+        options.put("value.test-format.deprecated-delimiter", "|");
+        options.put("value.test-format.fallback-fail-on-missing", "true");
 
         final FactoryUtil.TableFactoryHelper helper =
                 FactoryUtil.createTableFactoryHelper(
                         new TestDynamicTableFactory(),
                         FactoryMocks.createTableContext(SCHEMA, options));
+        helper.discoverDecodingFormat(
+                DeserializationFormatFactory.class, TestDynamicTableFactory.VALUE_FORMAT);
         helper.validate();
     }
 
