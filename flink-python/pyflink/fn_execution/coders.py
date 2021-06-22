@@ -303,26 +303,14 @@ class CollectionCoder(FieldCoder):
 
 class BasicArrayCoder(CollectionCoder):
     """
-    Coder for basic array.
+    Coder for generic array such as basic array or object array.
     """
 
     def __init__(self, elem_coder):
         super(BasicArrayCoder, self).__init__(elem_coder)
 
     def get_impl(self):
-        return coder_impl.BasicArrayCoderImpl(self._elem_coder.get_impl())
-
-
-class ObjectArrayCoder(CollectionCoder):
-    """
-    Coder for object array.
-    """
-
-    def __init__(self, elem_coder):
-        super(ObjectArrayCoder, self).__init__(elem_coder)
-
-    def get_impl(self):
-        return coder_impl.ObjectArrayCoderImpl(self._elem_coder.get_impl())
+        return coder_impl.GenericArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class PrimitiveArrayCoder(CollectionCoder):
