@@ -109,7 +109,7 @@ public class SourceStreamTask<
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
                                             configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignmentTimeout().toMillis());
+                                            configuration.getAlignedCheckpointTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
