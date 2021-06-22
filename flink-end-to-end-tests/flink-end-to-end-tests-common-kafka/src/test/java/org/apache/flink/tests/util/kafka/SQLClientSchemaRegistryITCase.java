@@ -131,7 +131,7 @@ public class SQLClientSchemaRegistryITCase {
                         " 'topic' = '" + testCategoryTopic + "',",
                         " 'scan.startup.mode' = 'earliest-offset',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082'",
                         ");",
@@ -181,7 +181,7 @@ public class SQLClientSchemaRegistryITCase {
                                 + ":9092',",
                         " 'topic' = '" + testUserBehaviorTopic + "',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082"
                                 + "'",

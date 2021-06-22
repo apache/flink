@@ -484,7 +484,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("format", "debezium-avro-confluent");
-                    options.put("debezium-avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("debezium-avro-confluent.url", TEST_REGISTRY_URL);
                 },
                 DEFAULT_VALUE_SUBJECT,
                 "N/A");
@@ -493,7 +493,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                 },
                 DEFAULT_VALUE_SUBJECT,
                 "N/A");
@@ -502,9 +502,9 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.fields", NAME);
                 },
                 DEFAULT_VALUE_SUBJECT,
@@ -514,7 +514,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("value.format", "avro-confluent");
-                    options.put("value.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("value.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "csv");
                     options.put("key.fields", NAME);
                 },
@@ -526,7 +526,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 options -> {
                     options.put("value.format", "json");
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.fields", NAME);
                 },
                 "N/A",
@@ -536,8 +536,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("format", "debezium-avro-confluent");
-                    options.put("debezium-avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
-                    options.put("debezium-avro-confluent.schema-registry.subject", "sub1");
+                    options.put("debezium-avro-confluent.url", TEST_REGISTRY_URL);
+                    options.put("debezium-avro-confluent.subject", "sub1");
                 },
                 "sub1",
                 "N/A");
@@ -546,10 +546,10 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         verifyEncoderSubject(
                 options -> {
                     options.put("format", "avro-confluent");
-                    options.put("avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
+                    options.put("avro-confluent.url", TEST_REGISTRY_URL);
                     options.put("key.format", "avro-confluent");
-                    options.put("key.avro-confluent.schema-registry.url", TEST_REGISTRY_URL);
-                    options.put("key.avro-confluent.schema-registry.subject", "sub2");
+                    options.put("key.avro-confluent.url", TEST_REGISTRY_URL);
+                    options.put("key.avro-confluent.subject", "sub2");
                     options.put("key.fields", NAME);
                 },
                 DEFAULT_VALUE_SUBJECT,

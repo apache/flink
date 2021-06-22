@@ -25,16 +25,18 @@ import org.apache.flink.configuration.ConfigOptions;
 public class RegistryAvroOptions {
     private RegistryAvroOptions() {}
 
-    public static final ConfigOption<String> SCHEMA_REGISTRY_URL =
-            ConfigOptions.key("schema-registry.url")
+    public static final ConfigOption<String> URL =
+            ConfigOptions.key("url")
                     .stringType()
                     .noDefaultValue()
+                    .withFallbackKeys("schema-registry.url")
                     .withDescription("Required URL to connect to schema registry service");
 
-    public static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
-            ConfigOptions.key("schema-registry.subject")
+    public static final ConfigOption<String> SUBJECT =
+            ConfigOptions.key("subject")
                     .stringType()
                     .noDefaultValue()
+                    .withFallbackKeys("schema-registry.subject")
                     .withDescription(
                             "Subject name to write to the Schema Registry service, required for sink");
 }

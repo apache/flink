@@ -259,14 +259,14 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
       <td>Specify what format to use, here should be <code>'debezium-avro-confluent'</code>.</td>
     </tr>
     <tr>
-      <td><h5>debezium-avro-confluent.schema-registry.url</h5></td>
+      <td><h5>debezium-avro-confluent.url</h5></td>
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
     </tr>
     <tr>
-      <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
+      <td><h5>debezium-avro-confluent.subject</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>

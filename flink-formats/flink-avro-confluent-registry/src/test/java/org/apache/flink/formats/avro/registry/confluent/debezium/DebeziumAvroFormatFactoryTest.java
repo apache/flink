@@ -86,8 +86,8 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
         options.put("buffer-size", "1000");
 
         options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
-        options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
-        options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
+        options.put("debezium-avro-confluent.url", REGISTRY_URL);
+        options.put("debezium-avro-confluent.subject", SUBJECT);
         return options;
     }
 

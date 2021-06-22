@@ -33,7 +33,7 @@ The Avro Schema Registry (``avro-confluent``) format allows you to read records 
 
 When reading (deserializing) a record with this format the Avro writer schema is fetched from the configured Confluent Schema Registry based on the schema version id encoded in the record while the reader schema is inferred from table schema. 
 
-When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed with in the configured Confluent Schema Registry under the [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) given in `avro-confluent.schema-registry.subject`.
+When writing (serializing) a record with this format the Avro schema is inferred from the table schema and used to retrieve a schema id to be encoded with the data. The lookup is performed with in the configured Confluent Schema Registry under the [subject](https://docs.confluent.io/current/schema-registry/index.html#schemas-subjects-and-topics) given in `avro-confluent.subject`.
 
 The Avro Schema Registry format can only be used in conjunction with the [Apache Kafka SQL connector]({{< ref "docs/connectors/table/kafka" >}}) or the [Upsert Kafka SQL Connector]({{< ref "docs/connectors/table/upsert-kafka" >}}).
 
@@ -69,7 +69,7 @@ CREATE TABLE user_created (
   'key.fields' = 'the_kafka_key',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY'
 )
 ```
@@ -111,7 +111,7 @@ CREATE TABLE user_created (
   -- Watch out: schema evolution in the context of a Kafka key is almost never backward nor
   -- forward compatible due to hash partitioning.
   'key.format' = 'avro-confluent',
-  'key.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'key.avro-confluent.url' = 'http://localhost:8082',
   'key.fields' = 'kafka_key_id',
 
   -- In this example, we want the Avro types of both the Kafka key and value to contain the field 'id'
@@ -119,12 +119,12 @@ CREATE TABLE user_created (
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY',
    
   -- subjects have a default value since Flink 1.13, though can be overriden:
-  'key.avro-confluent.schema-registry.subject' = 'user_events_example2-key2',
-  'value.avro-confluent.schema-registry.subject' = 'user_events_example2-value2'
+  'key.avro-confluent.subject' = 'user_events_example2-key2',
+  'value.avro-confluent.subject' = 'user_events_example2-value2'
 )
 ```
 
@@ -160,7 +160,7 @@ CREATE TABLE user_created (
   'key.fields-prefix' = 'kafka_key_',
 
   'value.format' = 'avro-confluent',
-  'value.avro-confluent.schema-registry.url' = 'http://localhost:8082',
+  'value.avro-confluent.url' = 'http://localhost:8082',
   'value.fields-include' = 'EXCEPT_KEY'
 )
 ```
@@ -188,14 +188,14 @@ Format Options
       <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
     </tr>
     <tr>
-      <td><h5>avro-confluent.schema-registry.url</h5></td>
+      <td><h5>avro-confluent.url</h5></td>
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
     </tr>
     <tr>
-      <td><h5>avro-confluent.schema-registry.subject</h5></td>
+      <td><h5>avro-confluent.subject</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
