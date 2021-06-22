@@ -354,6 +354,30 @@ public class AlternatingCheckpointsTest {
     }
 
     @Test
+    public void testTimeoutAlignmentBeforeFirstBarrier() throws Exception {
+        // given: Local channels.
+        int numChannels = 2;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(
+                                numChannels, getTestBarrierHandlerFactory(target))
+                        .withTestChannels()
+                        .withMailboxExecutor()
+                        .build();
+
+        long alignedCheckpointTimeout = 100;
+        // when: Aligned checkpoint timeout expired before the first barrier received.
+        Buffer checkpointBarrier = withTimeout(1, alignedCheckpointTimeout);
+        clock.advanceTime(alignedCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
+
+        ((TestInputChannel) gate.getChannel(0)).read(checkpointBarrier.retainBuffer());
+
+        // then: The UC is triggered as soon as the first barrier is received.
+        assertBarrier(gate);
+        assertEquals(1, target.getTriggeredCheckpointCounter());
+    }
+
+    @Test
     public void testTimeoutAlignmentWhenLocalBarrierFirst() throws Exception {
         // given: Gate with remote and local channels.
         int numChannels = 3;
@@ -737,6 +761,48 @@ public class AlternatingCheckpointsTest {
     }
 
     @Test
+    public void testActiveTimeoutBeforeFirstAnnouncementPassiveTimeout() throws Exception {
+        // given: Two barriers from two channels.
+        int numChannels = 2;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        try (CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(
+                                numChannels, getTestBarrierHandlerFactory(target))
+                        .withRemoteChannels()
+                        .withMailboxExecutor()
+                        .build()) {
+            long alignmentCheckpointTimeout = 10;
+            Buffer checkpointBarrier = withTimeout(alignmentCheckpointTimeout);
+
+            getChannel(gate, 0).onBuffer(dataBuffer(), 0, 0);
+            getChannel(gate, 0).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+            getChannel(gate, 1).onBuffer(dataBuffer(), 0, 0);
+            getChannel(gate, 1).onBuffer(checkpointBarrier.retainBuffer(), 1, 0);
+
+            assertEquals(0, target.getTriggeredCheckpointCounter());
+
+            // when: The receiving of the first announcement is delayed on more than alignment
+            // checkpoint timeout.
+            clock.advanceTimeWithoutRunningCallables(
+                    alignmentCheckpointTimeout + 1, TimeUnit.MILLISECONDS);
+
+            assertAnnouncement(gate);
+            // we simulate active time out firing after the passive one
+            clock.executeCallables();
+
+            // then: Barriers should be reprioritized and the UC should be triggered.
+            assertAnnouncement(gate);
+            assertBarrier(gate);
+            assertBarrier(gate);
+            assertEquals(1, target.getTriggeredCheckpointCounter());
+            assertThat(target.getTriggeredCheckpointOptions(), contains(unaligned(getDefault())));
+            // Followed by overtaken buffers
+            assertData(gate);
+            assertData(gate);
+        }
+    }
+
+    @Test
     public void testActiveTimeoutAfterBarrierPassiveTimeout() throws Exception {
         int numChannels = 2;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
@@ -1112,15 +1178,15 @@ public class AlternatingCheckpointsTest {
         while (checkpointedGate.pollNext().isPresent()) {}
     }
 
-    private Buffer withTimeout(long alignmentTimeout) throws IOException {
-        return withTimeout(1, alignmentTimeout);
+    private Buffer withTimeout(long alignedCheckpointTimeout) throws IOException {
+        return withTimeout(1, alignedCheckpointTimeout);
     }
 
-    private Buffer withTimeout(int checkpointId, long alignmentTimeout) throws IOException {
+    private Buffer withTimeout(int checkpointId, long alignedCheckpointTimeout) throws IOException {
         return barrier(
                 checkpointId,
                 clock.relativeTimeMillis(),
-                alignedWithTimeout(getDefault(), alignmentTimeout));
+                alignedWithTimeout(getDefault(), alignedCheckpointTimeout));
     }
 
     private Buffer barrier(long barrierId, long barrierTimestamp, CheckpointOptions options)
