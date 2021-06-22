@@ -271,7 +271,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
 
     private void registerAlignmentTimer(CheckpointBarrier announcedBarrier) {
         long alignedCheckpointTimeout =
-                announcedBarrier.getCheckpointOptions().getAlignmentTimeout();
+                announcedBarrier.getCheckpointOptions().getAlignedCheckpointTimeout();
         long timePassedSinceCheckpointStart =
                 getClock().absoluteTimeMillis() - announcedBarrier.getTimestamp();
 
@@ -436,7 +436,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         public boolean isTimedOut(CheckpointBarrier barrier) {
             return barrier.getCheckpointOptions().isTimeoutable()
                     && barrier.getId() <= currentCheckpointId
-                    && barrier.getCheckpointOptions().getAlignmentTimeout()
+                    && barrier.getCheckpointOptions().getAlignedCheckpointTimeout()
                             < (getClock().absoluteTimeMillis() - barrier.getTimestamp());
         }
 

@@ -170,7 +170,7 @@ public class CheckpointCoordinator {
 
     private final boolean unalignedCheckpointsEnabled;
 
-    private final long alignmentTimeout;
+    private final long alignedCheckpointTimeout;
 
     /** Actor that receives status updates from the execution graph this coordinator works for. */
     private JobStatusListener jobStatusListener;
@@ -311,7 +311,7 @@ public class CheckpointCoordinator {
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
-        this.alignmentTimeout = chkConfig.getAlignmentTimeout();
+        this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
         this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
         this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
@@ -824,7 +824,7 @@ public class CheckpointCoordinator {
                         checkpointStorageLocation.getLocationReference(),
                         isExactlyOnceMode,
                         unalignedCheckpointsEnabled,
-                        alignmentTimeout);
+                        alignedCheckpointTimeout);
 
         // send the messages to the tasks that trigger their checkpoint
         for (Execution execution : tasksToTrigger) {

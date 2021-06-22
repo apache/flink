@@ -623,7 +623,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .setExecutionGraph(graph)
                             .setCheckpointCoordinatorConfiguration(
                                     CheckpointCoordinatorConfiguration.builder()
-                                            .setAlignmentTimeout(Long.MAX_VALUE)
+                                            .setAlignedCheckpointTimeout(Long.MAX_VALUE)
                                             .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                                             .build())
                             .setTimer(manuallyTriggeredScheduledExecutor)
@@ -3440,7 +3440,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                 .setExecutionGraph(graph)
                 .setCheckpointCoordinatorConfiguration(
                         CheckpointCoordinatorConfiguration.builder()
-                                .setAlignmentTimeout(Long.MAX_VALUE)
+                                .setAlignedCheckpointTimeout(Long.MAX_VALUE)
                                 .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
                                 .build())
                 .setTimer(manuallyTriggeredScheduledExecutor)
