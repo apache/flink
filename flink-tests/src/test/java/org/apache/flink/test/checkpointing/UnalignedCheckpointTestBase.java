@@ -43,6 +43,7 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
@@ -773,7 +774,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             conf.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
-            conf.setString(AkkaOptions.ASK_TIMEOUT, "1 min");
+            conf.setString(AkkaOptions.ASK_TIMEOUT, "2 min");
+            conf.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 100000L);
+
             return conf;
         }
 
