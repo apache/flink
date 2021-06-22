@@ -341,8 +341,7 @@ public class FactoryUtilTest {
                                 null,
                                 Thread.currentThread().getContextClassLoader()));
 
-        thrown.expect(ValidationException.class);
-        thrown.expect(containsMessage("Unsupported options found for 'test-catalog'"));
+        expectError("Unsupported options found for 'test-catalog'");
         helper2.validate();
     }
 
@@ -364,11 +363,50 @@ public class FactoryUtilTest {
         helper.validate();
     }
 
+    @Test
+    public void testFactoryHelperWithMapOption() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("properties.prop-1", "value-1");
+        options.put("properties.prop-2", "value-2");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestFactoryWithMap(), FactoryMocks.createTableContext(SCHEMA, options));
+
+        helper.validate();
+    }
+
+    @Test
+    public void testInvalidFactoryHelperWithMapOption() {
+        expectError(
+                "Unsupported options found for 'test-factory-with-map'.\n\n"
+                        + "Unsupported options:\n\n"
+                        + "unknown\n\n"
+                        + "Supported options:\n\n"
+                        + "connector\n"
+                        + "properties\n"
+                        + "properties.prop-1\n"
+                        + "properties.prop-2\n"
+                        + "property-version");
+
+        final Map<String, String> options = new HashMap<>();
+        options.put("properties.prop-1", "value-1");
+        options.put("properties.prop-2", "value-2");
+        options.put("unknown", "value-3");
+
+        final FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        new TestFactoryWithMap(), FactoryMocks.createTableContext(SCHEMA, options));
+        helper.validate();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper methods
     // --------------------------------------------------------------------------------------------
 
     private void expectError(String message) {
         thrown.expect(ValidationException.class);
-        thrown.expect(containsCause(new ValidationException(message)));
+        thrown.expect(containsMessage(message));
     }
 
     private static void testError(Consumer<Map<String, String>> optionModifier) {
@@ -390,5 +428,30 @@ public class FactoryUtilTest {
         options.put("value.test-format.delimiter", "|");
         options.put("value.test-format.fail-on-missing", "true");
         return options;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Helper classes
+    // --------------------------------------------------------------------------------------------
+
+    private static class TestFactoryWithMap implements DynamicTableFactory {
+
+        public static final ConfigOption<Map<String, String>> PROPERTIES =
+                ConfigOptions.key("properties").mapType().noDefaultValue();
+
+        @Override
+        public String factoryIdentifier() {
+            return "test-factory-with-map";
+        }
+
+        @Override
+        public Set<ConfigOption<?>> requiredOptions() {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<ConfigOption<?>> optionalOptions() {
+            return Collections.singleton(PROPERTIES);
+        }
     }
 }

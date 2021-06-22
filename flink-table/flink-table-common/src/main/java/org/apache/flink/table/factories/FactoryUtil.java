@@ -60,6 +60,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.configuration.ConfigurationUtils.canBePrefixMap;
+import static org.apache.flink.configuration.ConfigurationUtils.filterPrefixMapKey;
+
 /** Utility for working with {@link Factory}s. */
 @PublicEvolving
 public final class FactoryUtil {
@@ -547,6 +550,28 @@ public final class FactoryUtil {
         }
     }
 
+    private static Set<String> allKeysExpanded(ConfigOption<?> option, Set<String> actualKeys) {
+        return allKeysExpanded("", option, actualKeys);
+    }
+
+    private static Set<String> allKeysExpanded(
+            String prefix, ConfigOption<?> option, Set<String> actualKeys) {
+        final Set<String> staticKeys =
+                allKeys(option).map(k -> prefix + k).collect(Collectors.toSet());
+        if (!canBePrefixMap(option)) {
+            return staticKeys;
+        }
+        // include all prefix keys of a map option by considering the actually provided keys
+        return Stream.concat(
+                        staticKeys.stream(),
+                        staticKeys.stream()
+                                .flatMap(
+                                        k ->
+                                                actualKeys.stream()
+                                                        .filter(c -> filterPrefixMapKey(k, c))))
+                .collect(Collectors.toSet());
+    }
+
     private static Stream<String> allKeys(ConfigOption<?> option) {
         return Stream.concat(Stream.of(option.key()), fallbackKeys(option));
     }
@@ -588,7 +613,8 @@ public final class FactoryUtil {
 
             consumedOptionKeys =
                     consumedOptions.stream()
-                            .flatMap(FactoryUtil::allKeys)
+                            .flatMap(
+                                    option -> allKeysExpanded(option, allOptions.keySet()).stream())
                             .collect(Collectors.toSet());
 
             deprecatedOptionKeys =
@@ -763,8 +789,10 @@ public final class FactoryUtil {
             consumedOptions.addAll(factory.optionalOptions());
 
             consumedOptions.stream()
-                    .flatMap(FactoryUtil::allKeys)
-                    .map(k -> formatPrefix + k)
+                    .flatMap(
+                            option ->
+                                    allKeysExpanded(formatPrefix, option, allOptions.keySet())
+                                            .stream())
                     .forEach(consumedOptionKeys::add);
 
             consumedOptions.stream()

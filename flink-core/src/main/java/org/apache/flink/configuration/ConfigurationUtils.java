@@ -494,9 +494,30 @@ public class ConfigurationUtils {
     //  Prefix map handling
     // --------------------------------------------------------------------------------------------
 
-    static boolean canBePrefixMap(ConfigOption<?> configOption) {
-        // maps might span multiple entries by using a prefix key like "key.prop1", "key.prop2"
+    /**
+     * Maps can be represented in two ways.
+     *
+     * <p>With constant key space:
+     *
+     * <pre>
+     *     avro-confluent.properties = schema: 1, other-prop: 2
+     * </pre>
+     *
+     * <p>Or with variable key space (i.e. prefix notation):
+     *
+     * <pre>
+     *     avro-confluent.properties.schema = 1
+     *     avro-confluent.properties.other-prop = 2
+     * </pre>
+     */
+    public static boolean canBePrefixMap(ConfigOption<?> configOption) {
         return configOption.getClazz() == Map.class && !configOption.isList();
+    }
+
+    /** Filter condition for prefix map keys. */
+    public static boolean filterPrefixMapKey(String key, String candidate) {
+        final String prefixKey = key + ".";
+        return candidate.startsWith(prefixKey);
     }
 
     static Map<String, String> convertToPropertiesPrefixed(
@@ -511,15 +532,13 @@ public class ConfigurationUtils {
     }
 
     static boolean containsPrefixMap(Map<String, Object> confData, String key) {
-        final String prefixKey = key + ".";
-        return confData.keySet().stream().anyMatch(k -> k.startsWith(prefixKey));
+        return confData.keySet().stream().anyMatch(candidate -> filterPrefixMapKey(key, candidate));
     }
 
     static boolean removePrefixMap(Map<String, Object> confData, String key) {
-        final String prefixKey = key + ".";
         final List<String> prefixKeys =
                 confData.keySet().stream()
-                        .filter(k -> k.startsWith(prefixKey))
+                        .filter(candidate -> filterPrefixMapKey(key, candidate))
                         .collect(Collectors.toList());
         prefixKeys.forEach(confData::remove);
         return !prefixKeys.isEmpty();
