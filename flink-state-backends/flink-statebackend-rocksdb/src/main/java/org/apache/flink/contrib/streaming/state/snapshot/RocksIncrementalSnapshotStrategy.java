@@ -120,9 +120,8 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
-            long lastCompletedCheckpointId,
-            int numberOfTransferingThreads) {
-
+            @Nonnull RocksDBStateUploader rocksDBStateUploader,
+            long lastCompletedCheckpointId) {
         super(
                 DESCRIPTION,
                 db,
@@ -138,7 +137,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
         this.backendUID = backendUID;
         this.materializedSstFiles = materializedSstFiles;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
-        this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
+        this.stateUploader = rocksDBStateUploader;
         this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
     }
 
@@ -189,6 +188,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
         synchronized (materializedSstFiles) {
             materializedSstFiles.keySet().remove(abortedCheckpointId);
         }
+    }
+
+    @Override
+    public void close() {
+        stateUploader.close();
     }
 
     @Nonnull

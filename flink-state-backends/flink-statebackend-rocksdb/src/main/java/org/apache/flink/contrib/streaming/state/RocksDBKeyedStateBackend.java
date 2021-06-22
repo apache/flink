@@ -446,6 +446,8 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
             cleanInstanceBasePath();
         }
+        IOUtils.closeQuietly(checkpointSnapshotStrategy);
+        IOUtils.closeQuietly(savepointSnapshotStrategy);
         this.disposed = true;
     }
 
