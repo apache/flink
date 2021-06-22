@@ -82,7 +82,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     private CompletableFuture<Void> allBarriersReceivedFuture = new CompletableFuture<>();
 
     private BarrierHandlerState currentState;
-    private long firstBarrierArrivalTime;
     private Cancellable currentAlignmentTimer;
     private final boolean alternating;
 
@@ -271,6 +270,13 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     }
 
     private void registerAlignmentTimer(CheckpointBarrier announcedBarrier) {
+        long alignedCheckpointTimeout =
+                announcedBarrier.getCheckpointOptions().getAlignmentTimeout();
+        long timePassedSinceCheckpointStart =
+                getClock().absoluteTimeMillis() - announcedBarrier.getTimestamp();
+
+        long timerDelay = Math.max(alignedCheckpointTimeout - timePassedSinceCheckpointStart, 0);
+
         this.currentAlignmentTimer =
                 registerTimer.apply(
                         () -> {
@@ -290,8 +296,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                             currentAlignmentTimer = null;
                             return null;
                         },
-                        Duration.ofMillis(
-                                announcedBarrier.getCheckpointOptions().getAlignmentTimeout()));
+                        Duration.ofMillis(timerDelay));
     }
 
     private void checkNewCheckpoint(CheckpointBarrier barrier) throws IOException {
@@ -306,7 +311,6 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         currentCheckpointId = barrierId;
         numBarriersReceived = 0;
         allBarriersReceivedFuture = new CompletableFuture<>();
-        firstBarrierArrivalTime = getClock().relativeTimeNanos();
 
         if (alternating && barrier.getCheckpointOptions().isTimeoutable()) {
             registerAlignmentTimer(barrier);
@@ -432,8 +436,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         public boolean isTimedOut(CheckpointBarrier barrier) {
             return barrier.getCheckpointOptions().isTimeoutable()
                     && barrier.getId() <= currentCheckpointId
-                    && barrier.getCheckpointOptions().getAlignmentTimeout() * 1_000_000
-                            < (getClock().relativeTimeNanos() - firstBarrierArrivalTime);
+                    && barrier.getCheckpointOptions().getAlignmentTimeout()
+                            < (getClock().absoluteTimeMillis() - barrier.getTimestamp());
         }
 
         @Override
