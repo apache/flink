@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
-import org.apache.flink.table.api._
+import org.apache.flink.table.api.{TableDescriptor, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.data.{GenericRowData, MapData, RowData}
@@ -529,6 +529,23 @@ class CalcITCase extends StreamingTestBase {
         "SQL validation failed. Invalid function call:\n" +
           "CURRENT_WATERMARK(TIMESTAMP_LTZ(3))", e.getMessage)
     }
+  }
+
+  @Test
+  def testCreateTemporaryTableFromDescriptor(): Unit = {
+    val rows = Seq(row(42))
+    val tableId = TestValuesTableFactory.registerData(rows)
+
+    tEnv.createTemporaryTable("T", TableDescriptor.forConnector("values")
+      .schema(Schema.newBuilder()
+        .column("f0", DataTypes.INT())
+        .build())
+      .option("data-id", tableId)
+      .option("bounded", "true")
+      .build())
+
+    val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().toList
+    TestBaseUtils.compareResultAsText(result, "42")
   }
 
 }

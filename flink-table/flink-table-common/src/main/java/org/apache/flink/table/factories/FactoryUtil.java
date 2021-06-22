@@ -436,6 +436,26 @@ public final class FactoryUtil {
                 factoryIdentifier, allOptionKeys, consumedOptionKeys, Collections.emptySet());
     }
 
+    /** Returns the required option prefix for options of the given format. */
+    public static String getFormatPrefix(
+            ConfigOption<String> formatOption, String formatIdentifier) {
+        final String formatOptionKey = formatOption.key();
+        if (formatOptionKey.equals(FORMAT.key())) {
+            return formatIdentifier + ".";
+        } else if (formatOptionKey.endsWith(FORMAT_SUFFIX)) {
+            // extract the key prefix, e.g. extract 'key' from 'key.format'
+            String keyPrefix =
+                    formatOptionKey.substring(0, formatOptionKey.length() - FORMAT_SUFFIX.length());
+            return keyPrefix + "." + formatIdentifier + ".";
+        } else {
+            throw new ValidationException(
+                    "Format identifier key should be 'format' or suffix with '.format', "
+                            + "don't support format identifier key '"
+                            + formatOptionKey
+                            + "'.");
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -804,23 +824,8 @@ public final class FactoryUtil {
         }
 
         private String formatPrefix(Factory formatFactory, ConfigOption<String> formatOption) {
-            final String formatOptionKey = formatOption.key();
             String identifier = formatFactory.factoryIdentifier();
-            if (formatOptionKey.equals(FORMAT.key())) {
-                return identifier + ".";
-            } else if (formatOptionKey.endsWith(FORMAT_SUFFIX)) {
-                // extract the key prefix, e.g. extract 'key' from 'key.format'
-                String keyPrefix =
-                        formatOptionKey.substring(
-                                0, formatOptionKey.length() - FORMAT_SUFFIX.length());
-                return keyPrefix + "." + identifier + ".";
-            } else {
-                throw new ValidationException(
-                        "Format identifier key should be 'format' or suffix with '.format', "
-                                + "don't support format identifier key '"
-                                + formatOptionKey
-                                + "'.");
-            }
+            return getFormatPrefix(formatOption, identifier);
         }
 
         private ReadableConfig projectOptions(String formatPrefix) {

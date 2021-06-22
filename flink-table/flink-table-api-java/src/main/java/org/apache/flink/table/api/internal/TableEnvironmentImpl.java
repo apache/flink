@@ -34,6 +34,7 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
@@ -478,6 +479,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     public boolean dropTemporaryFunction(String path) {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         return functionCatalog.dropTemporaryCatalogFunction(unresolvedIdentifier, true);
+    }
+
+    @Override
+    public void createTemporaryTable(String path, TableDescriptor descriptor) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
+        final ObjectIdentifier tableIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        descriptor.getSchema(),
+                        descriptor.getComment().orElse(null),
+                        descriptor.getPartitionKeys(),
+                        descriptor.getOptions());
+
+        catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
     }
 
     @Override

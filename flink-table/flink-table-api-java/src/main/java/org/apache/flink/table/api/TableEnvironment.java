@@ -585,6 +585,27 @@ public interface TableEnvironment {
     boolean dropTemporaryFunction(String path);
 
     /**
+     * Registers the {@link TableDescriptor} as a temporary table.
+     *
+     * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+     * it will be inaccessible in the current session. To make the permanent object available again
+     * one can drop the corresponding temporary object.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTemporaryTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build());
+     * }</pre>
+     */
+    void createTemporaryTable(String path, TableDescriptor descriptor);
+
+    /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered
      * tables can be referenced in SQL queries.
      *
