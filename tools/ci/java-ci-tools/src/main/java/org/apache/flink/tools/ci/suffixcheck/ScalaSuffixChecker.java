@@ -146,8 +146,6 @@ public class ScalaSuffixChecker {
         final Collection<String> excludedModules = new ArrayList<>();
         excludedModules.add("flink-docs");
         excludedModules.addAll(getEndToEndTestModules(flinkRootPath));
-        // temporary; see FLINK-23001
-        excludedModules.add("flink-avro-glue-schema-registry");
 
         for (String excludedModule : excludedModules) {
             parseResult.getCleanModules().remove(excludedModule);
