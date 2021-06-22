@@ -132,8 +132,8 @@ public class BufferedUpsertSinkFunction extends RichSinkFunction<RowData>
                 consumedRowDataTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
         this.valueCopier =
                 getRuntimeContext().getExecutionConfig().isObjectReuseEnabled()
-                        ? Function.identity()
-                        : typeSerializer::copy;
+                        ? typeSerializer::copy
+                        : Function.identity();
 
         // register timer
         this.scheduler =
