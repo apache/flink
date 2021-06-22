@@ -231,7 +231,9 @@ public abstract class HivePartitionFetcherContextBase<P> implements HivePartitio
 
     @Override
     public void close() throws Exception {
-        partValuesToCreateTime.clear();
+        if (partValuesToCreateTime != null) {
+            partValuesToCreateTime.clear();
+        }
         if (this.metaStoreClient != null) {
             this.metaStoreClient.close();
         }
