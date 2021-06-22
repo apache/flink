@@ -265,14 +265,14 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td>指定要使用的格式，此处应为 <code>'debezium-avro-confluent'</code>。</td>
     </tr>
     <tr>
-      <td><h5>debezium-avro-confluent.schema-registry.url</h5></td>
+      <td><h5>debezium-avro-confluent.url</h5></td>
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>用于获取/注册 schemas 的 Confluent Schema Registry 的 URL。</td>
     </tr>
     <tr>
-      <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
+      <td><h5>debezium-avro-confluent.subject</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>

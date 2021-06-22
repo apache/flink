@@ -42,8 +42,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_SUBJECT;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SCHEMA_REGISTRY_URL;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.URL;
 
 /**
  * Format factory for providing configured instances of Debezium Avro to RowData {@link
@@ -59,7 +59,7 @@ public class DebeziumAvroFormatFactory
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
+        String schemaRegistryURL = formatOptions.get(URL);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -89,13 +89,13 @@ public class DebeziumAvroFormatFactory
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        String schemaRegistryURL = formatOptions.get(SCHEMA_REGISTRY_URL);
-        Optional<String> subject = formatOptions.getOptional(SCHEMA_REGISTRY_SUBJECT);
+        String schemaRegistryURL = formatOptions.get(URL);
+        Optional<String> subject = formatOptions.getOptional(SUBJECT);
         if (!subject.isPresent()) {
             throw new ValidationException(
                     String.format(
                             "Option '%s.%s' is required for serialization",
-                            IDENTIFIER, SCHEMA_REGISTRY_SUBJECT.key()));
+                            IDENTIFIER, SUBJECT.key()));
         }
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
@@ -127,14 +127,14 @@ public class DebeziumAvroFormatFactory
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCHEMA_REGISTRY_URL);
+        options.add(URL);
         return options;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(SCHEMA_REGISTRY_SUBJECT);
+        options.add(SUBJECT);
         return options;
     }
 }

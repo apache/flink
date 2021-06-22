@@ -118,11 +118,10 @@ public class RegistryAvroFormatFactoryTest {
         thrown.expect(
                 containsCause(
                         new ValidationException(
-                                "Option avro-confluent.schema-registry.subject "
-                                        + "is required for serialization")));
+                                "Option avro-confluent.subject is required for serialization")));
 
         final Map<String, String> options =
-                getModifiedOptions(opts -> opts.remove("avro-confluent.schema-registry.subject"));
+                getModifiedOptions(opts -> opts.remove("avro-confluent.subject"));
 
         createTableSink(SCHEMA, options);
     }
@@ -149,8 +148,8 @@ public class RegistryAvroFormatFactoryTest {
         options.put("buffer-size", "1000");
 
         options.put("format", RegistryAvroFormatFactory.IDENTIFIER);
-        options.put("avro-confluent.schema-registry.subject", SUBJECT);
-        options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
+        options.put("avro-confluent.subject", SUBJECT);
+        options.put("avro-confluent.url", REGISTRY_URL);
         return options;
     }
 }
