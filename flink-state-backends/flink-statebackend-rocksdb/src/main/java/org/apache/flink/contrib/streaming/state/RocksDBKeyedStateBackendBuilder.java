@@ -115,6 +115,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     private RocksDB injectedTestDB; // for testing
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
+    private RocksDBStateUploader injectRocksDBStateUploader; // for testing
 
     public RocksDBKeyedStateBackendBuilder(
             String operatorIdentifier,
@@ -219,6 +220,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     RocksDBKeyedStateBackendBuilder<K> setNumberOfTransferingThreads(
             int numberOfTransferingThreads) {
+        Preconditions.checkState(
+                injectRocksDBStateUploader == null,
+                "numberOfTransferingThreads can be set only when injectRocksDBStateUploader is null.");
         this.numberOfTransferingThreads = numberOfTransferingThreads;
         return this;
     }
@@ -226,6 +230,18 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     RocksDBKeyedStateBackendBuilder<K> setWriteBatchSize(long writeBatchSize) {
         checkArgument(writeBatchSize >= 0, "Write batch size should be non negative.");
         this.writeBatchSize = writeBatchSize;
+        return this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K> setRocksDBStateUploader(
+            RocksDBStateUploader rocksDBStateUploader) {
+        Preconditions.checkState(
+                injectRocksDBStateUploader == null, "rocksDBStateUploader can be only set once");
+        Preconditions.checkState(
+                numberOfTransferingThreads
+                        == RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue(),
+                "RocksDBStateUploader can only be set if numberOfTransferingThreads has not been manually set.");
+        this.injectRocksDBStateUploader = rocksDBStateUploader;
         return this;
     }
 
@@ -254,7 +270,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 new RocksDbTtlCompactFiltersManager(ttlTimeProvider);
 
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        SnapshotStrategy<K> snapshotStrategy;
+        SnapshotStrategy<K> snapshotStrategy = null;
         PriorityQueueSetFactory priorityQueueFactory;
         RocksDBSerializedCompositeKeyBuilder<K> sharedRocksKeyBuilder;
         // Number of bytes required to prefix the key groups.
@@ -348,6 +364,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             IOUtils.closeQuietly(optionsContainer);
             ttlCompactFiltersManager.disposeAndClearRegisteredCompactionFactories();
             kvStateInformation.clear();
+            IOUtils.closeQuietly(snapshotStrategy);
             try {
                 FileUtils.deleteDirectory(instanceBasePath);
             } catch (Exception ex) {
@@ -490,6 +507,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         if (enableIncrementalCheckpointing) {
             // TODO eventually we might want to separate savepoint and snapshot strategy, i.e.
             // having 2 strategies.
+            RocksDBStateUploader stateUploader =
+                    injectRocksDBStateUploader == null
+                            ? new RocksDBStateUploader(numberOfTransferingThreads)
+                            : injectRocksDBStateUploader;
             checkpointSnapshotStrategy =
                     new RocksIncrementalSnapshotStrategy<>(
                             db,
@@ -503,8 +524,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             instanceBasePath,
                             backendUID,
                             materializedSstFiles,
-                            lastCompletedCheckpointId,
-                            numberOfTransferingThreads);
+                            stateUploader,
+                            lastCompletedCheckpointId);
         } else {
             checkpointSnapshotStrategy = savepointSnapshotStrategy;
         }
@@ -553,7 +574,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         }
     }
 
-    static final class SnapshotStrategy<K> {
+    static final class SnapshotStrategy<K> implements AutoCloseable {
         final RocksDBSnapshotStrategyBase<K> checkpointSnapshotStrategy;
         final RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy;
 
@@ -562,6 +583,12 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 RocksDBSnapshotStrategyBase<K> savepointSnapshotStrategy) {
             this.checkpointSnapshotStrategy = checkpointSnapshotStrategy;
             this.savepointSnapshotStrategy = savepointSnapshotStrategy;
+        }
+
+        @Override
+        public void close() {
+            checkpointSnapshotStrategy.close();
+            savepointSnapshotStrategy.close();
         }
     }
 }
