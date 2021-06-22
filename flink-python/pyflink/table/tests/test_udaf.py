@@ -543,24 +543,25 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
 
         from pyflink.testing import source_sink_utils
         table_sink = source_sink_utils.TestAppendSink(
-            ['a', 'b', 'c', 'd'],
+            ['a', 'b', 'c', 'd', 'e'],
             [
                 DataTypes.TINYINT(),
                 DataTypes.TIMESTAMP(3),
                 DataTypes.TIMESTAMP(3),
+                DataTypes.BIGINT(),
                 DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
         t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
             .group_by("a, w") \
-            .select("a, w.start, w.end, my_count(c) as c") \
+            .select("a, w.start, w.end, COUNT(c) as c, my_count(c) as d") \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["+I[2, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 1]",
-                            "+I[3, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 1]",
-                            "+I[1, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2]",
-                            "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 1]"])
+                           ["+I[2, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2, 1]",
+                            "+I[3, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 1, 1]",
+                            "+I[1, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2, 2]",
+                            "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 1, 1]"])
 
     def test_tumbling_group_window_over_count(self):
         self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
