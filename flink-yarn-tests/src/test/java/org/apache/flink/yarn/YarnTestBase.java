@@ -164,7 +164,11 @@ public abstract class YarnTestBase extends TestLogger {
                 "org\\.apache\\.flink.util\\.FlinkException: JobManager is shutting down\\."),
         Pattern.compile("lost the leadership."),
         Pattern.compile(
-                "akka.remote.transport.netty.NettyTransport.*Remote connection to \\[[^]]+\\] failed with java.io.IOException: Broken pipe")
+                "akka.remote.transport.netty.NettyTransport.*Remote connection to \\[[^]]+\\] failed with java.io.IOException: Broken pipe"),
+
+        // this can happen during cluster shutdown, if AMRMClient happens to be heartbeating
+        Pattern.compile("Exception on heartbeat"),
+        Pattern.compile("java\\.io\\.InterruptedIOException: Call interrupted")
     };
 
     // Temp directory which is deleted after the unit test.

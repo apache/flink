@@ -21,8 +21,7 @@ import shutil
 import sys
 import tempfile
 
-from pyflink.dataset import ExecutionEnvironment
-from pyflink.table import BatchTableEnvironment, TableConfig
+from pyflink.table import EnvironmentSettings, TableEnvironment
 
 
 def word_count():
@@ -34,9 +33,8 @@ def word_count():
               "License you may not use this file except in compliance " \
               "with the License"
 
-    t_config = TableConfig()
-    env = ExecutionEnvironment.get_execution_environment()
-    t_env = BatchTableEnvironment.create(env, t_config)
+    env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+    t_env = TableEnvironment.create(environment_settings=env_settings)
 
     # used to test pipeline.jars and pipleline.classpaths
     config_key = sys.argv[1]
@@ -68,9 +66,9 @@ def word_count():
             'connector.path' = '{}'
         )
         """.format(result_path)
-    t_env.sql_update(sink_ddl)
+    t_env.execute_sql(sink_ddl)
 
-    t_env.sql_update("create temporary system function add_one as 'add_one.add_one' language python")
+    t_env.execute_sql("create temporary system function add_one as 'add_one.add_one' language python")
     t_env.register_java_function("add_one_java", "org.apache.flink.python.tests.util.AddOne")
 
     elements = [(word, 0) for word in content.split(" ")]
@@ -78,9 +76,7 @@ def word_count():
         .select("word, add_one(count) as count, add_one_java(count) as count_java") \
         .group_by("word") \
         .select("word, count(count) as count, count(count_java) as count_java") \
-        .insert_into("Results")
-
-    t_env.execute("word_count")
+        .execute_insert("Results")
 
 
 if __name__ == '__main__':

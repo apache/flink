@@ -160,11 +160,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsFromTableApi() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "table-api";
         String myType = "MyType";
@@ -228,11 +224,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsNoPrimaryKey() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "no-primary-key";
         String myType = "MyType";
@@ -328,11 +320,7 @@ public class Elasticsearch6DynamicSinkITCase {
     @Test
     public void testWritingDocumentsWithDynamicIndex() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "dynamic-index-{b|yyyy-MM-dd}";
         String myType = "MyType";

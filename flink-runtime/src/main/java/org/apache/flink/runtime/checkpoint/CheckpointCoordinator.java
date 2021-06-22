@@ -206,6 +206,9 @@ public class CheckpointCoordinator {
 
     private boolean isPreferCheckpointForRecovery;
 
+    /** Id of checkpoint for which in-flight data should be ignored on recovery. */
+    private final long checkpointIdOfIgnoredInFlightData;
+
     private final CheckpointFailureManager failureManager;
 
     private final Clock clock;
@@ -309,6 +312,7 @@ public class CheckpointCoordinator {
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
         this.alignmentTimeout = chkConfig.getAlignmentTimeout();
+        this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
         this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
         this.masterHooks = new HashMap<>();
@@ -1244,11 +1248,12 @@ public class CheckpointCoordinator {
         lastCheckpointCompletionRelativeTime = clock.relativeTimeMillis();
 
         LOG.info(
-                "Completed checkpoint {} for job {} ({} bytes in {} ms).",
+                "Completed checkpoint {} for job {} ({} bytes, checkpointDuration={} ms, finalizationTime={} ms).",
                 checkpointId,
                 job,
                 completedCheckpoint.getStateSize(),
-                completedCheckpoint.getDuration());
+                completedCheckpoint.getCompletionTimestamp() - completedCheckpoint.getTimestamp(),
+                System.currentTimeMillis() - completedCheckpoint.getCompletionTimestamp());
 
         if (LOG.isDebugEnabled()) {
             StringBuilder builder = new StringBuilder();
@@ -1553,7 +1558,7 @@ public class CheckpointCoordinator {
             LOG.info("Restoring job {} from {}.", job, latest);
 
             // re-assign the task states
-            final Map<OperatorID, OperatorState> operatorStates = latest.getOperatorStates();
+            final Map<OperatorID, OperatorState> operatorStates = extractOperatorStates(latest);
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
@@ -1593,6 +1598,42 @@ public class CheckpointCoordinator {
 
             return OptionalLong.of(latest.getCheckpointID());
         }
+    }
+
+    private Map<OperatorID, OperatorState> extractOperatorStates(CompletedCheckpoint checkpoint) {
+        Map<OperatorID, OperatorState> originalOperatorStates = checkpoint.getOperatorStates();
+
+        if (checkpoint.getCheckpointID() != checkpointIdOfIgnoredInFlightData) {
+            // Don't do any changes if it is not required.
+            return originalOperatorStates;
+        }
+
+        HashMap<OperatorID, OperatorState> newStates = new HashMap<>();
+        // Create the new operator states without in-flight data.
+        for (OperatorState originalOperatorState : originalOperatorStates.values()) {
+            OperatorState newState =
+                    new OperatorState(
+                            originalOperatorState.getOperatorID(),
+                            originalOperatorState.getParallelism(),
+                            originalOperatorState.getMaxParallelism());
+
+            newStates.put(newState.getOperatorID(), newState);
+
+            for (Map.Entry<Integer, OperatorSubtaskState> originalSubtaskStateEntry :
+                    originalOperatorState.getSubtaskStates().entrySet()) {
+
+                newState.putState(
+                        originalSubtaskStateEntry.getKey(),
+                        originalSubtaskStateEntry
+                                .getValue()
+                                .toBuilder()
+                                .setResultSubpartitionState(StateObjectCollection.empty())
+                                .setInputChannelState(StateObjectCollection.empty())
+                                .build());
+            }
+        }
+
+        return newStates;
     }
 
     /**

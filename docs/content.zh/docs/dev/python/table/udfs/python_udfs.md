@@ -50,7 +50,7 @@ class HashCode(ScalarFunction):
   def eval(self, s):
     return hash(s) * self.factor
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 hash_code = udf(HashCode(), result_type=DataTypes.BIGINT())
@@ -80,7 +80,7 @@ public class HashCode extends ScalarFunction {
 '''
 from pyflink.table.expressions import call
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(settings)
 
 # 注册 Java 函数
@@ -148,7 +148,7 @@ class Split(TableFunction):
         for s in string.split(" "):
             yield s, len(s)
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -186,7 +186,7 @@ public class Split extends TableFunction<Tuple2<String, Integer>> {
 '''
 from pyflink.table.expressions import call
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 my_table = ...  # type: Table, table schema: [a: String]
 
@@ -301,7 +301,7 @@ class WeightedAvg(AggregateFunction):
             DataTypes.FIELD("f1", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udaf decorator:
 # weighted_avg = udaf(WeightedAvg(), result_type=DataTypes.BIGINT(), accumulator_type=...)
@@ -429,7 +429,7 @@ the function is called to compute and return the final result.
 
 The following example illustrates the aggregation process:
 
-<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">
+{{<img alt="UDTAGG mechanism" src="/fig/udtagg-mechanism-python.png" width="80%">}}
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
 and `price`) and 5 rows. We would like to find the 2 highest prices of all beverages in the table, i.e.,
@@ -476,7 +476,7 @@ class Top2(TableAggregateFunction):
             [DataTypes.FIELD("a", DataTypes.BIGINT())])
 
 
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 # the result type and accumulator type can also be specified in the udtaf decorator:
 # top2 = udtaf(Top2(), result_type=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]), accumulator_type=DataTypes.ARRAY(DataTypes.BIGINT()))

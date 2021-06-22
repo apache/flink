@@ -31,9 +31,7 @@ import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -44,6 +42,9 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,19 +52,31 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for Python unbounded group aggregate. */
-public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
 
+    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
+
+    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
+
+    @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS)
     private final boolean[] aggCallNeedRetractions;
+
+    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
+
+    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
     public StreamExecPythonGroupAggregate(
@@ -75,10 +88,34 @@ public class StreamExecPythonGroupAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.grouping = grouping;
-        this.aggCalls = aggCalls;
-        this.aggCallNeedRetractions = aggCallNeedRetractions;
+        this(
+                grouping,
+                aggCalls,
+                aggCallNeedRetractions,
+                generateUpdateBefore,
+                needRetraction,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecPythonGroupAggregate(
+            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
+            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
+            @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
+            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
+            @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        this.grouping = checkNotNull(grouping);
+        this.aggCalls = checkNotNull(aggCalls);
+        this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
+        checkArgument(aggCalls.length == aggCallNeedRetractions.length);
         this.generateUpdateBefore = generateUpdateBefore;
         this.needRetraction = needRetraction;
     }

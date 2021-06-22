@@ -71,7 +71,6 @@ public class PassThroughPythonAggregateFunctionRunner
             RowType outputType,
             String functionUrn,
             FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
-            String coderUrn,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             boolean isBatchOverWindow) {
@@ -82,11 +81,12 @@ public class PassThroughPythonAggregateFunctionRunner
                 outputType,
                 functionUrn,
                 userDefinedFunctions,
-                coderUrn,
                 jobOptions,
                 flinkMetricContainer,
                 null,
                 0.0,
+                FlinkFnApi.CoderParam.DataType.ARROW,
+                FlinkFnApi.CoderParam.DataType.ARROW,
                 FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.buffer = new LinkedList<>();
         this.isBatchOverWindow = isBatchOverWindow;

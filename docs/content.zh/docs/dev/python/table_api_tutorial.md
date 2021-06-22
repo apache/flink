@@ -67,7 +67,7 @@ $ python -m pip install apache-flink
 编写Flink Python Table API程序的第一步是创建`TableEnvironment`。这是Python Table API作业的入口类。
 
 ```python
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 ```
 
@@ -147,7 +147,7 @@ from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
 from pyflink.table.expressions import lit
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # write all the data to one file

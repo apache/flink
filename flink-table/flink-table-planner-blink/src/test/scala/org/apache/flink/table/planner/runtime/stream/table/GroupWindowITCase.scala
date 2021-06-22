@@ -184,7 +184,7 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
-    // please keep this test in sync with the DataSet variant
+    // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
@@ -217,7 +217,7 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
-    // please keep this test in sync with the DataSet variant
+    // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
@@ -248,7 +248,7 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
-    // please keep this test in sync with the DataSet variant
+    // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
@@ -324,7 +324,7 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
-    // please keep this test in sync with the DataSet variant
+    // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))
@@ -349,7 +349,7 @@ class GroupWindowITCase(mode: StateBackendMode)
 
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
-    // please keep this test in sync with the DataSet variant
+    // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, Double, Float, BigDecimal, String)](0L))

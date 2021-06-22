@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -194,7 +193,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -206,7 +204,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -215,13 +212,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join doesn't support different window table function of left and " +
-        "right inputs.\n" +
-        "The left window table function is HOP(size=[10 min], slide=[5 min]).\n" +
-        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
     util.verifyRelPlan(sql)
   }
 
@@ -236,7 +226,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -248,7 +237,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -257,13 +245,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join doesn't support different window table function of left and " +
-        "right inputs.\n" +
-        "The left window table function is CUMULATE(max_size=[2 h], step=[10 min]).\n" +
-        "The right window table function is CUMULATE(max_size=[1 h], step=[10 min]).")
     util.verifyRelPlan(sql)
   }
 
@@ -278,7 +259,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -291,7 +271,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -301,13 +280,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join doesn't support different time attribute type of left and " +
-        "right inputs.\n" +
-        "The left time attribute type is TIMESTAMP_LTZ(3) NOT NULL *PROCTIME*.\n" +
-        "The right time attribute type is TIMESTAMP(3) *ROWTIME*.")
     util.verifyRelPlan(sql)
   }
 
@@ -327,7 +299,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -338,7 +309,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -346,12 +316,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 
@@ -365,7 +329,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -376,7 +339,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(TUMBLE(TABLE MyTable2, DESCRIPTOR(rowtime), INTERVAL '15' MINUTE))
@@ -384,12 +346,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 
@@ -403,7 +359,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -415,7 +370,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -424,12 +378,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 
@@ -462,12 +410,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 
@@ -481,7 +423,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -494,7 +435,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -504,12 +444,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_start = window_start) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 
@@ -523,7 +457,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -536,7 +469,6 @@ class WindowJoinTest extends TableTestBase {
         |    a,
         |    window_start,
         |    window_end,
-        |    window_time,
         |    count(*) as cnt,
         |    count(distinct c) AS uv
         |  FROM TABLE(
@@ -546,12 +478,6 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Currently, window join requires JOIN ON condition must contain both window starts " +
-        "equality of input tables and window ends equality of input tables.\n" +
-        "But the current JOIN ON condition is ((window_end = window_end) AND (a = a)).")
     util.verifyRelPlan(sql)
   }
 

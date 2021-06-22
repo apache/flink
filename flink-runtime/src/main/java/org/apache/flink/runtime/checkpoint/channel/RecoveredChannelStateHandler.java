@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
@@ -196,10 +195,6 @@ class ResultSubpartitionRecoveredStateHandler
                     bufferBuilder.createBufferConsumerFromBeginning()) {
                 bufferBuilder.finish();
                 if (bufferConsumer.isDataAvailable()) {
-                    NetworkActionsLogger.traceRecover(
-                            "ResultSubpartitionRecoveredStateHandler#recover",
-                            bufferConsumer,
-                            subpartitionInfo);
                     final List<CheckpointedResultSubpartition> channels =
                             getMappedChannels(subpartitionInfo);
                     for (final CheckpointedResultSubpartition channel : channels) {
@@ -208,14 +203,9 @@ class ResultSubpartitionRecoveredStateHandler
                         final SubtaskConnectionDescriptor channelSelector =
                                 new SubtaskConnectionDescriptor(
                                         subpartitionInfo.getSubPartitionIdx(), oldSubtaskIndex);
-                        channel.add(
-                                EventSerializer.toBufferConsumer(channelSelector, false),
-                                Integer.MIN_VALUE);
-                        boolean added = channel.add(bufferConsumer.copy(), Integer.MIN_VALUE);
-                        if (!added) {
-                            throw new IOException(
-                                    "Buffer consumer couldn't be added to ResultSubpartition");
-                        }
+                        channel.addRecovered(
+                                EventSerializer.toBufferConsumer(channelSelector, false));
+                        channel.addRecovered(bufferConsumer.copy());
                     }
                 }
             }

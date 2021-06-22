@@ -66,9 +66,7 @@ public class HiveLookupJoinITCase {
 
     @BeforeClass
     public static void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-        tableEnv = TableEnvironment.create(settings);
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());

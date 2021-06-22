@@ -83,7 +83,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final Configuration conf = new Configuration();
 
         conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        conf.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
 
         return conf;
     }

@@ -73,8 +73,6 @@ import static org.junit.Assert.assertEquals;
 @RunWith(Parameterized.class)
 public class CliClientITCase extends AbstractTestBase {
 
-    // a generated UDF jar used for testing classloading of dependencies
-    private static URL udfDependency;
     private static Path historyPath;
     private static Map<String, String> replaceVars;
 
@@ -102,11 +100,12 @@ public class CliClientITCase extends AbstractTestBase {
         File udfJar =
                 TestUserClassLoaderJar.createJarFile(
                         tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
-        udfDependency = udfJar.toURI().toURL();
+        URL udfDependency = udfJar.toURI().toURL();
         historyPath = tempFolder.newFile("history").toPath();
 
         replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PIPELINE_JARS", udfDependency.toString());
+        replaceVars.put("$VAR_UDF_JAR_PATH", udfDependency.getPath());
+        replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
                 miniClusterResource.getClientConfiguration().get(PORT).toString());
@@ -145,7 +144,7 @@ public class CliClientITCase extends AbstractTestBase {
         DefaultContext defaultContext =
                 new DefaultContext(
                         new Environment(),
-                        Collections.singletonList(udfDependency),
+                        Collections.emptyList(),
                         new Configuration(miniClusterResource.getClientConfiguration()),
                         Collections.singletonList(new DefaultCLI()));
         final Executor executor = new LocalExecutor(defaultContext);

@@ -27,7 +27,6 @@ STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
-STAGE_LEGACY_SLOT_MANAGEMENT="legacy_slot_management"
 STAGE_FINEGRAINED_RESOURCE_MANAGEMENT="finegrained_resource_management"
 
 MODULES_CORE="\
@@ -52,12 +51,13 @@ MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api,\
+flink-table/flink-sql-parser,\
+flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
-flink-table/flink-table-planner,\
 flink-table/flink-sql-client"
 
 MODULES_BLINK_PLANNER="\
@@ -163,9 +163,6 @@ function get_compile_modules_for_stage() {
             # compile everything for PyFlink.
             echo ""
         ;;
-        (${STAGE_LEGACY_SLOT_MANAGEMENT})
-            echo "-pl $MODULES_LEGACY_SLOT_MANAGEMENT -am"
-        ;;
         (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
             echo "-pl $MODULES_FINEGRAINED_RESOURCE_MANAGEMENT -am"
         ;;
@@ -187,7 +184,6 @@ function get_test_modules_for_stage() {
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
     local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
-    local modules_legacy_slot_management=$MODULES_LEGACY_SLOT_MANAGEMENT
     local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
 
     case ${stage} in
@@ -211,9 +207,6 @@ function get_test_modules_for_stage() {
         ;;
         (${STAGE_MISC})
             echo "-pl $modules_misc"
-        ;;
-        (${STAGE_LEGACY_SLOT_MANAGEMENT})
-            echo "-pl $modules_legacy_slot_management"
         ;;
         (${STAGE_FINEGRAINED_RESOURCE_MANAGEMENT})
             echo "-pl $modules_finegrained_resource_management"

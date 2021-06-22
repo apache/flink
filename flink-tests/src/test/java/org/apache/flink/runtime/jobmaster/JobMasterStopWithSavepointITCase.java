@@ -297,6 +297,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
                         null);
 

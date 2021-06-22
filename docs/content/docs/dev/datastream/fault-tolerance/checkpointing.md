@@ -114,7 +114,7 @@ env.getCheckpointConfig().enableExternalizedCheckpoints(
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs://my/checkpoint/dir")
+env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -146,7 +146,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 env.getCheckpointConfig.enableUnalignedCheckpoints()
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig.setCheckpointStorage("hdfs://my/checkpoint/dir")
+env.getCheckpointConfig.setCheckpointStorage("hdfs:///my/checkpoint/dir")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

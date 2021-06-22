@@ -28,12 +28,17 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Base class for resources one can specify. */
+/**
+ * Base class for resources one can specify. Notice that the scale of value will be limited to
+ * {@link #MAX_VALUE_SCALE} and all the trailing zeros will be stripped for readability.
+ */
 @Internal
 public abstract class Resource<T extends Resource<T>>
         implements Serializable, Comparable<Resource> {
 
     private static final long serialVersionUID = 1L;
+
+    private static final int MAX_VALUE_SCALE = 8;
 
     private final String name;
 
@@ -45,11 +50,14 @@ public abstract class Resource<T extends Resource<T>>
 
     protected Resource(String name, BigDecimal value) {
         checkNotNull(value);
+        final BigDecimal valueRoundDown =
+                value.setScale(MAX_VALUE_SCALE, RoundingMode.DOWN).stripTrailingZeros();
         checkArgument(
-                value.compareTo(BigDecimal.ZERO) >= 0, "Resource value must be no less than 0");
+                valueRoundDown.compareTo(BigDecimal.ZERO) >= 0,
+                "Resource value must be no less than 0");
 
         this.name = checkNotNull(name);
-        this.value = value;
+        this.value = valueRoundDown;
     }
 
     public T merge(T other) {
@@ -80,7 +88,7 @@ public abstract class Resource<T extends Resource<T>>
     }
 
     public T divide(BigDecimal by) {
-        return create(value.divide(by, 16, RoundingMode.DOWN));
+        return create(value.divide(by, MAX_VALUE_SCALE, RoundingMode.DOWN));
     }
 
     public T divide(int by) {

@@ -184,11 +184,7 @@ public class SqlGroupedWindowFunction extends SqlFunction {
         public WindowStartEndReturnTypeInference() {}
 
         public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-            if (opBinding.getOperandType(0).getSqlTypeName().equals(SqlTypeName.TIMESTAMP)) {
-                return opBinding.getOperandType(0);
-            } else {
-                return explicit.inferReturnType(opBinding);
-            }
+            return explicit.inferReturnType(opBinding);
         }
     }
 }

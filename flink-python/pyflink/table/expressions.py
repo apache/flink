@@ -26,10 +26,11 @@ from pyflink.util.java_utils import to_jarray, load_java_class
 
 __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW',
            'UNBOUNDED_RANGE', 'CURRENT_ROW', 'CURRENT_RANGE', 'current_date', 'current_time',
-           'current_timestamp', 'local_time', 'local_timestamp', 'temporal_overlaps',
-           'date_format', 'timestamp_diff', 'array', 'row', 'map_', 'row_interval', 'pi', 'e',
-           'rand', 'rand_integer', 'atan2', 'negative', 'concat', 'concat_ws', 'uuid', 'null_of',
-           'log', 'with_columns', 'without_columns', 'call', 'call_sql']
+           'current_timestamp', 'current_watermark', 'local_time', 'local_timestamp',
+           'temporal_overlaps', 'date_format', 'timestamp_diff', 'array', 'row', 'map_',
+           'row_interval', 'pi', 'e', 'rand', 'rand_integer', 'atan2', 'negative', 'concat',
+           'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'call',
+           'call_sql']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -201,6 +202,25 @@ def current_timestamp() -> Expression:
     the return type of this expression is TIMESTAMP_LTZ.
     """
     return _leaf_op("currentTimestamp")
+
+
+def current_watermark(rowtimeAttribute) -> Expression:
+    """
+    Returns the current watermark for the given rowtime attribute, or NULL if no common watermark of
+    all upstream operations is available at the current operation in the pipeline.
+
+    The function returns the watermark with the same type as the rowtime attribute, but with an
+    adjusted precision of 3. For example, if the rowtime attribute is `TIMESTAMP_LTZ(9)`, the
+    function will return `TIMESTAMP_LTZ(3)`.
+
+    If no watermark has been emitted yet, the function will return `NULL`. Users must take care of
+    this when comparing against it, e.g. in order to filter out late data you can use
+
+    ::
+
+        WHERE CURRENT_WATERMARK(ts) IS NULL OR ts > CURRENT_WATERMARK(ts)
+    """
+    return _unary_op("currentWatermark", rowtimeAttribute)
 
 
 def local_time() -> Expression:

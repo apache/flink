@@ -40,17 +40,22 @@ class RowBasedOperationTests(object):
             [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        func = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.ROW(
+        func = udf(lambda x: Row(a=x + 1, b=x * x), result_type=DataTypes.ROW(
+            [DataTypes.FIELD("a", DataTypes.BIGINT()),
+             DataTypes.FIELD("b", DataTypes.BIGINT())]))
+
+        func2 = udf(lambda x: Row(x.a + 1, x.b * 2), result_type=DataTypes.ROW(
             [DataTypes.FIELD("a", DataTypes.BIGINT()),
              DataTypes.FIELD("b", DataTypes.BIGINT())]))
 
         t.map(func(t.b)).alias("a", "b") \
-            .map(func(t.a)).alias("a", "b") \
+            .map(func(t.a)) \
+            .map(func2) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
-            actual, ["+I[4, 9]", "+I[3, 4]", "+I[7, 36]", "+I[10, 81]", "+I[5, 16]"])
+            actual, ["+I[5, 18]", "+I[4, 8]", "+I[8, 72]", "+I[11, 162]", "+I[6, 32]"])
 
     def test_map_with_pandas_udf(self):
         t = self.t_env.from_elements(
@@ -116,13 +121,13 @@ class RowBasedOperationTests(object):
 
         @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
         def split(x):
-            for s in x[1].split(","):
-                yield x[0], s
+            for s in x.b.split(","):
+                yield x.a, s
 
-        t.flat_map(split) \
-            .flat_map(split) \
-            .join_lateral(split.alias("a", "b")) \
-            .left_outer_join_lateral(split.alias("c", "d")) \
+        t.flat_map(split).alias("a", "b") \
+            .flat_map(split).alias("a", "b") \
+            .join_lateral(split.alias("c", "d")) \
+            .left_outer_join_lateral(split.alias("e", "f")) \
             .execute_insert("Results") \
             .wait()
         actual = source_sink_utils.results()
@@ -312,13 +317,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
         from pyflink.common import Row
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row: Row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row: Row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.a
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -345,13 +350,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def retract(self, accumulator, *args):
         accumulator[0] = accumulator[0] - 1

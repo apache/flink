@@ -222,6 +222,13 @@ public class RemoteInputChannel extends InputChannel {
             return Optional.empty();
         }
 
+        NetworkActionsLogger.traceInput(
+                "RemoteInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
         numBytesIn.inc(next.buffer.getSize());
         numBuffersIn.inc();
         return Optional.of(

@@ -19,12 +19,14 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+from libc.stdlib cimport realloc
 
 from apache_beam.coders.coder_impl cimport InputStream as BInputStream
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream
+from pyflink.fn_execution.stream_fast cimport InputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     def __cinit__(self, value_coder):
@@ -39,12 +41,54 @@ cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     cpdef get_estimated_size_and_observables(self, value, bint nested=False):
         return 0, []
 
+cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
+    def __cinit__(self, value_coder):
+        self._value_coder = value_coder
+        self._data_out_stream = OutputStream()
+
+    cpdef encode_to_stream(self, value, BOutputStream out_stream, bint nested):
+        self._value_coder.encode_to_stream(value, self._data_out_stream)
+        self._write_data_output_stream(out_stream)
+
+    cpdef decode_from_stream(self, BInputStream in_stream, bint nested):
+        cdef size_t size
+        cdef InputStream data_input_stream
+
+        size = in_stream.size()
+
+        # create InputStream
+        data_input_stream = InputStream()
+        data_input_stream._input_data = <char*?>in_stream.allc
+        in_stream.pos = size
+
+        return self._value_coder.decode_from_stream(data_input_stream, size)
+
+    cdef void _write_data_output_stream(self, BOutputStream out_stream):
+        cdef OutputStream data_out_stream
+        cdef size_t size, i, pos
+        data_out_stream = self._data_out_stream
+        size = data_out_stream.pos
+        pos = out_stream.pos
+        # extend buffer size
+        if pos + size > out_stream.buffer_size:
+            out_stream.buffer_size += size
+            out_stream.data = <char*> realloc(out_stream.data, out_stream.buffer_size)
+        # copy data of data output stream to beam output stream
+        for i in range(size):
+            out_stream.data[pos + i] = data_out_stream.buffer[i]
+        out_stream.pos = pos + size
+
+        # clear data output stream
+        self._data_out_stream.pos = 0
+
+
+
 cdef class BeamCoderImpl(StreamCoderImpl):
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
 
     cpdef encode_to_stream(self, value, BOutputStream out_stream, bint nested):
-        self._value_coder.encode(value, out_stream)
+        self._value_coder.encode_to_stream(value, out_stream)
 
     cpdef decode_from_stream(self, BInputStream in_stream, bint nested):
         cdef BeamInputStream input_stream = BeamInputStream(in_stream, in_stream.size())

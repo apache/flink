@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.ScalarFunction
@@ -34,6 +35,7 @@ import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
+import scala.annotation.varargs
 import scala.collection.{Seq, mutable}
 
 @RunWith(classOf[Parameterized])
@@ -373,6 +375,41 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
+  def testCallFunctionWithStarArgument(): Unit = {
+    val table = tEnv.fromDataStream(env.fromCollection(Seq(
+      ("Foo", 0, 3),
+      ("Bar", 1, 4),
+      ("Error", -1, 2),
+      ("Example", 3, 6)
+    )), '_s, '_b, '_e).where(ValidSubStringFilter('*)).select(SubstringFunc('*))
+
+    val sink = new TestingAppendSink
+    table.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("Foo", "mpl")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @SerialVersionUID(1L)
+  object ValidSubStringFilter extends ScalarFunction {
+    @varargs
+    def eval(@DataTypeHint(inputGroup = InputGroup.ANY) row: AnyRef*): Boolean = {
+      val str = row(0).asInstanceOf[String]
+      val begin = row(1).asInstanceOf[Int]
+      val end = row(2).asInstanceOf[Int]
+      begin >= 0 && begin <= end && str.length() >= end
+    }
+  }
+
+  @SerialVersionUID(1L)
+  object SubstringFunc extends ScalarFunction {
+    def eval(str: String, begin: Int, end: Int): String = {
+      str.substring(begin, end)
+    }
+  }
+
+  @Test
   def testMapType(): Unit = {
     val ds = env.fromCollection(tupleData3).toTable(tEnv).select(map('_1, '_3))
 
@@ -449,6 +486,24 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
       .map(Func23('a, 'b, 'c)).as("a", "b", "c", "d")
       .map(Func24('a, 'b, 'c, 'd)).as("a", "b", "c", "d")
+      .map(Func1('b))
+
+    val sink = new TestingAppendSink
+    ds.toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "3",
+      "4",
+      "5")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testMapWithStarArgument(): Unit = {
+    val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
+      .map(Func23('*)).as("a", "b", "c", "d")
+      .map(Func24('*)).as("a", "b", "c", "d")
       .map(Func1('b))
 
     val sink = new TestingAppendSink

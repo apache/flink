@@ -17,12 +17,9 @@
 
 package org.apache.flink.client.python;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.util.FileUtils;
 
@@ -45,7 +42,6 @@ import static org.apache.flink.table.api.Expressions.call;
 public class PythonFunctionFactoryTest {
 
     private static String tmpdir = "";
-    private static BatchTableEnvironment flinkTableEnv;
     private static StreamTableEnvironment blinkTableEnv;
     private static Table flinkSourceTable;
     private static Table blinkSourceTable;
@@ -72,27 +68,13 @@ public class PythonFunctionFactoryTest {
                             + "    return str + str\n";
             out.write(code.getBytes());
         }
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        flinkTableEnv = BatchTableEnvironment.create(env);
-        flinkTableEnv
-                .getConfig()
-                .getConfiguration()
-                .set(PYTHON_FILES, pyFilePath.getAbsolutePath());
-        flinkTableEnv.getConfig().getConfiguration().setString(TASK_OFF_HEAP_MEMORY.key(), "80mb");
         StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-        blinkTableEnv =
-                StreamTableEnvironment.create(
-                        sEnv,
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+        blinkTableEnv = StreamTableEnvironment.create(sEnv);
         blinkTableEnv
                 .getConfig()
                 .getConfiguration()
                 .set(PYTHON_FILES, pyFilePath.getAbsolutePath());
         blinkTableEnv.getConfig().getConfiguration().setString(TASK_OFF_HEAP_MEMORY.key(), "80mb");
-        flinkSourceTable = flinkTableEnv.fromDataSet(env.fromElements("1", "2", "3")).as("str");
         blinkSourceTable = blinkTableEnv.fromDataStream(sEnv.fromElements("1", "2", "3")).as("str");
     }
 
@@ -102,24 +84,6 @@ public class PythonFunctionFactoryTest {
     }
 
     public static void testPythonFunctionFactory() {
-        // flink catalog
-        flinkTableEnv.executeSql("create function func1 as 'test1.func1' language python");
-        verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
-
-        // flink catalog
-        flinkTableEnv.executeSql("alter function func1 as 'test1.func1' language python");
-        verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
-
-        // flink temporary catalog
-        flinkTableEnv.executeSql(
-                "create temporary function func1 as 'test1.func1' language python");
-        verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
-
-        // flink temporary system
-        flinkTableEnv.executeSql(
-                "create temporary system function func1 as 'test1.func1' language python");
-        verifyPlan(flinkSourceTable.select(call("func1", $("str"))), flinkTableEnv);
-
         // blink catalog
         blinkTableEnv.executeSql("create function func1 as 'test1.func1' language python");
         verifyPlan(blinkSourceTable.select(call("func1", $("str"))), blinkTableEnv);

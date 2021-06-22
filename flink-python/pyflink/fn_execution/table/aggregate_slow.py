@@ -73,20 +73,20 @@ class AggsHandleFunctionBase(ABC):
         pass
 
     @abstractmethod
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         """
         Accumulates the input values to the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
         pass
 
     @abstractmethod
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         """
         Retracts the input values from the accumulators.
 
-        :param input_data: Input values bundled in a List.
+        :param input_data: Input values bundled in a Row.
         """
 
     @abstractmethod
@@ -224,7 +224,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                 PickleCoder(),
                 PickleCoder())
 
-    def accumulate(self, input_data: List):
+    def accumulate(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -255,7 +255,7 @@ class SimpleAggsHandleFunctionBase(AggsHandleFunctionBase):
                         "The args are not in the distinct data view, this should not happen.")
             self._udfs[i].accumulate(self._accumulators[i], *args)
 
-    def retract(self, input_data: List):
+    def retract(self, input_data: Row):
         for i in range(len(self._udfs)):
             if i in self._distinct_data_views:
                 if len(self._distinct_view_descriptors[i].get_filter_args()) == 0:
@@ -496,10 +496,10 @@ class GroupAggFunction(GroupAggFunctionBase):
                 # update aggregate result and set to the newRow
                 if input_row._is_accumulate_msg():
                     # accumulate input
-                    self.aggs_handle.accumulate(input_row._values)
+                    self.aggs_handle.accumulate(input_row)
                 else:
                     # retract input
-                    self.aggs_handle.retract(input_row._values)
+                    self.aggs_handle.retract(input_row)
 
             # get current aggregate result
             new_agg_value = self.aggs_handle.get_value()  # type: List
@@ -591,10 +591,10 @@ class GroupTableAggFunction(GroupAggFunctionBase):
                 # update aggregate result and set to the newRow
                 if input_row._is_accumulate_msg():
                     # accumulate input
-                    self.aggs_handle.accumulate(input_row._values)
+                    self.aggs_handle.accumulate(input_row)
                 else:
                     # retract input
-                    self.aggs_handle.retract(input_row._values)
+                    self.aggs_handle.retract(input_row)
 
             # get accumulator
             accumulators = self.aggs_handle.get_accumulators()

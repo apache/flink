@@ -266,7 +266,7 @@ public class SourceStreamTask<
         @Override
         public void run() {
             try {
-                mainOperator.run(lock, getStreamStatusMaintainer(), operatorChain);
+                mainOperator.run(lock, operatorChain);
                 if (!wasStoppedExternally && !isCanceled()) {
                     synchronized (lock) {
                         operatorChain.setIgnoreEndOfInput(false);

@@ -31,7 +31,7 @@ import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.StreamTableSinkFactory
 import org.apache.flink.table.sinks.{AppendStreamTableSink, OutputFormatTableSink, StreamTableSink, TableSink, TableSinkBase}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.util.TableConnectorUtil
+import org.apache.flink.table.utils.TableConnectorUtils
 import org.apache.flink.types.Row
 import java.util
 
@@ -91,7 +91,7 @@ object MemoryTableSourceSinkUtil {
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[Row] = {
       dataStream.addSink(new MemoryAppendSink)
         .setParallelism(dataStream.getParallelism)
-        .name(TableConnectorUtil.generateRuntimeName(this.getClass, getFieldNames))
+        .name(TableConnectorUtils.generateRuntimeName(this.getClass, getFieldNames))
     }
   }
 

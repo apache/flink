@@ -97,8 +97,7 @@ public class HadoopModule implements SecurityModule {
                     // If UGI use keytab for login, do not load HDFS delegation token.
                     for (Token<? extends TokenIdentifier> token : usrTok) {
                         if (!token.getKind().equals(hdfsDelegationTokenKind)) {
-                            final Text id = new Text(token.getIdentifier());
-                            credentialsToBeAdded.addToken(id, token);
+                            credentialsToBeAdded.addToken(token.getService(), token);
                         }
                     }
 

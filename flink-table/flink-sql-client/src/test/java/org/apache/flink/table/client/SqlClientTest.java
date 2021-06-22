@@ -156,7 +156,7 @@ public class SqlClientTest {
         // prepare statements which will throw exception
         String stmts =
                 "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
-                        + "SET sql-client.verbose=true;\n"
+                        + "SET 'sql-client.verbose' = 'true';\n"
                         + "SELECT * FROM T;\n"
                         + "QUIT;\n";
         String[] args = new String[] {};
@@ -183,12 +183,12 @@ public class SqlClientTest {
                                 + ") WITH ("
                                 + "  'connector' = 'values'"
                                 + "); \n",
-                        " -- define config \nSET key = value;\n");
+                        " -- define config \nSET 'key' = 'value';\n");
         String initFile = createSqlFile(statements, "init-sql.sql");
 
         String[] args = new String[] {"-i", initFile};
         String output = runSqlClient(args, "SET;\nQUIT;\n");
-        assertThat(output, containsString("key=value"));
+        assertThat(output, containsString("'key' = 'value'"));
     }
 
     @Test

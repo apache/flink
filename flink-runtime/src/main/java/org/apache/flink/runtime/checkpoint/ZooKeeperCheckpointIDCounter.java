@@ -18,8 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedCount;
@@ -76,14 +78,11 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
      * Creates a {@link ZooKeeperCheckpointIDCounter} instance.
      *
      * @param client Curator ZooKeeper client
-     * @param counterPath ZooKeeper path for the counter. It's sufficient to have a path per-job.
      */
     public ZooKeeperCheckpointIDCounter(
-            CuratorFramework client,
-            String counterPath,
-            LastStateConnectionStateListener connectionStateListener) {
+            CuratorFramework client, LastStateConnectionStateListener connectionStateListener) {
         this.client = checkNotNull(client, "Curator client");
-        this.counterPath = checkNotNull(counterPath, "Counter path");
+        this.counterPath = ZooKeeperUtils.getCheckpointIdCounterPath();
         this.sharedCount = new SharedCount(client, counterPath, 1);
         this.connectionStateListener = connectionStateListener;
     }
@@ -175,5 +174,10 @@ public class ZooKeeperCheckpointIDCounter implements CheckpointIDCounter {
                         throw new IllegalStateException("Connection state: " + lastState);
                     }
                 });
+    }
+
+    @VisibleForTesting
+    String getPath() {
+        return counterPath;
     }
 }

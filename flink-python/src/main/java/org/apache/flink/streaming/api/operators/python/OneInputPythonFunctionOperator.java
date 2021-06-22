@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -69,6 +70,10 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
+    private final FlinkFnApi.CoderParam.DataType inputDataType;
+    private final FlinkFnApi.CoderParam.DataType outputDataType;
+    private final FlinkFnApi.CoderParam.OutputMode outputMode;
+
     /** The TypeSerializer of python worker input data. */
     transient TypeSerializer<UDFIN> runnerInputTypeSerializer;
 
@@ -95,12 +100,18 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
             Configuration config,
             TypeInformation<UDFIN> runnerInputTypeInfo,
             TypeInformation<UDFOUT> runnerOutputTypeInfo,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
         super(config);
         this.jobOptions = config.toMap();
         this.runnerInputTypeInfo = runnerInputTypeInfo;
         this.runnerOutputTypeInfo = runnerOutputTypeInfo;
         this.pythonFunctionInfo = pythonFunctionInfo;
+        this.inputDataType = inputDataType;
+        this.outputDataType = outputDataType;
+        this.outputMode = outputMode;
     }
 
     @Override
@@ -135,7 +146,6 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                         getRuntimeContext(),
                         getInternalParameters(),
                         inBatchExecutionMode(getKeyedStateBackend())),
-                getCoderUrn(),
                 jobOptions,
                 getFlinkMetricContainer(),
                 null,
@@ -152,7 +162,10 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                inputDataType,
+                outputDataType,
+                outputMode);
     }
 
     @Override
@@ -178,6 +191,4 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     public Map<String, String> getInternalParameters() {
         return Collections.EMPTY_MAP;
     }
-
-    public abstract String getCoderUrn();
 }

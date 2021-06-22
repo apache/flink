@@ -157,7 +157,7 @@ import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.descriptors.Kafka;
 
-TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
+TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
 // Create a HiveCatalog
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");
@@ -199,7 +199,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.hive.HiveCatalog
 import org.apache.flink.table.descriptors.Kafka
 
-val tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance.build)
+val tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode())
 
 // Create a HiveCatalog
 val catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>")
@@ -240,7 +240,7 @@ from pyflink.table import *
 from pyflink.table.catalog import HiveCatalog, CatalogDatabase, ObjectPath, CatalogBaseTable
 from pyflink.table.descriptors import Kafka
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # Create a HiveCatalog

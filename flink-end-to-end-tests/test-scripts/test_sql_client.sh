@@ -19,8 +19,6 @@
 
 set -Eeuo pipefail
 
-PLANNER="${1:-old}"
-
 KAFKA_VERSION="2.2.2"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
@@ -213,9 +211,6 @@ functions:
   - name: RegReplace
     from: class
     class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
-
-execution:
-  planner: "$PLANNER"
 EOF
 
 # submit SQL statements

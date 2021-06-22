@@ -410,32 +410,28 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f3 + f7",
       "127.65")
 
-    // our result type precision is capped at 38
-    // SQL2003 $6.26 -- result scale is dictated as max(s1,s2). no approximation allowed.
-    // calcite -- scale is not reduced; integral part may be reduced. overflow may occur
-    //   (38,10)+(38,28)=>(57,28)=>(38,28)
     // T-SQL -- scale may be reduced to keep the integral part. approximation may occur
     //   (38,10)+(38,28)=>(57,28)=>(38,9)
     testAllApis(
       'f15 + 'f16,
       "f15 + f16",
-      "300.0246913578012345678901234567")
+      "300.024691358")
 
     testAllApis(
       'f15 - 'f16,
       "f15 - f16",
-      "-100.0000000000012345678901234567")
+      "-100.000000000")
 
     // 10 digits integral part
     testAllApis(
       'f17 + 'f18,
       "f17 + f18",
-      "null")
+      "10000000000.000000000")
 
     testAllApis(
       'f17 - 'f18,
       "f17 - f18",
-      "null")
+      "10000000000.000000000")
 
     // requires 39 digits
     testAllApis(
@@ -456,7 +452,6 @@ class DecimalTypeTest extends ExpressionTestBase {
     // see calcite ReturnTypes.DECIMAL_PRODUCT
     // s = s1+s2, p = p1+p2
     // both p&s are capped at 38
-    // if s>38, result is rounded to s=38, and the integral part can only be zero
     testAllApis(
       'f20 * 'f20,
       "f20 * f20",
@@ -489,33 +484,31 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f23 * f20",
       "3.14")
 
-    // precision is capped at 38; scale will not be reduced (unless over 38)
-    // similar to plus&minus, and calcite behavior is different from T-SQL.
+    // (60,12) => (38,6), minimum scale 6 is preserved
+    // while sacrificing scale for more space for integral part
     testAllApis(
       'f24 * 'f24,
       "f24 * f24",
-      "1.000000000000")
+      "1.000000")
 
     testAllApis(
       'f24 * 'f25,
       "f24 * f25",
-      "2.0000000000000000")
+      "2.000000")
 
     testAllApis(
       'f26 * 'f26,
       "f26 * f26",
-      "0.00010000000000000000000000000000000000"
+      "0.00010000000000000"
     )
 
-    // scalastyle:off
-    // we don't have this ridiculous behavior:
-    //   https://blogs.msdn.microsoft.com/sqlprogrammability/2006/03/29/multiplication-and-division-with-numerics/
-    // scalastyle:on
-
+    // (76, 20) -> (38, 6), 0.0000006 is rounding to 0.000001
+    // refer "https://blogs.msdn.microsoft.com/sqlprogrammability/
+    // 2006/03/29/multiplication-and-division-with-numerics/"
     testAllApis(
       'f27 * 'f28,
       "f27 * f28",
-      "0.00000060000000000000"
+      "0.000001"
     )
 
     // result overflow
@@ -525,11 +518,11 @@ class DecimalTypeTest extends ExpressionTestBase {
       "null"
     )
 
-    //(60,40)=>(38,38), no space for integral part
+    //(60,40) => (38,17), scale part is reduced to make more space for integral part
     testAllApis(
       'f30 * 'f30,
       "f30 * f30",
-      "null"
+      "1.00000000000000000"
     )
   }
 

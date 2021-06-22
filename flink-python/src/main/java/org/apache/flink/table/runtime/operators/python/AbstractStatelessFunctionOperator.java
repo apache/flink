@@ -65,6 +65,15 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
 
+    /** The Input DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType inputDataType;
+
+    /** The output DataType of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.DataType outputDataType;
+
+    /** The output mode of BaseCoder in Python. */
+    private final FlinkFnApi.CoderParam.OutputMode outputMode;
+
     /** The user-defined function input logical type. */
     protected transient RowType userDefinedFunctionInputType;
 
@@ -92,13 +101,19 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
             Configuration config,
             RowType inputType,
             RowType outputType,
-            int[] userDefinedFunctionInputOffsets) {
+            int[] userDefinedFunctionInputOffsets,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType,
+            FlinkFnApi.CoderParam.OutputMode outputMode) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
         this.userDefinedFunctionInputOffsets =
                 Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
         this.jobOptions = buildJobOptions(config);
+        this.inputDataType = Preconditions.checkNotNull(inputDataType);
+        this.outputDataType = Preconditions.checkNotNull(outputDataType);
+        this.outputMode = Preconditions.checkNotNull(outputMode);
     }
 
     @Override
@@ -135,7 +150,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                 userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                getInputOutputCoderUrn(),
                 jobOptions,
                 getFlinkMetricContainer(),
                 getContainingTask().getEnvironment().getMemoryManager(),
@@ -150,7 +164,9 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                inputDataType,
+                outputDataType,
+                outputMode);
     }
 
     /**
@@ -163,8 +179,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     /** Gets the proto representation of the Python user-defined functions to be executed. */
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
-
-    public abstract String getInputOutputCoderUrn();
 
     public abstract String getFunctionUrn();
 

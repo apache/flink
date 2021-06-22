@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -43,6 +44,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.rank.AbstractTopNFunction;
+import org.apache.flink.table.runtime.operators.rank.AppendOnlyFirstNFunction;
 import org.apache.flink.table.runtime.operators.rank.AppendOnlyTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.ComparableRecordComparator;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
@@ -50,6 +52,8 @@ import org.apache.flink.table.runtime.operators.rank.RankType;
 import org.apache.flink.table.runtime.operators.rank.RetractableTopNFunction;
 import org.apache.flink.table.runtime.operators.rank.UpdatableTopNFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -202,23 +206,37 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
         long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
-        long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
-        long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
+        StateTtlConfig ttlConfig =
+                StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
-            processFunction =
-                    new AppendOnlyTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
-                            inputRowTypeInfo,
-                            sortKeyComparator,
-                            sortKeySelector,
-                            rankType,
-                            rankRange,
-                            generateUpdateBefore,
-                            outputRankNumber,
-                            cacheSize);
+            if (sortFields.length == 1
+                    && TypeCheckUtils.isProcTime(inputType.getChildren().get(sortFields[0]))
+                    && sortSpec.getFieldSpec(0).getIsAscendingOrder()) {
+                processFunction =
+                        new AppendOnlyFirstNFunction(
+                                ttlConfig,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber);
+            } else {
+                processFunction =
+                        new AppendOnlyTopNFunction(
+                                ttlConfig,
+                                inputRowTypeInfo,
+                                sortKeyComparator,
+                                sortKeySelector,
+                                rankType,
+                                rankRange,
+                                generateUpdateBefore,
+                                outputRankNumber,
+                                cacheSize);
+            }
         } else if (rankStrategy instanceof RankProcessStrategy.UpdateFastStrategy) {
             RankProcessStrategy.UpdateFastStrategy updateFastStrategy =
                     (RankProcessStrategy.UpdateFastStrategy) rankStrategy;
@@ -227,8 +245,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                     KeySelectorUtil.getRowDataSelector(primaryKeys, inputRowTypeInfo);
             processFunction =
                     new UpdatableTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
+                            ttlConfig,
                             inputRowTypeInfo,
                             rowKeySelector,
                             sortKeyComparator,
@@ -256,8 +273,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                             sortSpec.getNullsIsLast());
             processFunction =
                     new RetractableTopNFunction(
-                            minIdleStateRetentionTime,
-                            maxIdleStateRetentionTime,
+                            ttlConfig,
                             inputRowTypeInfo,
                             comparator,
                             sortKeySelector,

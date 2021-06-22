@@ -362,7 +362,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getRequests().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
 
             assertThat(
                     resourceRequirements
@@ -376,7 +381,12 @@ public class KubernetesResourceManagerDriverTest
                                             .getMebiBytes())));
             assertThat(
                     resourceRequirements.getLimits().get(Constants.RESOURCE_NAME_CPU).getAmount(),
-                    is(String.valueOf(taskExecutorProcessSpec.getCpuCores().getValue())));
+                    is(
+                            String.valueOf(
+                                    taskExecutorProcessSpec
+                                            .getCpuCores()
+                                            .getValue()
+                                            .doubleValue())));
         }
 
         @Override

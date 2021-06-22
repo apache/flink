@@ -38,10 +38,10 @@ The recommended way to create a `TableEnvironment` is to create from an `Environ
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 
 # or a batch TableEnvironment
-# env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+# env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -49,7 +49,7 @@ Alternatively, users can create a `StreamTableEnvironment` from an existing `Str
 
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
+from pyflink.table import StreamTableEnvironment
 
 # create a blink streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()

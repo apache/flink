@@ -624,7 +624,7 @@ val counts: DataStream[(String, Int)] = stream
 
 ## Operator State
 
-*Operator State* (or *non-keyed state*) is state that is is bound to one
+*Operator State* (or *non-keyed state*) is state that is bound to one
 parallel operator instance. The [Kafka Connector]({{< ref "docs/connectors/datastream/kafka" >}}) is a good motivating example for the use of
 Operator State in Flink. Each parallel instance of the Kafka consumer maintains
 a map of topic partitions and offsets as its Operator State.

@@ -97,8 +97,7 @@ tEnv.executeSql("SHOW MODULES").print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 # load a hive module
 table_env.execute_sql("LOAD MODULE hive WITH ('hive-version' = '3.1.2')")

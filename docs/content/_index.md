@@ -5,6 +5,8 @@ bookToc: false
 aliases:
   - /examples/index.html
   - /getting-started/examples/index.html
+  - /dev/execution_plans.html
+  - /docs/dev/execution/execution_plans/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -86,3 +88,5 @@ release notes if there is a leading '/' and file extension.
 See the release notes for [Flink 1.13]({{< ref "/release-notes/flink-1.13.md" >}}), [Flink 1.12]({{< ref "/release-notes/flink-1.12.md" >}}), [Flink 1.11]({{< ref "/release-notes/flink-1.11.md" >}}), [Flink 1.10]({{< ref "/release-notes/flink-1.10.md" >}}), [Flink 1.9]({{< ref "/release-notes/flink-1.9.md" >}}), [Flink 1.8]({{< ref "/release-notes/flink-1.8.md" >}}), or [Flink 1.7]({{< ref "/release-notes/flink-1.7.md" >}}).
 
 {{< /columns >}}
+
+{{< build_time >}}

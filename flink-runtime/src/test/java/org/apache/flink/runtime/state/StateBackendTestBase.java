@@ -139,6 +139,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -169,10 +170,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     private MockEnvironment env;
 
-    protected abstract B getStateBackend() throws Exception;
+    protected abstract ConfigurableStateBackend getStateBackend() throws Exception;
 
     protected CheckpointStorage getCheckpointStorage() throws Exception {
-        StateBackend stateBackend = getStateBackend();
+        ConfigurableStateBackend stateBackend = getStateBackend();
         if (stateBackend instanceof CheckpointStorage) {
             return (CheckpointStorage) stateBackend;
         }
@@ -234,19 +235,19 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         return backend;
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer, KeyedStateHandle state) throws Exception {
         return restoreKeyedBackend(keySerializer, state, env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer, KeyedStateHandle state, Environment env)
             throws Exception {
         return restoreKeyedBackend(
                 keySerializer, 10, new KeyGroupRange(0, 9), Collections.singletonList(state), env);
     }
 
-    protected <K> AbstractKeyedStateBackend<K> restoreKeyedBackend(
+    protected <K> CheckpointableKeyedStateBackend<K> restoreKeyedBackend(
             TypeSerializer<K> keySerializer,
             int numberOfKeyGroups,
             KeyGroupRange keyGroupRange,
@@ -254,32 +255,28 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             Environment env)
             throws Exception {
 
-        AbstractKeyedStateBackend<K> backend =
-                getStateBackend()
-                        .createKeyedStateBackend(
-                                env,
-                                new JobID(),
-                                "test_op",
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                env.getTaskKvStateRegistry(),
-                                TtlTimeProvider.DEFAULT,
-                                new UnregisteredMetricsGroup(),
-                                state,
-                                new CloseableRegistry());
-
-        return backend;
+        return getStateBackend()
+                .createKeyedStateBackend(
+                        env,
+                        new JobID(),
+                        "test_op",
+                        keySerializer,
+                        numberOfKeyGroups,
+                        keyGroupRange,
+                        env.getTaskKvStateRegistry(),
+                        TtlTimeProvider.DEFAULT,
+                        new UnregisteredMetricsGroup(),
+                        state,
+                        new CloseableRegistry());
     }
 
     @Test
     public void testEnableStateLatencyTracking() throws Exception {
-        B stateBackend = getStateBackend();
+        ConfigurableStateBackend stateBackend = getStateBackend();
         Configuration config = new Configuration();
         config.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
         StateBackend configuredBackend =
-                ((ConfigurableStateBackend) stateBackend)
-                        .configure(config, Thread.currentThread().getContextClassLoader());
+                stateBackend.configure(config, Thread.currentThread().getContextClassLoader());
         KeyGroupRange groupRange = new KeyGroupRange(0, 1);
         CheckpointableKeyedStateBackend<Integer> keyedStateBackend =
                 configuredBackend.createKeyedStateBackend(
@@ -295,8 +292,13 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                         Collections.emptyList(),
                         new CloseableRegistry());
         try {
+            KeyedStateBackend<Integer> nested =
+                    keyedStateBackend instanceof TestableKeyedStateBackend
+                            ? ((TestableKeyedStateBackend<Integer>) keyedStateBackend)
+                                    .getDelegatedKeyedStateBackend(true)
+                            : keyedStateBackend;
             Assert.assertTrue(
-                    ((AbstractKeyedStateBackend<Integer>) keyedStateBackend)
+                    ((AbstractKeyedStateBackend<Integer>) nested)
                             .getLatencyTrackingStateConfig()
                             .isEnabled());
         } finally {
@@ -550,7 +552,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -624,7 +626,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -691,7 +693,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -761,7 +763,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 }
             }
 
-            assertEquals("Didn't see the expected Kryo exception.", 1, numExceptions);
+            assertTrue("Didn't see the expected Kryo exception.", numExceptions > 0);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -855,6 +857,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testKryoRegisteringRestoreResilienceWithDefaultSerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -977,6 +980,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testKryoRegisteringRestoreResilienceWithRegisteredSerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
 
@@ -3953,6 +3957,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testRestoreWithWrongKeySerializer() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
@@ -4003,6 +4008,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testValueStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4061,6 +4067,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testListStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4118,6 +4125,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testReducingStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4179,6 +4187,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Test
     @SuppressWarnings("unchecked")
     public void testMapStateRestoreWithWrongSerializers() throws Exception {
+        assumeTrue(supportsMetaInfoVerification());
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         CheckpointableKeyedStateBackend<Integer> backend =
@@ -4489,7 +4498,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
             backend.dispose();
             // Initialize again
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
-            snapshot.discardState();
+            if (snapshot != null) {
+                snapshot.discardState();
+            }
 
             backend.getPartitionedState(
                     VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, desc);
@@ -4594,6 +4605,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      */
     @Test
     public void testParallelAsyncSnapshots() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
@@ -4688,6 +4700,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testAsyncSnapshot() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
                 new BlockerCheckpointStreamFactory(1024 * 1024);
@@ -4904,6 +4917,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     @Test
     public void testAsyncSnapshotCancellation() throws Exception {
+        assumeTrue(snapshotUsesStreamFactory());
         OneShotLatch blocker = new OneShotLatch();
         OneShotLatch waiter = new OneShotLatch();
         BlockerCheckpointStreamFactory streamFactory =
@@ -5522,5 +5536,21 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
     private MockEnvironment buildMockEnv() {
         return MockEnvironment.builder().build();
+    }
+
+    /**
+     * @return true if {@link org.apache.flink.runtime.state.Snapshotable#snapshot
+     *     backend.snapshot()} actually uses passed {@link CheckpointStreamFactory}.
+     */
+    protected boolean snapshotUsesStreamFactory() {
+        return true;
+    }
+
+    /**
+     * @return true if metadata serialization supports verification. If not, expected exceptions
+     *     will likely not be thrown.
+     */
+    protected boolean supportsMetaInfoVerification() {
+        return true;
     }
 }

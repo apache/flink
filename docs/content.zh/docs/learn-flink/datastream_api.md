@@ -65,16 +65,16 @@ Integer age = person.f1;
 public class Person {
     public String name;  
     public Integer age;  
-    public Person() {};  
+    public Person() {}
     public Person(String name, Integer age) {  
         . . .
-    };  
+    }
 }  
 
 Person person = new Person("Fred Flintstone", 35);
 ```
 
-Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/schema_evolution" >}}#pojo-types)。
+Flink 的序列化器[支持的 POJO 类型数据结构升级]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types)。
 
 ### Scala tuples 和 case classes
 
@@ -117,16 +117,16 @@ public class Example {
     public static class Person {
         public String name;
         public Integer age;
-        public Person() {};
+        public Person() {}
 
         public Person(String name, Integer age) {
             this.name = name;
             this.age = age;
-        };
+        }
 
         public String toString() {
             return this.name.toString() + ": age " + this.age.toString();
-        };
+        }
     }
 }
 ```

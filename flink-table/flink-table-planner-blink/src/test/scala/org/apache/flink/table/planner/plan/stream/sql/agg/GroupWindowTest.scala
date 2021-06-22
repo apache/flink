@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, TABLE_EXEC_EMIT_ALLOW_LATENESS}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import java.time.Duration
@@ -446,6 +446,37 @@ class GroupWindowTest extends TableTestBase {
   }
 
   @Test
+  def testWindowAggregateWithAllowLateness(): Unit = {
+    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofHours(1))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWindowAggregateWithInvalidAllowLateness(): Unit = {
+    util.conf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofSeconds(5))
+    util.conf.getConfiguration.set(TABLE_EXEC_EMIT_ALLOW_LATENESS, Duration.ofSeconds(1))
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM MyTable
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Allow-lateness [1000ms] should not be smaller than " +
+      "Late-fire delay [5000ms] when enable late-fire emit strategy.")
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
   def testWindowAggregateWithAllowLatenessOnly(): Unit = {
     util.conf.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val sql =
@@ -455,5 +486,47 @@ class GroupWindowTest extends TableTestBase {
         |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
         |""".stripMargin
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWindowAggregateOnRetractStream(): Unit = {
+    val sql =
+      """
+        |SELECT TUMBLE_START(`rowtime`, INTERVAL '1' SECOND), COUNT(*) cnt
+        |FROM  (
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |   ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rowNum
+        |   FROM MyTable
+        | )
+        | WHERE rowNum = 1
+        |)
+        |GROUP BY TUMBLE(`rowtime`, INTERVAL '1' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testWindowAggregateOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  ts AS PROCTIME(),
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (a) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    val query =
+      """
+        |SELECT TUMBLE_START(ts, INTERVAL '10' SECOND), COUNT(*)
+        |FROM src
+        |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
+        |""".stripMargin
+    util.verifyRelPlan(query, ExplainDetail.CHANGELOG_MODE)
   }
 }

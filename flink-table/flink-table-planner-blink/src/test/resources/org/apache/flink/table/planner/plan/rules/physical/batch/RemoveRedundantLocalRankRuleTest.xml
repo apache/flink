@@ -37,7 +37,7 @@ LogicalProject(a=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1, w0$o0])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
    +- Sort(orderBy=[a ASC, $f1 ASC])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
          +- Exchange(distribution=[hash[a]])
@@ -68,7 +68,7 @@ LogicalProject(a=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a])
-+- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1, w0$o0])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
    +- Sort(orderBy=[a ASC, $f1 ASC])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
          +- Exchange(distribution=[hash[a]])

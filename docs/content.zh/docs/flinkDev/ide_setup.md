@@ -84,7 +84,7 @@ IntelliJ 提供了插件设置来安装 Scala 插件。如果尚未安装，请�
 ### 代码格式化
 
 我们使用 [Spotless plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) 和 [google-java-format](https://github.com/google/google-java-format) 一起格式化我们的 Java 代码。
-
+                                                                                                                                                                                                                                              
 你可以通过以下步骤来将 IDE 配置为在保存时自动应用格式设置：
 
 1. 下载 [google-java-format plugin v1.7.0.6](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/115957)

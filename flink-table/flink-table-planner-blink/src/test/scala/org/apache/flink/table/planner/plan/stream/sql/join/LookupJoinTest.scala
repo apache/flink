@@ -474,6 +474,54 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
     util.verifyExecPlan(sql)
   }
 
+  @Test
+  def testJoinTemporalTableWithCastOnLookupTable(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE LookupTable2 (
+        |  `id` decimal(38, 18),
+        |  `name` STRING,
+        |  `age` INT
+        |) WITH (
+        |  'connector' = 'values'
+        |)
+        |""".stripMargin)
+    val sql =
+      """
+        |SELECT MyTable.b, LookupTable2.id
+        |FROM MyTable
+        |LEFT JOIN LookupTable2 FOR SYSTEM_TIME AS OF MyTable.`proctime`
+        |ON MyTable.a = CAST(LookupTable2.`id` as INT)
+        |""".stripMargin
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Temporal table join requires an equality condition on fields of " +
+      "table [default_catalog.default_database.LookupTable2]")
+    verifyTranslationSuccess(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithInteroperableCastOnLookupTable(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE LookupTable2 (
+        |  `id` INT,
+        |  `name` char(10),
+        |  `age` INT
+        |) WITH (
+        |  'connector' = 'values'
+        |)
+        |""".stripMargin)
+
+    val sql =
+      """
+        |SELECT MyTable.b, LookupTable2.id
+        |FROM MyTable
+        |LEFT JOIN LookupTable2 FOR SYSTEM_TIME AS OF MyTable.`proctime`
+        |ON MyTable.b = CAST(LookupTable2.`name` as String)
+        |""".stripMargin
+    verifyTranslationSuccess(sql)
+  }
+
   // ==========================================================================================
 
   private def createLookupTable(tableName: String, lookupFunction: UserDefinedFunction): Unit = {

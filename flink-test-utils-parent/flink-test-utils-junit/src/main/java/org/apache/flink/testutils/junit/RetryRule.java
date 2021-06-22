@@ -108,8 +108,6 @@ public class RetryRule implements TestRule {
 
         private final int timesOnFailure;
 
-        private int currentRun;
-
         private final Statement statement;
         @Nullable private final Class<? extends Throwable> expectedException;
 
@@ -132,7 +130,7 @@ public class RetryRule implements TestRule {
          */
         @Override
         public void evaluate() throws Throwable {
-            for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
+            for (int currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
                 try {
                     statement.evaluate();
                     break; // success
@@ -164,8 +162,6 @@ public class RetryRule implements TestRule {
         private final Statement statement;
         @Nullable private final Class<? extends Throwable> expectedException;
 
-        private int currentRun;
-
         private RetryOnExceptionStatement(
                 int timesOnFailure,
                 Class<? extends Throwable> exceptionClass,
@@ -191,7 +187,7 @@ public class RetryRule implements TestRule {
          */
         @Override
         public void evaluate() throws Throwable {
-            for (currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
+            for (int currentRun = 0; currentRun <= timesOnFailure; currentRun++) {
                 try {
                     statement.evaluate();
                     break; // success

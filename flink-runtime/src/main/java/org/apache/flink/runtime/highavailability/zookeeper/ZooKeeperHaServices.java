@@ -38,10 +38,7 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import javax.annotation.Nonnull;
 
-import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -51,21 +48,37 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <pre>
  * /flink
- *      +/cluster_id_1/resource_manager_lock
+ *      +/cluster_id_1/leader/resource_manager/latch
+ *      |            |                        /connection_info
+ *      |            |       /dispatcher/latch
+ *      |            |                  /connection_info
+ *      |            |       /rest_server/latch
+ *      |            |                   /connection_info
  *      |            |
- *      |            +/job-id-1/job_manager_lock
- *      |            |         /checkpoints/latest
- *      |            |                     /latest-1
- *      |            |                     /latest-2
  *      |            |
- *      |            +/job-id-2/job_manager_lock
+ *      |            +jobgraphs/job-id-1
+ *      |            |         /job-id-2
+ *      |            +jobs/job-id-1/leader/latch
+ *      |                 |               /connection_info
+ *      |                 |        /checkpoints/latest
+ *      |                 |                    /latest-1
+ *      |                 |                    /latest-2
+ *      |                 |       /checkpoint_id_counter
  *      |
- *      +/cluster_id_2/resource_manager_lock
- *                   |
- *                   +/job-id-1/job_manager_lock
- *                            |/checkpoints/latest
- *                            |            /latest-1
- *                            |/persisted_job_graph
+ *      +/cluster_id_2/leader/resource_manager/latch
+ *      |            |                        /connection_info
+ *      |            |       /dispatcher/latch
+ *      |            |                  /connection_info
+ *      |            |       /rest_server/latch
+ *      |            |                   /connection_info
+ *      |            |
+ *      |            +jobgraphs/job-id-2
+ *      |            +jobs/job-id-2/leader/latch
+ *      |                 |               /connection_info
+ *      |                 |        /checkpoints/latest
+ *      |                 |                    /latest-1
+ *      |                 |                    /latest-2
+ *      |                 |       /checkpoint_id_counter
  * </pre>
  *
  * <p>The root path "/flink" is configurable via the option {@link
@@ -85,14 +98,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ZooKeeperHaServices extends AbstractHaServices {
 
-    private static final String RESOURCE_MANAGER_LEADER_PATH = "/resource_manager_lock";
-
-    private static final String DISPATCHER_LEADER_PATH = "/dispatcher_lock";
-
-    private static final String JOB_MANAGER_LEADER_PATH = "/job_manager_lock";
-
-    private static final String REST_SERVER_LEADER_PATH = "/rest_server_lock";
-
     // ------------------------------------------------------------------------
 
     /** The ZooKeeper client to use. */
@@ -108,8 +113,11 @@ public class ZooKeeperHaServices extends AbstractHaServices {
     }
 
     @Override
-    public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-        return new ZooKeeperCheckpointRecoveryFactory(client, configuration, ioExecutor);
+    public CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception {
+        return new ZooKeeperCheckpointRecoveryFactory(
+                ZooKeeperUtils.useNamespaceAndEnsurePath(client, ZooKeeperUtils.getJobsPath()),
+                configuration,
+                ioExecutor);
     }
 
     @Override
@@ -123,13 +131,13 @@ public class ZooKeeperHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected LeaderElectionService createLeaderElectionService(String leaderName) {
-        return ZooKeeperUtils.createLeaderElectionService(client, configuration, leaderName);
+    protected LeaderElectionService createLeaderElectionService(String leaderPath) {
+        return ZooKeeperUtils.createLeaderElectionService(client, leaderPath);
     }
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String leaderName) {
-        return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, leaderName);
+    protected LeaderRetrievalService createLeaderRetrievalService(String leaderPath) {
+        return ZooKeeperUtils.createLeaderRetrievalService(client, leaderPath);
     }
 
     @Override
@@ -144,37 +152,27 @@ public class ZooKeeperHaServices extends AbstractHaServices {
 
     @Override
     public void internalCleanupJobData(JobID jobID) throws Exception {
-        final List<String> paths =
-                Stream.of(
-                                HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINTS_PATH,
-                                HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH,
-                                HighAvailabilityOptions.HA_ZOOKEEPER_LATCH_PATH,
-                                HighAvailabilityOptions.HA_ZOOKEEPER_LEADER_PATH)
-                        .map(configuration::getString)
-                        .map(parent -> parent + "/" + jobID)
-                        .collect(Collectors.toList());
-        for (String path : paths) {
-            deleteZNode(path);
-        }
+        deleteZNode(ZooKeeperUtils.getLeaderPathForJob(jobID));
     }
 
     @Override
-    protected String getLeaderNameForResourceManager() {
-        return RESOURCE_MANAGER_LEADER_PATH;
+    protected String getLeaderPathForResourceManager() {
+        return ZooKeeperUtils.getLeaderPathForResourceManager();
     }
 
     @Override
-    protected String getLeaderNameForDispatcher() {
-        return DISPATCHER_LEADER_PATH;
-    }
-
-    public String getLeaderNameForJobManager(final JobID jobID) {
-        return "/" + jobID + JOB_MANAGER_LEADER_PATH;
+    protected String getLeaderPathForDispatcher() {
+        return ZooKeeperUtils.getLeaderPathForDispatcher();
     }
 
     @Override
-    protected String getLeaderNameForRestServer() {
-        return REST_SERVER_LEADER_PATH;
+    public String getLeaderPathForJobManager(final JobID jobID) {
+        return ZooKeeperUtils.getLeaderPathForJobManager(jobID);
+    }
+
+    @Override
+    protected String getLeaderPathForRestServer() {
+        return ZooKeeperUtils.getLeaderPathForRestServer();
     }
 
     // ------------------------------------------------------------------------

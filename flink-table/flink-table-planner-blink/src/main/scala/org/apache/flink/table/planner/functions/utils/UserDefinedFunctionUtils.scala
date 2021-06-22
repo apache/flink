@@ -477,7 +477,7 @@ object UserDefinedFunctionUtils {
     * Caution that the implicitResultType is only expect to be passed explicitly by Scala implicit
     * type inference.
     *
-    * The entrance in BatchTableEnvironment.scala and StreamTableEnvironment.scala
+    * The entrance in StreamTableEnvironment.scala
     * {{{
     *   def registerFunction(name: String, tf: TableFunction[T])
     * }}}

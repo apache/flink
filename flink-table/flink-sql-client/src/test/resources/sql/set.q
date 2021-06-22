@@ -16,24 +16,24 @@
 # limitations under the License.
 
 # validation test
-set execution.parallelism = 10a;
+set 'execution.parallelism' = '10a';
 [ERROR] Could not execute SQL statement. Reason:
 java.lang.NumberFormatException: For input string: "10a"
 !error
 
 # test set the removed key
-SET execution.max-idle-state-retention=1000;
+SET 'execution.max-idle-state-retention' = '1000';
 [WARNING] The specified key is not supported anymore.
 !warning
 
 # test set the deprecated key
-SET execution.planner=blink;
+SET 'execution.planner' = 'blink';
 [WARNING] The specified key 'execution.planner' is deprecated. Please use 'table.planner' instead.
 [INFO] Session property has been set.
 !warning
 
 # test set a configuration
-SET table.sql-dialect=hive;
+SET 'table.sql-dialect' = 'hive';
 [INFO] Session property has been set.
 !info
 
@@ -55,17 +55,17 @@ CREATE TABLE hive_table (
 
 # list the configured configuration
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
-table.planner=blink
-table.sql-dialect=hive
-[DEPRECATED] execution.planner=blink
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
+'table.planner' = 'blink'
+'table.sql-dialect' = 'hive'
+[DEPRECATED] 'execution.planner' = 'blink'
 !ok
 
 # reset the configuration
@@ -74,14 +74,14 @@ reset;
 !info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
 !ok
 
 # should fail because default dialect doesn't support hive dialect
@@ -106,67 +106,112 @@ Was expecting one of:
 !error
 
 # test reset remove key
-reset execution.max-idle-state-retention;
+reset 'execution.max-idle-state-retention';
 [WARNING] The specified key is not supported anymore.
 !warning
 
 # test reset the deprecated key
-set execution.max-table-result-rows=200;
+set 'execution.max-table-result-rows' = '200';
 [WARNING] The specified key 'execution.max-table-result-rows' is deprecated. Please use 'sql-client.execution.max-table-result.rows' instead.
 [INFO] Session property has been set.
 !warning
 
-reset sql-client.execution.max-table-result.rows;
+reset 'sql-client.execution.max-table-result.rows';
 [INFO] Session property has been reset.
 !info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
 !ok
 
-set parallelism.default=3;
+set 'parallelism.default' = '3';
 [INFO] Session property has been set.
 !info
 
 # test reset deprecated key
-reset execution.parallelism;
+reset 'execution.parallelism';
 [WARNING] The specified key 'execution.parallelism' is deprecated. Please use 'parallelism.default' instead.
 [INFO] Session property has been reset.
 !warning
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
 !ok
 
-set execution.attached=false;
+set 'execution.attached' = 'false';
 [INFO] Session property has been set.
 !info
 
-reset execution.attached;
+reset 'execution.attached';
 [INFO] Session property has been reset.
 !info
 
 set;
-execution.attached=true
-execution.savepoint.ignore-unclaimed-state=false
-execution.shutdown-on-attached-exit=false
-execution.target=remote
-jobmanager.rpc.address=$VAR_JOBMANAGER_RPC_ADDRESS
-pipeline.classpaths=
-pipeline.jars=$VAR_PIPELINE_JARS
-rest.port=$VAR_REST_PORT
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = '$VAR_JOBMANAGER_RPC_ADDRESS'
+'pipeline.classpaths' = ''
+'pipeline.jars' = ''
+'rest.port' = '$VAR_REST_PORT'
+!ok
+
+# test reset can work with add jar
+ADD JAR '$VAR_UDF_JAR_PATH';
+[INFO] The specified jar is added into session classloader.
+!info
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
+set;
+'execution.attached' = 'true'
+'execution.savepoint.ignore-unclaimed-state' = 'false'
+'execution.shutdown-on-attached-exit' = 'false'
+'execution.target' = 'remote'
+'jobmanager.rpc.address' = 'localhost'
+'pipeline.classpaths' = ''
+'pipeline.jars' = '$VAR_PIPELINE_JARS_URL'
+'rest.port' = '$VAR_REST_PORT'
+!ok
+
+reset;
+[INFO] All session properties have been set to their default values.
+!info
+
+SHOW JARS;
+$VAR_UDF_JAR_PATH
+!ok
+
+SET 'sql-client.execution.result-mode' = 'tableau';
+[INFO] Session property has been set.
+!info
+
+create function func1 as 'LowerUDF' LANGUAGE JAVA;
+[INFO] Execute statement succeed.
+!info
+
+SELECT id, func1(str) FROM (VALUES (1, 'Hello World')) AS T(id, str) ;
++----+-------------+--------------------------------+
+| op |          id |                         EXPR$1 |
++----+-------------+--------------------------------+
+| +I |           1 |                    hello world |
++----+-------------+--------------------------------+
+Received a total of 1 row
 !ok

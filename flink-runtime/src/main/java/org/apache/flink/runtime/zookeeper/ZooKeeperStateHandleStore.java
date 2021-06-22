@@ -343,7 +343,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
      * @return All state handles from ZooKeeper.
      * @throws Exception If a ZooKeeper or state handle operation fails
      */
-    @SuppressWarnings("unchecked")
     @Override
     public List<Tuple2<RetrievableStateHandle<T>, String>> getAllAndLock() throws Exception {
         final List<Tuple2<RetrievableStateHandle<T>, String>> stateHandles = new ArrayList<>();
@@ -547,7 +546,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
      * @throws IOException Thrown if the method failed to deserialize the stored state handle
      * @throws Exception Thrown if a ZooKeeper operation failed
      */
-    @SuppressWarnings("unchecked")
     private RetrievableStateHandle<T> get(String pathInZooKeeper, boolean lock) throws Exception {
         checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 

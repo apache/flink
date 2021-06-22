@@ -17,160 +17,188 @@
 ################################################################################
 
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 
+import pyarrow as pa
 import pytz
-from apache_beam.typehints import typehints
 
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
+    FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
+    LocalZonedTimestampType, RowType, RowField, to_arrow_type, TimestampType, ArrayType
 
 try:
     from pyflink.fn_execution import coder_impl_fast as coder_impl
 except:
-    from pyflink.fn_execution.beam import beam_coder_impl_slow as coder_impl
+    from pyflink.fn_execution import coder_impl_slow as coder_impl
 
-__all__ = ['RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
-           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder',
-           'BinaryCoder', 'CharCoder', 'DateCoder', 'TimeCoder',
-           'TimestampCoder', 'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
-           'TimeWindowCoder', 'CountWindowCoder']
-
-# table coders
-FLINK_SCALAR_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:scalar_function:v1"
-FLINK_TABLE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:table_function:v1"
-FLINK_AGGREGATE_FUNCTION_SCHEMA_CODER_URN = "flink:coder:schema:aggregate_function:v1"
-FLINK_SCALAR_FUNCTION_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:scalar_function:arrow:v1"
-FLINK_SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1"
-FLINK_OVER_WINDOW_ARROW_CODER_URN = "flink:coder:schema:batch_over_window:arrow:v1"
+__all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
+           'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
+           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
+           'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder', 'BigDecimalCoder',
+           'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
 
 
-# datastream coders
-FLINK_MAP_CODER_URN = "flink:coder:map:v1"
-FLINK_FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1"
+# LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
+# of LengthPrefixBaseCoder
+class LengthPrefixBaseCoder(ABC):
+    def __init__(self, field_coder: 'FieldCoder'):
+        self._field_coder = field_coder
 
-
-class BaseCoder(ABC):
+    @abstractmethod
     def get_impl(self):
         pass
 
-    @staticmethod
-    def from_schema_proto(schema_proto):
+    @classmethod
+    def from_coder_param_proto(cls, coder_param_proto):
+        field_coder = cls._to_field_coder(coder_param_proto)
+        output_mode = coder_param_proto.output_mode
+        if output_mode == flink_fn_execution_pb2.CoderParam.SINGLE:
+            return ValueCoder(field_coder)
+        else:
+            return IterableCoder(field_coder, output_mode)
+
+    @classmethod
+    def _to_field_coder(cls, coder_param_proto):
+        data_type = coder_param_proto.data_type
+        if data_type == flink_fn_execution_pb2.CoderParam.FLATTEN_ROW:
+            if coder_param_proto.HasField('schema'):
+                schema_proto = coder_param_proto.schema
+                field_coders = [from_proto(f.type) for f in schema_proto.fields]
+            else:
+                type_info_proto = coder_param_proto.type_info
+                field_coders = [from_type_info_proto(f.field_type)
+                                for f in type_info_proto.row_type_info.fields]
+            return FlattenRowCoder(field_coders)
+        elif data_type == flink_fn_execution_pb2.CoderParam.ROW:
+            schema_proto = coder_param_proto.schema
+            field_coders = [from_proto(f.type) for f in schema_proto.fields]
+            field_names = [f.name for f in schema_proto.fields]
+            return RowCoder(field_coders, field_names)
+        elif data_type == flink_fn_execution_pb2.CoderParam.RAW:
+            type_info_proto = coder_param_proto.type_info
+            field_coder = from_type_info_proto(type_info_proto)
+            return field_coder
+        elif data_type == flink_fn_execution_pb2.CoderParam.ARROW:
+            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            schema_proto = coder_param_proto.schema
+            row_type = cls._to_row_type(schema_proto)
+            return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
+        elif data_type == flink_fn_execution_pb2.CoderParam.OVER_WINDOW_ARROW:
+            timezone = pytz.timezone(os.environ['table.exec.timezone'])
+            schema_proto = coder_param_proto.schema
+            row_type = cls._to_row_type(schema_proto)
+            return OverWindowArrowCoder(
+                cls._to_arrow_schema(row_type), row_type, timezone)
+        else:
+            raise ValueError("Unexpected coder type %s" % data_type)
+
+    @classmethod
+    def _to_arrow_schema(cls, row_type):
+        return pa.schema([pa.field(n, to_arrow_type(t), t._nullable)
+                          for n, t in zip(row_type.field_names(), row_type.field_types())])
+
+    @classmethod
+    def _to_data_type(cls, field_type):
+        if field_type.type_name == flink_fn_execution_pb2.Schema.TINYINT:
+            return TinyIntType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.SMALLINT:
+            return SmallIntType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.INT:
+            return IntType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.BIGINT:
+            return BigIntType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.BOOLEAN:
+            return BooleanType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.FLOAT:
+            return FloatType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.DOUBLE:
+            return DoubleType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.VARCHAR:
+            return VarCharType(0x7fffffff, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.VARBINARY:
+            return VarBinaryType(0x7fffffff, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.DECIMAL:
+            return DecimalType(field_type.decimal_info.precision,
+                               field_type.decimal_info.scale,
+                               field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.DATE:
+            return DateType(field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TIME:
+            return TimeType(field_type.time_info.precision, field_type.nullable)
+        elif field_type.type_name == \
+                flink_fn_execution_pb2.Schema.LOCAL_ZONED_TIMESTAMP:
+            return LocalZonedTimestampType(field_type.local_zoned_timestamp_info.precision,
+                                           field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TIMESTAMP:
+            return TimestampType(field_type.timestamp_info.precision, field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.BASIC_ARRAY:
+            return ArrayType(cls._to_data_type(field_type.collection_element_type),
+                             field_type.nullable)
+        elif field_type.type_name == flink_fn_execution_pb2.Schema.TypeName.ROW:
+            return RowType(
+                [RowField(f.name, cls._to_data_type(f.type), f.description)
+                 for f in field_type.row_schema.fields], field_type.nullable)
+        else:
+            raise ValueError("field_type %s is not supported." % field_type)
+
+    @classmethod
+    def _to_row_type(cls, row_schema):
+        return RowType([RowField(f.name, cls._to_data_type(f.type)) for f in row_schema.fields])
+
+
+class FieldCoder(ABC):
+
+    def get_impl(self) -> coder_impl.FieldCoderImpl:
         pass
 
 
-class TableFunctionRowCoder(BaseCoder):
+class IterableCoder(LengthPrefixBaseCoder):
     """
-    Coder for Table Function Row.
-    """
-
-    def __init__(self, flatten_row_coder):
-        self._flatten_row_coder = flatten_row_coder
-
-    def get_impl(self):
-        return coder_impl.TableFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
-
-    @staticmethod
-    def from_schema_proto(coder_param_proto):
-        return TableFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
-
-    def __repr__(self):
-        return 'TableFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__
-                and self._flatten_row_coder == other._flatten_row_coder)
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self._flatten_row_coder)
-
-
-class AggregateFunctionRowCoder(BaseCoder):
-    """
-    Coder for Aggregate Function Input Row.
+    Coder for iterable data.
     """
 
-    def __init__(self, flatten_row_coder):
-        self._flatten_row_coder = flatten_row_coder
-
-    def get_impl(self):
-        return coder_impl.AggregateFunctionRowCoderImpl(self._flatten_row_coder.get_impl())
-
-    @staticmethod
-    def from_schema_proto(coder_param_proto):
-        return AggregateFunctionRowCoder(FlattenRowCoder.from_schema_proto(coder_param_proto))
-
-    def __repr__(self):
-        return 'AggregateFunctionRowCoder[%s]' % repr(self._flatten_row_coder)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__
-                and self._flatten_row_coder == other._flatten_row_coder)
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self._flatten_row_coder)
-
-
-class FlattenRowCoder(BaseCoder):
-    """
-    Coder for Row. The decoded result will be flattened as a list of column values of a row instead
-    of a row object.
-    """
-
-    def __init__(self, field_coders, output_mode=flink_fn_execution_pb2.CoderParam.SINGLE):
-        self._field_coders = field_coders
+    def __init__(self, field_coder: FieldCoder, output_mode):
+        super(IterableCoder, self).__init__(field_coder)
         self._output_mode = output_mode
 
     def get_impl(self):
-        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders],
-                                              self._output_mode)
-
-    @staticmethod
-    def from_schema_proto(coder_param_proto):
-        schema_proto = coder_param_proto.schema
-        output_mode = coder_param_proto.output_mode
-        return FlattenRowCoder([from_proto(f.type) for f in schema_proto.fields], output_mode)
-
-    def __repr__(self):
-        return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__
-                and len(self._field_coders) == len(other._field_coders)
-                and [self._field_coders[i] == other._field_coders[i] for i in
-                     range(len(self._field_coders))])
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self._field_coders)
+        return coder_impl.IterableCoderImpl(self._field_coder.get_impl(), self._output_mode)
 
 
-class DataStreamMapCoder(BaseCoder):
+class ValueCoder(LengthPrefixBaseCoder):
     """
-    Coder for a DataStream Map Function input/output data.
+    Coder for single data.
+    """
+
+    def __init__(self, field_coder: FieldCoder):
+        super(ValueCoder, self).__init__(field_coder)
+
+    def get_impl(self):
+        if isinstance(self._field_coder, (ArrowCoder, OverWindowArrowCoder)):
+            # ArrowCoder and OverWindowArrowCoder doesn't support fast coder currently.
+            from pyflink.fn_execution import coder_impl_slow
+            return coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
+        else:
+            return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
+
+
+class FlattenRowCoder(FieldCoder):
+    """
+    Coder for Row. The decoded result will be flattened as a list of column values of a row instead
+    of a row object.
     """
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
 
     def get_impl(self):
-        return coder_impl.DataStreamMapCoderImpl(self._field_coders.get_impl())
-
-    @staticmethod
-    def from_type_info_proto(type_info_proto):
-        return DataStreamMapCoder(from_type_info_proto(type_info_proto))
+        return coder_impl.FlattenRowCoderImpl([c.get_impl() for c in self._field_coders])
 
     def __repr__(self):
-        return 'DataStreamMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+        return 'FlattenRowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'FlattenRowCoder'):
         return (self.__class__ == other.__class__
                 and len(self._field_coders) == len(other._field_coders)
                 and [self._field_coders[i] == other._field_coders[i] for i in
@@ -183,93 +211,43 @@ class DataStreamMapCoder(BaseCoder):
         return hash(self._field_coders)
 
 
-class DataStreamFlatMapCoder(BaseCoder):
+class ArrowCoder(FieldCoder):
     """
-    Coder for a DataStream FlatMap Function input/output data.
+    Coder for Arrow.
     """
 
-    def __init__(self, field_codes):
-        self._field_coders = field_codes
+    def __init__(self, schema, row_type, timezone):
+        self._schema = schema
+        self._row_type = row_type
+        self._timezone = timezone
 
     def get_impl(self):
-        return coder_impl.DataStreamFlatMapCoderImpl(
-            DataStreamMapCoder(self._field_coders).get_impl())
-
-    @staticmethod
-    def from_type_info_proto(type_info_proto):
-        return DataStreamFlatMapCoder(from_type_info_proto(type_info_proto))
+        # ArrowCoder doesn't support fast coder implementation currently.
+        from pyflink.fn_execution import coder_impl_slow
+        return coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def __repr__(self):
-        return 'DataStreamFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__
-                and len(self._field_coders) == len(other._field_coders)
-                and [self._field_coders[i] == other._field_coders[i] for i in
-                     range(len(self._field_coders))])
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self._field_coders)
+        return 'ArrowCoder[%s]' % self._schema
 
 
-class DataStreamCoFlatMapCoder(BaseCoder):
+class OverWindowArrowCoder(FieldCoder):
     """
-    Coder for a DataStream CoFlatMap Function input/output data.
+    Coder for batch pandas over window aggregation.
     """
 
-    def __init__(self, field_codes):
-        self._field_coders = field_codes
+    def __init__(self, schema, row_type, timezone):
+        self._arrow_coder = ArrowCoder(schema, row_type, timezone)
 
     def get_impl(self):
-        return coder_impl.DataStreamCoFlatMapCoderImpl(
-            DataStreamMapCoder(self._field_coders).get_impl())
-
-    @staticmethod
-    def from_type_info_proto(type_info_proto):
-        return DataStreamCoFlatMapCoder(from_type_info_proto(type_info_proto))
+        # OverWindowArrowCoder doesn't support fast coder implementation currently.
+        from pyflink.fn_execution import coder_impl_slow
+        return coder_impl_slow.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
 
     def __repr__(self):
-        return 'DataStreamCoFlatMapCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
-
-    def __eq__(self, other):
-        return (self.__class__ == other.__class__
-                and len(self._field_coders) == len(other._field_coders)
-                and [self._field_coders[i] == other._field_coders[i] for i in
-                     range(len(self._field_coders))])
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(self._field_coders)
+        return 'OverWindowArrowCoder[%s]' % self._arrow_coder
 
 
-class TimeWindowCoder(BaseCoder):
-    """
-    Coder for TimeWindow.
-    """
-    def get_impl(self):
-        return coder_impl.TimeWindowCoderImpl()
-
-
-class CountWindowCoder(BaseCoder):
-    """
-    Coder for CountWindow.
-    """
-    def get_impl(self):
-        return coder_impl.CountWindowCoderImpl()
-
-
-class FieldCoder(ABC):
-
-    def get_impl(self):
-        pass
-
-
-class RowCoder(FieldCoder, BaseCoder):
+class RowCoder(FieldCoder):
     """
     Coder for Row.
     """
@@ -285,7 +263,7 @@ class RowCoder(FieldCoder, BaseCoder):
     def __repr__(self):
         return 'RowCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'RowCoder'):
         return (self.__class__ == other.__class__
                 and self._field_names == other._field_names
                 and [self._field_coders[i] == other._field_coders[i] for i in
@@ -309,7 +287,7 @@ class CollectionCoder(FieldCoder):
     def is_deterministic(self):
         return self._elem_coder.is_deterministic()
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'CollectionCoder'):
         return (self.__class__ == other.__class__
                 and self._elem_coder == other._elem_coder)
 
@@ -365,7 +343,7 @@ class MapCoder(FieldCoder):
     def __repr__(self):
         return 'MapCoder[%s]' % ','.join([repr(self._key_coder), repr(self._value_coder)])
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'MapCoder'):
         return (self.__class__ == other.__class__
                 and self._key_coder == other._key_coder
                 and self._value_coder == other._value_coder)
@@ -530,6 +508,9 @@ class PickledBytesCoder(FieldCoder):
 
 
 class TupleCoder(FieldCoder):
+    """
+    Coder for Tuple.
+    """
 
     def __init__(self, field_coders):
         self._field_coders = field_coders
@@ -537,11 +518,26 @@ class TupleCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.TupleCoderImpl([c.get_impl() for c in self._field_coders])
 
-    def to_type_hint(self):
-        return typehints.Tuple
-
     def __repr__(self):
         return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+
+class TimeWindowCoder(FieldCoder):
+    """
+    Coder for TimeWindow.
+    """
+
+    def get_impl(self):
+        return coder_impl.TimeWindowCoderImpl()
+
+
+class CountWindowCoder(FieldCoder):
+    """
+    Coder for CountWindow.
+    """
+
+    def get_impl(self):
+        return coder_impl.CountWindowCoderImpl()
 
 
 type_name = flink_fn_execution_pb2.Schema

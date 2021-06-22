@@ -20,6 +20,8 @@ from abc import abstractmethod
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
+from pyflink.fn_execution.operations import BundleOperation
+
 
 class FunctionOperation(Operation):
     """
@@ -70,10 +72,17 @@ class FunctionOperation(Operation):
     def process(self, o: WindowedValue):
         with self.scoped_process_state:
             output_stream = self.consumer.output_stream
-            for value in o.value:
+            if isinstance(self.operation, BundleOperation):
+                for value in o.value:
+                    self.process_element(value)
                 self._value_coder_impl.encode_to_stream(
-                    self.process_element(value), output_stream, True)
+                    self.operation.finish_bundle(), output_stream, True)
                 output_stream.maybe_flush()
+            else:
+                for value in o.value:
+                    self._value_coder_impl.encode_to_stream(
+                        self.process_element(value), output_stream, True)
+                    output_stream.maybe_flush()
 
     def monitoring_infos(self, transform_id, tag_to_pcollection_id):
         """

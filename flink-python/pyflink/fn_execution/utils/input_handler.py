@@ -75,7 +75,7 @@ class RowWithTimerInputHandler(ABC):
             key = timer_data[1]
             serialized_namespace = timer_data[2]
             if self._namespace_coder is not None:
-                namespace = self._namespace_coder.decode_nested(serialized_namespace)
+                namespace = self._namespace_coder.decode(serialized_namespace)
             else:
                 namespace = None
             internal_timer = InternalTimerImpl(timestamp, key, namespace)

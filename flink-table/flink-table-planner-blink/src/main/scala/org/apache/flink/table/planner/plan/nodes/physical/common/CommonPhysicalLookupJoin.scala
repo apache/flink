@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
@@ -295,7 +296,11 @@ abstract class CommonPhysicalLookupJoin(
           expr = call.getOperands.get(0)
         case call: RexCall if call.getOperator == SqlStdOperatorTable.CAST =>
           // drill through identity function
-          expr = call.getOperands.get(0)
+          val outputType = call.getType
+          val inputType = call.getOperands.get(0).getType
+          val isCompatible = PlannerTypeUtils.isInteroperable(
+              FlinkTypeFactory.toLogicalType(outputType), FlinkTypeFactory.toLogicalType(inputType))
+          expr = if (isCompatible) call.getOperands.get(0) else expr
         case _ =>
       }
       expr match {

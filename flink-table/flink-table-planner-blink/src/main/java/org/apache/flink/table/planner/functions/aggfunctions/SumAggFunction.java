@@ -21,16 +21,19 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /** built-in sum aggregate function. */
 public abstract class SumAggFunction extends DeclarativeAggregateFunction {
@@ -59,10 +62,11 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
-                    isNull(operand(0)),
-                    sum,
-                    ifThenElse(isNull(sum), operand(0), plus(sum, operand(0))))
+            /* sum = */ adjustSumType(
+                    ifThenElse(
+                            isNull(operand(0)),
+                            sum,
+                            ifThenElse(isNull(sum), operand(0), plus(sum, operand(0)))))
         };
     }
 
@@ -75,11 +79,17 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ ifThenElse(
-                    isNull(mergeOperand(sum)),
-                    sum,
-                    ifThenElse(isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum))))
+            /* sum = */ adjustSumType(
+                    ifThenElse(
+                            isNull(mergeOperand(sum)),
+                            sum,
+                            ifThenElse(
+                                    isNull(sum), mergeOperand(sum), plus(sum, mergeOperand(sum)))))
         };
+    }
+
+    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
+        return cast(sumExpr, typeLiteral(getResultType()));
     }
 
     @Override

@@ -140,7 +140,7 @@ EnvironmentSettings settings = EnvironmentSettings
     //.inBatchMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(setting);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -153,7 +153,7 @@ val settings = EnvironmentSettings
     //.inBatchMode()
     .build()
 
-val tEnv = TableEnvironment.create(setting)
+val tEnv = TableEnvironment.create(settings)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -161,11 +161,11 @@ val tEnv = TableEnvironment.create(setting)
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a blink streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
 # create a blink batch TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 ```
@@ -841,7 +841,7 @@ The following code shows an example and the corresponding output for multiple-si
 {{< tab "Java" >}}
 ```java
 
-EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 
 final Schema schema = new Schema()
@@ -880,7 +880,7 @@ System.out.println(explanation);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
+val settings = EnvironmentSettings.inStreamingMode()
 val tEnv = TableEnvironment.create(settings)
 
 val schema = new Schema()
@@ -919,7 +919,7 @@ println(explanation)
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
+settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(environment_settings=settings)
 
 schema = Schema()

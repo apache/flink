@@ -23,8 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.functions.UserDefinedFunction;
 
 import javax.annotation.Nullable;
 
@@ -44,15 +43,23 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER
  *
  * <pre>{@code
  * EnvironmentSettings.newInstance()
- *   .useBlinkPlanner()
  *   .inStreamingMode()
  *   .withBuiltInCatalogName("default_catalog")
  *   .withBuiltInDatabaseName("default_database")
  *   .build()
  * }</pre>
+ *
+ * <p>{@link EnvironmentSettings#inStreamingMode()} or {@link EnvironmentSettings#inBatchMode()}
+ * might be convenient as shortcuts.
  */
 @PublicEvolving
 public class EnvironmentSettings {
+
+    private static final EnvironmentSettings DEFAULT_STREAMING_MODE_SETTINGS =
+            EnvironmentSettings.newInstance().inStreamingMode().build();
+
+    private static final EnvironmentSettings DEFAULT_BATCH_MODE_SETTINGS =
+            EnvironmentSettings.newInstance().inBatchMode().build();
 
     public static final String STREAMING_MODE = "streaming-mode";
     public static final String CLASS_NAME = "class-name";
@@ -97,11 +104,31 @@ public class EnvironmentSettings {
     }
 
     /**
-     * Creates a builder for creating an instance of {@link EnvironmentSettings}.
+     * Creates a default instance of {@link EnvironmentSettings} in streaming execution mode.
      *
-     * <p>By default, it does not specify a required planner and will use the one that is available
-     * on the classpath via discovery.
+     * <p>In this mode, both bounded and unbounded data streams can be processed.
+     *
+     * <p>This method is a shortcut for creating a {@link TableEnvironment} with little code. Use
+     * the builder provided in {@link EnvironmentSettings#newInstance()} for advanced settings.
      */
+    public static EnvironmentSettings inStreamingMode() {
+        return DEFAULT_STREAMING_MODE_SETTINGS;
+    }
+
+    /**
+     * Creates a default instance of {@link EnvironmentSettings} in batch execution mode.
+     *
+     * <p>This mode is highly optimized for batch scenarios. Only bounded data streams can be
+     * processed in this mode.
+     *
+     * <p>This method is a shortcut for creating a {@link TableEnvironment} with little code. Use
+     * the builder provided in {@link EnvironmentSettings#newInstance()} for advanced settings.
+     */
+    public static EnvironmentSettings inBatchMode() {
+        return DEFAULT_BATCH_MODE_SETTINGS;
+    }
+
+    /** Creates a builder for creating an instance of {@link EnvironmentSettings}. */
     public static Builder newInstance() {
         return new Builder();
     }
@@ -152,7 +179,7 @@ public class EnvironmentSettings {
     public Configuration toConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(RUNTIME_MODE, isStreamingMode() ? STREAMING : BATCH);
-        configuration.set(TABLE_PLANNER, isBlinkPlanner() ? PlannerType.BLINK : PlannerType.OLD);
+        configuration.set(TABLE_PLANNER, PlannerType.BLINK);
         return configuration;
     }
 
@@ -177,11 +204,16 @@ public class EnvironmentSettings {
         return isStreamingMode;
     }
 
-    /** Tells if the {@link TableEnvironment} should work in the blink planner or old planner. */
+    /**
+     * Tells if the {@link TableEnvironment} should work in the blink planner or old planner.
+     *
+     * @deprecated The old planner has been removed in Flink 1.14. Since there is only one planner
+     *     left (previously called the 'blink' planner), this method is obsolete and will be removed
+     *     in future versions.
+     */
+    @Deprecated
     public boolean isBlinkPlanner() {
-        return (this.plannerClass == null && this.executorClass == null)
-                || (Builder.BLINK_PLANNER_FACTORY.equals(this.plannerClass)
-                        && Builder.BLINK_EXECUTOR_FACTORY.equals(this.executorClass));
+        return true;
     }
 
     @Internal
@@ -210,10 +242,6 @@ public class EnvironmentSettings {
 
     /** A builder for {@link EnvironmentSettings}. */
     public static class Builder {
-        private static final String OLD_PLANNER_FACTORY =
-                "org.apache.flink.table.planner.StreamPlannerFactory";
-        private static final String OLD_EXECUTOR_FACTORY =
-                "org.apache.flink.table.executor.StreamExecutorFactory";
         private static final String BLINK_PLANNER_FACTORY =
                 "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
         private static final String BLINK_EXECUTOR_FACTORY =
@@ -226,24 +254,28 @@ public class EnvironmentSettings {
         private boolean isStreamingMode = true;
 
         /**
-         * Sets the old Flink planner as the required module. By default, {@link #useBlinkPlanner()}
-         * is enabled.
-         *
-         * @deprecated The old planner will be dropped in Flink 1.14. Please update to the new
-         *     planner (i.e. Blink planner).
+         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
+         *     planner left (previously called the 'blink' planner), this setting will throw an
+         *     exception.
          */
         @Deprecated
         public Builder useOldPlanner() {
-            this.plannerClass = OLD_PLANNER_FACTORY;
-            this.executorClass = OLD_EXECUTOR_FACTORY;
-            return this;
+            throw new TableException(
+                    "The old planner has been removed in Flink 1.14. "
+                            + "Please upgrade your table program to use the default "
+                            + "planner (previously called the 'blink' planner).");
         }
 
         /**
          * Sets the Blink planner as the required module.
          *
          * <p>This is the default behavior.
+         *
+         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
+         *     planner left (previously called the 'blink' planner), this setting is obsolete and
+         *     will be removed in future versions.
          */
+        @Deprecated
         public Builder useBlinkPlanner() {
             this.plannerClass = BLINK_PLANNER_FACTORY;
             this.executorClass = BLINK_EXECUTOR_FACTORY;
@@ -256,7 +288,12 @@ public class EnvironmentSettings {
          * <p>A planner will be discovered automatically, if there is only one planner available.
          *
          * <p>By default, {@link #useBlinkPlanner()} is enabled.
+         *
+         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
+         *     planner left (previously called the 'blink' planner), this setting is obsolete and
+         *     will be removed in future versions.
          */
+        @Deprecated
         public Builder useAnyPlanner() {
             this.plannerClass = null;
             this.executorClass = null;
@@ -277,12 +314,15 @@ public class EnvironmentSettings {
 
         /**
          * Specifies the name of the initial catalog to be created when instantiating a {@link
-         * TableEnvironment}. This catalog will be used to store all non-serializable objects such
-         * as tables and functions registered via e.g. {@link
-         * TableEnvironment#registerTableSink(String, TableSink)} or {@link
-         * TableEnvironment#registerFunction(String, ScalarFunction)}. It will also be the initial
-         * value for the current catalog which can be altered via {@link
-         * TableEnvironment#useCatalog(String)}.
+         * TableEnvironment}.
+         *
+         * <p>This catalog is an in-memory catalog that will be used to store all temporary objects
+         * (e.g. from {@link TableEnvironment#createTemporaryView(String, Table)} or {@link
+         * TableEnvironment#createTemporarySystemFunction(String, UserDefinedFunction)}) that cannot
+         * be persisted because they have no serializable representation.
+         *
+         * <p>It will also be the initial value for the current catalog which can be altered via
+         * {@link TableEnvironment#useCatalog(String)}.
          *
          * <p>Default: "default_catalog".
          */
@@ -293,12 +333,15 @@ public class EnvironmentSettings {
 
         /**
          * Specifies the name of the default database in the initial catalog to be created when
-         * instantiating a {@link TableEnvironment}. The database will be used to store all
-         * non-serializable objects such as tables and functions registered via e.g. {@link
-         * TableEnvironment#registerTableSink(String, TableSink)} or {@link
-         * TableEnvironment#registerFunction(String, ScalarFunction)}. It will also be the initial
-         * value for the current database which can be altered via {@link
-         * TableEnvironment#useDatabase(String)}.
+         * instantiating a {@link TableEnvironment}.
+         *
+         * <p>This database is an in-memory database that will be used to store all temporary
+         * objects (e.g. from {@link TableEnvironment#createTemporaryView(String, Table)} or {@link
+         * TableEnvironment#createTemporarySystemFunction(String, UserDefinedFunction)}) that cannot
+         * be persisted because they have no serializable representation.
+         *
+         * <p>It will also be the initial value for the current database which can be altered via
+         * {@link TableEnvironment#useDatabase(String)}.
          *
          * <p>Default: "default_database".
          */

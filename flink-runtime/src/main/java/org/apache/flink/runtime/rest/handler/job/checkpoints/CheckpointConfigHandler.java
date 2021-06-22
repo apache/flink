@@ -130,7 +130,8 @@ public class CheckpointConfigHandler
                     stateBackendName,
                     checkpointStorageName,
                     checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
-                    checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber());
+                    checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber(),
+                    checkpointCoordinatorConfiguration.getAlignmentTimeout());
         }
     }
 }

@@ -98,9 +98,9 @@ public class TableEnvironmentInternalTest extends JsonPlanTestBase {
 
     @Test
     public void testBatchMode() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
+        tableEnv =
+                (TableEnvironmentInternal)
+                        TableEnvironment.create(EnvironmentSettings.inBatchMode());
 
         String srcTableDdl =
                 "CREATE TABLE src (\n"

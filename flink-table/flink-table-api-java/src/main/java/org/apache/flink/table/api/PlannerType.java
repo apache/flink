@@ -24,8 +24,13 @@ import org.apache.flink.table.delegation.Planner;
 /**
  * Determine the type of the {@link Planner}. Except for the optimization, the different planner
  * also differs in the time semantic and so on.
+ *
+ * @deprecated The old planner has been removed in Flink 1.14. Since there is only one planner left
+ *     (previously called the 'blink' planner), this class is obsolete and will be removed in future
+ *     versions.
  */
 @PublicEvolving
+@Deprecated
 public enum PlannerType {
     /** Blink planner is the up-to-date planner in Flink. */
     BLINK,

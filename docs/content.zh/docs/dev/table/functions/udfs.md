@@ -168,6 +168,62 @@ env.createTemporarySystemFunction("SubstringFunction", new SubstringFunction(tru
 {{< /tab >}}
 {{< /tabs >}}
 
+你可以在 Table API 中使用 `*` 表达式作为函数的一个参数，它将被扩展为该表所有的列作为函数对应位置的参数。
+
+{{< tabs "101c5f48-f5a3-4e9a-b8ef-2fdd21a9e007" >}}
+{{< tab "Java" >}}
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.ScalarFunction;
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class MyConcatFunction extends ScalarFunction {
+  public String eval(@DataTypeHint(inputGroup = InputGroup.ANY) Object... fields) {
+    return Arrays.stream(fields)
+        .map(Object::toString)
+        .collect(Collectors.joining(","));
+  }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+
+// 使用 $("*") 作为函数的参数，如果 MyTable 有 3 列 (a, b, c)，
+// 它们都将会被传给 MyConcatFunction。
+env.from("MyTable").select(call(MyConcatFunction.class, $("*")));
+
+// 它等价于显式地将所有列传给 MyConcatFunction。
+env.from("MyTable").select(call(MyConcatFunction.class, $("a"), $("b"), $("c")));
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+import org.apache.flink.table.api._
+import org.apache.flink.table.functions.ScalarFunction
+
+import scala.annotation.varargs
+
+class MyConcatFunction extends ScalarFunction {
+  @varargs
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) row: AnyRef*): String = {
+    row.map(f => f.toString).mkString(",")
+  }
+}
+
+val env = TableEnvironment.create(...)
+
+// 使用 $"*" 作为函数的参数，如果 MyTable 有 3 个列 (a, b, c)，
+// 它们都将会被传给 MyConcatFunction。
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"*"));
+
+// 它等价于显式地将所有列传给 MyConcatFunction。
+env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
+
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
 {{< top >}}
 
 开发指南
@@ -856,7 +912,7 @@ env.sqlQuery(
 
 自定义聚合函数（UDAGG）是把一个表（一行或者多行，每行可以有一列或者多列）聚合成一个标量值。
 
-<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udagg-mechanism.png" width="80%">}}
 
 上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
 
@@ -951,7 +1007,7 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -976,7 +1032,7 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 
   /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
-    * dataset grouping aggregate.
+    * bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which needs to be reset
     */
@@ -1060,7 +1116,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -1085,7 +1141,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 
   /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
-    * dataset grouping aggregate.
+    * bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which needs to be reset
     */
@@ -1331,7 +1387,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 
 自定义表值聚合函数（UDTAGG）可以把一个表（一行或者多行，每行有一列或者多列）聚合成另一张表，结果中可以有多行多列。
 
-<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">
+{{<img alt="UDAGG mechanism" src="/fig/udtagg-mechanism.png" width="80%">}}
 
 上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
 
@@ -1433,7 +1489,7 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -1560,7 +1616,7 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated

@@ -71,8 +71,10 @@ class ChannelStateCheckpointWriter {
     private boolean allOutputsReceived = false;
     private final RunnableWithException onComplete;
     private final int subtaskIndex;
+    private String taskName;
 
     ChannelStateCheckpointWriter(
+            String taskName,
             int subtaskIndex,
             CheckpointStartRequest startCheckpointItem,
             CheckpointStreamFactory streamFactory,
@@ -80,6 +82,7 @@ class ChannelStateCheckpointWriter {
             RunnableWithException onComplete)
             throws Exception {
         this(
+                taskName,
                 subtaskIndex,
                 startCheckpointItem.getCheckpointId(),
                 startCheckpointItem.getTargetResult(),
@@ -90,6 +93,7 @@ class ChannelStateCheckpointWriter {
 
     @VisibleForTesting
     ChannelStateCheckpointWriter(
+            String taskName,
             int subtaskIndex,
             long checkpointId,
             ChannelStateWriteResult result,
@@ -98,6 +102,7 @@ class ChannelStateCheckpointWriter {
             RunnableWithException onComplete)
             throws Exception {
         this(
+                taskName,
                 subtaskIndex,
                 checkpointId,
                 result,
@@ -109,6 +114,7 @@ class ChannelStateCheckpointWriter {
 
     @VisibleForTesting
     ChannelStateCheckpointWriter(
+            String taskName,
             int subtaskIndex,
             long checkpointId,
             ChannelStateWriteResult result,
@@ -117,6 +123,7 @@ class ChannelStateCheckpointWriter {
             CheckpointStateOutputStream checkpointStateOutputStream,
             DataOutputStream dataStream)
             throws Exception {
+        this.taskName = taskName;
         this.subtaskIndex = subtaskIndex;
         this.checkpointId = checkpointId;
         this.result = checkNotNull(result);
@@ -167,7 +174,8 @@ class ChannelStateCheckpointWriter {
                         long size = checkpointStream.getPos() - offset;
                         offsets.computeIfAbsent(key, unused -> new StateContentMetaInfo())
                                 .withDataAdded(offset, size);
-                        NetworkActionsLogger.tracePersist(action, buffer, key, checkpointId);
+                        NetworkActionsLogger.tracePersist(
+                                action, buffer, taskName, key, checkpointId);
                     });
         } finally {
             buffer.recycleBuffer();

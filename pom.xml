@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.13-SNAPSHOT</version>
+	<version>1.14-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -50,8 +50,6 @@ under the License.
 	</scm>
 
 	<modules>
-		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
-		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
@@ -107,7 +105,7 @@ under the License.
 		<akka.version>2.5.21</akka.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.15</slf4j.version>
-		<log4j.version>2.12.1</log4j.version>
+		<log4j.version>2.14.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -127,7 +125,7 @@ under the License.
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>4.13.2</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
@@ -153,7 +151,7 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.13.1</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.13.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
 
@@ -166,8 +164,8 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>force-shading</artifactId>
-			<version>1.13-SNAPSHOT</version>
+			<artifactId>flink-shaded-force-shading</artifactId>
+			<version>${flink.shaded.version}</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -1482,7 +1480,6 @@ under the License.
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-sql-client/src/test/resources/*.out</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/**/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
@@ -1554,6 +1551,9 @@ under the License.
 						<exclude>flink-python/lib/**</exclude>
 						<exclude>flink-python/dev/download/**</exclude>
 						<exclude>flink-python/docs/_build/**</exclude>
+
+						<!-- AWS SDK config that does not support license headers -->
+						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -1788,7 +1788,7 @@ under the License.
 							<filters combine.children="append">
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
 								<filter>
-									<artifact>org.apache.flink:force-shading</artifact>
+									<artifact>org.apache.flink:flink-shaded-force-shading</artifact>
 									<excludes>
 										<exclude>**</exclude>
 									</excludes>
@@ -1808,8 +1808,10 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
+									Removing this exclusion will also cause compilation errors in at least
+									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
-									<include>org.apache.flink:force-shading</include>
+									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>
 							</artifactSet>
 						</configuration>
@@ -2072,9 +2074,10 @@ under the License.
 								<include>@org.apache.flink.annotation.Public</include>
 								<!-- The following line is un-commented by tools/releasing/update_japicmp_configuration.sh
 								 	as part of the release process -->
-								<include>@org.apache.flink.annotation.PublicEvolving</include>
+								<!--<include>@org.apache.flink.annotation.PublicEvolving</include>-->
 							</includes>
 							<excludes>
+								<exclude>@org.apache.flink.annotation.PublicEvolving</exclude>
 								<exclude>@org.apache.flink.annotation.Internal</exclude>
 								<exclude>org.apache.flink.streaming.api.datastream.DataStream#DataStream(org.apache.flink.streaming.api.environment.StreamExecutionEnvironment,org.apache.flink.streaming.api.transformations.StreamTransformation)</exclude>
 								<exclude>org.apache.flink.streaming.api.environment.LegacyLocalStreamEnvironment</exclude>

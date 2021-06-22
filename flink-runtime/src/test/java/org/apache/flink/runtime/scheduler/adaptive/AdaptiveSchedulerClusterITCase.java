@@ -20,7 +20,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -42,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * This class contains integration tests for the adaptive scheduler which start a {@link
@@ -69,7 +67,6 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
         configuration.set(
                 JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
 
@@ -78,8 +75,6 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
     @Test
     public void testAutomaticScaleDownInCaseOfLostSlots() throws InterruptedException, IOException {
-        assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
-
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         final JobGraph jobGraph = createBlockingJobGraph(PARALLELISM);
 
@@ -98,8 +93,6 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
     @Test
     public void testAutomaticScaleUp() throws Exception {
-        assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
-
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
         int targetInstanceCount = NUMBER_SLOTS_PER_TASK_MANAGER * (NUMBER_TASK_MANAGERS + 1);
         final JobGraph jobGraph = createBlockingJobGraph(targetInstanceCount);

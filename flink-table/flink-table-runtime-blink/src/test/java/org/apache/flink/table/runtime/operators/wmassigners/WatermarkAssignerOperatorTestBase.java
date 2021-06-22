@@ -20,12 +20,14 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
@@ -57,5 +59,11 @@ public abstract class WatermarkAssignerOperatorTestBase {
             }
         }
         return watermarks;
+    }
+
+    protected List<Object> filterOutRecords(Collection<Object> collection) {
+        return collection.stream()
+                .filter(obj -> !(obj instanceof StreamElement && ((StreamElement) obj).isRecord()))
+                .collect(Collectors.toList());
     }
 }

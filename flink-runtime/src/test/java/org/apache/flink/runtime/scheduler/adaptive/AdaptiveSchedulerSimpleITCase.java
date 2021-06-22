@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -50,7 +49,6 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 /** Integration tests for the adaptive scheduler. */
 public class AdaptiveSchedulerSimpleITCase extends TestLogger {
@@ -65,7 +63,6 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(ClusterOptions.ENABLE_DECLARATIVE_RESOURCE_MANAGEMENT, true);
         configuration.set(
                 JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
 
@@ -83,8 +80,6 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
     @Test
     public void testSchedulingOfSimpleJob() throws Exception {
-        assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
-
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
         final JobGraph jobGraph = createJobGraph();
 
@@ -143,8 +138,6 @@ public class AdaptiveSchedulerSimpleITCase extends TestLogger {
 
     @Test
     public void testGlobalFailoverIfTaskFails() throws Throwable {
-        assumeTrue(ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
-
         final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
         final JobGraph jobGraph = createOnceFailingJobGraph();
 

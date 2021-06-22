@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 /**
  * Interface for stream operators with two inputs. Use {@link
@@ -79,4 +80,20 @@ public interface TwoInputStreamOperator<IN1, IN2, OUT> extends StreamOperator<OU
      * @see org.apache.flink.streaming.runtime.streamrecord.LatencyMarker
      */
     void processLatencyMarker2(LatencyMarker latencyMarker) throws Exception;
+
+    /**
+     * Processes a {@link StreamStatus} that arrived on the first input of this two-input operator.
+     * This method is guaranteed to not be called concurrently with other methods of the operator.
+     *
+     * @see org.apache.flink.streaming.runtime.streamstatus.StreamStatus
+     */
+    void processStreamStatus1(StreamStatus streamStatus) throws Exception;
+
+    /**
+     * Processes a {@link StreamStatus} that arrived on the second input of this two-input operator.
+     * This method is guaranteed to not be called concurrently with other methods of the operator.
+     *
+     * @see org.apache.flink.streaming.runtime.streamstatus.StreamStatus
+     */
+    void processStreamStatus2(StreamStatus streamStatus) throws Exception;
 }

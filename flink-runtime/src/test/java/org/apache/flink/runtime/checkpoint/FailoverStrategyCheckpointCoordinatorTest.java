@@ -70,6 +70,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         true,
                         false,
                         false,
+                        0,
                         0);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinator(

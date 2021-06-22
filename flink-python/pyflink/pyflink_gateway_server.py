@@ -154,7 +154,6 @@ def download_apache_avro():
 
 def construct_test_classpath():
     test_jar_patterns = [
-        "flink-table/flink-table-planner/target/flink-table-planner*-tests.jar",
         "flink-runtime/target/flink-runtime*tests.jar",
         "flink-streaming-java/target/flink-streaming-java*tests.jar",
         "flink-formats/flink-csv/target/flink-csv*.jar",
@@ -162,6 +161,7 @@ def construct_test_classpath():
         "flink-formats/flink-avro/target/avro*.jar",
         "flink-formats/flink-json/target/flink-json*.jar",
         "flink-python/target/artifacts/testDataStream.jar",
+        "flink-python/target/flink-python*-tests.jar",
     ]
     test_jars = []
     flink_source_root = _find_flink_source_root()

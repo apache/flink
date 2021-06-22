@@ -116,8 +116,8 @@ else:
                 sources=["pyflink/fn_execution/table/window_aggregate_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/table/"]),
             Extension(
-                name="pyflink.fn_execution.stream",
-                sources=["pyflink/fn_execution/stream.pyx"],
+                name="pyflink.fn_execution.stream_fast",
+                sources=["pyflink/fn_execution/stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
                 name="pyflink.fn_execution.beam.beam_stream",
@@ -148,8 +148,8 @@ else:
                     sources=["pyflink/fn_execution/table/window_aggregate_fast.c"],
                     include_dirs=["pyflink/fn_execution/table/"]),
                 Extension(
-                    name="pyflink.fn_execution.stream",
-                    sources=["pyflink/fn_execution/stream.c"],
+                    name="pyflink.fn_execution.stream_fast",
+                    sources=["pyflink/fn_execution/stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
                     name="pyflink.fn_execution.beam.beam_stream",
@@ -269,7 +269,6 @@ try:
                 'pyflink.table',
                 'pyflink.util',
                 'pyflink.datastream',
-                'pyflink.dataset',
                 'pyflink.common',
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',

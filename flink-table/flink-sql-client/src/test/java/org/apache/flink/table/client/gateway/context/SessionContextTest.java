@@ -22,46 +22,71 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
 
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
+import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Test {@link SessionContext}. */
 public class SessionContextTest {
 
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+    private static File udfJar;
 
-    @Test
-    public void testSetAndResetYamlKey() throws Exception {
-        SessionContext sessionContext = createSessionContext();
-        sessionContext.set("execution.max-table-result-rows", "100000");
+    private SessionContext sessionContext;
 
-        assertEquals(
-                "100000",
-                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+    @BeforeClass
+    public static void prepare() throws Exception {
+        udfJar =
+                TestUserClassLoaderJar.createJarFile(
+                        tempFolder.newFolder("test-jar"), "test-classloader-udf.jar");
+    }
 
-        sessionContext.reset();
-
-        assertEquals(
-                "100", getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+    @Before
+    public void setup() throws Exception {
+        sessionContext = createSessionContext();
     }
 
     @Test
-    public void testSetAndResetOption() throws Exception {
-        SessionContext sessionContext = createSessionContext();
+    public void testSetAndResetYamlKey() {
+        sessionContext.set("execution.max-table-result-rows", "100000");
+
+        assertEquals("100000", getConfigurationMap().get("execution.max-table-result-rows"));
+
+        sessionContext.reset();
+
+        assertEquals("100", getConfigurationMap().get("execution.max-table-result-rows"));
+    }
+
+    @Test
+    public void testSetAndResetOption() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option and Yaml specified value
@@ -70,53 +95,44 @@ public class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        assertEquals("hive", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration(sessionContext).getString(NAME));
-        assertFalse(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration().getString(NAME));
+        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
 
         sessionContext.reset();
-        assertEquals("default", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
-        assertNull(getConfiguration(sessionContext).get(NAME));
+        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertNull(getConfiguration().get(NAME));
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
-        assertEquals(16, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
-        assertNull(getConfiguration(sessionContext).getString(NAME, null));
+        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
+        assertNull(getConfiguration().getString(NAME, null));
         // The value of OBJECT_REUSE in origin configuration is true
-        assertTrue(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
     }
 
     @Test
-    public void testSetAndResetKeyInYamlKey() throws Exception {
-        SessionContext sessionContext = createSessionContext();
+    public void testSetAndResetKeyInYamlKey() {
         sessionContext.set("execution.max-table-result-rows", "200000");
         sessionContext.set("execution.result-mode", "table");
 
-        assertEquals(
-                "200000",
-                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+        assertEquals("200000", getConfigurationMap().get("execution.max-table-result-rows"));
 
-        assertEquals("table", getConfigurationMap(sessionContext).get("execution.result-mode"));
+        assertEquals("table", getConfigurationMap().get("execution.result-mode"));
 
         sessionContext.reset("execution.result-mode");
-        assertEquals("changelog", getConfigurationMap(sessionContext).get("execution.result-mode"));
+        assertEquals("changelog", getConfigurationMap().get("execution.result-mode"));
         // no reset this key execution.max-table-result-rows
-        assertEquals(
-                "200000",
-                getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+        assertEquals("200000", getConfigurationMap().get("execution.max-table-result-rows"));
 
         // reset option for deprecated key
         sessionContext.reset("sql-client.execution.max-table-result.rows");
         assertEquals(
-                "100",
-                getConfigurationMap(sessionContext)
-                        .get("sql-client.execution.max-table-result.rows"));
-        assertEquals(
-                "100", getConfigurationMap(sessionContext).get("execution.max-table-result-rows"));
+                "100", getConfigurationMap().get("sql-client.execution.max-table-result.rows"));
+        assertEquals("100", getConfigurationMap().get("execution.max-table-result-rows"));
     }
 
     @Test
-    public void testSetAndResetKeyInConfigOptions() throws Exception {
-        SessionContext sessionContext = createSessionContext();
+    public void testSetAndResetKeyInConfigOptions() {
         // table config option
         sessionContext.set(TABLE_SQL_DIALECT.key(), "hive");
         // runtime config option and Yaml specified value
@@ -126,63 +142,111 @@ public class SessionContextTest {
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
 
-        assertEquals("hive", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration(sessionContext).getString(NAME));
-        assertFalse(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration().getString(NAME));
+        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
 
         sessionContext.reset(TABLE_SQL_DIALECT.key());
-        assertEquals("default", getConfiguration(sessionContext).getString(TABLE_SQL_DIALECT));
+        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
 
         sessionContext.reset(MAX_PARALLELISM.key());
-        assertEquals(16, getConfiguration(sessionContext).getInteger(MAX_PARALLELISM));
+        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
 
         sessionContext.reset(NAME.key());
-        assertNull(getConfiguration(sessionContext).get(NAME));
+        assertNull(getConfiguration().get(NAME));
 
         sessionContext.reset(OBJECT_REUSE.key());
-        assertTrue(getConfiguration(sessionContext).getBoolean(OBJECT_REUSE));
+        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
     }
 
     @Test
-    public void testSetWithConfigOptionAndResetWithYamlKey() throws Exception {
-        SessionContext sessionContext = createSessionContext();
+    public void testSetWithConfigOptionAndResetWithYamlKey() {
         // runtime config option and has deprecated key
-        sessionContext.set(TABLE_PLANNER.key(), "blink");
-        assertEquals(
-                "blink", getConfiguration(sessionContext).get(TABLE_PLANNER).name().toLowerCase());
+        sessionContext.set(RUNTIME_MODE.key(), "BATCH");
+        assertEquals("BATCH", getConfiguration().get(RUNTIME_MODE).name());
 
-        sessionContext.reset(TABLE_PLANNER.key());
-        assertEquals(
-                "old", getConfiguration(sessionContext).get(TABLE_PLANNER).name().toLowerCase());
-        assertEquals(
-                "old", getConfigurationMap(sessionContext).get("execution.planner").toLowerCase());
+        sessionContext.reset(RUNTIME_MODE.key());
+        assertEquals("STREAMING", getConfiguration().get(RUNTIME_MODE).name());
+        assertEquals("STREAMING", getConfigurationMap().get("execution.type").toUpperCase());
     }
 
     @Test
-    public void testSetAndResetKeyNotInYaml() throws Exception {
-        SessionContext sessionContext = createSessionContext();
+    public void testSetAndResetKeyNotInYaml() {
         // other property not in yaml and flink-conf
         sessionContext.set("aa", "11");
         sessionContext.set("bb", "22");
 
-        assertEquals("11", getConfigurationMap(sessionContext).get("aa"));
-        assertEquals("22", getConfigurationMap(sessionContext).get("bb"));
+        assertEquals("11", getConfigurationMap().get("aa"));
+        assertEquals("22", getConfigurationMap().get("bb"));
 
         sessionContext.reset("aa");
-        assertNull(getConfigurationMap(sessionContext).get("aa"));
-        assertEquals("22", getConfigurationMap(sessionContext).get("bb"));
+        assertNull(getConfigurationMap().get("aa"));
+        assertEquals("22", getConfigurationMap().get("bb"));
 
         sessionContext.reset("bb");
-        assertNull(getConfigurationMap(sessionContext).get("bb"));
+        assertNull(getConfigurationMap().get("bb"));
+    }
+
+    @Test
+    public void testAddJarWithFullPath() throws IOException {
+        validateAddJar(udfJar.getPath());
+    }
+
+    @Test
+    public void testAddJarWithRelativePath() throws IOException {
+        validateAddJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+    }
+
+    @Test
+    public void testAddIllegalJar() {
+        validateAddJarWithException("/path/to/illegal.jar", "JAR file does not exist");
+    }
+
+    @Test
+    public void testAddRemoteJar() {
+        validateAddJarWithException(
+                "hdfs://remote:10080/remote.jar", "SQL Client only supports to add local jars.");
+    }
+
+    @Test
+    public void testAddIllegalJarInConfig() {
+        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
+        innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
+
+        validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
+    }
+
+    @Test
+    public void testRemoveJarWithFullPath() {
+        validateRemoveJar(udfJar.getPath());
+    }
+
+    @Test
+    public void testRemoveJarWithRelativePath() throws IOException {
+        validateRemoveJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+    }
+
+    @Test
+    public void testRemoveIllegalJar() {
+        validateRemoveJarWithException("/path/to/illegal.jar", "JAR file does not exist");
+    }
+
+    @Test
+    public void testRemoveRemoteJar() {
+        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
+        innerConfig.set(JARS, Collections.singletonList("hdfs://remote:10080/remote.jar"));
+
+        validateRemoveJarWithException(
+                "hdfs://remote:10080/remote.jar", "SQL Client only supports to remove local jars.");
     }
 
     // --------------------------------------------------------------------------------------------
 
     private SessionContext createSessionContext() throws Exception {
-
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -202,15 +266,66 @@ public class SessionContextTest {
         return SessionContext.create(defaultContext, "test-session");
     }
 
-    private Map<String, String> getConfigurationMap(SessionContext context) {
-        return context.getExecutionContext()
+    private Map<String, String> getConfigurationMap() {
+        return sessionContext
+                .getExecutionContext()
                 .getTableEnvironment()
                 .getConfig()
                 .getConfiguration()
                 .toMap();
     }
 
-    private Configuration getConfiguration(SessionContext context) {
-        return context.getExecutionContext().getTableEnvironment().getConfig().getConfiguration();
+    private Configuration getConfiguration() {
+        return sessionContext
+                .getExecutionContext()
+                .getTableEnvironment()
+                .getConfig()
+                .getConfiguration();
+    }
+
+    private void validateAddJar(String jarPath) throws IOException {
+        sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+        assertEquals(
+                Collections.singletonList(udfJar.toURI().toURL().toString()),
+                getConfiguration().get(JARS));
+        // reset to the default
+        sessionContext.reset();
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+        assertEquals(
+                Collections.singletonList(udfJar.toURI().toURL().toString()),
+                getConfiguration().get(JARS));
+    }
+
+    private void validateRemoveJar(String jarPath) {
+        sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+
+        sessionContext.removeJar(jarPath);
+        assertEquals(Collections.emptyList(), sessionContext.listJars());
+    }
+
+    private void validateAddJarWithException(String jarPath, String errorMessages) {
+        Set<URL> originDependencies = sessionContext.getDependencies();
+        try {
+            sessionContext.addJar(jarPath);
+            fail("Should fail.");
+        } catch (Exception e) {
+            assertThat(e, containsMessage(errorMessages));
+            // Keep dependencies as same as before if fail to add jar
+            assertEquals(originDependencies, sessionContext.getDependencies());
+        }
+    }
+
+    private void validateRemoveJarWithException(String jarPath, String errorMessages) {
+        Set<URL> originDependencies = sessionContext.getDependencies();
+        try {
+            sessionContext.removeJar(jarPath);
+            fail("Should fail.");
+        } catch (Exception e) {
+            assertThat(e, containsMessage(errorMessages));
+            // Keep dependencies as same as before if fail to remove jar
+            assertEquals(originDependencies, sessionContext.getDependencies());
+        }
     }
 }

@@ -113,6 +113,7 @@ public final class LogicalTypeMerging {
             YEAR_MONTH_RES_TO_BOUNDARIES = new HashMap<>();
     private static final Map<List<YearMonthResolution>, YearMonthResolution>
             YEAR_MONTH_BOUNDARIES_TO_RES = new HashMap<>();
+    private static final int MINIMUM_ADJUSTED_SCALE = 6;
 
     static {
         addYearMonthMapping(YEAR, YEAR);
@@ -198,50 +199,50 @@ public final class LogicalTypeMerging {
         return Optional.empty();
     }
 
+    // ========================= Decimal Precision Deriving ==========================
+    // Adopted from "https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-
+    // scale-and-length-transact-sql"
+    //
+    // Operation    Result Precision                        Result Scale
+    // e1 + e2      max(s1, s2) + max(p1-s1, p2-s2) + 1     max(s1, s2)
+    // e1 - e2      max(s1, s2) + max(p1-s1, p2-s2) + 1     max(s1, s2)
+    // e1 * e2      p1 + p2 + 1                             s1 + s2
+    // e1 / e2      p1 - s1 + s2 + max(6, s1 + p2 + 1)      max(6, s1 + p2 + 1)
+    // e1 % e2      min(p1-s1, p2-s2) + max(s1, s2)         max(s1, s2)
+    //
+    // Also, if the precision / scale are out of the range, the scale may be sacrificed
+    // in order to prevent the truncation of the integer part of the decimals.
+
     /** Finds the result type of a decimal division operation. */
     public static DecimalType findDivisionDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from
-        // https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
         int scale = Math.max(6, scale1 + precision2 + 1);
         int precision = precision1 - scale1 + scale2 + scale;
-        if (precision > DecimalType.MAX_PRECISION) {
-            scale = Math.max(6, DecimalType.MAX_PRECISION - (precision - scale));
-            precision = DecimalType.MAX_PRECISION;
-        }
-        return new DecimalType(false, precision, scale);
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal modulo operation. */
     public static DecimalType findModuloDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         final int scale = Math.max(scale1, scale2);
-        int precision =
-                Math.min(precision1 - scale1, precision2 - scale2) + Math.max(scale1, scale2);
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        int precision = Math.min(precision1 - scale1, precision2 - scale2) + scale;
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal multiplication operation. */
     public static DecimalType findMultiplicationDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         int scale = scale1 + scale2;
-        scale = Math.min(scale, DecimalType.MAX_PRECISION);
-        int precision = precision1 + precision2;
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        int precision = precision1 + precision2 + 1;
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal addition operation. */
     public static DecimalType findAdditionDecimalType(
             int precision1, int scale1, int precision2, int scale2) {
-        // adopted from Calcite
         final int scale = Math.max(scale1, scale2);
         int precision = Math.max(precision1 - scale1, precision2 - scale2) + scale + 1;
-        precision = Math.min(precision, DecimalType.MAX_PRECISION);
-        return new DecimalType(false, precision, scale);
+        return adjustPrecisionScale(precision, scale);
     }
 
     /** Finds the result type of a decimal rounding operation. */
@@ -295,6 +296,27 @@ public final class LogicalTypeMerging {
     }
 
     // --------------------------------------------------------------------------------------------
+
+    /**
+     * Scale adjustment implementation is inspired to SQLServer's one. In particular, when a result
+     * precision is greater than MAX_PRECISION, the corresponding scale is reduced to prevent the
+     * integral part of a result from being truncated.
+     *
+     * <p>https://docs.microsoft.com/en-us/sql/t-sql/data-types/precision-scale-and-length-transact-sql
+     */
+    private static DecimalType adjustPrecisionScale(int precision, int scale) {
+        if (precision <= DecimalType.MAX_PRECISION) {
+            // Adjustment only needed when we exceed max precision
+            return new DecimalType(false, precision, scale);
+        } else {
+            int digitPart = precision - scale;
+            // If original scale is less than MINIMUM_ADJUSTED_SCALE, use original scale value;
+            // otherwise preserve at least MINIMUM_ADJUSTED_SCALE fractional digits
+            int minScalePart = Math.min(scale, MINIMUM_ADJUSTED_SCALE);
+            int adjustScale = Math.max(DecimalType.MAX_PRECISION - digitPart, minScalePart);
+            return new DecimalType(false, DecimalType.MAX_PRECISION, adjustScale);
+        }
+    }
 
     private static @Nullable LogicalType findCommonCastableType(List<LogicalType> normalizedTypes) {
         LogicalType resultType = normalizedTypes.get(0);

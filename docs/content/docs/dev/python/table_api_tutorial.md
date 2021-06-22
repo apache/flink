@@ -69,7 +69,7 @@ It can be used for setting execution parameters such as restart strategy, defaul
 The table config allows setting Table API specific configurations.
 
 ```python
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 ```
 
@@ -147,7 +147,7 @@ from pyflink.table import DataTypes, TableEnvironment, EnvironmentSettings
 from pyflink.table.descriptors import Schema, OldCsv, FileSystem
 from pyflink.table.expressions import lit
 
-settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+settings = EnvironmentSettings.in_batch_mode()
 t_env = TableEnvironment.create(settings)
 
 # write all the data to one file

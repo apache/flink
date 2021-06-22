@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolServiceFactory;
-import org.apache.flink.runtime.jobmaster.slotpool.DefaultSlotPoolServiceFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -147,50 +146,36 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         final SlotPoolServiceFactory slotPoolServiceFactory;
         final SchedulerNGFactory schedulerNGFactory;
 
-        if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
-            JobManagerOptions.SchedulerType schedulerType =
-                    ClusterOptions.getSchedulerType(configuration);
-            if (schedulerType == JobManagerOptions.SchedulerType.Adaptive
-                    && jobType == JobType.BATCH) {
-                LOG.info(
-                        "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
-                // overwrite
-                schedulerType = JobManagerOptions.SchedulerType.Ng;
-            }
-
-            switch (schedulerType) {
-                case Ng:
-                    schedulerNGFactory = new DefaultSchedulerFactory();
-                    slotPoolServiceFactory =
-                            new DeclarativeSlotPoolBridgeServiceFactory(
-                                    SystemClock.getInstance(),
-                                    rpcTimeout,
-                                    slotIdleTimeout,
-                                    batchSlotTimeout);
-                    break;
-                case Adaptive:
-                    schedulerNGFactory =
-                            getAdaptiveSchedulerFactoryFromConfiguration(configuration);
-                    slotPoolServiceFactory =
-                            new DeclarativeSlotPoolServiceFactory(
-                                    SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
-                    break;
-                default:
-                    throw new IllegalArgumentException(
-                            String.format(
-                                    "Illegal value [%s] for config option [%s]",
-                                    schedulerType, JobManagerOptions.SCHEDULER.key()));
-            }
-        } else {
+        JobManagerOptions.SchedulerType schedulerType =
+                ClusterOptions.getSchedulerType(configuration);
+        if (schedulerType == JobManagerOptions.SchedulerType.Adaptive && jobType == JobType.BATCH) {
             LOG.info(
-                    "Declarative resource management has been disabled. Falling back to the DefaultScheduler and DefaultSlotPoolService.");
-            schedulerNGFactory = new DefaultSchedulerFactory();
-            slotPoolServiceFactory =
-                    new DefaultSlotPoolServiceFactory(
-                            SystemClock.getInstance(),
-                            rpcTimeout,
-                            slotIdleTimeout,
-                            batchSlotTimeout);
+                    "Adaptive Scheduler configured, but Batch job detected. Changing scheduler type to NG / DefaultScheduler.");
+            // overwrite
+            schedulerType = JobManagerOptions.SchedulerType.Ng;
+        }
+
+        switch (schedulerType) {
+            case Ng:
+                schedulerNGFactory = new DefaultSchedulerFactory();
+                slotPoolServiceFactory =
+                        new DeclarativeSlotPoolBridgeServiceFactory(
+                                SystemClock.getInstance(),
+                                rpcTimeout,
+                                slotIdleTimeout,
+                                batchSlotTimeout);
+                break;
+            case Adaptive:
+                schedulerNGFactory = getAdaptiveSchedulerFactoryFromConfiguration(configuration);
+                slotPoolServiceFactory =
+                        new DeclarativeSlotPoolServiceFactory(
+                                SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Illegal value [%s] for config option [%s]",
+                                schedulerType, JobManagerOptions.SCHEDULER.key()));
         }
 
         return new DefaultSlotPoolServiceSchedulerFactory(

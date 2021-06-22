@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized
 import org.junit.{After, Before, Test}
 
 import java.lang.{Boolean => JBoolean}
+import java.time.LocalDateTime
 import java.util.{Collection => JCollection}
 
 import scala.collection.JavaConversions._
@@ -510,6 +511,57 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
       "2,15,Hello,Jark,22,23",
       "3,15,Fabian,Fabian,33,34")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCurrentDateInJoinCondition(): Unit = {
+    val id1 = TestValuesTableFactory.registerData(
+      Seq(Row.of("abc", LocalDateTime.of(
+        2000, 1, 1, 0, 0))))
+    val ddl1 =
+      s"""
+         |CREATE TABLE Ta (
+         |  id VARCHAR,
+         |  ts TIMESTAMP,
+         |  proc AS PROCTIME()
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$id1',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl1)
+
+    val id2 = TestValuesTableFactory.registerData(
+      Seq(Row.of("abc", LocalDateTime.of(
+        2000, 1, 2, 0, 0))))
+    val ddl2 =
+      s"""
+         |CREATE TABLE Tb (
+         |  id VARCHAR,
+         |  ts TIMESTAMP
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$id2',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl2)
+
+    val sql =
+      """
+        |SELECT * FROM Ta AS t1
+        |INNER JOIN Tb FOR SYSTEM_TIME AS OF t1.proc AS t2
+        |ON t1.id = t2.id
+        |WHERE
+        |  CAST(coalesce(t1.ts, t2.ts) AS VARCHAR)
+        |  >=
+        |  CONCAT(CAST(CURRENT_DATE AS VARCHAR), ' 00:00:00')
+        |""".stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    assertEquals(Seq(), sink.getAppendResults)
   }
 }
 

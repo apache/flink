@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -215,7 +216,11 @@ public class YamlConfigUtils {
         List<String> prettyConfigOptions = new ArrayList<>();
         for (String key : properties.keySet()) {
             if (!isRemovedKey(key) && !isDeprecatedKey(key)) {
-                prettyConfigOptions.add(String.format("%s=%s", key, properties.get(key)));
+                prettyConfigOptions.add(
+                        String.format(
+                                "'%s' = '%s'",
+                                EncodingUtils.escapeSingleQuotes(key),
+                                EncodingUtils.escapeSingleQuotes(properties.get(key))));
             }
         }
         prettyConfigOptions.sort(String::compareTo);
@@ -223,7 +228,11 @@ public class YamlConfigUtils {
         List<String> prettyEntries = new ArrayList<>();
         for (String key : properties.keySet()) {
             if (isDeprecatedKey(key)) {
-                prettyEntries.add(String.format("[DEPRECATED] %s=%s", key, properties.get(key)));
+                prettyEntries.add(
+                        String.format(
+                                "[DEPRECATED] '%s' = '%s'",
+                                EncodingUtils.escapeSingleQuotes(key),
+                                EncodingUtils.escapeSingleQuotes(properties.get(key))));
             }
         }
         prettyEntries.sort(String::compareTo);

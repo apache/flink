@@ -192,6 +192,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowCreateTable() {
+        sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
+        sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
+    }
+
+    @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
@@ -227,6 +233,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         final String sql3 = "alter table t1 drop constraint ct1";
         final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
         sql(sql3).ok(expected3);
+    }
+
+    @Test
+    public void testAlterTableReset() {
+        sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
+
+        sql("alter table t1 reset ('key1', 'key2')")
+                .ok("ALTER TABLE `T1` RESET (\n  'key1',\n  'key2'\n)");
+
+        sql("alter table t1 reset()").ok("ALTER TABLE `T1` RESET (\n)");
     }
 
     @Test
@@ -1111,6 +1127,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterView() {
+        sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+        sql("ALTER VIEW v1 AS SELECT c1, c2 FROM tbl")
+                .ok("ALTER VIEW `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
+    }
+
+    @Test
     public void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
     }
@@ -1318,6 +1341,26 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         String sql = "explain plan for upsert into emps1 values (1, 2)";
         String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
         this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testAddJar() {
+        sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
+        sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
+        sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testRemoveJar() {
+        sql("remove Jar './test.sql'").ok("REMOVE JAR './test.sql'");
+        sql("remove JAR 'file:///path/to/\nwhatever'")
+                .ok("REMOVE JAR 'file:///path/to/\nwhatever'");
+        sql("remove JAR 'oss://path/helloworld.go'").ok("REMOVE JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testShowJars() {
+        sql("show jars").ok("SHOW JARS");
     }
 
     @Test

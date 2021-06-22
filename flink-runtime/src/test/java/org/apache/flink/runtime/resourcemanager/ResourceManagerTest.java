@@ -47,7 +47,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -95,8 +95,6 @@ public class ResourceManagerTest extends TestLogger {
 
     private TestingHighAvailabilityServices highAvailabilityServices;
 
-    private TestingLeaderElectionService resourceManagerLeaderElectionService;
-
     private TestingFatalErrorHandler testingFatalErrorHandler;
 
     private ResourceID resourceManagerResourceId;
@@ -113,9 +111,8 @@ public class ResourceManagerTest extends TestLogger {
     @Before
     public void setup() throws Exception {
         highAvailabilityServices = new TestingHighAvailabilityServices();
-        resourceManagerLeaderElectionService = new TestingLeaderElectionService();
         highAvailabilityServices.setResourceManagerLeaderElectionService(
-                resourceManagerLeaderElectionService);
+                new TestingLeaderElectionService());
         testingFatalErrorHandler = new TestingFatalErrorHandler();
         resourceManagerResourceId = ResourceID.generate();
     }
@@ -164,7 +161,7 @@ public class ResourceManagerTest extends TestLogger {
 
         CompletableFuture<TaskManagerInfoWithSlots> taskManagerInfoFuture =
                 resourceManagerGateway.requestTaskManagerDetailsInfo(
-                        taskManagerId, TestingUtils.TIMEOUT());
+                        taskManagerId, TestingUtils.TIMEOUT);
 
         TaskManagerInfoWithSlots taskManagerInfoWithSlots = taskManagerInfoFuture.get();
         TaskManagerInfo taskManagerInfo = taskManagerInfoWithSlots.getTaskManagerInfo();
@@ -201,7 +198,7 @@ public class ResourceManagerTest extends TestLogger {
 
         CompletableFuture<TaskExecutorThreadInfoGateway> taskExecutorGatewayFuture =
                 resourceManagerGateway.requestTaskExecutorThreadInfoGateway(
-                        taskManagerId, TestingUtils.TIMEOUT());
+                        taskManagerId, TestingUtils.TIMEOUT);
 
         TaskExecutorThreadInfoGateway taskExecutorGatewayResult = taskExecutorGatewayFuture.get();
 
@@ -226,7 +223,7 @@ public class ResourceManagerTest extends TestLogger {
                         ResourceProfile.ZERO);
         final CompletableFuture<RegistrationResponse> registrationFuture =
                 resourceManagerGateway.registerTaskExecutor(
-                        taskExecutorRegistration, TestingUtils.TIMEOUT());
+                        taskExecutorRegistration, TestingUtils.TIMEOUT);
 
         assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
     }
@@ -463,11 +460,12 @@ public class ResourceManagerTest extends TestLogger {
             SlotManager slotManager)
             throws Exception {
 
+        resourceManagerId = ResourceManagerId.generate();
         final TestingResourceManager resourceManager =
                 new TestingResourceManager(
                         rpcService,
+                        resourceManagerId.toUUID(),
                         resourceManagerResourceId,
-                        highAvailabilityServices,
                         heartbeatServices,
                         slotManager,
                         NoOpResourceManagerPartitionTracker::get,
@@ -476,10 +474,7 @@ public class ResourceManagerTest extends TestLogger {
                         UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup());
 
         resourceManager.start();
-
-        // first make the ResourceManager the leader
-        resourceManagerId = ResourceManagerId.generate();
-        resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
+        resourceManager.getStartedFuture().get(TIMEOUT.getSize(), TIMEOUT.getUnit());
 
         return resourceManager;
     }

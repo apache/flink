@@ -439,4 +439,9 @@ public class HiveTableSource
             }
         }
     }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
+    }
 }

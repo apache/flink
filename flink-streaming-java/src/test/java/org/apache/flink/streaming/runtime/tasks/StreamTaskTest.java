@@ -48,6 +48,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -114,7 +116,6 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -153,11 +154,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
@@ -169,6 +172,7 @@ import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleto
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -1724,6 +1728,64 @@ public class StreamTaskTest extends TestLogger {
         assertTrue(OpenFailingOperator.wasClosed);
     }
 
+    @Test
+    public void testTriggeringCheckpointWithFinishedChannels() throws Exception {
+        AtomicReference<Future<?>> lastCheckpointTriggerFuture = new AtomicReference<>();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                env ->
+                                        new HoldingOnAfterInvokeStreamTask(
+                                                env, lastCheckpointTriggerFuture),
+                                BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setupOutputForSingletonOperatorChain(new EmptyOperator())
+                        .build()) {
+            // Tests triggering checkpoint when all the inputs are alive.
+            Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+            processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
+            assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
+
+            // Tests trigger checkpoint after some inputs have received EndOfPartition
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+            checkpointFuture = triggerCheckpoint(testHarness, 4);
+            processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
+            assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
+
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 1);
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 2);
+            checkpointFuture = triggerCheckpoint(testHarness, 6);
+            lastCheckpointTriggerFuture.set(checkpointFuture);
+
+            // The checkpoint 6 would be triggered successfully.
+            // TODO: Would also check the checkpoint succeed after we also waiting
+            // for the asynchronous step to finish on finish.
+            testHarness.finishProcessing();
+            assertTrue(checkpointFuture.isDone());
+        }
+    }
+
+    private static Future<Boolean> triggerCheckpoint(
+            StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
+        testHarness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+        return testHarness
+                .getStreamTask()
+                .triggerCheckpointAsync(
+                        new CheckpointMetaData(checkpointId, checkpointId * 1000),
+                        CheckpointOptions.alignedNoTimeout(
+                                CheckpointType.CHECKPOINT,
+                                CheckpointStorageLocationReference.getDefault()));
+    }
+
+    private static void processMailTillCheckpointSucceeds(
+            StreamTaskMailboxTestHarness<String> testHarness, Future<Boolean> checkpointFuture)
+            throws Exception {
+        while (!checkpointFuture.isDone()) {
+            testHarness.processSingleStep();
+        }
+        testHarness.getTaskStateManager().getWaitForReportLatch().await();
+    }
+
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
@@ -1973,7 +2035,6 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public void run(
                 Object lockingObject,
-                StreamStatusMaintainer streamStatusMaintainer,
                 Output<StreamRecord<Long>> collector,
                 OperatorChain<?, ?> operatorChain)
                 throws Exception {
@@ -2727,5 +2788,38 @@ public class StreamTaskTest extends TestLogger {
                 public void close() {}
             };
         }
+    }
+
+    /**
+     * Special stream task implementation that would waits till all checkpoints get triggered before
+     * actually finish.
+     */
+    private static class HoldingOnAfterInvokeStreamTask extends OneInputStreamTask<String, String> {
+
+        private final AtomicReference<Future<?>> lastCheckpointTriggerFuture;
+
+        public HoldingOnAfterInvokeStreamTask(
+                Environment env, AtomicReference<Future<?>> lastCheckpointTriggerFuture)
+                throws Exception {
+            super(env);
+            this.lastCheckpointTriggerFuture = checkNotNull(lastCheckpointTriggerFuture);
+        }
+
+        @Override
+        protected void afterInvoke() throws Exception {
+            while (!lastCheckpointTriggerFuture.get().isDone()) {
+                Thread.sleep(200);
+                mainMailboxExecutor.tryYield();
+            }
+
+            super.afterInvoke();
+        }
+    }
+
+    private static class EmptyOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {}
     }
 }

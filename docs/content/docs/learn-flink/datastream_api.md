@@ -70,7 +70,7 @@ Example:
 public class Person {
     public String name;  
     public Integer age;  
-    public Person() {};  
+    public Person() {}
     public Person(String name, Integer age) {  
         . . .
     }
@@ -79,7 +79,7 @@ public class Person {
 Person person = new Person("Fred Flintstone", 35);
 ```
 
-Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/schema_evolution" >}}#pojo-types).
+Flink's serializer [supports schema evolution for POJO types]({{< ref "docs/dev/datastream/fault-tolerance/serialization/schema_evolution" >}}#pojo-types).
 
 ### Scala tuples and case classes
 
@@ -122,7 +122,7 @@ public class Example {
     public static class Person {
         public String name;
         public Integer age;
-        public Person() {};
+        public Person() {}
 
         public Person(String name, Integer age) {
             this.name = name;

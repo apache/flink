@@ -48,7 +48,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Override
-    protected FsStateBackend getStateBackend() throws Exception {
+    protected ConfigurableStateBackend getStateBackend() throws Exception {
         File checkpointPath = tempFolder.newFolder();
         return new FsStateBackend(checkpointPath.toURI(), useAsyncMode);
     }

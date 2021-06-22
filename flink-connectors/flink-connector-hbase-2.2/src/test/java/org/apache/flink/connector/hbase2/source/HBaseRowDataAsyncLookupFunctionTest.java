@@ -20,7 +20,6 @@ package org.apache.flink.connector.hbase2.source;
 
 import org.apache.flink.connector.hbase.options.HBaseLookupOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase.util.PlannerType;
 import org.apache.flink.connector.hbase2.util.HBaseTestBase;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -50,12 +49,6 @@ public class HBaseRowDataAsyncLookupFunctionTest extends HBaseTestBase {
     @Parameterized.Parameters(name = "use cache = {0}")
     public static Object[] parameters() {
         return new Object[][] {new Object[] {true}, new Object[] {false}};
-    }
-
-    @Override
-    protected PlannerType planner() {
-        // lookup table source is only supported in blink planner
-        return PlannerType.BLINK_PLANNER;
     }
 
     @Test

@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.postgresql.xa.PGXADataSource;
@@ -64,6 +65,8 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
+// todo: unignore in FLINK-22462 or earlier
+@Ignore
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static final class PgXaDb extends PostgreSQLContainer<PgXaDb> {

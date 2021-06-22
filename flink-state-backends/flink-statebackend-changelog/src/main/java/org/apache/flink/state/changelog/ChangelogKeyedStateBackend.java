@@ -21,14 +21,9 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -43,10 +38,13 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
@@ -75,24 +73,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend {
+                TestableKeyedStateBackend<K> {
 
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
+                                    StateDescriptor.Type.VALUE,
                                     (StateFactory) ChangelogValueState::create),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
+                                    StateDescriptor.Type.LIST,
                                     (StateFactory) ChangelogListState::create),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
+                                    StateDescriptor.Type.REDUCING,
                                     (StateFactory) ChangelogReducingState::create),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
+                                    StateDescriptor.Type.AGGREGATING,
                                     (StateFactory) ChangelogAggregatingState::create),
                             Tuple2.of(
-                                    MapStateDescriptor.class,
+                                    StateDescriptor.Type.MAP,
                                     (StateFactory) ChangelogMapState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
@@ -109,6 +107,8 @@ class ChangelogKeyedStateBackend<K>
 
     private final TtlTimeProvider ttlTimeProvider;
 
+    private final StateChangelogWriter<?> stateChangelogWriter;
+
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
     private InternalKvState lastState;
@@ -119,11 +119,13 @@ class ChangelogKeyedStateBackend<K>
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
-            TtlTimeProvider ttlTimeProvider) {
+            TtlTimeProvider ttlTimeProvider,
+            StateChangelogWriter<?> stateChangelogWriter) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
+        this.stateChangelogWriter = stateChangelogWriter;
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
@@ -248,8 +250,17 @@ class ChangelogKeyedStateBackend<K>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        return new ChangelogKeyGroupedPriorityQueue<T>(
-                keyedStateBackend.create(stateName, byteOrderedElementSerializer));
+        PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
+                new PriorityQueueStateChangeLoggerImpl<>(
+                        byteOrderedElementSerializer,
+                        keyedStateBackend.getKeyContext(),
+                        stateChangelogWriter,
+                        new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                stateName, byteOrderedElementSerializer));
+        return new ChangelogKeyGroupedPriorityQueue<>(
+                keyedStateBackend.create(stateName, byteOrderedElementSerializer),
+                priorityQueueStateChangeLogger,
+                byteOrderedElementSerializer);
     }
 
     @VisibleForTesting
@@ -319,7 +330,7 @@ class ChangelogKeyedStateBackend<K>
                     StateSnapshotTransformer.StateSnapshotTransformFactory<SEV>
                             snapshotTransformFactory)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -327,15 +338,38 @@ class ChangelogKeyedStateBackend<K>
                             stateDesc.getClass(), this.getClass());
             throw new FlinkRuntimeException(message);
         }
+        RegisteredKeyValueStateBackendMetaInfo<N, SV> meta =
+                new RegisteredKeyValueStateBackendMetaInfo<>(
+                        stateDesc.getType(),
+                        stateDesc.getName(),
+                        namespaceSerializer,
+                        stateDesc.getSerializer(),
+                        (StateSnapshotTransformer.StateSnapshotTransformFactory<SV>)
+                                snapshotTransformFactory);
 
-        return stateFactory.create(
+        InternalKvState<K, N, SV> state =
                 keyedStateBackend.createInternalState(
-                        namespaceSerializer, stateDesc, snapshotTransformFactory));
+                        namespaceSerializer, stateDesc, snapshotTransformFactory);
+        KvStateChangeLoggerImpl<K, SV, N> kvStateChangeLogger =
+                new KvStateChangeLoggerImpl<>(
+                        state.getKeySerializer(),
+                        state.getNamespaceSerializer(),
+                        state.getValueSerializer(),
+                        keyedStateBackend.getKeyContext(),
+                        stateChangelogWriter,
+                        meta);
+        return stateFactory.create(state, kvStateChangeLogger);
+    }
+
+    @Override
+    public KeyedStateBackend<K> getDelegatedKeyedStateBackend(boolean recursive) {
+        return keyedStateBackend.getDelegatedKeyedStateBackend(recursive);
     }
 
     // Factory function interface
     private interface StateFactory {
-        <K, N, SV, S extends State, IS extends S> IS create(InternalKvState<K, N, SV> kvState)
+        <K, N, SV, S extends State, IS extends S> IS create(
+                InternalKvState<K, N, SV> kvState, KvStateChangeLogger<SV, N> changeLogger)
                 throws Exception;
     }
 }

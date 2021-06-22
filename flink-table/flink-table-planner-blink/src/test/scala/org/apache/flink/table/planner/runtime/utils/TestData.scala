@@ -614,7 +614,24 @@ object TestData {
     row("2020-10-10 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
     row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
 
+  val windowData2WithTimestamp: Seq[Row] = List(
+    row("2020-10-10 00:00:01", 1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a1"),
+    row("2020-10-10 00:00:02", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a1"),
+    row("2020-10-10 00:00:03", 2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a1"),
+    row("2020-10-10 00:00:04", 5, 5d, 5f, new JBigDecimal("5.55"), null, "a1"),
+
+    row("2020-10-10 00:00:07", 3, 3d, 3f, null, "Hello", "b"),
+    row("2020-10-10 00:00:06", 6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"), // out of order
+    row("2020-10-10 00:00:08", 3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a1"),
+    row("2020-10-10 00:00:04", 5, 5d, null, new JBigDecimal("5.55"), "Hi", "a1"), // late event
+
+    row("2020-10-10 00:00:16", 4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+
+    row("2020-10-10 00:00:32", 7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row("2020-10-10 00:00:34", 1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
+
   val shanghaiZone = ZoneId.of("Asia/Shanghai")
+
   val windowDataWithLtzInShanghai: Seq[Row] = List(
     row(toEpochMills("2020-10-10T00:00:01", shanghaiZone),
       1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a"),
@@ -632,6 +649,30 @@ object TestData {
       3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a"),
     row(toEpochMills("2020-10-10T00:00:04", shanghaiZone),
       5, 5d, null, new JBigDecimal("5.55"), "Hi", "a"), // late event
+    row(toEpochMills("2020-10-10T00:00:16", shanghaiZone),
+      4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
+    row(toEpochMills("2020-10-10T00:00:32", shanghaiZone),
+      7, 7d, 7f, new JBigDecimal("7.77"), null, null),
+    row(toEpochMills("2020-10-10T00:00:34", shanghaiZone),
+      1, 3d, 3f, new JBigDecimal("3.33"), "Comment#3", "b"))
+
+  val windowData2WithLtzInShanghai: Seq[Row] = List(
+    row(toEpochMills("2020-10-10T00:00:01", shanghaiZone),
+      1, 1d, 1f, new JBigDecimal("1.11"), "Hi", "a1"),
+    row(toEpochMills("2020-10-10T00:00:02", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a1"),
+    row(toEpochMills("2020-10-10T00:00:03", shanghaiZone),
+      2, 2d, 2f, new JBigDecimal("2.22"), "Comment#1", "a1"),
+    row(toEpochMills("2020-10-10T00:00:04", shanghaiZone),
+      5, 5d, 5f, new JBigDecimal("5.55"), null, "a1"),
+    row(toEpochMills("2020-10-10T00:00:07", shanghaiZone),
+      3, 3d, 3f, null, "Hello", "b"),
+    row(toEpochMills("2020-10-10T00:00:06", shanghaiZone),
+      6, 6d, 6f, new JBigDecimal("6.66"), "Hi", "b"), // out of order
+    row(toEpochMills("2020-10-10T00:00:08", shanghaiZone),
+      3, null, 3f, new JBigDecimal("3.33"), "Comment#2", "a1"),
+    row(toEpochMills("2020-10-10T00:00:04", shanghaiZone),
+      5, 5d, null, new JBigDecimal("5.55"), "Hi", "a1"), // late event
     row(toEpochMills("2020-10-10T00:00:16", shanghaiZone),
       4, 4d, 4f, new JBigDecimal("4.44"), "Hi", "b"),
     row(toEpochMills("2020-10-10T00:00:32", shanghaiZone),

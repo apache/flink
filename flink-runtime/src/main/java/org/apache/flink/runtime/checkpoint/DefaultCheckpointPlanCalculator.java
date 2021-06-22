@@ -111,7 +111,7 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                                         ? calculateAfterTasksFinished()
                                         : calculateWithAllTasksRunning();
 
-                        checkTasksStarted(result.getTasksToTrigger());
+                        checkTasksStarted(result.getTasksToWaitFor());
 
                         return result;
                     } catch (Throwable throwable) {

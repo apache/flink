@@ -749,7 +749,7 @@ class DataStreamTests(object):
 
             def process_element(self, value, ctx):
                 self.reducing_state.add(value[0])
-                yield Row(self.reducing_state.get(), value[1])
+                yield self.reducing_state.get(), value[1]
 
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \
@@ -793,7 +793,7 @@ class DataStreamTests(object):
 
             def process_element(self, value, ctx):
                 self.aggregating_state.add(value[0])
-                yield Row(self.aggregating_state.get(), value[1])
+                yield self.aggregating_state.get(), value[1]
 
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.TUPLE([Types.INT(), Types.STRING()])) \

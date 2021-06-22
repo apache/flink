@@ -20,17 +20,24 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
+from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
-from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
-from pyflink.fn_execution.stream cimport LengthPrefixInputStream
+from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl, FieldCoderImpl
+from pyflink.fn_execution.stream_fast cimport LengthPrefixInputStream, OutputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     cdef readonly StreamCoderImpl _value_coder
 
+cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
+    cdef FieldCoderImpl _value_coder
+    cdef OutputStream _data_out_stream
+
+    cdef void _write_data_output_stream(self, BOutputStream out_stream)
+
 cdef class BeamCoderImpl(StreamCoderImpl):
-    cdef readonly BaseCoderImpl _value_coder
+    cdef readonly LengthPrefixBaseCoderImpl _value_coder
 
 cdef class InputStreamWrapper:
-    cdef BaseCoderImpl _value_coder
+    cdef LengthPrefixBaseCoderImpl _value_coder
     cdef LengthPrefixInputStream _input_stream

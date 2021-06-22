@@ -58,9 +58,9 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
 
     @Before
     public void setup() throws Exception {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
+        tableEnv =
+                (TableEnvironmentInternal)
+                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @After

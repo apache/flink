@@ -500,15 +500,15 @@ It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream))`.
 - `createTemporaryView(String, DataStream, Schema)`: Registers the stream under a name to access it in SQL.
 It is a shortcut for `createTemporaryView(String, fromDataStream(DataStream, Schema))`.
 
-- `toDataStream(DataStream)`: Converts a table into a stream of insert-only changes. The default
+- `toDataStream(Table)`: Converts a table into a stream of insert-only changes. The default
 stream record type is `org.apache.flink.types.Row`. A single rowtime attribute column is written
 back into the DataStream API's record. Watermarks are propagated as well.
 
-- `toDataStream(DataStream, AbstractDataType)`: Converts a table into a stream of insert-only changes.
+- `toDataStream(Table, AbstractDataType)`: Converts a table into a stream of insert-only changes.
 This method accepts a data type to express the desired stream record type. The planner might insert
 implicit casts and reorders columns to map columns to fields of the (possibly nested) data type.
 
-- `toDataStream(DataStream, Class)`: A shortcut for `toDataStream(DataStream, DataTypes.of(Class))`
+- `toDataStream(Table, Class)`: A shortcut for `toDataStream(Table, DataTypes.of(Class))`
 to quickly create the desired data type reflectively.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
@@ -831,7 +831,7 @@ from the DataStream API (which would be `RAW` in the Table API) with proper data
 
 Since `DataType` is richer than `TypeInformation`, we can easily enable immutable POJOs and other complex
 data structures. The following example in Java shows what is possible. Check also the
-[Data Types & Serialization]({{< ref "docs/dev/serialization/types_serialization" >}}) page of
+[Data Types & Serialization]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) page of
 the DataStream API for more information about the supported types there.
 
 ```java
@@ -1135,14 +1135,16 @@ import org.apache.flink.table.api.DataTypes
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
 
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
@@ -1166,7 +1168,7 @@ val dataStream: DataStream[Row] = tableEnv.toDataStream(table)
 // since `event_time` is a single rowtime attribute, it is inserted into the DataStream
 // metadata and watermarks are propagated
 
-val dataStream: DataStream[User] = tableEnv.toDataStream(table, User.class)
+val dataStream: DataStream[User] = tableEnv.toDataStream(table, classOf[User])
 
 // data types can be extracted reflectively as above or explicitly defined
 
@@ -1174,7 +1176,7 @@ val dataStream: DataStream[User] =
     tableEnv.toDataStream(
         table,
         DataTypes.STRUCTURED(
-            User.class,
+            classOf[User],
             DataTypes.FIELD("name", DataTypes.STRING()),
             DataTypes.FIELD("score", DataTypes.INT()),
             DataTypes.FIELD("event_time", DataTypes.TIMESTAMP_LTZ(3))))
@@ -1184,8 +1186,9 @@ val dataStream: DataStream[User] =
 
 Note that only non-updating tables are supported by `toDataStream`. Usually, time-based operations
 such as windows, interval joins, or the `MATCH_RECOGNIZE` clause are a good fit for insert-only
-pipelines next to simple operations like projections and filters. Pipelines with operations that
-produce updates can use `toChangelogStream`.
+pipelines next to simple operations like projections and filters.
+
+Pipelines with operations that produce updates can use `toChangelogStream`.
 
 {{< top >}}
 
@@ -1546,14 +1549,16 @@ import java.time.Instant
 
 // create Table with event-time
 tableEnv.executeSql(
-    "CREATE TABLE GeneratedTable "
-    + "("
-    + "  name STRING,"
-    + "  score INT,"
-    + "  event_time TIMESTAMP_LTZ(3),"
-    + "  WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND"
-    + ")"
-    + "WITH ('connector'='datagen')")
+  """
+  CREATE TABLE GeneratedTable (
+    name STRING,
+    score INT,
+    event_time TIMESTAMP_LTZ(3),
+    WATERMARK FOR event_time AS event_time - INTERVAL '10' SECOND
+  )
+  WITH ('connector'='datagen')
+  """
+)
 
 val table = tableEnv.from("GeneratedTable")
 
@@ -2035,7 +2040,7 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 #### POJO (Java and Scala)
 
-Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{< ref "docs/dev/serialization/types_serialization" >}}#pojos).
+Flink supports POJOs as composite types. The rules for what determines a POJO are documented [here]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}#pojos).
 
 When converting a POJO `DataStream` into a `Table` without specifying field names, the names of the original POJO fields are used. The name mapping requires the original names and cannot be done by positions. Fields can be renamed using an alias (with the `as` keyword), reordered, and projected.
 

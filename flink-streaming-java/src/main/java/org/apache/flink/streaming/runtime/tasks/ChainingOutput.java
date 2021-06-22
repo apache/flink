@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.util.OutputTag;
 
 import org.slf4j.Logger;
@@ -42,26 +42,16 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     protected final Input<T> input;
     protected final Counter numRecordsIn;
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
-    protected final StreamStatusProvider streamStatusProvider;
     @Nullable protected final OutputTag<T> outputTag;
     @Nullable protected final AutoCloseable closeable;
 
-    public ChainingOutput(
-            OneInputStreamOperator<T, ?> operator,
-            StreamStatusProvider streamStatusProvider,
-            @Nullable OutputTag<T> outputTag) {
-        this(
-                operator,
-                (OperatorMetricGroup) operator.getMetricGroup(),
-                streamStatusProvider,
-                outputTag,
-                operator::close);
+    public ChainingOutput(OneInputStreamOperator<T, ?> operator, @Nullable OutputTag<T> outputTag) {
+        this(operator, (OperatorMetricGroup) operator.getMetricGroup(), outputTag, operator::close);
     }
 
     public ChainingOutput(
             Input<T> input,
             OperatorMetricGroup operatorMetricGroup,
-            StreamStatusProvider streamStatusProvider,
             @Nullable OutputTag<T> outputTag,
             @Nullable AutoCloseable closeable) {
         this.input = input;
@@ -79,7 +69,6 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
             numRecordsIn = tmpNumRecordsIn;
         }
 
-        this.streamStatusProvider = streamStatusProvider;
         this.outputTag = outputTag;
     }
 
@@ -119,9 +108,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     public void emitWatermark(Watermark mark) {
         try {
             watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-            if (streamStatusProvider.getStreamStatus().isActive()) {
-                input.processWatermark(mark);
-            }
+            input.processWatermark(mark);
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }
@@ -150,5 +137,14 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     @Override
     public Gauge<Long> getWatermarkGauge() {
         return watermarkGauge;
+    }
+
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        try {
+            input.processStreamStatus(streamStatus);
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
     }
 }

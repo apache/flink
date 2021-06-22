@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.api.bridge.scala
 
-import org.apache.flink.annotation.{Experimental, PublicEvolving}
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
@@ -243,7 +243,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @param dataStream The changelog stream of [[Row]].
    * @return The converted [[Table]].
    */
-  @Experimental
   def fromChangelogStream(dataStream: DataStream[Row]): Table
 
   /**
@@ -284,7 +283,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @param schema The customized schema for the final table.
    * @return The converted [[Table]].
    */
-  @Experimental
   def fromChangelogStream(dataStream: DataStream[Row], schema: Schema): Table
 
   /**
@@ -326,7 +324,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @param changelogMode The expected kinds of changes in the incoming changelog.
    * @return The converted [[Table]].
    */
-  @Experimental
   def fromChangelogStream(
       dataStream: DataStream[Row], schema: Schema,  changelogMode: ChangelogMode): Table
 
@@ -473,7 +470,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @param table The [[Table]] to convert. It can be updating or insert-only.
    * @return The converted changelog stream of [[Row]].
    */
-  @Experimental
   def toChangelogStream(table: Table): DataStream[Row]
 
   /**
@@ -554,7 +550,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    *                     in [[DataStream]] records.
    * @return The converted changelog stream of [[Row]].
    */
-  @Experimental
   def toChangelogStream(table: Table, targetSchema: Schema): DataStream[Row]
 
   /**
@@ -586,7 +581,6 @@ trait StreamTableEnvironment extends TableEnvironment {
    *                      changelog mode.
    * @return The converted changelog stream of [[Row]].
    */
-  @Experimental
    def toChangelogStream(
         table: Table, targetSchema: Schema, changelogMode: ChangelogMode): DataStream[Row]
 

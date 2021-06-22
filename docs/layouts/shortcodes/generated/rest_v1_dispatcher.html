@@ -103,6 +103,9 @@
       "properties" : {
         "web-submit" : {
           "type" : "boolean"
+        },
+        "web-cancel" : {
+          "type" : "boolean"
         }
       }
     },
@@ -2178,6 +2181,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "type" : "object",
   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo",
   "properties" : {
+    "alignment_timeout" : {
+      "type" : "integer"
+    },
     "checkpoint_storage" : {
       "type" : "string"
     },

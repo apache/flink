@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.rank;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
@@ -28,8 +29,10 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.runtime.util.LRUMap;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A TopN function could handle insert-only stream.
@@ -47,7 +51,7 @@ import java.util.Map;
  */
 public class AppendOnlyTopNFunction extends AbstractTopNFunction {
 
-    private static final long serialVersionUID = -4708453213104128010L;
+    private static final long serialVersionUID = -4708453213104128011L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AppendOnlyTopNFunction.class);
 
@@ -62,11 +66,10 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     private transient TopNBuffer buffer;
 
     // the kvSortedMap stores mapping from partition key to it's buffer
-    private transient Map<RowData, TopNBuffer> kvSortedMap;
+    private transient Cache<RowData, TopNBuffer> kvSortedMap;
 
     public AppendOnlyTopNFunction(
-            long minRetentionTime,
-            long maxRetentionTime,
+            StateTtlConfig ttlConfig,
             InternalTypeInfo<RowData> inputRowType,
             GeneratedRecordComparator sortKeyGeneratedRecordComparator,
             RowDataKeySelector sortKeySelector,
@@ -76,8 +79,7 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
             boolean outputRankNumber,
             long cacheSize) {
         super(
-                minRetentionTime,
-                maxRetentionTime,
+                ttlConfig,
                 inputRowType,
                 sortKeyGeneratedRecordComparator,
                 sortKeySelector,
@@ -90,10 +92,16 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         this.cacheSize = cacheSize;
     }
 
+    @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
         int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
-        kvSortedMap = new LRUMap<>(lruCacheSize);
+        CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
+        if (ttlConfig.isEnabled()) {
+            cacheBuilder.expireAfterWrite(
+                    ttlConfig.getTtl().toMilliseconds(), TimeUnit.MILLISECONDS);
+        }
+        kvSortedMap = cacheBuilder.maximumSize(lruCacheSize).build();
         LOG.info(
                 "Top{} operator is using LRU caches key-size: {}",
                 getDefaultTopNSize(),
@@ -102,6 +110,9 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         ListTypeInfo<RowData> valueTypeInfo = new ListTypeInfo<>(inputRowType);
         MapStateDescriptor<RowData, List<RowData>> mapStateDescriptor =
                 new MapStateDescriptor<>("data-state-with-append", sortKeyType, valueTypeInfo);
+        if (ttlConfig.isEnabled()) {
+            mapStateDescriptor.enableTimeToLive(ttlConfig);
+        }
         dataState = getRuntimeContext().getMapState(mapStateDescriptor);
 
         // metrics
@@ -111,10 +122,6 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     @Override
     public void processElement(RowData input, Context context, Collector<RowData> out)
             throws Exception {
-        long currentTime = context.timerService().currentProcessingTime();
-        // register state-cleanup timer
-        registerProcessingCleanupTimer(context, currentTime);
-
         initHeapStates();
         initRankEnd(input);
 
@@ -139,20 +146,10 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
         }
     }
 
-    @Override
-    public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
-            throws Exception {
-        if (stateCleaningEnabled) {
-            // cleanup cache
-            kvSortedMap.remove(keyContext.getCurrentKey());
-            cleanupState(dataState);
-        }
-    }
-
     private void initHeapStates() throws Exception {
         requestCount += 1;
         RowData currentKey = (RowData) keyContext.getCurrentKey();
-        buffer = kvSortedMap.get(currentKey);
+        buffer = kvSortedMap.getIfPresent(currentKey);
         if (buffer == null) {
             buffer = new TopNBuffer(sortKeyComparator, ArrayList::new);
             kvSortedMap.put(currentKey, buffer);

@@ -70,9 +70,8 @@ Table counts = orders
         .groupBy($("a"))
         .select($("a"), $("b").count().as("cnt"));
 
-// conversion to DataSet
-DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
-result.print();
+// print
+counts.execute().print();
 ```
 
 {{< /tab >}}
@@ -104,7 +103,7 @@ val orders = tEnv.from("Orders") // schema (a, b, c, rowtime)
 val result = orders
                .groupBy($"a")
                .select($"a", $"b".count as "cnt")
-               .toDataSet[Row] // conversion to DataSet
+               .execute()
                .print()
 ```
 
@@ -117,8 +116,8 @@ The following example shows how a Python Table API program is constructed and ho
 from pyflink.table import *
 
 # environment configuration
-t_env = BatchTableEnvironment.create(
-    environment_settings=EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
+t_env = TableEnvironment.create(
+    environment_settings=EnvironmentSettings.in_batch_mode())
 
 # register Orders table and Result table sink in table environment
 source_data_path = "/path/to/source/directory/"
@@ -891,8 +890,8 @@ Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct f
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
 Table result = left.join(right)
     .where($("a").isEqual($("d")))
     .select($("a"), $("b"), $("e"));
@@ -900,8 +899,8 @@ Table result = left.join(right)
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
-val right = ds2.toTable(tableEnv, $"d", $"e", $"f")
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f")
 val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 ```
 {{< /tab >}}
@@ -929,8 +928,8 @@ Both tables must have distinct field names and at least one equality join predic
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, "a, b, c");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f");
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
 
 Table leftOuterResult = left.leftOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
@@ -942,8 +941,8 @@ Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = tableEnv.fromDataSet(ds1, $"a", $"b", $"c")
-val right = tableEnv.fromDataSet(ds2, $"d", $"e", $"f")
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f")
 
 val leftOuterResult = left.leftOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
 val rightOuterResult = left.rightOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
@@ -977,8 +976,8 @@ An interval join requires at least one equi-join predicate and a join condition 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.fromDataSet(ds1, $("a"), $("b"), $("c"), $("ltime").rowtime());
-Table right = tableEnv.fromDataSet(ds2, $("d"), $("e"), $("f"), $("rtime").rowtime()));
+Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
+Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
 
 Table result = left.join(right)
   .where(
@@ -992,8 +991,8 @@ Table result = left.join(right)
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val left = ds1.toTable(tableEnv, $"a", $"b", $"c", $"ltime".rowtime)
-val right = ds2.toTable(tableEnv, $"d", $"e", $"f", $"rtime".rowtime)
+val left = tableEnv.from("MyTable").select($"a", $"b", $"c", $"ltime")
+val right = tableEnv.from("MyTable").select($"d", $"e", $"f", $"rtime")
 
 val result = left.join(right)
   .where($"a" === $"d" && $"ltime" >= $"rtime" - 5.minutes && $"ltime" < $"rtime" + 10.minutes)
@@ -1587,7 +1586,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics, which are translated into underlying `DataStream` or `DataSet` operations. The supported window definitions are listed below.
+The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics. The supported window definitions are listed below.
 
 #### Tumble (Tumbling Windows)
 
@@ -2206,7 +2205,7 @@ from pyflink.table import DataTypes
 from pyflink.table.udf import udf
 
 def map_function(a: Row) -> Row:
-    return Row(a[0] + 1, a[1] * a[1])
+    return Row(a.a + 1, a.b * a.b)
 
 # map operation with a python general scalar function
 func = udf(map_function, result_type=DataTypes.ROW(
@@ -2298,8 +2297,8 @@ from pyflink.common import Row
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x[1].split(","):
-        yield x[0], s
+    for s in x.b.split(","):
+        yield x.a, s
 
 input.flat_map(split)
 ```
@@ -2419,13 +2418,13 @@ class CountAndSumAggregateFunction(AggregateFunction):
     def create_accumulator(self):
         return Row(0, 0)
 
-    def accumulate(self, accumulator, *args):
+    def accumulate(self, accumulator, row: Row):
         accumulator[0] += 1
-        accumulator[1] += args[0][1]
+        accumulator[1] += row.b
 
-    def retract(self, accumulator, *args):
+    def retract(self, accumulator, row: Row):
         accumulator[0] -= 1
-        accumulator[1] -= args[0][1]
+        accumulator[1] -= row.b
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:
@@ -2676,16 +2675,13 @@ class Top2(TableAggregateFunction):
     def create_accumulator(self):
         return [None, None]
 
-    def accumulate(self, accumulator, *args):
-        if args[0][0] is not None:
-            if accumulator[0] is None or args[0][0] > accumulator[0]:
+    def accumulate(self, accumulator, row: Row):
+        if row.a is not None:
+            if accumulator[0] is None or row.a > accumulator[0]:
                 accumulator[1] = accumulator[0]
-                accumulator[0] = args[0][0]
-            elif accumulator[1] is None or args[0][0] > accumulator[1]:
-                accumulator[1] = args[0][0]
-
-    def retract(self, accumulator, *args):
-        accumulator[0] = accumulator[0] - 1
+                accumulator[0] = row.a
+            elif accumulator[1] is None or row.a > accumulator[1]:
+                accumulator[1] = row.a
 
     def merge(self, accumulator, accumulators):
         for other_acc in accumulators:

@@ -38,9 +38,9 @@ under the License.
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
+env_settings = EnvironmentSettings.in_streaming_mode()
 # or a batch TableEnvironment
-# env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+# env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -48,7 +48,7 @@ table_env = TableEnvironment.create(env_settings)
 
 ```python
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
+from pyflink.table import StreamTableEnvironment
 
 # create a blink streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()

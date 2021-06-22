@@ -145,6 +145,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         true,
                         false,
                         false,
+                        0,
                         0);
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(chkConfig, null);

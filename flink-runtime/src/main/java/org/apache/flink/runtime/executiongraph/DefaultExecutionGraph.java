@@ -639,12 +639,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public Iterable<ExecutionVertex> getAllExecutionVertices() {
-        return new Iterable<ExecutionVertex>() {
-            @Override
-            public Iterator<ExecutionVertex> iterator() {
-                return new AllVerticesIterator(getVerticesTopologically().iterator());
-            }
-        };
+        return () -> new AllVerticesIterator<>(getVerticesTopologically().iterator());
     }
 
     @Override

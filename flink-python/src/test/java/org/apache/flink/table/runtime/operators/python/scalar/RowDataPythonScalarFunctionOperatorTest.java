@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -84,8 +83,7 @@ public class RowDataPythonScalarFunctionOperatorTest
 
     @Override
     public StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env) {
-        return StreamTableEnvironment.create(
-                env, EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build());
+        return StreamTableEnvironment.create(env);
     }
 
     @Override
@@ -117,7 +115,6 @@ public class RowDataPythonScalarFunctionOperatorTest
                     userDefinedFunctionOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    getInputOutputCoderUrn(),
                     new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer());
         }

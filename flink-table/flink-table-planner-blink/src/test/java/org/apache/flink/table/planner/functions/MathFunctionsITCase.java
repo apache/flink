@@ -88,7 +88,7 @@ public class MathFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").times(6),
                                 "f0 * 6",
                                 new BigDecimal("9086137920000"),
-                                DataTypes.DECIMAL(29, 0))
+                                DataTypes.DECIMAL(30, 0))
                         // DECIMAL(19, 0) * DECIMAL(19, 0) => DECIMAL(38, 0)
                         .testResult(
                                 $("f0").times($("f0")),

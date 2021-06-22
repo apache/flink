@@ -22,13 +22,13 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', $2)])
+LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ARRAY(_UTF-16LE'Hi', _UTF-16LE'Hello', c) AS EXPR$0])
+Calc(select=[ARRAY(_UTF-16LE'Hi':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", c) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -65,6 +65,40 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       <![CDATA[
 Calc(select=[a, b, c], where=[((a < 10) AND (b > 20))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecimalArrayWithDifferentPrecision">
+    <Resource name="sql">
+      <![CDATA[SELECT ARRAY[0.12, 0.5, 0.99]]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2))])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2)) AS EXPR$0])
++- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecimalMapWithDifferentPrecision">
+    <Resource name="sql">
+      <![CDATA[SELECT MAP['a', 0.12, 'b', 0.5]]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:DECIMAL(3, 2))])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:DECIMAL(3, 2)) AS EXPR$0])
++- Values(tuples=[[{ 0 }]], values=[ZERO])
 ]]>
     </Resource>
   </TestCase>
@@ -342,13 +376,13 @@ LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable4, sourc
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[MAP($1, 30, 10, $0)])
+LogicalProject(EXPR$0=[MAP($1, 30:BIGINT, 10, $0)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
+Calc(select=[MAP(b, 30:BIGINT, 10, a) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

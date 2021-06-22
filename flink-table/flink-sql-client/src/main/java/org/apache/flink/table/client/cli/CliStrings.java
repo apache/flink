@@ -47,11 +47,11 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     "DROP TABLE",
-                                    "Drop table with optional catalog and database. Syntax: 'DROP TABLE [IF EXISTS] <name>;'"))
+                                    "Drop table with optional catalog and database. Syntax: \"DROP TABLE [IF EXISTS] <name>;\""))
                     .append(
                             formatCommand(
                                     "CREATE VIEW",
-                                    "Creates a virtual table from a SQL query. Syntax: 'CREATE VIEW <name> AS <query>;'"))
+                                    "Creates a virtual table from a SQL query. Syntax: \"CREATE VIEW <name> AS <query>;\""))
                     .append(
                             formatCommand(
                                     "DESCRIBE",
@@ -59,7 +59,7 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     "DROP VIEW",
-                                    "Deletes a previously created virtual table. Syntax: 'DROP VIEW <name>;'"))
+                                    "Deletes a previously created virtual table. Syntax: \"DROP VIEW <name>;\""))
                     .append(
                             formatCommand(
                                     "EXPLAIN",
@@ -77,18 +77,18 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     "RESET",
-                                    "Resets a session configuration property. Syntax: 'RESET <key>;'. Use 'RESET;' for reset all session properties."))
+                                    "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties."))
                     .append(
                             formatCommand(
                                     "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
                     .append(
                             formatCommand(
                                     "SET",
-                                    "Sets a session configuration property. Syntax: 'SET <key>=<value>;'. Use 'SET;' for listing all properties."))
+                                    "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties."))
                     .append(
                             formatCommand(
                                     "SHOW FUNCTIONS",
-                                    "Shows all user-defined and built-in functions or only user-defined functions. Syntax: 'SHOW [USER] FUNCTIONS;'"))
+                                    "Shows all user-defined and built-in functions or only user-defined functions. Syntax: \"SHOW [USER] FUNCTIONS;\""))
                     .append(formatCommand("SHOW TABLES", "Shows all registered tables."))
                     .append(
                             formatCommand(
@@ -97,34 +97,34 @@ public final class CliStrings {
                     .append(
                             formatCommand(
                                     "USE CATALOG",
-                                    "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: 'USE CATALOG <name>;'"))
+                                    "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: \"USE CATALOG <name>;\""))
                     .append(
                             formatCommand(
                                     "USE",
-                                    "Sets the current default database. Experimental! Syntax: 'USE <name>;'"))
+                                    "Sets the current default database. Experimental! Syntax: \"USE <name>;\""))
                     .append(
                             formatCommand(
                                     "LOAD MODULE",
-                                    "Load a module. Syntax: 'LOAD MODULE <name> [WITH ('<key1>' = "
-                                            + "'<value1>' [, '<key2>' = '<value2>', ...])];'"))
+                                    "Load a module. Syntax: \"LOAD MODULE <name> [WITH ('<key1>' = "
+                                            + "'<value1>' [, '<key2>' = '<value2>', ...])];\""))
                     .append(
                             formatCommand(
                                     "UNLOAD MODULE",
-                                    "Unload a module. Syntax: 'UNLOAD MODULE <name>;'"))
+                                    "Unload a module. Syntax: \"UNLOAD MODULE <name>;\""))
                     .append(
                             formatCommand(
                                     "USE MODULES",
-                                    "Enable loaded modules. Syntax: 'USE MODULES <name1> [, <name2>, ...];'"))
+                                    "Enable loaded modules. Syntax: \"USE MODULES <name1> [, <name2>, ...];\""))
                     .append(
                             formatCommand(
                                     "BEGIN STATEMENT SET",
-                                    "Begins a statement set. Syntax: 'BEGIN STATEMENT SET;'"))
-                    .append(formatCommand("END", "Ends a statement set. Syntax: 'END;'"))
+                                    "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\""))
+                    .append(formatCommand("END", "Ends a statement set. Syntax: \"END;\""))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
                     .append(
-                            ": Make sure that a statement ends with ';' for finalizing (multi-line) statements.")
+                            ": Make sure that a statement ends with \";\" for finalizing (multi-line) statements.")
                     .toAttributedString();
 
     public static final String MESSAGE_WELCOME;
@@ -224,6 +224,12 @@ public final class CliStrings {
             "Execute statement in sync mode. Please wait for the execution finish...";
 
     public static final String MESSAGE_EXECUTE_STATEMENT = "Execute statement succeed.";
+
+    public static final String MESSAGE_ADD_JAR_STATEMENT =
+            "The specified jar is added into session classloader.";
+
+    public static final String MESSAGE_REMOVE_JAR_STATEMENT =
+            "The specified jar is removed from session classloader.";
 
     // --------------------------------------------------------------------------------------------
 

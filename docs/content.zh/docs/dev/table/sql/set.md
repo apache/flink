@@ -47,7 +47,7 @@ Flink SQL> SET 'table.planner' = 'blink';
 [INFO] Session property has been set.
 
 Flink SQL> SET;
-table.planner=blink;
+'table.planner' = 'blink'
 ```
 {{< /tab >}}
 {{< /tabs >}}

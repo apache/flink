@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, LogicalType, TimestampType}
-
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
-import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging
+import org.apache.flink.table.types.logical.{DecimalType, LocalZonedTimestampType, TimestampType}
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeFactoryImpl, RelDataTypeSystemImpl}
+import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 
 /**
   * Custom type system for Flink.
@@ -96,26 +94,74 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     unwrapTypeFactory(typeFactory).createFieldTypeFromLogicalType(resultType)
   }
 
-  /**
-    * Calcite's default impl for division is apparently borrowed from T-SQL,
-    * but the details are a little different, e.g. when Decimal(34,0)/Decimal(10,0)
-    * To avoid confusion, follow the exact T-SQL behavior.
-    * Note that for (+-*), Calcite is also different from T-SQL;
-    * however, Calcite conforms to SQL2003 while T-SQL does not.
-    * therefore we keep Calcite's behavior on (+-*).
-    */
+  override def deriveDecimalPlusType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType): RelDataType = {
+    deriveDecimalType(typeFactory, type1, type2,
+      (p1, s1, p2, s2) => LogicalTypeMerging.findAdditionDecimalType(p1, s1, p2, s2))
+  }
+
+  override def deriveDecimalModType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType): RelDataType = {
+    deriveDecimalType(typeFactory, type1, type2,
+      (p1, s1, p2, s2) => {
+        if (s1 == 0 && s2 == 0) {
+          return type2
+        }
+        LogicalTypeMerging.findModuloDecimalType(p1, s1, p2, s2)
+      })
+  }
+
   override def deriveDecimalDivideType(
       typeFactory: RelDataTypeFactory,
       type1: RelDataType,
       type2: RelDataType): RelDataType = {
+    deriveDecimalType(typeFactory, type1, type2,
+      (p1, s1, p2, s2) => LogicalTypeMerging.findDivisionDecimalType(p1, s1, p2, s2))
+  }
+
+  override def deriveDecimalMultiplyType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType): RelDataType = {
+    deriveDecimalType(typeFactory, type1, type2,
+      (p1, s1, p2, s2) => LogicalTypeMerging.findMultiplicationDecimalType(p1, s1, p2, s2))
+  }
+
+  /**
+   * Use derivation from [[LogicalTypeMerging]] to derive decimal type.
+   */
+  private def deriveDecimalType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType,
+      deriveImpl: (Int, Int, Int, Int) => DecimalType): RelDataType = {
     if (SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
-      (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
-      val result = LogicalTypeMerging.findDivisionDecimalType(
-        type1.getPrecision, type1.getScale,
-        type2.getPrecision, type2.getScale)
+        (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
+      val decType1 = adjustType(typeFactory, type1)
+      val decType2 = adjustType(typeFactory, type2)
+      val result = deriveImpl(
+        decType1.getPrecision, decType1.getScale, decType2.getPrecision, decType2.getScale)
       typeFactory.createSqlType(SqlTypeName.DECIMAL, result.getPrecision, result.getScale)
     } else {
       null
+    }
+  }
+
+  /**
+   * Java numeric will always have invalid precision/scale,
+   * use its default decimal precision/scale instead.
+   */
+  private def adjustType(
+      typeFactory: RelDataTypeFactory,
+      relDataType: RelDataType): RelDataType = {
+    if (RelDataTypeFactoryImpl.isJavaType(relDataType)) {
+      typeFactory.decimalOf(relDataType)
+    } else {
+      relDataType
     }
   }
 }

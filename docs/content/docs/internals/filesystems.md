@@ -104,7 +104,7 @@ The `FSDataOutputStream` has to guarantee data persistence for the written bytes
     requirements exist.
  
     The above implies specifically that data may still be in the OS cache when considered
-    persistent from the local file system's perspective. Crashes that cause the OS cache to loose
+    persistent from the local file system's perspective. Crashes that cause the OS cache to lose
     data are considered fatal to the local machine and are not covered by the local file system's
     guarantees as defined by Flink.
 

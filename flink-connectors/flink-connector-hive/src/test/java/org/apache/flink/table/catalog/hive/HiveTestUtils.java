@@ -152,9 +152,7 @@ public class HiveTestUtils {
     }
 
     public static TableEnvironment createTableEnvWithBlinkPlannerBatchMode(SqlDialect dialect) {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-        TableEnvironment tableEnv = TableEnvironment.create(settings);
+        TableEnvironment tableEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
@@ -169,9 +167,7 @@ public class HiveTestUtils {
 
     public static StreamTableEnvironment createTableEnvWithBlinkPlannerStreamMode(
             StreamExecutionEnvironment env, SqlDialect dialect) {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, settings);
+        StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key(), 1);

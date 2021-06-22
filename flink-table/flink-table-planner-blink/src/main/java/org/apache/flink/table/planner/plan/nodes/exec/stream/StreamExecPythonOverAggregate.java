@@ -46,6 +46,9 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +57,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for python time-based over operator. */
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
@@ -77,6 +84,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream."
                             + "StreamArrowPythonProcTimeBoundedRowsOperator";
 
+    public static final String FIELD_NAME_OVER_SPEC = "overSpec";
+
+    @JsonProperty(FIELD_NAME_OVER_SPEC)
     private final OverSpec overSpec;
 
     public StreamExecPythonOverAggregate(
@@ -84,8 +94,24 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
-        this.overSpec = overSpec;
+        this(
+                overSpec,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecPythonOverAggregate(
+            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.overSpec = checkNotNull(overSpec);
     }
 
     @SuppressWarnings("unchecked")

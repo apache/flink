@@ -98,7 +98,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
       <![CDATA[
 HashAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
 +- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
+   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[true], select=[a, b, c])
       +- Sort(orderBy=[a ASC, c ASC, b ASC])
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], orderBy=[b ASC], global=[false], select=[a, b, c])

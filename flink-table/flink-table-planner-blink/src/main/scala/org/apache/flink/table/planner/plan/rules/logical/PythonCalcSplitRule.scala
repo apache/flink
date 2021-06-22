@@ -22,7 +22,7 @@ import java.util.function.Function
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rex.{RexBuilder, RexCall, RexFieldAccess, RexInputRef, RexLocalRef, RexNode, RexProgram}
+import org.apache.calcite.rex.{RexBuilder, RexCall, RexCorrelVariable, RexFieldAccess, RexInputRef, RexLocalRef, RexNode, RexProgram}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.python.PythonFunctionKind
@@ -393,7 +393,13 @@ private class ScalarFunctionSplitter(
       expr match {
         case localRef: RexLocalRef if containsPythonCall(program.expandLocalRef(localRef))
           => getExtractedRexFieldAccess(fieldAccess, localRef.getIndex)
-        case _ => getExtractedRexNode(fieldAccess)
+        case _: RexCorrelVariable =>
+          val field = fieldAccess.getField
+          new RexInputRef(field.getIndex, field.getType)
+        case _ =>
+          val newFieldAccess = rexBuilder.makeFieldAccess(
+            expr.accept(this), fieldAccess.getField.getIndex)
+          getExtractedRexNode(newFieldAccess)
       }
     } else {
       fieldAccess

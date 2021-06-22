@@ -48,7 +48,7 @@ class WindowEmitStrategy(
     }
     if (isEventTime && lateFireDelayEnabled && allowLateness <= 0L) {
       throw new TableException("The 'AFTER WATERMARK' emit strategy requires set " +
-        "'minIdleStateRetentionTime' in table config.")
+        "'allow-lateness' or 'minIdleStateRetentionTime' in table config.")
     }
     if (earlyFireDelayEnabled && (earlyFireDelay == null || earlyFireDelay.toMillis < 0)) {
       throw new TableException("Early-fire delay should not be null or negative value when" +
@@ -57,6 +57,10 @@ class WindowEmitStrategy(
     if (lateFireDelayEnabled && (lateFireDelay == null || lateFireDelay.toMillis < 0)) {
       throw new TableException("Late-fire delay should not be null or negative value when" +
         "enable late-fire emit strategy.")
+    }
+    if (lateFireDelayEnabled && (lateFireDelay.toMillis > allowLateness)) {
+      throw new TableException(s"Allow-lateness [${allowLateness}ms] should not be smaller than " +
+        s"Late-fire delay [${lateFireDelay.toMillis}ms] when enable late-fire emit strategy.")
     }
   }
 
@@ -140,16 +144,7 @@ object WindowEmitStrategy {
     val isEventTime = isRowtimeAttribute(window.timeAttribute)
     val isSessionWindow = window.isInstanceOf[SessionGroupWindow]
 
-    val allowLateness = if (isSessionWindow) {
-      // ignore allow lateness in session window because retraction is not supported
-      0L
-    } else if (tableConfig.getMinIdleStateRetentionTime < 0) {
-      // min idle state retention time is not set, use 0L as default which means not allow lateness
-      0L
-    } else {
-      // use min idle state retention time as allow lateness
-      tableConfig.getMinIdleStateRetentionTime
-    }
+    val allowLateness = parseAllowLateness(isSessionWindow, tableConfig)
     val enableEarlyFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
     val earlyFireDelay: Duration = tableConfig.getConfiguration
@@ -160,7 +155,7 @@ object WindowEmitStrategy {
     val lateFireDelay: Duration = tableConfig.getConfiguration
       .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
       .orElse(null)
-    new WindowEmitStrategy(
+      new WindowEmitStrategy(
       isEventTime,
       isSessionWindow,
       earlyFireDelay,
@@ -168,6 +163,32 @@ object WindowEmitStrategy {
       lateFireDelay,
       enableLateFireDelay,
       allowLateness)
+  }
+
+  private def parseAllowLateness(
+      isSessionWindow: Boolean,
+      tableConfig: TableConfig): Long = {
+    val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
+      TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    val emitAllowLateness: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
+      .orElse(null)
+    if (isSessionWindow) {
+      // ignore allow lateness in session window because retraction is not supported
+      0L
+    } else if (!enableLateFireDelay) {
+      // ignore allow lateness if disable late-fire delay
+      0L
+    } else if (emitAllowLateness != null) {
+      // return emit allow-lateness if it is set
+      emitAllowLateness.toMillis
+    } else if (tableConfig.getMinIdleStateRetentionTime < 0) {
+      // min idle state retention time is not set, use 0L as default which means not allow lateness
+      0L
+    } else {
+      // use min idle state retention time as allow lateness
+      tableConfig.getMinIdleStateRetentionTime
+    }
   }
 
   // It is a experimental config, will may be removed later.
@@ -210,4 +231,17 @@ object WindowEmitStrategy {
           "0 means no delay (fire on every element). " +
           "> 0 means the fire interval.")
 
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val TABLE_EXEC_EMIT_ALLOW_LATENESS: ConfigOption[Duration] =
+  key("table.exec.emit.allow-lateness")
+    .durationType()
+    .noDefaultValue()
+    .withDescription("Sets the time by which elements are allowed to be late. " +
+        "Elements that arrive behind the watermark by more than the specified time " +
+        "will be dropped. " +
+        "Note: use the value if it is set, else use 'minIdleStateRetentionTime' in table config." +
+        "< 0 is illegal configuration. " +
+        "0 means disable allow lateness. " +
+        "> 0 means allow-lateness.")
 }

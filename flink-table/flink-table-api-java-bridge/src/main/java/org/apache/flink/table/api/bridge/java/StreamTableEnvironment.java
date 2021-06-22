@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api.bridge.java;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -350,7 +349,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param dataStream The changelog stream of {@link Row}.
      * @return The converted {@link Table}.
      */
-    @Experimental
     Table fromChangelogStream(DataStream<Row> dataStream);
 
     /**
@@ -393,7 +391,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param schema The customized schema for the final table.
      * @return The converted {@link Table}.
      */
-    @Experimental
     Table fromChangelogStream(DataStream<Row> dataStream, Schema schema);
 
     /**
@@ -437,7 +434,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param changelogMode The expected kinds of changes in the incoming changelog.
      * @return The converted {@link Table}.
      */
-    @Experimental
     Table fromChangelogStream(
             DataStream<Row> dataStream, Schema schema, ChangelogMode changelogMode);
 
@@ -600,7 +596,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      * @param table The {@link Table} to convert. It can be updating or insert-only.
      * @return The converted changelog stream of {@link Row}.
      */
-    @Experimental
     DataStream<Row> toChangelogStream(Table table);
 
     /**
@@ -693,7 +688,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     in {@link DataStream} records.
      * @return The converted changelog stream of {@link Row}.
      */
-    @Experimental
     DataStream<Row> toChangelogStream(Table table, Schema targetSchema);
 
     /**
@@ -724,7 +718,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     be thrown if the given updating table cannot be represented in this changelog mode.
      * @return The converted changelog stream of {@link Row}.
      */
-    @Experimental
     DataStream<Row> toChangelogStream(
             Table table, Schema targetSchema, ChangelogMode changelogMode);
 

@@ -80,6 +80,12 @@ public class PythonMapMergeRule extends RelOptRule {
             return false;
         }
 
+        // Only Python Functions with same Python function kind can be merged together.
+        if (PythonUtil.isPythonCall(topProjects.get(0), PythonFunctionKind.GENERAL)
+                ^ PythonUtil.isPythonCall(bottomProjects.get(0), PythonFunctionKind.GENERAL)) {
+            return false;
+        }
+
         RexProgram middleProgram = middleCalc.getProgram();
         if (middleProgram.getCondition() != null) {
             return false;
@@ -180,29 +186,14 @@ public class PythonMapMergeRule extends RelOptRule {
                                 Collections.singletonList("f0"),
                                 call.builder().getRexBuilder()));
 
-        RexProgram bottomProgram = bottomCalc.getProgram();
-        List<RexCall> bottomProjects =
-                bottomProgram.getProjectList().stream()
-                        .map(bottomProgram::expandLocalRef)
-                        .map(x -> (RexCall) x)
-                        .collect(Collectors.toList());
-        RexCall bottomPythonCall = bottomProjects.get(0);
-        // Only Python Functions with same Python function kind can be merged together.
-        if (PythonUtil.isPythonCall(topPythonCall, PythonFunctionKind.GENERAL)
-                ^ PythonUtil.isPythonCall(bottomPythonCall, PythonFunctionKind.GENERAL)) {
-            call.transformTo(topMiddleMergedCalc);
-        } else {
-            // merge bottomCalc
-            RexBuilder rexBuilder = call.builder().getRexBuilder();
-            RexProgram mergedProgram =
-                    RexProgramBuilder.mergePrograms(
-                            topMiddleMergedCalc.getProgram(), bottomCalc.getProgram(), rexBuilder);
-            Calc newCalc =
-                    topMiddleMergedCalc.copy(
-                            topMiddleMergedCalc.getTraitSet(),
-                            bottomCalc.getInput(),
-                            mergedProgram);
-            call.transformTo(newCalc);
-        }
+        // merge bottomCalc
+        RexBuilder rexBuilder = call.builder().getRexBuilder();
+        RexProgram mergedProgram =
+                RexProgramBuilder.mergePrograms(
+                        topMiddleMergedCalc.getProgram(), bottomCalc.getProgram(), rexBuilder);
+        Calc newCalc =
+                topMiddleMergedCalc.copy(
+                        topMiddleMergedCalc.getTraitSet(), bottomCalc.getInput(), mergedProgram);
+        call.transformTo(newCalc);
     }
 }

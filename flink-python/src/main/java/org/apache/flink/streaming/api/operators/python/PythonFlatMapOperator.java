@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 
@@ -37,19 +38,19 @@ public class PythonFlatMapOperator<IN, OUT>
         extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
     private static final long serialVersionUID = 1L;
 
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
-
     public PythonFlatMapOperator(
             Configuration config,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return FLAT_MAP_CODER_URN;
+        super(
+                config,
+                inputTypeInfo,
+                outputTypeInfo,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END,
+                pythonFunctionInfo);
     }
 
     @Override

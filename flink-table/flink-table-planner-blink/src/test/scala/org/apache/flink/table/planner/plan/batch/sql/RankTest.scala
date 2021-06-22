@@ -218,4 +218,55 @@ class RankTest extends TableTestBase {
         |""".stripMargin
     util.verifyExecPlan(sql)
   }
+
+  @Test
+  def testRedundantRankNumberColumnRemove(): Unit = {
+    util.addDataStream[(String, Long, Long, Long)](
+      "MyTable1", 'uri, 'reqcount, 'start_time, 'bucket_id)
+    val sql =
+      """
+        |SELECT
+        |  CONCAT('http://txmov2.a.yximgs.com', uri) AS url,
+        |  reqcount AS download_count,
+        |  start_time AS `timestamp`
+        |FROM
+        |  (
+        |    SELECT
+        |      uri,
+        |      reqcount,
+        |      rownum_2,
+        |      start_time
+        |    FROM
+        |      (
+        |        SELECT
+        |          uri,
+        |          reqcount,
+        |          start_time,
+        |          RANK() OVER (
+        |            PARTITION BY start_time
+        |            ORDER BY
+        |              reqcount DESC
+        |          ) AS rownum_2
+        |        FROM
+        |          (
+        |            SELECT
+        |            uri,
+        |            reqcount,
+        |            start_time,
+        |            RANK() OVER (
+        |                PARTITION BY start_time, bucket_id
+        |                ORDER BY
+        |                reqcount DESC
+        |            ) AS rownum_1
+        |            FROM MyTable1
+        |          )
+        |        WHERE
+        |          rownum_1 <= 100000
+        |      )
+        |    WHERE
+        |      rownum_2 <= 100000
+        |  )
+        |""".stripMargin
+    util.verifyExecPlan(sql)
+  }
 }

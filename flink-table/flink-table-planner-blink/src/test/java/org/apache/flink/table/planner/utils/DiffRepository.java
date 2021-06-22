@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
+import org.apache.calcite.util.XmlOutput;
 import org.junit.Assert;
 import org.junit.ComparisonFailure;
 import org.w3c.dom.CDATASection;

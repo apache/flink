@@ -44,13 +44,10 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
 
     private static final long serialVersionUID = 1L;
 
-    private static final String TABLE_FUNCTION_SCHEMA_CODER_URN =
-            "flink:coder:schema:table_function:v1";
-
     private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
     /** The Python {@link TableFunction} to be executed. */
-    protected final PythonFunctionInfo tableFunction;
+    private final PythonFunctionInfo tableFunction;
 
     /** The correlate join type. */
     protected final FlinkJoinType joinType;
@@ -62,7 +59,14 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
             RowType outputType,
             int[] udtfInputOffsets,
             FlinkJoinType joinType) {
-        super(config, inputType, outputType, udtfInputOffsets);
+        super(
+                config,
+                inputType,
+                outputType,
+                udtfInputOffsets,
+                toCoderParam(tableFunction),
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
         this.tableFunction = Preconditions.checkNotNull(tableFunction);
         Preconditions.checkArgument(
                 joinType == FlinkJoinType.INNER || joinType == FlinkJoinType.LEFT,
@@ -87,11 +91,6 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
     }
 
     @Override
-    public String getInputOutputCoderUrn() {
-        return TABLE_FUNCTION_SCHEMA_CODER_URN;
-    }
-
-    @Override
     public String getFunctionUrn() {
         return TABLE_FUNCTION_URN;
     }
@@ -103,6 +102,15 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
         builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
         return builder.build();
+    }
+
+    private static FlinkFnApi.CoderParam.DataType toCoderParam(
+            PythonFunctionInfo pythonFunctionInfo) {
+        if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
+            return FlinkFnApi.CoderParam.DataType.ROW;
+        } else {
+            return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
+        }
     }
 
     /** The received udtf execution result is a finish message when it is a byte with value 0x00. */

@@ -56,6 +56,17 @@ public final class UniqueConstraint extends AbstractConstraint {
         return columns;
     }
 
+    private String getTypeString() {
+        switch (getType()) {
+            case PRIMARY_KEY:
+                return "PRIMARY KEY";
+            case UNIQUE_KEY:
+                return "UNIQUE";
+            default:
+                throw new IllegalStateException("Unknown key type: " + getType());
+        }
+    }
+
     @Override
     public ConstraintType getType() {
         return type;
@@ -67,27 +78,15 @@ public final class UniqueConstraint extends AbstractConstraint {
      * <pre>
      * CONSTRAINT [constraint-name] [constraint-type] ([constraint-definition])
      *
-     * E.g CONSTRAINT pk PRIMARY KEY (f0, f1) NOT ENFORCED
+     * E.g CONSTRAINT pk PRIMARY KEY (`f0`, `f1`) NOT ENFORCED
      * </pre>
      */
     @Override
     public final String asSummaryString() {
-        final String typeString;
-        switch (getType()) {
-            case PRIMARY_KEY:
-                typeString = "PRIMARY KEY";
-                break;
-            case UNIQUE_KEY:
-                typeString = "UNIQUE";
-                break;
-            default:
-                throw new IllegalStateException("Unknown key type: " + getType());
-        }
-
         return String.format(
                 "CONSTRAINT %s %s (%s)%s",
                 EncodingUtils.escapeIdentifier(getName()),
-                typeString,
+                getTypeString(),
                 columns.stream()
                         .map(EncodingUtils::escapeIdentifier)
                         .collect(Collectors.joining(", ")),

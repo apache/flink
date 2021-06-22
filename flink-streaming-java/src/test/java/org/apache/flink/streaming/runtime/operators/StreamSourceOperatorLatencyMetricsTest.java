@@ -34,7 +34,6 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -190,11 +189,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
                                 operator.getOperatorConfig(),
                                 new MockEnvironmentBuilder().build()));
         try {
-            operator.run(
-                    new Object(),
-                    mock(StreamStatusMaintainer.class),
-                    new CollectorOutput<>(output),
-                    operatorChain);
+            operator.run(new Object(), new CollectorOutput<>(output), operatorChain);
             operator.close();
         } finally {
             operatorChain.releaseOutputs();

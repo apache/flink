@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -53,8 +54,6 @@ public class ExecutionEntry extends ConfigEntry {
             new ExecutionEntry(new DescriptorProperties(true));
 
     public static final String EXECUTION_PLANNER = "planner";
-
-    public static final String EXECUTION_PLANNER_VALUE_OLD = "old";
 
     public static final String EXECUTION_PLANNER_VALUE_BLINK = "blink";
 
@@ -117,9 +116,7 @@ public class ExecutionEntry extends ConfigEntry {
     @Override
     protected void validate(DescriptorProperties properties) {
         properties.validateEnumValues(
-                EXECUTION_PLANNER,
-                true,
-                Arrays.asList(EXECUTION_PLANNER_VALUE_OLD, EXECUTION_PLANNER_VALUE_BLINK));
+                EXECUTION_PLANNER, true, Collections.singletonList(EXECUTION_PLANNER_VALUE_BLINK));
         properties.validateEnumValues(
                 EXECUTION_TYPE,
                 true,
@@ -164,35 +161,6 @@ public class ExecutionEntry extends ConfigEntry {
                 .getOptionalString(EXECUTION_TYPE)
                 .map((v) -> v.equals(EXECUTION_TYPE_VALUE_BATCH))
                 .orElse(false);
-    }
-
-    public boolean isStreamingPlanner() {
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-
-        // Blink planner is a streaming planner
-        if (planner.equals(EXECUTION_PLANNER_VALUE_BLINK)) {
-            return true;
-        }
-        // Old planner can be a streaming or batch planner
-        else if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return inStreamingMode();
-        }
-
-        return false;
-    }
-
-    public boolean isBlinkPlanner() {
-        final String planner =
-                properties
-                        .getOptionalString(EXECUTION_PLANNER)
-                        .orElse(EXECUTION_PLANNER_VALUE_BLINK);
-        if (planner.equals(EXECUTION_PLANNER_VALUE_OLD)) {
-            return false;
-        }
-        return true;
     }
 
     public Optional<Integer> getParallelism() {

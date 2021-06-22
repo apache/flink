@@ -24,16 +24,39 @@ import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCalc;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexProgram;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
+import org.apache.calcite.rex.RexNode;
+
+import java.util.Collections;
+import java.util.List;
 
 /** Stream {@link ExecNode} for Python ScalarFunctions. */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecPythonCalc extends CommonExecPythonCalc implements StreamExecNode<RowData> {
 
     public StreamExecPythonCalc(
-            RexProgram calcProgram,
+            List<RexNode> projection,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(calcProgram, inputProperty, outputType, description);
+        this(
+                projection,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecPythonCalc(
+            @JsonProperty(FIELD_NAME_PROJECTION) List<RexNode> projection,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(projection, id, inputProperties, outputType, description);
     }
 }

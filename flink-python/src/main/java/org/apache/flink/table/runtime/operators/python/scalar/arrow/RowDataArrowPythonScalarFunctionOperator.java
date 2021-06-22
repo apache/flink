@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.python.scalar.arrow;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -35,8 +36,6 @@ public class RowDataArrowPythonScalarFunctionOperator
         extends AbstractRowDataPythonScalarFunctionOperator {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
 
     /** The current number of elements to be included in an arrow batch. */
     private transient int currentBatchCount;
@@ -53,7 +52,15 @@ public class RowDataArrowPythonScalarFunctionOperator
             RowType outputType,
             int[] udfInputOffsets,
             int[] forwardedFields) {
-        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+        super(
+                config,
+                scalarFunctions,
+                inputType,
+                outputType,
+                udfInputOffsets,
+                forwardedFields,
+                FlinkFnApi.CoderParam.DataType.ARROW,
+                FlinkFnApi.CoderParam.DataType.ARROW);
     }
 
     @Override
@@ -107,11 +114,6 @@ public class RowDataArrowPythonScalarFunctionOperator
             rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
         }
         arrowSerializer.resetReader();
-    }
-
-    @Override
-    public String getInputOutputCoderUrn() {
-        return SCHEMA_ARROW_CODER_URN;
     }
 
     @Override

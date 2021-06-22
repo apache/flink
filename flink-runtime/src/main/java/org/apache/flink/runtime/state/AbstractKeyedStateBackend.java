@@ -53,7 +53,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend {
+                TestableKeyedStateBackend<K> {
 
     /** The key serializer. */
     protected final TypeSerializer<K> keySerializer;
@@ -381,6 +381,10 @@ public abstract class AbstractKeyedStateBackend<K>
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
     public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
         return false;
+    }
+
+    public InternalKeyContext<K> getKeyContext() {
+        return keyContext;
     }
 
     public interface PartitionStateFactory {

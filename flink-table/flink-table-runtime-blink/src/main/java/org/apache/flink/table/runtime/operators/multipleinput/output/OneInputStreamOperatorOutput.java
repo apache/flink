@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.OutputTag;
 
@@ -43,6 +44,15 @@ public class OneInputStreamOperatorOutput extends OutputBase {
     public void emitWatermark(Watermark mark) {
         try {
             operator.processWatermark(mark);
+        } catch (Exception e) {
+            throw new ExceptionInMultipleInputOperatorException(e);
+        }
+    }
+
+    @Override
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        try {
+            operator.processStreamStatus(streamStatus);
         } catch (Exception e) {
             throw new ExceptionInMultipleInputOperatorException(e);
         }

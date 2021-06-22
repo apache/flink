@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
@@ -318,7 +319,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             parallelism);
         } else {
             writerStream =
-                    StreamingSink.writer(dataStream, bucketCheckInterval, builder, parallelism);
+                    StreamingSink.writer(
+                            dataStream,
+                            bucketCheckInterval,
+                            builder,
+                            parallelism,
+                            getPartitionKeys(),
+                            conf);
         }
 
         return StreamingSink.sink(
@@ -500,5 +507,10 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 throw new UncheckedIOException(e);
             }
         }
+    }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
     }
 }

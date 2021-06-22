@@ -86,7 +86,7 @@ Below is a complete example of how to use a Kafka source/sink and the JSON forma
 from pyflink.table import TableEnvironment, EnvironmentSettings
 
 def log_processing():
-    env_settings = EnvironmentSettings.new_instance().use_blink_planner().is_streaming_mode().build()
+    env_settings = EnvironmentSettings.in_streaming_mode()
     t_env = TableEnvironment.create(env_settings)
     # specify connector and format jars
     t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")

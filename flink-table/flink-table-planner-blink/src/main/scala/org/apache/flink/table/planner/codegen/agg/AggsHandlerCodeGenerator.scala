@@ -869,6 +869,7 @@ class AggsHandlerCodeGenerator(
 
     s"""
        |${ctx.reuseLocalVariableCode(methodName)}
+       |${ctx.reusePerRecordCode()}
        |${resultExpr.code}
        |return ${resultExpr.resultTerm};
     """.stripMargin
@@ -946,6 +947,7 @@ class AggsHandlerCodeGenerator(
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
          |${ctx.reuseInputUnboxingCode(ACCUMULATE_INPUT_TERM)}
+         |${ctx.reusePerRecordCode()}
          |$body
          |""".stripMargin
     } else {
@@ -970,6 +972,7 @@ class AggsHandlerCodeGenerator(
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
          |${ctx.reuseInputUnboxingCode(RETRACT_INPUT_TERM)}
+         |${ctx.reusePerRecordCode()}
          |$body
       """.stripMargin
     } else {
@@ -1005,6 +1008,7 @@ class AggsHandlerCodeGenerator(
       s"""
          |${ctx.reuseLocalVariableCode(methodName)}
          |${ctx.reuseInputUnboxingCode(MERGED_ACC_TERM)}
+         |${ctx.reusePerRecordCode()}
          |$body
       """.stripMargin
     } else {

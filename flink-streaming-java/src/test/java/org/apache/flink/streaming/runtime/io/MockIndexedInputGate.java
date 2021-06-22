@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -106,5 +107,10 @@ public class MockIndexedInputGate extends IndexedInputGate {
     @Override
     public int getGateIndex() {
         return gateIndex;
+    }
+
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        return Collections.emptyList();
     }
 }

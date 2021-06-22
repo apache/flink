@@ -155,26 +155,6 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -c org.apache.flink.python.tests.BlinkBatchPythonUdfSqlJob \
     "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
 
-echo "Test flink stream python udf sql job:\n"
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
-    -p 2 \
-    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
-    -pyreq "${REQUIREMENTS_PATH}" \
-    -pyarch "${TEST_DATA_DIR}/venv.zip" \
-    -pyexec "venv.zip/.conda/bin/python" \
-    -c org.apache.flink.python.tests.FlinkStreamPythonUdfSqlJob \
-    "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
-
-echo "Test flink batch python udf sql job:\n"
-PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
-    -p 2 \
-    -pyfs "${FLINK_PYTHON_TEST_DIR}/python/add_one.py" \
-    -pyreq "${REQUIREMENTS_PATH}" \
-    -pyarch "${TEST_DATA_DIR}/venv.zip" \
-    -pyexec "venv.zip/.conda/bin/python" \
-    -c org.apache.flink.python.tests.FlinkBatchPythonUdfSqlJob \
-    "${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
-
 echo "Test using python udf in sql client:\n"
 SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
 

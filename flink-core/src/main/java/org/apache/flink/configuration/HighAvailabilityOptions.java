@@ -115,14 +115,6 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "The root path under which Flink stores its entries in ZooKeeper.");
 
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_LATCH_PATH =
-            key("high-availability.zookeeper.path.latch")
-                    .defaultValue("/leaderlatch")
-                    .withDeprecatedKeys("recovery.zookeeper.path.latch")
-                    .withDescription(
-                            "Defines the znode of the leader latch which is used to elect the leader.");
-
     /** ZooKeeper root path (ZNode) for job graphs. */
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =
@@ -130,31 +122,6 @@ public class HighAvailabilityOptions {
                     .defaultValue("/jobgraphs")
                     .withDeprecatedKeys("recovery.zookeeper.path.jobgraphs")
                     .withDescription("ZooKeeper root path (ZNode) for job graphs");
-
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_LEADER_PATH =
-            key("high-availability.zookeeper.path.leader")
-                    .defaultValue("/leader")
-                    .withDeprecatedKeys("recovery.zookeeper.path.leader")
-                    .withDescription(
-                            "Defines the znode of the leader which contains the URL to the leader and the current"
-                                    + " leader session ID.");
-
-    /** ZooKeeper root path (ZNode) for completed checkpoints. */
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_CHECKPOINTS_PATH =
-            key("high-availability.zookeeper.path.checkpoints")
-                    .defaultValue("/checkpoints")
-                    .withDeprecatedKeys("recovery.zookeeper.path.checkpoints")
-                    .withDescription("ZooKeeper root path (ZNode) for completed checkpoints.");
-
-    /** ZooKeeper root path (ZNode) for checkpoint counters. */
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH =
-            key("high-availability.zookeeper.path.checkpoint-counter")
-                    .defaultValue("/checkpoint-counter")
-                    .withDeprecatedKeys("recovery.zookeeper.path.checkpoint-counter")
-                    .withDescription("ZooKeeper root path (ZNode) for checkpoint counters.");
 
     /** ZooKeeper root path (ZNode) for Mesos workers. */
     @PublicEvolving

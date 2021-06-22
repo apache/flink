@@ -397,6 +397,7 @@ object LookupJoinCodeGenerator {
           $input2TypeClass $collectedTerm = ($input2TypeClass) record;
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
+          ${ctx.reusePerRecordCode()}
           $bodyCode
         }
 

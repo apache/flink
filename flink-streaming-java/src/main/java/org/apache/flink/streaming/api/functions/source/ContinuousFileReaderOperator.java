@@ -308,7 +308,6 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
                         getOperatorConfig().getTimeCharacteristic(),
                         getProcessingTimeService(),
                         new Object(), // no actual locking needed
-                        getContainingTask().getStreamStatusMaintainer(),
                         output,
                         getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval(),
                         -1);

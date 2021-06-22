@@ -358,7 +358,7 @@ object FlinkStreamRuleSets {
     // transpose calc past rank to reduce rank input fields
     CalcRankTransposeRule.INSTANCE,
     // remove output of rank number when it is a constant
-    RankNumberColumnRemoveRule.INSTANCE,
+    ConstantRankNumberColumnRemoveRule.INSTANCE,
     // split distinct aggregate to reduce data skew
     SplitAggregateRule.INSTANCE,
     // transpose calc past snapshot
@@ -374,6 +374,8 @@ object FlinkStreamRuleSets {
     PythonCorrelateSplitRule.INSTANCE,
     // merge calc after calc transpose
     FlinkCalcMergeRule.INSTANCE,
+    // remove output of rank number when it is not used by successor calc
+    RedundantRankNumberColumnRemoveRule.INSTANCE,
     // remove the trivial calc that is produced by PushWatermarkIntoTableSourceScanAcrossCalcRule.
     // because [[PushWatermarkIntoTableSourceScanAcrossCalcRule]] will push the rowtime computed
     // column into the source. After FlinkCalcMergeRule applies, it may produces a trivial calc.

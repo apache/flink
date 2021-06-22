@@ -19,12 +19,14 @@
 package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.KubernetesTestUtils;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal;
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
+import org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
@@ -60,6 +62,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -88,6 +91,8 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
                             "FlinkApplication",
                             "testapp",
                             "e3c9aa3f-cc42-4178-814a-64aa15c82373"));
+
+    private static final int JOBMANAGER_REPLICAS = 2;
 
     private final FlinkPod flinkPod = new FlinkPod.Builder().build();
 
@@ -461,5 +466,20 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
                                                         HadoopConfMountDecorator
                                                                 .getHadoopConfConfigMapName(
                                                                         CLUSTER_ID))));
+    }
+
+    @Test
+    public void testSetJobManagerDeploymentReplicas() throws Exception {
+        flinkConfig.set(
+                HighAvailabilityOptions.HA_MODE,
+                KubernetesHaServicesFactory.class.getCanonicalName());
+        flinkConfig.set(
+                KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS, JOBMANAGER_REPLICAS);
+        kubernetesJobManagerSpecification =
+                KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
+                        flinkPod, kubernetesJobManagerParameters);
+        assertThat(
+                kubernetesJobManagerSpecification.getDeployment().getSpec().getReplicas(),
+                is(JOBMANAGER_REPLICAS));
     }
 }

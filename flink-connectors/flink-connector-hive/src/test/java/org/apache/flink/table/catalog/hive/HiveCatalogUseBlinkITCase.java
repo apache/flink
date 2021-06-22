@@ -148,18 +148,17 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
     private void testUdf(boolean batch) throws Exception {
         StreamExecutionEnvironment env = null;
         TableEnvironment tEnv;
-        EnvironmentSettings.Builder envBuilder =
-                EnvironmentSettings.newInstance().useBlinkPlanner();
+        EnvironmentSettings.Builder settingsBuilder = EnvironmentSettings.newInstance();
         if (batch) {
-            envBuilder.inBatchMode();
+            settingsBuilder.inBatchMode();
         } else {
-            envBuilder.inStreamingMode();
+            settingsBuilder.inStreamingMode();
         }
         if (batch) {
-            tEnv = TableEnvironment.create(envBuilder.build());
+            tEnv = TableEnvironment.create(settingsBuilder.build());
         } else {
             env = StreamExecutionEnvironment.getExecutionEnvironment();
-            tEnv = StreamTableEnvironment.create(env, envBuilder.build());
+            tEnv = StreamTableEnvironment.create(env, settingsBuilder.build());
         }
 
         BatchTestBase.configForMiniCluster(tEnv.getConfig());

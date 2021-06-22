@@ -118,8 +118,7 @@ tableResult.print()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = StreamTableEnvironment.create(env, settings)
+table_env = StreamTableEnvironment.create(...)
 
 t_env.execute_sql("CREATE TABLE MyTable1 (`count` bigint, word VARCHAR(256) WITH (...)")
 t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256) WITH (...)")
@@ -158,8 +157,6 @@ Flink SQL> EXPLAIN PLAN FOR SELECT `count`, word FROM MyTable1 WHERE word LIKE '
 {{< /tabs >}}
 
 The `EXPLAIN` result is:
-{{< tabs "6ee087b2-3a49-4d75-a803-f436a2166c92" >}}
-{{< tab "Blink Planner" >}}
 ```text
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
@@ -179,42 +176,6 @@ Union(all=[true], union all=[count, word])
     TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
   TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
 ```
-{{< /tab >}}
-{{< tab "Legacy Planner" >}}
-```text
-== Abstract Syntax Tree ==
-LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-    FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
-  FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
-
-== Optimized Logical Plan ==
-DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
-    TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[count, word])
-  TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[count, word])
-
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-Stage 2 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 3 : Operator
-		content : from: (count, word)
-		ship_strategy : REBALANCE
-
-		Stage 4 : Operator
-			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
-			ship_strategy : FORWARD
-
-			Stage 5 : Operator
-				content : from: (count, word)
-				ship_strategy : REBALANCE
-```
-{{< /tab >}}
-{{< /tabs >}}
 
 {{< top >}}
 

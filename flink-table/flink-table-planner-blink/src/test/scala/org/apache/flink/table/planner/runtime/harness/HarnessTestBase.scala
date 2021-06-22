@@ -28,9 +28,9 @@ import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.scala.DataStream
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
+import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
@@ -86,6 +86,19 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       .asInstanceOf[KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]]
   }
 
+  def createHarnessTesterForNoState(
+      ds: DataStream[_],
+      prefixOperatorName: String)
+  : OneInputStreamOperatorTestHarness[RowData, RowData] = {
+    val transformation = extractExpectedTransformation(
+      ds.javaStream.getTransformation,
+      prefixOperatorName)
+    val processOperator = transformation.getOperator
+        .asInstanceOf[OneInputStreamOperator[Any, Any]]
+    new OneInputStreamOperatorTestHarness(processOperator)
+        .asInstanceOf[OneInputStreamOperatorTestHarness[RowData, RowData]]
+  }
+
   private def extractExpectedTransformation(
       t: Transformation[_],
       prefixOperatorName: String): OneInputTransformation[_, _] = {
@@ -96,6 +109,8 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
         } else {
           extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
+      case p: PartitionTransformation[_] =>
+        extractExpectedTransformation(p.getInputs.get(0), prefixOperatorName)
       case _ => throw new Exception(
         s"Can not find the expected $prefixOperatorName transformation")
     }

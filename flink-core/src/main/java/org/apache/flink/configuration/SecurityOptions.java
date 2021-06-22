@@ -108,6 +108,20 @@ public class SecurityOptions {
                                     + " (for example, `Client,KafkaClient` to use the credentials for ZooKeeper authentication and for"
                                     + " Kafka authentication)");
 
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Boolean> KERBEROS_FETCH_DELEGATION_TOKEN =
+            key("security.kerberos.fetch.delegation-token")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Indicates whether to fetch the delegation tokens for external services the Flink job needs to contact. "
+                                    + "Only HDFS and HBase are supported. It is used in Yarn deployments. "
+                                    + "If true, Flink will fetch HDFS and HBase delegation tokens and inject them into Yarn AM containers. "
+                                    + "If false, Flink will assume that the delegation tokens are managed outside of Flink. "
+                                    + "As a consequence, it will not fetch delegation tokens for HDFS and HBase. "
+                                    + "You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, "
+                                    + "to handle delegation tokens.");
+
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options
     // ------------------------------------------------------------------------

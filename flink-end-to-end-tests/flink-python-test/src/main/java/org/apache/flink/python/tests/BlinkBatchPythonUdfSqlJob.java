@@ -31,9 +31,7 @@ import java.util.List;
 public class BlinkBatchPythonUdfSqlJob {
 
     public static void main(String[] args) {
-        TableEnvironment tEnv =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
         tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
         tEnv.executeSql(
                 "create temporary system function add_one as 'add_one.add_one' language python");

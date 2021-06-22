@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
@@ -57,8 +58,6 @@ public class PythonTimestampsAndWatermarksOperator<IN>
 
     public static final String STREAM_TIMESTAMP_AND_WATERMARK_OPERATOR_NAME =
             "_timestamp_and_watermark_operator";
-
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
 
     /** A user specified watermarkStrategy. */
     private final WatermarkStrategy<IN> watermarkStrategy;
@@ -92,7 +91,14 @@ public class PythonTimestampsAndWatermarksOperator<IN>
             TypeInformation<IN> inputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             WatermarkStrategy<IN> watermarkStrategy) {
-        super(config, Types.ROW(Types.LONG, inputTypeInfo), Types.LONG, pythonFunctionInfo);
+        super(
+                config,
+                Types.ROW(Types.LONG, inputTypeInfo),
+                Types.LONG,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE,
+                pythonFunctionInfo);
         this.watermarkStrategy = watermarkStrategy;
         this.inputTypeInfo = inputTypeInfo;
     }
@@ -110,9 +116,7 @@ public class PythonTimestampsAndWatermarksOperator<IN>
                 emitProgressiveWatermarks
                         ? watermarkStrategy.createWatermarkGenerator(this::getMetricGroup)
                         : new NoWatermarksGenerator<>();
-        watermarkOutput =
-                new TimestampsAndWatermarksOperator.WatermarkEmitter(
-                        output, getContainingTask().getStreamStatusMaintainer());
+        watermarkOutput = new TimestampsAndWatermarksOperator.WatermarkEmitter(output);
 
         watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
         if (watermarkInterval > 0 && emitProgressiveWatermarks) {
@@ -154,11 +158,6 @@ public class PythonTimestampsAndWatermarksOperator<IN>
         reusableStreamRecord.replace(bufferedInput, newTimestamp);
         output.collect(reusableStreamRecord);
         watermarkGenerator.onEvent(bufferedInput, newTimestamp, watermarkOutput);
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
     }
 
     public void configureEmitProgressiveWatermarks(boolean emitProgressiveWatermarks) {

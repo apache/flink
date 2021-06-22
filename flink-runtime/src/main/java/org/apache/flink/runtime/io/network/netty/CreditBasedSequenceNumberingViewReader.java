@@ -80,7 +80,7 @@ class CreditBasedSequenceNumberingViewReader
 
         synchronized (requestLock) {
             if (subpartitionView == null) {
-                // This this call can trigger a notification we have to
+                // This call can trigger a notification we have to
                 // schedule a separate task at the event loop that will
                 // start consuming this. Otherwise the reference to the
                 // view cannot be available in getNextBuffer().

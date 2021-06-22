@@ -57,9 +57,6 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 
     private static final String SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1";
 
-    private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN =
-            "flink:coder:schema:scalar_function:v1";
-
     /** The Python {@link ScalarFunction}s to be executed. */
     protected final PythonFunctionInfo[] scalarFunctions;
 
@@ -72,8 +69,17 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
             RowType inputType,
             RowType outputType,
             int[] udfInputOffsets,
-            int[] forwardedFields) {
-        super(config, inputType, outputType, udfInputOffsets);
+            int[] forwardedFields,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType) {
+        super(
+                config,
+                inputType,
+                outputType,
+                udfInputOffsets,
+                inputDataType,
+                outputDataType,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
         this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
     }
@@ -109,10 +115,5 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
     @Override
     public String getFunctionUrn() {
         return SCALAR_FUNCTION_URN;
-    }
-
-    @Override
-    public String getInputOutputCoderUrn() {
-        return SCALAR_FUNCTION_SCHEMA_CODER_URN;
     }
 }

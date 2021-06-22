@@ -56,24 +56,19 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
     @Test
     public void testUserKeyedStateReader() throws Exception {
-        String savepointPath =
-                takeSavepoint(
-                        elements,
-                        source -> {
-                            StreamExecutionEnvironment env =
-                                    StreamExecutionEnvironment.getExecutionEnvironment();
-                            env.setStateBackend(getStateBackend());
-                            env.setParallelism(4);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setStateBackend(getStateBackend());
+        env.setParallelism(4);
 
-                            env.addSource(source)
-                                    .rebalance()
-                                    .keyBy(id -> id.key)
-                                    .process(new KeyedStatefulOperator())
-                                    .uid(uid)
-                                    .addSink(new DiscardingSink<>());
+        env.addSource(createSource(elements))
+                .returns(Pojo.class)
+                .rebalance()
+                .keyBy(id -> id.key)
+                .process(new KeyedStatefulOperator())
+                .uid(uid)
+                .addSink(new DiscardingSink<>());
 
-                            return env;
-                        });
+        String savepointPath = takeSavepoint(env);
 
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
         ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
@@ -87,7 +82,6 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
     }
 
     private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
-
         private transient ValueState<Integer> state;
 
         @Override

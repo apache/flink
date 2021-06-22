@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
-import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.GenericRowRecordSortComparator;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.RowDataRecordEqualiser;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -53,8 +54,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 /** Base Tests for all subclass of {@link AbstractTopNFunction}. */
 abstract class TopNFunctionTestBase {
 
-    Time minTime = Time.milliseconds(10);
-    Time maxTime = Time.milliseconds(20);
+    StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(10_000_000);
     long cacheSize = 10000L;
 
     InternalTypeInfo<RowData> inputRowType =

@@ -77,8 +77,7 @@ Flink SQL 目前支持以下 DROP 语句：
 {{< tabs "9f224244-9f9f-4af3-85b9-61225ec3fc0b" >}}
 {{< tab "Java" >}}
 ```java
-EnvironmentSettings settings = EnvironmentSettings.newInstance()...
-TableEnvironment tableEnv = TableEnvironment.create(settings);
+TableEnvironment tableEnv = TableEnvironment.create(...);
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
@@ -97,8 +96,7 @@ String[] tables = tableEnv.listTables();
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val settings = EnvironmentSettings.newInstance()...
-val tableEnv = TableEnvironment.create(settings)
+val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
 tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
@@ -117,8 +115,7 @@ val tables = tableEnv.listTables()
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-settings = EnvironmentSettings.new_instance()...
-table_env = TableEnvironment.create(settings)
+table_env = TableEnvironment.create(...)
 
 # 字符串数组： ["Orders"]
 tables = table_env.listTables()

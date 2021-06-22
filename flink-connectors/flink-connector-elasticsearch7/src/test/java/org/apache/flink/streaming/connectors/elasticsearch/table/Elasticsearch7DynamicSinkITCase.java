@@ -154,11 +154,7 @@ public class Elasticsearch7DynamicSinkITCase {
     @Test
     public void testWritingDocumentsFromTableApi() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "table-api";
         tableEnvironment.executeSql(
@@ -216,11 +212,7 @@ public class Elasticsearch7DynamicSinkITCase {
     @Test
     public void testWritingDocumentsNoPrimaryKey() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "no-primary-key";
         tableEnvironment.executeSql(
@@ -312,11 +304,7 @@ public class Elasticsearch7DynamicSinkITCase {
     @Test
     public void testWritingDocumentsWithDynamicIndex() throws Exception {
         TableEnvironment tableEnvironment =
-                TableEnvironment.create(
-                        EnvironmentSettings.newInstance()
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         String index = "dynamic-index-{b|yyyy-MM-dd}";
         tableEnvironment.executeSql(

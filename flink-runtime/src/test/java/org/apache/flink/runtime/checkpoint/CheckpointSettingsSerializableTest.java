@@ -43,6 +43,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -86,8 +87,10 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+                        TernaryBoolean.UNDEFINED,
                         new SerializedValue<CheckpointStorage>(
                                 new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);

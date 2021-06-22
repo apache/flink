@@ -95,7 +95,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
         LeaderRetrievalDriver leaderRetrievalDriver = null;
         try {
             leaderRetrievalDriver =
-                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient, config)
+                    ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient)
                             .createLeaderRetrievalDriver(
                                     queueLeaderElectionListener, fatalErrorHandler);
 
@@ -126,12 +126,12 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
     @Test
     public void testConnectionSuspendedHandling() throws Exception {
-        final String retrievalPath = "/testConnectionSuspendedHandling/leaderAddress";
+        final String retrievalPath = "/testConnectionSuspendedHandling";
         final String leaderAddress = "localhost";
 
         final QueueLeaderElectionListener queueLeaderElectionListener =
                 new QueueLeaderElectionListener(1);
-        LeaderRetrievalDriver leaderRetrievalDriver = null;
+        ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver = null;
         try {
             leaderRetrievalDriver =
                     new ZooKeeperLeaderRetrievalDriver(
@@ -140,7 +140,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                             queueLeaderElectionListener,
                             fatalErrorHandler);
 
-            writeLeaderInformationToZooKeeper(retrievalPath, leaderAddress, UUID.randomUUID());
+            writeLeaderInformationToZooKeeper(
+                    leaderRetrievalDriver.getConnectionInformationPath(),
+                    leaderAddress,
+                    UUID.randomUUID());
 
             // do the testing
             CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
@@ -166,11 +169,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
     @Test
     public void testSameLeaderAfterReconnectTriggersListenerNotification() throws Exception {
-        final String retrievalPath =
-                "/testSameLeaderAfterReconnectTriggersListenerNotification/leaderAddress";
+        final String retrievalPath = "/testSameLeaderAfterReconnectTriggersListenerNotification";
         final QueueLeaderElectionListener queueLeaderElectionListener =
                 new QueueLeaderElectionListener(1);
-        LeaderRetrievalDriver leaderRetrievalDriver = null;
+        ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver = null;
         try {
             leaderRetrievalDriver =
                     new ZooKeeperLeaderRetrievalDriver(
@@ -181,7 +183,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
-            writeLeaderInformationToZooKeeper(retrievalPath, leaderAddress, sessionId);
+            writeLeaderInformationToZooKeeper(
+                    leaderRetrievalDriver.getConnectionInformationPath(), leaderAddress, sessionId);
 
             // pop new leader
             queueLeaderElectionListener.next();
@@ -233,12 +236,11 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
     @Test
     public void testNewLeaderAfterReconnectTriggersListenerNotification() throws Exception {
-        final String retrievalPath =
-                "/testNewLeaderAfterReconnectTriggersListenerNotification/leaderAddress";
+        final String retrievalPath = "/testNewLeaderAfterReconnectTriggersListenerNotification";
         final QueueLeaderElectionListener queueLeaderElectionListener =
                 new QueueLeaderElectionListener(1);
 
-        LeaderRetrievalDriver leaderRetrievalDriver = null;
+        ZooKeeperLeaderRetrievalDriver leaderRetrievalDriver = null;
         try {
             leaderRetrievalDriver =
                     new ZooKeeperLeaderRetrievalDriver(
@@ -249,7 +251,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
-            writeLeaderInformationToZooKeeper(retrievalPath, leaderAddress, sessionId);
+            writeLeaderInformationToZooKeeper(
+                    leaderRetrievalDriver.getConnectionInformationPath(), leaderAddress, sessionId);
 
             // pop new leader
             queueLeaderElectionListener.next();
@@ -266,7 +269,10 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
 
             final String newLeaderAddress = "barfoo";
             final UUID newSessionId = UUID.randomUUID();
-            writeLeaderInformationToZooKeeper(retrievalPath, newLeaderAddress, newSessionId);
+            writeLeaderInformationToZooKeeper(
+                    leaderRetrievalDriver.getConnectionInformationPath(),
+                    newLeaderAddress,
+                    newSessionId);
 
             // check that we find the new leader information eventually
             CommonTestUtils.waitUntilCondition(
