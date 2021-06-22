@@ -199,7 +199,7 @@ Flink 没有使用 CASCADE / RESTRICT 关键字来维护视图的依赖关系，
 
 ## DROP FUNCTION
 
-{% highlight sql%}
+```sql
 DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]function_name;
 ```
 

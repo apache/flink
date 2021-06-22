@@ -180,7 +180,7 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 
 ## ALTER FUNCTION
 
-{% highlight sql%}
+```sql
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF EXISTS] [catalog_name.][db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
