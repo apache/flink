@@ -65,9 +65,8 @@ def pickled_bytes_to_python_converter(data, field_type):
             return field_type.from_internal_type(int(data.timestamp() * 10 ** 6))
         elif field_type == Types.FLOAT():
             return field_type.from_internal_type(ast.literal_eval(data))
-        elif isinstance(field_type, BasicArrayTypeInfo) or \
-                isinstance(field_type, PrimitiveArrayTypeInfo) or \
-                isinstance(field_type, ObjectArrayTypeInfo):
+        elif isinstance(field_type,
+                        (BasicArrayTypeInfo, PrimitiveArrayTypeInfo, ObjectArrayTypeInfo)):
             element_type = field_type._element_type
             elements = []
             for element_bytes in data:
