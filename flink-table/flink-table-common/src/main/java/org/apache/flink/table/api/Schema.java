@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -80,8 +81,8 @@ public final class Schema {
             List<UnresolvedColumn> columns,
             List<UnresolvedWatermarkSpec> watermarkSpecs,
             @Nullable UnresolvedPrimaryKey primaryKey) {
-        this.columns = columns;
-        this.watermarkSpecs = watermarkSpecs;
+        this.columns = Collections.unmodifiableList(columns);
+        this.watermarkSpecs = Collections.unmodifiableList(watermarkSpecs);
         this.primaryKey = primaryKey;
     }
 
