@@ -203,7 +203,7 @@ Will render a warning the current SQL feature may have unbounded state requireme
     {< /tab >}}
     {{< /tabs }}
     
-Prints the content in tabs. IMPORTANT: The label in the outermostq: "tabs" shortcode must
+Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must
 be unique for the page. 
 
 #### Github Repo
