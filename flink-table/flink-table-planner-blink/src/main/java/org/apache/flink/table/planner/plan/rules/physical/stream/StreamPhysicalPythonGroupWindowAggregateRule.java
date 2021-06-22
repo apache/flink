@@ -77,7 +77,11 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
                 aggCalls.stream()
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.PANDAS));
         boolean existJavaFunction =
-                aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
+                aggCalls.stream()
+                        .anyMatch(
+                                x ->
+                                        !PythonUtil.isPythonAggregate(x, null)
+                                                && !PythonUtil.isBuiltInAggregate(x));
         if (existPandasFunction && existGeneralPythonFunction) {
             throw new TableException(
                     "Pandas UDAFs and General Python UDAFs are not supported in used together currently.");
