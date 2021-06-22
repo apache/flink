@@ -17,12 +17,11 @@
 
 package org.apache.flink.runtime.concurrent.akka;
 
-import org.apache.flink.runtime.concurrent.Executors;
-
 import akka.dispatch.OnComplete;
 
 import java.util.concurrent.CompletableFuture;
 
+import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 /** Utilities to convert Scala types into Java types. */
@@ -49,8 +48,31 @@ public class AkkaFutureUtils {
                         }
                     }
                 },
-                Executors.directExecutionContext());
+                DirectExecutionContext.INSTANCE);
 
         return result;
+    }
+
+    /** Direct execution context. */
+    private static class DirectExecutionContext implements ExecutionContext {
+
+        static final DirectExecutionContext INSTANCE = new DirectExecutionContext();
+
+        private DirectExecutionContext() {}
+
+        @Override
+        public void execute(Runnable runnable) {
+            runnable.run();
+        }
+
+        @Override
+        public void reportFailure(Throwable cause) {
+            throw new IllegalStateException("Error in direct execution context.", cause);
+        }
+
+        @Override
+        public ExecutionContext prepare() {
+            return this;
+        }
     }
 }
