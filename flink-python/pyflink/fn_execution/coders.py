@@ -36,7 +36,7 @@ __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'Boolea
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
            'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
            'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder', 'BigDecimalCoder',
-           'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
+           'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder', 'ObjectArrayCoder']
 
 
 # LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
@@ -303,7 +303,7 @@ class CollectionCoder(FieldCoder):
 
 class BasicArrayCoder(CollectionCoder):
     """
-    Coder for Array.
+    Coder for basic array.
     """
 
     def __init__(self, elem_coder):
@@ -311,6 +311,18 @@ class BasicArrayCoder(CollectionCoder):
 
     def get_impl(self):
         return coder_impl.BasicArrayCoderImpl(self._elem_coder.get_impl())
+
+
+class ObjectArrayCoder(CollectionCoder):
+    """
+    Coder for object array.
+    """
+
+    def __init__(self, elem_coder):
+        super(ObjectArrayCoder, self).__init__(elem_coder)
+
+    def get_impl(self):
+        return coder_impl.ObjectArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class PrimitiveArrayCoder(CollectionCoder):
@@ -625,6 +637,8 @@ def from_type_info_proto(type_info):
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.BASIC_ARRAY:
             return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
+        elif field_type_name == type_info_name.OBJECT_ARRAY:
+            return ObjectArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(field_type)
                                for field_type in type_info.tuple_type_info.field_types])

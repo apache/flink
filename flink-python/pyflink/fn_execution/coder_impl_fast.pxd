@@ -135,6 +135,9 @@ cdef class PickledBytesCoderImpl(FieldCoderImpl):
 cdef class BasicArrayCoderImpl(FieldCoderImpl):
     cdef FieldCoderImpl _elem_coder
 
+cdef class ObjectArrayCoderImpl(FieldCoderImpl):
+    cdef FieldCoderImpl _elem_coder
+
 cdef class PrimitiveArrayCoderImpl(FieldCoderImpl):
     cdef FieldCoderImpl _elem_coder
 

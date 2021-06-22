@@ -659,6 +659,33 @@ class BasicArrayCoderImpl(FieldCoderImpl):
         return 'BasicArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
+class ObjectArrayCoderImpl(FieldCoderImpl):
+    """
+    A coder for object array value (the element of array could be any kind of Python object).
+    """
+
+    def __init__(self, elem_coder: FieldCoderImpl):
+        self._elem_coder = elem_coder
+
+    def encode_to_stream(self, value, out_stream):
+        out_stream.write_int32(len(value))
+        for elem in value:
+            if elem is None:
+                out_stream.write_byte(False)
+            else:
+                out_stream.write_byte(True)
+                self._elem_coder.encode_to_stream(elem, out_stream)
+
+    def decode_from_stream(self, in_stream, length=0):
+        size = in_stream.read_int32()
+        elements = [self._elem_coder.decode_from_stream(in_stream)
+                    if in_stream.read_byte() else None for _ in range(size)]
+        return elements
+
+    def __repr__(self):
+        return 'ObjectArrayCoderImpl[%s]' % repr(self._elem_coder)
+
+
 class PrimitiveArrayCoderImpl(FieldCoderImpl):
     """
     A coder for primitive array value (the element of array won't be null).
