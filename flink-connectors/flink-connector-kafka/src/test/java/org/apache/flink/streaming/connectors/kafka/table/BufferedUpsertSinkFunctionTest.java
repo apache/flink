@@ -148,15 +148,15 @@ public class BufferedUpsertSinkFunctionTest {
 
     @Test
     public void testWriteData() throws Exception {
-        MockedSinkFunction sinkFunction = new MockedSinkFunction(enableObjectReuse);
+        MockedSinkFunction sinkFunction = new MockedSinkFunction();
         BufferedUpsertSinkFunction bufferedSink = createBufferedSink(sinkFunction);
 
         // write 3 records which doesn't trigger batch size
-        writeData(bufferedSink, new ReusableIterator(0, 3, enableObjectReuse));
+        writeData(bufferedSink, new ReusableIterator(0, 3));
         assertTrue(sinkFunction.rowDataCollectors.isEmpty());
 
         // write one more record, and should flush the buffer
-        writeData(bufferedSink, new ReusableIterator(3, 1, enableObjectReuse));
+        writeData(bufferedSink, new ReusableIterator(3, 1));
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -197,16 +197,16 @@ public class BufferedUpsertSinkFunctionTest {
 
         sinkFunction.rowDataCollectors.clear();
         // write remaining data, and they are still buffered
-        writeData(bufferedSink, new ReusableIterator(4, 3, enableObjectReuse));
+        writeData(bufferedSink, new ReusableIterator(4, 3));
         assertTrue(sinkFunction.rowDataCollectors.isEmpty());
     }
 
     @Test
     public void testFlushDataWhenCheckpointing() throws Exception {
-        MockedSinkFunction sinkFunction = new MockedSinkFunction(enableObjectReuse);
+        MockedSinkFunction sinkFunction = new MockedSinkFunction();
         BufferedUpsertSinkFunction bufferedFunction = createBufferedSink(sinkFunction);
         // write all data, there should be 3 records are still buffered
-        writeData(bufferedFunction, new ReusableIterator(0, TEST_DATA.length, enableObjectReuse));
+        writeData(bufferedFunction, new ReusableIterator(0, TEST_DATA.length));
         // snapshot should flush the buffer
         bufferedFunction.snapshotState(null);
 
@@ -273,7 +273,6 @@ public class BufferedUpsertSinkFunctionTest {
                         new int[] {keyIndices},
                         typeInformation,
                         BUFFER_FLUSH_MODE);
-        bufferedSinkFunction.getRuntimeContext().getExecutionConfig().enableObjectReuse();
         bufferedSinkFunction.open(new Configuration());
         return bufferedSinkFunction;
     }
@@ -304,14 +303,14 @@ public class BufferedUpsertSinkFunctionTest {
 
     // --------------------------------------------------------------------------------------------
 
-    private static class MockedSinkFunction extends RichSinkFunction<RowData>
+    private class MockedSinkFunction extends RichSinkFunction<RowData>
             implements CheckpointedFunction, CheckpointListener {
 
         private static final long serialVersionUID = 1L;
         private final RuntimeContext context = new MockStreamingRuntimeContext(true, 1, 1);
         transient List<RowData> rowDataCollectors;
 
-        MockedSinkFunction(boolean enableObjectReuse) {
+        MockedSinkFunction() {
             if (enableObjectReuse) {
                 context.getExecutionConfig().enableObjectReuse();
             }
@@ -352,20 +351,18 @@ public class BufferedUpsertSinkFunctionTest {
         }
     }
 
-    private static class ReusableIterator implements Iterator<RowData> {
+    private class ReusableIterator implements Iterator<RowData> {
 
-        private static final RowDataSerializer SERIALIZER =
+        private final RowDataSerializer serializer =
                 InternalTypeInfo.of(SCHEMA.toSinkRowDataType().getLogicalType()).toRowSerializer();
-        private static final RowData REUSED_ROW = new GenericRowData(SCHEMA.getColumnCount());
+        private final RowData reusedRow = new GenericRowData(SCHEMA.getColumnCount());
 
         private int begin;
         private final int end;
-        private final boolean enableObjectReuse;
 
-        ReusableIterator(int begin, int size, boolean enableObjectReuse) {
+        ReusableIterator(int begin, int size) {
             this.begin = begin;
             this.end = begin + size;
-            this.enableObjectReuse = enableObjectReuse;
         }
 
         @Override
@@ -376,7 +373,7 @@ public class BufferedUpsertSinkFunctionTest {
         @Override
         public RowData next() {
             if (enableObjectReuse) {
-                return SERIALIZER.copy(TEST_DATA[begin++], REUSED_ROW);
+                return serializer.copy(TEST_DATA[begin++], reusedRow);
             } else {
                 return TEST_DATA[begin++];
             }
