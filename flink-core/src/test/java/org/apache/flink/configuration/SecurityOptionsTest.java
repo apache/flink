@@ -71,8 +71,8 @@ public class SecurityOptionsTest extends TestLogger {
         assertFalse(SecurityOptions.isRestSSLAuthenticationEnabled(defaultOptions));
 
         Configuration options = new Configuration();
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
-        noSSLOptions.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
-        assertTrue(SecurityOptions.isRestSSLAuthenticationEnabled(noSSLOptions));
+        options.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
+        options.setBoolean(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
+        assertTrue(SecurityOptions.isRestSSLAuthenticationEnabled(options));
     }
 }
