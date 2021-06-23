@@ -94,7 +94,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -279,7 +279,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             FatalErrorHandler fatalErrorHandler,
             TaskExecutorPartitionTracker partitionTracker) {
 
-        super(rpcService, AkkaRpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
+        super(rpcService, RpcServiceUtils.createRandomName(TASK_MANAGER_NAME));
 
         checkArgument(
                 taskManagerConfiguration.getNumberSlots() > 0,

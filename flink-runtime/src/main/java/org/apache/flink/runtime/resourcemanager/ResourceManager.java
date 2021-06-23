@@ -62,7 +62,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.FileType;
@@ -168,7 +168,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         super(
                 rpcService,
-                AkkaRpcServiceUtils.createRandomName(RESOURCE_MANAGER_NAME),
+                RpcServiceUtils.createRandomName(RESOURCE_MANAGER_NAME),
                 ResourceManagerId.fromUuid(leaderSessionId));
 
         this.resourceId = checkNotNull(resourceId);

@@ -39,7 +39,6 @@ import javax.annotation.Nullable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 
 import static org.apache.flink.util.NetUtils.isValidClientPort;
@@ -64,8 +63,6 @@ public class AkkaRpcServiceUtils {
 
     private static final String MAXIMUM_FRAME_SIZE_PATH =
             "akka.remote.netty.tcp.maximum-frame-size";
-
-    private static final AtomicLong nextNameOffset = new AtomicLong(0L);
 
     // ------------------------------------------------------------------------
     //  RPC instantiation
@@ -223,35 +220,6 @@ public class AkkaRpcServiceUtils {
     public enum AkkaProtocol {
         TCP,
         SSL_TCP
-    }
-
-    /**
-     * Creates a random name of the form prefix_X, where X is an increasing number.
-     *
-     * @param prefix Prefix string to prepend to the monotonically increasing name offset number
-     * @return A random name of the form prefix_X where X is an increasing number
-     */
-    public static String createRandomName(String prefix) {
-        Preconditions.checkNotNull(prefix, "Prefix must not be null.");
-
-        long nameOffset;
-
-        // obtain the next name offset by incrementing it atomically
-        do {
-            nameOffset = nextNameOffset.get();
-        } while (!nextNameOffset.compareAndSet(nameOffset, nameOffset + 1L));
-
-        return prefix + '_' + nameOffset;
-    }
-
-    /**
-     * Creates a wildcard name symmetric to {@link #createRandomName(String)}.
-     *
-     * @param prefix prefix of the wildcard name
-     * @return wildcard name starting with the prefix
-     */
-    public static String createWildcardName(String prefix) {
-        return prefix + "_*";
     }
 
     // ------------------------------------------------------------------------
