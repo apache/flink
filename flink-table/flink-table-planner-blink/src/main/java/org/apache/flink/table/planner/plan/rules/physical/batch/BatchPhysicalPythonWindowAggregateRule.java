@@ -83,13 +83,13 @@ public class BatchPhysicalPythonWindowAggregateRule extends RelOptRule {
         boolean existJavaFunction =
                 aggCalls.stream().anyMatch(x -> !PythonUtil.isPythonAggregate(x, null));
         if (existPandasFunction || existGeneralPythonFunction) {
+            if (existGeneralPythonFunction) {
+                throw new TableException(
+                        "non-Pandas UDAFs are not supported in batch mode currently.");
+            }
             if (existJavaFunction) {
                 throw new TableException(
                         "Python UDAF and Java/Scala UDAF cannot be used together.");
-            }
-            if (existPandasFunction && existGeneralPythonFunction) {
-                throw new TableException(
-                        "Pandas UDAF and non-Pandas UDAF cannot be used together.");
             }
             return true;
         } else {
