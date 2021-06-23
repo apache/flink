@@ -61,10 +61,7 @@ public class RestClientTest extends TestLogger {
     public void testConnectionTimeout() throws Exception {
         final Configuration config = new Configuration();
         config.setLong(RestOptions.CONNECTION_TIMEOUT, 1);
-        try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(config),
-                        Executors.directExecutor())) {
+        try (final RestClient restClient = new RestClient(config, Executors.directExecutor())) {
             restClient
                     .sendRequest(
                             unroutableIp,
@@ -83,9 +80,7 @@ public class RestClientTest extends TestLogger {
     @Test
     public void testInvalidVersionRejection() throws Exception {
         try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        Executors.directExecutor())) {
+                new RestClient(new Configuration(), Executors.directExecutor())) {
             CompletableFuture<EmptyResponseBody> invalidVersionResponse =
                     restClient.sendRequest(
                             unroutableIp,
@@ -108,9 +103,7 @@ public class RestClientTest extends TestLogger {
         config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
-                        new RestClient(
-                                RestClientConfiguration.fromConfiguration(config),
-                                TestingUtils.defaultExecutor())) {
+                        new RestClient(config, TestingUtils.defaultExecutor())) {
 
             final String targetAddress = "localhost";
             final int targetPort = serverSocket.getLocalPort();
@@ -162,9 +155,7 @@ public class RestClientTest extends TestLogger {
 
         try (final ServerSocket serverSocket = new ServerSocket(0);
                 final RestClient restClient =
-                        new RestClient(
-                                RestClientConfiguration.fromConfiguration(config),
-                                TestingUtils.defaultExecutor())) {
+                        new RestClient(config, TestingUtils.defaultExecutor())) {
 
             final String targetAddress = "localhost";
             final int targetPort = serverSocket.getLocalPort();
