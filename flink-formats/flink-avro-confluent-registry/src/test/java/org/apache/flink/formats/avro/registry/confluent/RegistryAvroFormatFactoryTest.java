@@ -149,7 +149,7 @@ public class RegistryAvroFormatFactoryTest {
                         AvroToRowDataConverters.createRowConverter(ROW_TYPE),
                         InternalTypeInfo.of(ROW_TYPE));
 
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, getOptionalProperties());
+        final DynamicTableSource actualSource = createTableSource(getOptionalProperties());
         assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
@@ -173,7 +173,7 @@ public class RegistryAvroFormatFactoryTest {
                                 EXPECTED_OPTIONAL_PROPERTIES),
                         RowDataToAvroConverters.createConverter(ROW_TYPE));
 
-        final DynamicTableSink actualSink = createTableSink(SCHEMA, getOptionalProperties());
+        final DynamicTableSink actualSink = createTableSink(getOptionalProperties());
         assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
