@@ -230,57 +230,59 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     @Test
     public void testFailJobWhenExceptionThrownFromStart() throws Exception {
         final RuntimeException failureReason = new RuntimeException("Artificial Exception");
+        try (final MockSplitEnumeratorContext<MockSourceSplit> enumeratorContext =
+                        new MockSplitEnumeratorContext<>(1);
+                final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
+                        new MockSplitEnumerator(1, enumeratorContext) {
+                            @Override
+                            public void start() {
+                                throw failureReason;
+                            }
+                        };
+                final SourceCoordinator<?, ?> coordinator =
+                        new SourceCoordinator<>(
+                                OPERATOR_NAME,
+                                coordinatorExecutor,
+                                new EnumeratorCreatingSource<>(() -> splitEnumerator),
+                                context)) {
 
-        final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
-                new MockSplitEnumerator(1, new MockSplitEnumeratorContext<>(1)) {
-                    @Override
-                    public void start() {
-                        throw failureReason;
-                    }
-                };
-
-        final SourceCoordinator<?, ?> coordinator =
-                new SourceCoordinator<>(
-                        OPERATOR_NAME,
-                        coordinatorExecutor,
-                        new EnumeratorCreatingSource<>(() -> splitEnumerator),
-                        context);
-
-        coordinator.start();
-        waitUtil(
-                () -> operatorCoordinatorContext.isJobFailed(),
-                Duration.ofSeconds(10),
-                "The job should have failed due to the artificial exception.");
-        assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+            coordinator.start();
+            waitUtil(
+                    () -> operatorCoordinatorContext.isJobFailed(),
+                    Duration.ofSeconds(10),
+                    "The job should have failed due to the artificial exception.");
+            assertEquals(failureReason, operatorCoordinatorContext.getJobFailureReason());
+        }
     }
 
     @Test
     public void testErrorThrownFromSplitEnumerator() throws Exception {
         final Error error = new Error("Test Error");
+        try (final MockSplitEnumeratorContext<MockSourceSplit> enumeratorContext =
+                        new MockSplitEnumeratorContext<>(1);
+                final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
+                        new MockSplitEnumerator(1, enumeratorContext) {
+                            @Override
+                            public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
+                                throw error;
+                            }
+                        };
+                final SourceCoordinator<?, ?> coordinator =
+                        new SourceCoordinator<>(
+                                OPERATOR_NAME,
+                                coordinatorExecutor,
+                                new EnumeratorCreatingSource<>(() -> splitEnumerator),
+                                context)) {
 
-        final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
-                new MockSplitEnumerator(1, new MockSplitEnumeratorContext<>(1)) {
-                    @Override
-                    public void handleSourceEvent(int subtaskId, SourceEvent sourceEvent) {
-                        throw error;
-                    }
-                };
+            coordinator.start();
+            coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
 
-        final SourceCoordinator<?, ?> coordinator =
-                new SourceCoordinator<>(
-                        OPERATOR_NAME,
-                        coordinatorExecutor,
-                        new EnumeratorCreatingSource<>(() -> splitEnumerator),
-                        context);
-
-        coordinator.start();
-        coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
-
-        waitUtil(
-                () -> operatorCoordinatorContext.isJobFailed(),
-                Duration.ofSeconds(10),
-                "The job should have failed due to the artificial exception.");
-        assertEquals(error, operatorCoordinatorContext.getJobFailureReason());
+            waitUtil(
+                    () -> operatorCoordinatorContext.isJobFailed(),
+                    Duration.ofSeconds(10),
+                    "The job should have failed due to the artificial exception.");
+            assertEquals(error, operatorCoordinatorContext.getJobFailureReason());
+        }
     }
 
     @Test
