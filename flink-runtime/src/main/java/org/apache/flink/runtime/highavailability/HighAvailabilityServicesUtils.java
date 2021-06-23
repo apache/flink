@@ -36,6 +36,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServ
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
@@ -94,7 +95,7 @@ public class HighAvailabilityServicesUtils {
                         AkkaRpcServiceUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
-                                AkkaRpcServiceUtils.createWildcardName(
+                                RpcServiceUtils.createWildcardName(
                                         ResourceManager.RESOURCE_MANAGER_NAME),
                                 addressResolution,
                                 configuration);
@@ -102,7 +103,7 @@ public class HighAvailabilityServicesUtils {
                         AkkaRpcServiceUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
-                                AkkaRpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
+                                RpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),
                                 addressResolution,
                                 configuration);
                 final String webMonitorAddress =

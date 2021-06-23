@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -498,7 +499,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
             simpleRpcEndpoint1.closeAsync().join();
 
-            final String wildcardName = AkkaRpcServiceUtils.createWildcardName(endpointName);
+            final String wildcardName = RpcServiceUtils.createWildcardName(endpointName);
             final String wildcardAddress = AkkaRpcServiceUtils.getLocalRpcUrl(wildcardName);
             final RpcGateway rpcGateway =
                     akkaRpcService.connect(wildcardAddress, RpcGateway.class).join();
@@ -508,7 +509,7 @@ public class AkkaRpcActorTest extends TestLogger {
     }
 
     private RpcEndpoint createRpcEndpointWithRandomNameSuffix(String prefix) {
-        return new SimpleRpcEndpoint(akkaRpcService, AkkaRpcServiceUtils.createRandomName(prefix));
+        return new SimpleRpcEndpoint(akkaRpcService, RpcServiceUtils.createRandomName(prefix));
     }
 
     @Test
