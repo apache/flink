@@ -29,6 +29,27 @@ class TableSinkTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addDataStream[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
+  util.tableEnv.executeSql(
+    """
+      |CREATE TABLE src (person String, votes BIGINT) WITH(
+      |  'connector' = 'values'
+      |)
+      |""".stripMargin)
+
+  util.tableEnv.executeSql(
+    """
+      |CREATE TABLE award (votes BIGINT, prize DOUBLE, PRIMARY KEY(votes) NOT ENFORCED) WITH(
+      |  'connector' = 'values'
+      |)
+      |""".stripMargin)
+
+  util.tableEnv.executeSql(
+    """
+      |CREATE TABLE people (person STRING, age INT, PRIMARY KEY(person) NOT ENFORCED) WITH(
+      |  'connector' = 'values'
+      |)
+      |""".stripMargin)
+
   @Test
   def testInsertMismatchTypeForEmptyChar(): Unit = {
     util.addTable(
@@ -397,5 +418,50 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql(sql)
 
     util.verifyRelPlan(stmtSet)
+  }
+
+  @Test
+  def testSinkDisorderChangeLogWithJoin(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE SinkJoinChangeLog (
+        |  person STRING, votes BIGINT, prize DOUBLE,
+        |  PRIMARY KEY(person) NOT ENFORCED) WITH(
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    util.verifyExecPlanInsert(
+      """
+        |INSERT INTO SinkJoinChangeLog
+        |SELECT T.person, T.sum_votes, award.prize FROM
+        |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
+        |   WHERE T.sum_votes = award.votes
+        |""".stripMargin)
+  }
+
+  @Test
+  def testSinkDisorderChangeLogWithRank(): Unit = {
+    util.tableEnv.executeSql(
+      """
+        |CREATE TABLE SinkRankChangeLog (
+        |  person STRING, votes BIGINT,
+        |  PRIMARY KEY(person) NOT ENFORCED) WITH(
+        |  'connector' = 'values',
+        |  'sink-insert-only' = 'false'
+        |)
+        |""".stripMargin)
+
+    util.verifyExecPlanInsert(
+      """
+        |INSERT INTO SinkRankChangeLog
+        |SELECT person, sum_votes FROM
+        | (SELECT person, sum_votes,
+        |   ROW_NUMBER() OVER (PARTITION BY vote_section ORDER BY sum_votes DESC) AS rank_number
+        |   FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
+        |      GROUP BY person))
+        |   WHERE rank_number < 10
+        |""".stripMargin)
   }
 }
