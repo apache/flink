@@ -191,6 +191,18 @@ This feature is not covering all locations in Flink where user code is executed.
 infrastructure for such an interception. We are tracking this improvement in
 [FLINK-21307](https://issues.apache.org/jira/browse/FLINK-21307).
 
+#### MiniClusterJobClient#getAccumulators was infinitely blocking in local environment for a streaming job
+##### [FLINK-18685](https://issues.apache.org/jira/browse/FLINK-18685)
+
+The semantics for accumulators have now changed in `MiniClusterJobClient` to fix this bug and comply with other JobClient implementations:
+Previously `MiniClusterJobClient` assumed that `getAccumulator()` was called on a bounded pipeline and that the user wanted to acquire the final
+accumulator values after the job is finished.
+But now it returns the current value of accumulators immediately to be compatible with unbounded pipelines.
+
+If it is run on a bounded pipeline, then to get the final accumulator values after the job is finished, one needs to call
+
+`getJobExecutionResult().thenApply(JobExecutionResult::getAllAccumulatorResults)`
+
 ### Docker
 
 #### Consider removing automatic configuration fo number of slots from docker
