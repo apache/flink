@@ -187,27 +187,83 @@ Format 参数
       </tr>
     </thead>
     <tbody>
-    <tr>
-      <td><h5>format</h5></td>
-      <td>必选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>指定要使用的格式，这里应该是 <code>'avro-confluent'</code>。</td>
-    </tr>
-    <tr>
-      <td><h5>avro-confluent.schema-registry.url</h5></td>
-      <td>必选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的URL。</td>
-    </tr>
-    <tr>
-      <td><h5>avro-confluent.schema-registry.subject</h5></td>
-      <td>可选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>String</td>
-      <td>Confluent Schema Registry 主题，用于在序列化期间注册此格式使用的 schema。默认 kafka 和 upsert-kafka 连接器会使用 "&lt;topic_name&gt;-value" 或者 "&lt;topic_name&gt;-key" 作为 subject 名字。但是对于其他连接器（如 filesystem）则在当做 sink 使用时需要显式指定 subject 名字。</td>
-    </tr>
+        <tr>
+            <td><h5>format</h5></td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.basic-auth.credentials-source</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic auth credentials source for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.basic-auth.user-info</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Basic auth user info for schema registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.bearer-auth.credentials-source</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Bearer auth credentials source for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.bearer-auth.token</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Bearer auth token for Schema Registry</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.keystore.location</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Location / File of SSL keystore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.keystore.password</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Password for SSL keystore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.truststore.location</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Location / File of SSL truststore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.ssl.truststore.password</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Password for SSL truststore</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.schema-registry.subject</h5></td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, 'kafka' and 'upsert-kafka' connectors use '&lt;topic_name&gt;-value' or '&lt;topic_name&gt;-key' as the default subject name if this format is used as the value or key format. But for other connectors (e.g. 'filesystem'), the subject option is required when used as sink.</td>
+        </tr>
+        <tr>
+            <td><h5>avro-confluent.schema-registry.url</h5></td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
+        </tr>
     </tbody>
 </table>
 

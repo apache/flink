@@ -29,14 +29,20 @@ public class RegistryAvroOptions {
             ConfigOptions.key("schema-registry.url")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Required URL to connect to schema registry service");
+                    .withDescription(
+                            "The URL of the Confluent Schema Registry to fetch/register schemas.");
 
     public static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
             ConfigOptions.key("schema-registry.subject")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Subject name to write to the Schema Registry service, required for sink");
+                            "The Confluent Schema Registry subject under which to register the "
+                                    + "schema used by this format during serialization. By default, "
+                                    + "'kafka' and 'upsert-kafka' connectors use '<topic_name>-value' "
+                                    + "or '<topic_name>-key' as the default subject name if this format "
+                                    + "is used as the value or key format. But for other connectors (e.g. 'filesystem'), "
+                                    + "the subject option is required when used as sink.");
 
     // --------------------------------------------------------------------------------------------
     // Commonly used options maintained by Flink for convenience
