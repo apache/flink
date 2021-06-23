@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.VariableRankRange
@@ -116,11 +117,12 @@ class CalcRankTransposeRule
   private def getKeyFields(rank: FlinkLogicalRank): Array[Int] = {
     val partitionKey = rank.partitionKey.toArray
     val orderKey = rank.orderKey.getFieldCollations.map(_.getFieldIndex).toArray
-    val uniqueKeys = rank.getCluster.getMetadataQuery.getUniqueKeys(rank.getInput)
-    val keysInUniqueKeys = if (uniqueKeys == null || uniqueKeys.isEmpty) {
+    val upsertKeys = FlinkRelMetadataQuery.reuseOrCreate(rank.getCluster.getMetadataQuery)
+        .getUpsertKeysInKeyGroupRange(rank.getInput, partitionKey)
+    val keysInUniqueKeys = if (upsertKeys == null || upsertKeys.isEmpty) {
       Array[Int]()
     } else {
-      uniqueKeys.flatMap(_.toArray).toArray
+      upsertKeys.flatMap(_.toArray).toArray
     }
     val rankRangeKey = rank.rankRange match {
       case v: VariableRankRange => Array(v.getRankEndIndex)
