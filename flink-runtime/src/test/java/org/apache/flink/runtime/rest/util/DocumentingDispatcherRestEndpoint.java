@@ -28,7 +28,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherRestEndpoint;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
@@ -55,7 +54,6 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         implements DocumentingRestEndpoint {
 
     private static final Configuration config;
-    private static final RestServerEndpointConfiguration restConfig;
     private static final RestHandlerConfiguration handlerConfig;
     private static final GatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever;
     private static final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
@@ -65,22 +63,14 @@ public class DocumentingDispatcherRestEndpoint extends DispatcherRestEndpoint
         config.setString(RestOptions.ADDRESS, "localhost");
         // necessary for loading the web-submission extension
         config.setString(JobManagerOptions.ADDRESS, "localhost");
-        try {
-            restConfig = RestServerEndpointConfiguration.fromConfiguration(config);
-        } catch (ConfigurationException e) {
-            throw new RuntimeException(
-                    "Implementation error. RestServerEndpointConfiguration#fromConfiguration failed for default configuration.",
-                    e);
-        }
         handlerConfig = RestHandlerConfiguration.fromConfiguration(config);
 
         dispatcherGatewayRetriever = () -> null;
         resourceManagerGatewayRetriever = () -> null;
     }
 
-    public DocumentingDispatcherRestEndpoint() throws IOException {
+    public DocumentingDispatcherRestEndpoint() throws IOException, ConfigurationException {
         super(
-                restConfig,
                 dispatcherGatewayRetriever,
                 config,
                 handlerConfig,
