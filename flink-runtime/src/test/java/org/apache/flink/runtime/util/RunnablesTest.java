@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.util;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.junit.Assert;
@@ -31,7 +33,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class RunnablesTest {
+public class RunnablesTest extends TestLogger {
 
     private static final int TIMEOUT_MS = 100;
 
