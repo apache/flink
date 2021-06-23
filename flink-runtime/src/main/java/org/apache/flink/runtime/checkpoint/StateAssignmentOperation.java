@@ -539,7 +539,7 @@ public class StateAssignmentOperation {
             }
         }
 
-        return subtaskKeyedStateHandles;
+        return subtaskKeyedStateHandles != null ? subtaskKeyedStateHandles : emptyList();
     }
 
     /**
@@ -573,7 +573,7 @@ public class StateAssignmentOperation {
             }
         }
 
-        return extractedKeyedStateHandles;
+        return extractedKeyedStateHandles != null ? extractedKeyedStateHandles : emptyList();
     }
 
     /**
