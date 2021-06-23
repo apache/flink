@@ -42,6 +42,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -126,9 +127,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
         final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
         final HighAvailabilityServices haServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                        config,
-                        ioExecutor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        config, ioExecutor, AddressResolution.NO_ADDRESS_RESOLUTION);
 
         final AtomicReference<Throwable> programException = new AtomicReference<>();
 

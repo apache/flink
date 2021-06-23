@@ -23,8 +23,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils.AddressResolution;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -122,7 +121,7 @@ public class AkkaRpcServiceUtils {
             String hostname,
             int port,
             String endpointName,
-            HighAvailabilityServicesUtils.AddressResolution addressResolution,
+            AddressResolution addressResolution,
             Configuration config)
             throws UnknownHostException {
 
@@ -153,7 +152,7 @@ public class AkkaRpcServiceUtils {
             String hostname,
             int port,
             String endpointName,
-            HighAvailabilityServicesUtils.AddressResolution addressResolution,
+            AddressResolution addressResolution,
             AkkaProtocol akkaProtocol)
             throws UnknownHostException {
 

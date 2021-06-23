@@ -29,6 +29,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
@@ -236,9 +237,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     private HighAvailabilityServices createHighAvailabilityServices(final Configuration config)
             throws Exception {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                config,
-                Executors.directExecutor(),
-                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                config, Executors.directExecutor(), AddressResolution.NO_ADDRESS_RESOLUTION);
     }
 
     private static ServerSocket openServerSocket() {

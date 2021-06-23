@@ -49,6 +49,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
@@ -141,9 +142,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         highAvailabilityServices =
                 HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                        configuration,
-                        executor,
-                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                        configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION);
 
         JMXService.startInstance(configuration.getString(JMXServerOptions.JMX_SERVER_PORT));
 
