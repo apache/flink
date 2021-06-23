@@ -57,6 +57,6 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         return createSinkTransformation(
-                planner.getExecEnv(), planner.getTableConfig(), inputTransform, -1);
+                planner.getExecEnv(), planner.getTableConfig(), inputTransform, -1, false);
     }
 }
