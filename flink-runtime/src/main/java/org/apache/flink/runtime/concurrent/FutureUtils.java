@@ -26,8 +26,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
-import akka.dispatch.OnComplete;
-
 import javax.annotation.Nullable;
 
 import java.time.Duration;
@@ -54,8 +52,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import scala.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkCompletedNormally;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1059,33 +1055,6 @@ public class FutureUtils {
     // ------------------------------------------------------------------------
     //  Converting futures
     // ------------------------------------------------------------------------
-
-    /**
-     * Converts a Scala {@link Future} to a {@link CompletableFuture}.
-     *
-     * @param scalaFuture to convert to a Java 8 CompletableFuture
-     * @param <T> type of the future value
-     * @param <U> type of the original future
-     * @return Java 8 CompletableFuture
-     */
-    public static <T, U extends T> CompletableFuture<T> toJava(Future<U> scalaFuture) {
-        final CompletableFuture<T> result = new CompletableFuture<>();
-
-        scalaFuture.onComplete(
-                new OnComplete<U>() {
-                    @Override
-                    public void onComplete(Throwable failure, U success) {
-                        if (failure != null) {
-                            result.completeExceptionally(failure);
-                        } else {
-                            result.complete(success);
-                        }
-                    }
-                },
-                Executors.directExecutionContext());
-
-        return result;
-    }
 
     /**
      * This function takes a {@link CompletableFuture} and a function to apply to this future. If

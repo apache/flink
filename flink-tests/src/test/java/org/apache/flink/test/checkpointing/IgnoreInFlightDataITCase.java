@@ -43,6 +43,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -117,12 +118,12 @@ public class IgnoreInFlightDataITCase extends TestLogger {
         env.enableCheckpointing(10);
         env.disableOperatorChaining();
         env.getCheckpointConfig().enableUnalignedCheckpoints();
+        env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointIdOfIgnoredInFlightData(1);
         env.setRestartStrategy(fixedDelayRestart(1, 0));
 
         env.addSource(new NumberSource(lastCheckpointValue))
-                .shuffle()
                 // map for having parallel execution.
                 .map(new SlowMap(checkpointReachSinkLatch))
                 .addSink(new SumFailSink(checkpointReachSinkLatch, resultBeforeFail, result))

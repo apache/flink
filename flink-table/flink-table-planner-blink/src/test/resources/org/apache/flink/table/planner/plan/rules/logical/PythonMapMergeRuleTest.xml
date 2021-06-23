@@ -48,4 +48,21 @@ FlinkLogicalCalc(select=[f0.f0 AS _c0, f0.f1 AS _c1])
 ]]>
 	</Resource>
   </TestCase>
+  <TestCase name="testProjectWithOneField">
+	<Resource name="ast">
+	  <![CDATA[
+LogicalFilter(condition=[org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$BooleanPythonScalarFunction$98c7b7a8821989c1d64b757ebdb463b9(+($0, 1), $0)])
++- LogicalProject(a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source, source: [TestTableSource(a, b, c)]]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+FlinkLogicalCalc(select=[a], where=[f0])
++- FlinkLogicalCalc(select=[a, boolean_func(f0, a) AS f0])
+   +- FlinkLogicalCalc(select=[a, +(a, 1) AS f0])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, source, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+	</Resource>
+  </TestCase>
 </Root>

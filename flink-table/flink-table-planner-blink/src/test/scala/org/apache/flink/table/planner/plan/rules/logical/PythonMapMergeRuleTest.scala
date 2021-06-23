@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{RowPandasScalarFunction, RowPythonScalarFunction}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.{BooleanPythonScalarFunction, RowPandasScalarFunction, RowPythonScalarFunction}
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -73,6 +73,14 @@ class PythonMapMergeRuleTest extends TableTestBase {
 
     val result = sourceTable.map(general_func(withColumns('*)))
       .map(pandas_func(withColumns('*)))
+    util.verifyRelPlan(result)
+  }
+
+  @Test
+  def testProjectWithOneField(): Unit = {
+    val sourceTable = util.addTableSource[(Int, Int, Int)]("source", 'a, 'b, 'c)
+    val booleanFunc = new BooleanPythonScalarFunction("boolean_func")
+    val result = sourceTable.select('a).where(booleanFunc('a + 1, 'a))
     util.verifyRelPlan(result)
   }
 }

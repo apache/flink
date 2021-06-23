@@ -35,8 +35,8 @@ except:
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
            'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
-           'BasicArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder', 'BigDecimalCoder',
-           'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
+           'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
+           'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder']
 
 
 # LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
@@ -301,16 +301,16 @@ class CollectionCoder(FieldCoder):
         return hash(self._elem_coder)
 
 
-class BasicArrayCoder(CollectionCoder):
+class GenericArrayCoder(CollectionCoder):
     """
-    Coder for Array.
+    Coder for generic array such as basic array or object array.
     """
 
     def __init__(self, elem_coder):
-        super(BasicArrayCoder, self).__init__(elem_coder)
+        super(GenericArrayCoder, self).__init__(elem_coder)
 
     def get_impl(self):
-        return coder_impl.BasicArrayCoderImpl(self._elem_coder.get_impl())
+        return coder_impl.GenericArrayCoderImpl(self._elem_coder.get_impl())
 
 
 class PrimitiveArrayCoder(CollectionCoder):
@@ -578,7 +578,7 @@ def from_proto(field_type):
         timezone = pytz.timezone(os.environ['table.exec.timezone'])
         return LocalZonedTimestampCoder(field_type.local_zoned_timestamp_info.precision, timezone)
     elif field_type_name == type_name.BASIC_ARRAY:
-        return BasicArrayCoder(from_proto(field_type.collection_element_type))
+        return GenericArrayCoder(from_proto(field_type.collection_element_type))
     elif field_type_name == type_name.MAP:
         return MapCoder(from_proto(field_type.map_info.key_type),
                         from_proto(field_type.map_info.value_type))
@@ -623,15 +623,15 @@ def from_type_info_proto(type_info):
             if type_info.collection_element_type.type_name == type_info_name.BYTE:
                 return BinaryCoder()
             return PrimitiveArrayCoder(from_type_info_proto(type_info.collection_element_type))
-        elif field_type_name == type_info_name.BASIC_ARRAY:
-            return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
+        elif field_type_name in (type_info_name.BASIC_ARRAY,
+                                 type_info_name.OBJECT_ARRAY,
+                                 type_info_name.LIST):
+            return GenericArrayCoder(from_type_info_proto(type_info.collection_element_type))
         elif field_type_name == type_info_name.TUPLE:
             return TupleCoder([from_type_info_proto(field_type)
                                for field_type in type_info.tuple_type_info.field_types])
         elif field_type_name == type_info_name.MAP:
             return MapCoder(from_type_info_proto(type_info.map_type_info.key_type),
                             from_type_info_proto(type_info.map_type_info.value_type))
-        elif field_type_name == type_info_name.LIST:
-            return BasicArrayCoder(from_type_info_proto(type_info.collection_element_type))
         else:
             raise ValueError("Unsupported type_info %s." % type_info)

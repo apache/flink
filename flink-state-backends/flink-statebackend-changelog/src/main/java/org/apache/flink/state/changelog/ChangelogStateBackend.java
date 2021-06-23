@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -50,6 +51,7 @@ import java.util.Collection;
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
  * state changes to State Changelog.
  */
+@Internal
 public class ChangelogStateBackend implements DelegatingStateBackend, ConfigurableStateBackend {
 
     private static final long serialVersionUID = 1000L;
@@ -58,7 +60,14 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
 
     private final StateBackend delegatedStateBackend;
 
-    public ChangelogStateBackend(StateBackend stateBackend) {
+    /**
+     * Delegate a state backend by a ChangelogStateBackend.
+     *
+     * <p>As FLINK-22678 mentioned, we currently hide this constructor from user.
+     *
+     * @param stateBackend the delegated state backend.
+     */
+    ChangelogStateBackend(StateBackend stateBackend) {
         this.delegatedStateBackend = Preconditions.checkNotNull(stateBackend);
 
         Preconditions.checkArgument(

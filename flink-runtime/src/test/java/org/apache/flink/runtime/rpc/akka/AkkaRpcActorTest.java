@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -281,7 +282,7 @@ public class AkkaRpcActorTest extends TestLogger {
             terminationFuture.get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
         } finally {
             rpcActorSystem.terminate();
-            FutureUtils.toJava(rpcActorSystem.whenTerminated())
+            AkkaFutureUtils.toJava(rpcActorSystem.whenTerminated())
                     .get(timeout.getSize(), timeout.getUnit());
         }
     }

@@ -646,7 +646,7 @@ cdef class PickledBytesCoderImpl(FieldCoderImpl):
         pickled_bytes = in_stream.read_bytes()
         return cloudpickle.loads(pickled_bytes)
 
-cdef class BasicArrayCoderImpl(FieldCoderImpl):
+cdef class GenericArrayCoderImpl(FieldCoderImpl):
     """
     A coder for basic array value (the element of array could be null).
     """

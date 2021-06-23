@@ -369,6 +369,7 @@ message TypeInfo {
     LIST = 18;
     MAP = 19;
     PICKLED_BYTES = 20;
+    OBJECT_ARRAY = 21;
   }
 
   message MapTypeInfo {

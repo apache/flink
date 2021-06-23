@@ -27,15 +27,9 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.CheckedSupplier;
 
-import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,33 +39,21 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.BindException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
-/** Tests for {@link BootstrapToolsTest}. */
+/** Tests for {@link BootstrapTools}. */
 public class BootstrapToolsTest extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(BootstrapToolsTest.class);
@@ -471,68 +453,6 @@ public class BootstrapToolsTest extends TestLogger {
         Configuration config = new Configuration();
         BootstrapTools.updateTmpDirectoriesInConfiguration(config, null);
         assertEquals(config.getString(CoreOptions.TMP_DIRS), CoreOptions.TMP_DIRS.defaultValue());
-    }
-
-    /**
-     * Tests that we can concurrently create two {@link ActorSystem} without port conflicts. This
-     * effectively tests that we don't open a socket to check for a ports availability. See
-     * FLINK-10580 for more details.
-     */
-    @Test
-    public void testConcurrentActorSystemCreation() throws Exception {
-        final int concurrentCreations = 10;
-        final ExecutorService executorService = Executors.newFixedThreadPool(concurrentCreations);
-        final CyclicBarrier cyclicBarrier = new CyclicBarrier(concurrentCreations);
-
-        try {
-            final List<CompletableFuture<Void>> actorSystemFutures =
-                    IntStream.range(0, concurrentCreations)
-                            .mapToObj(
-                                    ignored ->
-                                            CompletableFuture.supplyAsync(
-                                                    CheckedSupplier.unchecked(
-                                                            () -> {
-                                                                cyclicBarrier.await();
-
-                                                                return BootstrapTools
-                                                                        .startRemoteActorSystem(
-                                                                                new Configuration(),
-                                                                                "localhost",
-                                                                                "0",
-                                                                                LOG);
-                                                            }),
-                                                    executorService))
-                            .map(
-                                    // terminate ActorSystems
-                                    actorSystemFuture ->
-                                            actorSystemFuture.thenCompose(
-                                                    AkkaUtils::terminateActorSystem))
-                            .collect(Collectors.toList());
-
-            FutureUtils.completeAll(actorSystemFutures).get();
-        } finally {
-            ExecutorUtils.gracefulShutdown(10000L, TimeUnit.MILLISECONDS, executorService);
-        }
-    }
-
-    /**
-     * Tests that the {@link ActorSystem} fails with an expressive exception if it cannot be
-     * instantiated due to an occupied port.
-     */
-    @Test
-    public void testActorSystemInstantiationFailureWhenPortOccupied() throws Exception {
-        final ServerSocket portOccupier = new ServerSocket(0, 10, InetAddress.getByName("0.0.0.0"));
-
-        try {
-            final int port = portOccupier.getLocalPort();
-            BootstrapTools.startRemoteActorSystem(
-                    new Configuration(), "0.0.0.0", String.valueOf(port), LOG);
-            fail("Expected to fail with a BindException");
-        } catch (Exception e) {
-            assertThat(ExceptionUtils.findThrowable(e, BindException.class).isPresent(), is(true));
-        } finally {
-            portOccupier.close();
-        }
     }
 
     @Test

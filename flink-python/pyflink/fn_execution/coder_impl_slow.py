@@ -632,9 +632,9 @@ class TupleCoderImpl(FieldCoderImpl):
         return 'TupleCoderImpl[%s]' % ', '.join(str(c) for c in self._field_coders)
 
 
-class BasicArrayCoderImpl(FieldCoderImpl):
+class GenericArrayCoderImpl(FieldCoderImpl):
     """
-    A coder for basic array value (the element of array could be null).
+    A coder for object array value (the element of array could be any kind of Python object).
     """
 
     def __init__(self, elem_coder: FieldCoderImpl):
@@ -656,7 +656,7 @@ class BasicArrayCoderImpl(FieldCoderImpl):
         return elements
 
     def __repr__(self):
-        return 'BasicArrayCoderImpl[%s]' % repr(self._elem_coder)
+        return 'GenericArrayCoderImpl[%s]' % repr(self._elem_coder)
 
 
 class PrimitiveArrayCoderImpl(FieldCoderImpl):

@@ -33,7 +33,7 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.partition.ClusterPartitionReport;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -195,7 +195,7 @@ public class ResourceManagerPartitionLifecycleTest extends TestLogger {
                         ResourceProfile.ZERO);
         final CompletableFuture<RegistrationResponse> registrationFuture =
                 resourceManagerGateway.registerTaskExecutor(
-                        taskExecutorRegistration, TestingUtils.TIMEOUT());
+                        taskExecutorRegistration, TestingUtils.TIMEOUT);
 
         assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
     }

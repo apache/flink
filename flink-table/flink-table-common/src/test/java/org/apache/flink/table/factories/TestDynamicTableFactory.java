@@ -50,10 +50,16 @@ public final class TestDynamicTableFactory
     public static final String IDENTIFIER = "test-connector";
 
     public static final ConfigOption<String> TARGET =
-            ConfigOptions.key("target").stringType().noDefaultValue();
+            ConfigOptions.key("target")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDeprecatedKeys("deprecated-target");
 
     public static final ConfigOption<Long> BUFFER_SIZE =
-            ConfigOptions.key("buffer-size").longType().defaultValue(100L);
+            ConfigOptions.key("buffer-size")
+                    .longType()
+                    .defaultValue(100L)
+                    .withFallbackKeys("fallback-buffer-size");
 
     public static final ConfigOption<String> KEY_FORMAT =
             ConfigOptions.key("key" + FORMAT_SUFFIX).stringType().noDefaultValue();
