@@ -41,6 +41,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.metrics.MetricGroup;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Set;
@@ -284,6 +285,15 @@ public interface RuntimeContext {
      */
     @PublicEvolving
     <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
+
+
+
+    @PublicEvolving
+    default   <T> T getReadOnlyStateValue(ValueStateDescriptor<T> stateProperties){
+        return  null;
+    }
+
+
 
     /**
      * Gets a handle to the system's key/value list state. This state is similar to the state

@@ -77,11 +77,6 @@ public class CompositeKeySerializationUtils {
 
         int beforeWrite = keySerializationDataOutputView.length();
 
-        // If the passed namespaceSerializer does not match the namespace, it should not serialize and should not write backendState
-        // Sharing state between trigger and TimeWindow causes inconsistencies in the namespace and NamespaceSerializer
-        if ((namespaceSerializer instanceof VoidNamespaceSerializer) && !(namespace instanceof VoidNamespace)){
-           return;
-        }
         namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
         if (ambiguousKeyPossible) {
             // write length of namespace
