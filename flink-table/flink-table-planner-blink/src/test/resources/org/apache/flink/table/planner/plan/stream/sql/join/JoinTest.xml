@@ -423,6 +423,49 @@ Calc(select=[a1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinDisorderChangeLog">
+    <Resource name="sql">
+      <![CDATA[
+SELECT T1.person, T1.sum_votes, T1.prize, T2.age FROM
+ (SELECT T.person, T.sum_votes, award.prize FROM
+   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T,
+   award
+   WHERE T.sum_votes = award.votes) T1, people T2
+ WHERE T1.person = T2.person
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(person=[$0], sum_votes=[$1], prize=[$2], age=[$4])
++- LogicalFilter(condition=[=($0, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(person=[$0], sum_votes=[$1], prize=[$3])
+      :  +- LogicalFilter(condition=[=($1, $2)])
+      :     +- LogicalJoin(condition=[true], joinType=[inner])
+      :        :- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
+      :        :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, award]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, people]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[person, sum_votes, prize, age])
++- Join(joinType=[InnerJoin], where=[(person = person0)], select=[person, sum_votes, prize, person0, age], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+   :- Exchange(distribution=[hash[person]])
+   :  +- Calc(select=[person, sum_votes, prize])
+   :     +- Join(joinType=[InnerJoin], where=[(sum_votes = votes)], select=[person, sum_votes, votes, prize], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+   :        :- Exchange(distribution=[hash[sum_votes]])
+   :        :  +- GroupAggregate(groupBy=[person], select=[person, SUM(votes) AS sum_votes])
+   :        :     +- Exchange(distribution=[hash[person]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[person, votes])
+   :        +- Exchange(distribution=[hash[votes]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, award]], fields=[votes, prize])
+   +- Exchange(distribution=[hash[person]])
+      +- TableSourceScan(table=[[default_catalog, default_database, people]], fields=[person, age])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJoinWithSort">
     <Resource name="sql">
       <![CDATA[
