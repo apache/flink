@@ -34,7 +34,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.commons.lang3.StringUtils;
@@ -135,17 +134,18 @@ public interface RankProcessStrategy {
     static List<RankProcessStrategy> analyzeRankProcessStrategies(
             StreamPhysicalRel rank, ImmutableBitSet partitionKey, RelCollation orderKey) {
 
-        RelMetadataQuery mq = rank.getCluster().getMetadataQuery();
+        FlinkRelMetadataQuery mq = (FlinkRelMetadataQuery) rank.getCluster().getMetadataQuery();
         List<RelFieldCollation> fieldCollations = orderKey.getFieldCollations();
         boolean isUpdateStream = !ChangelogPlanUtils.inputInsertOnly(rank);
         RelNode input = rank.getInput(0);
 
         if (isUpdateStream) {
-            Set<ImmutableBitSet> uniqueKeys = mq.getUniqueKeys(input);
-            if (uniqueKeys == null
-                    || uniqueKeys.isEmpty()
-                    // unique key should contains partition key
-                    || uniqueKeys.stream().noneMatch(k -> k.contains(partitionKey))) {
+            Set<ImmutableBitSet> upsertKeys =
+                    mq.getUpsertKeysInKeyGroupRange(input, partitionKey.toArray());
+            if (upsertKeys == null
+                    || upsertKeys.isEmpty()
+                    // upsert key should contains partition key
+                    || upsertKeys.stream().noneMatch(k -> k.contains(partitionKey))) {
                 // and we fall back to using retract rank
                 return Collections.singletonList(RETRACT_STRATEGY);
             } else {
@@ -197,7 +197,7 @@ public interface RankProcessStrategy {
                 if (isMonotonic) {
                     // TODO: choose a set of primary key
                     return Arrays.asList(
-                            new UpdateFastStrategy(uniqueKeys.iterator().next().toArray()),
+                            new UpdateFastStrategy(upsertKeys.iterator().next().toArray()),
                             RETRACT_STRATEGY);
                 } else {
                     return Collections.singletonList(RETRACT_STRATEGY);
