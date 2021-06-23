@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>sql-client.display.max_column_width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">30</td>
+            <td>Integer</td>
+            <td>When printing the query results, this parameter determines the number of characters shown on screen before truncating.This only applies to column types with unbounded display width (e.g. STRING or DOUBLE).Columns with types whose display width is bounded independently of their content are not affected (e.g. INTEGER or BOOLEAN).</td>
+        </tr>
+        <tr>
             <td><h5>sql-client.execution.max-table-result.rows</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">1000000</td>
             <td>Integer</td>
