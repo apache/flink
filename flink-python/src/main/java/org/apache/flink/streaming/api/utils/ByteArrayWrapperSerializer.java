@@ -87,6 +87,8 @@ public class ByteArrayWrapperSerializer extends TypeSerializerSingleton<ByteArra
         byte[] result = new byte[length];
         source.readFully(result);
         reuse.setData(result);
+        reuse.setOffset(0);
+        reuse.setLimit(result.length);
         return reuse;
     }
 
