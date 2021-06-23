@@ -594,6 +594,27 @@ class DataStreamTests(object):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_object_array_type_info(self):
+        ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
+                                       (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
+                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      type_info=Types.ROW([Types.INT(),
+                                                           Types.OBJECT_ARRAY(Types.FLOAT()),
+                                                           Types.OBJECT_ARRAY(Types.STRING())]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
+                                                   Types.OBJECT_ARRAY(Types.FLOAT()),
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test basic array type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[1, [1.1, null, 1.3], [null, hi, flink]]',
+                    '+I[2, [null, 2.2, 2.3], [hello, null, flink]]',
+                    '+I[3, [3.1, 3.2, null], [hello, hi, null]]']
+        results.sort()
+        expected.sort()
+        self.assertEqual(expected, results)
+
     def test_sql_timestamp_type_info(self):
         ds = self.env.from_collection([(datetime.date(2021, 1, 9),
                                         datetime.time(12, 0, 0),

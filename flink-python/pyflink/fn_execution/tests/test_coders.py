@@ -23,9 +23,9 @@ import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, BasicArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder, TimeWindowCoder, \
-    CountWindowCoder
+    TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder,\
+    RowCoder, LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder,\
+    TimeWindowCoder, CountWindowCoder
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -112,7 +112,7 @@ class CodersTest(PyFlinkTestCase):
 
     def test_array_coder(self):
         element_coder = BigIntCoder()
-        coder = BasicArrayCoder(element_coder)
+        coder = GenericArrayCoder(element_coder)
         self.check_coder(coder, [1, 2, 3, None])
 
     def test_primitive_array_coder(self):

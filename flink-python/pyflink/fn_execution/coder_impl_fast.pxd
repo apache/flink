@@ -132,7 +132,7 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
 cdef class PickledBytesCoderImpl(FieldCoderImpl):
     pass
 
-cdef class BasicArrayCoderImpl(FieldCoderImpl):
+cdef class GenericArrayCoderImpl(FieldCoderImpl):
     cdef FieldCoderImpl _elem_coder
 
 cdef class PrimitiveArrayCoderImpl(FieldCoderImpl):

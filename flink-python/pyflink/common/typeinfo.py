@@ -25,6 +25,8 @@ from py4j.java_gateway import JavaClass, JavaObject
 
 from pyflink.java_gateway import get_gateway
 
+__all__ = ['TypeInformation', 'Types']
+
 
 class TypeInformation(object):
     """
@@ -40,9 +42,11 @@ class TypeInformation(object):
     type. For that reason, elements in lists and arrays are not assigned to individual fields, but
     the lists and arrays are considered to be one field in total, to account for different lengths
     in the arrays.
+
         a) Basic types are indivisible and are considered as a single field.
         b) Arrays and collections are one field.
         c) Tuples represents as many fields as the class has fields.
+
     To represent this properly, each type has an arity (the number of fields it contains directly),
     and a total number of fields (number of fields in the entire schema of this type, including
     nested types).
@@ -284,6 +288,31 @@ class BasicArrayTypeInfo(TypeInformation):
 
     def __repr__(self):
         return "BasicArrayTypeInfo<%s>" % self._element_type
+
+
+class ObjectArrayTypeInfo(TypeInformation):
+    """
+    A TypeInformation for arrays of non-primitive types.
+    """
+
+    def __init__(self, element_type: TypeInformation):
+        self._element_type = element_type
+        super(ObjectArrayTypeInfo, self).__init__()
+
+    def get_java_type_info(self) -> JavaObject:
+        if not self._j_typeinfo:
+            JTypes = get_gateway().jvm.org.apache.flink.api.common.typeinfo.Types
+            self._j_typeinfo = JTypes.OBJECT_ARRAY(self._element_type.get_java_type_info())
+
+        return self._j_typeinfo
+
+    def __eq__(self, o) -> bool:
+        if isinstance(o, ObjectArrayTypeInfo):
+            return self._element_type == o._element_type
+        return False
+
+    def __repr__(self):
+        return "ObjectArrayTypeInfo<%s>" % self._element_type
 
 
 class PickledBytesTypeInfo(TypeInformation):
@@ -777,6 +806,16 @@ class Types(object):
         return BasicArrayTypeInfo(element_type)
 
     @staticmethod
+    def OBJECT_ARRAY(element_type: TypeInformation) -> TypeInformation:
+        """
+        Returns type information for arrays of non-primitive types. The array itself must not be
+        None. None values for elements are supported.
+
+        :param element_type: element type of the array
+        """
+        return ObjectArrayTypeInfo(element_type)
+
+    @staticmethod
     def MAP(key_type_info: TypeInformation, value_type_info: TypeInformation) -> TypeInformation:
         """
         Special TypeInformation used by MapStateDescriptor
@@ -873,6 +912,10 @@ def _from_java_type(j_type_info: JavaObject) -> TypeInformation:
         return Types.BASIC_ARRAY(Types.CHAR())
     elif _is_instance_of(j_type_info, JBasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO):
         return Types.BASIC_ARRAY(Types.STRING())
+
+    JObjectArrayTypeInfo = gateway.jvm.org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo
+    if _is_instance_of(j_type_info, JObjectArrayTypeInfo):
+        return Types.OBJECT_ARRAY(_from_java_type(j_type_info.getComponentInfo()))
 
     JPickledBytesTypeInfo = gateway.jvm \
         .org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo\
