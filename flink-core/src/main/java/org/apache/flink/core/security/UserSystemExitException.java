@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime;
+package org.apache.flink.core.security;
 
 /** Indicates that user tried to exit JVM. */
 public class UserSystemExitException extends SecurityException {
