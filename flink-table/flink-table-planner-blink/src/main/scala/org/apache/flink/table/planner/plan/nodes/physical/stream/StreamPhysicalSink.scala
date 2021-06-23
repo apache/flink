@@ -18,21 +18,30 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.catalog.{ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelOptUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelOptUtil, RelDescriptionWriterImpl}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.types.RowKind
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.hint.RelHint
+import org.apache.calcite.util.ImmutableBitSet
 
+import java.io.{PrintWriter, StringWriter}
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
  * Stream physical RelNode to to write data into an external sink defined by a
@@ -75,12 +84,59 @@ class StreamPhysicalSink(
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     tableSinkSpec.setReadableConfig(tableConfig.getConfiguration)
 
+    val primaryKeys = toScala(catalogTable.getResolvedSchema
+        .getPrimaryKey).map(_.getColumns).map(toScala[String]).getOrElse(Seq())
+
+    val upsertMaterialize = tableConfig.getConfiguration.get(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
+      case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
+      case UpsertMaterialize.NONE => false
+      case UpsertMaterialize.AUTO =>
+        val insertOnly = tableSink
+            .getChangelogMode(inputChangelogMode)
+            .containsOnly(RowKind.INSERT)
+
+        if (!insertOnly && primaryKeys.nonEmpty) {
+          val columnNames = catalogTable.getResolvedSchema.getColumnNames
+          val pks = ImmutableBitSet.of(primaryKeys.map(columnNames.indexOf): _*)
+
+          val fmq = FlinkRelMetadataQuery.reuseOrCreate(getCluster.getMetadataQuery)
+          val uniqueKeys = fmq.getUniqueKeys(getInput)
+          val changeLogUpsertKeys = fmq.getUpsertKeys(getInput)
+
+          if (uniqueKeys != null &&
+              uniqueKeys.exists(pks.contains) &&
+              !(changeLogUpsertKeys != null &&
+                  changeLogUpsertKeys.exists(pks.contains))) {
+            true
+          } else {
+            false
+          }
+        } else {
+          false
+        }
+    }
+
     new StreamExecSink(
       tableSinkSpec,
       inputChangelogMode,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
+      upsertMaterialize,
+      getDescriptionWithUpsert(upsertMaterialize)
     )
+  }
+
+  /**
+   * The inputChangelogMode can only be obtained in translateToExecNode phase.
+   */
+  def getDescriptionWithUpsert(upsertMaterialize: Boolean): String = {
+    val sw = new StringWriter
+    val pw = new PrintWriter(sw)
+    val relWriter = new RelDescriptionWriterImpl(pw)
+    this.explainTerms(relWriter)
+    relWriter.itemIf("upsertMaterialize", "true", upsertMaterialize)
+    relWriter.done(this)
+    sw.toString
   }
 }

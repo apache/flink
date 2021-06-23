@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -54,17 +55,23 @@ import java.util.stream.Collectors;
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {
 
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
+    public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
 
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
     @JsonSerialize(using = ChangelogModeJsonSerializer.class)
     @JsonDeserialize(using = ChangelogModeJsonDeserializer.class)
     private final ChangelogMode inputChangelogMode;
 
+    @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE)
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT)
+    private final boolean upsertMaterialize;
+
     public StreamExecSink(
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             InputProperty inputProperty,
             LogicalType outputType,
+            boolean upsertMaterialize,
             String description) {
         super(
                 tableSinkSpec,
@@ -75,6 +82,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 outputType,
                 description);
         this.inputChangelogMode = inputChangelogMode;
+        this.upsertMaterialize = upsertMaterialize;
     }
 
     @JsonCreator
@@ -84,6 +92,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
+            @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE) boolean upsertMaterialize,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
         super(
                 tableSinkSpec,
@@ -94,6 +103,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 outputType,
                 description);
         this.inputChangelogMode = inputChangelogMode;
+        this.upsertMaterialize = upsertMaterialize;
     }
 
     @SuppressWarnings("unchecked")
@@ -128,6 +138,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         }
 
         return createSinkTransformation(
-                planner.getExecEnv(), planner.getTableConfig(), inputTransform, rowtimeFieldIndex);
+                planner.getExecEnv(),
+                planner.getTableConfig(),
+                inputTransform,
+                rowtimeFieldIndex,
+                upsertMaterialize);
     }
 }

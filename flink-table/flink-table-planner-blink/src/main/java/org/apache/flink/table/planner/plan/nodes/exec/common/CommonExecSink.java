@@ -46,6 +46,7 @@ import org.apache.flink.table.connector.sink.OutputFormatProvider;
 import org.apache.flink.table.connector.sink.SinkFunctionProvider;
 import org.apache.flink.table.connector.sink.SinkProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
@@ -54,10 +55,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
+import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.SinkNotNullEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
+import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
@@ -112,7 +116,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             StreamExecutionEnvironment env,
             TableConfig tableConfig,
             Transformation<RowData> inputTransform,
-            int rowtimeFieldIndex) {
+            int rowtimeFieldIndex,
+            boolean upsertMaterialize) {
         final DynamicTableSink tableSink = tableSinkSpec.getTableSink();
         final DynamicTableSink.SinkRuntimeProvider runtimeProvider =
                 tableSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(isBounded));
@@ -149,12 +154,40 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
             // apply keyBy partition transformation if needed
             inputTransform =
-                    applyKeyByForDifferentParallelism(
+                    applyKeyByIfNeeded(
                             physicalRowType,
                             schema.getPrimaryKey().orElse(null),
                             inputTransform,
                             inputParallelism,
-                            sinkParallelism);
+                            sinkParallelism,
+                            upsertMaterialize);
+
+            if (upsertMaterialize) {
+                GeneratedRecordEqualiser equaliser =
+                        new EqualiserCodeGenerator(physicalRowType)
+                                .generateRecordEqualiser("SinkMaterializeEqualiser");
+                SinkUpsertMaterializer operator =
+                        new SinkUpsertMaterializer(
+                                StateConfigUtil.createTtlConfig(
+                                        tableConfig.getIdleStateRetention().toMillis()),
+                                InternalTypeInfo.of(physicalRowType).toSerializer(),
+                                equaliser);
+                OneInputTransformation<RowData, RowData> materializeTransform =
+                        new OneInputTransformation<>(
+                                inputTransform,
+                                "SinkMaterializer",
+                                operator,
+                                inputTransform.getOutputType(),
+                                sinkParallelism);
+                int[] pkIndices =
+                        getPrimaryKeyIndices(physicalRowType, schema.getPrimaryKey().get());
+                RowDataKeySelector keySelector =
+                        KeySelectorUtil.getRowDataSelector(
+                                pkIndices, InternalTypeInfo.of(physicalRowType));
+                materializeTransform.setStateKeySelector(keySelector);
+                materializeTransform.setStateKeyType(keySelector.getProducedType());
+                inputTransform = materializeTransform;
+            }
 
             final SinkFunction<RowData> sinkFunction;
             if (runtimeProvider instanceof SinkFunctionProvider) {
@@ -248,17 +281,19 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     /**
      * Apply a keyBy partition transformation if the parallelism of sink operator and input operator
-     * is different and sink changelog-mode is not insert-only. This is used to guarantee the strict
-     * ordering of changelog messages.
+     * is different and sink changelog-mode is not insert-only or requireMaterialize. This is used
+     * to guarantee the strict ordering of changelog messages.
      */
-    private Transformation<RowData> applyKeyByForDifferentParallelism(
+    private Transformation<RowData> applyKeyByIfNeeded(
             RowType sinkRowType,
             @Nullable UniqueConstraint primaryKey,
             Transformation<RowData> inputTransform,
             int inputParallelism,
-            int sinkParallelism) {
+            int sinkParallelism,
+            boolean upsertMaterialize) {
         final int[] primaryKeys = getPrimaryKeyIndices(sinkRowType, primaryKey);
-        if (inputParallelism == sinkParallelism || changelogMode.containsOnly(RowKind.INSERT)) {
+        if ((inputParallelism == sinkParallelism || changelogMode.containsOnly(RowKind.INSERT))
+                && !upsertMaterialize) {
             // if the inputParallelism is equals to the parallelism or insert-only mode, do nothing.
             return inputTransform;
         } else if (primaryKeys.length == 0) {
