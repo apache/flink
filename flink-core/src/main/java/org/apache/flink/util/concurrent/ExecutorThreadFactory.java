@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util.concurrent;
+
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
@@ -43,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutorThreadFactory implements ThreadFactory {
 
-    /** The thread pool name used when no explicit pool name has been specified */
+    /** The thread pool name used when no explicit pool name has been specified. */
     private static final String DEFAULT_POOL_NAME = "flink-executor-pool";
 
     private final AtomicInteger threadNumber = new AtomicInteger(1);
@@ -121,6 +123,7 @@ public class ExecutorThreadFactory implements ThreadFactory {
 
     // --------------------------------------------------------------------------------------------
 
+    /** Builder for {@link ExecutorThreadFactory}. */
     public static final class Builder {
         private String poolName;
         private int priority = Thread.NORM_PRIORITY;

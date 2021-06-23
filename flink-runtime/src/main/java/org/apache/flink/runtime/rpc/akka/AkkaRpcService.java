@@ -37,10 +37,10 @@ import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcRuntimeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;

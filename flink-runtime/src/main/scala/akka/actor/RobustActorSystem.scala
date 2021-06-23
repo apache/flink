@@ -23,7 +23,7 @@ import java.lang.Thread.UncaughtExceptionHandler
 import akka.actor.ActorSystem.findClassLoader
 import akka.actor.setup.ActorSystemSetup
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.flink.runtime.util.FatalExitExceptionHandler
+import org.apache.flink.util.FatalExitExceptionHandler
 
 import scala.concurrent.ExecutionContext
 

@@ -29,10 +29,10 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.runtime.util.Runnables;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;

@@ -25,7 +25,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;

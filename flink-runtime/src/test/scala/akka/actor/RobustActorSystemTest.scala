@@ -19,7 +19,7 @@
 package akka.actor
 
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler
+import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler
 import org.junit.{After, Before, Test}
 import org.scalatest.Matchers
 import org.scalatest.junit.JUnitSuite

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
