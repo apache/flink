@@ -39,6 +39,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.TestingUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -161,5 +162,9 @@ public class SchedulerBenchmarkUtils {
         final ExecutionAttemptID attemptId =
                 vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
         scheduler.updateTaskExecutionState(new TaskExecutionState(attemptId, executionState));
+    }
+
+    public static void shutdownTestingUtilDefaultExecutor() {
+        TestingUtils.defaultExecutor().shutdownNow();
     }
 }
