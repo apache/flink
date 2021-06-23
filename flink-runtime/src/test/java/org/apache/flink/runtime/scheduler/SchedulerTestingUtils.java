@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -79,6 +80,8 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -420,6 +423,7 @@ public class SchedulerTestingUtils {
                 new TestExecutionSlotAllocatorFactory();
         private JobStatusListener jobStatusListener =
                 (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+        private Set<FailureListener> failureListeners = new HashSet<>();
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -533,6 +537,12 @@ public class SchedulerTestingUtils {
             return this;
         }
 
+        public DefaultSchedulerBuilder setFailureListenerFactory(
+                Set<FailureListener> failureListeners) {
+            this.failureListeners = failureListeners;
+            return this;
+        }
+
         public DefaultScheduler build() throws Exception {
             final ExecutionGraphFactory executionGraphFactory =
                     new DefaultExecutionGraphFactory(
@@ -566,7 +576,8 @@ public class SchedulerTestingUtils {
                     System.currentTimeMillis(),
                     mainThreadExecutor,
                     jobStatusListener,
-                    executionGraphFactory);
+                    executionGraphFactory,
+                    failureListeners);
         }
     }
 }

@@ -36,6 +36,7 @@ abstract class PluginTestBase extends TestLogger {
 
     static final String PLUGIN_A = "plugin-a-test-jar.jar";
     static final String PLUGIN_B = "plugin-b-test-jar.jar";
+    static final String PLUGIN_FAILURE_LISTENER = "plugin-failure-listener-test-jar.jar";
     static final ClassLoader PARENT_CLASS_LOADER = PluginTestBase.class.getClassLoader();
 
     URL createPluginJarURLFromString(String fileString) throws MalformedURLException {

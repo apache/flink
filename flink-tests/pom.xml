@@ -459,6 +459,21 @@ under the License.
 					</execution>
 
 					<execution>
+						<id>create-plugin-failure-listener-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>plugin-failure-listener</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-failure-listener-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+
+					<execution>
 						<id>create-kmeans-jar</id>
 						<phase>process-test-classes</phase>
 						<goals>

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.failurelistener.FailureListener;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -114,7 +115,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
-            final ExecutionGraphFactory executionGraphFactory)
+            final ExecutionGraphFactory executionGraphFactory,
+            final Set<FailureListener> failureListeners)
             throws Exception {
 
         super(
@@ -149,6 +151,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.executionFailureHandler =
                 new ExecutionFailureHandler(
                         getSchedulingTopology(), failoverStrategy, restartBackoffTimeStrategy);
+
         this.schedulingStrategy =
                 schedulingStrategyFactory.createInstance(this, getSchedulingTopology());
 
@@ -157,6 +160,11 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         .createInstance(new DefaultExecutionSlotAllocationContext());
 
         this.verticesWaitingForRestart = new HashSet<>();
+
+        for (FailureListener listener : failureListeners) {
+            executionFailureHandler.registerFailureListener(listener);
+        }
+
         startUpAction.accept(mainThreadExecutor);
     }
 
