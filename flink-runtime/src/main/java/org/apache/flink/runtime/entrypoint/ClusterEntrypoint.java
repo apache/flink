@@ -55,6 +55,7 @@ import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
@@ -351,9 +352,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     protected HighAvailabilityServices createHaServices(
             Configuration configuration, Executor executor) throws Exception {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                configuration,
-                executor,
-                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+                configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION);
     }
 
     protected HeartbeatServices createHeartbeatServices(Configuration configuration) {

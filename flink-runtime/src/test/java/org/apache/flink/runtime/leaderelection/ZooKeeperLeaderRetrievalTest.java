@@ -22,10 +22,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -116,7 +116,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                             "1.1.1.1",
                             1234,
                             "foobar",
-                            HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+                            AddressResolution.NO_ADDRESS_RESOLUTION,
                             config);
 
             try {
@@ -140,7 +140,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                             localHost.getHostName(),
                             correctInetSocketAddress.getPort(),
                             JobMaster.JOB_MANAGER_NAME,
-                            HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+                            AddressResolution.NO_ADDRESS_RESOLUTION,
                             config);
 
             faultyLeaderElectionService =

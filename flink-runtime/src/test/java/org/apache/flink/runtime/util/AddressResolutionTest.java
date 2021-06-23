@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -32,7 +32,7 @@ import java.net.UnknownHostException;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
-/** Unit tests for respecting {@link HighAvailabilityServicesUtils.AddressResolution}. */
+/** Unit tests for respecting {@link AddressResolution}. */
 public class AddressResolutionTest extends TestLogger {
 
     private static final String ENDPOINT_NAME = "endpoint";
@@ -67,7 +67,7 @@ public class AddressResolutionTest extends TestLogger {
                 NON_EXISTING_HOSTNAME,
                 PORT,
                 ENDPOINT_NAME,
-                HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION,
+                AddressResolution.NO_ADDRESS_RESOLUTION,
                 new Configuration());
     }
 
@@ -78,7 +78,7 @@ public class AddressResolutionTest extends TestLogger {
                     NON_EXISTING_HOSTNAME,
                     PORT,
                     ENDPOINT_NAME,
-                    HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION,
+                    AddressResolution.TRY_ADDRESS_RESOLUTION,
                     new Configuration());
             fail("This should fail with an UnknownHostException");
         } catch (UnknownHostException ignore) {

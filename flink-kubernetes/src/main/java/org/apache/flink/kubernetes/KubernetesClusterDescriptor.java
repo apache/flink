@@ -51,6 +51,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -122,11 +123,10 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
     }
 
     private String getWebMonitorAddress(Configuration configuration) throws Exception {
-        HighAvailabilityServicesUtils.AddressResolution resolution =
-                HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION;
+        AddressResolution resolution = AddressResolution.TRY_ADDRESS_RESOLUTION;
         if (configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE)
                 == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
-            resolution = HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION;
+            resolution = AddressResolution.NO_ADDRESS_RESOLUTION;
             LOG.warn(
                     "Please note that Flink client operations(e.g. cancel, list, stop,"
                             + " savepoint, etc.) won't work from outside the Kubernetes cluster"

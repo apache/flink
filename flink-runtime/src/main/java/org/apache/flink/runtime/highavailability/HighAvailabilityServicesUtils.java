@@ -36,6 +36,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServ
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -191,15 +192,14 @@ public class HighAvailabilityServicesUtils {
      * @return Address of WebMonitor.
      */
     public static String getWebMonitorAddress(
-            Configuration configuration, HighAvailabilityServicesUtils.AddressResolution resolution)
-            throws UnknownHostException {
+            Configuration configuration, AddressResolution resolution) throws UnknownHostException {
         final String address =
                 checkNotNull(
                         configuration.getString(RestOptions.ADDRESS),
                         "%s must be set",
                         RestOptions.ADDRESS.key());
 
-        if (resolution == HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION) {
+        if (resolution == AddressResolution.TRY_ADDRESS_RESOLUTION) {
             // Fail fast if the hostname cannot be resolved
             //noinspection ResultOfMethodCallIgnored
             InetAddress.getByName(address);
@@ -298,14 +298,5 @@ public class HighAvailabilityServicesUtils {
                             highAvailabilityServicesFactory.getClass().getName()),
                     e);
         }
-    }
-
-    /**
-     * Enum specifying whether address resolution should be tried or not when creating the {@link
-     * HighAvailabilityServices}.
-     */
-    public enum AddressResolution {
-        TRY_ADDRESS_RESOLUTION,
-        NO_ADDRESS_RESOLUTION
     }
 }
