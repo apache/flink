@@ -22,17 +22,16 @@ import java.io.IOException
 import java.net._
 import java.time
 import java.util.concurrent.{Callable, CompletableFuture}
-
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
-import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils
 import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
 import org.apache.flink.util.NetUtils
 import org.apache.flink.util.TimeUtils
+import org.apache.flink.util.concurrent.FutureUtils
 import org.apache.flink.util.function.FunctionUtils
 import org.jboss.netty.channel.ChannelException
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}

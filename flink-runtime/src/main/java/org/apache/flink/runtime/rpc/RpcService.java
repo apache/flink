@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.rpc;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import java.io.Serializable;
 import java.util.concurrent.Callable;

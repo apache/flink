@@ -20,9 +20,9 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;

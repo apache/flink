@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import org.junit.Test;
 

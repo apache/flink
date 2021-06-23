@@ -16,37 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent;
+package org.apache.flink.util.concurrent;
 
 import org.apache.flink.util.Preconditions;
 
 import java.time.Duration;
 
-/**
- * An implementation of {@link RetryStrategy} that retries that has an exponential backoff with a
- * cap.
- */
-public class ExponentialBackoffRetryStrategy implements RetryStrategy {
+/** An implementation of {@link RetryStrategy} that retries at a fixed delay. */
+public class FixedRetryStrategy implements RetryStrategy {
     private final int remainingRetries;
-    private final Duration currentRetryDelay;
-    private final Duration maxRetryDelay;
+    private final Duration retryDelay;
 
     /**
      * @param remainingRetries number of times to retry
-     * @param currentRetryDelay the current delay between retries
-     * @param maxRetryDelay the max delay between retries
+     * @param retryDelay delay between retries
      */
-    public ExponentialBackoffRetryStrategy(
-            int remainingRetries, Duration currentRetryDelay, Duration maxRetryDelay) {
+    public FixedRetryStrategy(int remainingRetries, Duration retryDelay) {
         Preconditions.checkArgument(
                 remainingRetries >= 0, "The number of retries must be greater or equal to 0.");
         this.remainingRetries = remainingRetries;
-        Preconditions.checkArgument(
-                currentRetryDelay.toMillis() >= 0, "The currentRetryDelay must be positive");
-        this.currentRetryDelay = currentRetryDelay;
-        Preconditions.checkArgument(
-                maxRetryDelay.toMillis() >= 0, "The maxRetryDelay must be positive");
-        this.maxRetryDelay = maxRetryDelay;
+        Preconditions.checkArgument(retryDelay.toMillis() >= 0, "The retryDelay must be positive");
+        this.retryDelay = retryDelay;
     }
 
     @Override
@@ -56,7 +46,7 @@ public class ExponentialBackoffRetryStrategy implements RetryStrategy {
 
     @Override
     public Duration getRetryDelay() {
-        return currentRetryDelay;
+        return retryDelay;
     }
 
     @Override
@@ -64,9 +54,6 @@ public class ExponentialBackoffRetryStrategy implements RetryStrategy {
         int nextRemainingRetries = remainingRetries - 1;
         Preconditions.checkState(
                 nextRemainingRetries >= 0, "The number of remaining retries must not be negative");
-        long nextRetryDelayMillis =
-                Math.min(2 * currentRetryDelay.toMillis(), maxRetryDelay.toMillis());
-        return new ExponentialBackoffRetryStrategy(
-                nextRemainingRetries, Duration.ofMillis(nextRetryDelayMillis), maxRetryDelay);
+        return new FixedRetryStrategy(nextRemainingRetries, retryDelay);
     }
 }
