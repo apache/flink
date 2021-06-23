@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.security;
+package org.apache.flink.core.security;
 
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.testutils.CheckedThread;
-import org.apache.flink.runtime.UserSystemExitException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
