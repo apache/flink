@@ -19,12 +19,12 @@
 package org.apache.flink.runtime.minicluster;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -115,7 +115,7 @@ public class MiniClusterConfiguration {
     }
 
     public Time getRpcTimeout() {
-        return AkkaUtils.getTimeoutAsTime(configuration);
+        return Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
     }
 
     public UnmodifiableConfiguration getConfiguration() {

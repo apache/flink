@@ -408,7 +408,7 @@ object AkkaUtils {
 
     val normalizedExternalHostname = NetUtils.unresolvedHostToNormalizedString(externalHostname)
 
-    val akkaAskTimeout = getTimeout(configuration)
+    val akkaAskTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)
 
     val startupTimeout = TimeUtils.getStringInMillis(
       TimeUtils.parseDuration(
@@ -736,31 +736,6 @@ object AkkaUtils {
           Future.failed(t)
         }
     }
-  }
-
-  def getTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.ASK_TIMEOUT))
-  }
-
-  def getTimeoutAsTime(config: Configuration): Time = {
-    try {
-      val duration = getTimeout(config)
-
-      Time.milliseconds(duration.toMillis)
-    } catch {
-      case _: NumberFormatException =>
-        throw new IllegalConfigurationException(AkkaUtils.formatDurationParsingErrorMessage)
-    }
-  }
-
-  def getDefaultTimeout: Time = {
-    val duration = TimeUtils.parseDuration(AkkaOptions.ASK_TIMEOUT.defaultValue())
-
-    Time.milliseconds(duration.toMillis)
-  }
-
-  def getLookupTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains

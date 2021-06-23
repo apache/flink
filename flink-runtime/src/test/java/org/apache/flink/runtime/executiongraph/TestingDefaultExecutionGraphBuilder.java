@@ -19,11 +19,11 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -62,10 +62,9 @@ public class TestingDefaultExecutionGraphBuilder {
 
     private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
     private Executor ioExecutor = TestingUtils.defaultExecutor();
-    private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
+    private Time rpcTimeout = Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-    private Time allocationTimeout = AkkaUtils.getDefaultTimeout();
     private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private Configuration jobMasterConfig = new Configuration();
@@ -114,11 +113,6 @@ public class TestingDefaultExecutionGraphBuilder {
 
     public TestingDefaultExecutionGraphBuilder setBlobWriter(BlobWriter blobWriter) {
         this.blobWriter = blobWriter;
-        return this;
-    }
-
-    public TestingDefaultExecutionGraphBuilder setAllocationTimeout(Time allocationTimeout) {
-        this.allocationTimeout = allocationTimeout;
         return this;
     }
 

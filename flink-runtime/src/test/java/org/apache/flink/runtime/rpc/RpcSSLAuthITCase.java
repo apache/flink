@@ -31,6 +31,7 @@ import org.apache.flink.util.TestLogger;
 import akka.actor.ActorSystem;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -96,7 +97,7 @@ public class RpcSSLAuthITCase extends TestLogger {
             // we start the RPC service with a very long timeout to ensure that the test
             // can only pass if the connection problem is not recognized merely via a timeout
             Configuration configuration = new Configuration();
-            configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
+            configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
             AkkaRpcServiceConfiguration akkaRpcServiceConfig =
                     AkkaRpcServiceConfiguration.fromConfiguration(configuration);
             rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);

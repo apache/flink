@@ -44,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
@@ -85,7 +86,7 @@ public class ShuffleCompressionITCase {
         Configuration configuration = new Configuration();
         configuration.setBoolean(
                 NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
-        configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
+        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
 
         JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
         JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);
@@ -98,7 +99,7 @@ public class ShuffleCompressionITCase {
                 NettyShuffleEnvironmentOptions.BLOCKING_SHUFFLE_COMPRESSION_ENABLED, true);
         configuration.setInteger(
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM, 1);
-        configuration.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
+        configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
 
         JobGraph jobGraph = createJobGraph(ResultPartitionType.BLOCKING, ExecutionMode.BATCH);
         JobGraphRunningUtil.execute(jobGraph, configuration, NUM_TASKMANAGERS, NUM_SLOTS);

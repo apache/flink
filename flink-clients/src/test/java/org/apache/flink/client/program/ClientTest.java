@@ -106,7 +106,8 @@ public class ClientTest extends TestLogger {
         config = new Configuration();
         config.setString(JobManagerOptions.ADDRESS, "localhost");
         config.setInteger(JobManagerOptions.PORT, freePort);
-        config.setString(AkkaOptions.ASK_TIMEOUT, AkkaOptions.ASK_TIMEOUT.defaultValue());
+        config.set(
+                AkkaOptions.ASK_TIMEOUT_DURATION, AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     }
 
     private Configuration fromPackagedProgram(

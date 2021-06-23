@@ -31,6 +31,8 @@ import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 
+import java.time.Duration
+
 @RunWith(classOf[JUnitRunner])
 class AkkaUtilsTest
   extends FunSuite
@@ -201,7 +203,7 @@ class AkkaUtilsTest
 
   test("getAkkaConfig should set startup timeout to be 10 times of ask timeout by default") {
     val configuration = new Configuration()
-    configuration.setString(AkkaOptions.ASK_TIMEOUT.key(), "100ms")
+    configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMillis(100))
 
     val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
 

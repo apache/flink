@@ -33,6 +33,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -42,7 +43,8 @@ import java.util.concurrent.TimeoutException;
 import scala.Option;
 import scala.Tuple2;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an
@@ -63,7 +65,7 @@ public class RpcConnectionTest extends TestLogger {
             // we start the RPC service with a very long timeout to ensure that the test
             // can only pass if the connection problem is not recognized merely via a timeout
             Configuration configuration = new Configuration();
-            configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
+            configuration.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
             rpcService =
                     new AkkaRpcService(
                             actorSystem,

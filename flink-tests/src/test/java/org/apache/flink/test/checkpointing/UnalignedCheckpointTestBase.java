@@ -773,7 +773,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             conf.set(
                     NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, BUFFER_PER_CHANNEL);
             conf.set(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 60000);
-            conf.setString(AkkaOptions.ASK_TIMEOUT, "1 min");
+            conf.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
             return conf;
         }
 

@@ -336,7 +336,6 @@ public class ExecutionGraphTestUtils {
                         .setJobGraph(JobGraphTestUtils.streamingJobGraph(vertices))
                         .setFutureExecutor(executor)
                         .setIoExecutor(executor)
-                        .setAllocationTimeout(timeout)
                         .setRpcTimeout(timeout)
                         .build();
         executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
