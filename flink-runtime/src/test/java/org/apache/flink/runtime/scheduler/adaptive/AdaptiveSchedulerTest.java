@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
@@ -70,6 +71,7 @@ import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -98,7 +100,6 @@ import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -763,13 +764,20 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
     @Test
     public void testHowToHandleFailureRejectedByStrategy() throws Exception {
+        JobGraph jobGraph = createJobGraph();
         final AdaptiveScheduler scheduler =
-                new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor)
+                new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor)
                         .setRestartBackoffTimeStrategy(NoRestartBackoffTimeStrategy.INSTANCE)
                         .build();
 
         assertThat(
                 scheduler.howToHandleFailure(null, new Exception("test")).canRestart(), is(false));
+        assertThat(
+                scheduler
+                        .howToHandleFailure(
+                                new ExecutionVertexID(JOB_VERTEX.getID(), 0), new Exception("test"))
+                        .canRestart(),
+                is(false));
     }
 
     @Test
@@ -838,11 +846,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final Exception expectedException = new Exception("Expected Global Exception");
         final long start = System.currentTimeMillis();
-        final CountDownLatch latch = new CountDownLatch(1);
+        final OneShotLatch latch = new OneShotLatch();
         singleThreadMainThreadExecutor.execute(
                 () -> {
                     scheduler.handleGlobalFailure(expectedException);
-                    latch.countDown();
+                    latch.trigger();
                 });
 
         latch.await();
@@ -903,14 +911,14 @@ public class AdaptiveSchedulerTest extends TestLogger {
         ExecutionAttemptID attemptId =
                 executionVertices.iterator().next().getCurrentExecutionAttempt().getAttemptId();
         final long start = System.currentTimeMillis();
-        final CountDownLatch latch = new CountDownLatch(1);
+        final OneShotLatch latch = new OneShotLatch();
         singleThreadMainThreadExecutor.execute(
                 () -> {
                     scheduler.updateTaskExecutionState(
                             new TaskExecutionStateTransition(
                                     new TaskExecutionState(
                                             attemptId, ExecutionState.FAILED, expectedException)));
-                    latch.countDown();
+                    latch.trigger();
                 });
 
         latch.await();

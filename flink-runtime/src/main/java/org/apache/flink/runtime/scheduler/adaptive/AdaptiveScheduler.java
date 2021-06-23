@@ -899,9 +899,7 @@ public class AdaptiveScheduler
     }
 
     private Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
-        final Collection<RootExceptionHistoryEntry> copy = new ArrayList<>(exceptionHistory.size());
-        exceptionHistory.forEach(copy::add);
-        return copy;
+        return new ArrayList(exceptionHistory);
     }
 
     @Override

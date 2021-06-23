@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -125,6 +126,15 @@ abstract class StateWithExecutionGraph implements State {
                 .getAllVertices()
                 .get(executionVertexId.getJobVertexId())
                 .getTaskVertices()[executionVertexId.getSubtaskIndex()];
+    }
+
+    @Nullable
+    protected ExecutionVertexID getExecutionVertexId(ExecutionAttemptID id) {
+        Execution execution = getExecutionGraph().getRegisteredExecutions().get(id);
+        if (execution == null) {
+            return null;
+        }
+        return execution.getVertex().getID();
     }
 
     JobID getJobId() {

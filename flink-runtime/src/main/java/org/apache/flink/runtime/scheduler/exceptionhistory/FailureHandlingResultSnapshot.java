@@ -68,8 +68,7 @@ public class FailureHandlingResultSnapshot {
     }
 
     /**
-     * Creates a {@code FailureHandlingResultSnapshot} based on the passed {@link
-     * FailureHandlingResult} and {@link ExecutionVertex ExecutionVertices}.
+     * Creates a {@code FailureHandlingResultSnapshot} based on passed parameters.
      *
      * @param failingExecutionVertexId an {@link Optional} of the {@link ExecutionVertexID} the
      *     failure originates from, or {@code None}.

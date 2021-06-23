@@ -24,8 +24,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -121,7 +119,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
             if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
                 Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
                 handleAnyFailure(
-                        getExcutionVertexId(taskExecutionStateTransition.getID()),
+                        getExecutionVertexId(taskExecutionStateTransition.getID()),
                         cause == null
                                 ? new FlinkException(
                                         "Unknown failure cause. Probably related to FLINK-21376.")
@@ -130,15 +128,6 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         }
 
         return successfulUpdate;
-    }
-
-    @Nullable
-    private ExecutionVertexID getExcutionVertexId(ExecutionAttemptID id) {
-        Execution execution = getExecutionGraph().getRegisteredExecutions().get(id);
-        if (execution == null) {
-            return null;
-        }
-        return execution.getVertex().getID();
     }
 
     @Override

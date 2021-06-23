@@ -21,6 +21,7 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.AbstractQueue;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -31,7 +32,7 @@ import java.util.Queue;
  *
  * @param <T> The type of elements collected.
  */
-public class BoundedFIFOQueue<T> implements Iterable<T>, Serializable {
+public class BoundedFIFOQueue<T> extends AbstractQueue<T> implements Serializable {
 
     private static final long serialVersionUID = -890727339944580409L;
 
@@ -59,11 +60,23 @@ public class BoundedFIFOQueue<T> implements Iterable<T>, Serializable {
      * @param element The element that should be added to the end of the queue.
      * @throws NullPointerException If {@code null} is passed as an element.
      */
-    public void add(T element) {
-        Preconditions.checkNotNull(element);
-        if (elements.add(element) && elements.size() > maxSize) {
+    @Override
+    public boolean offer(T t) {
+        Preconditions.checkNotNull(t);
+        if (elements.add(t) && elements.size() > maxSize) {
             elements.poll();
         }
+        return true;
+    }
+
+    @Override
+    public T poll() {
+        return elements.poll();
+    }
+
+    @Override
+    public T peek() {
+        return elements.peek();
     }
 
     /**
