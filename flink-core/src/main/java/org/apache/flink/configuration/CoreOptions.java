@@ -149,7 +149,7 @@ public class CoreOptions {
             ConfigOptions.key("plugin.classloader.parent-first-patterns.default")
                     .stringType()
                     .defaultValue(
-                            "java.;scala.;org.apache.flink.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache"
+                            "java.;org.apache.flink.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache"
                                     + ".logging;org.apache.commons.logging;ch.qos.logback")
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
