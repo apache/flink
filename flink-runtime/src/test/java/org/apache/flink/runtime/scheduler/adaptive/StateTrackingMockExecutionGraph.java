@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.OptionalFailure;
@@ -247,7 +248,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public SchedulingTopology getSchedulingTopology() {
-        throw new UnsupportedOperationException();
+        return new TestingSchedulingTopology();
     }
 
     @Override

@@ -57,7 +57,7 @@ public class BoundedFIFOQueue<T> extends AbstractQueue<T> implements Serializabl
      * Adds an element to the end of the queue. An element will be removed from the head of the
      * queue if the queue would exceed its maximum size by adding the new element.
      *
-     * @param element The element that should be added to the end of the queue.
+     * @param t The element that should be added to the end of the queue.
      * @throws NullPointerException If {@code null} is passed as an element.
      */
     @Override
