@@ -23,8 +23,10 @@ import org.apache.flink.table.planner.plan.`trait`.{ModifyKindSet, UpdateKind}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.util.ImmutableBitSet
 
-import java.util.{List => JList}
+import java.util
+import java.util.{Set, List => JList}
 
 /**
   * An intermediate Table to wrap a optimized RelNode inside. The input data of this Table is
@@ -42,10 +44,11 @@ class IntermediateRelTable(
     val relNode: RelNode,
     val modifyKindSet: ModifyKindSet,
     val isUpdateBeforeRequired: Boolean,
+    val upsertKeys: util.Set[ImmutableBitSet],
     statistic: FlinkStatistic = FlinkStatistic.UNKNOWN)
   extends FlinkPreparingTableBase(null, relNode.getRowType, names, statistic) {
 
   def this(names: JList[String], relNode: RelNode) {
-    this(names, relNode, ModifyKindSet.INSERT_ONLY, false)
+    this(names, relNode, ModifyKindSet.INSERT_ONLY, false, new util.HashSet[ImmutableBitSet]())
   }
 }

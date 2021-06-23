@@ -21,7 +21,7 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -210,8 +210,7 @@ public class LeaderElectionTest extends TestLogger {
 
         @Override
         public void setup() {
-            embeddedLeaderService =
-                    new EmbeddedLeaderService(TestingUtils.defaultExecutionContext());
+            embeddedLeaderService = new EmbeddedLeaderService(TestingUtils.defaultExecutor());
         }
 
         @Override

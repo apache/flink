@@ -35,6 +35,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -253,6 +254,11 @@ public class AlignedCheckpointsMassiveRandomTest {
         @Override
         public int getGateIndex() {
             return 0;
+        }
+
+        @Override
+        public List<InputChannelInfo> getUnfinishedChannels() {
+            return Collections.emptyList();
         }
     }
 }

@@ -18,8 +18,10 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nullable;
@@ -31,23 +33,31 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_ELEMENT;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_OR_UPDATE_ELEMENT;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.CLEAR;
+import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.METADATA;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.REMOVE_ELEMENT;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET;
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET_INTERNAL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeLogger<Value, Ns> {
+    static final int COMMON_KEY_GROUP = -1;
     protected final StateChangelogWriter<?> stateChangelogWriter;
     protected final InternalKeyContext<Key> keyContext;
+    protected final RegisteredStateMetaInfoBase metaInfo;
+    private boolean metaDataWritten = false;
 
     public AbstractStateChangeLogger(
-            StateChangelogWriter<?> stateChangelogWriter, InternalKeyContext<Key> keyContext) {
+            StateChangelogWriter<?> stateChangelogWriter,
+            InternalKeyContext<Key> keyContext,
+            RegisteredStateMetaInfoBase metaInfo) {
         this.stateChangelogWriter = checkNotNull(stateChangelogWriter);
         this.keyContext = checkNotNull(keyContext);
+        this.metaInfo = checkNotNull(metaInfo);
     }
 
     @Override
@@ -103,7 +113,7 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     }
 
     protected void log(StateChangeOperation op, Ns ns) throws IOException {
-        // todo: log metadata (FLINK-22808)
+        logMetaIfNeeded();
         stateChangelogWriter.append(keyContext.getCurrentKeyGroupIndex(), serialize(op, ns, null));
     }
 
@@ -112,9 +122,26 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
             @Nullable ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter,
             Ns ns)
             throws IOException {
-        // todo: log metadata (FLINK-22808)
+        logMetaIfNeeded();
         stateChangelogWriter.append(
                 keyContext.getCurrentKeyGroupIndex(), serialize(op, ns, dataWriter));
+    }
+
+    private void logMetaIfNeeded() throws IOException {
+        if (!metaDataWritten) {
+            // todo: add StateChangelogWriter.append() version without a keygroup
+            //     when all callers and implementers are merged (FLINK-21356 or later)
+            stateChangelogWriter.append(
+                    COMMON_KEY_GROUP,
+                    serializeRaw(
+                            out -> {
+                                out.writeByte(METADATA.code);
+                                out.writeInt(CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
+                                StateMetaInfoSnapshotReadersWriters.getWriter()
+                                        .writeStateMetaInfoSnapshot(metaInfo.snapshot(), out);
+                            }));
+            metaDataWritten = true;
+        }
     }
 
     private byte[] serialize(
@@ -125,6 +152,9 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
         return serializeRaw(
                 wrapper -> {
                     wrapper.writeByte(op.code);
+                    // todo: optimize in FLINK-22944 by either writing short code or grouping and
+                    // writing once (same for key, ns)
+                    wrapper.writeUTF(metaInfo.getName());
                     serializeScope(ns, wrapper);
                     if (dataWriter != null) {
                         dataWriter.accept(wrapper);
@@ -163,7 +193,9 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
         /** Scope: key + namespace + element (e.g. user map remove or iterator remove). */
         REMOVE_ELEMENT((byte) 7),
         /** Scope: key + namespace, first element (e.g. priority queue poll). */
-        REMOVE_FIRST_ELEMENT((byte) 8);
+        REMOVE_FIRST_ELEMENT((byte) 8),
+        /** State metadata (name, serializers, etc.). */
+        METADATA((byte) 9);
         private final byte code;
 
         StateChangeOperation(byte code) {
@@ -176,6 +208,10 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
 
         public static StateChangeOperation byCode(byte opCode) {
             return checkNotNull(BY_CODES.get(opCode), Byte.toString(opCode));
+        }
+
+        public byte getCode() {
+            return code;
         }
     }
 }

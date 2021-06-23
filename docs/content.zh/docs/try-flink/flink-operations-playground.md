@@ -624,36 +624,6 @@ curl localhost:8081/jobs/<jod-id>
     },
     {
       "id": "<vertex-id>",
-      "name": "Timestamps/Watermarks",
-      "parallelism": 2,
-      "status": "RUNNING",
-      "start-time": 1564467066441,
-      "end-time": -1,
-      "duration": 374378,
-      "tasks": {
-        "CREATED": 0,
-        "FINISHED": 0,
-        "DEPLOYING": 0,
-        "RUNNING": 2,
-        "CANCELING": 0,
-        "FAILED": 0,
-        "CANCELED": 0,
-        "RECONCILING": 0,
-        "SCHEDULED": 0
-      },
-      "metrics": {
-        "read-bytes": 5066280,
-        "read-bytes-complete": true,
-        "write-bytes": 5033496,
-        "write-bytes-complete": true,
-        "read-records": 166349,
-        "read-records-complete": true,
-        "write-records": 166349,
-        "write-records-complete": true
-      }
-    },
-    {
-      "id": "<vertex-id>",
       "name": "ClickEvent Counter",
       "parallelism": 2,
       "status": "RUNNING",
@@ -756,22 +726,6 @@ curl localhost:8081/jobs/<jod-id>
             "num": 0,
             "id": "<vertex-id>",
             "ship_strategy": "HASH",
-            "exchange": "pipelined_bounded"
-          }
-        ],
-        "optimizer_properties": {}
-      },
-      {
-        "id": "<vertex-id>",
-        "parallelism": 2,
-        "operator": "",
-        "operator_strategy": "",
-        "description": "Timestamps/Watermarks",
-        "inputs": [
-          {
-            "num": 0,
-            "id": "<vertex-id>",
-            "ship_strategy": "FORWARD",
             "exchange": "pipelined_bounded"
           }
         ],

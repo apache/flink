@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
@@ -369,7 +369,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      * @return Response future
      */
     protected CompletableFuture<?> ask(Object message, Time timeout) {
-        return FutureUtils.toJava(Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
+        return AkkaFutureUtils.toJava(Patterns.ask(rpcEndpoint, message, timeout.toMilliseconds()));
     }
 
     @Override

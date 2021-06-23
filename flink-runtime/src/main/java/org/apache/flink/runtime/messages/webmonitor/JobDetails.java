@@ -304,8 +304,10 @@ public class JobDetails implements Serializable {
             int[] numVerticesPerExecutionState = new int[ExecutionState.values().length];
 
             for (ExecutionState executionState : ExecutionState.values()) {
+                JsonNode jsonNode = tasksNode.get(executionState.name().toLowerCase());
+
                 numVerticesPerExecutionState[executionState.ordinal()] =
-                        tasksNode.get(executionState.name().toLowerCase()).intValue();
+                        jsonNode == null ? 0 : jsonNode.intValue();
             }
 
             return new JobDetails(

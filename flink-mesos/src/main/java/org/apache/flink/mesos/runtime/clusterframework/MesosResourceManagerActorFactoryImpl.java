@@ -25,7 +25,7 @@ import org.apache.flink.mesos.scheduler.ReconciliationCoordinator;
 import org.apache.flink.mesos.scheduler.TaskMonitor;
 import org.apache.flink.mesos.scheduler.TaskSchedulerBuilder;
 import org.apache.flink.mesos.scheduler.Tasks;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorRef;
@@ -121,7 +121,7 @@ public class MesosResourceManagerActorFactoryImpl implements MesosResourceManage
             return CompletableFuture.completedFuture(true);
         }
 
-        return FutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
+        return AkkaFutureUtils.toJava(Patterns.gracefulStop(actorRef, timeout))
                 .exceptionally(
                         (Throwable throwable) -> {
                             // The actor did not stop gracefully in time, try to directly stop it

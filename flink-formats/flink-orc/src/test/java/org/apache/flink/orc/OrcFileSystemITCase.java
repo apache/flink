@@ -140,6 +140,18 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
                                         + "'path' = '%s',"
                                         + "%s)",
                                 super.resultPath(), String.join(",\n", formatProperties())));
+        super.tableEnv()
+                .executeSql(
+                        String.format(
+                                "create table orcLimitTable ("
+                                        + "x string,"
+                                        + "y int,"
+                                        + "a int"
+                                        + ") with ("
+                                        + "'connector' = 'filesystem',"
+                                        + "'path' = '%s',"
+                                        + "%s)",
+                                super.resultPath(), String.join(",\n", formatProperties())));
     }
 
     @Test
@@ -328,5 +340,21 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
             testHarness.notifyOfCompletedCheckpoint(1);
         }
         return outDir.getAbsolutePath();
+    }
+
+    @Test
+    public void testLimitableBulkFormat() throws ExecutionException, InterruptedException {
+        super.tableEnv()
+                .executeSql(
+                        "insert into orcLimitTable select x, y, " + "1 as a " + "from originalT")
+                .await();
+        TableResult tableResult1 =
+                super.tableEnv().executeSql("SELECT * FROM orcLimitTable limit 5");
+        List<Row> rows1 = CollectionUtil.iteratorToList(tableResult1.collect());
+        assertEquals(5, rows1.size());
+
+        check(
+                "select a from orcLimitTable limit 5",
+                Arrays.asList(Row.of(1), Row.of(1), Row.of(1), Row.of(1), Row.of(1)));
     }
 }

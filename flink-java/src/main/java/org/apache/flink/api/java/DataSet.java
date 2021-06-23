@@ -687,9 +687,9 @@ public abstract class DataSet<T> {
      *       to apply a GroupReduce transformation.
      * </ul>
      *
-     * @param keyExtractor The KeySelector function which extracts the key values from the DataSet
-     *     on which it is grouped.
-     * @return An UnsortedGrouping on which a transformation needs to be applied to obtain a
+     * @param keyExtractor The {@link KeySelector} function which extracts the key values from the
+     *     DataSet on which it is grouped.
+     * @return An {@link UnsortedGrouping} on which a transformation needs to be applied to obtain a
      *     transformed DataSet.
      * @see KeySelector
      * @see UnsortedGrouping
@@ -726,8 +726,8 @@ public abstract class DataSet<T> {
      * </ul>
      *
      * @param fields One or more field positions on which the DataSet will be grouped.
-     * @return A Grouping on which a transformation needs to be applied to obtain a transformed
-     *     DataSet.
+     * @return An {@link UnsortedGrouping} on which a transformation needs to be applied to obtain a
+     *     transformed DataSet.
      * @see Tuple
      * @see UnsortedGrouping
      * @see AggregateOperator
@@ -759,8 +759,8 @@ public abstract class DataSet<T> {
      * </ul>
      *
      * @param fields One or more field expressions on which the DataSet will be grouped.
-     * @return A Grouping on which a transformation needs to be applied to obtain a transformed
-     *     DataSet.
+     * @return An {@link UnsortedGrouping} on which a transformation needs to be applied to obtain a
+     *     transformed DataSet.
      * @see Tuple
      * @see UnsortedGrouping
      * @see AggregateOperator

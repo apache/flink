@@ -19,6 +19,7 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
@@ -43,8 +44,9 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
             TypeSerializer<Ns> namespaceSerializer,
             TypeSerializer<Value> valueSerializer,
             InternalKeyContext<Key> keyContext,
-            StateChangelogWriter<?> stateChangelogWriter) {
-        super(stateChangelogWriter, keyContext);
+            StateChangelogWriter<?> stateChangelogWriter,
+            RegisteredStateMetaInfoBase metaInfo) {
+        super(stateChangelogWriter, keyContext, metaInfo);
         this.keySerializer = checkNotNull(keySerializer);
         this.valueSerializer = checkNotNull(valueSerializer);
         this.namespaceSerializer = checkNotNull(namespaceSerializer);

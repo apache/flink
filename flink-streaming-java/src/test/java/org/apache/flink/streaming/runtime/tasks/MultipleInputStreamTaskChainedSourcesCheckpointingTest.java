@@ -18,15 +18,18 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
@@ -38,10 +41,12 @@ import org.junit.Test;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.addSourceRecords;
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
+import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.triggerCheckpoint;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -227,6 +232,56 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     actualOutput.subList(0, expectedOutput.size()),
                     containsInAnyOrder(expectedOutput.toArray()));
             assertThat(actualOutput.get(expectedOutput.size()), equalTo(barrier));
+        }
+    }
+
+    @Test
+    public void testRpcTriggerCheckpointWithSourceChain() throws Exception {
+        AtomicReference<Future<?>> lastCheckpointTriggerFuture = new AtomicReference<>();
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                env ->
+                                        new MultipleInputStreamTaskTest
+                                                .HoldingOnAfterInvokeMultipleInputStreamTask(
+                                                env, lastCheckpointTriggerFuture),
+                                BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .modifyExecutionConfig(ExecutionConfig::enableObjectReuse)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MultipleInputStreamTaskTest.LifeCycleTrackingMockSource(
+                                                Boundedness.BOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MultipleInputStreamTaskTest.LifeCycleTrackingMockSource(
+                                                Boundedness.BOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()))
+                        .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(4))
+                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                        .build()) {
+
+            testHarness
+                    .getStreamTask()
+                    .getCheckpointCoordinator()
+                    .setEnableCheckpointAfterTasksFinished(true);
+
+            // TODO: Would add the test of part of channel finished after we are able to
+            // complement pending checkpoints when received EndOfPartitionEvent.
+
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
+            testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
+            Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 4);
+            lastCheckpointTriggerFuture.set(checkpointFuture);
+
+            // The checkpoint 4 would be triggered successfully.
+            // TODO: Would also check the checkpoint succeed after we also waiting
+            // for the asynchronous step to finish on finish.
+            testHarness.finishProcessing();
+            assertTrue(checkpointFuture.isDone());
         }
     }
 

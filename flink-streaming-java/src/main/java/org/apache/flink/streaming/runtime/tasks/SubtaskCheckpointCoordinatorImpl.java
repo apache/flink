@@ -77,6 +77,12 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
     private static final int CHECKPOINT_EXECUTION_DELAY_LOG_THRESHOLD_MS = 30_000;
 
+    /**
+     * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
+     * removed in the last PR.
+     */
+    private boolean enableCheckpointAfterTasksFinished;
+
     private final CachingCheckpointStorageWorkerView checkpointStorage;
     private final String taskName;
     private final ExecutorService asyncOperationsThreadPool;
@@ -197,6 +203,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         taskName, env.getTaskInfo().getIndexOfThisSubtask(), checkpointStorage);
         writer.open();
         return writer;
+    }
+
+    @Override
+    public void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished) {
+        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
     }
 
     @Override
@@ -559,7 +570,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
         for (final StreamOperatorWrapper<?, ?> operatorWrapper :
                 operatorChain.getAllOperators(true)) {
-            if (operatorWrapper.isClosed()) {
+            if (!enableCheckpointAfterTasksFinished && operatorWrapper.isClosed()) {
                 env.declineCheckpoint(
                         checkpointMetaData.getCheckpointId(),
                         new CheckpointException(

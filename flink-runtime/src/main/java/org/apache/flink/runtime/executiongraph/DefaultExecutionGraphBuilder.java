@@ -234,7 +234,11 @@ public class DefaultExecutionGraphBuilder {
             try {
                 rootBackend =
                         StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                applicationConfiguredBackend, jobManagerConfig, classLoader, log);
+                                applicationConfiguredBackend,
+                                snapshotSettings.isChangelogStateBackendEnabled(),
+                                jobManagerConfig,
+                                classLoader,
+                                log);
             } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
                 throw new JobExecutionException(
                         jobId, "Could not instantiate configured state backend", e);

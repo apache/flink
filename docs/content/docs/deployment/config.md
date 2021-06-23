@@ -2,7 +2,6 @@
 title: "Configuration"
 weight: 3
 type: docs
-bookToc: false
 aliases:
   - /deployment/config.html
   - /ops/config.html

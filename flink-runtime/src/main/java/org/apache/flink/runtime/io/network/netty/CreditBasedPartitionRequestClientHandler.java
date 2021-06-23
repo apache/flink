@@ -184,8 +184,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             final TransportException tex;
 
             // Improve on the connection reset by peer error message
-            if (cause instanceof IOException
-                    && cause.getMessage().equals("Connection reset by peer")) {
+            if (cause.getMessage() != null
+                    && cause.getMessage().contains("Connection reset by peer")) {
                 tex =
                         new RemoteTransportException(
                                 "Lost connection to task manager '"

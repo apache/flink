@@ -490,6 +490,41 @@ public class ConfigurationUtils {
         return Double.parseDouble(o.toString());
     }
 
+    // --------------------------------------------------------------------------------------------
+    //  Prefix map handling
+    // --------------------------------------------------------------------------------------------
+
+    static boolean canBePrefixMap(ConfigOption<?> configOption) {
+        // maps might span multiple entries by using a prefix key like "key.prop1", "key.prop2"
+        return configOption.getClazz() == Map.class && !configOption.isList();
+    }
+
+    static Map<String, String> convertToPropertiesPrefixed(
+            Map<String, Object> confData, String key) {
+        final String prefixKey = key + ".";
+        return confData.keySet().stream()
+                .filter(k -> k.startsWith(prefixKey))
+                .collect(
+                        Collectors.toMap(
+                                k -> k.substring(prefixKey.length()),
+                                k -> convertToString(confData.get(k))));
+    }
+
+    static boolean containsPrefixMap(Map<String, Object> confData, String key) {
+        final String prefixKey = key + ".";
+        return confData.keySet().stream().anyMatch(k -> k.startsWith(prefixKey));
+    }
+
+    static boolean removePrefixMap(Map<String, Object> confData, String key) {
+        final String prefixKey = key + ".";
+        final List<String> prefixKeys =
+                confData.keySet().stream()
+                        .filter(k -> k.startsWith(prefixKey))
+                        .collect(Collectors.toList());
+        prefixKeys.forEach(confData::remove);
+        return !prefixKeys.isEmpty();
+    }
+
     // Make sure that we cannot instantiate this class
     private ConfigurationUtils() {}
 }

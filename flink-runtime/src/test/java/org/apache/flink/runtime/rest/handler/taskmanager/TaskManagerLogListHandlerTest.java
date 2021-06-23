@@ -31,7 +31,7 @@ import org.apache.flink.runtime.rest.messages.LogListInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerMessageParameters;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -68,7 +68,7 @@ public class TaskManagerLogListHandlerTest extends TestLogger {
         taskManagerLogListHandler =
                 new TaskManagerLogListHandler(
                         () -> CompletableFuture.completedFuture(null),
-                        TestingUtils.TIMEOUT(),
+                        TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         TaskManagerLogsHeaders.getInstance(),
                         () -> CompletableFuture.completedFuture(resourceManagerGateway));

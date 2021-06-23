@@ -151,12 +151,12 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testDefaultSerPartStreamingWrite() throws Exception {
         testStreamingWrite(true, false, "textfile", this::checkSuccessFiles);
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testPartStreamingWrite() throws Exception {
         testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
         // disable vector orc writer test for hive 2.x due to dependency conflict
@@ -165,7 +165,7 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testNonPartStreamingWrite() throws Exception {
         testStreamingWrite(false, false, "parquet", (p) -> {});
         // disable vector orc writer test for hive 2.x due to dependency conflict
@@ -174,7 +174,7 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testPartStreamingMrWrite() throws Exception {
         testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
         // doesn't support writer 2.0 orc table
@@ -183,7 +183,7 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testNonPartStreamingMrWrite() throws Exception {
         testStreamingWrite(false, true, "parquet", (p) -> {});
         // doesn't support writer 2.0 orc table
@@ -192,7 +192,7 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testStreamingAppend() throws Exception {
         testStreamingWrite(
                 false,
@@ -232,7 +232,7 @@ public class HiveTableSinkITCase {
                 });
     }
 
-    @Test(timeout = 120000)
+    @Test
     public void testStreamingSinkWithTimestampLtzWatermark() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);

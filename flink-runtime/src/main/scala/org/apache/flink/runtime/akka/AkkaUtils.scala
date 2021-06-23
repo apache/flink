@@ -28,9 +28,10 @@ import akka.pattern.{ask => akkaAsk}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
-import org.apache.flink.runtime.clusterframework.BootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
 import org.apache.flink.runtime.concurrent.FutureUtils
+import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils
 import org.apache.flink.runtime.net.SSLUtils
+import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
 import org.apache.flink.util.NetUtils
 import org.apache.flink.util.TimeUtils
 import org.apache.flink.util.function.FunctionUtils
@@ -909,7 +910,7 @@ object AkkaUtils {
     * @return Termination future
     */
   def terminateActorSystem(actorSystem: ActorSystem): CompletableFuture[Void] = {
-    FutureUtils.toJava(actorSystem.terminate).thenAccept(FunctionUtils.ignoreFn())
+    AkkaFutureUtils.toJava(actorSystem.terminate).thenAccept(FunctionUtils.ignoreFn())
   }
 }
 
