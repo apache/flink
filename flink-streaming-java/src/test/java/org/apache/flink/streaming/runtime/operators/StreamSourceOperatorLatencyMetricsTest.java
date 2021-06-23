@@ -197,7 +197,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
                     operatorChain);
             operator.close();
         } finally {
-            operatorChain.releaseOutputs();
+            operatorChain.close();
         }
 
         assertEquals(
