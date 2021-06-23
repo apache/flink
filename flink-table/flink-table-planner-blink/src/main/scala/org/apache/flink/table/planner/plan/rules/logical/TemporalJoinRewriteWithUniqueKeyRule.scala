@@ -161,12 +161,12 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
     val rightFields = snapshot.getRowType.getFieldList
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(snapshot.getCluster.getMetadataQuery)
 
-    val uniqueKeySet = fmq.getUniqueKeys(snapshot.getInput())
+    val upsertKeySet = fmq.getUpsertKeys(snapshot.getInput())
     val fields = snapshot.getRowType.getFieldList
 
-    if (uniqueKeySet != null && uniqueKeySet.size() > 0) {
+    if (upsertKeySet != null && upsertKeySet.size() > 0) {
       val leftFieldCnt = leftInput.getRowType.getFieldCount
-      val uniqueKeySetInputRefs = uniqueKeySet.filter(_.nonEmpty)
+      val upsertKeySetInputRefs = upsertKeySet.filter(_.nonEmpty)
         .map(_.toArray
           .map(fields)
           // build InputRef of unique key in snapshot
@@ -175,7 +175,7 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
             leftFieldCnt + rightFields.indexOf(f)))
           .toSeq)
       // select shortest unique key as primary key
-      uniqueKeySetInputRefs
+      upsertKeySetInputRefs
         .toArray
         .sortBy(_.length)
         .headOption
