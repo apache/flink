@@ -87,11 +87,11 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testStartWithDiscoverPartitionsOnce() {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
+    public void testStartWithDiscoverPartitionsOnce() throws Exception {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
 
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
@@ -105,11 +105,11 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testStartWithPeriodicPartitionDiscovery() {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
+    public void testStartWithPeriodicPartitionDiscovery() throws Exception {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
 
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
@@ -124,10 +124,10 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testDiscoverPartitionsTriggersAssignments() throws Throwable {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
 
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
@@ -149,10 +149,10 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testReaderRegistrationTriggersAssignments() throws Throwable {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
 
             // Start the enumerator and it should schedule a one time task to discover and assign
             // partitions.
@@ -172,9 +172,9 @@ public class KafkaEnumeratorTest {
 
     @Test(timeout = 30000L)
     public void testDiscoverPartitionsPeriodically() throws Throwable {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
                         createEnumerator(
                                 context,
                                 ENABLE_PERIODIC_PARTITION_DISCOVERY,
@@ -226,10 +226,10 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testAddSplitsBack() throws Throwable {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
 
             startEnumeratorAndRegisterReaders(context, enumerator);
 
@@ -252,25 +252,25 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testWorkWithPreexistingAssignments() throws Throwable {
-        final MockSplitEnumeratorContext<KafkaPartitionSplit> context1 =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
         Set<TopicPartition> preexistingAssignments;
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context1, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context1 =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context1, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
             startEnumeratorAndRegisterReaders(context1, enumerator);
             preexistingAssignments =
                     asEnumState(context1.getSplitsAssignmentSequence().get(0).assignment());
         }
 
-        final MockSplitEnumeratorContext<KafkaPartitionSplit> context2 =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(
-                        context2,
-                        ENABLE_PERIODIC_PARTITION_DISCOVERY,
-                        PRE_EXISTING_TOPICS,
-                        preexistingAssignments,
-                        new Properties())) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context2 =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(
+                                context2,
+                                ENABLE_PERIODIC_PARTITION_DISCOVERY,
+                                PRE_EXISTING_TOPICS,
+                                preexistingAssignments,
+                                new Properties())) {
             enumerator.start();
             runPeriodicPartitionDiscovery(context2);
 
@@ -284,22 +284,22 @@ public class KafkaEnumeratorTest {
     }
 
     @Test
-    public void testKafkaClientProperties() {
-        MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+    public void testKafkaClientProperties() throws Exception {
         Properties properties = new Properties();
         String clientIdPrefix = "test-prefix";
         Integer defaultTimeoutMs = 99999;
         properties.setProperty(KafkaSourceOptions.CLIENT_ID_PREFIX.key(), clientIdPrefix);
         properties.setProperty(
                 ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, String.valueOf(defaultTimeoutMs));
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(
-                        context,
-                        ENABLE_PERIODIC_PARTITION_DISCOVERY,
-                        PRE_EXISTING_TOPICS,
-                        Collections.emptySet(),
-                        properties)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(
+                                context,
+                                ENABLE_PERIODIC_PARTITION_DISCOVERY,
+                                PRE_EXISTING_TOPICS,
+                                Collections.emptySet(),
+                                properties)) {
             enumerator.start();
 
             AdminClient adminClient =
@@ -325,10 +325,9 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testSnapshotState() throws Throwable {
-        final MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-
-        try (KafkaSourceEnumerator enumerator = createEnumerator(context, false)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator = createEnumerator(context, false)) {
             enumerator.start();
 
             // No reader is registered, so the state should be empty
@@ -350,11 +349,10 @@ public class KafkaEnumeratorTest {
 
     @Test
     public void testPartitionChangeChecking() throws Throwable {
-        final MockSplitEnumeratorContext<KafkaPartitionSplit> context =
-                new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
-
-        try (KafkaSourceEnumerator enumerator =
-                createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
             enumerator.start();
             runOneTimePartitionDiscovery(context);
             registerReader(context, enumerator, READER0);
