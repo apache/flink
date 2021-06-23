@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.deployment.application.ApplicationClusterEntryPoint;
-import org.apache.flink.client.deployment.application.ClassPathPackagedProgramRetriever;
+import org.apache.flink.client.program.DefaultPackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.configuration.Configuration;
@@ -36,10 +36,7 @@ import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 import org.apache.flink.util.FlinkException;
 
-import javax.annotation.Nullable;
-
 import java.io.File;
-import java.io.IOException;
 
 /** An {@link ApplicationClusterEntryPoint} which is started with a job in a predefined location. */
 @Internal
@@ -97,22 +94,14 @@ public final class StandaloneApplicationClusterEntryPoint extends ApplicationClu
 
     private static PackagedProgram getPackagedProgram(
             final StandaloneApplicationClusterConfiguration clusterConfiguration)
-            throws IOException, FlinkException {
-        final PackagedProgramRetriever programRetriever =
-                getPackagedProgramRetriever(
-                        clusterConfiguration.getArgs(), clusterConfiguration.getJobClassName());
-        return programRetriever.getPackagedProgram();
-    }
-
-    private static PackagedProgramRetriever getPackagedProgramRetriever(
-            final String[] programArguments, @Nullable final String jobClassName)
-            throws IOException {
+            throws FlinkException {
         final File userLibDir = ClusterEntrypointUtils.tryFindUserLibDirectory().orElse(null);
-        final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
-                        .setUserLibDirectory(userLibDir)
-                        .setJobClassName(jobClassName);
-        return retrieverBuilder.build();
+        final PackagedProgramRetriever programRetriever =
+                DefaultPackagedProgramRetriever.create(
+                        userLibDir,
+                        clusterConfiguration.getJobClassName(),
+                        clusterConfiguration.getArgs());
+        return programRetriever.getPackagedProgram();
     }
 
     private static void setStaticJobId(
