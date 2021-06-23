@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.taskmanager;
 
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.ThreadFactory;
 

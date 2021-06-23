@@ -21,8 +21,8 @@ package org.apache.flink.kubernetes.kubeclient;
 import org.apache.flink.kubernetes.KubernetesResource;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.After;

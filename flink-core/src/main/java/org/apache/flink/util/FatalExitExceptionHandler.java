@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.util;
+package org.apache.flink.util;
 
-import org.apache.flink.runtime.security.FlinkSecurityManager;
+import org.apache.flink.core.security.FlinkSecurityManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
