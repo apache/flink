@@ -24,7 +24,6 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.NoOpTransientBlobService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -56,7 +55,6 @@ public class WebMonitorEndpointTest extends TestLogger {
                         .build();
         try (final WebMonitorEndpoint<RestfulGateway> webMonitorEndpoint =
                 new WebMonitorEndpoint<>(
-                        RestServerEndpointConfiguration.fromConfiguration(configuration),
                         CompletableFuture::new,
                         configuration,
                         RestHandlerConfiguration.fromConfiguration(configuration),

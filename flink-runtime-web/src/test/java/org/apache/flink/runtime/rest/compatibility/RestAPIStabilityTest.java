@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
+import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
@@ -70,7 +71,7 @@ public final class RestAPIStabilityTest extends TestLogger {
     }
 
     @Test
-    public void testDispatcherRestAPIStability() throws IOException {
+    public void testDispatcherRestAPIStability() throws IOException, ConfigurationException {
         final String versionedSnapshotFileName =
                 String.format(SNAPSHOT_RESOURCE_PATTERN, apiVersion.getURLVersionPrefix());
 

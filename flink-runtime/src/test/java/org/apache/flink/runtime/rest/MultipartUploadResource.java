@@ -105,9 +105,6 @@ public class MultipartUploadResource extends ExternalResource {
         configuredUploadDir = temporaryFolder.newFolder().toPath();
         config.setString(WebOptions.UPLOAD_DIR, configuredUploadDir.toString());
 
-        RestServerEndpointConfiguration serverConfig =
-                RestServerEndpointConfiguration.fromConfiguration(config);
-
         RestfulGateway mockRestfulGateway = mock(RestfulGateway.class);
 
         final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
@@ -125,7 +122,7 @@ public class MultipartUploadResource extends ExternalResource {
         fileHandler = new MultipartFileHandler(mockGatewayRetriever);
 
         serverEndpoint =
-                TestRestServerEndpoint.builder(serverConfig)
+                TestRestServerEndpoint.builder(config)
                         .withHandler(mixedHandler)
                         .withHandler(jsonHandler)
                         .withHandler(fileHandler)
