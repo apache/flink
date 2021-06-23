@@ -19,14 +19,15 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.{Join, JoinRelType}
+import org.apache.calcite.rel.core.{Exchange, Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
@@ -67,11 +68,11 @@ class StreamPhysicalJoin(
    */
   def inputUniqueKeyContainsJoinKey(inputOrdinal: Int): Boolean = {
     val input = getInput(inputOrdinal)
-    val inputUniqueKeys = getCluster.getMetadataQuery.getUniqueKeys(input)
+    val joinKeys = if (inputOrdinal == 0) joinSpec.getLeftKeys else joinSpec.getRightKeys
+    val inputUniqueKeys = getUniqueKeys(input, joinKeys)
     if (inputUniqueKeys != null) {
-      val joinKeys = if (inputOrdinal == 0) joinSpec.getLeftKeys else joinSpec.getRightKeys
       inputUniqueKeys.exists {
-        uniqueKey => joinKeys.forall(uniqueKey.toArray.contains(_))
+        uniqueKey => joinKeys.forall(uniqueKey.contains(_))
       }
     } else {
       false
@@ -98,21 +99,22 @@ class StreamPhysicalJoin(
           JoinUtil.analyzeJoinInput(
               InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(left.getRowType)),
               joinSpec.getLeftKeys,
-              getUniqueKeys(left)))
+              getUniqueKeys(left, joinSpec.getLeftKeys)))
       .item(
           "rightInputSpec",
           JoinUtil.analyzeJoinInput(
               InternalTypeInfo.of(FlinkTypeFactory.toLogicalRowType(right.getRowType)),
               joinSpec.getRightKeys,
-              getUniqueKeys(right)))
+              getUniqueKeys(right, joinSpec.getRightKeys)))
   }
 
-  private def getUniqueKeys(input: RelNode): List[Array[Int]] = {
-    val uniqueKeys = cluster.getMetadataQuery.getUniqueKeys(input)
-    if (uniqueKeys == null || uniqueKeys.isEmpty) {
+  private def getUniqueKeys(input: RelNode, keys: Array[Int]): List[Array[Int]] = {
+    val upsertKeys = FlinkRelMetadataQuery.reuseOrCreate(cluster.getMetadataQuery)
+        .getUpsertKeysInKeyGroupRange(input, keys)
+    if (upsertKeys == null || upsertKeys.isEmpty) {
       List.empty
     } else {
-      uniqueKeys.map(_.asList.map(_.intValue).toArray).toList
+      upsertKeys.map(_.asList.map(_.intValue).toArray).toList
     }
 
   }
@@ -125,8 +127,8 @@ class StreamPhysicalJoin(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecJoin(
         joinSpec,
-        getUniqueKeys(left),
-        getUniqueKeys(right),
+        getUniqueKeys(left, joinSpec.getLeftKeys),
+        getUniqueKeys(right, joinSpec.getRightKeys),
         InputProperty.DEFAULT,
         InputProperty.DEFAULT,
         FlinkTypeFactory.toLogicalRowType(getRowType),
