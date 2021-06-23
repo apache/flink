@@ -55,9 +55,9 @@ public class RunnablesTest extends TestLogger {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertTrue(
-                "Expected handler to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+
+        // expect handler to be called
+        handlerCalled.await();
     }
 
     @Test
