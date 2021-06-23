@@ -44,7 +44,6 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
     protected final WatermarkGauge watermarkGauge = new WatermarkGauge();
     protected final StreamStatusProvider streamStatusProvider;
     @Nullable protected final OutputTag<T> outputTag;
-    @Nullable protected final AutoCloseable closeable;
 
     public ChainingOutput(
             OneInputStreamOperator<T, ?> operator,
@@ -54,18 +53,15 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
                 operator,
                 (OperatorMetricGroup) operator.getMetricGroup(),
                 streamStatusProvider,
-                outputTag,
-                operator::close);
+                outputTag);
     }
 
     public ChainingOutput(
             Input<T> input,
             OperatorMetricGroup operatorMetricGroup,
             StreamStatusProvider streamStatusProvider,
-            @Nullable OutputTag<T> outputTag,
-            @Nullable AutoCloseable closeable) {
+            @Nullable OutputTag<T> outputTag) {
         this.input = input;
-        this.closeable = closeable;
 
         {
             Counter tmpNumRecordsIn;
@@ -138,13 +134,7 @@ class ChainingOutput<T> implements WatermarkGaugeExposingOutput<StreamRecord<T>>
 
     @Override
     public void close() {
-        try {
-            if (closeable != null) {
-                closeable.close();
-            }
-        } catch (Exception e) {
-            throw new ExceptionInChainedOperatorException(e);
-        }
+        // nothing is owned by ChainingOutput and should be closed, see FLINK-20888
     }
 
     @Override
