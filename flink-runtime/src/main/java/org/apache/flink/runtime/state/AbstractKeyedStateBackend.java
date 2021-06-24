@@ -345,7 +345,7 @@ public abstract class AbstractKeyedStateBackend<K>
         if (previous != null) {
             lastState = previous;
             if (previous.getCurrentNamespace() !=null && !namespace.equals(previous.getCurrentNamespace())){
-                throw new UnsupportedOperationException("no support change the state namespace");
+                throw new UnsupportedOperationException("no support getPartitionedState from different namespace");
             }
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
