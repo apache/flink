@@ -67,6 +67,7 @@ public abstract class AbstractKeyedStateBackend<K>
     /** For caching the last accessed partitioned state. */
     private String lastName;
 
+    /** For caching the last accessed partitioned state,verify the consistency of its namespaceSerializer. */
     private TypeSerializer lastNamespaceSerializer;
 
     @SuppressWarnings("rawtypes")
