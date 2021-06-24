@@ -214,4 +214,12 @@ public interface FlinkKubeClient extends AutoCloseable {
 
         void handleError(Throwable throwable);
     }
+
+    /** Handler to deal with pod modify event. */
+    interface PodModifyEventHandler {
+
+        void handle(List<KubernetesPod> pods);
+
+        void handle(KubernetesPod pod);
+    }
 }
