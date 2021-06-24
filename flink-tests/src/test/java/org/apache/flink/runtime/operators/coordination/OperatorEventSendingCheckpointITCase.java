@@ -43,6 +43,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -576,7 +577,11 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
             localRpcCreated = true;
 
             return new InterceptingRpcService(
-                    rpcSystem.localServiceBuilder(configuration).createAndStart());
+                    rpcSystem
+                            .localServiceBuilder(configuration)
+                            .withExecutorConfiguration(
+                                    RpcUtils.getTestForkJoinExecutorConfiguration())
+                            .createAndStart());
         }
     }
 }
