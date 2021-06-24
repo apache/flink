@@ -27,6 +27,6 @@ public class InMemoryStateChangelogWriterFactory
     @Override
     public InMemoryStateChangelogWriter createWriter(
             String operatorID, KeyGroupRange keyGroupRange) {
-        return new InMemoryStateChangelogWriter();
+        return new InMemoryStateChangelogWriter(keyGroupRange);
     }
 }
