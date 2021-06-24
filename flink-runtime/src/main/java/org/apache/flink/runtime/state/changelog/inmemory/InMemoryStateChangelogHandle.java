@@ -39,16 +39,22 @@ public class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> 
     private final List<StateChange> changes;
     private final SequenceNumber from; // for debug purposes
     private final SequenceNumber to; // for debug purposes
+    private final KeyGroupRange keyGroupRange;
 
-    public InMemoryStateChangelogHandle(List<StateChange> changes, long from, long to) {
-        this(changes, SequenceNumber.of(from), SequenceNumber.of(to));
+    public InMemoryStateChangelogHandle(
+            List<StateChange> changes, long from, long to, KeyGroupRange keyGroupRange) {
+        this(changes, SequenceNumber.of(from), SequenceNumber.of(to), keyGroupRange);
     }
 
     public InMemoryStateChangelogHandle(
-            List<StateChange> changes, SequenceNumber from, SequenceNumber to) {
+            List<StateChange> changes,
+            SequenceNumber from,
+            SequenceNumber to,
+            KeyGroupRange keyGroupRange) {
         this.changes = changes;
         this.from = from;
         this.to = to;
+        this.keyGroupRange = keyGroupRange;
     }
 
     @Override
@@ -66,7 +72,7 @@ public class InMemoryStateChangelogHandle implements StateChangelogHandle<Void> 
 
     @Override
     public KeyGroupRange getKeyGroupRange() {
-        throw new UnsupportedOperationException();
+        return keyGroupRange;
     }
 
     @Nullable

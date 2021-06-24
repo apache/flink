@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state.changelog.inmemory;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -46,8 +47,13 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
 
     private final Map<Integer, NavigableMap<SequenceNumber, byte[]>> changesByKeyGroup =
             new HashMap<>();
+    private final KeyGroupRange keyGroupRange;
     private long sqn = 0L;
     private boolean closed;
+
+    public InMemoryStateChangelogWriter(KeyGroupRange keyGroupRange) {
+        this.keyGroupRange = keyGroupRange;
+    }
 
     @Override
     public void append(int keyGroup, byte[] value) {
@@ -67,7 +73,9 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryState
     public CompletableFuture<InMemoryStateChangelogHandle> persist(SequenceNumber from) {
         LOG.debug("Persist after {}", from);
         Preconditions.checkNotNull(from);
-        return completedFuture(new InMemoryStateChangelogHandle(collectChanges(from), from, SequenceNumber.of(sqn)));
+        return completedFuture(
+                new InMemoryStateChangelogHandle(
+                        collectChanges(from), from, SequenceNumber.of(sqn), keyGroupRange));
     }
 
     private List<StateChange> collectChanges(SequenceNumber after) {

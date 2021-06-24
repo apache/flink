@@ -318,6 +318,8 @@ public abstract class MetadataV2V3SerializerBase {
         } else if (stateHandle instanceof InMemoryStateChangelogHandle) {
             InMemoryStateChangelogHandle handle = (InMemoryStateChangelogHandle) stateHandle;
             dos.writeByte(CHANGELOG_BYTE_INCREMENT_HANDLE);
+            dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
+            dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(handle.getFrom());
             dos.writeLong(handle.getTo());
             List<StateChange> list = new ArrayList<>();
@@ -406,6 +408,9 @@ public abstract class MetadataV2V3SerializerBase {
                     metaDataStateHandle);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
+            int start = dis.readInt();
+            int numKeyGroups = dis.readInt();
+            KeyGroupRange keyGroupRange = KeyGroupRange.of(start, start + numKeyGroups - 1);
             long from = dis.readLong();
             long to = dis.readLong();
             int size = dis.readInt();
@@ -417,7 +422,7 @@ public abstract class MetadataV2V3SerializerBase {
                 dis.read(bytes);
                 changes.add(new StateChange(keyGroup, bytes));
             }
-            return new InMemoryStateChangelogHandle(changes, from, to);
+            return new InMemoryStateChangelogHandle(changes, from, to, keyGroupRange);
 
         } else if (CHANGELOG_FILE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();
