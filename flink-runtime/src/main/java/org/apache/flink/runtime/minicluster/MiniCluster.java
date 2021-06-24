@@ -276,7 +276,10 @@ public class MiniCluster implements AutoCloseableAsync {
                 final RpcSystem rpcSystem = RpcSystem.load();
 
                 LOG.info("Starting Metrics Registry");
-                metricRegistry = createMetricRegistry(configuration);
+                metricRegistry =
+                        createMetricRegistry(
+                                configuration,
+                                rpcSystem.getMaximumMessageSizeInBytes(configuration));
 
                 // bring up all the RPC services
                 LOG.info("Starting RPC Service(s)");
@@ -897,10 +900,12 @@ public class MiniCluster implements AutoCloseableAsync {
      * Factory method to create the metric registry for the mini cluster.
      *
      * @param config The configuration of the mini cluster
+     * @param maximumMessageSizeInBytes the maximum message size
      */
-    protected MetricRegistryImpl createMetricRegistry(Configuration config) {
+    protected MetricRegistryImpl createMetricRegistry(
+            Configuration config, long maximumMessageSizeInBytes) {
         return new MetricRegistryImpl(
-                MetricRegistryConfiguration.fromConfiguration(config),
+                MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
                 ReporterSetup.fromConfiguration(config, null));
     }
 
