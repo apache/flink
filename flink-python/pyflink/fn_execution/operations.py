@@ -375,7 +375,11 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
         # all the fields are nullable except the "element_type"
         for input_data in input_datas:
             if input_data[0] == NORMAL_RECORD:
-                self.group_agg_function.process_element(input_data[1])
+                if has_cython:
+                    row = InternalRow(input_data[1]._values, input_data[1].get_row_kind().value)
+                else:
+                    row = input_data[1]
+                self.group_agg_function.process_element(row)
             else:
                 self.group_agg_function.on_timer(input_data[3])
         return self.group_agg_function.finish_bundle()

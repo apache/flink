@@ -127,32 +127,6 @@ cdef class AggregateFunctionRowCoderImpl(FlattenRowCoderImpl):
         output_stream.write(self._tmp_output_data, self._tmp_output_pos)
         self._tmp_output_pos = 0
 
-    cdef InternalRow _decode_field_row(self, RowCoderImpl field_coder):
-        cdef list row_field_coders
-        cdef size_t row_field_count, leading_complete_bytes_num, remaining_bits_num
-        cdef bint*mask
-        cdef unsigned char row_kind_value
-        cdef libc.stdint.int32_t i
-        cdef InternalRow row
-        cdef FieldCoder row_field_coder
-        row_field_coders = field_coder.field_coders
-        row_field_count = field_coder.field_count
-        mask = <bint*> malloc((row_field_count + ROW_KIND_BIT_SIZE) * sizeof(bint))
-        leading_complete_bytes_num = (row_field_count + ROW_KIND_BIT_SIZE) // 8
-        remaining_bits_num = (row_field_count + ROW_KIND_BIT_SIZE) % 8
-        self._read_mask(mask, leading_complete_bytes_num, remaining_bits_num)
-        row_kind_value = 0
-        for i in range(ROW_KIND_BIT_SIZE):
-            row_kind_value += mask[i] * 2 ** i
-        row = InternalRow([None if mask[i + ROW_KIND_BIT_SIZE] else
-                    self._decode_field(
-                        row_field_coders[i].coder_type(),
-                        row_field_coders[i].type_name(),
-                        row_field_coders[i])
-                    for i in range(row_field_count)], row_kind_value)
-        free(mask)
-        return row
-
 
 cdef class DataStreamFlatMapCoderImpl(BaseCoderImpl):
 
