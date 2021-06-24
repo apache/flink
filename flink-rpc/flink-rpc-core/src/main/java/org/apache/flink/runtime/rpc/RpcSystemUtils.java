@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import javax.annotation.Nullable;
 
 import java.util.Optional;
+import java.util.ServiceLoader;
 
 /** Utils related to the {@link RpcSystem}. */
 public final class RpcSystemUtils {
@@ -52,4 +53,9 @@ public final class RpcSystemUtils {
     }
 
     private RpcSystemUtils() {}
+
+    static RpcSystem loadRpcSystem() {
+        final ClassLoader classLoader = RpcUtils.class.getClassLoader();
+        return ServiceLoader.load(RpcSystem.class, classLoader).iterator().next();
+    }
 }

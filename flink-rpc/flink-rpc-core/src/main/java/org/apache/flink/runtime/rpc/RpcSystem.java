@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcSystem;
 
 import javax.annotation.Nullable;
 
@@ -115,7 +114,7 @@ public interface RpcSystem {
      * @return loaded RpcSystem
      */
     static RpcSystem load() {
-        return new AkkaRpcSystem();
+        return RpcSystemUtils.loadRpcSystem();
     }
 
     /** Descriptor for creating a fork-join thread-pool. */
