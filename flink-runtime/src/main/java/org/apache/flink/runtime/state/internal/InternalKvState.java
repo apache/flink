@@ -79,16 +79,6 @@ public interface InternalKvState<K, N, V> extends State {
      */
     void setCurrentNamespace(N namespace);
 
-
-    /**
-     * get the current namespace.
-     *
-     */
-    default N getCurrentNamespace(){
-        return null;
-    };
-
-
     /**
      * Returns the serialized value for the given key and namespace.
      *
