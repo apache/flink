@@ -36,14 +36,19 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.runtime.connector.sink.SinkRuntimeProviderContext;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -54,7 +59,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Test for {@link BufferedUpsertSinkFunction}. */
+@RunWith(Parameterized.class)
 public class BufferedUpsertSinkFunctionTest {
+
+    @Parameterized.Parameters(name = "object reuse = {0}")
+    public static Object[] enableObjectReuse() {
+        return new Boolean[] {true, false};
+    }
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -129,17 +140,23 @@ public class BufferedUpsertSinkFunctionTest {
                 TimestampData.fromInstant(Instant.parse("2021-03-30T21:00:00Z")))
     };
 
+    private final boolean enableObjectReuse;
+
+    public BufferedUpsertSinkFunctionTest(boolean enableObjectReuse) {
+        this.enableObjectReuse = enableObjectReuse;
+    }
+
     @Test
     public void testWriteData() throws Exception {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
         BufferedUpsertSinkFunction bufferedSink = createBufferedSink(sinkFunction);
 
         // write 3 records which doesn't trigger batch size
-        writeData(bufferedSink, TEST_DATA, 0, 3);
+        writeData(bufferedSink, new ReusableIterator(0, 3));
         assertTrue(sinkFunction.rowDataCollectors.isEmpty());
 
         // write one more record, and should flush the buffer
-        writeData(bufferedSink, TEST_DATA, 3, 1);
+        writeData(bufferedSink, new ReusableIterator(3, 1));
 
         HashMap<Integer, List<RowData>> expected = new HashMap<>();
         expected.put(
@@ -180,7 +197,7 @@ public class BufferedUpsertSinkFunctionTest {
 
         sinkFunction.rowDataCollectors.clear();
         // write remaining data, and they are still buffered
-        writeData(bufferedSink, TEST_DATA, 4, 3);
+        writeData(bufferedSink, new ReusableIterator(4, 3));
         assertTrue(sinkFunction.rowDataCollectors.isEmpty());
     }
 
@@ -189,7 +206,7 @@ public class BufferedUpsertSinkFunctionTest {
         MockedSinkFunction sinkFunction = new MockedSinkFunction();
         BufferedUpsertSinkFunction bufferedFunction = createBufferedSink(sinkFunction);
         // write all data, there should be 3 records are still buffered
-        writeData(bufferedFunction, TEST_DATA, 0, TEST_DATA.length);
+        writeData(bufferedFunction, new ReusableIterator(0, TEST_DATA.length));
         // snapshot should flush the buffer
         bufferedFunction.snapshotState(null);
 
@@ -257,16 +274,15 @@ public class BufferedUpsertSinkFunctionTest {
                         typeInformation,
                         BUFFER_FLUSH_MODE);
         bufferedSinkFunction.open(new Configuration());
-
         return bufferedSinkFunction;
     }
 
-    private void writeData(BufferedUpsertSinkFunction sink, RowData[] data, int startPos, int size)
+    private void writeData(BufferedUpsertSinkFunction sink, Iterator<RowData> iterator)
             throws Exception {
-        for (int i = startPos; i < startPos + size; i++) {
-            RowData row = data[i];
-            long rowtime = row.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
-            sink.invoke(row, SinkContextUtil.forTimestamp(rowtime));
+        while (iterator.hasNext()) {
+            RowData next = iterator.next();
+            long rowtime = next.getTimestamp(TIMESTAMP_INDICES, 3).getMillisecond();
+            sink.invoke(next, SinkContextUtil.forTimestamp(rowtime));
         }
     }
 
@@ -287,15 +303,22 @@ public class BufferedUpsertSinkFunctionTest {
 
     // --------------------------------------------------------------------------------------------
 
-    private static class MockedSinkFunction extends RichSinkFunction<RowData>
+    private class MockedSinkFunction extends RichSinkFunction<RowData>
             implements CheckpointedFunction, CheckpointListener {
 
         private static final long serialVersionUID = 1L;
+        private final RuntimeContext context = new MockStreamingRuntimeContext(true, 1, 1);
         transient List<RowData> rowDataCollectors;
+
+        MockedSinkFunction() {
+            if (enableObjectReuse) {
+                context.getExecutionConfig().enableObjectReuse();
+            }
+        }
 
         @Override
         public RuntimeContext getRuntimeContext() {
-            return new MockStreamingRuntimeContext(true, 1, 1);
+            return context;
         }
 
         @Override
@@ -325,6 +348,35 @@ public class BufferedUpsertSinkFunctionTest {
                     value.getTimestamp(TIMESTAMP_INDICES, 3).toInstant(),
                     Instant.ofEpochMilli(context.timestamp()));
             rowDataCollectors.add(value);
+        }
+    }
+
+    private class ReusableIterator implements Iterator<RowData> {
+
+        private final RowDataSerializer serializer =
+                InternalTypeInfo.of(SCHEMA.toSinkRowDataType().getLogicalType()).toRowSerializer();
+        private final RowData reusedRow = new GenericRowData(SCHEMA.getColumnCount());
+
+        private int begin;
+        private final int end;
+
+        ReusableIterator(int begin, int size) {
+            this.begin = begin;
+            this.end = begin + size;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return begin < end;
+        }
+
+        @Override
+        public RowData next() {
+            if (enableObjectReuse) {
+                return serializer.copy(TEST_DATA[begin++], reusedRow);
+            } else {
+                return TEST_DATA[begin++];
+            }
         }
     }
 }
