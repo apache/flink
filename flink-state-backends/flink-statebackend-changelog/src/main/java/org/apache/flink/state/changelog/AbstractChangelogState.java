@@ -90,8 +90,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
     }
 
-    @Override
-    public N getCurrentNamespace()  {
+    protected N getCurrentNamespace() throws NullPointerException {
         return checkNotNull(currentNamespace);
     }
 }

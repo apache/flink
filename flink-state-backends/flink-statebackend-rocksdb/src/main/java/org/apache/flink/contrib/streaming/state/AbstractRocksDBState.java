@@ -122,11 +122,6 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     }
 
     @Override
-    public N getCurrentNamespace(){
-        return currentNamespace;
-    }
-
-    @Override
     public byte[] getSerializedValue(
             final byte[] serializedKeyAndNamespace,
             final TypeSerializer<K> safeKeySerializer,
