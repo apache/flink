@@ -88,16 +88,28 @@ Job 监控以及资源管理。Flink TaskManager 运行 worker 进程，
 
 我们所使用的配置文件位于 
 [flink-playgrounds](https://github.com/apache/flink-playgrounds) 仓库中，
-检出该仓库并启动 docker 环境：
+首先检出该仓库并构建 docker 镜像：
 
 ```bash
-git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
+git clone https://github.com/apache/flink-playgrounds.git
 cd flink-playgrounds/operations-playground
 docker-compose build
+```
+
+接下来在开始运行之前先在 Docker 主机上创建检查点和保存点目录（这些卷由 jobmanager 和 taskmanager 挂载，如 docker-compose.yaml 中所指定的）：
+
+```bash
+mkdir -p /tmp/flink-checkpoints-directory
+mkdir -p /tmp/flink-savepoints-directory
+```
+
+然后启动环境：
+
+```bash
 docker-compose up -d
 ```
 
-接下来可以执行如下命令来查看 Docker 容器：
+接下来你可以执行如下命令来查看正在运行中的 Docker 容器：
 
 ```bash
 docker-compose ps
