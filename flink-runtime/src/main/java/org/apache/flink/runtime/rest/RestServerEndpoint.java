@@ -39,7 +39,6 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
-import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
@@ -222,9 +221,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     serverChannel = channel.syncUninterruptibly().channel();
                     break;
                 } catch (final Exception e) {
+                    // syncUninterruptibly() throws checked exceptions via Unsafe
                     // continue if the exception is due to the port being in use, fail early
                     // otherwise
-                    if (!(e instanceof ChannelException || e instanceof java.net.BindException)) {
+                    if (!(e instanceof java.net.BindException)) {
                         throw e;
                     }
                 }
