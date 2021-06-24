@@ -1587,6 +1587,8 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
+						<!-- on, unset, or random -->
+						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
