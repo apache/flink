@@ -263,7 +263,7 @@ class CountWindowAverage(FlatMapFunction):
     def open(self, runtime_context: RuntimeContext):
         descriptor = ValueStateDescriptor(
             "average",  # the state name
-            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+            Types.PICKLED_BYTE_ARRAY()  # type information
         )
         self.sum = runtime_context.get_state(descriptor)
 
