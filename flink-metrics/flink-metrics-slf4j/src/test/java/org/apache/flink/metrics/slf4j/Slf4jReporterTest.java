@@ -29,8 +29,8 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -75,7 +75,7 @@ public class Slf4jReporterTest extends TestLogger {
 
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(configuration),
+                        MetricRegistryTestUtils.fromConfiguration(configuration),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("slf4j", new Slf4jReporter())));
         delimiter = registry.getDelimiter();

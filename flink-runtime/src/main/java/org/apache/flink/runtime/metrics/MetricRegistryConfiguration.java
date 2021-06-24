@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.metrics;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
@@ -31,8 +30,6 @@ import org.slf4j.LoggerFactory;
 public class MetricRegistryConfiguration {
 
     private static final Logger LOG = LoggerFactory.getLogger(MetricRegistryConfiguration.class);
-
-    private static volatile MetricRegistryConfiguration defaultConfiguration;
 
     // scope formats for the different components
     private final ScopeFormats scopeFormats;
@@ -70,11 +67,6 @@ public class MetricRegistryConfiguration {
     //  Static factory methods
     // ------------------------------------------------------------------------
 
-    @VisibleForTesting
-    public static MetricRegistryConfiguration fromConfiguration(Configuration configuration) {
-        return fromConfiguration(configuration, 10485760);
-    }
-
     /**
      * Create a metric registry configuration object from the given {@link Configuration}.
      *
@@ -104,18 +96,5 @@ public class MetricRegistryConfiguration {
 
         return new MetricRegistryConfiguration(
                 scopeFormats, delim, maximumFrameSize - messageSizeLimitPadding);
-    }
-
-    public static MetricRegistryConfiguration defaultMetricRegistryConfiguration() {
-        // create the default metric registry configuration only once
-        if (defaultConfiguration == null) {
-            synchronized (MetricRegistryConfiguration.class) {
-                if (defaultConfiguration == null) {
-                    defaultConfiguration = fromConfiguration(new Configuration());
-                }
-            }
-        }
-
-        return defaultConfiguration;
     }
 }

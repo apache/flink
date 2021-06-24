@@ -36,6 +36,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
@@ -85,7 +86,7 @@ public class ScheduledDropwizardReporterTest {
         configuration.setString(MetricOptions.SCOPE_DELIMITER, "_");
 
         MetricRegistryConfiguration metricRegistryConfiguration =
-                MetricRegistryConfiguration.fromConfiguration(configuration);
+                MetricRegistryTestUtils.fromConfiguration(configuration);
 
         MetricRegistryImpl metricRegistry =
                 new MetricRegistryImpl(

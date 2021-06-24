@@ -28,8 +28,8 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
@@ -61,7 +61,7 @@ public class AbstractMetricGroupTest extends TestLogger {
     public void testGetAllVariables() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
 
         AbstractMetricGroup group =
                 new AbstractMetricGroup<AbstractMetricGroup<?>>(registry, new String[0], null) {
@@ -179,7 +179,7 @@ public class AbstractMetricGroupTest extends TestLogger {
 
         MetricRegistryImpl testRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.fromConfiguration(config),
+                        MetricRegistryTestUtils.fromConfiguration(config),
                         Arrays.asList(
                                 ReporterSetup.forReporter(
                                         "test1", metricConfig1, new TestReporter1()),
@@ -207,7 +207,7 @@ public class AbstractMetricGroupTest extends TestLogger {
     public void testLogicalScopeCachingForMultipleReporters() throws Exception {
         MetricRegistryImpl testRegistry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", new LogicalScopeReporter1()),
                                 ReporterSetup.forReporter("test2", new LogicalScopeReporter2())));
@@ -341,7 +341,7 @@ public class AbstractMetricGroupTest extends TestLogger {
         Configuration config = new Configuration();
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
         MetricRegistryImpl testRegistry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
 
         try {
             TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
