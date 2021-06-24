@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <h1>Endpoint and Gateway</h1>
  *
- * To be done...
+ * <p>To be done...
  *
  * <h1>Single Threaded Endpoint Execution </h1>
  *
@@ -76,8 +76,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *       not serve RPC requests anymore.
  * </ul>
  *
- * The running state can be queried in a RPC method handler or in the main thread by calling {@link
- * #isRunning()} method.
+ * <p>The running state can be queried in a RPC method handler or in the main thread by calling
+ * {@link #isRunning()} method.
  */
 public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 

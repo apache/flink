@@ -38,7 +38,7 @@ public interface RpcInvocation {
     String getMethodName() throws IOException, ClassNotFoundException;
 
     /**
-     * Returns the method's parameter types
+     * Returns the method's parameter types.
      *
      * @return Method's parameter types
      * @throws IOException if the rpc invocation message is a remote message and could not be
@@ -49,7 +49,7 @@ public interface RpcInvocation {
     Class<?>[] getParameterTypes() throws IOException, ClassNotFoundException;
 
     /**
-     * Returns the arguments of the remote procedure call
+     * Returns the arguments of the remote procedure call.
      *
      * @return Arguments of the remote procedure call
      * @throws IOException if the rpc invocation message is a remote message and could not be

@@ -71,6 +71,7 @@ public class MetricRegistryConfiguration {
      * Create a metric registry configuration object from the given {@link Configuration}.
      *
      * @param configuration to generate the metric registry configuration from
+     * @param maximumFrameSize the maximum message size that the RPC system supports
      * @return Metric registry configuration generated from the configuration
      */
     public static MetricRegistryConfiguration fromConfiguration(
