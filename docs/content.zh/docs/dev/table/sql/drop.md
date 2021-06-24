@@ -153,11 +153,11 @@ Flink SQL> SHOW TABLES;
 DROP CATALOG [IF EXISTS] catalog_name
 ```
 
-删除给定的 catalog name 的 catalog。
+删除给定名字的 catalog。
 
 **IF EXISTS**
 
-如果目标 catalog 不存在，则不会生效。
+如果目标 catalog 不存在，则不会执行任何操作。
 
 ## DROP TABLE
 
