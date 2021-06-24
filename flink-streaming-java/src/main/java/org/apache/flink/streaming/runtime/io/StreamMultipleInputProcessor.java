@@ -29,7 +29,7 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
+import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal

@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.time.Duration;
 import java.util.ArrayList;

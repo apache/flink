@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.concurrent.akka;
 
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import akka.actor.ActorSystem;
 import akka.actor.Cancellable;

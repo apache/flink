@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent;
+package org.apache.flink.util.concurrent;
 
 import org.apache.flink.util.Preconditions;
 

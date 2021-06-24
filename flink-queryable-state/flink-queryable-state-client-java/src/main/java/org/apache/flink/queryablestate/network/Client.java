@@ -20,11 +20,11 @@ package org.apache.flink.queryablestate.network;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.network.messages.MessageBody;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.Bootstrap;
@@ -150,7 +150,7 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
     public CompletableFuture<RESP> sendRequest(
             final InetSocketAddress serverAddress, final REQ request) {
         if (clientShutdownFuture.get() != null) {
-            return FutureUtils.getFailedFuture(
+            return FutureUtils.completedExceptionally(
                     new IllegalStateException(clientName + " is already shut down."));
         }
 
@@ -304,9 +304,9 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
         CompletableFuture<RESP> sendRequest(REQ request) {
             synchronized (connectLock) {
                 if (failureCause != null) {
-                    return FutureUtils.getFailedFuture(failureCause);
+                    return FutureUtils.completedExceptionally(failureCause);
                 } else if (connectionShutdownFuture.get() != null) {
-                    return FutureUtils.getFailedFuture(new ClosedChannelException());
+                    return FutureUtils.completedExceptionally(new ClosedChannelException());
                 } else {
                     if (established != null) {
                         return established.sendRequest(request);

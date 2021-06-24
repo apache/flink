@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.queryablestate.FutureUtils;
 import org.apache.flink.queryablestate.client.state.ImmutableAggregatingState;
 import org.apache.flink.queryablestate.client.state.ImmutableListState;
 import org.apache.flink.queryablestate.client.state.ImmutableMapState;
@@ -43,6 +42,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.LambdaUtil;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -300,7 +300,7 @@ public class QueryableStateClient {
                     KvStateSerializer.serializeKeyAndNamespace(
                             key, keySerializer, namespace, namespaceSerializer);
         } catch (IOException e) {
-            return FutureUtils.getFailedFuture(e);
+            return FutureUtils.completedExceptionally(e);
         }
 
         ClassLoader classLoaderToUse =
@@ -355,7 +355,7 @@ public class QueryableStateClient {
             return client.sendRequest(remoteAddress, request);
         } catch (Exception e) {
             LOG.error("Unable to send KVStateRequest: ", e);
-            return FutureUtils.getFailedFuture(e);
+            return FutureUtils.completedExceptionally(e);
         }
     }
 }
