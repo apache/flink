@@ -80,7 +80,11 @@ public interface InternalKvState<K, N, V> extends State {
     void setCurrentNamespace(N namespace);
 
 
-    default N getCurrentNamespace() throws NullPointerException{
+    /**
+     * get the current namespace.
+     *
+     */
+    default N getCurrentNamespace(){
         return null;
     };
 

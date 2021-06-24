@@ -91,7 +91,7 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     }
 
     @Override
-    public N getCurrentNamespace() throws NullPointerException {
+    public N getCurrentNamespace()  {
         return checkNotNull(currentNamespace);
     }
 }
