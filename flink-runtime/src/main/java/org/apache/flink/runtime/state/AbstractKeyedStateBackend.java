@@ -344,6 +344,9 @@ public abstract class AbstractKeyedStateBackend<K>
         InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
         if (previous != null) {
             lastState = previous;
+            if (previous.getCurrentNamespace() !=null && !namespace.equals(previous.getCurrentNamespace())){
+                throw new UnsupportedOperationException("the namespace is different");
+            }
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
             return (S) previous;
