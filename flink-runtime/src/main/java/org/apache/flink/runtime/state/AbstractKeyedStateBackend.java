@@ -361,6 +361,7 @@ public abstract class AbstractKeyedStateBackend<K>
         final InternalKvState<K, N, ?> kvState = (InternalKvState<K, N, ?>) state;
 
         lastName = stateDescriptor.getName();
+        lastNamespaceSerializer = namespaceSerializer;
         lastState = kvState;
         kvState.setCurrentNamespace(namespace);
 
