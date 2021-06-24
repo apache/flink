@@ -16,11 +16,11 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 from pyflink.table.explain_detail import ExplainDetail
 
 
-class StreamTableExplainTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableExplainTests(PyFlinkStreamTableTestCase):
 
     def test_explain(self):
         t = self.t_env.from_elements([(1, 'Hi', 'Hello')], ['a', 'b', 'c'])

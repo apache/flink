@@ -29,7 +29,7 @@ from pyflink.table.expressions import (col, lit, range_, and_, or_, current_date
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-class PyFlinkBlinkBatchExpressionTests(PyFlinkTestCase):
+class PyFlinkBatchExpressionTests(PyFlinkTestCase):
 
     def test_expression(self):
         expr1 = col('a')

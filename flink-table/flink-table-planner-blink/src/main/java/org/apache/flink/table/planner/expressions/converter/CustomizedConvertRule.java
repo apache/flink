@@ -99,7 +99,7 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
         DEFINITION_RULE_MAP.put(
                 BuiltInFunctionDefinitions.SQRT, CustomizedConvertRule::convertSqrt);
 
-        // blink expression
+        // planner specific expression
         DEFINITION_RULE_MAP.put(
                 InternalFunctionDefinitions.THROW_EXCEPTION,
                 CustomizedConvertRule::convertThrowException);

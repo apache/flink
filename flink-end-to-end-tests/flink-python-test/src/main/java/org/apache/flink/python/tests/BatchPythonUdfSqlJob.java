@@ -27,8 +27,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-/** A simple job used to test submitting the Python UDF job in blink batch mode. */
-public class BlinkBatchPythonUdfSqlJob {
+/** A simple job used to test submitting the Python UDF job in batch mode. */
+public class BatchPythonUdfSqlJob {
 
     public static void main(String[] args) {
         TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());

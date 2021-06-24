@@ -225,8 +225,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     @Test
     public void testPartitionFilter() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         TestPartitionFilterCatalog catalog =
                 new TestPartitionFilterCatalog(
                         hiveCatalog.getName(),
@@ -326,8 +325,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     @Test
     public void testPartitionFilterDateTimestamp() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         TestPartitionFilterCatalog catalog =
                 new TestPartitionFilterCatalog(
                         hiveCatalog.getName(),
@@ -594,7 +592,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -649,7 +647,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -704,7 +702,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -773,7 +771,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         final String catalogName = "hive";
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.getConfig()
                 .getConfiguration()
                 .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, useMapredReader);
@@ -838,7 +836,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         HiveCatalog catalogSpy = spy(hiveCatalog);
         doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
 
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.getConfig()
                 .getConfiguration()
                 .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallbackMR);
@@ -893,7 +891,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -940,8 +938,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     }
 
     private static TableEnvironment createTableEnv() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog("hive", hiveCatalog);
         tableEnv.useCatalog("hive");
         return tableEnv;

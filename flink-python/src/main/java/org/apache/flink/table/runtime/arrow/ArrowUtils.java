@@ -205,9 +205,7 @@ public final class ArrowUtils {
         return new Field(fieldName, fieldType, children);
     }
 
-    /**
-     * Creates an {@link ArrowWriter} for blink planner for the specified {@link VectorSchemaRoot}.
-     */
+    /** Creates an {@link ArrowWriter} for the specified {@link VectorSchemaRoot}. */
     public static ArrowWriter<RowData> createRowDataArrowWriter(
             VectorSchemaRoot root, RowType rowType) {
         ArrowFieldWriter<RowData>[] fieldWriters =
@@ -346,9 +344,7 @@ public final class ArrowUtils {
         }
     }
 
-    /**
-     * Creates an {@link ArrowReader} for blink planner for the specified {@link VectorSchemaRoot}.
-     */
+    /** Creates an {@link ArrowReader} for the specified {@link VectorSchemaRoot}. */
     public static RowDataArrowReader createRowDataArrowReader(
             VectorSchemaRoot root, RowType rowType) {
         List<ColumnVector> columnVectors = new ArrayList<>();

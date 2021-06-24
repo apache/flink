@@ -26,8 +26,6 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 /**
  * This class holds internal configuration constants used by Flink's table module.
  *
- * <p>This is only used for the Blink planner.
- *
  * <p>NOTE: All option keys in this class must start with "__" and end up with "__", and all options
  * shouldn't expose to users, all options should erase after plan finished.
  */

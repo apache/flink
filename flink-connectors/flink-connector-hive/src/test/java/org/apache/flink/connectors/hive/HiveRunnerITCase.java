@@ -209,8 +209,7 @@ public class HiveRunnerITCase {
 
     @Test
     public void testWriteNullValues() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create database db1");
@@ -617,8 +616,7 @@ public class HiveRunnerITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -627,7 +625,7 @@ public class HiveRunnerITCase {
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;

@@ -48,7 +48,7 @@ public class RichTableSourceQueryOperation<T> extends TableSourceQueryOperation<
         super(tableSource, false);
         Preconditions.checkArgument(
                 tableSource instanceof StreamTableSource,
-                "Blink planner should always use StreamTableSource.");
+                "Planner should always use StreamTableSource.");
         this.statistic = statistic;
         this.identifier = identifier;
     }

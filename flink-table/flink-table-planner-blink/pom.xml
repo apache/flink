@@ -28,13 +28,12 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
-	<name>Flink : Table : Planner Blink</name>
+	<name>Flink : Table : Planner</name>
 	<description>
-		This module bridges Table/SQL API and runtime. It contains
-		all resources that are required during pre-flight and runtime
-		phase. The content of this module is work-in-progress. It will
-		replace flink-table-planner once it is stable. See FLINK-11439
-		and FLIP-32 for more details.
+		This module connects Table/SQL API and runtime. It is responsible
+		for translating and optimizing a table program into a Flink pipeline.
+		The module can access all resources that are required during
+		pre-flight and runtime phase for planning.
 	</description>
 
 	<packaging>jar</packaging>

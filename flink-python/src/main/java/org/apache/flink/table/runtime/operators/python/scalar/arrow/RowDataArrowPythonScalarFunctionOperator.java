@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
-/** Arrow Python {@link ScalarFunction} operator for the blink planner. */
+/** Arrow Python {@link ScalarFunction} operator. */
 @Internal
 public class RowDataArrowPythonScalarFunctionOperator
         extends AbstractRowDataPythonScalarFunctionOperator {

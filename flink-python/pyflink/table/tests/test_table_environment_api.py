@@ -34,7 +34,7 @@ from pyflink.table.expressions import col
 from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase, \
     _load_specific_flink_module_jars
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -258,7 +258,7 @@ class DataStreamConversionTestCases(object):
         self.assertEqual(result, expected)
 
 
-class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamTableTestCase):
+class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
     def test_collect_with_retract(self):
         expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
@@ -329,7 +329,7 @@ class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamT
             self.assertEqual(expected_result, collected_result)
 
 
-class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
+class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env

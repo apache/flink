@@ -65,7 +65,7 @@ import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowPrope
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
-/** The Python Group Window AggregateFunction operator for the blink planner. */
+/** The Python Group Window AggregateFunction operator. */
 @Internal
 public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
         extends AbstractPythonStreamAggregateOperator implements Triggerable<K, W> {

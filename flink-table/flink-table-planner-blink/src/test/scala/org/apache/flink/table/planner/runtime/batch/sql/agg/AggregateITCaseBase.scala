@@ -808,7 +808,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  // NOTE: select from values -- supported by Spark, but not Blink
+  // NOTE: select from values -- supported by Spark, but not us
   //       "select sum(a) over () from values 1.0, 2.0, 3.0 T(a)"
 
   @Test

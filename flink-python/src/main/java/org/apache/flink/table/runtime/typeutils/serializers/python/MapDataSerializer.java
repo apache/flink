@@ -41,7 +41,7 @@ import java.io.IOException;
 /**
  * A {@link TypeSerializer} for {@link MapData}. It should be noted that the header will not be
  * encoded. Currently Python doesn't support BinaryMapData natively, so we can't use
- * BaseArraySerializer in blink directly.
+ * BaseArraySerializer directly.
  */
 @Internal
 public class MapDataSerializer extends org.apache.flink.table.runtime.typeutils.MapDataSerializer {

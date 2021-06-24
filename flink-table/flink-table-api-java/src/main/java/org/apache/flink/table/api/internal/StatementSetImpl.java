@@ -111,8 +111,6 @@ class StatementSetImpl implements StatementSet {
      *
      * <p>The added statements and Tables will NOT be cleared when executing this method.
      *
-     * <p>NOTES: Only the Blink planner supports this method.
-     *
      * <p><b>NOTES</b>: This is an experimental feature now.
      *
      * @return the string json representation of an optimized ExecNode plan for the statements and

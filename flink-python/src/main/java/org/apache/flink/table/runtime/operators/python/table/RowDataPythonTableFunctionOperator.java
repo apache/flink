@@ -39,7 +39,7 @@ import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 
-/** The Python {@link TableFunction} operator for the blink planner. */
+/** The Python {@link TableFunction} operator. */
 @Internal
 public class RowDataPythonTableFunctionOperator
         extends AbstractPythonTableFunctionOperator<RowData, RowData, RowData> {
@@ -84,9 +84,9 @@ public class RowDataPythonTableFunctionOperator
         udtfInputProjection = createUdtfInputProjection();
         forwardedInputSerializer = new RowDataSerializer(inputType);
         udtfInputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         udtfOutputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
     }
 
     @Override

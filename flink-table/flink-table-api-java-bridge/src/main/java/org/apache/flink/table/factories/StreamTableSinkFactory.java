@@ -32,8 +32,7 @@ import java.util.Map;
  *
  * @param <T> type of records that the factory consumes
  * @deprecated This interface has been replaced by {@link DynamicTableSinkFactory}. The new
- *     interface creates instances of {@link DynamicTableSink} and only works with the Blink
- *     planner. See FLIP-95 for more information.
+ *     interface creates instances of {@link DynamicTableSink}. See FLIP-95 for more information.
  */
 @Deprecated
 @PublicEvolving

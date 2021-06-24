@@ -33,8 +33,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 /**
  * This class holds configuration constants used by Flink's table module.
  *
- * <p>This is only used for the Blink planner.
- *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
 @PublicEvolving

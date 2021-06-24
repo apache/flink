@@ -1637,8 +1637,7 @@ class StreamTableEnvironment(TableEnvironment):
                                              of the TableEnvironment.
         :param table_config: The configuration of the TableEnvironment, optional.
         :param environment_settings: The environment settings used to instantiate the
-                                     TableEnvironment. It provides the interfaces about planner
-                                     selection(flink or blink), optional.
+                                     TableEnvironment.
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """

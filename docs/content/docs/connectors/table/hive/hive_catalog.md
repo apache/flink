@@ -147,7 +147,6 @@ Add all Hive dependencies to `/lib` dir in Flink distribution, and modify SQL CL
 ```yaml
 
 execution:
-    planner: blink
     type: streaming
     ...
     current-catalog: myhive  # set the HiveCatalog as the current catalog of the session
@@ -394,4 +393,4 @@ Something to note about the type mapping:
 
 ## Scala Shell
 
-NOTE: since blink planner is not well supported in Scala Shell at the moment, it's **NOT** recommended to use Hive connector in Scala Shell.
+Note: It's **NOT** recommended to use Hive connector in Scala Shell.

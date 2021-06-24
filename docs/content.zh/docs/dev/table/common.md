@@ -183,11 +183,11 @@ val tEnv = TableEnvironment.create(settings)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
+# create a streaming TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# create a blink batch TableEnvironment
+# create a batch TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
@@ -310,7 +310,7 @@ table_env.register_table("projectedTable", proj_table)
 
 **注意：** 从传统数据库系统的角度来看，`Table` 对象与 `VIEW` 视图非常像。也就是，定义了 `Table` 的查询是没有被优化的，
 而且会被内嵌到另一个引用了这个注册了的 `Table`的查询中。如果多个查询都引用了同一个注册了的`Table`，那么它会被内嵌每个查询中并被执行多次，
-也就是说注册了的`Table`的结果**不会**被共享（注：Blink 计划器的`TableEnvironment`会优化成只执行一次）。
+也就是说注册了的`Table`的结果**不会**被共享。
 
 {{< top >}}
 

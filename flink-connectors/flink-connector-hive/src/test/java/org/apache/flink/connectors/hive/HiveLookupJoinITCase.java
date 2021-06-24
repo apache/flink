@@ -170,8 +170,7 @@ public class HiveLookupJoinITCase {
     @Test
     public void testPartitionFetcherAndReader() throws Exception {
         // constructs test data using dynamic partition
-        TableEnvironment batchEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
@@ -232,8 +231,7 @@ public class HiveLookupJoinITCase {
     @Test
     public void testLookupJoinBoundedPartitionedTable() throws Exception {
         // constructs test data using dynamic partition
-        TableEnvironment batchEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
@@ -259,8 +257,7 @@ public class HiveLookupJoinITCase {
     @Test
     public void testLookupJoinPartitionedTable() throws Exception {
         // constructs test data using dynamic partition
-        TableEnvironment batchEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
@@ -290,8 +287,7 @@ public class HiveLookupJoinITCase {
     @Test
     public void testLookupJoinPartitionedTableWithPartitionTime() throws Exception {
         // constructs test data using dynamic partition
-        TableEnvironment batchEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(
@@ -320,8 +316,7 @@ public class HiveLookupJoinITCase {
     @Test
     public void testLookupJoinPartitionedTableWithCreateTime() throws Exception {
         // constructs test data using dynamic partition
-        TableEnvironment batchEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment batchEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         batchEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchEnv.useCatalog(hiveCatalog.getName());
         batchEnv.executeSql(

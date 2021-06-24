@@ -172,11 +172,10 @@ public abstract class AbstractPythonStreamAggregateOperator
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
         userDefinedFunctionInputType = getUserDefinedFunctionInputType();
-        udfInputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         userDefinedFunctionOutputType = getUserDefinedFunctionOutputType();
         udfOutputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         super.open();
     }
@@ -243,7 +242,7 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     @VisibleForTesting
     TypeSerializer getKeySerializer() {
-        return PythonTypeUtils.toBlinkTypeSerializer(getKeyType());
+        return PythonTypeUtils.toInternalSerializer(getKeyType());
     }
 
     protected RowType getKeyType() {

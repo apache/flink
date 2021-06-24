@@ -678,7 +678,7 @@ class AggregateITCase(
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
 
-    // TODO: [BLINK-16716210] the string result of collect is not determinist
+    // TODO: the string result of collect is not deterministic
     // TODO: sort the map result in the future
     val expected = List(
       "1,{1=1}",

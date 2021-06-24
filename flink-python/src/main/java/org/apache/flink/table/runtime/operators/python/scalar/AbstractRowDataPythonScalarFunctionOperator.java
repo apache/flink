@@ -37,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-/** The Python {@link ScalarFunction} operator for the blink planner. */
+/** The Python {@link ScalarFunction} operator. */
 @Internal
 public abstract class AbstractRowDataPythonScalarFunctionOperator
         extends AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> {

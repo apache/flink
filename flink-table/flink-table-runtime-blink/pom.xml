@@ -28,12 +28,10 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
-	<name>Flink : Table : Runtime Blink</name>
+	<name>Flink : Table : Runtime</name>
 	<description>
 		This module contains classes that are required by a task manager for
-		execution of table programs. The content of this module is work-in-progress.
-		It will replace the runtime classes contained in flink-table-planner once
-		it is stable. See FLINK-11439 and FLIP-32 for more details.
+		execution of table programs.
 	</description>
 
 	<packaging>jar</packaging>

@@ -86,8 +86,7 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testHiveTableSinkWithParallelismInBatch() {
-        final TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        final TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
                 tEnv, "/explain/testHiveTableSinkWithParallelismInBatch.out");
     }
@@ -96,7 +95,7 @@ public class HiveTableSinkITCase {
     public void testHiveTableSinkWithParallelismInStreaming() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         testHiveTableSinkWithParallelismBase(
                 tEnv, "/explain/testHiveTableSinkWithParallelismInStreaming.out");
     }
@@ -131,8 +130,7 @@ public class HiveTableSinkITCase {
 
     @Test
     public void testBatchAppend() throws Exception {
-        TableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.executeSql("create database db1");
@@ -202,8 +200,7 @@ public class HiveTableSinkITCase {
                     StreamExecutionEnvironment env =
                             StreamExecutionEnvironment.getExecutionEnvironment();
                     env.setParallelism(1);
-                    StreamTableEnvironment tEnv =
-                            HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+                    StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
                     tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
                     tEnv.useCatalog(hiveCatalog.getName());
 
@@ -237,7 +234,7 @@ public class HiveTableSinkITCase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
-        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
 
         tEnv.getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -405,7 +402,7 @@ public class HiveTableSinkITCase {
         env.setParallelism(1);
         env.enableCheckpointing(100);
 
-        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env);
+        StreamTableEnvironment tEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
         tEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tEnv.useCatalog(hiveCatalog.getName());
         tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
@@ -498,7 +495,7 @@ public class HiveTableSinkITCase {
     private void assertBatch(String table, List<String> expected) {
         // using batch table env to query.
         List<String> results = new ArrayList<>();
-        TableEnvironment batchTEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment batchTEnv = HiveTestUtils.createTableEnvInBatchMode();
         batchTEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         batchTEnv.useCatalog(hiveCatalog.getName());
         batchTEnv
