@@ -205,6 +205,10 @@ non-blocking, will lead to the "next" job starting before "this" job finishes.
 The Application Mode allows for multi-`execute()` applications but 
 High-Availability is not supported in these cases. High-Availability in Application Mode is only
 supported for single-`execute()` applications.
+
+Additionally, when any of multiple running jobs in Application Mode (submitted for example using 
+`executeAsync()`) gets cancelled, all jobs will be stopped and the JobManager will shut down. 
+Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
 #### Per-Job Mode
