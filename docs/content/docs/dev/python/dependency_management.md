@@ -38,6 +38,11 @@ the local Python environment, download the machine learning model to local, etc.
 However, this approach doesn't work well when users want to submit the PyFlink jobs to remote clusters.
 In the following sections, we will introduce the options provided in PyFlink for these requirements.
 
+<span class="label label-info">Note</span> Both Python DataStream API and Python Table API have provided
+APIs for each kind of dependency. If you are mixing use of Python DataStream API and Python Table API
+in a single job, you should specify the dependencies via Python DataStream API to make them work for
+both the Python DataStream API and Python Table API.
+
 ## JAR Dependencies
 
 If third-party JARs are used, you can specify the JARs in the Python Table API as following:
