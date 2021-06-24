@@ -384,7 +384,7 @@ public class HiveParser extends ParserImpl {
                     FileSystem fs = path.getFileSystem(hiveConf);
                     fs.delete(path, true);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 LOG.warn("Error closing SessionState", e);
             }
         }
