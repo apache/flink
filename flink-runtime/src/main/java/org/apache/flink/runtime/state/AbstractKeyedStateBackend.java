@@ -67,6 +67,8 @@ public abstract class AbstractKeyedStateBackend<K>
     /** For caching the last accessed partitioned state. */
     private String lastName;
 
+    private TypeSerializer lastNamespaceSerializer;
+
     @SuppressWarnings("rawtypes")
     private InternalKvState lastState;
 
@@ -336,19 +338,22 @@ public abstract class AbstractKeyedStateBackend<K>
 
         checkNotNull(namespace, "Namespace");
 
-        if (lastName != null && lastName.equals(stateDescriptor.getName())) {
+        if (lastName != null && lastName.equals(stateDescriptor.getName()) && lastNamespaceSerializer != null && lastNamespaceSerializer.equals(namespaceSerializer)) {
             lastState.setCurrentNamespace(namespace);
             return (S) lastState;
         }
 
+
+
         InternalKvState<K, ?, ?> previous = keyValueStatesByName.get(stateDescriptor.getName());
         if (previous != null) {
-            lastState = previous;
-            if (previous.getCurrentNamespace() !=null && !namespace.equals(previous.getCurrentNamespace())){
-                throw new UnsupportedOperationException("no support getPartitionedState from different namespace");
+            if (!namespaceSerializer.equals(previous.getNamespaceSerializer())){
+                throw new UnsupportedOperationException("no support different namespaceSerializer change the state namespace");
             }
+            lastState = previous;
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
+            lastNamespaceSerializer = namespaceSerializer;
             return (S) previous;
         }
 
