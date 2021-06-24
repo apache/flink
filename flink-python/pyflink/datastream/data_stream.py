@@ -932,7 +932,8 @@ class KeyedStream(DataStream):
 
             def open(self, runtime_context: RuntimeContext):
                 self._reduce_value_state = runtime_context.get_state(
-                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()), output_type))
+                    ValueStateDescriptor("_reduce_state" + str(uuid.uuid4()),
+                                         Types.PICKLED_BYTE_ARRAY()))
                 self._reduce_function.open(runtime_context)
                 from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
                 self._in_batch_execution_mode = \
@@ -1200,7 +1201,7 @@ class WindowedStream(object):
                 self.get_execution_environment())
         window_serializer = self._window_assigner.get_window_serializer()
         window_state_descriptor = ListStateDescriptor(
-            "window-contents", self.get_input_type())
+            "window-contents", Types.PICKLED_BYTE_ARRAY())
         window_operation_descriptor = WindowOperationDescriptor(
             self._window_assigner,
             self._window_trigger,
