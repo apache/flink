@@ -47,26 +47,18 @@ public class ByteArrayWrapperSerializerTest extends SerializerTestBase<ByteArray
     @Override
     protected ByteArrayWrapper[] getTestData() {
         return new ByteArrayWrapper[] {
-            randomByteArray(),
-            randomByteArray(),
             EMPTY_ARRAY,
-            randomByteArray(),
-            randomByteArray(),
-            randomByteArray(),
-            EMPTY_ARRAY,
-            randomByteArray(),
-            randomByteArray(),
-            randomByteArray(),
-            EMPTY_ARRAY
+            randomByteArray(rnd.nextInt(1024 * 1024)),
+            randomByteArray(1),
+            randomByteArray(2),
+            randomByteArray(1024 * 1024),
+            randomByteArray(32 * 1024 * 1024),
         };
     }
 
-    private ByteArrayWrapper randomByteArray() {
-        int len = rnd.nextInt(1024 * 1024);
+    private ByteArrayWrapper randomByteArray(int len) {
         byte[] data = new byte[len];
-        for (int i = 0; i < len; i++) {
-            data[i] = (byte) rnd.nextInt();
-        }
+        rnd.nextBytes(data);
         return new ByteArrayWrapper(data);
     }
 }
