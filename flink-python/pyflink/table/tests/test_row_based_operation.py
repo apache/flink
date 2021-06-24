@@ -18,6 +18,7 @@
 from pandas.util.testing import assert_frame_equal
 
 from pyflink.common import Row
+from pyflink.table.expressions import row
 from pyflink.table import expressions as expr, ListView
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udf, udtf, udaf, AggregateFunction, TableAggregateFunction, udtaf
@@ -291,7 +292,7 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
                                       (3, 'Hi3', 'hi'),
                                       (2, 'Hi3', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c) \
-            .flat_aggregate(my_concat(t.b, ',').alias("b")) \
+            .flat_aggregate(my_concat(row(t.b, ',')).alias("b")) \
             .select(t.b, t.c) \
             .alias("a, c")
         assert_frame_equal(result.to_pandas().sort_values('c').reset_index(drop=True),
@@ -378,9 +379,10 @@ class ListViewConcatTableAggregateFunction(TableAggregateFunction):
     def create_accumulator(self):
         return Row(ListView(), '')
 
-    def accumulate(self, accumulator, *args):
-        accumulator[1] = args[1]
-        accumulator[0].add(args[0])
+    def accumulate(self, accumulator, value: Row):
+        assert isinstance(value, Row)
+        accumulator[1] = value[1]
+        accumulator[0].add(value[0])
 
     def retract(self, accumulator, *args):
         raise NotImplementedError
