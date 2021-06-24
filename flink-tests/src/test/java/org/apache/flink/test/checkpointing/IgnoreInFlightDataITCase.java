@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -180,7 +181,9 @@ public class IgnoreInFlightDataITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            if (resultBeforeFail.get().longValue() == 0) {
+            // This job should fail on the checkpointId == 2 so remember the last successful
+            // checkpoint before it.
+            if (context.getCheckpointId() == 1) {
                 resultBeforeFail.get().set(result.get().longValue());
                 sinkCheckpointStarted();
             }
@@ -238,7 +241,7 @@ public class IgnoreInFlightDataITCase extends TestLogger {
                         next++;
                         valueState.update(singletonList(next));
                         ctx.collect(next);
-                    } while (next % 50 != 0 && isRunning);
+                    } while (next < PARALLELISM); // One value for each map subtask is enough.
                 }
 
                 while (isRunning) {
@@ -255,8 +258,13 @@ public class IgnoreInFlightDataITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            if (lastCheckpointValue.get().get() > 0) {
-                throw new RuntimeException("Error during snapshot");
+            if (context.getCheckpointId() > 2) {
+                // It is possible if checkpoint was triggered too fast after restart.
+                return; // Just ignore it.
+            }
+
+            if (context.getCheckpointId() == 2) {
+                throw new ExpectedTestException("The planned fail on the second checkpoint");
             }
 
             Iterator<Integer> integerIterator = valueState.get().iterator();
