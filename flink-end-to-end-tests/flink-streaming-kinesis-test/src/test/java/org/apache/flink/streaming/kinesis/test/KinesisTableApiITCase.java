@@ -32,6 +32,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -49,7 +50,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End-to-end test for Kinesis Table API using Kinesalite. */
 @Category(value = {TravisGroup1.class})
@@ -107,8 +108,9 @@ public class KinesisTableApiITCase extends TestLogger {
 
         executeSqlStatements(readSqlFile("filter-large-orders.sql"));
 
+        // result order is not guaranteed
         List<Order> result = readAllOrdersFromKinesis(kinesisClient);
-        assertEquals(expected, result);
+        assertThat(result, Matchers.containsInAnyOrder(expected.toArray(new Order[0])));
     }
 
     private List<Order> readAllOrdersFromKinesis(final KinesisPubsubClient client)
