@@ -48,7 +48,9 @@ public class HiveInputFormatPartitionReaderITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 
-        testReadFormat(tableEnv, hiveCatalog, "orc");
+        if (!HiveShimLoader.getHiveVersion().startsWith("2.0")) {
+            testReadFormat(tableEnv, hiveCatalog, "orc");
+        }
         testReadFormat(tableEnv, hiveCatalog, "parquet");
     }
 

@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 
@@ -37,8 +38,6 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT>
 
     private static final long serialVersionUID = 1L;
 
-    private static final String CO_FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
-
     public PythonCoFlatMapOperator(
             Configuration config,
             TypeInformation<IN1> inputTypeInfo1,
@@ -51,7 +50,7 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT>
                 inputTypeInfo2,
                 outputTypeInfo,
                 pythonFunctionInfo,
-                CO_FLAT_MAP_CODER_URN);
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
     }
 
     @Override

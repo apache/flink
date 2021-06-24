@@ -298,8 +298,7 @@ public class ExecutionContextTest {
     @Test
     public void testTemporalTables() throws Exception {
         final ExecutionContext context = createStreamingExecutionContext();
-        final StreamTableEnvironment tableEnv =
-                (StreamTableEnvironment) context.getTableEnvironment();
+        final StreamTableEnvironment tableEnv = context.getTableEnvironment();
 
         assertArrayEquals(
                 new String[] {
@@ -391,7 +390,6 @@ public class ExecutionContextTest {
 
     private Map<String, String> createDefaultReplaceVars() {
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -402,7 +400,6 @@ public class ExecutionContextTest {
 
     static Map<String, String> createModuleReplaceVars() {
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "blink");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -421,7 +418,6 @@ public class ExecutionContextTest {
 
     private ExecutionContext createCatalogExecutionContext() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");

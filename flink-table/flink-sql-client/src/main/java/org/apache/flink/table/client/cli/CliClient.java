@@ -41,13 +41,16 @@ import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
 import org.apache.flink.table.operations.command.QuitOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.utils.PrintUtils;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -344,7 +347,8 @@ public class CliClient implements AutoCloseable {
                     && !(operation instanceof AlterOperation)
                     && !(operation instanceof LoadModuleOperation)
                     && !(operation instanceof UnloadModuleOperation)
-                    && !(operation instanceof AddJarOperation)) {
+                    && !(operation instanceof AddJarOperation)
+                    && !(operation instanceof RemoveJarOperation)) {
                 throw new SqlExecutionException(
                         "Unsupported operation in sql init file: " + operation.asSummaryString());
             }
@@ -425,6 +429,12 @@ public class CliClient implements AutoCloseable {
         } else if (operation instanceof AddJarOperation) {
             // ADD JAR
             callAddJar((AddJarOperation) operation);
+        } else if (operation instanceof RemoveJarOperation) {
+            // REMOVE JAR
+            callRemoveJar((RemoveJarOperation) operation);
+        } else if (operation instanceof ShowJarsOperation) {
+            // SHOW JARS
+            callShowJars();
         } else if (operation instanceof ShowCreateTableOperation) {
             // SHOW CREATE TABLE
             callShowCreateTable((ShowCreateTableOperation) operation);
@@ -438,6 +448,22 @@ public class CliClient implements AutoCloseable {
         String jarPath = operation.getPath();
         executor.addJar(sessionId, jarPath);
         printInfo(CliStrings.MESSAGE_ADD_JAR_STATEMENT);
+    }
+
+    private void callRemoveJar(RemoveJarOperation operation) {
+        String jarPath = operation.getPath();
+        executor.removeJar(sessionId, jarPath);
+        printInfo(CliStrings.MESSAGE_REMOVE_JAR_STATEMENT);
+    }
+
+    private void callShowJars() {
+        List<String> jars = executor.listJars(sessionId);
+        if (CollectionUtils.isEmpty(jars)) {
+            terminal.writer().println("Empty set");
+        } else {
+            jars.forEach(jar -> terminal.writer().println(jar));
+        }
+        terminal.flush();
     }
 
     private void callQuit() {

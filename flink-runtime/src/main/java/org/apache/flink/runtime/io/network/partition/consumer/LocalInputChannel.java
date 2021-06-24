@@ -78,28 +78,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             ResultPartitionID partitionId,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
-            Counter numBytesIn,
-            Counter numBuffersIn) {
-
-        this(
-                inputGate,
-                channelIndex,
-                partitionId,
-                partitionManager,
-                taskEventPublisher,
-                0,
-                0,
-                numBytesIn,
-                numBuffersIn,
-                ChannelStateWriter.NO_OP);
-    }
-
-    public LocalInputChannel(
-            SingleInputGate inputGate,
-            int channelIndex,
-            ResultPartitionID partitionId,
-            ResultPartitionManager partitionManager,
-            TaskEventPublisher taskEventPublisher,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,

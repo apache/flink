@@ -30,6 +30,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -68,8 +69,6 @@ public class PythonKeyedProcessOperator<OUT>
 
     private static final String KEYED_PROCESS_FUNCTION_URN =
             "flink:transform:keyed_process_function:v1";
-
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
@@ -219,7 +218,6 @@ public class PythonKeyedProcessOperator<OUT>
                         Collections.EMPTY_MAP,
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
-                FLAT_MAP_CODER_URN,
                 jobOptions,
                 getFlinkMetricContainer(),
                 getKeyedStateBackend(),
@@ -236,7 +234,10 @@ public class PythonKeyedProcessOperator<OUT>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
     }
 
     @Override

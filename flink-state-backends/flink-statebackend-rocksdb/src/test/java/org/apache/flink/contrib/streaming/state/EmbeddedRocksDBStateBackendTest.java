@@ -29,6 +29,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -154,7 +155,7 @@ public class EmbeddedRocksDBStateBackendTest
     }
 
     @Override
-    protected EmbeddedRocksDBStateBackend getStateBackend() throws IOException {
+    protected ConfigurableStateBackend getStateBackend() throws IOException {
         dbPath = TEMP_FOLDER.newFolder().getAbsolutePath();
         EmbeddedRocksDBStateBackend backend =
                 new EmbeddedRocksDBStateBackend(enableIncrementalCheckpointing);

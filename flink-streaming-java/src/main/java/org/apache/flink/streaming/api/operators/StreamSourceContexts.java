@@ -142,7 +142,7 @@ public class StreamSourceContexts {
 
         private long lastRecordTime;
 
-        private volatile boolean idle = false;
+        private boolean idle = false;
 
         private AutomaticWatermarkContext(
                 final Output<StreamRecord<T>> output,
@@ -300,7 +300,7 @@ public class StreamSourceContexts {
 
         private final Output<StreamRecord<T>> output;
         private final StreamRecord<T> reuse;
-        private volatile boolean idle = false;
+        private boolean idle = false;
 
         private ManualWatermarkContext(
                 final Output<StreamRecord<T>> output,

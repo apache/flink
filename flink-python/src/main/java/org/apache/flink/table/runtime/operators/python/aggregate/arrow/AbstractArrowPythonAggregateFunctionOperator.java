@@ -49,8 +49,6 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
     private static final long serialVersionUID = 1L;
 
-    private static final String SCHEMA_ARROW_CODER_URN = "flink:coder:schema:arrow:v1";
-
     private static final String PANDAS_AGGREGATE_FUNCTION_URN =
             "flink:transform:aggregate_function:arrow:v1";
 
@@ -79,8 +77,17 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             RowType inputType,
             RowType outputType,
             int[] groupingSet,
-            int[] udafInputOffsets) {
-        super(config, inputType, outputType, udafInputOffsets);
+            int[] udafInputOffsets,
+            FlinkFnApi.CoderParam.DataType inputDataType,
+            FlinkFnApi.CoderParam.DataType outputDataType) {
+        super(
+                config,
+                inputType,
+                outputType,
+                udafInputOffsets,
+                inputDataType,
+                outputDataType,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE);
         this.pandasAggFunctions = Preconditions.checkNotNull(pandasAggFunctions);
         this.groupingSet = Preconditions.checkNotNull(groupingSet);
     }
@@ -129,11 +136,6 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     @Override
     public String getFunctionUrn() {
         return PANDAS_AGGREGATE_FUNCTION_URN;
-    }
-
-    @Override
-    public String getInputOutputCoderUrn() {
-        return SCHEMA_ARROW_CODER_URN;
     }
 
     @Override

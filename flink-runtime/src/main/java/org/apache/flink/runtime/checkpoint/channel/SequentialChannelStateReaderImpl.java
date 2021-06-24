@@ -196,19 +196,19 @@ class ChannelStateChunkReader {
         while (length > 0) {
             RecoveredChannelStateHandler.BufferWithContext<Context> bufferWithContext =
                     stateHandler.getBuffer(channelInfo);
-            try {
-                try (Closeable ignored =
-                        NetworkActionsLogger.measureIO(
-                                "ChannelStateChunkReader#readChunk", bufferWithContext.buffer)) {
-                    while (length > 0 && bufferWithContext.buffer.isWritable()) {
-                        length -= serializer.readData(source, bufferWithContext.buffer, length);
-                    }
+            try (Closeable ignored =
+                    NetworkActionsLogger.measureIO(
+                            "ChannelStateChunkReader#readChunk", bufferWithContext.buffer)) {
+                while (length > 0 && bufferWithContext.buffer.isWritable()) {
+                    length -= serializer.readData(source, bufferWithContext.buffer, length);
                 }
-                stateHandler.recover(channelInfo, oldSubtaskIndex, bufferWithContext.context);
             } catch (Exception e) {
-                bufferWithContext.buffer.recycle();
+                bufferWithContext.close();
                 throw e;
             }
+
+            // Passing the ownership of buffer to inside.
+            stateHandler.recover(channelInfo, oldSubtaskIndex, bufferWithContext);
         }
     }
 }

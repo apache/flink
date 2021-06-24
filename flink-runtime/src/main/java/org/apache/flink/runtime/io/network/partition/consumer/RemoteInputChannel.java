@@ -450,6 +450,10 @@ public class RemoteInputChannel extends InputChannel {
         }
     }
 
+    /**
+     * Handles the input buffer. This method is taking over the ownership of the buffer and is fully
+     * responsible for cleaning it up both on the happy path and in case of an error.
+     */
     public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
         boolean recycleBuffer = true;
 

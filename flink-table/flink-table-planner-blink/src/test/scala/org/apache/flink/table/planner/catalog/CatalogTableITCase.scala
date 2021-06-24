@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertNotEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -1082,6 +1082,43 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       "SHOW CREATE TABLE does not support showing CREATE VIEW statement with " +
         "identifier `default_catalog`.`default_database`.`tmp`.")
     tableEnv.executeSql("SHOW CREATE TABLE `tmp`")
+  }
+
+  @Test
+  def testAlterViewRename(): Unit = {
+    tableEnv.executeSql(
+      """
+        | CREATE TABLE T (
+        |   id INT
+        | ) WITH (
+        |   'connector' = 'source-only'
+        | )
+        |""".stripMargin)
+    tableEnv.executeSql("CREATE VIEW V AS SELECT * FROM T")
+
+    tableEnv.executeSql("ALTER VIEW V RENAME TO V2")
+    assert(tableEnv.listViews().sameElements(Array[String]("V2")))
+  }
+
+  @Test
+  def testAlterViewAs(): Unit = {
+    tableEnv.executeSql(
+      """
+        | CREATE TABLE T (
+        |   a INT,
+        |   b INT
+        | ) WITH (
+        |   'connector' = 'source-only'
+        | )
+        |""".stripMargin)
+    tableEnv.executeSql("CREATE VIEW V AS SELECT a FROM T")
+
+    tableEnv.executeSql("ALTER VIEW V AS SELECT b FROM T")
+
+    val objectPath = new ObjectPath(tableEnv.getCurrentDatabase, "V")
+    val view = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get().getTable(objectPath)
+      .asInstanceOf[CatalogView]
+    assertEquals("SELECT `b`\nFROM `T`", view.getOriginalQuery)
   }
 
   @Test

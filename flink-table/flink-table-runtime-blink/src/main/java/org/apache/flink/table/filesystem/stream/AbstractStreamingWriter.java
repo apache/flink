@@ -52,11 +52,11 @@ public abstract class AbstractStreamingWriter<IN, OUT> extends AbstractStreamOpe
 
     // --------------------------- runtime fields -----------------------------
 
-    private transient Buckets<IN, String> buckets;
+    protected transient Buckets<IN, String> buckets;
 
     private transient StreamingFileSinkHelper<IN> helper;
 
-    private transient long currentWatermark;
+    protected transient long currentWatermark;
 
     public AbstractStreamingWriter(
             long bucketCheckInterval,

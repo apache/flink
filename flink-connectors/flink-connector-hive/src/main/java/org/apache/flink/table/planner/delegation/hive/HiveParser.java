@@ -72,6 +72,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -357,8 +358,12 @@ public class HiveParser extends ParserImpl {
         if (setCurrentTSMethod != null) {
             try {
                 setCurrentTSMethod.invoke(sessionState);
-                sessionState.hiveParserCurrentTS =
-                        (Timestamp) getCurrentTSMethod.invoke(sessionState);
+                Object currentTs = getCurrentTSMethod.invoke(sessionState);
+                if (currentTs instanceof Instant) {
+                    sessionState.hiveParserCurrentTS = Timestamp.from((Instant) currentTs);
+                } else {
+                    sessionState.hiveParserCurrentTS = (Timestamp) currentTs;
+                }
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new FlinkHiveException("Failed to set current timestamp for session", e);
             }

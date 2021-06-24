@@ -131,9 +131,8 @@ public class EdgeManagerBuildUtil {
                 ConsumedPartitionGroup consumerPartitionGroup =
                         ConsumedPartitionGroup.fromSinglePartition(partition.getPartitionId());
 
-                float factor = ((float) targetCount) / sourceCount;
-                int start = (int) (Math.ceil(partitionNum * factor));
-                int end = (int) (Math.ceil((partitionNum + 1) * factor));
+                int start = (partitionNum * targetCount + sourceCount - 1) / sourceCount;
+                int end = ((partitionNum + 1) * targetCount + sourceCount - 1) / sourceCount;
 
                 List<ExecutionVertexID> consumers = new ArrayList<>(end - start);
 

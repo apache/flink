@@ -945,14 +945,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {
-                    latestAsyncCheckpointStartDelayNanos =
-                            1_000_000
-                                    * Math.max(
-                                            0,
-                                            System.currentTimeMillis()
-                                                    - checkpointMetaData.getTimestamp());
                     try {
-                        result.complete(triggerCheckpoint(checkpointMetaData, checkpointOptions));
+                        result.complete(
+                                triggerCheckpointAsyncInMailbox(
+                                        checkpointMetaData, checkpointOptions));
                     } catch (Exception ex) {
                         // Report the failure both via the Future result but also to the mailbox
                         result.completeExceptionally(ex);
@@ -965,16 +961,23 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         return result;
     }
 
-    private boolean triggerCheckpoint(
+    private boolean triggerCheckpointAsyncInMailbox(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions)
             throws Exception {
         FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
         try {
+            latestAsyncCheckpointStartDelayNanos =
+                    1_000_000
+                            * Math.max(
+                                    0,
+                                    System.currentTimeMillis() - checkpointMetaData.getTimestamp());
+
             // No alignment if we inject a checkpoint
             CheckpointMetricsBuilder checkpointMetrics =
                     new CheckpointMetricsBuilder()
                             .setAlignmentDurationNanos(0L)
-                            .setBytesProcessedDuringAlignment(0L);
+                            .setBytesProcessedDuringAlignment(0L)
+                            .setCheckpointStartDelayNanos(latestAsyncCheckpointStartDelayNanos);
 
             subtaskCheckpointCoordinator.initInputsCheckpoint(
                     checkpointMetaData.getCheckpointId(), checkpointOptions);

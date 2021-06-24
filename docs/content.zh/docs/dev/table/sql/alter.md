@@ -33,6 +33,7 @@ ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalo
 Flink SQL 目前支持以下 ALTER 语句：
 
 - ALTER TABLE
+- ALTER VIEW
 - ALTER DATABASE
 - ALTER FUNCTION
 
@@ -157,6 +158,20 @@ ALTER TABLE [catalog_name.][db_name.]table_name SET (key1=val1, key2=val2, ...)
 ```
 
 为指定的表设置一个或多个属性。若个别属性已经存在于表中，则使用新的值覆盖旧的值。
+
+## ALTER VIEW
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name RENAME TO new_view_name
+```
+
+Renames a given view to a new name within the same catalog and database.
+
+```sql
+ALTER VIEW [catalog_name.][db_name.]view_name AS new_query_expression
+```
+
+Changes the underlying query defining the given view to a new query.
 
 ## ALTER DATABASE
 

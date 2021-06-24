@@ -90,7 +90,7 @@ CREATE TABLE products (
 	product_name  STRING,
 	price         DECIMAL(32, 2),
 	update_time   TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-	PRIMARY KEY (product_id) NOT ENFORCED
+	PRIMARY KEY (product_id) NOT ENFORCED,
 	WATERMARK FOR update_time AS update_time
 ) WITH (...);
 ```

@@ -108,37 +108,36 @@ public class YamlConfigUtilsTest {
         List<String> items = YamlConfigUtils.getPropertiesInPretty(configuration.toMap());
         List<String> expectedItems =
                 Arrays.asList(
-                        "execution.runtime-mode=batch",
-                        "parallelism.default=1",
-                        "pipeline.auto-watermark-interval=99",
-                        "pipeline.max-parallelism=16",
-                        "restart-strategy.failure-rate.delay=1 s",
-                        "restart-strategy.failure-rate.failure-rate-interval=99 s",
-                        "restart-strategy.failure-rate.max-failures-per-interval=10",
-                        "restart-strategy.fixed-delay.delay=1000",
-                        "restart-strategy=failure-rate",
-                        "sql-client.execution.max-table-result.rows=100",
-                        "sql-client.execution.result-mode=table",
-                        "table.exec.state.ttl=1000",
-                        "table.planner=old",
-                        "[DEPRECATED] execution.max-parallelism=16",
-                        "[DEPRECATED] execution.max-table-result-rows=100",
-                        "[DEPRECATED] execution.min-idle-state-retention=1000",
-                        "[DEPRECATED] execution.parallelism=1",
-                        "[DEPRECATED] execution.periodic-watermarks-interval=99",
-                        "[DEPRECATED] execution.planner=old",
-                        "[DEPRECATED] execution.restart-strategy.delay=1000",
-                        "[DEPRECATED] execution.restart-strategy.failure-rate-interval=99000",
-                        "[DEPRECATED] execution.restart-strategy.max-failures-per-interval=10",
-                        "[DEPRECATED] execution.restart-strategy.type=failure-rate",
-                        "[DEPRECATED] execution.result-mode=table",
-                        "[DEPRECATED] execution.type=batch");
+                        "'execution.runtime-mode' = 'batch'",
+                        "'parallelism.default' = '1'",
+                        "'pipeline.auto-watermark-interval' = '99'",
+                        "'pipeline.max-parallelism' = '16'",
+                        "'restart-strategy' = 'failure-rate'",
+                        "'restart-strategy.failure-rate.delay' = '1 s'",
+                        "'restart-strategy.failure-rate.failure-rate-interval' = '99 s'",
+                        "'restart-strategy.failure-rate.max-failures-per-interval' = '10'",
+                        "'restart-strategy.fixed-delay.delay' = '1000'",
+                        "'sql-client.execution.max-table-result.rows' = '100'",
+                        "'sql-client.execution.result-mode' = 'table'",
+                        "'table.exec.state.ttl' = '1000'",
+                        "'table.planner' = 'blink'",
+                        "[DEPRECATED] 'execution.max-parallelism' = '16'",
+                        "[DEPRECATED] 'execution.max-table-result-rows' = '100'",
+                        "[DEPRECATED] 'execution.min-idle-state-retention' = '1000'",
+                        "[DEPRECATED] 'execution.parallelism' = '1'",
+                        "[DEPRECATED] 'execution.periodic-watermarks-interval' = '99'",
+                        "[DEPRECATED] 'execution.planner' = 'blink'",
+                        "[DEPRECATED] 'execution.restart-strategy.delay' = '1000'",
+                        "[DEPRECATED] 'execution.restart-strategy.failure-rate-interval' = '99000'",
+                        "[DEPRECATED] 'execution.restart-strategy.max-failures-per-interval' = '10'",
+                        "[DEPRECATED] 'execution.restart-strategy.type' = 'failure-rate'",
+                        "[DEPRECATED] 'execution.result-mode' = 'table'",
+                        "[DEPRECATED] 'execution.type' = 'batch'");
         assertEquals(expectedItems, items);
     }
 
     private Environment getEnvironment() throws Exception {
         final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
         replaceVars.put("$VAR_RESULT_MODE", "table");
         replaceVars.put("$VAR_UPDATE_MODE", "");

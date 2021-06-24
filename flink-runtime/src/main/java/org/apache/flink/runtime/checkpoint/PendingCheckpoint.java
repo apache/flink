@@ -23,6 +23,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
@@ -312,6 +313,8 @@ public class PendingCheckpoint implements Checkpoint {
 
             // make sure we fulfill the promise with an exception if something fails
             try {
+                fulfillFullyFinishedOperatorStates();
+
                 // write out the metadata
                 final CheckpointMetadata savepoint =
                         new CheckpointMetadata(checkpointId, operatorStates.values(), masterStates);
@@ -361,6 +364,26 @@ public class PendingCheckpoint implements Checkpoint {
                 onCompletionPromise.completeExceptionally(t);
                 ExceptionUtils.rethrowIOException(t);
                 return null; // silence the compiler
+            }
+        }
+    }
+
+    private void fulfillFullyFinishedOperatorStates() {
+        // Completes the operator state for the fully finished operators
+        for (ExecutionJobVertex jobVertex : checkpointPlan.getFullyFinishedJobVertex()) {
+            for (OperatorIDPair operatorID : jobVertex.getOperatorIDs()) {
+                OperatorState operatorState =
+                        operatorStates.get(operatorID.getGeneratedOperatorID());
+                checkState(
+                        operatorState == null,
+                        "There should be no states reported for fully finished operators");
+
+                operatorState =
+                        new FullyFinishedOperatorState(
+                                operatorID.getGeneratedOperatorID(),
+                                jobVertex.getParallelism(),
+                                jobVertex.getMaxParallelism());
+                operatorStates.put(operatorID.getGeneratedOperatorID(), operatorState);
             }
         }
     }

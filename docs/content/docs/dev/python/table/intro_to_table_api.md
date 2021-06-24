@@ -491,6 +491,33 @@ Emit Results
 
 ### Collect Results to Client
 
+You can call the `TableResult.collect` method to collect results of a table to client.
+The type of the results is an auto closeable iterator.
+
+The following code shows how to use the `TableResult.collect()` method：
+
+```python
+# prepare source tables 
+source = table_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+
+# Get TableResult
+res = table_env.execute_sql("select a + 1, b, c from %s" % source)
+
+# Traversal result
+with res.collect() as results:
+   for result in results:
+       print(result)
+```
+
+The result is：
+
+```text
+<Row(2, 'Hi', 'Hello')>
+<Row(3, 'Hello', 'Hello')>
+```
+
+### Collect Results to Client by converting it to pandas DataFrame 
+
 You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python

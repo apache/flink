@@ -21,11 +21,22 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
+
+    @Override
+    protected boolean snapshotUsesStreamFactory() {
+        return false;
+    }
+
+    @Override
+    protected boolean supportsMetaInfoVerification() {
+        return false;
+    }
 
     @Override
     protected <K> CheckpointableKeyedStateBackend<K> createKeyedBackend(
@@ -36,10 +47,15 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(getStateBackend()),
+                new ChangelogStateBackend(super.getStateBackend()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
                 env);
+    }
+
+    @Override
+    protected ConfigurableStateBackend getStateBackend() {
+        return new ChangelogStateBackend(super.getStateBackend());
     }
 }

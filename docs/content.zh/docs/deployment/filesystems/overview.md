@@ -51,6 +51,8 @@ Apache Flink 支持下列文件系统：
 
   - **[Azure Blob Storage]({{< ref "docs/deployment/filesystems/azure" >}})** 由`flink-azure-fs-hadoop` 支持，并通过 *wasb(s)://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
 
+  - **[Google Cloud Storage]({{< ref "docs/deployment/filesystems/gcs" >}})** 由`gcs-connector` 支持，并通过 *gs://* URI scheme 使用。该实现基于 [Hadoop Project](https://hadoop.apache.org/)，但其是独立的，没有依赖项。
+
 除 **MapR FS** 之外，上述文件系统可以并且需要作为[插件]({{< ref "docs/deployment/filesystems/plugins" >}})使用。
 
 使用外部文件系统时，在启动 Flink 之前需将对应的 JAR 文件从 `opt` 目录复制到 Flink 发行版 `plugin` 目录下的某一文件夹中，例如：

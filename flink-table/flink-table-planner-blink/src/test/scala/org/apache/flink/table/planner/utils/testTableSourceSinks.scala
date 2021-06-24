@@ -23,16 +23,14 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.{CollectionInputFormat, RowCsvInputFormat}
-import org.apache.flink.api.java.operators.DataSink
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.api.java.{DataSet, ExecutionEnvironment}
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{DataTypes, TableEnvironment, TableSchema}
 import org.apache.flink.table.catalog.{CatalogPartitionImpl, CatalogPartitionSpec, CatalogTableImpl, ObjectPath}
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.{CONNECTOR, CONNECTOR_TYPE}
-import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, FileSystem, OldCsv, Schema, SchemaValidator}
+import org.apache.flink.table.descriptors._
 import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.factories.{StreamTableSourceFactory, TableSinkFactory, TableSourceFactory}
@@ -41,9 +39,9 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.IS_BOUNDED
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
-import org.apache.flink.table.planner.{JArrayList, JInt, JList, JLong, JMap}
+import org.apache.flink.table.planner._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
-import org.apache.flink.table.sinks.{BatchTableSink, StreamTableSink, TableSink}
+import org.apache.flink.table.sinks.{StreamTableSink, TableSink}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
@@ -1309,7 +1307,7 @@ class TestOptionsTableFactory
     createPropertiesSource(context.getTable.toProperties)
   }
 
-  override def createTableSink(context: TableSinkFactory.Context): BatchTableSink[Row] = {
+  override def createTableSink(context: TableSinkFactory.Context): TableSink[Row] = {
     createPropertiesSink(context.getTable.toProperties)
   }
 }
@@ -1319,10 +1317,7 @@ class OptionsTableSource(
     isBounded: Boolean,
     tableSchema: TableSchema,
     props: JMap[String, String])
-  extends BatchTableSource[Row]
-    with StreamTableSource[Row] {
-  override def getDataSet(execEnv: ExecutionEnvironment): DataSet[Row] =
-    None.asInstanceOf[DataSet[Row]]
+  extends StreamTableSource[Row] {
 
   override def explainSource(): String = s"${classOf[OptionsTableSource].getSimpleName}" +
     s"(props=$props)"
@@ -1341,8 +1336,7 @@ class OptionsTableSource(
 class OptionsTableSink(
     tableSchema: TableSchema,
     val props: JMap[String, String])
-  extends BatchTableSink[Row]
-    with StreamTableSink[Row] {
+  extends StreamTableSink[Row] {
 
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
     None.asInstanceOf[DataStreamSink[Row]]
@@ -1355,10 +1349,6 @@ class OptionsTableSink(
 
   override def getConsumedDataType: DataType = {
     getPhysicalSchema(tableSchema).toRowDataType
-  }
-
-  override def consumeDataSet(dataSet: DataSet[Row]): DataSink[_] = {
-    None.asInstanceOf[DataSink[Row]]
   }
 }
 

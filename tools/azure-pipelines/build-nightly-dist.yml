@@ -16,7 +16,7 @@
 jobs:
   - job: ${{parameters.stage_name}}_binary
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
     workspace:
       clean: all
@@ -63,7 +63,7 @@ jobs:
       #    artifact: nightly-release
   - job: ${{parameters.stage_name}}_maven
     pool:
-      vmImage: 'ubuntu-16.04'
+      vmImage: 'ubuntu-20.04'
     container: flink-build-container
     timeoutInMinutes: 100 # 40 minutes per scala version + 20 buffer
     workspace:

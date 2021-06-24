@@ -292,6 +292,10 @@ For more details see the [official Kubernetes documentation](https://kubernetes.
 
 For high availability on Kubernetes, you can use the [existing high availability services]({{< ref "docs/deployment/ha/overview" >}}).
 
+Configure the value of <a href="{{< ref "docs/deployment/config" >}}#kubernetes-jobmanager-replicas">kubernetes.jobmanager.replicas</a> to greater than 1 to start standby JobManagers.
+It will help to achieve faster recovery.
+Notice that high availability should be enabled when starting standby JobManagers.
+
 ### Manual Resource Cleanup
 
 Flink uses [Kubernetes OwnerReference's](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) to clean up all cluster components.

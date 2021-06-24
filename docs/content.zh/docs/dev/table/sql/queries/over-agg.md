@@ -56,7 +56,7 @@ You can define multiple `OVER` window aggregates in a `SELECT` clause. However, 
 
 ### ORDER BY
 
-`OVER windows are defined on an ordered sequence of rows. Since tables do not have an inherent order, the `ORDER BY` clause is mandatory. For streaming queries, Flink currently only supports `OVER` windows that are defined with an ascending [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) order. Additional orderings are not supported.
+`OVER` windows are defined on an ordered sequence of rows. Since tables do not have an inherent order, the `ORDER BY` clause is mandatory. For streaming queries, Flink currently only supports `OVER` windows that are defined with an ascending [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) order. Additional orderings are not supported.
 
 ### PARTITION BY
 

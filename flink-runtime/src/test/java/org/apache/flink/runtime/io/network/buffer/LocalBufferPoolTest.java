@@ -449,15 +449,15 @@ public class LocalBufferPoolTest extends TestLogger {
         assertFalse(localBufferPool.getAvailableFuture().isDone());
 
         // recycle segments
-        bufferBuilder11.getRecycler().recycle(bufferBuilder11.getMemorySegment());
+        bufferBuilder11.close();
         assertFalse(localBufferPool.getAvailableFuture().isDone());
-        bufferBuilder21.getRecycler().recycle(bufferBuilder21.getMemorySegment());
+        bufferBuilder21.close();
         assertFalse(localBufferPool.getAvailableFuture().isDone());
-        bufferBuilder02.getRecycler().recycle(bufferBuilder02.getMemorySegment());
+        bufferBuilder02.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
-        bufferBuilder01.getRecycler().recycle(bufferBuilder01.getMemorySegment());
+        bufferBuilder01.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
-        bufferBuilder22.getRecycler().recycle(bufferBuilder22.getMemorySegment());
+        bufferBuilder22.close();
         assertTrue(localBufferPool.getAvailableFuture().isDone());
     }
 
@@ -468,54 +468,53 @@ public class LocalBufferPoolTest extends TestLogger {
         assertTrue(localBufferPool.isAvailable());
 
         // request one buffer
-        final BufferBuilder bufferBuilder =
-                checkNotNull(localBufferPool.requestBufferBuilderBlocking());
-        CompletableFuture<?> availableFuture = localBufferPool.getAvailableFuture();
-        assertFalse(availableFuture.isDone());
+        try (BufferBuilder bufferBuilder =
+                checkNotNull(localBufferPool.requestBufferBuilderBlocking())) {
+            CompletableFuture<?> availableFuture = localBufferPool.getAvailableFuture();
+            assertFalse(availableFuture.isDone());
 
-        // set the pool size
-        final int numLocalBuffers = 5;
-        localBufferPool.setNumBuffers(numLocalBuffers);
-        assertTrue(availableFuture.isDone());
-        assertTrue(localBufferPool.isAvailable());
-
-        // drain the local buffer pool
-        final Deque<Buffer> buffers = new ArrayDeque<>(LocalBufferPoolTest.numBuffers);
-        for (int i = 0; i < numLocalBuffers - 1; i++) {
+            // set the pool size
+            final int numLocalBuffers = 5;
+            localBufferPool.setNumBuffers(numLocalBuffers);
+            assertTrue(availableFuture.isDone());
             assertTrue(localBufferPool.isAvailable());
-            buffers.add(checkNotNull(localBufferPool.requestBuffer()));
+
+            // drain the local buffer pool
+            final Deque<Buffer> buffers = new ArrayDeque<>(LocalBufferPoolTest.numBuffers);
+            for (int i = 0; i < numLocalBuffers - 1; i++) {
+                assertTrue(localBufferPool.isAvailable());
+                buffers.add(checkNotNull(localBufferPool.requestBuffer()));
+            }
+            assertFalse(localBufferPool.isAvailable());
+
+            buffers.pop().recycleBuffer();
+            assertTrue(localBufferPool.isAvailable());
+
+            // recycle the requested segments to global buffer pool
+            for (final Buffer buffer : buffers) {
+                buffer.recycleBuffer();
+            }
+            assertTrue(localBufferPool.isAvailable());
+
+            // scale down (first buffer still taken), but there should still be one segment locally
+            // available
+            localBufferPool.setNumBuffers(2);
+            assertTrue(localBufferPool.isAvailable());
+
+            final Buffer buffer2 = checkNotNull(localBufferPool.requestBuffer());
+            assertFalse(localBufferPool.isAvailable());
+
+            buffer2.recycleBuffer();
+            assertTrue(localBufferPool.isAvailable());
+
+            // reset the pool size
+            localBufferPool.setNumBuffers(1);
+            assertFalse(localBufferPool.getAvailableFuture().isDone());
+            // recycle the requested buffer
         }
-        assertFalse(localBufferPool.isAvailable());
 
-        buffers.pop().recycleBuffer();
         assertTrue(localBufferPool.isAvailable());
-
-        // recycle the requested segments to global buffer pool
-        for (final Buffer buffer : buffers) {
-            buffer.recycleBuffer();
-        }
-        assertTrue(localBufferPool.isAvailable());
-
-        // scale down (first buffer still taken), but there should still be one segment locally
-        // available
-        localBufferPool.setNumBuffers(2);
-        assertTrue(localBufferPool.isAvailable());
-
-        final Buffer buffer2 = checkNotNull(localBufferPool.requestBuffer());
-        assertFalse(localBufferPool.isAvailable());
-
-        buffer2.recycleBuffer();
-        assertTrue(localBufferPool.isAvailable());
-
-        // reset the pool size
-        localBufferPool.setNumBuffers(1);
-        CompletableFuture<?> availableFuture2 = localBufferPool.getAvailableFuture();
-        assertFalse(availableFuture2.isDone());
-
-        // recycle the requested buffer
-        bufferBuilder.createBufferConsumer().close();
-        assertTrue(localBufferPool.isAvailable());
-        assertTrue(availableFuture2.isDone());
+        assertTrue(localBufferPool.getAvailableFuture().isDone());
     }
 
     /** For FLINK-20547: https://issues.apache.org/jira/browse/FLINK-20547. */
@@ -524,7 +523,7 @@ public class LocalBufferPoolTest extends TestLogger {
         NetworkBufferPool globalPool = new TestNetworkBufferPool(numBuffers, memorySegmentSize);
         try {
             BufferPool localPool = new LocalBufferPool(globalPool, 1);
-            MemorySegment segment = localPool.requestBufferBuilderBlocking().getMemorySegment();
+            MemorySegment segment = localPool.requestMemorySegmentBlocking();
             localPool.setNumBuffers(2);
 
             localPool.recycle(segment);

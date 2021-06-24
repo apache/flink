@@ -45,6 +45,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
@@ -268,6 +269,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
+        TaskExecutorResourceUtils.adjustForLocalExecution(config);
 
         final RpcService rpcService =
                 AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();

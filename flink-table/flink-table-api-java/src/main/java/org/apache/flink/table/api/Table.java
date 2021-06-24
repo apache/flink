@@ -20,6 +20,8 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
@@ -27,45 +29,61 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
- * A Table is the core component of the Table API. Similar to how the batch and streaming APIs have
- * DataSet and DataStream, the Table API is built around {@link Table}.
+ * The {@link Table} object is the core abstraction of the Table API. Similar to how the DataStream
+ * API has {@code DataStream}s, the Table API is built around {@link Table}s.
  *
- * <p>Use the methods of {@link Table} to transform data. Use {@code TableEnvironment} to convert a
- * {@link Table} back to a {@code DataSet} or {@code DataStream}.
+ * <p>A {@link Table} object describes a pipeline of data transformations. It does not contain the
+ * data itself in any way. Instead, it describes how to read data from a {@link DynamicTableSource}
+ * and how to eventually write data to a {@link DynamicTableSink}. The declared pipeline can be
+ * printed, optimized, and eventually executed in a cluster. The pipeline can work with bounded or
+ * unbounded streams which enables both streaming and batch scenarios.
  *
- * <p>When using Scala a {@link Table} can also be converted using implicit conversions.
+ * <p>By the definition above, a {@link Table} object can actually be considered as a <i>view</i> in
+ * SQL terms.
  *
- * <p>Java Example:
+ * <p>The initial {@link Table} object is constructed by a {@link TableEnvironment}. For example,
+ * {@link TableEnvironment#from(String)}) obtains a table from a catalog. Every {@link Table} object
+ * has a schema that is available through {@link #getResolvedSchema()}. A {@link Table} object is
+ * always associated with its original table environment during programming.
+ *
+ * <p>Every transformation (i.e. {@link #select(Expression...)} or {@link #filter(Expression)}) on a
+ * {@link Table} object leads to a new {@link Table} object.
+ *
+ * <p>Use {@link #execute()} to execute the pipeline and retrieve the transformed data locally
+ * during development. Otherwise, use {@link #executeInsert(String)} to write the data into a table
+ * sink.
+ *
+ * <p>Many methods of this class take one or more {@link Expression}s as parameters. For fluent
+ * definition of expressions and easier readability, we recommend to add a star import:
+ *
+ * <pre>
+ *  import static org.apache.flink.table.api.Expressions.*;
+ * </pre>
+ *
+ * <p>Check the documentation for more programming language specific APIs, for example, by using
+ * Scala implicits.
+ *
+ * <p>The following example shows how to work with a {@link Table} object.
+ *
+ * <p>Java Example (with static import for expressions):
  *
  * <pre>{@code
- * ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
- * BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
+ * TableEnvironment tableEnv = TableEnvironment.create(...);
  *
- * DataSet<Tuple2<String, Integer>> set = ...
- * tEnv.registerTable("MyTable", set, "a, b");
+ * Table table = tableEnv.from("MyTable").select($("colA").trim(), $("colB").plus(12));
  *
- * Table table = tEnv.scan("MyTable").select(...);
- * ...
- * Table table2 = ...
- * DataSet<MyType> set2 = tEnv.toDataSet(table2, MyType.class);
+ * table.execute().print();
  * }</pre>
  *
- * <p>Scala Example:
+ * <p>Scala Example (with implicits for expressions):
  *
  * <pre>{@code
- * val env = ExecutionEnvironment.getExecutionEnvironment
- * val tEnv = BatchTableEnvironment.create(env)
+ * val tableEnv = TableEnvironment.create(...)
  *
- * val set: DataSet[(String, Int)] = ...
- * val table = set.toTable(tEnv, 'a, 'b)
- * ...
- * val table2 = ...
- * val set2: DataSet[MyType] = table2.toDataSet[MyType]
+ * val table = tableEnv.from("MyTable").select($"colA".trim(), $"colB" + 12)
+ *
+ * table.execute().print()
  * }</pre>
- *
- * <p>Operations such as {@code join}, {@code select}, {@code where} and {@code groupBy} either take
- * arguments in a Scala DSL or as an expression String. Please refer to the documentation for the
- * expression syntax.
  */
 @PublicEvolving
 public interface Table {
@@ -923,14 +941,9 @@ public interface Table {
     }
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
-     * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
+     * Writes the {@link Table} to a {@link DynamicTableSink} that was registered under the
+     * specified path. For the path resolution algorithm see {@link
+     * TableEnvironment#useDatabase(String)}.
      *
      * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
      *     written.
@@ -1299,17 +1312,12 @@ public interface Table {
     FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
-     * and then execute the insert operation.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
+     * executes the insert operation.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
      *
      * <p>Example:
      *
@@ -1319,23 +1327,18 @@ public interface Table {
      * tableResult...
      * }</pre>
      *
-     * @param tablePath The path of the registered TableSink to which the Table is written.
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
      * @return The insert operation execution result.
      */
     TableResult executeInsert(String tablePath);
 
     /**
-     * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path,
-     * and then execute the insert operation.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
+     * executes the insert operation.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * <p>A batch {@link Table} can only be written to a {@code
-     * org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a {@code
-     * org.apache.flink.table.sinks.AppendStreamTableSink}, a {@code
-     * org.apache.flink.table.sinks.RetractStreamTableSink}, or an {@code
-     * org.apache.flink.table.sinks.UpsertStreamTableSink}.
      *
      * <p>Example:
      *
@@ -1345,7 +1348,7 @@ public interface Table {
      * tableResult...
      * }</pre>
      *
-     * @param tablePath The path of the registered TableSink to which the Table is written.
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
      * @param overwrite The flag that indicates whether the insert should overwrite existing data or
      *     not.
      * @return The insert operation execution result.

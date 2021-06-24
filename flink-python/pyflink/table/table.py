@@ -44,7 +44,7 @@ class Table(object):
 
     """
     A :class:`~pyflink.table.Table` is the core component of the Table API.
-    Similar to how the batch and streaming APIs have DataSet and DataStream,
+    Similar to how the DataStream API has DataStream,
     the Table API is built around :class:`~pyflink.table.Table`.
 
     Use the methods of :class:`~pyflink.table.Table` to transform data.
@@ -1019,7 +1019,7 @@ class Table(object):
             import pandas as pd
             return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
-    def get_schema(self) -> 'TableSchema':
+    def get_schema(self) -> TableSchema:
         """
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
@@ -1033,7 +1033,7 @@ class Table(object):
         """
         self._j_table.printSchema()
 
-    def execute_insert(self, table_path: str, overwrite: bool = False) -> 'TableResult':
+    def execute_insert(self, table_path: str, overwrite: bool = False) -> TableResult:
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
         registered under the specified name, and then execute the insert operation.
@@ -1055,7 +1055,7 @@ class Table(object):
         self._t_env._before_execute()
         return TableResult(self._j_table.executeInsert(table_path, overwrite))
 
-    def execute(self) -> 'TableResult':
+    def execute(self) -> TableResult:
         """
         Collects the contents of the current table local client.
 

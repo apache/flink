@@ -79,6 +79,8 @@ public class AvroToRowDataConverters {
             IndexedRecord record = (IndexedRecord) avroObject;
             GenericRowData row = new GenericRowData(arity);
             for (int i = 0; i < arity; ++i) {
+                // avro always deserialize successfully even though the type isn't matched
+                // so no need to throw exception about which field can't be deserialized
                 row.setField(i, fieldConverters[i].convert(record.get(i)));
             }
             return row;

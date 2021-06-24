@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 
 /**
@@ -35,19 +36,19 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 public class PythonMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
     private static final long serialVersionUID = 1L;
 
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
-
     public PythonMapOperator(
             Configuration config,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
+        super(
+                config,
+                inputTypeInfo,
+                outputTypeInfo,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.DataType.RAW,
+                FlinkFnApi.CoderParam.OutputMode.SINGLE,
+                pythonFunctionInfo);
     }
 
     @Override

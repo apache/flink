@@ -214,6 +214,7 @@ public class TaskExecutorTest extends TestLogger {
                 new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
 
         configuration = new Configuration();
+        TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
 
         unresolvedTaskManagerLocation = new LocalUnresolvedTaskManagerLocation();
         jobId = new JobID();
@@ -2155,14 +2156,17 @@ public class TaskExecutorTest extends TestLogger {
     @Test(timeout = 10000L)
     public void testLogNotFoundHandling() throws Throwable {
         final int dataPort = NetUtils.getAvailablePort();
-        Configuration config = new Configuration();
-        config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
-        config.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
+        configuration.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+        configuration.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+        configuration.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        configuration.setString(ConfigConstants.TASK_MANAGER_LOG_PATH_KEY, "/i/dont/exist");
 
         try (TaskSubmissionTestEnvironment env =
-                new Builder(jobId).setConfiguration(config).setLocalCommunication(false).build()) {
+                new Builder(jobId)
+                        .setConfiguration(configuration)
+                        .setLocalCommunication(false)
+                        .build()) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             try {
                 CompletableFuture<TransientBlobKey> logFuture =
@@ -2178,7 +2182,8 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test(timeout = 10000L)
     public void testTerminationOnFatalError() throws Throwable {
-        try (TaskSubmissionTestEnvironment env = new Builder(jobId).build()) {
+        try (TaskSubmissionTestEnvironment env =
+                new Builder(jobId).setConfiguration(configuration).build()) {
             String testExceptionMsg = "Test exception of fatal error.";
 
             env.getTaskExecutor().onFatalError(new Exception(testExceptionMsg));

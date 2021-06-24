@@ -20,8 +20,8 @@ import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkOldStreamTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkOldBatchTableTestCase, PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkBlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -69,11 +69,6 @@ class UserDefinedTableFunctionTests(object):
     def _get_output(self, t):
         t.execute_insert("Results").wait()
         return source_sink_utils.results()
-
-
-class PyFlinkStreamUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                 PyFlinkOldStreamTableTestCase):
-    pass
 
 
 class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
@@ -132,26 +127,6 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
 class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
                                                 PyFlinkBlinkBatchTableTestCase):
     pass
-
-
-class PyFlinkBatchUserDefinedTableFunctionTests(UserDefinedTableFunctionTests,
-                                                PyFlinkOldBatchTableTestCase):
-    def _register_table_sink(self, field_names: list, field_types: list):
-        pass
-
-    def _get_output(self, t):
-        return self.collect(t)
-
-    def test_row_type_as_input_types_and_result_types(self):
-        # test input_types and result_types are DataTypes.ROW
-        a = udtf(lambda i: i,
-                 input_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]),
-                 result_types=DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())]))
-
-        self.assertEqual(a._input_types,
-                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
-        self.assertEqual(a._result_types,
-                         [DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT())])])
 
 
 class MultiEmit(TableFunction, unittest.TestCase):

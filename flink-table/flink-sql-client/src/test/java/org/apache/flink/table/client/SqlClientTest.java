@@ -156,7 +156,7 @@ public class SqlClientTest {
         // prepare statements which will throw exception
         String stmts =
                 "CREATE TABLE T (a int) WITH ('connector' = 'invalid');\n"
-                        + "SET sql-client.verbose=true;\n"
+                        + "SET 'sql-client.verbose' = 'true';\n"
                         + "SELECT * FROM T;\n"
                         + "QUIT;\n";
         String[] args = new String[] {};
@@ -176,18 +176,19 @@ public class SqlClientTest {
     public void testInitFile() throws Exception {
         List<String> statements =
                 Arrays.asList(
-                        "CREATE TABLE source ("
+                        "-- define table \n"
+                                + "CREATE TABLE source ("
                                 + "id INT,"
                                 + "val STRING"
                                 + ") WITH ("
                                 + "  'connector' = 'values'"
-                                + ");\n",
-                        "SET key = value;\n");
+                                + "); \n",
+                        " -- define config \nSET 'key' = 'value';\n");
         String initFile = createSqlFile(statements, "init-sql.sql");
 
         String[] args = new String[] {"-i", initFile};
         String output = runSqlClient(args, "SET;\nQUIT;\n");
-        assertThat(output, containsString("key=value"));
+        assertThat(output, containsString("'key' = 'value'"));
     }
 
     @Test
@@ -202,6 +203,14 @@ public class SqlClientTest {
         for (String command : help.split("\n")) {
             assertThat(output, containsString(command));
         }
+    }
+
+    @Test
+    public void testExecuteSqlWithHDFSFile() throws Exception {
+        String[] args = new String[] {"-f", "hdfs://path/to/file/test.sql"};
+        thrown.expect(SqlClientException.class);
+        thrown.expectMessage("SQL Client only supports to load files in local.");
+        runSqlClient(args);
     }
 
     private String runSqlClient(String[] args) throws Exception {

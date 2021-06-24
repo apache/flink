@@ -38,12 +38,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.configuration.PipelineOptions.JARS;
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -163,12 +163,12 @@ public class SessionContextTest {
     @Test
     public void testSetWithConfigOptionAndResetWithYamlKey() {
         // runtime config option and has deprecated key
-        sessionContext.set(TABLE_PLANNER.key(), "blink");
-        assertEquals("blink", getConfiguration().get(TABLE_PLANNER).name().toLowerCase());
+        sessionContext.set(RUNTIME_MODE.key(), "BATCH");
+        assertEquals("BATCH", getConfiguration().get(RUNTIME_MODE).name());
 
-        sessionContext.reset(TABLE_PLANNER.key());
-        assertEquals("old", getConfiguration().get(TABLE_PLANNER).name().toLowerCase());
-        assertEquals("old", getConfigurationMap().get("execution.planner").toLowerCase());
+        sessionContext.reset(RUNTIME_MODE.key());
+        assertEquals("STREAMING", getConfiguration().get(RUNTIME_MODE).name());
+        assertEquals("STREAMING", getConfigurationMap().get("execution.type").toUpperCase());
     }
 
     @Test
@@ -205,24 +205,48 @@ public class SessionContextTest {
     }
 
     @Test
-    public void testRemoteJar() {
+    public void testAddRemoteJar() {
         validateAddJarWithException(
                 "hdfs://remote:10080/remote.jar", "SQL Client only supports to add local jars.");
     }
 
     @Test
-    public void testIllegalJarInConfig() {
+    public void testAddIllegalJarInConfig() {
         Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
         innerConfig.set(JARS, Collections.singletonList("/path/to/illegal.jar"));
 
         validateAddJarWithException(udfJar.getPath(), "no protocol: /path/to/illegal.jar");
     }
 
+    @Test
+    public void testRemoveJarWithFullPath() {
+        validateRemoveJar(udfJar.getPath());
+    }
+
+    @Test
+    public void testRemoveJarWithRelativePath() throws IOException {
+        validateRemoveJar(
+                new File(".").getCanonicalFile().toPath().relativize(udfJar.toPath()).toString());
+    }
+
+    @Test
+    public void testRemoveIllegalJar() {
+        validateRemoveJarWithException("/path/to/illegal.jar", "JAR file does not exist");
+    }
+
+    @Test
+    public void testRemoveRemoteJar() {
+        Configuration innerConfig = (Configuration) sessionContext.getReadableConfig();
+        innerConfig.set(JARS, Collections.singletonList("hdfs://remote:10080/remote.jar"));
+
+        validateRemoveJarWithException(
+                "hdfs://remote:10080/remote.jar", "SQL Client only supports to remove local jars.");
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private SessionContext createSessionContext() throws Exception {
         Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_PLANNER", "old");
         replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
         replaceVars.put("$VAR_RESULT_MODE", "changelog");
         replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -261,14 +285,24 @@ public class SessionContextTest {
 
     private void validateAddJar(String jarPath) throws IOException {
         sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
                 getConfiguration().get(JARS));
         // reset to the default
         sessionContext.reset();
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
         assertEquals(
                 Collections.singletonList(udfJar.toURI().toURL().toString()),
                 getConfiguration().get(JARS));
+    }
+
+    private void validateRemoveJar(String jarPath) {
+        sessionContext.addJar(jarPath);
+        assertEquals(Collections.singletonList(udfJar.getPath()), sessionContext.listJars());
+
+        sessionContext.removeJar(jarPath);
+        assertEquals(Collections.emptyList(), sessionContext.listJars());
     }
 
     private void validateAddJarWithException(String jarPath, String errorMessages) {
@@ -279,6 +313,18 @@ public class SessionContextTest {
         } catch (Exception e) {
             assertThat(e, containsMessage(errorMessages));
             // Keep dependencies as same as before if fail to add jar
+            assertEquals(originDependencies, sessionContext.getDependencies());
+        }
+    }
+
+    private void validateRemoveJarWithException(String jarPath, String errorMessages) {
+        Set<URL> originDependencies = sessionContext.getDependencies();
+        try {
+            sessionContext.removeJar(jarPath);
+            fail("Should fail.");
+        } catch (Exception e) {
+            assertThat(e, containsMessage(errorMessages));
+            // Keep dependencies as same as before if fail to remove jar
             assertEquals(originDependencies, sessionContext.getDependencies());
         }
     }

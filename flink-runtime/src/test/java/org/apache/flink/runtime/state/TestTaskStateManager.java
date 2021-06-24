@@ -69,10 +69,6 @@ public class TestTaskStateManager implements TaskStateManager {
                 localRecoveryConfig);
     }
 
-    public TestTaskStateManager(JobID jobId, ExecutionAttemptID executionAttemptID) {
-        this(jobId, executionAttemptID, null, TestLocalRecoveryConfig.disabled());
-    }
-
     public TestTaskStateManager(
             JobID jobId,
             ExecutionAttemptID executionAttemptID,

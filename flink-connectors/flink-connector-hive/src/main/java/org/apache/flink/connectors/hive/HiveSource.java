@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.AbstractFileSource;
 import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
@@ -55,8 +54,7 @@ import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIG
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A unified data source that reads a hive table. */
-public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit>
-        implements ResultTypeQueryable<RowData> {
+public class HiveSource extends AbstractFileSource<RowData, HiveSourceSplit> {
 
     private static final long serialVersionUID = 1L;
 

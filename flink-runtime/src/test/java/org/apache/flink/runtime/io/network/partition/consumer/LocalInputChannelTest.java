@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -32,6 +33,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
@@ -100,11 +102,14 @@ public class LocalInputChannelTest {
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
                         1L, 0L, CheckpointOptions.alignedWithTimeout(getDefault(), 123L));
+        MemorySegment memorySegment = EventSerializer.toBuffer(barrier, false).getMemorySegment();
         BufferConsumer barrierHolder =
                 new BufferConsumer(
-                        EventSerializer.toBuffer(barrier, false).getMemorySegment(),
-                        FreeingBufferRecycler.INSTANCE,
-                        Buffer.DataType.EVENT_BUFFER);
+                        new NetworkBuffer(
+                                memorySegment,
+                                FreeingBufferRecycler.INSTANCE,
+                                Buffer.DataType.EVENT_BUFFER),
+                        memorySegment.size());
         BufferConsumer data = BufferBuilderTestUtils.createFilledFinishedBufferConsumer(1);
 
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();

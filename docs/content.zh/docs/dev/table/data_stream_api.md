@@ -155,7 +155,6 @@ val resultStream = tableEnv.toDataStream(resultTable)
 resultStream.print()
 env.execute()
 
-
 // prints:
 // +I[Alice]
 // +I[Bob]
@@ -1742,40 +1741,27 @@ In particular, these parts might not be well integrated into many recent new fea
 (e.g. `RowKind` is not correctly set, type systems don't integrate smoothly).
 {{< /hint >}}
 
-<a name="convert-a-datastream-or-dataset-into-a-table"></a>
+<a name="convert-a-datastream-into-a-table"></a>
 
-### 将 DataStream 或 DataSet 转换成表
+### 将 DataStream 转换成表
 
-与在 `TableEnvironment` 注册 `DataStream` 或 `DataSet` 不同，DataStream 和 DataSet 还可以直接转换成 `Table`。如果你想在 Table API 的查询中使用表，这将非常便捷。
+`DataStream` 可以直接转换为 `StreamTableEnvironment` 中的 `Table`。
+结果视图的架构取决于注册集合的数据类型。
 
 {{< tabs "53265853-e08d-4f70-93f8-c0f6d1b75e48" >}}
 {{< tab "Java" >}}
 ```java
-// get StreamTableEnvironment
-// registration of a DataSet in a BatchTableEnvironment is equivalent
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
-
+StreamTableEnvironment tableEnv = ...; 
 DataStream<Tuple2<Long, String>> stream = ...
 
-// Convert the DataStream into a Table with default fields "f0", "f1"
-Table table1 = tableEnv.fromDataStream(stream);
-
-// Convert the DataStream into a Table with fields "myLong", "myString"
 Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get TableEnvironment
-// registration of a DataSet is equivalent
-val tableEnv = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
+val stream: DataStream[(Long, String)] = ???
 
-val stream: DataStream[(Long, String)] = ...
-
-// convert the DataStream into a Table with default fields "_1", "_2"
-val table1: Table = tableEnv.fromDataStream(stream)
-
-// convert the DataStream into a Table with fields "myLong", "myString"
 val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 ```
 {{< /tab >}}
@@ -1783,13 +1769,17 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 
 {{< top >}}
 
-<a name="convert-a-table-into-a-datastream-or-dataset"></a>
+<a name="convert-a-table-into-a-datastream"></a>
 
-### 将表转换成 DataStream 或 DataSet
+### 将表转换成 DataStream
 
-`Table` 可以被转换成 `DataStream` 或 `DataSet`。通过这种方式，定制的 DataSet 或 DataStream 程序就可以在 Table API 或者 SQL 的查询结果上运行了。
+`Table` 可以被转换成 `DataStream`。
+通过这种方式，定制的 DataStream 程序就可以在 Table API 或者 SQL 的查询结果上运行了。
 
-将 `Table` 转换为 `DataStream` 或者 `DataSet` 时，你需要指定生成的 `DataStream` 或者 `DataSet` 的数据类型，即，`Table` 的每行数据要转换成的数据类型。通常最方便的选择是转换成 `Row` 。以下列表概述了不同选项的功能：
+将 `Table` 转换为 `DataStream` 时，你需要指定生成的 `DataStream` 
+的数据类型，即，`Table` 的每行数据要转换成的数据类型。
+通常最方便的选择是转换成 `Row` 。
+以下列表概述了不同选项的功能：
 
 - **Row**: 字段按位置映射，字段数量任意，支持 `null` 值，无类型安全（type-safe）检查。
 - **POJO**: 字段按名称映射（POJO 必须按`Table` 中字段名称命名），字段数量任意，支持 `null` 值，无类型安全检查。
@@ -1811,52 +1801,53 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 {{< tabs "9533a9f4-e6e8-44d7-a29c-33713724eacc" >}}
 {{< tab "Java" >}}
 ```java
-// get StreamTableEnvironment. 
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...; 
 
-// Table with two fields (String name, Integer age)
-Table table = ...
+Table table = tableEnv.fromValues(
+    DataTypes.Row(
+        DataTypes.FIELD("name", DataTypes.STRING()),
+        DataTypes.FIELD("age", DataTypes.INT()),
+    row("john", 35),
+    row("sarah", 32));
 
-// convert the Table into an append DataStream of Row by specifying the class
+// Convert the Table into an append DataStream of Row by specifying the class
 DataStream<Row> dsRow = tableEnv.toAppendStream(table, Row.class);
 
-// convert the Table into an append DataStream of Tuple2<String, Integer> 
-//   via a TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
-  Types.STRING(),
-  Types.INT());
-DataStream<Tuple2<String, Integer>> dsTuple = 
-  tableEnv.toAppendStream(table, tupleType);
+// Convert the Table into an append DataStream of Tuple2<String, Integer> with TypeInformation
+TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(Types.STRING(), Types.INT());
+DataStream<Tuple2<String, Integer>> dsTuple = tableEnv.toAppendStream(table, tupleType);
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
-DataStream<Tuple2<Boolean, Row>> retractStream = 
-  tableEnv.toRetractStream(table, Row.class);
+// Convert the Table into a retract DataStream of Row.
+// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
+// The boolean field indicates the type of the change. 
+// True is INSERT, false is DELETE.
+DataStream<Tuple2<Boolean, Row>> retractStream = tableEnv.toRetractStream(table, Row.class);
 
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get TableEnvironment. 
-// registration of a DataSet is equivalent
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 // Table with two fields (String name, Integer age)
-val table: Table = ...
+val table: Table = tableEnv.fromValues(
+    DataTypes.Row(
+        DataTypes.FIELD("name", DataTypes.STRING()),
+        DataTypes.FIELD("age", DataTypes.INT()),
+    row("john", 35),
+    row("sarah", 32));
 
-// convert the Table into an append DataStream of Row
+// Convert the Table into an append DataStream of Row by specifying the class
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
 
-// convert the Table into an append DataStream of Tuple2[String, Int]
+// Convert the Table into an append DataStream of (String, Integer) with TypeInformation
 val dsTuple: DataStream[(String, Int)] dsTuple = 
   tableEnv.toAppendStream[(String, Int)](table)
 
-// convert the Table into a retract DataStream of Row.
-//   A retract stream of type X is a DataStream[(Boolean, X)]. 
-//   The boolean field indicates the type of the change. 
-//   True is INSERT, false is DELETE.
+// Convert the Table into a retract DataStream of Row.
+// A retract stream of type X is a DataStream<Tuple2<Boolean, X>>. 
+// The boolean field indicates the type of the change. 
+// True is INSERT, false is DELETE.
 val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](table)
 ```
 {{< /tab >}}
@@ -1866,59 +1857,14 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
 
-<a name="convert-a-table-into-a-dataset"></a>
-
-#### 将表转换成 DataSet
-
-将 `Table` 转换成 `DataSet` 的过程如下：
-
-{{< tabs "65c0fb90-3108-4dc4-9130-626712549183" >}}
-{{< tab "Java" >}}
-```java
-// get BatchTableEnvironment
-BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env);
-
-// Table with two fields (String name, Integer age)
-Table table = ...
-
-// convert the Table into a DataSet of Row by specifying a class
-DataSet<Row> dsRow = tableEnv.toDataSet(table, Row.class);
-
-// convert the Table into a DataSet of Tuple2<String, Integer> via a TypeInformation
-TupleTypeInfo<Tuple2<String, Integer>> tupleType = new TupleTypeInfo<>(
-  Types.STRING(),
-  Types.INT());
-DataSet<Tuple2<String, Integer>> dsTuple = 
-  tableEnv.toDataSet(table, tupleType);
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-// get TableEnvironment 
-// registration of a DataSet is equivalent
-val tableEnv = BatchTableEnvironment.create(env)
-
-// Table with two fields (String name, Integer age)
-val table: Table = ...
-
-// convert the Table into a DataSet of Row
-val dsRow: DataSet[Row] = tableEnv.toDataSet[Row](table)
-
-// convert the Table into a DataSet of Tuple2[String, Int]
-val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
-```
-{{< /tab >}}
-{{< /tabs >}}
-
-<span class="label label-danger">注意</span> **一旦 Table 被转化为 DataSet，必须使用 ExecutionEnvironment 的 execute 方法执行该 DataSet 作业。**
-
 {{< top >}}
 
 <a name="mapping-of-data-types-to-table-schema"></a>
 
 ### 数据类型到 Table Schema 的映射
 
-Flink 的 DataStream 和 DataSet APIs 支持多样的数据类型。例如 Tuple（Scala 内置以及Flink Java tuple）、POJO 类型、Scala case class 类型以及 Flink 的 Row 类型等允许嵌套且有多个可在表的表达式中访问的字段的复合数据类型。其他类型被视为原子类型。下面，我们讨论 Table API 如何将这些数据类型类型转换为内部 row 表示形式，并提供将 `DataStream` 转换成 `Table` 的样例。
+Flink 的 DataStream API 支持多样的数据类型。
+例如 Tuple（Scala 内置以及Flink Java tuple）、POJO 类型、Scala case class 类型以及 Flink 的 Row 类型等允许嵌套且有多个可在表的表达式中访问的字段的复合数据类型。其他类型被视为原子类型。下面，我们讨论 Table API 如何将这些数据类型类型转换为内部 row 表示形式，并提供将 `DataStream` 转换成 `Table` 的样例。
 
 数据类型到 table schema 的映射有两种方式：**基于字段位置**或**基于字段名称**。
 
@@ -1931,7 +1877,6 @@ Flink 的 DataStream 和 DataSet APIs 支持多样的数据类型。例如 Tuple
 {{< tabs "1abe538a-9dc4-4fb4-900a-f27cb888d20d" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
 
 DataStream<Tuple2<Long, Integer>> stream = ...
@@ -1968,7 +1913,6 @@ val table: Table = tableEnv.fromDataStream(stream, $"myLong", $"myInt")
 {{< tabs "e6952073-a5a0-45ff-800e-bd4126c09b26" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 DataStream<Tuple2<Long, Integer>> stream = ...
@@ -2006,28 +1950,31 @@ val table: Table = tableEnv.fromDataStream(stream, $"_2" as "myInt", $"_1" as "m
 
 #### 原子类型
 
-Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数据类型（不可再拆分的数据类型）视为原子类型。原子类型的 `DataStream` 或者 `DataSet` 会被转换成只有一条属性的 `Table`。属性的数据类型可以由原子类型推断出，还可以重新命名属性。
+Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数据类型（不可再拆分的数据类型）视为原子类型。
+原子类型的 `DataStream` 会被转换成只有一条属性的 `Table`。
+属性的数据类型可以由原子类型推断出，还可以重新命名属性。
 
 {{< tabs "03abca94-5825-4ba7-8ef0-213362c3aaff" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...;
 
 DataStream<Long> stream = ...
 
-// convert DataStream into Table with field name "myLong"
+// Convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 val stream: DataStream[Long] = ...
 
-// convert DataStream into Table with field name "myLong"
+// Convert DataStream into Table with default field name "f0"
+val table: Table = tableEnv.fromDataStream(stream)
+
+// Convert DataStream into Table with field name "myLong"
 val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 ```
 {{< /tab >}}
@@ -2037,12 +1984,16 @@ val table: Table = tableEnv.fromDataStream(stream, $"myLong")
 
 #### Tuple类型（Scala 和 Java）和 Case Class类型（仅 Scala）
 
-Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。两种 tuple 的 DataStream 和 DataSet 都能被转换成表。可以通过提供所有字段名称来重命名字段（基于位置映射）。如果没有指明任何字段名称，则会使用默认的字段名称。如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
+Flink 支持 Scala 的内置 tuple 类型并给 Java 提供自己的 tuple 类型。
+两种 tuple 的 DataStream 都能被转换成表。
+可以通过提供所有字段名称来重命名字段（基于位置映射）。
+如果没有指明任何字段名称，则会使用默认的字段名称。
+如果引用了原始字段名称（对于 Flink tuple 为`f0`、`f1` ... ...，对于 Scala tuple 为`_1`、`_2` ... ...），则 API 会假定映射是基于名称的而不是基于位置的。
+基于名称的映射可以通过 `as` 对字段和投影进行重新排序。
 
 {{< tabs "130f44c6-7432-465a-ae8a-b4c436888361" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 DataStream<Tuple2<Long, String>> stream = ...
@@ -2099,12 +2050,11 @@ val table: Table = tableEnv.fromDataStream(stream, $"age" as "myAge", $"name" as
 
 Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录在[这里]({{< ref "docs/dev/serialization/types_serialization" >}}#pojos).
 
-在不指定字段名称的情况下将 POJO 类型的 `DataStream` 或 `DataSet` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
+在不指定字段名称的情况下将 POJO 类型的 `DataStream` 转换成 `Table` 时，将使用原始 POJO 类型字段的名称。名称映射需要原始名称，并且不能按位置进行。字段可以使用别名（带有 `as` 关键字）来重命名，重新排序和投影。
 
 {{< tabs "c4bd0a25-c14c-44f8-8353-add5c453c4fd" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // Person is a POJO with fields "name" and "age"
@@ -2144,52 +2094,51 @@ val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 
 #### Row类型
 
-`Row` 类型支持任意数量的字段以及具有 `null` 值的字段。字段名称可以通过 `RowTypeInfo` 指定，也可以在将 `Row` 的 `DataStream` 或 `DataSet` 转换为 `Table` 时指定。Row 类型的字段映射支持基于名称和基于位置两种方式。字段可以通过提供所有字段的名称的方式重命名（基于位置映射）或者分别选择进行投影/排序/重命名（基于名称映射）。
+`Row` 类型支持任意数量的字段以及具有 `null` 值的字段。字段名称可以通过 `RowTypeInfo` 指定，也可以在将 `Row` 的 `DataStream` 转换为 `Table` 时指定。
+Row 类型的字段映射支持基于名称和基于位置两种方式。
+字段可以通过提供所有字段的名称的方式重命名（基于位置映射）或者分别选择进行投影/排序/重命名（基于名称映射）。
 
 {{< tabs "3434160b-c826-4064-897c-18d7d7cf7103" >}}
 {{< tab "Java" >}}
 ```java
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
+StreamTableEnvironment tableEnv = ...; 
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 DataStream<Row> stream = ...
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name").as("myName"), $("age").as("myAge"));
 
-// convert DataStream into Table with projected field "name" (name-based)
+// Convert DataStream into Table with projected field "name" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name"));
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// Convert DataStream into Table with projected and renamed field "myName" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("name").as("myName"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// get a TableEnvironment
-val tableEnv: StreamTableEnvironment = ... // see "Create a TableEnvironment" section
+val tableEnv: StreamTableEnvironment = ???
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
 val stream: DataStream[Row] = ...
 
-// convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
+// Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 val table: Table = tableEnv.fromDataStream(stream, $"myName", $"myAge")
 
-// convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
+// Convert DataStream into Table with renamed fields "myName", "myAge" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName", $"age" as "myAge")
 
-// convert DataStream into Table with projected field "name" (name-based)
+// Convert DataStream into Table with projected field "name" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name")
 
-// convert DataStream into Table with projected and renamed field "myName" (name-based)
+// Convert DataStream into Table with projected and renamed field "myName" (name-based)
 val table: Table = tableEnv.fromDataStream(stream, $"name" as "myName")
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
 {{< top >}}
-

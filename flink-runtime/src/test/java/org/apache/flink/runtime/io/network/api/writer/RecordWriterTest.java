@@ -312,13 +312,14 @@ public class RecordWriterTest {
             assertTrue(recordWriter.getAvailableFuture().isDone());
 
             // request one buffer from the local pool to make it unavailable afterwards
-            final BufferBuilder bufferBuilder = localPool.requestBufferBuilder(0);
-            assertNotNull(bufferBuilder);
-            assertFalse(recordWriter.getAvailableFuture().isDone());
+            try (BufferBuilder bufferBuilder = localPool.requestBufferBuilder(0)) {
+                assertNotNull(bufferBuilder);
+                assertFalse(recordWriter.getAvailableFuture().isDone());
 
-            // recycle the buffer to make the local pool available again
-            final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder);
-            buffer.recycleBuffer();
+                // recycle the buffer to make the local pool available again
+                final Buffer buffer = BufferBuilderTestUtils.buildSingleBuffer(bufferBuilder);
+                buffer.recycleBuffer();
+            }
             assertTrue(recordWriter.getAvailableFuture().isDone());
             assertEquals(recordWriter.AVAILABLE, recordWriter.getAvailableFuture());
 

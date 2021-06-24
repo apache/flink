@@ -259,7 +259,12 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         } else {
             writerStream =
                     StreamingSink.writer(
-                            dataStream, bucketCheckInterval, bucketsBuilder, parallelism);
+                            dataStream,
+                            bucketCheckInterval,
+                            bucketsBuilder,
+                            parallelism,
+                            partitionKeys,
+                            tableOptions);
         }
 
         return StreamingSink.sink(

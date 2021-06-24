@@ -60,6 +60,10 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.RemoveJarOperation;
+import org.apache.flink.table.operations.command.ResetOperation;
+import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
 import org.apache.flink.table.operations.ddl.AlterTableAddConstraintOperation;
 import org.apache.flink.table.operations.ddl.AlterTableDropConstraintOperation;
@@ -1352,18 +1356,75 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testAddJars() {
-        List<String> jarPaths =
-                Arrays.asList(
+    public void testAddJar() {
+        Arrays.asList(
                         "./test.\njar",
                         "file:///path/to/whatever",
                         "../test-jar.jar",
                         "/root/test.jar",
                         "test\\ jar.jar",
-                        "oss://path/helloworld.go");
-        for (String path : jarPaths) {
-            validateJarPath(path, "  ADD   JAR   '%s'");
-        }
+                        "oss://path/helloworld.go")
+                .forEach(
+                        jarPath -> {
+                            AddJarOperation operation =
+                                    (AddJarOperation)
+                                            parser.parse(String.format("ADD JAR '%s'", jarPath))
+                                                    .get(0);
+                            Assert.assertEquals(jarPath, operation.getPath());
+                        });
+    }
+
+    @Test
+    public void testRemoveJar() {
+        Arrays.asList(
+                        "./test.\njar",
+                        "file:///path/to/whatever",
+                        "../test-jar.jar",
+                        "/root/test.jar",
+                        "test\\ jar.jar",
+                        "oss://path/helloworld.go")
+                .forEach(
+                        jarPath -> {
+                            RemoveJarOperation operation =
+                                    (RemoveJarOperation)
+                                            parser.parse(String.format("REMOVE JAR '%s'", jarPath))
+                                                    .get(0);
+                            Assert.assertEquals(jarPath, operation.getPath());
+                        });
+    }
+
+    @Test
+    public void testShowJars() {
+        final String sql = "SHOW JARS";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowJarsOperation;
+        final ShowJarsOperation showModulesOperation = (ShowJarsOperation) operation;
+        assertEquals("SHOW JARS", showModulesOperation.asSummaryString());
+    }
+
+    @Test
+    public void testSet() {
+        Operation operation1 = parse("SET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof SetOperation);
+        assertFalse(((SetOperation) operation1).getKey().isPresent());
+        assertFalse(((SetOperation) operation1).getValue().isPresent());
+
+        Operation operation2 = parse("SET 'test-key' = 'test-value'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof SetOperation);
+        assertEquals("test-key", ((SetOperation) operation2).getKey().get());
+        assertEquals("test-value", ((SetOperation) operation2).getValue().get());
+    }
+
+    @Test
+    public void testReset() {
+        Operation operation1 = parse("RESET", SqlDialect.DEFAULT);
+        assertTrue(operation1 instanceof ResetOperation);
+        assertFalse(((ResetOperation) operation1).getKey().isPresent());
+
+        Operation operation2 = parse("RESET 'test-key'", SqlDialect.DEFAULT);
+        assertTrue(operation2 instanceof ResetOperation);
+        assertTrue(((ResetOperation) operation2).getKey().isPresent());
+        assertEquals("test-key", ((ResetOperation) operation2).getKey().get());
     }
 
     // ~ Tool Methods ----------------------------------------------------------
@@ -1447,12 +1508,6 @@ public class SqlToOperationConverterTest {
     private CalciteParser getParserBySqlDialect(SqlDialect sqlDialect) {
         tableConfig.setSqlDialect(sqlDialect);
         return plannerContext.createCalciteParser();
-    }
-
-    private void validateJarPath(String expected, String template) {
-        AddJarOperation operation =
-                (AddJarOperation) parser.parse(String.format(template, expected)).get(0);
-        Assert.assertEquals(expected, operation.getPath());
     }
 
     // ~ Inner Classes ----------------------------------------------------------

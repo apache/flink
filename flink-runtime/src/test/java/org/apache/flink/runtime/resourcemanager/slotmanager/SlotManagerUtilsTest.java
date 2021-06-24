@@ -149,6 +149,12 @@ public class SlotManagerUtilsTest extends TestLogger {
                 is(Integer.MAX_VALUE));
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testCalculateDefaultNumSlotsFailZeroDefaultSlotProfile() {
+        SlotManagerUtils.calculateDefaultNumSlots(
+                ResourceProfile.fromResources(1.0, 1), ResourceProfile.ZERO);
+    }
+
     @Test
     public void testGetEffectiveResourceProfile() {
         final ResourceProfile defaultProfile = ResourceProfile.fromResources(5, 10);

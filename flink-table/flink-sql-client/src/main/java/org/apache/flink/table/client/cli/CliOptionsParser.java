@@ -362,6 +362,7 @@ public class CliOptionsParser {
                     .distinct()
                     .map(
                             (url) -> {
+                                checkFilePath(url);
                                 try {
                                     return Path.fromLocalFile(new File(url).getAbsoluteFile())
                                             .toUri()
@@ -378,6 +379,14 @@ public class CliOptionsParser {
                     .collect(Collectors.toList());
         }
         return null;
+    }
+
+    public static void checkFilePath(String filePath) {
+        Path path = new Path(filePath);
+        String scheme = path.toUri().getScheme();
+        if (scheme != null && !scheme.equals("file")) {
+            throw new SqlClientException("SQL Client only supports to load files in local.");
+        }
     }
 
     private static String checkSessionId(CommandLine line) {

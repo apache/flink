@@ -43,11 +43,11 @@ The following examples show how to run a `SET` statement in SQL CLI.
 {{< tabs "set" >}}
 {{< tab "SQL CLI" >}}
 ```sql
-Flink SQL> SET table.planner = blink;
+Flink SQL> SET 'table.planner' = 'blink';
 [INFO] Session property has been set.
 
 Flink SQL> SET;
-table.planner=blink;
+'table.planner' = 'blink'
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -55,7 +55,7 @@ table.planner=blink;
 ## Syntax
 
 ```sql
-SET (key = value)?
+SET ('key' = 'value')?
 ```
 
 If no key and value are specified, it just print all the properties. Otherwise, set the key with specified value.

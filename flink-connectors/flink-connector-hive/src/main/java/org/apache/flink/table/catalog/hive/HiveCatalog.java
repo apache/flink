@@ -771,7 +771,6 @@ public class HiveCatalog extends AbstractCatalog {
             properties = retrieveFlinkProperties(properties);
             DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
             tableSchemaProps.putProperties(properties);
-            ObjectPath tablePath = new ObjectPath(hiveTable.getDbName(), hiveTable.getTableName());
             // try to get table schema with both new and old (1.10) key, in order to support tables
             // created in old version
             tableSchema =
@@ -781,11 +780,8 @@ public class HiveCatalog extends AbstractCatalog {
                                     () ->
                                             tableSchemaProps
                                                     .getOptionalTableSchema("generic.table.schema")
-                                                    .orElseThrow(
-                                                            () ->
-                                                                    new CatalogException(
-                                                                            "Failed to get table schema from properties for generic table "
-                                                                                    + tablePath)));
+                                                    .orElseGet(
+                                                            () -> TableSchema.builder().build()));
             partitionKeys = tableSchemaProps.getPartitionKeys();
             // remove the schema from properties
             properties = CatalogTableImpl.removeRedundant(properties, tableSchema, partitionKeys);

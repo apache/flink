@@ -99,7 +99,8 @@ public class ParserImplTest {
                     forStatement("SET pipeline.name = ' '").summary("SET pipeline.name= "),
                     forStatement("SET execution.runtime-type=")
                             // TODO: the exception message should be "no value defined"
-                            .error("SQL parse failed. Encountered \"-\" at line 1, column 22"));
+                            .error(
+                                    "SQL parse failed. Encountered \"execution\" at line 1, column 5"));
 
     @Test
     public void testParseLegalStatements() {

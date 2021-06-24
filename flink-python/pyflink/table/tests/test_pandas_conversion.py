@@ -24,7 +24,7 @@ from pyflink.common import Row
 from pyflink.table.types import DataTypes
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase, PyFlinkOldStreamTableTestCase
+    PyFlinkBlinkStreamTableTestCase
 
 
 class PandasConversionTestBase(object):
@@ -170,11 +170,6 @@ class PandasConversionITTests(PandasConversionTestBase):
             self.assertTrue((expected_field == result_field).all())
         else:
             self.assertTrue(expected_field == result_field)
-
-
-class StreamPandasConversionTests(PandasConversionITTests,
-                                  PyFlinkOldStreamTableTestCase):
-    pass
 
 
 class BlinkBatchPandasConversionTests(PandasConversionTests,

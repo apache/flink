@@ -49,7 +49,7 @@ Flink SQL> SELECT TIMESTAMP '1970-01-01 00:00:04.001';
 
  ```sql
 Flink SQL> CREATE VIEW T1 AS SELECT TO_TIMESTAMP_LTZ(4001, 3);
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 Flink SQL> SELECT * FROM T1;
 +---------------------------+
 | TO_TIMESTAMP_LTZ(4001, 3) |
@@ -57,7 +57,7 @@ Flink SQL> SELECT * FROM T1;
 |   1970-01-01 00:00:04.001 |
 +---------------------------+
 
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 Flink SQL> SELECT * FROM T1;
 +---------------------------+
 | TO_TIMESTAMP_LTZ(4001, 3) |
@@ -76,13 +76,13 @@ Flink SQL> SELECT * FROM T1;
 {{< tab "SQL Client" >}}
 ```sql
 -- 设置为 UTC 时区
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 
 -- 设置为上海时区
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 
 -- 设置为Los_Angeles时区
-Flink SQL> SET table.local-time-zone=America/Los_Angeles;
+Flink SQL> SET 'table.local-time-zone' = 'America/Los_Angeles';
 ```
 {{< /tab >}}
 {{< tab "Java" >}}
@@ -132,7 +132,7 @@ session （会话）中配置的时区会对以下函数生效。
 
 
 ```sql
-Flink SQL> SET sql-client.execution.result-mode=tableau;
+Flink SQL> SET 'sql-client.execution.result-mode' = 'tableau';
 Flink SQL> CREATE VIEW MyView1 AS SELECT LOCALTIME, LOCALTIMESTAMP, CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, CURRENT_ROW_TIMESTAMP(), NOW(), PROCTIME();
 Flink SQL> DESC MyView1;
 ```
@@ -153,7 +153,7 @@ Flink SQL> DESC MyView1;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 Flink SQL> SELECT * FROM MyView1;
 ```
 
@@ -166,7 +166,7 @@ Flink SQL> SELECT * FROM MyView1;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 Flink SQL> SELECT * FROM MyView1;
 ```
 
@@ -195,7 +195,7 @@ Flink SQL> DESC MyView2;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 Flink SQL> SELECT * FROM MyView2;
 ```
 
@@ -208,7 +208,7 @@ Flink SQL> SELECT * FROM MyView2;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 Flink SQL> SELECT * FROM MyView2;
 ```
 
@@ -264,7 +264,7 @@ Flink SQL 使用函数 `PROCTIME()` 来定义处理时间属性， 该函数返�
 `PROCTIME()` 返回的是本地时区的时间， 使用 `TIMESTAMP_LTZ` 类型也可以支持夏令时时间。
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 Flink SQL> SELECT PROCTIME();
 ```
 ```
@@ -276,7 +276,7 @@ Flink SQL> SELECT PROCTIME();
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 Flink SQL> SELECT PROCTIME();
 ```
 ```
@@ -336,7 +336,7 @@ C,3.8
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC;
+Flink SQL> SET 'table.local-time-zone' = 'UTC';
 Flink SQL> SELECT * FROM MyView3;
 ```
 
@@ -351,7 +351,7 @@ Flink SQL> SELECT * FROM MyView3;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai;
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai';
 Flink SQL> SELECT * FROM MyView3;
 ```
 
@@ -426,7 +426,7 @@ C,3.8,2021-04-15 14:11:00
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC; 
+Flink SQL> SET 'table.local-time-zone' = 'UTC'; 
 Flink SQL> SELECT * FROM MyView4;
 ```
                
@@ -441,7 +441,7 @@ Flink SQL> SELECT * FROM MyView4;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai; 
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai'; 
 Flink SQL> SELECT * FROM MyView4;
 ```
 
@@ -508,7 +508,7 @@ C,3.8,1618495860000  # The corresponding utc timestamp is 2021-04-15 14:11:00
 ```    
 
 ```sql
-Flink SQL> SET table.local-time-zone=UTC; 
+Flink SQL> SET 'table.local-time-zone' = 'UTC'; 
 Flink SQL> SELECT * FROM MyView5;
 ```                         
                
@@ -523,7 +523,7 @@ Flink SQL> SELECT * FROM MyView5;
 ```
 
 ```sql
-Flink SQL> SET table.local-time-zone=Asia/Shanghai; 
+Flink SQL> SET 'table.local-time-zone' = 'Asia/Shanghai'; 
 Flink SQL> SELECT * FROM MyView5;
 ```
 

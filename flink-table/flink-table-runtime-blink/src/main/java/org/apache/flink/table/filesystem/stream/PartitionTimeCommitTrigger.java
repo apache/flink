@@ -25,13 +25,8 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.filesystem.PartitionTimeExtractor;
 import org.apache.flink.util.StringUtils;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,16 +36,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE;
-import static org.apache.flink.table.utils.PartitionPathUtils.extractPartitionValues;
+import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PredicateContext;
 
 /**
- * Partition commit trigger by partition time and watermark, if 'watermark' > 'partition-time' +
- * 'delay', will commit the partition.
+ * Partition commit trigger by partition time and watermark. It'll commit the partition predicated
+ * to be committable by {@link PartitionCommitPredicate}
  *
  * <p>Compares watermark, and watermark is related to records and checkpoint, so we need store
  * watermark information for checkpoint.
@@ -71,18 +61,12 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
 
     private final ListState<Map<Long, Long>> watermarksState;
     private final TreeMap<Long, Long> watermarks;
-    private final PartitionTimeExtractor extractor;
-    private final long commitDelay;
-    private final List<String> partitionKeys;
-    /** The time zone used to parse the long watermark value to TIMESTAMP. */
-    private final ZoneId watermarkTimeZone;
+    private final PartitionCommitPredicate partitionCommitPredicate;
 
     public PartitionTimeCommitTrigger(
             boolean isRestored,
             OperatorStateStore stateStore,
-            Configuration conf,
-            ClassLoader cl,
-            List<String> partitionKeys)
+            PartitionCommitPredicate partitionCommitPredicate)
             throws Exception {
         this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
         this.pendingPartitions = new HashSet<>();
@@ -90,19 +74,10 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
             pendingPartitions.addAll(pendingPartitionsState.get().iterator().next());
         }
 
-        this.partitionKeys = partitionKeys;
-        this.commitDelay = conf.get(SINK_PARTITION_COMMIT_DELAY).toMillis();
-        this.extractor =
-                PartitionTimeExtractor.create(
-                        cl,
-                        conf.get(PARTITION_TIME_EXTRACTOR_KIND),
-                        conf.get(PARTITION_TIME_EXTRACTOR_CLASS),
-                        conf.get(PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN));
+        this.partitionCommitPredicate = partitionCommitPredicate;
 
         this.watermarksState = stateStore.getListState(WATERMARKS_STATE_DESC);
         this.watermarks = new TreeMap<>();
-        this.watermarkTimeZone =
-                ZoneId.of(conf.getString(SINK_PARTITION_COMMIT_WATERMARK_TIME_ZONE));
         if (isRestored) {
             watermarks.putAll(watermarksState.get().iterator().next());
         }
@@ -131,9 +106,8 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
         Iterator<String> iter = pendingPartitions.iterator();
         while (iter.hasNext()) {
             String partition = iter.next();
-            LocalDateTime partitionTime =
-                    extractor.extract(partitionKeys, extractPartitionValues(new Path(partition)));
-            if (watermarkHasPassedWithDelay(watermark, partitionTime, commitDelay)) {
+            PredicateContext predicateContext = createPredicateContext(partition, watermark);
+            if (partitionCommitPredicate.isPartitionCommittable(predicateContext)) {
                 needCommit.add(partition);
                 iter.remove();
             }
@@ -141,16 +115,30 @@ public class PartitionTimeCommitTrigger implements PartitionCommitTrigger {
         return needCommit;
     }
 
-    /**
-     * Returns the watermark has passed the partition time or not, if true means it's time to commit
-     * the partition.
-     */
-    private boolean watermarkHasPassedWithDelay(
-            long watermark, LocalDateTime partitionTime, long commitDelay) {
-        // here we don't parse the long watermark to TIMESTAMP and then comparision,
-        // but parse the partition timestamp to epoch mills to avoid Daylight Saving Time issue
-        long epochPartTime = partitionTime.atZone(watermarkTimeZone).toInstant().toEpochMilli();
-        return watermark > epochPartTime + commitDelay;
+    private PredicateContext createPredicateContext(String partition, long watermark) {
+        return new PredicateContext() {
+            @Override
+            public String partition() {
+                return partition;
+            }
+
+            @Override
+            public long createProcTime() {
+                throw new UnsupportedOperationException(
+                        "Method createProcTime isn't supported in PartitionTimeCommitTrigger.");
+            }
+
+            @Override
+            public long currentProcTime() {
+                throw new UnsupportedOperationException(
+                        "Method currentProcTime isn't supported in PartitionTimeCommitTrigger.");
+            }
+
+            @Override
+            public long currentWatermark() {
+                return watermark;
+            }
+        };
     }
 
     @Override

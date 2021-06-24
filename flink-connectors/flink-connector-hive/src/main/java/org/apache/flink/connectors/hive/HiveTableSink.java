@@ -318,7 +318,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                             parallelism);
         } else {
             writerStream =
-                    StreamingSink.writer(dataStream, bucketCheckInterval, builder, parallelism);
+                    StreamingSink.writer(
+                            dataStream,
+                            bucketCheckInterval,
+                            builder,
+                            parallelism,
+                            getPartitionKeys(),
+                            conf);
         }
 
         return StreamingSink.sink(

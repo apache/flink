@@ -192,7 +192,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
@@ -201,7 +201,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.vintage</groupId>
 			<artifactId>junit-vintage-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

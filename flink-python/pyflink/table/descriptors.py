@@ -38,7 +38,6 @@ __all__ = [
     'Json',
     'ConnectTableDescriptor',
     'StreamTableDescriptor',
-    'BatchTableDescriptor',
     'CustomConnectorDescriptor',
     'CustomFormatDescriptor'
 ]
@@ -1714,15 +1713,3 @@ class StreamTableDescriptor(ConnectTableDescriptor):
         """
         self._j_stream_table_descriptor = self._j_stream_table_descriptor.inUpsertMode()
         return self
-
-
-class BatchTableDescriptor(ConnectTableDescriptor):
-    """
-    Descriptor for specifying a table source and/or sink in a batch environment.
-
-    .. seealso:: parent class: :class:`ConnectTableDescriptor`
-    """
-
-    def __init__(self, j_batch_table_descriptor):
-        self._j_batch_table_descriptor = j_batch_table_descriptor
-        super(BatchTableDescriptor, self).__init__(self._j_batch_table_descriptor)

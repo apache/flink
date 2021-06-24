@@ -1007,7 +1007,7 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -1032,7 +1032,7 @@ public abstract class AggregateFunction<T, ACC> extends UserDefinedAggregateFunc
 
   /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
-    * dataset grouping aggregate.
+    * bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which needs to be reset
     */
@@ -1116,7 +1116,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -1141,7 +1141,7 @@ abstract class AggregateFunction[T, ACC] extends UserDefinedAggregateFunction[T,
 
   /**
     * Resets the accumulator for this [[AggregateFunction]]. This function must be implemented for
-    * dataset grouping aggregate.
+    * bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which needs to be reset
     */
@@ -1489,7 +1489,7 @@ public abstract class TableAggregateFunction<T, ACC> extends UserDefinedAggregat
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated
@@ -1616,7 +1616,7 @@ abstract class TableAggregateFunction[T, ACC] extends UserDefinedAggregateFuncti
 
   /**
     * Merges a group of accumulator instances into one accumulator instance. This function must be
-    * implemented for datastream session window grouping aggregate and dataset grouping aggregate.
+    * implemented for datastream session window grouping aggregate and bounded grouping aggregate.
     *
     * @param accumulator  the accumulator which will keep the merged aggregate results. It should
     *                     be noted that the accumulator may contain the previous aggregated

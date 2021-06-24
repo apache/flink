@@ -137,4 +137,22 @@ public class HiveCatalogTest {
         hiveConf = HiveCatalog.createHiveConf(hiveConfDir, null);
         assertNull(hiveConf.get("common-key", null));
     }
+
+    @Test
+    public void testGetNoSchemaGenericTable() throws Exception {
+        ObjectPath hiveObjectPath =
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "testGetNoSchemaGenericTable");
+
+        Map<String, String> properties = new HashMap<>();
+
+        properties.put(CONNECTOR.key(), "jdbc");
+
+        hiveCatalog.createTable(
+                hiveObjectPath,
+                new CatalogTableImpl(TableSchema.builder().build(), properties, null),
+                false);
+
+        CatalogBaseTable catalogTable = hiveCatalog.getTable(hiveObjectPath);
+        assertEquals(TableSchema.builder().build(), catalogTable.getSchema());
+    }
 }

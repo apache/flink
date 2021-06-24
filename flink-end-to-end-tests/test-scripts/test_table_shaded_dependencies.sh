@@ -103,19 +103,15 @@ checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-api-scala/ta
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-api-java-bridge/target/flink-table-api-java-bridge_${FLINK_SCALA_VERSION}.jar"
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-api-scala-bridge/target/flink-table-api-scala-bridge_${FLINK_SCALA_VERSION}.jar"
 
-checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_SCALA_VERSION}.jar"
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_SCALA_VERSION}.jar"
 checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_SCALA_VERSION}.jar"
 checkCodeDependencies "${FLINK_DIR}/lib/flink-table-blink_${FLINK_SCALA_VERSION}.jar"
-checkCodeDependencies "${FLINK_DIR}/lib/flink-table_${FLINK_SCALA_VERSION}.jar"
 
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-java/target/flink-table-api-java-${FLINK_VERSION}.jar"
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-scala/target/flink-table-api-scala_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-java-bridge/target/flink-table-api-java-bridge_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-api-scala-bridge/target/flink-table-api-scala-bridge_${FLINK_SCALA_VERSION}.jar"
 
-checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_SCALA_VERSION}.jar"
 checkAllowedPackages "${FLINK_DIR}/lib/flink-table-blink_${FLINK_SCALA_VERSION}.jar"
-checkAllowedPackages "${FLINK_DIR}/lib/flink-table_${FLINK_SCALA_VERSION}.jar"

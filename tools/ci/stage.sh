@@ -51,12 +51,13 @@ MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
 flink-libraries/flink-state-processing-api,\
+flink-table/flink-sql-parser,\
+flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
-flink-table/flink-table-planner,\
 flink-table/flink-sql-client"
 
 MODULES_BLINK_PLANNER="\

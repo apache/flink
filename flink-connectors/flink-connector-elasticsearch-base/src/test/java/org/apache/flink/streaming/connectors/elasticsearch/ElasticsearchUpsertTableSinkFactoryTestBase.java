@@ -26,10 +26,6 @@ import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGenerator;
 import org.apache.flink.streaming.connectors.elasticsearch.index.IndexGeneratorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.descriptors.Elasticsearch;
-import org.apache.flink.table.descriptors.Json;
-import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.descriptors.TestTableDescriptor;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.sinks.TableSink;
@@ -160,32 +156,40 @@ public abstract class ElasticsearchUpsertTableSinkFactoryTestBase extends TestLo
     }
 
     protected Map<String, String> createElasticSearchProperties() {
-        return new TestTableDescriptor(
-                        new Elasticsearch()
-                                .version(getElasticsearchVersion())
-                                .host(HOSTNAME, PORT, SCHEMA)
-                                .index(INDEX)
-                                .documentType(DOC_TYPE)
-                                .keyDelimiter(KEY_DELIMITER)
-                                .keyNullLiteral(KEY_NULL_LITERAL)
-                                .bulkFlushBackoffExponential()
-                                .bulkFlushBackoffDelay(123L)
-                                .bulkFlushBackoffMaxRetries(3)
-                                .bulkFlushInterval(100L)
-                                .bulkFlushMaxActions(1000)
-                                .bulkFlushMaxSize("1 MB")
-                                .failureHandlerCustom(DummyFailureHandler.class)
-                                .connectionMaxRetryTimeout(100)
-                                .connectionPathPrefix("/myapp"))
-                .withFormat(new Json().deriveSchema())
-                .withSchema(
-                        new Schema()
-                                .field(FIELD_KEY, DataTypes.BIGINT())
-                                .field(FIELD_FRUIT_NAME, DataTypes.STRING())
-                                .field(FIELD_COUNT, DataTypes.DECIMAL(10, 4))
-                                .field(FIELD_TS, DataTypes.TIMESTAMP(3)))
-                .inUpsertMode()
-                .toProperties();
+        final Map<String, String> map = new HashMap<>();
+        map.put("connector.bulk-flush.backoff.type", "exponential");
+        map.put("connector.bulk-flush.max-size", "1 mb");
+        map.put("schema.0.data-type", "BIGINT");
+        map.put("schema.1.name", "fruit_name");
+        map.put("connector.property-version", "1");
+        map.put("connector.bulk-flush.backoff.max-retries", "3");
+        map.put("schema.3.data-type", "TIMESTAMP(3)");
+        map.put("connector.document-type", "MyType");
+        map.put("schema.3.name", "ts");
+        map.put("connector.index", "MyIndex");
+        map.put("schema.0.name", "key");
+        map.put("connector.bulk-flush.backoff.delay", "123");
+        map.put("connector.bulk-flush.max-actions", "1000");
+        map.put("schema.2.name", "count");
+        map.put("update-mode", "upsert");
+        map.put(
+                "connector.failure-handler-class",
+                ElasticsearchUpsertTableSinkFactoryTestBase.DummyFailureHandler.class.getName());
+        map.put("format.type", "json");
+        map.put("schema.1.data-type", "VARCHAR(2147483647)");
+        map.put("connector.version", getElasticsearchVersion());
+        map.put("connector.bulk-flush.interval", "100");
+        map.put("schema.2.data-type", "DECIMAL(10, 4)");
+        map.put("connector.hosts", "https://host1:1234");
+        map.put("connector.failure-handler", "custom");
+        map.put("format.property-version", "1");
+        map.put("format.derive-schema", "true");
+        map.put("connector.type", "elasticsearch");
+        map.put("connector.key-null-literal", "");
+        map.put("connector.key-delimiter", "#");
+        map.put("connector.connection-path-prefix", "/myapp");
+        map.put("connector.connection-max-retry-timeout", "100");
+        return map;
     }
 
     // --------------------------------------------------------------------------------------------

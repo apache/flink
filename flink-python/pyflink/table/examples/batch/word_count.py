@@ -21,7 +21,7 @@ import shutil
 import sys
 import tempfile
 
-from pyflink.table import BatchTableEnvironment, EnvironmentSettings
+from pyflink.table import EnvironmentSettings, TableEnvironment
 from pyflink.table import expressions as expr
 
 
@@ -35,7 +35,7 @@ def word_count():
               "with the License"
 
     env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
-    t_env = BatchTableEnvironment.create(environment_settings=env_settings)
+    t_env = TableEnvironment.create(environment_settings=env_settings)
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()
@@ -67,9 +67,7 @@ def word_count():
     table = t_env.from_elements(elements, ["word", "count"])
     table.group_by(table.word) \
          .select(table.word, expr.lit(1).count.alias('count')) \
-         .insert_into("Results")
-
-    t_env.execute("word_count")
+         .execute_insert("Results")
 
 
 if __name__ == '__main__':

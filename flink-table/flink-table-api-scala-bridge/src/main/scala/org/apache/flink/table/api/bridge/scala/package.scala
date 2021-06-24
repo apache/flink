@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.api.bridge
 
-import org.apache.flink.api.scala.{DataSet, _}
+import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.api.{ImplicitExpressionConversions, ImplicitExpressionOperations, Table, ValidationException}
@@ -56,21 +56,8 @@ package object scala {
     new TableConversions(table.asInstanceOf[TableImpl])
   }
 
-  implicit def dataSetConversions[T](set: DataSet[T]): DataSetConversions[T] = {
-    new DataSetConversions[T](set, set.getType())
-  }
-
   implicit def dataStreamConversions[T](set: DataStream[T]): DataStreamConversions[T] = {
     new DataStreamConversions[T](set, set.dataType)
-  }
-
-  implicit def table2RowDataSet(table: Table): DataSet[Row] = {
-    val tableEnv = table.asInstanceOf[TableImpl].getTableEnvironment
-    if (!tableEnv.isInstanceOf[BatchTableEnvironment]) {
-      throw new ValidationException("Table cannot be converted into a DataSet. " +
-        "It is not part of a batch table environment.")
-    }
-    tableEnv.asInstanceOf[BatchTableEnvironment].toDataSet[Row](table)
   }
 
   implicit def table2RowDataStream(table: Table): DataStream[Row] = {

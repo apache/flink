@@ -67,6 +67,16 @@ public class NoOpBufferPool implements BufferPool {
     }
 
     @Override
+    public MemorySegment requestMemorySegment() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public int getNumberOfRequiredMemorySegments() {
         throw new UnsupportedOperationException();
     }
