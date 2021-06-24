@@ -221,10 +221,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     serverChannel = channel.syncUninterruptibly().channel();
                     break;
                 } catch (final Exception e) {
+                    // syncUninterruptibly() throws checked exceptions via Unsafe
                     // continue if the exception is due to the port being in use, fail early
                     // otherwise
-                    if (!(e instanceof org.jboss.netty.channel.ChannelException
-                            || e instanceof java.net.BindException)) {
+                    if (!(e instanceof java.net.BindException)) {
                         throw e;
                     }
                 }
