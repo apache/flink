@@ -46,7 +46,6 @@ the `configuration` section of the yaml file for your SQL Client.
 ```yaml
 
 execution:
-  planner: blink
   type: batch
   result-mode: table
 
@@ -59,10 +58,10 @@ You can also set the dialect after the SQL Client has launched.
 
 ```bash
 
-Flink SQL> set table.sql-dialect=hive; -- to use hive dialect
+Flink SQL> SET 'table.sql-dialect' = 'hive'; -- to use hive dialect
 [INFO] Session property has been set.
 
-Flink SQL> set table.sql-dialect=default; -- to use default dialect
+Flink SQL> SET 'table.sql-dialect' = 'default'; -- to use default dialect
 [INFO] Session property has been set.
 
 ```

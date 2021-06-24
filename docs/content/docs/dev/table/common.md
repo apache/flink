@@ -183,11 +183,11 @@ val tEnv = TableEnvironment.create(settings)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
+# create a streaming TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# create a blink batch TableEnvironment
+# create a batch TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 

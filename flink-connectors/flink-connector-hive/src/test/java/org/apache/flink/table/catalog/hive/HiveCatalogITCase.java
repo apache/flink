@@ -482,7 +482,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testCreateTableLike() throws Exception {
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
@@ -504,8 +504,7 @@ public class HiveCatalogITCase {
 
     @Test
     public void testViewSchema() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.DEFAULT);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.DEFAULT);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
 

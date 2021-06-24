@@ -26,8 +26,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-/** A simple job used to test submitting the Python UDF job in blink stream mode. */
-public class BlinkStreamPythonUdfSqlJob {
+/** A simple job used to test submitting the Python UDF job in stream mode. */
+public class StreamPythonUdfSqlJob {
 
     public static void main(String[] args) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

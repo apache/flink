@@ -75,7 +75,7 @@ import static java.lang.String.format;
  * IT case for HiveCatalog. TODO: move to flink-connector-hive-test end-to-end test module once it's
  * setup
  */
-public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
+public class HiveCatalogUdfITCase extends AbstractTestBase {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -98,7 +98,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testBlinkUdf() throws Exception {
+    public void testFlinkUdf() throws Exception {
         TableSchema schema =
                 TableSchema.builder()
                         .field("name", DataTypes.STRING())
@@ -247,8 +247,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
     @Test
     public void testTimestampUDF() throws Exception {
 
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql(
@@ -275,8 +274,7 @@ public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
     @Test
     public void testDateUDF() throws Exception {
 
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql(

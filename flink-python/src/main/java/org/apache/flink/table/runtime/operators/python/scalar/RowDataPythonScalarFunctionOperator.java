@@ -31,7 +31,7 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.io.IOException;
 
-/** The Python {@link ScalarFunction} operator for the blink planner. */
+/** The Python {@link ScalarFunction} operator. */
 @Internal
 public class RowDataPythonScalarFunctionOperator
         extends AbstractRowDataPythonScalarFunctionOperator {
@@ -66,10 +66,9 @@ public class RowDataPythonScalarFunctionOperator
     @SuppressWarnings("unchecked")
     public void open() throws Exception {
         super.open();
-        udfInputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         udfOutputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
     }
 
     @Override

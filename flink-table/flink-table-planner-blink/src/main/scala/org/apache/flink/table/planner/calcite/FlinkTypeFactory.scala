@@ -581,7 +581,7 @@ object FlinkTypeFactory {
           throw new TableException(
             s"TIME precision is not supported: ${relDataType.getPrecision}")
         }
-        // blink runner support precision 3, but for consistent with flink runner, we set to 0.
+        // the planner supports precision 3, but for consistency with old planner, we set it to 0.
         new TimeType()
       case TIMESTAMP =>
         new TimestampType(relDataType.getPrecision)

@@ -50,7 +50,7 @@ table_env = TableEnvironment.create(env_settings)
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment
+# create a streaming TableEnvironment from a StreamExecutionEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 ```

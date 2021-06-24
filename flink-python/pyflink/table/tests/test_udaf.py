@@ -29,7 +29,7 @@ from pyflink.table.data_view import ListView, MapView
 from pyflink.table.expressions import col
 from pyflink.table.udf import AggregateFunction, udaf
 from pyflink.table.window import Tumble, Slide, Session
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class CountAggregateFunction(AggregateFunction):
@@ -239,7 +239,7 @@ class TestIterateAggregateFunction(AggregateFunction):
             DataTypes.FIELD("f3", DataTypes.BIGINT())])
 
 
-class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
+class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_double_aggregate(self):
         self.t_env.register_function("my_count", CountAggregateFunction())

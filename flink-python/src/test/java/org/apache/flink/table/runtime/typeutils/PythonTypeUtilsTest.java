@@ -39,11 +39,11 @@ import static org.junit.Assert.assertTrue;
 public class PythonTypeUtilsTest {
 
     @Test
-    public void testLogicalTypeToBlinkTypeSerializer() {
+    public void testLogicalTypetoInternalSerializer() {
         List<RowType.RowField> rowFields = new ArrayList<>();
         rowFields.add(new RowType.RowField("f1", new BigIntType()));
         RowType rowType = new RowType(rowFields);
-        TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
+        TypeSerializer baseSerializer = PythonTypeUtils.toInternalSerializer(rowType);
         assertTrue(baseSerializer instanceof RowDataSerializer);
 
         assertEquals(1, ((RowDataSerializer) baseSerializer).getArity());
@@ -70,7 +70,7 @@ public class PythonTypeUtilsTest {
         String expectedTestException =
                 "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
         try {
-            PythonTypeUtils.toBlinkTypeSerializer(logicalType);
+            PythonTypeUtils.toInternalSerializer(logicalType);
         } catch (Exception e) {
             assertTrue(
                     ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());

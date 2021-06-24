@@ -43,7 +43,7 @@ class CorrelateITCase extends StreamingTestBase {
   }
 
   @Test
-  // BLINK-13614111: Fix IndexOutOfBoundsException when UDTF is used on the
+  // Fix IndexOutOfBoundsException when UDTF is used on the
   // same name field of different tables
   def testUdtfForSameFieldofDifferentSource(): Unit = {
     val data = List(

@@ -2667,8 +2667,7 @@ class DataTypes(object):
                           It must have a value between 0 and 9 (both inclusive). (default: 6)
         :param nullable: boolean, whether the type can be null (None) or not.
 
-        .. note:: `LocalZonedTimestampType` is currently only supported in blink planner and the
-                  precision must be 3.
+        .. note:: `LocalZonedTimestampType` only supports precision of 3 currently.
         """
         return LocalZonedTimestampType(precision, nullable)
 

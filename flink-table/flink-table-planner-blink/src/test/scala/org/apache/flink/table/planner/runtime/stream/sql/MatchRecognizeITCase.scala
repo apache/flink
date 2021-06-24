@@ -142,8 +142,8 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   def testCodeSplitsAreProperlyGenerated(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
-    // TODO: this code is ported from flink-planner,
-    //  However code split is not supported in blink-planner yet.
+    // TODO: this code is ported from old planner,
+    //  However code split is not supported in planner yet.
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
 
     val data = new mutable.MutableList[(Int, String, String, String)]

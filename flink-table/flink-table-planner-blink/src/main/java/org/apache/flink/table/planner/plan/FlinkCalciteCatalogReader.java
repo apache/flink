@@ -174,7 +174,7 @@ public class FlinkCalciteCatalogReader extends CalciteCatalogReader {
         if (!(tableSource instanceof StreamTableSource
                 || tableSource instanceof LookupableTableSource)) {
             throw new ValidationException(
-                    "Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
+                    "Only StreamTableSource and LookupableTableSource can be used in planner.");
         }
         if (!isStreamingMode
                 && tableSource instanceof StreamTableSource

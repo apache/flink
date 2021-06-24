@@ -40,7 +40,6 @@ SQL 方言可以通过 `table.sql-dialect` 属性指定。因此你可以通过 
 ```yaml
 
 execution:
-  planner: blink
   type: batch
   result-mode: table
 

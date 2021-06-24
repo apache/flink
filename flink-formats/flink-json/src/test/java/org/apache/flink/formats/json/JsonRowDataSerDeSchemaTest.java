@@ -105,10 +105,10 @@ public class JsonRowDataSerDeSchemaTest {
                         .toInstant();
 
         Map<String, Long> map = new HashMap<>();
-        map.put("flink", 123L);
+        map.put("element", 123L);
 
         Map<String, Integer> multiSet = new HashMap<>();
-        multiSet.put("blink", 2);
+        multiSet.put("element", 2);
 
         Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
         Map<String, Integer> innerMap = new HashMap<>();
@@ -135,8 +135,8 @@ public class JsonRowDataSerDeSchemaTest {
         root.put("timestamp3", "1990-10-14T12:12:43.123");
         root.put("timestamp9", "1990-10-14T12:12:43.123456789");
         root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
-        root.putObject("map").put("flink", 123);
-        root.putObject("multiSet").put("blink", 2);
+        root.putObject("map").put("element", 123);
+        root.putObject("multiSet").put("element", 2);
         root.putObject("map2map").putObject("inner_map").put("key", 234);
 
         byte[] serializedJson = objectMapper.writeValueAsBytes(root);

@@ -29,12 +29,18 @@ public class SetOperationParseStrategyTest {
     @Test
     public void testMatches() {
         assertTrue(SetOperationParseStrategy.INSTANCE.match("SET"));
-        assertTrue(SetOperationParseStrategy.INSTANCE.match("SET table.planner = blink"));
-        assertTrue(SetOperationParseStrategy.INSTANCE.match("SET table.planner = 'blink'"));
+        assertTrue(
+                SetOperationParseStrategy.INSTANCE.match(
+                        "SET table.local-time-zone = Europe/Berlin"));
+        assertTrue(
+                SetOperationParseStrategy.INSTANCE.match(
+                        "SET table.local-time-zone = 'Europe/Berlin'"));
     }
 
     @Test
     public void testDoesNotMatchQuotedKey() {
-        assertFalse(SetOperationParseStrategy.INSTANCE.match("SET 'table.planner' = blink"));
+        assertFalse(
+                SetOperationParseStrategy.INSTANCE.match(
+                        "SET 'table.local-time-zone' = Europe/Berlin"));
     }
 }

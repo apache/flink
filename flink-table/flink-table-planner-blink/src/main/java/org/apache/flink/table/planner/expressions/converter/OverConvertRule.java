@@ -170,7 +170,7 @@ public class OverConvertRule implements CallExpressionConvertRule {
             default:
                 if (nullDirection == null) {
                     // Set the null direction if not specified.
-                    // Consistent with HIVE/SPARK/MYSQL/BLINK-RUNTIME.
+                    // Consistent with HIVE/SPARK/MYSQL
                     if (FlinkPlannerImpl.defaultNullCollation()
                             .last(direction.equals(RelFieldCollation.Direction.DESCENDING))) {
                         kinds.add(SqlKind.NULLS_LAST);

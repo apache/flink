@@ -413,7 +413,6 @@ t_env.use_catalog("mypg")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
     current-database: mydb
