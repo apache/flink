@@ -110,9 +110,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     /** This is used for emitting elements with a given timestamp. */
     protected transient TimestampedCollector<RowData> collector;
 
-    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-    private transient boolean functionsClosed = false;
-
     /** The service to register timers. */
     private transient InternalTimerService<W> internalTimerService;
 
@@ -135,7 +132,6 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     @Override
     public void open() throws Exception {
         super.open();
-        functionsClosed = false;
 
         lastTriggeredProcessingTime = Long.MIN_VALUE;
         collector = new TimestampedCollector<>(output);
@@ -178,18 +174,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     public void close() throws Exception {
         super.close();
         collector = null;
-        functionsClosed = true;
         windowProcessor.close();
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        collector = null;
-        if (!functionsClosed) {
-            functionsClosed = true;
-            windowProcessor.close();
-        }
     }
 
     @Override

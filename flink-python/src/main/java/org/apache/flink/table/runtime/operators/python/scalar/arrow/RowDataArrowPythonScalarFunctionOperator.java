@@ -87,18 +87,18 @@ public class RowDataArrowPythonScalarFunctionOperator
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        if (arrowSerializer != null) {
-            arrowSerializer.close();
-            arrowSerializer = null;
-        }
+    public void finish() throws Exception {
+        invokeCurrentBatch();
+        super.finish();
     }
 
     @Override
     public void close() throws Exception {
-        invokeCurrentBatch();
         super.close();
+        if (arrowSerializer != null) {
+            arrowSerializer.close();
+            arrowSerializer = null;
+        }
     }
 
     @Override

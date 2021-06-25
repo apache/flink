@@ -236,7 +236,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      */
     private volatile boolean failing;
 
-    private boolean disposedOperators;
+    private boolean closedOperators;
 
     /** Thread pool for async snapshot workers. */
     private final ExecutorService asyncOperationsThreadPool;
@@ -506,7 +506,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     /**
      * Instructs the task to go through its normal termination routine, i.e. exit the run-loop and
-     * call {@link StreamOperator#close()} and {@link StreamOperator#dispose()} on its operators.
+     * call {@link StreamOperator#finish()} and {@link StreamOperator#close()} on its operators.
      *
      * <p>This is used by the source task to get out of the run-loop when the job is stopped with a
      * savepoint.
@@ -552,7 +552,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
-        disposedOperators = false;
+        closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
         operatorChain = new OperatorChain<>(this, recordWriter);
@@ -698,7 +698,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         final CompletableFuture<Void> timersFinishedFuture = new CompletableFuture<>();
 
         // close all operators in a chain effect way
-        operatorChain.closeOperators(actionExecutor);
+        operatorChain.finishOperators(actionExecutor);
 
         // If checkpoints are enabled, waits for all the records get processed by the downstream
         // tasks. During this process, this task could coordinate with its downstream tasks to
@@ -758,7 +758,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // make an attempt to dispose the operators such that failures in the dispose call
         // still let the computation fail
-        disposeAllOperators();
+        closeAllOperators();
     }
 
     protected void cleanUpInvoke() throws Exception {
@@ -789,8 +789,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         suppressedException = runAndSuppressThrowable(this::cleanup, suppressedException);
 
         // if the operators were not disposed before, do a hard dispose
-        suppressedException =
-                runAndSuppressThrowable(this::disposeAllOperators, suppressedException);
+        suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
 
         // release the output resources. this method should never fail.
         suppressedException =
@@ -888,24 +887,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
     }
 
     /**
-     * Execute @link StreamOperator#dispose()} of each operator in the chain of this {@link
-     * StreamTask}. Disposing happens from <b>tail to head</b> operator in the chain.
+     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
+     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
      */
-    private void disposeAllOperators() throws Exception {
-        if (operatorChain != null && !disposedOperators) {
-            Exception disposalException = null;
+    private void closeAllOperators() throws Exception {
+        if (operatorChain != null && !closedOperators) {
+            Exception closingException = null;
             for (StreamOperatorWrapper<?, ?> operatorWrapper :
                     operatorChain.getAllOperators(true)) {
                 StreamOperator<?> operator = operatorWrapper.getStreamOperator();
                 try {
-                    operator.dispose();
+                    operator.close();
                 } catch (Exception e) {
-                    disposalException = firstOrSuppressed(e, disposalException);
+                    closingException = firstOrSuppressed(e, closingException);
                 }
             }
-            disposedOperators = true;
-            if (disposalException != null) {
-                throw disposalException;
+            closedOperators = true;
+            if (closingException != null) {
+                throw closingException;
             }
         }
     }

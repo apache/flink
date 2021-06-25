@@ -714,9 +714,11 @@ public class OneInputStreamTaskTest extends TestLogger {
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Operator0]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Operator0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -733,7 +735,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
 
             // verify that the timer service is still running
             Assert.assertTrue(

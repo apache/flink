@@ -92,9 +92,6 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     private final boolean[] filterNullKeys;
     private final ZoneId shiftTimeZone;
 
-    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-    private transient boolean functionsClosed = false;
-
     private transient WindowTimerService<Long> windowTimerService;
 
     // ------------------------------------------------------------------------
@@ -136,7 +133,6 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     @Override
     public void open() throws Exception {
         super.open();
-        functionsClosed = false;
 
         this.collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
@@ -197,21 +193,8 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
     public void close() throws Exception {
         super.close();
         collector = null;
-        functionsClosed = true;
         if (joinCondition != null) {
             joinCondition.close();
-        }
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        collector = null;
-        if (!functionsClosed) {
-            functionsClosed = true;
-            if (joinCondition != null) {
-                joinCondition.close();
-            }
         }
     }
 

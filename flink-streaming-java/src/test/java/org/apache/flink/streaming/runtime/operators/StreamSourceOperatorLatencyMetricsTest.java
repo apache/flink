@@ -190,7 +190,7 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
                                 new MockEnvironmentBuilder().build()));
         try {
             operator.run(new Object(), new CollectorOutput<>(output), operatorChain);
-            operator.close();
+            operator.finish();
         } finally {
             operatorChain.close();
         }

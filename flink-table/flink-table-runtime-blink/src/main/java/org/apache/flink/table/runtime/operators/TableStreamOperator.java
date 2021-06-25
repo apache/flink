@@ -40,8 +40,6 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     /** We listen to this ourselves because we don't have an {@link InternalTimerService}. */
     protected long currentWatermark = Long.MIN_VALUE;
 
-    private volatile boolean closed = false;
-
     protected transient ContextImpl ctx;
 
     public TableStreamOperator() {
@@ -52,20 +50,6 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
     public void open() throws Exception {
         super.open();
         this.ctx = new ContextImpl(getProcessingTimeService());
-    }
-
-    @Override
-    public void close() throws Exception {
-        super.close();
-        closed = true;
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        if (!closed) {
-            close();
-        }
-        super.dispose();
     }
 
     @Override

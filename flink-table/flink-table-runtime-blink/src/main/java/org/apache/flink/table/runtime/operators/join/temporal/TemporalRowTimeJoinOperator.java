@@ -220,6 +220,7 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
         if (joinCondition != null) {
             joinCondition.close();
         }
+        super.close();
     }
 
     /**

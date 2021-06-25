@@ -130,6 +130,20 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
     }
 
     /**
+     * Finish all sub-operators in a multiple input operator effect way. Finishing happens from
+     * <b>head to tail</b> sub-operator in a multiple input operator, contrary to {@link
+     * StreamOperator#open()} which happens <b>tail to head</b>.
+     */
+    @Override
+    public void finish() throws Exception {
+        super.finish();
+        for (TableOperatorWrapper<?> wrapper : topologicalOrderingOperators) {
+            StreamOperator<?> operator = wrapper.getStreamOperator();
+            operator.finish();
+        }
+    }
+
+    /**
      * Closes all sub-operators in a multiple input operator effect way. Closing happens from
      * <b>head to tail</b> sub-operator in a multiple input operator, contrary to {@link
      * StreamOperator#open()} which happens <b>tail to head</b>.
@@ -139,20 +153,6 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
         super.close();
         for (TableOperatorWrapper<?> wrapper : topologicalOrderingOperators) {
             wrapper.close();
-        }
-    }
-
-    /**
-     * Dispose all sub-operators in a multiple input operator effect way. Disposing happens from
-     * <b>head to tail</b> sub-operator in a multiple input operator, contrary to {@link
-     * StreamOperator#open()} which happens <b>tail to head</b>.
-     */
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        for (TableOperatorWrapper<?> wrapper : topologicalOrderingOperators) {
-            StreamOperator<?> operator = wrapper.getStreamOperator();
-            operator.dispose();
         }
     }
 

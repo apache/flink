@@ -82,8 +82,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <ol>
  *   <li>if {@link ReaderState#IDLE IDLE} then close immediately
- *   <li>otherwise switch to {@link ReaderState#CLOSING CLOSING}, call {@link
- *       MailboxExecutor#yield() yield} in a loop until state is {@link ReaderState#CLOSED CLOSED}
+ *   <li>otherwise switch to {@link ReaderState#FINISHING CLOSING}, call {@link
+ *       MailboxExecutor#yield() yield} in a loop until state is {@link ReaderState#FINISHED CLOSED}
  *   <li>{@link MailboxExecutor#yield() yield()} causes remaining records (and splits) to be
  *       processed in the same way as above
  * </ol>
@@ -139,7 +139,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             }
         },
         /**
-         * No further processing can be done; only state disposal transition to {@link #CLOSED}
+         * No further processing can be done; only state disposal transition to {@link #FINISHED}
          * allowed.
          */
         FAILED {
@@ -153,7 +153,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
          * {@link #close()} was called but unprocessed data (records and splits) remains and needs
          * to be processed. {@link #close()} caller is blocked.
          */
-        CLOSING {
+        FINISHING {
             @Override
             public <T extends TimestampedInputSplit> boolean prepareToProcessRecord(
                     ContinuousFileReaderOperator<?, T> op) throws IOException {
@@ -168,10 +168,10 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
                 // need one more mail to unblock possible yield() in close() method (todo: wait with
                 // timeout in yield)
                 op.enqueueProcessRecord();
-                op.switchState(CLOSED);
+                op.switchState(FINISHED);
             }
         },
-        CLOSED {
+        FINISHED {
             @Override
             public <T extends TimestampedInputSplit> boolean prepareToProcessRecord(
                     ContinuousFileReaderOperator<?, T> op) {
@@ -186,12 +186,12 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
         static {
             Map<ReaderState, Set<ReaderState>> tmpTransitions = new HashMap<>();
-            tmpTransitions.put(IDLE, EnumSet.of(OPENING, CLOSED, FAILED));
-            tmpTransitions.put(OPENING, EnumSet.of(READING, CLOSING, FAILED));
-            tmpTransitions.put(READING, EnumSet.of(IDLE, OPENING, CLOSING, FAILED));
-            tmpTransitions.put(CLOSING, EnumSet.of(CLOSED, FAILED));
-            tmpTransitions.put(FAILED, EnumSet.of(CLOSED));
-            tmpTransitions.put(CLOSED, EnumSet.noneOf(ReaderState.class));
+            tmpTransitions.put(IDLE, EnumSet.of(OPENING, FINISHED, FAILED));
+            tmpTransitions.put(OPENING, EnumSet.of(READING, FINISHING, FAILED));
+            tmpTransitions.put(READING, EnumSet.of(IDLE, OPENING, FINISHING, FAILED));
+            tmpTransitions.put(FINISHING, EnumSet.of(FINISHED, FAILED));
+            tmpTransitions.put(FAILED, EnumSet.of(FINISHED));
+            tmpTransitions.put(FINISHED, EnumSet.noneOf(ReaderState.class));
             VALID_TRANSITIONS = new EnumMap<>(tmpTransitions);
         }
 
@@ -200,7 +200,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
         }
 
         public final boolean isTerminal() {
-            return this == CLOSED;
+            return this == FINISHED;
         }
 
         public boolean canSwitchTo(ReaderState next) {
@@ -302,7 +302,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
         this.state = ReaderState.IDLE;
         if (this.format instanceof RichInputFormat) {
-            ((RichInputFormat) this.format).setRuntimeContext(getRuntimeContext());
+            ((RichInputFormat<?, ?>) this.format).setRuntimeContext(getRuntimeContext());
         }
         this.format.configure(new Configuration());
 
@@ -380,7 +380,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
     private void readAndCollectRecord() throws IOException {
         Preconditions.checkState(
-                state == ReaderState.READING || state == ReaderState.CLOSING,
+                state == ReaderState.READING || state == ReaderState.FINISHING,
                 "can't process record in state %s",
                 state);
         if (format.reachedEnd()) {
@@ -394,14 +394,14 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
 
     private void loadSplit(T split) throws IOException {
         Preconditions.checkState(
-                state != ReaderState.READING && state != ReaderState.CLOSED,
+                state != ReaderState.READING && state != ReaderState.FINISHED,
                 "can't load split in state %s",
                 state);
         Preconditions.checkNotNull(split, "split is null");
         LOG.debug("load split: {}", split);
         currentSplit = split;
         if (this.format instanceof RichInputFormat) {
-            ((RichInputFormat) this.format).openInputFormat();
+            ((RichInputFormat<?, ?>) this.format).openInputFormat();
         }
         if (format instanceof CheckpointableInputFormat && currentSplit.getSplitState() != null) {
             // recovering after a node failure with an input
@@ -436,14 +436,38 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
     }
 
     @Override
-    public void dispose() throws Exception {
+    public void finish() throws Exception {
+        LOG.debug("finishing");
+        super.finish();
+
+        switch (state) {
+            case IDLE:
+                switchState(ReaderState.FINISHED);
+                break;
+            case FINISHED:
+                LOG.warn("operator is already closed, doing nothing");
+                return;
+            default:
+                switchState(ReaderState.FINISHING);
+                while (!state.isTerminal()) {
+                    executor.yield();
+                }
+        }
+
+        try {
+            sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
+        } catch (Exception e) {
+            LOG.warn("unable to emit watermark while closing", e);
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
         Exception e = null;
-        if (state != ReaderState.CLOSED) {
-            try {
-                cleanUp();
-            } catch (Exception ex) {
-                e = ex;
-            }
+        try {
+            cleanUp();
+        } catch (Exception ex) {
+            e = ex;
         }
         {
             checkpointedState = null;
@@ -457,41 +481,13 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             splits = null;
         }
         try {
-            super.dispose();
+            super.close();
         } catch (Exception ex) {
             e = ExceptionUtils.firstOrSuppressed(ex, e);
         }
         if (e != null) {
             throw e;
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        LOG.debug("closing");
-        super.close();
-
-        switch (state) {
-            case IDLE:
-                switchState(ReaderState.CLOSED);
-                break;
-            case CLOSED:
-                LOG.warn("operator is already closed, doing nothing");
-                return;
-            default:
-                switchState(ReaderState.CLOSING);
-                while (!state.isTerminal()) {
-                    executor.yield();
-                }
-        }
-
-        try {
-            sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
-        } catch (Exception e) {
-            LOG.warn("unable to emit watermark while closing", e);
-        }
-
-        cleanUp();
     }
 
     private void cleanUp() throws Exception {
@@ -502,7 +498,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
             () -> format.close(),
             () -> {
                 if (this.format instanceof RichInputFormat) {
-                    ((RichInputFormat) this.format).closeInputFormat();
+                    ((RichInputFormat<?, ?>) this.format).closeInputFormat();
                 }
             }
         };

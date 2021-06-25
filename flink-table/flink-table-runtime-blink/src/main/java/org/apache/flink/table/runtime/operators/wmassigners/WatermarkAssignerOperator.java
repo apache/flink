@@ -56,9 +56,6 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
 
     private transient long lastRecordTime;
 
-    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-    private transient boolean functionsClosed = false;
-
     private transient StreamStatus currentStatus = StreamStatus.ACTIVE;
 
     /**
@@ -183,20 +180,14 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         // all records have been processed, emit a final watermark
         processWatermark(Watermark.MAX_WATERMARK);
-
-        functionsClosed = true;
-        FunctionUtils.closeFunction(watermarkGenerator);
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        if (!functionsClosed) {
-            functionsClosed = true;
-            FunctionUtils.closeFunction(watermarkGenerator);
-        }
+    public void close() throws Exception {
+        FunctionUtils.closeFunction(watermarkGenerator);
+        super.close();
     }
 }

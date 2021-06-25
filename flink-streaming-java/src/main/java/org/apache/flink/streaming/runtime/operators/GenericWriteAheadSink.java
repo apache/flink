@@ -137,6 +137,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
 
     public void close() throws Exception {
         committer.close();
+        super.close();
     }
 
     /**

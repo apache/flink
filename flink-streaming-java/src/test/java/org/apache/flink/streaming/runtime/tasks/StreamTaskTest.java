@@ -371,7 +371,7 @@ public class StreamTaskTest extends TestLogger {
                 throw ex;
             }
             if (!(ex.getCause().getSuppressed()[0]
-                    instanceof FailingTwiceOperator.DisposeException)) {
+                    instanceof FailingTwiceOperator.CloseException)) {
                 throw ex;
             }
         }
@@ -387,13 +387,13 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void dispose() throws Exception {
-            throw new DisposeException();
+        public void close() throws Exception {
+            throw new CloseException();
         }
 
-        class DisposeException extends Exception {
-            public DisposeException() {
-                super("Dispose Exception. This exception should be suppressed");
+        static class CloseException extends Exception {
+            public CloseException() {
+                super("Close Exception. This exception should be suppressed");
             }
         }
     }
@@ -1143,10 +1143,10 @@ public class StreamTaskTest extends TestLogger {
      */
     @Test
     public void testOperatorClosingBeforeStopRunning() throws Throwable {
-        BlockingCloseStreamOperator.resetLatches();
+        BlockingFinishStreamOperator.resetLatches();
         Configuration taskConfiguration = new Configuration();
         StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-        streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
+        streamConfig.setStreamOperator(new BlockingFinishStreamOperator());
         streamConfig.setOperatorID(new OperatorID());
 
         try (MockEnvironment mockEnvironment =
@@ -1158,16 +1158,16 @@ public class StreamTaskTest extends TestLogger {
                         .setTaskConfiguration(taskConfiguration)
                         .build()) {
 
-            RunningTask<StreamTask<Void, BlockingCloseStreamOperator>> task =
+            RunningTask<StreamTask<Void, BlockingFinishStreamOperator>> task =
                     runTask(() -> new NoOpStreamTask<>(mockEnvironment));
 
-            BlockingCloseStreamOperator.inClose.await();
+            BlockingFinishStreamOperator.inClose.await();
 
             // check that the StreamTask is not yet in isRunning == false
             assertTrue(task.streamTask.isRunning());
 
             // let the operator finish its close operation
-            BlockingCloseStreamOperator.finishClose.trigger();
+            BlockingFinishStreamOperator.finishClose.trigger();
 
             task.waitForTaskCompletion(false);
 
@@ -1184,7 +1184,7 @@ public class StreamTaskTest extends TestLogger {
      */
     @Test
     public void testNotifyCheckpointOnClosedOperator() throws Throwable {
-        ClosingOperator operator = new ClosingOperator();
+        ClosingOperator<Integer> operator = new ClosingOperator<>();
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
@@ -1198,15 +1198,15 @@ public class StreamTaskTest extends TestLogger {
 
         harness.streamTask.notifyCheckpointCompleteAsync(1);
         harness.streamTask.runMailboxStep();
-        assertEquals(1, operator.notified.get());
-        assertEquals(false, operator.closed.get());
+        assertEquals(1, ClosingOperator.notified.get());
+        assertFalse(ClosingOperator.closed.get());
 
         // close operators directly, so that task is still fully running
-        harness.streamTask.operatorChain.closeOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
         harness.streamTask.notifyCheckpointCompleteAsync(2);
         harness.streamTask.runMailboxStep();
-        assertEquals(1, operator.notified.get());
-        assertEquals(true, operator.closed.get());
+        assertEquals(1, ClosingOperator.notified.get());
+        assertTrue(ClosingOperator.closed.get());
     }
 
     @Test
@@ -1247,7 +1247,7 @@ public class StreamTaskTest extends TestLogger {
      */
     @Test
     public void testCheckpointDeclinedOnClosedOperator() throws Throwable {
-        ClosingOperator operator = new ClosingOperator();
+        ClosingOperator<Integer> operator = new ClosingOperator<>();
         StreamTaskMailboxTestHarnessBuilder<Integer> builder =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
@@ -1258,8 +1258,8 @@ public class StreamTaskTest extends TestLogger {
         harness.setAutoProcess(false);
         harness.processElement(new StreamRecord<>(1));
 
-        harness.streamTask.operatorChain.closeOperators(harness.streamTask.getActionExecutor());
-        assertEquals(true, operator.closed.get());
+        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        assertTrue(ClosingOperator.closed.get());
 
         harness.streamTask.triggerCheckpointOnBarrier(
                 new CheckpointMetaData(1, 0),
@@ -2057,14 +2057,14 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
-    private static class BlockingCloseStreamOperator extends AbstractStreamOperator<Void> {
+    private static class BlockingFinishStreamOperator extends AbstractStreamOperator<Void> {
         private static final long serialVersionUID = -9042150529568008847L;
 
         private static volatile OneShotLatch inClose;
         private static volatile OneShotLatch finishClose;
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
             checkLatches();
             inClose.trigger();
             finishClose.await();
@@ -2673,7 +2673,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
             super.close();
             closed.set(true);
         }
@@ -2769,7 +2769,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void dispose() throws Exception {
+        public void close() throws Exception {
             wasClosed = true;
         }
 
