@@ -24,6 +24,7 @@ import org.apache.flink.annotation.{Experimental, Internal, Public, PublicEvolvi
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.common.io.{FileInputFormat, FilePathFilter, InputFormat}
+import org.apache.flink.api.common.operators.SlotSharingGroup
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.connector.source.{Source, SourceSplit}
@@ -104,6 +105,22 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     **/
   def setMaxParallelism(maxParallelism: Int): Unit = {
     javaEnv.setMaxParallelism(maxParallelism)
+  }
+
+  /**
+   * Register a slot sharing group with its resource spec.
+   *
+   * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+   * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+   * grouped operators together. In cases grouped operators are deployed into separate slots, the
+   * slot resources will be derived from the specified group requirements.
+   *
+   * @param slotSharingGroup which contains name and its resource spec.
+   */
+  @PublicEvolving
+  def registerSlotSharingGroup(slotSharingGroup: SlotSharingGroup): StreamExecutionEnvironment = {
+    javaEnv.registerSlotSharingGroup(slotSharingGroup)
+    this
   }
 
   /**
