@@ -60,7 +60,7 @@ public class SqlClientOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> DISPLAY_MAX_COLUMN_WIDTH =
-            ConfigOptions.key("sql-client.display.max_column_width")
+            ConfigOptions.key("sql-client.display.max-column-width")
                     .intType()
                     .defaultValue(30)
                     .withDescription(

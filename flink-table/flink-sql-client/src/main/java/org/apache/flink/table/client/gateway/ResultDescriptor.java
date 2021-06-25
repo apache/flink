@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.client.config.ResultMode;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 
 /** Describes a result to be expected from a table program. */
@@ -35,7 +36,7 @@ public class ResultDescriptor {
 
     private final boolean isMaterialized;
 
-    public final ReadableConfig config;
+    private final ReadableConfig config;
 
     public ResultDescriptor(
             String resultId,
@@ -66,5 +67,9 @@ public class ResultDescriptor {
 
     public boolean isStreamingMode() {
         return config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING);
+    }
+
+    public int maxColumnWidth() {
+        return config.get(DISPLAY_MAX_COLUMN_WIDTH);
     }
 }

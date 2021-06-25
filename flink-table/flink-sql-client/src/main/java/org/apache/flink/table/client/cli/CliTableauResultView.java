@@ -40,8 +40,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
-
 /** Print result in tableau mode. */
 public class CliTableauResultView implements AutoCloseable {
 
@@ -146,7 +144,7 @@ public class CliTableauResultView implements AutoCloseable {
         final int[] colWidths =
                 PrintUtils.columnWidthsByType(
                         columns,
-                        resultDescriptor.config.get(DISPLAY_MAX_COLUMN_WIDTH),
+                        resultDescriptor.maxColumnWidth(),
                         PrintUtils.NULL_COLUMN,
                         PrintUtils.ROW_KIND_COLUMN);
 

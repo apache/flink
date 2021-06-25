@@ -66,6 +66,9 @@ See [SQL Client startup options](#sql-client-startup-options) below for more det
 For validating your setup and cluster connection, you can enter the simple query below and press `Enter` to execute it.
 
 ```sql
+SET 'sql-client.execution.result-mode' = 'tableau';
+SET 'execution.runtime-mode' = 'batch';
+
 SELECT 
   name, 
   COUNT(*) AS cnt 
@@ -77,10 +80,13 @@ GROUP BY name;
 The SQL client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
 
 ```text
-                           name                  cnt
-                          Alice                    1
-                           Greg                    1
-                            Bob                    2
++-------+-----+
+|  name | cnt |
++-------+-----+
+| Alice |   1 |
+|   Bob |   2 |
+|  Greg |   1 |
++-------+-----+
 ```
 
 The `SET` command allows you to tune the job execution and the sql client behaviour. See [SQL Client Configuration](#sql-client-configuration) below for more details.
@@ -88,43 +94,11 @@ The `SET` command allows you to tune the job execution and the sql client behavi
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. 
 The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
-
 ### Getting help
 
-The documentation of the SQL client commands can be accessed as follows:
+The documentation of the SQL client commands can be accessed by typing the `HELP` command.
 
-```text
-Flink SQL> HELP;
-The following commands are available:
-
-CLEAR           Clears the current terminal.
-CREATE TABLE            Create table under current catalog and database.
-DROP TABLE              Drop table with optional catalog and database. Syntax: "DROP TABLE [IF EXISTS] <name>;"
-CREATE VIEW             Creates a virtual table from a SQL query. Syntax: "CREATE VIEW <name> AS <query>;"
-DESCRIBE                Describes the schema of a table with the given name.
-DROP VIEW               Deletes a previously created virtual table. Syntax: "DROP VIEW <name>;"
-EXPLAIN         Describes the execution plan of a query or table with the given name.
-HELP            Prints the available commands.
-INSERT INTO             Inserts the results of a SQL SELECT query into a declared table sink.
-INSERT OVERWRITE                Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.
-QUIT            Quits the SQL CLI client.
-RESET           Resets a session configuration property. Syntax: "RESET '<key>';". Use "RESET;" for reset all session properties.
-SELECT          Executes a SQL SELECT query on the Flink cluster.
-SET             Sets a session configuration property. Syntax: "SET '<key>'='<value>';". Use "SET;" for listing all properties.
-SHOW FUNCTIONS          Shows all user-defined and built-in functions or only user-defined functions. Syntax: "SHOW [USER] FUNCTIONS;"
-SHOW TABLES             Shows all registered tables.
-SOURCE          Reads a SQL SELECT query from a file and executes it on the Flink cluster.
-USE CATALOG             Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: "USE CATALOG <name>;"
-USE             Sets the current default database. Experimental! Syntax: "USE <name>;"
-LOAD MODULE             Load a module. Syntax: "LOAD MODULE <name> [WITH ('<key1>' = '<value1>' [, '<key2>' = '<value2>', ...])];"
-UNLOAD MODULE           Unload a module. Syntax: "UNLOAD MODULE <name>;"
-USE MODULES             Enable loaded modules. Syntax: "USE MODULES <name1> [, <name2>, ...];"
-BEGIN STATEMENT SET             Begins a statement set. Syntax: "BEGIN STATEMENT SET;"
-END             Ends a statement set. Syntax: "END;"
-
-Hint: Make sure that a statement ends with ";" for finalizing (multi-line) statements.
-```
-
+See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
 
 {{< top >}}
 

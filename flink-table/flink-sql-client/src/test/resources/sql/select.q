@@ -116,7 +116,7 @@ Received a total of 2 rows
 !ok
 
 # ==========================================================================
-# Testing behavior of sql-client.display.max_column_width
+# Testing behavior of sql-client.display.max-column-width
 # Only variable width columns are impacted at the moment => STRING, but not TIMESTAMP nor BOOLEAN
 # ==========================================================================
 
@@ -131,7 +131,6 @@ AS (VALUES
 [INFO] Execute statement succeed.
 !info
 
-
 SELECT * from testUserData;
 +----+--------------------------------+-------------------------+---------+
 | op |                           name |                     dob | isHappy |
@@ -144,7 +143,7 @@ SELECT * from testUserData;
 Received a total of 4 rows
 !ok
 
-SET 'sql-client.display.max_column_width' = '10';
+SET 'sql-client.display.max-column-width' = '10';
 [INFO] Session property has been set.
 !info
 
@@ -160,7 +159,7 @@ SELECT * from testUserData;
 Received a total of 4 rows
 !ok
 
-SET 'sql-client.display.max_column_width' = '40';
+SET 'sql-client.display.max-column-width' = '40';
 [INFO] Session property has been set.
 !info
 
@@ -181,7 +180,7 @@ DROP TEMPORARY VIEW testUserData;
 [INFO] Execute statement succeed.
 !info
 
-SET 'sql-client.display.max_column_width' = '30';
+SET 'sql-client.display.max-column-width' = '30';
 [INFO] Session property has been set.
 !info
 

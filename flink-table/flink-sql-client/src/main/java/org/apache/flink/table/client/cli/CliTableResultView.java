@@ -44,7 +44,6 @@ import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
 import static org.apache.flink.table.client.cli.CliUtils.normalizeColumn;
 import static org.apache.flink.table.client.cli.CliUtils.repeatChar;
-import static org.apache.flink.table.client.config.SqlClientOptions.DISPLAY_MAX_COLUMN_WIDTH;
 import static org.jline.keymap.KeyMap.ctrl;
 import static org.jline.keymap.KeyMap.esc;
 import static org.jline.keymap.KeyMap.key;
@@ -68,7 +67,7 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
                 resultDescriptor,
                 PrintUtils.columnWidthsByType(
                         resultDescriptor.getResultSchema().getColumns(),
-                        resultDescriptor.config.get(DISPLAY_MAX_COLUMN_WIDTH),
+                        resultDescriptor.maxColumnWidth(),
                         PrintUtils.NULL_COLUMN,
                         null));
 
