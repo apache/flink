@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.expressions.Expression;
@@ -54,12 +55,13 @@ import java.util.Optional;
  *   <li>Offering further configuration options.
  * </ul>
  *
- * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)}is following
- * [[catalog-name.]database-name.]object-name, where the catalog name and database are optional. For
- * path resolution see {@link #useCatalog(String)} and {@link #useDatabase(String)}.
+ * <p>The syntax for path in methods such as {@link #createTemporaryView(String, Table)} is
+ * following {@code [[catalog-name.]database-name.]object-name}, where the catalog name and database
+ * are optional. For path resolution see {@link #useCatalog(String)} and {@link
+ * #useDatabase(String)}.
  *
- * <p>Example: `cat.1`.`db`.`Table` resolves to an object named 'Table' in a catalog named 'cat.1'
- * and database named 'db'.
+ * <p>Example: {@code `cat.1`.`db`.`Table`} resolves to an object named 'Table' in a catalog named
+ * 'cat.1' and database named 'db'.
  *
  * <p>Note: This environment is meant for pure table programs. If you would like to convert from or
  * to other Flink APIs, it might be necessary to use one of the available language-specific table
@@ -585,7 +587,10 @@ public interface TableEnvironment {
     boolean dropTemporaryFunction(String path);
 
     /**
-     * Registers the {@link TableDescriptor} as a temporary table.
+     * Registers the given {@link TableDescriptor} as a temporary catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
      *
      * <p>Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
      * it will be inaccessible in the current session. To make the permanent object available again
@@ -602,8 +607,39 @@ public interface TableEnvironment {
      *   .option("fields.f0.kind", "random")
      *   .build());
      * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
      */
     void createTemporaryTable(String path, TableDescriptor descriptor);
+
+    /**
+     * Registers the given {@link TableDescriptor} as a catalog table.
+     *
+     * <p>The {@link TableDescriptor descriptor} is converted into a {@link CatalogTable} and stored
+     * in the catalog.
+     *
+     * <p>If the table should not be permanently stored in a catalog, use {@link
+     * #createTemporaryTable(String, TableDescriptor)} instead.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * tEnv.createTable("MyTable", TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .option(DataGenOptions.ROWS_PER_SECOND, 10)
+     *   .option("fields.f0.kind", "random")
+     *   .build());
+     * }</pre>
+     *
+     * @param path The path under which the table will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param descriptor Template for creating a {@link CatalogTable} instance.
+     */
+    void createTable(String path, TableDescriptor descriptor);
 
     /**
      * Registers a {@link Table} under a unique name in the TableEnvironment's catalog. Registered

@@ -333,12 +333,15 @@ Such tables can either be created using the Table API directly, or by switching 
 
 ```java
 // Using table descriptors
-tableEnv.createTemporaryTable("Source", TableDescriptor.forConnector("datagen")
+final TableDescriptor sourceDescriptor = TableDescriptor.forConnector("datagen")
     .schema(Schema.newBuilder()
-      .column("f0", DataTypes.STRING())
-      .build())
-    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .column("f0", DataTypes.STRING())
     .build())
+    .option(DataGenOptions.ROWS_PER_SECOND, 100)
+    .build();
+
+tableEnv.createTable("SourceTableA", sourceDescriptor);
+tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
 
 // Using SQL DDL
 tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
