@@ -176,6 +176,16 @@ public final class TestValuesTableFactory
     }
 
     /**
+     * Returns received row results if there has been exactly one sink, and throws an error
+     * otherwise.
+     *
+     * <p>The raw results are encoded with {@link RowKind}.
+     */
+    public static List<String> getOnlyRawResults() {
+        return TestValuesRuntimeFunctions.getOnlyRawResults();
+    }
+
+    /**
      * Returns materialized (final) results of the registered table sink.
      *
      * @param tableName the table name of the registered table sink.
