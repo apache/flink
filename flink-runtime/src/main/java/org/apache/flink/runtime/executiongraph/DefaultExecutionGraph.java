@@ -70,6 +70,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
@@ -392,6 +393,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             CompletedCheckpointStore checkpointStore,
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
+            CheckpointStorageCoordinatorView checkpointStorageView,
             CheckpointStatsTracker statsTracker,
             CheckpointsCleaner checkpointsCleaner) {
 
@@ -438,7 +440,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         operatorCoordinators,
                         checkpointIDCounter,
                         checkpointStore,
-                        checkpointStorage,
+                        checkpointStorageView,
                         ioExecutor,
                         checkpointsCleaner,
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),

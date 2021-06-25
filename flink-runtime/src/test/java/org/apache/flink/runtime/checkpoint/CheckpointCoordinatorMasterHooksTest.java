@@ -49,6 +49,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.buildCheckpointStorageView;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -483,7 +484,7 @@ public class CheckpointCoordinatorMasterHooksTest {
                 Collections.emptyList(),
                 new StandaloneCheckpointIDCounter(),
                 new StandaloneCompletedCheckpointStore(10),
-                new MemoryStateBackend(),
+                buildCheckpointStorageView(new MemoryStateBackend(), graph.getJobID()),
                 executor,
                 new CheckpointsCleaner(),
                 testingScheduledExecutor,

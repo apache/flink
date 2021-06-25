@@ -117,28 +117,34 @@ public class Checkpoints {
         }
     }
 
-    public static CompletedCheckpoint loadAndValidateCheckpoint(
-            JobID jobId,
-            Map<JobVertexID, ExecutionJobVertex> tasks,
-            CompletedCheckpointStorageLocation location,
-            ClassLoader classLoader,
-            boolean allowNonRestoredState)
+    public static CheckpointMetadata loadCheckpoint(
+            CompletedCheckpointStorageLocation location, ClassLoader classLoader)
             throws IOException {
-
-        checkNotNull(jobId, "jobId");
-        checkNotNull(tasks, "tasks");
         checkNotNull(location, "location");
         checkNotNull(classLoader, "classLoader");
 
         final StreamStateHandle metadataHandle = location.getMetadataHandle();
         final String checkpointPointer = location.getExternalPointer();
 
-        // (1) load the savepoint
+        // load the savepoint
         final CheckpointMetadata checkpointMetadata;
         try (InputStream in = metadataHandle.openInputStream()) {
             DataInputStream dis = new DataInputStream(in);
             checkpointMetadata = loadCheckpointMetadata(dis, classLoader, checkpointPointer);
         }
+        return checkpointMetadata;
+    }
+
+    public static CompletedCheckpoint validateCheckpoint(
+            JobID jobId,
+            Map<JobVertexID, ExecutionJobVertex> tasks,
+            CompletedCheckpointStorageLocation location,
+            boolean allowNonRestoredState,
+            CheckpointMetadata checkpointMetadata) {
+
+        checkNotNull(jobId, "jobId");
+        checkNotNull(tasks, "tasks");
+        checkNotNull(checkpointMetadata, "checkpointMetadata");
 
         // generate mapping from operator to task
         Map<OperatorID, ExecutionJobVertex> operatorToJobVertexMapping = new HashMap<>();
@@ -151,7 +157,7 @@ public class Checkpoints {
             }
         }
 
-        // (2) validate it (parallelism, etc)
+        // (1) validate it (parallelism, etc)
         HashMap<OperatorID, OperatorState> operatorStates =
                 new HashMap<>(checkpointMetadata.getOperatorStates().size());
         for (OperatorState operatorState : checkpointMetadata.getOperatorStates()) {
@@ -186,13 +192,13 @@ public class Checkpoints {
             } else {
                 if (operatorState.getCoordinatorState() != null) {
                     throwNonRestoredStateException(
-                            checkpointPointer, operatorState.getOperatorID());
+                            location.getExternalPointer(), operatorState.getOperatorID());
                 }
 
                 for (OperatorSubtaskState operatorSubtaskState : operatorState.getStates()) {
                     if (operatorSubtaskState.hasState()) {
                         throwNonRestoredStateException(
-                                checkpointPointer, operatorState.getOperatorID());
+                                location.getExternalPointer(), operatorState.getOperatorID());
                     }
                 }
 
@@ -202,7 +208,7 @@ public class Checkpoints {
             }
         }
 
-        // (3) convert to checkpoint so the system can fall back to it
+        // (2) convert to checkpoint so the system can fall back to it
         CheckpointProperties props = CheckpointProperties.forSavepoint(false);
 
         return new CompletedCheckpoint(

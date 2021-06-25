@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -36,7 +37,6 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
-import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -44,7 +44,6 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.clock.Clock;
@@ -58,7 +57,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -204,7 +202,7 @@ public class CheckpointCoordinator {
     /** Registry that tracks state which is shared across (incremental) checkpoints. */
     private SharedStateRegistry sharedStateRegistry;
 
-    private boolean isPreferCheckpointForRecovery;
+    private final boolean isPreferCheckpointForRecovery;
 
     /** Id of checkpoint for which in-flight data should be ignored on recovery. */
     private final long checkpointIdOfIgnoredInFlightData;
@@ -232,7 +230,7 @@ public class CheckpointCoordinator {
             Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
             CheckpointIDCounter checkpointIDCounter,
             CompletedCheckpointStore completedCheckpointStore,
-            CheckpointStorage checkpointStorage,
+            CheckpointStorageCoordinatorView checkpointStorageView,
             Executor executor,
             CheckpointsCleaner checkpointsCleaner,
             ScheduledExecutor timer,
@@ -247,7 +245,7 @@ public class CheckpointCoordinator {
                 coordinatorsToCheckpoint,
                 checkpointIDCounter,
                 completedCheckpointStore,
-                checkpointStorage,
+                checkpointStorageView,
                 executor,
                 checkpointsCleaner,
                 timer,
@@ -265,7 +263,7 @@ public class CheckpointCoordinator {
             Collection<OperatorCoordinatorCheckpointContext> coordinatorsToCheckpoint,
             CheckpointIDCounter checkpointIDCounter,
             CompletedCheckpointStore completedCheckpointStore,
-            CheckpointStorage checkpointStorage,
+            CheckpointStorageCoordinatorView checkpointStorageView,
             Executor executor,
             CheckpointsCleaner checkpointsCleaner,
             ScheduledExecutor timer,
@@ -274,10 +272,6 @@ public class CheckpointCoordinator {
             CheckpointPlanCalculator checkpointPlanCalculator,
             ExecutionAttemptMappingProvider attemptMappingProvider,
             Clock clock) {
-
-        // sanity checks
-        checkNotNull(checkpointStorage);
-
         // max "in between duration" can be one year - this is to prevent numeric overflows
         long minPauseBetweenCheckpoints = chkConfig.getMinPauseBetweenCheckpoints();
         if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
@@ -300,6 +294,7 @@ public class CheckpointCoordinator {
         this.pendingCheckpoints = new LinkedHashMap<>();
         this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
         this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
+        this.checkpointStorageView = checkNotNull(checkpointStorageView);
         this.executor = checkNotNull(executor);
         this.checkpointsCleaner = checkNotNull(checkpointsCleaner);
         this.sharedStateRegistryFactory = checkNotNull(sharedStateRegistryFactory);
@@ -321,14 +316,6 @@ public class CheckpointCoordinator {
 
         this.checkpointProperties =
                 CheckpointProperties.forCheckpoint(chkConfig.getCheckpointRetentionPolicy());
-
-        try {
-            this.checkpointStorageView = checkpointStorage.createCheckpointStorage(job);
-            checkpointStorageView.initializeBaseLocations();
-        } catch (IOException e) {
-            throw new FlinkRuntimeException(
-                    "Failed to create checkpoint storage at checkpoint coordinator side.", e);
-        }
 
         try {
             // Make sure the checkpoint ID enumerator is running. Possibly
@@ -1644,14 +1631,15 @@ public class CheckpointCoordinator {
      *     vertex in tasks.
      * @param tasks Map of job vertices to restore. State for these vertices is restored via {@link
      *     Execution#setInitialState(JobManagerTaskRestore)}.
-     * @param userClassLoader The class loader to resolve serialized classes in legacy savepoint
-     *     versions.
+     * @param checkpointStorageLocation The checkpoint location handle.
+     * @param checkpointMetadata The metadata of the checkpoint.
      */
     public boolean restoreSavepoint(
             String savepointPointer,
             boolean allowNonRestored,
             Map<JobVertexID, ExecutionJobVertex> tasks,
-            ClassLoader userClassLoader)
+            CompletedCheckpointStorageLocation checkpointStorageLocation,
+            CheckpointMetadata checkpointMetadata)
             throws Exception {
 
         Preconditions.checkNotNull(savepointPointer, "The savepoint path cannot be null.");
@@ -1662,13 +1650,14 @@ public class CheckpointCoordinator {
                 savepointPointer,
                 (allowNonRestored ? "allowing non restored state" : ""));
 
-        final CompletedCheckpointStorageLocation checkpointLocation =
-                checkpointStorageView.resolveCheckpoint(savepointPointer);
-
         // Load the savepoint as a checkpoint into the system
         CompletedCheckpoint savepoint =
-                Checkpoints.loadAndValidateCheckpoint(
-                        job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
+                Checkpoints.validateCheckpoint(
+                        job,
+                        tasks,
+                        checkpointStorageLocation,
+                        allowNonRestored,
+                        checkpointMetadata);
 
         completedCheckpointStore.addCheckpoint(
                 savepoint, checkpointsCleaner, this::scheduleTriggerRequest);

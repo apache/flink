@@ -164,27 +164,31 @@ public class TestingDefaultExecutionGraphBuilder {
 
     public DefaultExecutionGraph build() throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
-                jobGraph,
-                jobMasterConfig,
-                futureExecutor,
-                ioExecutor,
-                userClassLoader,
-                completedCheckpointStore,
-                new CheckpointsCleaner(),
-                checkpointIdCounter,
-                rpcTimeout,
-                metricGroup,
-                blobWriter,
-                LOG,
-                shuffleMaster,
-                partitionTracker,
-                TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
-                        jobGraph.getJobType()),
-                executionDeploymentListener,
-                executionStateUpdateListener,
-                System.currentTimeMillis(),
-                new DefaultVertexAttemptNumberStore(),
-                Optional.ofNullable(vertexParallelismStore)
-                        .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)));
+                        jobGraph,
+                        jobMasterConfig,
+                        futureExecutor,
+                        ioExecutor,
+                        userClassLoader,
+                        completedCheckpointStore,
+                        new CheckpointsCleaner(),
+                        checkpointIdCounter,
+                        rpcTimeout,
+                        metricGroup,
+                        blobWriter,
+                        LOG,
+                        shuffleMaster,
+                        partitionTracker,
+                        TaskDeploymentDescriptorFactory.PartitionLocationConstraint.fromJobType(
+                                jobGraph.getJobType()),
+                        executionDeploymentListener,
+                        executionStateUpdateListener,
+                        System.currentTimeMillis(),
+                        new DefaultVertexAttemptNumberStore(),
+                        Optional.ofNullable(vertexParallelismStore)
+                                .orElseGet(
+                                        () ->
+                                                SchedulerBase.computeVertexParallelismStore(
+                                                        jobGraph)))
+                .f0;
     }
 }
