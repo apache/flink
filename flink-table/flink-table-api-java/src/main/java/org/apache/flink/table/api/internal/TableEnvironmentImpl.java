@@ -500,6 +500,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public void createTable(String path, TableDescriptor descriptor) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
+        final ObjectIdentifier tableIdentifier =
+                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        descriptor.getSchema(),
+                        descriptor.getComment().orElse(null),
+                        descriptor.getPartitionKeys(),
+                        descriptor.getOptions());
+
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
+    }
+
+    @Override
     public void registerTable(String name, Table table) {
         UnresolvedIdentifier identifier = UnresolvedIdentifier.of(name);
         createTemporaryView(identifier, table);
