@@ -49,9 +49,8 @@ public class RunnablesTest extends TestLogger {
                         .setDaemon(true)
                         .setUncaughtExceptionHandler((t, e) -> handlerCalled.countDown())
                         .build();
-        final ExecutorService scheduledExecutorService =
-                Executors.newSingleThreadExecutor(threadFactory);
-        scheduledExecutorService.execute(
+        final ExecutorService executorService = Executors.newSingleThreadExecutor(threadFactory);
+        executorService.execute(
                 () -> {
                     throw new RuntimeException("foo");
                 });
