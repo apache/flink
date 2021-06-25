@@ -88,10 +88,25 @@ final class TestValuesRuntimeFunctions {
 
     static List<String> getRawResults(String tableName) {
         List<String> result = new ArrayList<>();
-        synchronized (TestValuesTableFactory.class) {
+        synchronized (LOCK) {
             if (globalRawResult.containsKey(tableName)) {
                 globalRawResult.get(tableName).values().forEach(result::addAll);
             }
+        }
+        return result;
+    }
+
+    /** Returns raw results if there was only one table with results, throws otherwise. */
+    static List<String> getOnlyRawResults() {
+        List<String> result = new ArrayList<>();
+        synchronized (LOCK) {
+            if (globalRawResult.size() != 1) {
+                throw new IllegalStateException(
+                        "Expected results for only one table to be present, but found "
+                                + globalRawResult.size());
+            }
+
+            globalRawResult.values().iterator().next().values().forEach(result::addAll);
         }
         return result;
     }
