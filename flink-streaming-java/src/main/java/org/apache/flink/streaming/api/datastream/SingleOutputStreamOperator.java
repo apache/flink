@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -369,6 +370,24 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
      */
     @PublicEvolving
     public SingleOutputStreamOperator<T> slotSharingGroup(String slotSharingGroup) {
+        transformation.setSlotSharingGroup(slotSharingGroup);
+        return this;
+    }
+
+    /**
+     * Sets the slot sharing group of this operation. Parallel instances of operations that are in
+     * the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+     *
+     * <p>Operations inherit the slot sharing group of input operations if all input operations are
+     * in the same slot sharing group and no slot sharing group was explicitly specified.
+     *
+     * <p>Initially an operation is in the default slot sharing group. An operation can be put into
+     * the default group explicitly by setting the slot sharing group with name {@code "default"}.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> slotSharingGroup(SlotSharingGroup slotSharingGroup) {
         transformation.setSlotSharingGroup(slotSharingGroup);
         return this;
     }
