@@ -22,11 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -141,7 +144,7 @@ public class StreamGraphGenerator {
 
     private final ReadableConfig configuration;
 
-    // Records the slot sharing groups and their corresponding ResourceProfile
+    // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
     private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     private Path savepointDir;
@@ -293,7 +296,12 @@ public class StreamGraphGenerator {
      */
     public StreamGraphGenerator setSlotSharingGroupResource(
             Map<String, ResourceProfile> slotSharingGroupResources) {
-        this.slotSharingGroupResources.putAll(slotSharingGroupResources);
+        slotSharingGroupResources.forEach(
+                (name, profile) -> {
+                    if (!profile.equals(ResourceProfile.UNKNOWN)) {
+                        this.slotSharingGroupResources.put(name, profile);
+                    }
+                });
         return this;
     }
 
@@ -311,6 +319,8 @@ public class StreamGraphGenerator {
         for (Transformation<?> transformation : transformations) {
             transform(transformation);
         }
+
+        streamGraph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         for (StreamNode node : streamGraph.getStreamNodes()) {
             if (node.getInEdges().stream().anyMatch(this::shouldDisableUnalignedCheckpointing)) {
@@ -342,7 +352,6 @@ public class StreamGraphGenerator {
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setJobName(jobName);
         graph.setJobType(shouldExecuteInBatchMode ? JobType.BATCH : JobType.STREAMING);
-        graph.setSlotSharingGroupResource(slotSharingGroupResources);
 
         if (shouldExecuteInBatchMode) {
 
@@ -451,6 +460,33 @@ public class StreamGraphGenerator {
                 transform.setMaxParallelism(globalMaxParallelismFromConfig);
             }
         }
+
+        transform
+                .getSlotSharingGroup()
+                .ifPresent(
+                        slotSharingGroup -> {
+                            final ResourceSpec resourceSpec =
+                                    SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup);
+                            if (!resourceSpec.equals(ResourceSpec.UNKNOWN)) {
+                                slotSharingGroupResources.compute(
+                                        slotSharingGroup.getName(),
+                                        (name, profile) -> {
+                                            if (profile == null) {
+                                                return ResourceProfile.fromResourceSpec(
+                                                        resourceSpec, MemorySize.ZERO);
+                                            } else if (!ResourceProfile.fromResourceSpec(
+                                                            resourceSpec, MemorySize.ZERO)
+                                                    .equals(profile)) {
+                                                throw new IllegalArgumentException(
+                                                        "The slot sharing group "
+                                                                + slotSharingGroup.getName()
+                                                                + " has been configured with two different resource spec.");
+                                            } else {
+                                                return profile;
+                                            }
+                                        });
+                            }
+                        });
 
         // call at least once to trigger exceptions about MissingTypeInfo
         transform.getOutputType();
@@ -720,7 +756,9 @@ public class StreamGraphGenerator {
 
         final String slotSharingGroup =
                 determineSlotSharingGroup(
-                        transform.getSlotSharingGroup(),
+                        transform.getSlotSharingGroup().isPresent()
+                                ? transform.getSlotSharingGroup().get().getName()
+                                : null,
                         allInputIds.stream()
                                 .flatMap(Collection::stream)
                                 .collect(Collectors.toList()));

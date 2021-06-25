@@ -21,6 +21,7 @@ package org.apache.flink.api.dag;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
@@ -167,7 +168,7 @@ public abstract class Transformation<T> {
 
     protected long bufferTimeout = -1;
 
-    private String slotSharingGroup;
+    private Optional<SlotSharingGroup> slotSharingGroup;
 
     @Nullable private String coLocationGroupKey;
 
@@ -184,7 +185,7 @@ public abstract class Transformation<T> {
         this.name = Preconditions.checkNotNull(name);
         this.outputType = outputType;
         this.parallelism = parallelism;
-        this.slotSharingGroup = null;
+        this.slotSharingGroup = Optional.empty();
     }
 
     /** Returns the unique ID of this {@code Transformation}. */
@@ -390,11 +391,11 @@ public abstract class Transformation<T> {
     }
 
     /**
-     * Returns the slot sharing group of this transformation.
+     * Returns the slot sharing group of this transformation if present.
      *
-     * @see #setSlotSharingGroup(String)
+     * @see #setSlotSharingGroup(SlotSharingGroup)
      */
-    public String getSlotSharingGroup() {
+    public Optional<SlotSharingGroup> getSlotSharingGroup() {
         return slotSharingGroup;
     }
 
@@ -405,10 +406,24 @@ public abstract class Transformation<T> {
      * <p>Initially, an operation is in the default slot sharing group. This can be explicitly set
      * using {@code setSlotSharingGroup("default")}.
      *
-     * @param slotSharingGroup The slot sharing group name.
+     * @param slotSharingGroupName The slot sharing group's name.
      */
-    public void setSlotSharingGroup(String slotSharingGroup) {
-        this.slotSharingGroup = slotSharingGroup;
+    public void setSlotSharingGroup(String slotSharingGroupName) {
+        this.slotSharingGroup =
+                Optional.of(SlotSharingGroup.newBuilder(slotSharingGroupName).build());
+    }
+
+    /**
+     * Sets the slot sharing group of this transformation. Parallel instances of operations that are
+     * in the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+     *
+     * <p>Initially, an operation is in the default slot sharing group. This can be explicitly set
+     * with constructing a {@link SlotSharingGroup} with name {@code "default"}.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    public void setSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        this.slotSharingGroup = Optional.of(slotSharingGroup);
     }
 
     /**
