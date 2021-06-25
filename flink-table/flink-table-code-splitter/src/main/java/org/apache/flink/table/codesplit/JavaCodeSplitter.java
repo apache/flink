@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.codesplit;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -25,6 +27,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * Rewrite generated java code so that the length of each method becomes smaller and can be
  * compiled.
  */
+@Internal
 public class JavaCodeSplitter {
 
     public static String split(String code, int maxMethodLength, int maxClassMemberCount) {

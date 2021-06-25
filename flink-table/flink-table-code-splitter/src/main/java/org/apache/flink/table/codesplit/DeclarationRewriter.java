@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.codesplit;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.v4.runtime.CharStreams;
@@ -33,6 +34,7 @@ import java.util.Set;
 import java.util.Stack;
 
 /** Extract and rename local variables to member variables. */
+@Internal
 public class DeclarationRewriter {
 
     private final String code;

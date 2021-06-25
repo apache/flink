@@ -1471,6 +1471,9 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
 						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
 
+						<!-- antlr grammar files -->
+						<exclude>flink-table/flink-table-code-splitter/src/main/antlr4/**</exclude>
+
 						<!-- Test Data. -->
 						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>

@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.codesplit;
 
+import org.apache.flink.annotation.Internal;
+
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
@@ -27,6 +29,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /** Try to split function whose length exceeds the limit. */
+@Internal
 public class FunctionSplitter {
 
     private final String code;

@@ -17,6 +17,8 @@
 
 package org.apache.flink.table.codesplit;
 
+import org.apache.flink.annotation.Internal;
+
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.Interval;
@@ -24,6 +26,7 @@ import org.antlr.v4.runtime.misc.Interval;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** Utils for rewriters. */
+@Internal
 public class CodeSplitUtil {
 
     private static final AtomicLong COUNTER = new AtomicLong(0L);

@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.codesplit;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.v4.runtime.CharStreams;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.Stack;
 
 /** Put member variables into arrays so that the number of member variables can be reduced. */
+@Internal
 public class MemberFieldRewriter {
 
     private String code;
@@ -164,7 +166,7 @@ public class MemberFieldRewriter {
                         type.indexOf('<') == -1
                                 ? type
                                 : type.substring(0, type.indexOf('<'))
-                                        + type.substring(type.lastIndexOf('>') + 1);
+                                + type.substring(type.lastIndexOf('>') + 1);
                 int count = typeCount.getValue();
                 String fieldName = CodeSplitUtil.newName("rewrite");
                 typeFieldNames.put(type, fieldName);
