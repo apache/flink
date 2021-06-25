@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.client.deployment.application.EntryClassInformationProvider;
 import org.apache.flink.client.deployment.application.FromClasspathEntryClassInformationProvider;
 import org.apache.flink.client.deployment.application.FromJarEntryClassInformationProvider;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -48,6 +49,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
     private final EntryClassInformationProvider entryClassInformationProvider;
     private final String[] programArguments;
     private final List<URL> userClasspath;
+    private final Configuration configuration;
 
     /**
      * Creates a {@code PackageProgramRetrieverImpl} with the given parameters.
@@ -57,6 +59,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
      * @param jobClassName The job class that will be used if specified. The classpath is used to
      *     detect any main class if not specified.
      * @param programArgs The program arguments.
+     * @param configuration The Flink configuration for the given job.
      * @return The {@code PackageProgramRetrieverImpl} that can be used to create a {@link
      *     PackagedProgram} instance.
      * @throws FlinkException If something goes wrong during instantiation.
@@ -64,9 +67,10 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
     public static DefaultPackagedProgramRetriever create(
             @Nullable File userLibDir,
             @Nullable String jobClassName,
-            String[] programArgs)
+            String[] programArgs,
+            Configuration configuration)
             throws FlinkException {
-        return create(userLibDir, null, jobClassName, programArgs);
+        return create(userLibDir, null, jobClassName, programArgs, configuration);
     }
 
     /**
@@ -79,6 +83,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
      * @param jobClassName The job class to use; if {@code null} the user classpath (or, if not set,
      *     the system classpath) will be scanned for possible main class.
      * @param programArgs The program arguments.
+     * @param configuration The Flink configuration for the given job.
      * @return The {@code PackageProgramRetrieverImpl} that can be used to create a {@link
      *     PackagedProgram} instance.
      * @throws FlinkException If something goes wrong during instantiation.
@@ -87,7 +92,8 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
             @Nullable File userLibDir,
             @Nullable File jarFile,
             @Nullable String jobClassName,
-            String[] programArgs)
+            String[] programArgs,
+            Configuration configuration)
             throws FlinkException {
         List<URL> userClasspath;
         try {
@@ -103,7 +109,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
                         jobClassName,
                         programArgs);
         return new DefaultPackagedProgramRetriever(
-                entryClassInformationProvider, programArgs, userClasspath);
+                entryClassInformationProvider, programArgs, userClasspath, configuration);
     }
 
     @VisibleForTesting
@@ -164,13 +170,16 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
     private DefaultPackagedProgramRetriever(
             EntryClassInformationProvider entryClassInformationProvider,
             String[] programArguments,
-            List<URL> userClasspath) {
+            List<URL> userClasspath,
+            Configuration configuration) {
         this.entryClassInformationProvider =
                 Preconditions.checkNotNull(
                         entryClassInformationProvider, "No EntryClassInformationProvider passed.");
         this.programArguments =
                 Preconditions.checkNotNull(programArguments, "No program parameter array passed.");
         this.userClasspath = Preconditions.checkNotNull(userClasspath, "No user classpath passed.");
+        this.configuration =
+                Preconditions.checkNotNull(configuration, "No Flink configuration was passed.");
     }
 
     @Override
@@ -179,7 +188,8 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
             final PackagedProgram.Builder packagedProgramBuilder =
                     PackagedProgram.newBuilder()
                             .setUserClassPaths(userClasspath)
-                            .setArguments(programArguments);
+                            .setArguments(programArguments)
+                            .setConfiguration(configuration);
 
             entryClassInformationProvider
                     .getJobClassName()
