@@ -79,6 +79,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -223,6 +224,7 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
             CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
 
             final String savepointPath =
@@ -301,6 +303,8 @@ public class RescalingITCase extends TestLogger {
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
             CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
@@ -400,6 +404,7 @@ public class RescalingITCase extends TestLogger {
             // clear the CollectionSink set for the restarted job
             CollectionSink.clearElementsSet();
 
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
             CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
 
             final String savepointPath =
@@ -523,6 +528,8 @@ public class RescalingITCase extends TestLogger {
             client.submitJob(jobGraph).get();
 
             // wait until the operator is started
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+            // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
             CompletableFuture<String> savepointPathFuture =

@@ -55,11 +55,12 @@ import java.net.URL;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+
 /** Tests for restoring {@link PriorityQueueStateType#HEAP} timers stored in raw operator state. */
 public class TimersSavepointITCase {
     private static final int PARALLELISM = 4;
 
-    private static final OneShotLatch savepointLatch = new OneShotLatch();
     private static final OneShotLatch resultLatch = new OneShotLatch();
 
     @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
@@ -118,7 +119,7 @@ public class TimersSavepointITCase {
     private void takeSavepoint(String savepointPath, ClusterClient<?> client) throws Exception {
         JobGraph jobGraph = getJobGraph(PriorityQueueStateType.ROCKSDB);
         client.submitJob(jobGraph).get();
-        savepointLatch.await();
+        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID());
         CompletableFuture<String> savepointPathFuture =
                 client.triggerSavepoint(jobGraph.getJobID(), null);
 
@@ -216,7 +217,6 @@ public class TimersSavepointITCase {
                 throws Exception {
             if (value == 0) {
                 ctx.timerService().registerEventTimeTimer(2L);
-                savepointLatch.trigger();
             }
         }
 
