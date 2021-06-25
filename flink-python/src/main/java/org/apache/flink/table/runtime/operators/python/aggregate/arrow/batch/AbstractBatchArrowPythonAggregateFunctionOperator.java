@@ -100,9 +100,9 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
     }
 
     @Override
-    public void close() throws Exception {
+    public void finish() throws Exception {
         invokeCurrentBatch();
-        super.close();
+        super.finish();
     }
 
     protected abstract void invokeCurrentBatch() throws Exception;

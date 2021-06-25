@@ -473,10 +473,11 @@ public class MultipleInputStreamTaskTest {
                         LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
                         LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
                         LifeCycleTrackingMapToStringMultipleInputOperator.END_INPUT,
-                        LifeCycleTrackingMockSourceReader.CLOSE,
-                        LifeCycleTrackingMapToStringMultipleInputOperator.CLOSE,
+                        LifeCycleTrackingMapToStringMultipleInputOperator.FINISH,
                         LifeCycleTrackingMap.END_INPUT,
-                        LifeCycleTrackingMap.CLOSE));
+                        LifeCycleTrackingMap.CLOSE,
+                        LifeCycleTrackingMapToStringMultipleInputOperator.CLOSE,
+                        LifeCycleTrackingMockSourceReader.CLOSE));
     }
 
     @Test
@@ -1138,6 +1139,7 @@ public class MultipleInputStreamTaskTest {
             extends MapToStringMultipleInputOperator implements BoundedMultiInput {
         public static final String OPEN = "MultipleInputOperator#open";
         public static final String CLOSE = "MultipleInputOperator#close";
+        public static final String FINISH = "MultipleInputOperator#finish";
         public static final String END_INPUT = "MultipleInputOperator#endInput";
 
         private static final long serialVersionUID = 1L;
@@ -1162,6 +1164,11 @@ public class MultipleInputStreamTaskTest {
         @Override
         public void endInput(int inputId) {
             LIFE_CYCLE_EVENTS.add(END_INPUT);
+        }
+
+        @Override
+        public void finish() throws Exception {
+            LIFE_CYCLE_EVENTS.add(FINISH);
         }
     }
 

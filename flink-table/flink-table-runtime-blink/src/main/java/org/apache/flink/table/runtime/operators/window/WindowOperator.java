@@ -154,9 +154,6 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     /** This is used for emitting elements with a given timestamp. */
     protected transient TimestampedCollector<RowData> collector;
 
-    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-    private transient boolean functionsClosed = false;
-
     private transient InternalTimerService<W> internalTimerService;
 
     private transient InternalValueState<K, W, RowData> windowState;
@@ -242,8 +239,6 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     public void open() throws Exception {
         super.open();
 
-        functionsClosed = false;
-
         collector = new TimestampedCollector<>(output);
         collector.eraseTimestamp();
 
@@ -318,22 +313,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         super.close();
         collector = null;
         triggerContext = null;
-        functionsClosed = true;
         if (windowAggregator != null) {
             windowAggregator.close();
-        }
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        collector = null;
-        triggerContext = null;
-        if (!functionsClosed) {
-            functionsClosed = true;
-            if (windowAggregator != null) {
-                windowAggregator.close();
-            }
         }
     }
 
@@ -407,10 +388,6 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
-        if (functionsClosed) {
-            return;
-        }
-
         setCurrentKey(timer.getKey());
 
         triggerContext.window = timer.getNamespace();

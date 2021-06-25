@@ -53,9 +53,6 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     /** The user function. */
     protected final F userFunction;
 
-    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-    private transient boolean functionsClosed = false;
-
     public AbstractUdfStreamOperator(F userFunction) {
         this.userFunction = requireNonNull(userFunction);
         checkUdfCheckpointingPreconditions();
@@ -105,17 +102,7 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     @Override
     public void close() throws Exception {
         super.close();
-        functionsClosed = true;
         FunctionUtils.closeFunction(userFunction);
-    }
-
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        if (!functionsClosed) {
-            functionsClosed = true;
-            FunctionUtils.closeFunction(userFunction);
-        }
     }
 
     // ------------------------------------------------------------------------

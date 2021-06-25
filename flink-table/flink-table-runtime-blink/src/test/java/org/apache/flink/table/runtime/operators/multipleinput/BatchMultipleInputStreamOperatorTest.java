@@ -133,37 +133,6 @@ public class BatchMultipleInputStreamOperatorTest extends MultipleInputTestBase 
     }
 
     @Test
-    public void testDispose() throws Exception {
-        TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
-        TestingTwoInputStreamOperator joinOp2 =
-                (TestingTwoInputStreamOperator) op.getTailWrapper().getStreamOperator();
-
-        TableOperatorWrapper<?> joinWrapper1 = op.getTailWrapper().getInputWrappers().get(0);
-        TestingTwoInputStreamOperator joinOp1 =
-                (TestingTwoInputStreamOperator) joinWrapper1.getStreamOperator();
-
-        TableOperatorWrapper<?> aggWrapper1 = joinWrapper1.getInputWrappers().get(0);
-        TestingOneInputStreamOperator aggOp1 =
-                (TestingOneInputStreamOperator) aggWrapper1.getStreamOperator();
-
-        TableOperatorWrapper<?> aggWrapper2 = joinWrapper1.getInputWrappers().get(1);
-        TestingOneInputStreamOperator aggOp2 =
-                (TestingOneInputStreamOperator) aggWrapper2.getStreamOperator();
-
-        assertFalse(aggOp1.isDisposed());
-        assertFalse(aggOp2.isDisposed());
-        assertFalse(aggOp1.isDisposed());
-        assertFalse(joinOp2.isDisposed());
-
-        op.dispose();
-
-        assertTrue(aggOp1.isDisposed());
-        assertTrue(aggOp2.isDisposed());
-        assertTrue(joinOp1.isDisposed());
-        assertTrue(joinOp2.isDisposed());
-    }
-
-    @Test
     public void testClose() throws Exception {
         TestingBatchMultipleInputStreamOperator op = createMultipleInputStreamOperator();
         TestingTwoInputStreamOperator joinOp2 =

@@ -148,11 +148,11 @@ public abstract class MultipleInputStreamOperatorBase extends AbstractStreamOper
      * StreamOperator#open()} which happens <b>tail to head</b>.
      */
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
+    public void finish() throws Exception {
+        super.finish();
         for (TableOperatorWrapper<?> wrapper : topologicalOrderingOperators) {
             StreamOperator<?> operator = wrapper.getStreamOperator();
-            operator.dispose();
+            operator.finish();
         }
     }
 

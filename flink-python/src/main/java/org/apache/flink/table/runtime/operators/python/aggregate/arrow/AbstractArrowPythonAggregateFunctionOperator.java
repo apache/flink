@@ -107,8 +107,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
+    public void close() throws Exception {
+        super.close();
         if (arrowSerializer != null) {
             arrowSerializer.close();
             arrowSerializer = null;

@@ -41,7 +41,6 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
     private Watermark currentWatermark = null;
     private LatencyMarker currentLatencyMarker = null;
     private boolean isEnd = false;
-    private boolean isDisposed = false;
     private boolean isClosed = false;
     private final List<StreamRecord<RowData>> receivedElements = new ArrayList<>();
 
@@ -91,11 +90,6 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
     }
 
     @Override
-    public void dispose() throws Exception {
-        this.isDisposed = true;
-    }
-
-    @Override
     public void close() throws Exception {
         isClosed = true;
     }
@@ -118,10 +112,6 @@ public class TestingOneInputStreamOperator extends AbstractStreamOperator<RowDat
 
     public boolean isEnd() {
         return isEnd;
-    }
-
-    public boolean isDisposed() {
-        return isDisposed;
     }
 
     public boolean isClosed() {
