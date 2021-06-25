@@ -26,10 +26,11 @@ under the License.
 
 # DROP Statements
 
-DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({{< ref "docs/dev/table/catalogs" >}}).
+DROP statements are used to remove a catalog with the given catalog name or to remove a registered table/view/function from the current or specified [Catalog]({{< ref "docs/dev/table/catalogs" >}}).
 
 Flink SQL supports the following DROP statements for now:
 
+- DROP CATALOG
 - DROP TABLE
 - DROP DATABASE
 - DROP VIEW
@@ -137,6 +138,18 @@ Flink SQL> SHOW TABLES;
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+## DROP CATALOG
+
+```sql
+DROP CATALOG [IF EXISTS] catalog_name
+```
+
+Drop a catalog with the given catalog name.
+
+**IF EXISTS**
+
+If the catalog does not exist, nothing happens.
 
 ## DROP TABLE
 

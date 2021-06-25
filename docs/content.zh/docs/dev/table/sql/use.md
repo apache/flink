@@ -243,7 +243,7 @@ Flink SQL> SHOW FULL MODULES;
 
 {{< top >}}
 
-## USE CATLOAG
+## USE CATALOG
 
 ```sql
 USE CATALOG catalog_name

@@ -28,10 +28,11 @@ under the License.
 
 
 
-DROP 语句用于从当前或指定的 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中删除一个已经注册的表、视图或函数。
+DROP 语句可用于删除指定的 catalog，也可用于从当前或指定的 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中删除一个已经注册的表、视图或函数。
 
 Flink SQL 目前支持以下 DROP 语句：
 
+- DROP CATALOG
 - DROP TABLE
 - DROP DATABASE
 - DROP VIEW
@@ -145,6 +146,18 @@ Flink SQL> SHOW TABLES;
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+## DROP CATALOG
+
+```sql
+DROP CATALOG [IF EXISTS] catalog_name
+```
+
+删除给定名字的 catalog。
+
+**IF EXISTS**
+
+如果目标 catalog 不存在，则不会执行任何操作。
 
 ## DROP TABLE
 
