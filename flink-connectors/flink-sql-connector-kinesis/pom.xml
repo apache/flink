@@ -71,6 +71,7 @@ under the License.
 									<include>commons-logging:commons-logging</include>
 									<include>org.apache.commons:commons-lang3</include>
 									<include>com.google.guava:guava</include>
+									<include>com.google.guava:failureaccess</include>
 								</includes>
 							</artifactSet>
 							<filters>
