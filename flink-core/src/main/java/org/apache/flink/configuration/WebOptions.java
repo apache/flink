@@ -50,6 +50,7 @@ public class WebOptions {
      */
     public static final ConfigOption<String> ACCESS_CONTROL_ALLOW_ORIGIN =
             key("web.access-control-allow-origin")
+                    .stringType()
                     .defaultValue("*")
                     .withDeprecatedKeys("jobmanager.web.access-control-allow-origin")
                     .withDescription(
@@ -58,6 +59,7 @@ public class WebOptions {
     /** The config parameter defining the refresh interval for the web-frontend in milliseconds. */
     public static final ConfigOption<Long> REFRESH_INTERVAL =
             key("web.refresh-interval")
+                    .longType()
                     .defaultValue(3000L)
                     .withDeprecatedKeys("jobmanager.web.refresh-interval")
                     .withDescription("Refresh interval for the web-frontend in milliseconds.");
@@ -66,6 +68,7 @@ public class WebOptions {
     @Deprecated
     public static final ConfigOption<Boolean> SSL_ENABLED =
             key("web.ssl.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDeprecatedKeys("jobmanager.web.ssl.enabled")
                     .withDescription(
@@ -75,6 +78,7 @@ public class WebOptions {
     @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
     public static final ConfigOption<String> TMP_DIR =
             key("web.tmpdir")
+                    .stringType()
                     .defaultValue(System.getProperty("java.io.tmpdir"))
                     .withDeprecatedKeys("jobmanager.web.tmpdir")
                     .withDescription("Flink web directory which is used by the webmonitor.");
@@ -85,6 +89,7 @@ public class WebOptions {
      */
     public static final ConfigOption<String> UPLOAD_DIR =
             key("web.upload.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("jobmanager.web.upload.dir")
                     .withDescription(
@@ -94,6 +99,7 @@ public class WebOptions {
     /** The config parameter defining the number of archived jobs for the JobManager. */
     public static final ConfigOption<Integer> ARCHIVE_COUNT =
             key("web.history")
+                    .intType()
                     .defaultValue(5)
                     .withDeprecatedKeys("jobmanager.web.history")
                     .withDescription("Number of archived jobs for the JobManager.");
@@ -104,6 +110,7 @@ public class WebOptions {
      */
     public static final ConfigOption<String> LOG_PATH =
             key("web.log.path")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("jobmanager.web.log.path")
                     .withDescription(
@@ -112,6 +119,7 @@ public class WebOptions {
     /** Config parameter indicating whether jobs can be uploaded and run from the web-frontend. */
     public static final ConfigOption<Boolean> SUBMIT_ENABLE =
             key("web.submit.enable")
+                    .booleanType()
                     .defaultValue(true)
                     .withDeprecatedKeys("jobmanager.web.submit.enable")
                     .withDescription(
@@ -128,6 +136,7 @@ public class WebOptions {
     /** Config parameter defining the number of checkpoints to remember for recent history. */
     public static final ConfigOption<Integer> CHECKPOINTS_HISTORY_SIZE =
             key("web.checkpoints.history")
+                    .intType()
                     .defaultValue(10)
                     .withDeprecatedKeys("jobmanager.web.checkpoints.history")
                     .withDescription("Number of checkpoints to remember for recent history.");
@@ -146,6 +155,7 @@ public class WebOptions {
     @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_CLEANUP_INTERVAL =
             key("web.backpressure.cleanup-interval")
+                    .intType()
                     .defaultValue(10 * 60 * 1000)
                     .withDeprecatedKeys("jobmanager.web.backpressure.cleanup-interval")
                     .withDescription("This config option is no longer used");
@@ -154,6 +164,7 @@ public class WebOptions {
     @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_REFRESH_INTERVAL =
             key("web.backpressure.refresh-interval")
+                    .intType()
                     .defaultValue(60 * 1000)
                     .withDeprecatedKeys("jobmanager.web.backpressure.refresh-interval")
                     .withDescription("This config option is no longer used");
@@ -162,6 +173,7 @@ public class WebOptions {
     @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_NUM_SAMPLES =
             key("web.backpressure.num-samples")
+                    .intType()
                     .defaultValue(100)
                     .withDeprecatedKeys("jobmanager.web.backpressure.num-samples")
                     .withDescription("This config option is no longer used");
@@ -170,6 +182,7 @@ public class WebOptions {
     @Deprecated
     public static final ConfigOption<Integer> BACKPRESSURE_DELAY =
             key("web.backpressure.delay-between-samples")
+                    .intType()
                     .defaultValue(50)
                     .withDeprecatedKeys("jobmanager.web.backpressure.delay-between-samples")
                     .withDescription("This config option is no longer used");
@@ -177,6 +190,7 @@ public class WebOptions {
     /** Timeout for asynchronous operations by the web monitor in milliseconds. */
     public static final ConfigOption<Long> TIMEOUT =
             key("web.timeout")
+                    .longType()
                     .defaultValue(10L * 60L * 1000L)
                     .withDescription(
                             "Timeout for asynchronous operations by the web monitor in milliseconds.");

@@ -50,6 +50,7 @@ public class MetricOptions {
      */
     public static final ConfigOption<String> REPORTERS_LIST =
             key("metrics.reporters")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "An optional list of reporter names. If configured, only reporters whose name matches"
@@ -58,6 +59,7 @@ public class MetricOptions {
 
     public static final ConfigOption<String> REPORTER_CLASS =
             key("metrics.reporter.<name>.class")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription("The reporter class to use for the reporter named <name>.");
 
@@ -69,6 +71,7 @@ public class MetricOptions {
 
     public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
             key("metrics.reporter.<name>.<parameter>")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Configures the parameter <parameter> for the reporter named <name>.");
@@ -76,12 +79,14 @@ public class MetricOptions {
     /** The delimiter used to assemble the metric identifier. */
     public static final ConfigOption<String> SCOPE_DELIMITER =
             key("metrics.scope.delimiter")
+                    .stringType()
                     .defaultValue(".")
                     .withDescription("Delimiter used to assemble the metric identifier.");
 
     /** The scope format string that is applied to all metrics scoped to a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM =
             key("metrics.scope.jm")
+                    .stringType()
                     .defaultValue("<host>.jobmanager")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a JobManager.");
@@ -89,6 +94,7 @@ public class MetricOptions {
     /** The scope format string that is applied to all metrics scoped to a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM =
             key("metrics.scope.tm")
+                    .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a TaskManager.");
@@ -96,6 +102,7 @@ public class MetricOptions {
     /** The scope format string that is applied to all metrics scoped to a job on a JobManager. */
     public static final ConfigOption<String> SCOPE_NAMING_JM_JOB =
             key("metrics.scope.jm.job")
+                    .stringType()
                     .defaultValue("<host>.jobmanager.<job_name>")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a JobManager.");
@@ -103,6 +110,7 @@ public class MetricOptions {
     /** The scope format string that is applied to all metrics scoped to a job on a TaskManager. */
     public static final ConfigOption<String> SCOPE_NAMING_TM_JOB =
             key("metrics.scope.tm.job")
+                    .stringType()
                     .defaultValue("<host>.taskmanager.<tm_id>.<job_name>")
                     .withDescription(
                             "Defines the scope format string that is applied to all metrics scoped to a job on a TaskManager.");
@@ -110,6 +118,7 @@ public class MetricOptions {
     /** The scope format string that is applied to all metrics scoped to a task. */
     public static final ConfigOption<String> SCOPE_NAMING_TASK =
             key("metrics.scope.task")
+                    .stringType()
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>")
                     .withDescription(
@@ -118,6 +127,7 @@ public class MetricOptions {
     /** The scope format string that is applied to all metrics scoped to an operator. */
     public static final ConfigOption<String> SCOPE_NAMING_OPERATOR =
             key("metrics.scope.operator")
+                    .stringType()
                     .defaultValue(
                             "<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>")
                     .withDescription(
@@ -125,6 +135,7 @@ public class MetricOptions {
 
     public static final ConfigOption<Long> LATENCY_INTERVAL =
             key("metrics.latency.interval")
+                    .longType()
                     .defaultValue(0L)
                     .withDescription(
                             "Defines the interval at which latency tracking marks are emitted from the sources."
@@ -133,6 +144,7 @@ public class MetricOptions {
 
     public static final ConfigOption<String> LATENCY_SOURCE_GRANULARITY =
             key("metrics.latency.granularity")
+                    .stringType()
                     .defaultValue("operator")
                     .withDescription(
                             Description.builder()
@@ -150,6 +162,7 @@ public class MetricOptions {
     /** The number of measured latencies to maintain at each operator. */
     public static final ConfigOption<Integer> LATENCY_HISTORY_SIZE =
             key("metrics.latency.history-size")
+                    .intType()
                     .defaultValue(128)
                     .withDescription(
                             "Defines the number of measured latencies to maintain at each operator.");
@@ -160,6 +173,7 @@ public class MetricOptions {
      */
     public static final ConfigOption<Boolean> SYSTEM_RESOURCE_METRICS =
             key("metrics.system-resource")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Flag indicating whether Flink should report system resource metrics such as machine's CPU,"
@@ -170,6 +184,7 @@ public class MetricOptions {
      */
     public static final ConfigOption<Long> SYSTEM_RESOURCE_METRICS_PROBING_INTERVAL =
             key("metrics.system-resource-probing-interval")
+                    .longType()
                     .defaultValue(5000L)
                     .withDescription(
                             "Interval between probing of system resource metrics specified in milliseconds. Has an effect"
@@ -184,6 +199,7 @@ public class MetricOptions {
     @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
     public static final ConfigOption<String> QUERY_SERVICE_PORT =
             key("metrics.internal.query-service.port")
+                    .stringType()
                     .defaultValue("0")
                     .withDescription(
                             "The port range used for Flink's internal metric query service. Accepts a list of ports "
@@ -197,6 +213,7 @@ public class MetricOptions {
      */
     public static final ConfigOption<Integer> QUERY_SERVICE_THREAD_PRIORITY =
             key("metrics.internal.query-service.thread-priority")
+                    .intType()
                     .defaultValue(1)
                     .withDescription(
                             "The thread priority used for Flink's internal metric query service. The thread is created"
@@ -209,6 +226,7 @@ public class MetricOptions {
      */
     public static final ConfigOption<Long> METRIC_FETCHER_UPDATE_INTERVAL =
             key("metrics.fetcher.update-interval")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             "Update interval for the metric fetcher used by the web UI in milliseconds. Decrease this value for "
