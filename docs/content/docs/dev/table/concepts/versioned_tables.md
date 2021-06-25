@@ -103,7 +103,7 @@ and event-time attribute. Imagine an append-only table of currency rates.
 ```sql
 CREATE TABLE currency_rates (
 	currency      STRING,
-	rate          DECIMAL(32, 10)
+	rate          DECIMAL(32, 10),
 	update_time   TIMESTAMP(3),
 	WATERMARK FOR update_time AS update_time
 ) WITH (
