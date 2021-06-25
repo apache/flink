@@ -547,5 +547,4 @@ class CalcITCase extends StreamingTestBase {
     val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().toList
     TestBaseUtils.compareResultAsText(result, "42")
   }
-
 }

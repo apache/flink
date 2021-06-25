@@ -486,8 +486,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
-        final ObjectIdentifier tableIdentifier =
-                catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
+        createTemporaryTableInternal(getParser().parseIdentifier(path), descriptor);
+    }
+
+    private void createTemporaryTableInternal(
+            UnresolvedIdentifier path, TableDescriptor descriptor) {
+        final ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(path);
 
         final CatalogTable catalogTable =
                 CatalogTable.of(
@@ -567,6 +571,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 new ValidationException(
                                         String.format(
                                                 "Table %s was not found.", unresolvedIdentifier)));
+    }
+
+    @Override
+    public Table from(TableDescriptor descriptor) {
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        createTemporaryTableInternal(UnresolvedIdentifier.of(path), descriptor);
+        return from(path);
     }
 
     @Override
