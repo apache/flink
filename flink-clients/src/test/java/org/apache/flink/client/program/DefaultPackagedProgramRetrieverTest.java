@@ -29,14 +29,17 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -52,6 +55,7 @@ import java.util.stream.Collectors;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.fail;
 
 /** {@code PackagedProgramRetrieverImplTest} tests {@link DefaultPackagedProgramRetriever}. */
@@ -183,7 +187,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                         singleEntryClassClasspathProvider.getDirectory(),
                         null,
                         singleEntryClassClasspathProvider.getJobClassName(),
-                        new String[0]);
+                        new String[0],
+                        new Configuration());
 
         // the right information is picked up without any error
         assertThat(
@@ -206,7 +211,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         null,
                         testJobEntryClassClasspathProvider.getJobClassName(),
-                        ClasspathProvider.parametersForTestJob(expectedSuffix));
+                        ClasspathProvider.parametersForTestJob(expectedSuffix),
+                        new Configuration());
 
         final JobGraph jobGraph = retrieveJobGraph(retriever, configuration);
 
@@ -227,7 +233,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                         testJobEntryClassClasspathProvider.getDirectory(),
                         null,
                         null,
-                        ClasspathProvider.parametersForTestJob(expectedSuffix));
+                        ClasspathProvider.parametersForTestJob(expectedSuffix),
+                        new Configuration());
 
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
@@ -246,7 +253,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         null,
                         testJobEntryClassClasspathProvider.getJobClassName(),
-                        ClasspathProvider.parametersForTestJob(expectedSuffix));
+                        ClasspathProvider.parametersForTestJob(expectedSuffix),
+                        new Configuration());
 
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
@@ -271,7 +279,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         null,
                         testJobEntryClassClasspathProvider.getJobClassName(),
-                        ClasspathProvider.parametersForTestJob(expectedSuffix));
+                        ClasspathProvider.parametersForTestJob(expectedSuffix),
+                        new Configuration());
 
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, configuration);
 
@@ -285,7 +294,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
             DefaultPackagedProgramRetriever.create(
                     noEntryClassClasspathProvider.getDirectory(),
                     testJobEntryClassClasspathProvider.getJobClassName(),
-                    ClasspathProvider.parametersForTestJob("suffix"));
+                    ClasspathProvider.parametersForTestJob("suffix"),
+                    new Configuration());
             fail("This case should throw exception !");
         } catch (FlinkException e) {
             assertThat(
@@ -301,7 +311,7 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
     public void testEntryClassNotFoundOnSystemClasspath() throws FlinkException {
         final PackagedProgramRetriever testInstance =
                 DefaultPackagedProgramRetriever.create(
-                        null, "NotExistingClass", new String[0]);
+                        null, "NotExistingClass", new String[0], new Configuration());
         // the getPackagedProgram fails do to the missing class. We could make it fail earlier by
         // validating the existence of the passed Java class on the system classpath (analogously to
         // what we already do for the user classpath)
@@ -314,7 +324,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
         DefaultPackagedProgramRetriever.create(
                 noEntryClassClasspathProvider.getDirectory(),
                 "NotExistingClass",
-                new String[0]);
+                new String[0],
+                new Configuration());
     }
 
     @Test(expected = FlinkException.class)
@@ -324,13 +335,14 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
         DefaultPackagedProgramRetriever.create(
                 multipleEntryClassesClasspathProvider.getDirectory(),
                 null,
-                new String[0]);
+                new String[0],
+                new Configuration());
     }
 
     @Test(expected = FlinkException.class)
     public void testWithoutJobClassAndMultipleEntryClassesOnSystemClasspath()
             throws FlinkException {
-        DefaultPackagedProgramRetriever.create(null, null, new String[0]);
+        DefaultPackagedProgramRetriever.create(null, null, new String[0], new Configuration());
     }
 
     @Test
@@ -339,7 +351,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         multipleEntryClassesClasspathProvider.getDirectory(),
                         multipleEntryClassesClasspathProvider.getJobClassName(),
-                        new String[0]);
+                        new String[0],
+                        new Configuration());
         assertThat(
                 retriever.getPackagedProgram().getMainClassName(),
                 is(multipleEntryClassesClasspathProvider.getJobClassName()));
@@ -354,7 +367,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         null,
                         multipleEntryClassesClasspathProvider.getJobClassName(),
-                        new String[0]);
+                        new String[0],
+                        new Configuration());
         assertThat(
                 retriever.getPackagedProgram().getMainClassName(),
                 is(multipleEntryClassesClasspathProvider.getJobClassName()));
@@ -367,7 +381,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         singleEntryClassClasspathProvider.getDirectory(),
                         null,
-                        ClasspathProvider.parametersForTestJob("suffix"));
+                        ClasspathProvider.parametersForTestJob("suffix"),
+                        new Configuration());
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
         final List<String> actualClasspath =
                 jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList());
@@ -388,7 +403,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                 DefaultPackagedProgramRetriever.create(
                         singleEntryClassClasspathProvider.getDirectory(),
                         singleEntryClassClasspathProvider.getJobClassName(),
-                        ClasspathProvider.parametersForTestJob("suffix"));
+                        ClasspathProvider.parametersForTestJob("suffix"),
+                        new Configuration());
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
         final List<String> actualClasspath =
                 jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList());
@@ -410,7 +426,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                         null,
                         testJobEntryClassClasspathProvider.getJobJar(),
                         null,
-                        ClasspathProvider.parametersForTestJob("suffix"));
+                        ClasspathProvider.parametersForTestJob("suffix"),
+                        new Configuration());
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
         assertThat(
@@ -430,7 +447,8 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
                         // the testJob jar is not on the user classpath
                         testJobEntryClassClasspathProvider.getJobJar(),
                         null,
-                        ClasspathProvider.parametersForTestJob("suffix"));
+                        ClasspathProvider.parametersForTestJob("suffix"),
+                        new Configuration());
         final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
 
         assertThat(
@@ -447,6 +465,54 @@ public class DefaultPackagedProgramRetrieverTest extends TestLogger {
         assertThat(
                 actualClasspath,
                 IsIterableContainingInAnyOrder.containsInAnyOrder(expectedClasspath.toArray()));
+    }
+
+    @Test
+    public void testChildFirstDefaultConfiguration() throws FlinkException {
+        // this is a sanity check to backup testConfigurationIsConsidered
+        final Configuration configuration = new Configuration();
+        // CHECK_LEAKED_CLASSLOADER has to be disabled to enable the instanceof check later on in
+        // this test. Otherwise, the actual instance would be hidden by a wrapper
+        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
+
+        final PackagedProgramRetriever retriever =
+                DefaultPackagedProgramRetriever.create(
+                        singleEntryClassClasspathProvider.getDirectory(),
+                        null,
+                        singleEntryClassClasspathProvider.getJobClassName(),
+                        new String[0],
+                        configuration);
+
+        assertThat(
+                retriever.getPackagedProgram().getUserCodeClassLoader(),
+                IsInstanceOf.instanceOf(ChildFirstClassLoader.class));
+    }
+
+    @Test
+    public void testConfigurationIsConsidered() throws FlinkException {
+        final String parentFirstConfigValue = "parent-first";
+        // we want to make sure that parent-first is not set as a default
+        assertThat(
+                CoreOptions.CLASSLOADER_RESOLVE_ORDER.defaultValue(),
+                not(is(parentFirstConfigValue)));
+
+        final Configuration configuration = new Configuration();
+        configuration.set(CoreOptions.CLASSLOADER_RESOLVE_ORDER, parentFirstConfigValue);
+        // CHECK_LEAKED_CLASSLOADER has to be disabled to enable the instanceof check later on in
+        // this test. Otherwise, the actual instance would be hidden by a wrapper
+        configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
+
+        final PackagedProgramRetriever retriever =
+                DefaultPackagedProgramRetriever.create(
+                        singleEntryClassClasspathProvider.getDirectory(),
+                        null,
+                        singleEntryClassClasspathProvider.getJobClassName(),
+                        new String[0],
+                        configuration);
+
+        assertThat(
+                retriever.getPackagedProgram().getUserCodeClassLoader(),
+                IsInstanceOf.instanceOf(FlinkUserCodeClassLoaders.ParentFirstClassLoader.class));
     }
 
     private JobGraph retrieveJobGraph(
