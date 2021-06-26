@@ -88,6 +88,16 @@ final class AlternatingWaitingForFirstBarrierUnaligned implements BarrierHandler
         return stopCheckpoint();
     }
 
+    @Override
+    public BarrierHandlerState endOfPartitionReceived(
+            Controller controller, InputChannelInfo channelInfo)
+            throws IOException, CheckpointException {
+        channelState.channelFinished(channelInfo);
+
+        // Do nothing since we have no pending checkpoint.
+        return this;
+    }
+
     private BarrierHandlerState stopCheckpoint() throws IOException {
         channelState.unblockAllChannels();
         if (alternating) {
