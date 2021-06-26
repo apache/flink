@@ -140,10 +140,11 @@ public class CliTableauResultView implements AutoCloseable {
                                 Stream.of(PrintUtils.ROW_KIND_COLUMN),
                                 columns.stream().map(Column::getName))
                         .toArray(String[]::new);
+
         final int[] colWidths =
                 PrintUtils.columnWidthsByType(
                         columns,
-                        PrintUtils.MAX_COLUMN_WIDTH,
+                        resultDescriptor.maxColumnWidth(),
                         PrintUtils.NULL_COLUMN,
                         PrintUtils.ROW_KIND_COLUMN);
 

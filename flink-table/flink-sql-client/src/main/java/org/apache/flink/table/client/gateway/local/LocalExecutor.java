@@ -19,12 +19,10 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
@@ -52,9 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
-import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -241,11 +237,7 @@ public class LocalExecutor implements Executor {
         // store the result under the JobID
         resultStore.storeResult(jobId, result);
         return new ResultDescriptor(
-                jobId,
-                tableResult.getResolvedSchema(),
-                result.isMaterialized(),
-                config.get(EXECUTION_RESULT_MODE).equals(ResultMode.TABLEAU),
-                config.get(RUNTIME_MODE).equals(RuntimeExecutionMode.STREAMING));
+                jobId, tableResult.getResolvedSchema(), result.isMaterialized(), config);
     }
 
     @Override

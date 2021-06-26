@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
@@ -61,7 +62,14 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     private static final int LAST_PAGE = 0;
 
     public CliTableResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+        super(
+                client,
+                resultDescriptor,
+                PrintUtils.columnWidthsByType(
+                        resultDescriptor.getResultSchema().getColumns(),
+                        resultDescriptor.maxColumnWidth(),
+                        PrintUtils.NULL_COLUMN,
+                        null));
 
         refreshInterval = DEFAULT_REFRESH_INTERVAL;
         pageCount = 1;
@@ -80,11 +88,6 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     @Override
     protected String[] getRow(String[] resultRow) {
         return resultRow;
-    }
-
-    @Override
-    protected int computeColumnWidth(int idx) {
-        return PrintUtils.MAX_COLUMN_WIDTH;
     }
 
     @Override
@@ -269,15 +272,15 @@ public class CliTableResultView extends CliResultView<CliTableResultView.ResultT
     protected List<AttributedString> computeMainHeaderLines() {
         final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
 
-        resultDescriptor
-                .getResultSchema()
-                .getColumnNames()
+        IntStream.range(0, resultDescriptor.getResultSchema().getColumnCount())
                 .forEach(
-                        s -> {
-                            schemaHeader.append(' ');
-                            schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
+                        idx -> {
                             schemaHeader.style(AttributedStyle.DEFAULT);
+                            schemaHeader.append(' ');
+                            String columnName =
+                                    resultDescriptor.getResultSchema().getColumnNames().get(idx);
+                            schemaHeader.style(AttributedStyle.DEFAULT.underline());
+                            normalizeColumn(schemaHeader, columnName, columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());
