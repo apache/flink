@@ -74,7 +74,7 @@ abstract class AbstractAlternatingAlignedBarrierHandlerState implements BarrierH
         return finishCheckpoint();
     }
 
-    private BarrierHandlerState finishCheckpoint() throws IOException {
+    protected BarrierHandlerState finishCheckpoint() throws IOException {
         state.unblockAllChannels();
         return new AlternatingWaitingForFirstBarrier(state.emptyState());
     }
