@@ -76,7 +76,7 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 
 **Checkpoints:** 算子的 `snapshotState()` 方法是在收到 checkpoint barrier 后异步调用的。Checkpoint 在处理阶段执行，即算子打开之后，结束之前的这个阶段。这个方法的职责是存储算子的当前状态到一个特定的[状态后端]({{< ref "docs/ops/state/state_backends" >}})，当作业失败后恢复执行时会从这个后端恢复状态数据。下面我们简要描述了 Flink 的 checkpoint 机制，如果想了解更多 Flink checkpoint 相关的原理，可以读一读 [数据流容错]({{< ref "docs/learn-flink/fault_tolerance" >}})。
 
-<a name="task-lifecycle"> </a>
+<a name="task-lifecycle-1"> </a>
 
 ## Task 生命周期
 
