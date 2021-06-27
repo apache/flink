@@ -27,6 +27,8 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import okhttp3.logging.HttpLoggingInterceptor;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -431,6 +433,13 @@ public class KubernetesConfigOptions {
                                     + "Configure the value to greater than 1 to start standby JobManagers. "
                                     + "It will help to achieve faster recovery. "
                                     + "Notice that high availability should be enabled when starting standby JobManagers.");
+
+    public static final ConfigOption<HttpLoggingInterceptor.Level> KUBERNETES_OK_HTTP_LOG_LEVEL =
+            key("kubernetes.okhttp.log-level")
+                    .enumType(HttpLoggingInterceptor.Level.class)
+                    .defaultValue(HttpLoggingInterceptor.Level.NONE)
+                    .withDescription(
+                            "The log level set for http client used to talk to kubernetes master");
 
     private static String getDefaultFlinkImage() {
         // The default container image that ties to the exact needed versions of both Flink and
