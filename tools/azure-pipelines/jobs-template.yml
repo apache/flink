@@ -129,6 +129,22 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
 
+  - task: Cache@2
+    inputs:
+      key: '"$(module)" | $(TESTCONTAINER_CACHE_KEY)'
+      restoreKeys: '"$(module)" | $(TESTCONTAINER_CACHE_FALLBACK_KEY)'
+      path: $(TESTCONTAINER_CACHE_FOLDER)
+      cacheHitVar: TESTCONTAINER_CACHE_HIT
+    continueOnError: true
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache Testcontainer docker images
+
+  - script: |
+      docker load -i $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+    displayName: Restore Testcontainer docker images
+    condition: and(not(canceled()), eq(variables.TESTCONTAINER_CACHE_HIT, 'true'))
+    continueOnError: true
+
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
@@ -159,6 +175,13 @@ jobs:
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+
+  - script: |
+      mkdir -p $(TESTCONTAINER_CACHE_FOLDER)
+      docker save $(docker image ls --format "{{.Repository}}:{{.Tag}}") -o $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+    displayName: Save Testcontainer docker images
+    condition: and(not(canceled()), or(failed(), ne(variables.TESTCONTAINER_CACHE_HIT, 'true')))
+    continueOnError: true
 
 - job: e2e_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
