@@ -238,7 +238,6 @@ Table API支持如下操作。请注意不是所有的操作都可以既支持�
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 和 SQL 查询的 `FROM` 子句类似。
-
 执行一个注册过的表的扫描。
 
 {{< tabs "from" >}}
@@ -265,9 +264,7 @@ orders = t_env.from_path("Orders")
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 和 SQL 查询中的 `VALUES` 子句类似。
-
 基于提供的行生成一张内联表。
-
 你可以使用 `row(...)` 表达式创建复合行：
 
 {{< tabs "fromvalues" >}}
@@ -305,7 +302,6 @@ root
 ```
 
 这个方法会根据输入的表达式自动获取类型。如果在某一个特定位置的类型不一致，该方法会尝试寻找一个所有类型的公共超类型。如果公共超类型不存在，则会抛出异常。
-
 你也可以明确指定所需的类型。指定如 DECIMAL 这样的一般类型或者给列命名可能是有帮助的。
 
 {{< tabs "fromvalueswithtype" >}}
@@ -356,7 +352,6 @@ root
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 和 SQL 的 `SELECT` 子句类似。
-
 执行一个 select 操作。
 
 {{< tabs "select" >}}
@@ -433,7 +428,6 @@ result = orders.alias("x, y, z, t")
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 和 SQL 的 `WHERE` 子句类似。
-
 过滤掉未验证通过过滤谓词的行。
 
 {{< tabs "where" >}}
@@ -488,7 +482,6 @@ result = orders.filter(orders.a == 'red')
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 执行字段添加操作。
-
 如果所添加的字段已经存在，将抛出异常。
 
 {{< tabs "addcolumns" >}}
@@ -520,9 +513,7 @@ result = orders.add_columns(concat(orders.c, 'sunny'))
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 执行字段添加操作。
-
 如果添加的列名称和已存在的列名称相同，则已存在的字段将被替换。
-
 此外，如果添加的字段里面有重复的字段名，则会使用最后一个字段。
 
 {{< tabs "addorreplacecolumns" >}}
@@ -578,7 +569,6 @@ result = orders.drop_columns(orders.b, orders.c)
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 执行字段重命名操作。
-
 字段表达式应该是别名表达式，并且仅当字段已存在时才能被重命名。
 
 {{< tabs "renamecolumns" >}}
@@ -613,7 +603,6 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 {{< label "Result Updating" >}}
 
 和 SQL 的 `GROUP BY` 子句类似。
-
 使用跟着分组键的运行聚合运算符对行进行分组，来按照组聚合行。
 
 {{< tabs "groupby" >}}
@@ -688,7 +677,6 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 #### Over Window Aggregation 
 
 和 SQL 的 `OVER` 语句类似。
-
 更多细节详见 [over windows section](#over-windows)
 
 {{< tabs "overwindowagg" >}}
@@ -751,9 +739,7 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
 {{< label "Result Updating" >}}
 
 和 SQL DISTINCT 聚合子句类似，例如 `COUNT(DISTINCT a)`。
-
 Distinct 聚合声明的聚合函数（内置或用户定义的）仅应用于不同的输入值。
-
 Distinct 可以应用于 **GroupBy Aggregation**、**GroupBy Window Aggregation** 和 **Over Window Aggregation**。
 
 {{< tabs "distinctagg" >}}
@@ -871,7 +857,6 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 {{< label "Result Updating" >}}
 
 和 SQL 的 `DISTINCT` 子句类似。
-
 返回具有不同值组合的记录。
 
 {{< tabs "distinct" >}}
@@ -945,9 +930,7 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
 {{< label "Result Updating" >}}
 
 和 SQL `LEFT`/`RIGHT`/`FULL OUTER JOIN` 语句类似。
-
 关联两张表。
-
 两张表必须有不同的字段名，并且必须定义至少一个等价连接谓词。
 
 {{< tabs "outerjoin" >}}
@@ -1043,7 +1026,6 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。
-
 如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
@@ -1092,7 +1074,6 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
-
 目前，表函数左外连接的谓词只能为空或字面真。
 
 {{< tabs "outerudtf" >}}
@@ -1139,9 +1120,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 #### Join with Temporal Table
 
 Temporal table 是跟踪随时间变化的表。
-
 Temporal table 函数提供对特定时间点 temporal table 状态的访问。将表与 temporal table 函数 join 的语法与和表函数的 inner join 相同。
-
 目前仅支持与temporal table的inner join。
 
 {{< tabs "temporaltablefunc" >}}
@@ -1174,7 +1153,7 @@ val result = orders
 ```
 {{< /tabs >}}
 {{< tab "Python" >}}
-Currently not supported in Python Table API.
+目前 Python 的 Table API 不支持。
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1219,7 +1198,6 @@ left.union(right)
 {{< label Batch >}} {{< label Streaming >}}
 
 和 SQL `UNION ALL` 子句类似。Union 两张表。
-
 两张表必须具有相同的字段类型。
 
 {{< tabs "unionall" >}}
@@ -1487,7 +1465,6 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 {{< label Batch >}} {{< label Streaming >}}
 
 和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。`executeInsert()` 方法将立即提交执行插入操作的 Flink job。
-
 输出表必须在 TableEnvironment (详见表连接器) 中注册。此外，注册的表的 schema 必须与查询的 schema 相匹配。
 
 {{< tabs "insertinto" >}}
@@ -1522,7 +1499,6 @@ Group window 聚合根据时间或行计数间隔将行分为有限组，并为�
 {{< tab "Java" >}}
 
 窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
-
 以下示例展示了如何在表上定义窗口聚合。
 
 ```java
@@ -1535,7 +1511,6 @@ Table table = input
 {{< tab "Scala" >}}
 
 窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
-
 以下示例展示了如何在表上定义窗口聚合。
 
 ```scala
@@ -1548,7 +1523,6 @@ val table = input
 {{< tab "Python" >}}
 
 窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
-
 以下示例展示了如何在表上定义窗口聚合。
 
 ```python
@@ -1563,7 +1537,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< tab "Java" >}}
 
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
-
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```java
@@ -1576,7 +1549,6 @@ Table table = input
 {{< tab "Scala" >}}
 
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
-
 以下示例展示了如何定义有附加分组属性的窗口聚合。。
 
 ```scala
@@ -1589,7 +1561,6 @@ val table = input
 {{< tab "Python" >}}
 
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
-
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```python
@@ -2020,7 +1991,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 ### Over Windows
 
 Over window 聚合是在标准 SQL（`OVER` 子句）中被知晓，并在 `SELECT` 查询子句中定义的。与在“GROUP BY”子句中指定的 group window 不同， over window 不会折叠行。相反，over window 聚合为每个输入行在其相邻行的范围内计算聚合。
-
 Over windows 使用 `window(w: OverWindow*)` 子句（在 Python API 中使用 `over_window(*OverWindow)`）定义，并通过 `select()` 方法中的别名引用。以下示例显示如何在表上定义 over window 聚合。
 
 {{< tabs "92e08076-6823-451b-b54f-8e58c1b54dc3" >}}
@@ -2054,50 +2024,36 @@ table = input.over_window([w: OverWindow].alias("w")) \
 #### Partition By 
 
 **可选的**
-
 在一个或多个属性上定义输入的分区。每个分区单独排序，聚合函数分别应用于每个分区。
-
 注意：在流环境中，如果窗口包含 partition by 子句，则只能并行计算 over window 聚合。如果没有 partitionBy(...)，数据流将由单个非并行任务处理。
 
 #### Order By 
 
 **必须的**
-
 定义每个分区内行的顺序，从而定义聚合函数应用于行的顺序。
-
 注意：对于流处理查询，必须声明事件时间或处理时间属性。目前，仅支持单个排序属性。
 
 #### Preceding
 
 **可选的**
-
 定义了包含在窗口中并位于当前行之前的行的间隔。间隔可以是时间或行计数间隔。
-
 有界 over window 用间隔的大小指定，例如，时间间隔为10分钟或行计数间隔为10行。
-
 无界 over window 通过常量来指定，例如，用UNBOUNDED_RANGE指定时间间隔或用 UNBOUNDED_ROW 指定行计数间隔。无界 over windows 从分区的第一行开始。
-
 如果省略前面的子句，则使用 UNBOUNDED_RANGE 和 CURRENT_RANGE 作为窗口前后的默认值。
 
 #### Following
 
 **可选的**
-
 定义包含在窗口中并在当前行之后的行的窗口间隔。间隔必须以与前一个间隔（时间或行计数）相同的单位指定。
-
 目前，不支持在当前行之后有行的 over window。相反，你可以指定两个常量之一：
-
 * `CURRENT_ROW` 将窗口的上限设置为当前行。
 * `CURRENT_RANGE` 将窗口的上限设置为当前行的排序键，例如，与当前行具有相同排序键的所有行都包含在窗口中。
-
 如果省略后面的子句，则时间间隔窗口的上限定义为 `CURRENT_RANGE`，行计数间隔窗口的上限定义为CURRENT_ROW。
 
 #### As
 
 **必须的**
-
 为 over window 指定别名。别名用于在之后的 `select()` 子句中引用该 over window。
-
 注意：目前，同一个 select() 调用中的所有聚合函数必须在同一个 over window 上计算。
 
 #### Unbounded Over Windows
@@ -2255,7 +2211,6 @@ val table = input
 {{< tab "Python" >}}
 
 使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行map操作。
-
 如果输出类型是复合类型，则输出将被展平。
 
 ```python
@@ -2586,7 +2541,6 @@ t.select(t.b, t.rowtime) \
 {{< tab "Java" >}}
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
-
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```java
@@ -2650,7 +2604,6 @@ Table result = orders
 {{< tab "Scala" >}}
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
-
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```scala
@@ -2718,7 +2671,6 @@ val result = orders
 {{< tab "Python" >}}
 
 使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
-
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flat_aggregate”。并且 select 语句不支持聚合函数。
 
 ```python
@@ -2777,11 +2729,8 @@ result = t.select(t.a, t.c) \
 ----------
 
 请查看[数据类型]({{< ref "docs/dev/table/types" >}})的专门页面。
-
 行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类 )。
-
 任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
-
 [用户定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将一般类型当作黑匣子一样来传输和处理。
 
 {{< top >}}
