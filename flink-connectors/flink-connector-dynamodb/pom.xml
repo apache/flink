@@ -33,8 +33,6 @@ under the License.
 	<name>Flink : Connectors : DynamoDB</name>
 	<properties>
 		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
-		<httpclient.version>4.5.9</httpclient.version>
-		<httpcore.version>4.4.11</httpcore.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -66,23 +64,8 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>netty-nio-client</artifactId>
-			<version>${aws.sdkv2.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>sts</artifactId>
 			<version>${aws.sdkv2.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<version>${httpclient.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpcore</artifactId>
-			<version>${httpcore.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -102,28 +85,13 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
-									<include>org.apache.httpcomponents:*</include>
 									<include>software.amazon.awssdk:*</include>
-									<include>io.netty:*</include>
-									<include>com.typesafe.netty:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
 								<relocation>
-									<pattern>org.apache.http</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.org.apache.http</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>software.amazon</pattern>
 									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.io.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.typesafe.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis.shaded.com.typesafe.netty</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
