@@ -169,12 +169,12 @@ class TemporalJoinRewriteWithUniqueKeyRule extends RelOptRule(
       val upsertKeySetInputRefs = upsertKeySet.filter(_.nonEmpty)
         .map(_.toArray
           .map(fields)
-          // build InputRef of unique key in snapshot
+          // build InputRef of upsert key in snapshot
           .map(f => rexBuilder.makeInputRef(
             f.getType,
             leftFieldCnt + rightFields.indexOf(f)))
           .toSeq)
-      // select shortest unique key as primary key
+      // select shortest upsert key as primary key
       upsertKeySetInputRefs
         .toArray
         .sortBy(_.length)

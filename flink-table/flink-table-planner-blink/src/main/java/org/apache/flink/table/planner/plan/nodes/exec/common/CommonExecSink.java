@@ -59,7 +59,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.sink.SinkNotNullEnforcer;
 import org.apache.flink.table.runtime.operators.sink.SinkOperator;
-import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterialize;
+import org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializer;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -166,8 +166,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 GeneratedRecordEqualiser equaliser =
                         new EqualiserCodeGenerator(physicalRowType)
                                 .generateRecordEqualiser("SinkMaterializeEqualiser");
-                SinkUpsertMaterialize operator =
-                        new SinkUpsertMaterialize(
+                SinkUpsertMaterializer operator =
+                        new SinkUpsertMaterializer(
                                 StateConfigUtil.createTtlConfig(
                                         tableConfig.getIdleStateRetention().toMillis()),
                                 InternalTypeInfo.of(physicalRowType).toSerializer(),
@@ -175,7 +175,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 OneInputTransformation<RowData, RowData> materializeTransform =
                         new OneInputTransformation<>(
                                 inputTransform,
-                                "SinkMaterialize",
+                                "SinkMaterializer",
                                 operator,
                                 inputTransform.getOutputType(),
                                 sinkParallelism);

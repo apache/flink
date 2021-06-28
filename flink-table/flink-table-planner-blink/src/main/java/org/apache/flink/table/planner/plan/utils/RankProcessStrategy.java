@@ -144,7 +144,7 @@ public interface RankProcessStrategy {
                     mq.getUpsertKeysInKeyGroupRange(input, partitionKey.toArray());
             if (upsertKeys == null
                     || upsertKeys.isEmpty()
-                    // unique key should contains partition key
+                    // upsert key should contains partition key
                     || upsertKeys.stream().noneMatch(k -> k.contains(partitionKey))) {
                 // and we fall back to using retract rank
                 return Collections.singletonList(RETRACT_STRATEGY);

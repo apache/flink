@@ -52,12 +52,12 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
  *   <li>For delete record, delete in the state, collect the last one when the state is not empty.
  * </ul>
  */
-public class SinkUpsertMaterialize extends TableStreamOperator<RowData>
+public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
         implements OneInputStreamOperator<RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(SinkUpsertMaterialize.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SinkUpsertMaterializer.class);
 
     private static final String STATE_CLEARED_WARN_MSG =
             "The state is cleared because of state ttl. This will result in incorrect result. "
@@ -71,7 +71,7 @@ public class SinkUpsertMaterialize extends TableStreamOperator<RowData>
     private transient ValueState<List<RowData>> state;
     private transient TimestampedCollector<RowData> collector;
 
-    public SinkUpsertMaterialize(
+    public SinkUpsertMaterializer(
             StateTtlConfig ttlConfig,
             TypeSerializer<RowData> serializer,
             GeneratedRecordEqualiser generatedEqualiser) {
