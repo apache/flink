@@ -69,7 +69,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
 /** The util class help to prepare Python env and run the python process. */
-public final class PythonEnvUtils {
+final class PythonEnvUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
 
     static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
@@ -149,7 +149,7 @@ public final class PythonEnvUtils {
      * @param libPath the pyflink lib file path.
      * @param symbolicLinkPath the symbolic link to pyflink lib.
      */
-    public static void createSymbolicLink(
+    private static void createSymbolicLink(
             java.nio.file.Path libPath, java.nio.file.Path symbolicLinkPath) throws IOException {
         try {
             Files.createSymbolicLink(symbolicLinkPath, libPath);
