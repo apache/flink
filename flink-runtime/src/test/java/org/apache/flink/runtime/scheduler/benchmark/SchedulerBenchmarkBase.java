@@ -16,26 +16,23 @@
  * limitations under the License
  */
 
-package org.apache.flink.runtime.scheduler.benchmark.deploying;
+package org.apache.flink.runtime.scheduler.benchmark;
 
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.testutils.TestingUtils;
 
-import org.junit.Test;
+import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * The benchmark of deploying downstream tasks in a BATCH job. The related method is {@link
- * Execution#deploy}.
- */
-public class DeployingDownstreamTasksInBatchJobBenchmarkTest extends TestLogger {
+/** Base class of all scheduler benchmarks. */
+public class SchedulerBenchmarkBase {
+    public ScheduledExecutorService scheduledExecutorService;
 
-    @Test
-    public void deployDownstreamTasks() throws Exception {
-        DeployingDownstreamTasksInBatchJobBenchmark benchmark =
-                new DeployingDownstreamTasksInBatchJobBenchmark();
-        benchmark.setup(JobConfiguration.BATCH_TEST);
-        benchmark.deployDownstreamTasks();
-        benchmark.teardown();
+    public void setup() {
+        scheduledExecutorService = TestingUtils.defaultExecutor();
+    }
+
+    public void teardown() {
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdownNow();
+        }
     }
 }

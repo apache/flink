@@ -36,5 +36,6 @@ public class DeployingTasksInStreamingJobBenchmarkTest extends TestLogger {
                 new DeployingTasksInStreamingJobBenchmark();
         benchmark.setup(JobConfiguration.STREAMING_TEST);
         benchmark.deployAllTasks();
+        benchmark.teardown();
     }
 }
