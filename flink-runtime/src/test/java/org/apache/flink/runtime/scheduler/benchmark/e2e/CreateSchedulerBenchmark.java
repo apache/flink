@@ -21,9 +21,10 @@ package org.apache.flink.runtime.scheduler.benchmark.e2e;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 
 /** The benchmark of creating the scheduler in a STREAMING/BATCH job. */
-public class CreateSchedulerBenchmark extends SchedulerBenchmarkBase {
+public class CreateSchedulerBenchmark extends SchedulerEndToEndBenchmarkBase {
 
     public DefaultScheduler createScheduler() throws Exception {
-        return createScheduler(jobGraph, physicalSlotProvider, mainThreadExecutor);
+        return createScheduler(
+                jobGraph, physicalSlotProvider, mainThreadExecutor, scheduledExecutorService);
     }
 }

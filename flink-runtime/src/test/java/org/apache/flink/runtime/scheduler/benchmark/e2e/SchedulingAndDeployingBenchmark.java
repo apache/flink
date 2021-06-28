@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
  * The benchmark of scheduling and deploying tasks in a STREAMING/BATCH job. The related method is
  * {@link DefaultScheduler#startScheduling}.
  */
-public class SchedulingAndDeployingBenchmark extends SchedulerBenchmarkBase {
+public class SchedulingAndDeployingBenchmark extends SchedulerEndToEndBenchmarkBase {
 
     private DefaultScheduler scheduler;
 
@@ -36,7 +36,12 @@ public class SchedulingAndDeployingBenchmark extends SchedulerBenchmarkBase {
 
         super.setup(jobConfiguration);
 
-        scheduler = createScheduler(jobGraph, physicalSlotProvider, mainThreadExecutor);
+        scheduler =
+                createScheduler(
+                        jobGraph,
+                        physicalSlotProvider,
+                        mainThreadExecutor,
+                        scheduledExecutorService);
     }
 
     public void startScheduling() throws Exception {

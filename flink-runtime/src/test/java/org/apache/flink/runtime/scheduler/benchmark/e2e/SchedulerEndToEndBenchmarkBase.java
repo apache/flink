@@ -35,16 +35,17 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
+import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -56,16 +57,16 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
  * The base class of benchmarks related to {@link DefaultScheduler}'s creation, scheduling and
  * deploying.
  */
-public class SchedulerBenchmarkBase {
+public class SchedulerEndToEndBenchmarkBase extends SchedulerBenchmarkBase {
 
-    ScheduledExecutorService scheduledExecutorService;
     ComponentMainThreadExecutor mainThreadExecutor;
 
     JobGraph jobGraph;
     PhysicalSlotProvider physicalSlotProvider;
 
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        super.setup();
+
         mainThreadExecutor =
                 ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                         scheduledExecutorService);
@@ -76,12 +77,6 @@ public class SchedulerBenchmarkBase {
         physicalSlotProvider =
                 createPhysicalSlotProvider(
                         jobConfiguration, jobVertices.size(), mainThreadExecutor);
-    }
-
-    public void teardown() throws Exception {
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdownNow();
-        }
     }
 
     private static PhysicalSlotProvider createPhysicalSlotProvider(
@@ -132,9 +127,13 @@ public class SchedulerBenchmarkBase {
     static DefaultScheduler createScheduler(
             JobGraph jobGraph,
             PhysicalSlotProvider physicalSlotProvider,
-            ComponentMainThreadExecutor mainThreadExecutor)
+            ComponentMainThreadExecutor mainThreadExecutor,
+            ScheduledExecutorService executorService)
             throws Exception {
         return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
+                .setFutureExecutor(executorService)
+                .setIoExecutor(executorService)
+                .setDelayExecutor(new ScheduledExecutorServiceAdapter(executorService))
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider))
