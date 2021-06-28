@@ -14,6 +14,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:aws-java-sdk-kms:1.12.7
 - com.amazonaws:aws-java-sdk-s3:1.12.7
 - com.amazonaws:aws-java-sdk-sts:1.12.7
+- com.amazonaws:aws-java-sdk-cloudwatch:1.12.7
 - com.amazonaws:dynamodb-streams-kinesis-adapter:1.5.3
 - com.amazonaws:jmespath-java:1.12.7
 - org.apache.httpcomponents:httpclient:4.5.9
