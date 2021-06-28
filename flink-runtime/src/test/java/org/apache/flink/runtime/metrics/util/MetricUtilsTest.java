@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -97,7 +96,7 @@ public class MetricUtilsTest extends TestLogger {
 
             assertThat(threadPriority, is(expectedThreadPriority));
         } finally {
-            AkkaUtils.terminateActorSystem(actorSystem).get();
+            rpcService.stopService().get();
         }
     }
 
