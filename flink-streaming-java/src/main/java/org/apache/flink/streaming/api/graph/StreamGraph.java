@@ -253,6 +253,11 @@ public class StreamGraph implements Pipeline {
         return Optional.ofNullable(slotSharingGroupResources.get(groupId));
     }
 
+    public boolean hasFineGrainedResource() {
+        return slotSharingGroupResources.values().stream()
+                .anyMatch(resourceProfile -> !resourceProfile.equals(ResourceProfile.UNKNOWN));
+    }
+
     /**
      * Set whether to put all vertices into the same slot sharing group by default.
      *
