@@ -102,6 +102,62 @@ public class ExecutionGraphRestartTest extends TestLogger {
     }
 
     @Test
+    public void testCancelAllPendingRequestWhileCanceling() throws Exception {
+        try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
+
+            TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
+            // create a graph with task count larger than slot pool
+            JobVertex sender =
+                    ExecutionGraphTestUtils.createJobVertex(
+                            "Task", NUM_TASKS + NUM_TASKS_EXCEED_SLOT_POOL, NoOpInvokable.class);
+            JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
+            SchedulerBase scheduler =
+                    SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(
+                                            slotPool, taskManagerLocation))
+                            .build();
+            ExecutionGraph executionGraph = scheduler.getExecutionGraph();
+
+            startScheduling(scheduler);
+            assertEquals(NUM_TASKS_EXCEED_SLOT_POOL, slotPool.getPendingRequests().size());
+
+            scheduler.cancel();
+            assertEquals(JobStatus.CANCELLING, executionGraph.getState());
+            assertEquals(0, slotPool.getPendingRequests().size());
+        }
+    }
+
+    @Test
+    public void testCancelAllPendingRequestWhileFailing() throws Exception {
+        try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
+
+            TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+            final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
+            // create a graph with task count larger than slot pool
+            JobVertex sender =
+                    ExecutionGraphTestUtils.createJobVertex(
+                            "Task", NUM_TASKS + NUM_TASKS_EXCEED_SLOT_POOL, NoOpInvokable.class);
+            JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
+            SchedulerBase scheduler =
+                    SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
+                            .setExecutionSlotAllocatorFactory(
+                                    createExecutionSlotAllocatorFactory(
+                                            slotPool, taskManagerLocation))
+                            .build();
+            ExecutionGraph executionGraph = scheduler.getExecutionGraph();
+
+            startScheduling(scheduler);
+            assertEquals(NUM_TASKS_EXCEED_SLOT_POOL, slotPool.getPendingRequests().size());
+
+            scheduler.handleGlobalFailure(new Exception("test"));
+            assertEquals(JobStatus.FAILING, executionGraph.getState());
+            assertEquals(0, slotPool.getPendingRequests().size());
+        }
+    }
+
+    @Test
     public void testCancelWhileRestarting() throws Exception {
         // We want to manually control the restart and delay
         try (SlotPool slotPool = createSlotPoolImpl()) {

@@ -48,7 +48,9 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.topology.Vertex;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
@@ -167,6 +169,13 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     @Override
     protected long getNumberOfRestarts() {
         return executionFailureHandler.getNumberOfRestarts();
+    }
+
+    @Override
+    protected void cancelAllPendingSlotRequestsInternal() {
+        IterableUtils.toStream(getSchedulingTopology().getVertices())
+                .map(Vertex::getId)
+                .forEach(executionSlotAllocator::cancel);
     }
 
     @Override
