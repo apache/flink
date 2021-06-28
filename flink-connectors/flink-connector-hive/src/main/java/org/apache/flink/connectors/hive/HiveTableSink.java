@@ -221,7 +221,9 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray()));
-        builder.setDynamicGrouped(dynamicGrouping);
+        // dynamicGrouping also requires the sink's parallelism is equal to the parallelism
+        // of upstream, otherwise the elements of different partitions will be mixed
+        builder.setDynamicGrouped(dynamicGrouping && dataStream.getParallelism() == parallelism);
         builder.setPartitionColumns(getPartitionKeyArray());
         builder.setFileSystemFactory(fsFactory());
         builder.setFormatFactory(new HiveOutputFormatFactory(recordWriterFactory));
