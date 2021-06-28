@@ -885,9 +885,9 @@ result = orders.distinct()
 
 {{< top >}}
 
-### join
+### Joins
 
-#### inner join
+#### Inner Join
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
@@ -925,7 +925,7 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
 
 {{< query_state_warning >}}
 
-#### outer join
+#### Outer Join
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
@@ -973,12 +973,11 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
 
 {{< query_state_warning >}}
 
-#### interval join
+#### Interval Join
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 Interval join 是可以以流方式处理的常规 join 的子集。
-
 Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界限的 join 条件。这种条件可以由两个合适的范围谓词（`<、<=、>=、>`）或一个比较两个输入表相同类型（即处理时间或事件时间）的时间属性的相等谓词来定义。
 
 {{< tabs "intervaljoin" >}}
