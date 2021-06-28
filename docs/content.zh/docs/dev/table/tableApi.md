@@ -28,25 +28,26 @@ under the License.
 
 # Table API
 
-The Table API is a unified, relational API for stream and batch processing. Table API queries can be run on batch or streaming input without modifications. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. The Table API is a language-integrated API for Scala, Java and Python. Instead of specifying queries as String values as common with SQL, Table API queries are defined in a language-embedded style in Java, Scala or Python with IDE support like autocompletion and syntax validation. 
+Table API 是批处理和流处理的统一的关系 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对Apache Flink 专门设计的。Table API 集成了 Scala, Java 和 Python 语言的 API。Table API 的查询是使用  Java, Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
 
-The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({{< ref "docs/dev/table/common" >}}) to learn how to register tables or to create a `Table` object. The [Streaming Concepts]({{< ref "docs/dev/table/concepts/overview" >}}) pages discuss streaming specific concepts such as dynamic tables and time attributes.
+Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个表对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
-The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) in streaming or a regular timestamp field in batch.
+下面的例子假设了一张名称是 `Orders` 有属性 `(a, b, c, rowtime)` 的表。`rowtime` 字段是流中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批中的普通时间戳字段。
 
 
-Overview & Examples
+概述 & 例子
 -----------------------------
 
-The Table API is available for Scala, Java and Python. The Scala Table API leverages on Scala expressions, the Java Table API supports both Expression DSL and strings which are parsed and converted into equivalent expressions, the Python Table API currently only supports strings which are parsed and converted into equivalent expressions.
+Table API 支持 Scala, Java 和 Python 语言。Scala 语言的 Table API 利用了 Scala 表达式，Java 语言的 Table API 支持 DSL 表达式和解析并转换为等价表达式的字符串，Python 语言的 Table API 仅支持解析并转换为等价表达式的字符串。
 
-The following example shows the differences between the Scala, Java and Python Table API. The table program is executed in a batch environment. It scans the `Orders` table, groups by field `a`, and counts the resulting rows per group.
+下面的例子展示了 Scala、Java 和 Python 语言的 Table API 的不同之处。表程序是在批环境下执行的。程序扫描了 `Orders` 表，通过字段 `a` 进行分组，并计算了每组结果的行数。
 
 {{< tabs "8ffbc88b-54d7-4936-9a53-b63cb22c4a56" >}}
 {{< tab "Java" >}}
 
-The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. The following example shows how a Java Table API program is constructed and how expressions are specified as strings.
-For the Expression DSL it is also necessary to import static `org.apache.flink.table.api.Expressions.*`
+ Java 的 Table API 通过引入 `org.apache.flink.table.api.java.*` 来使用。下面的例子展示了如何创建一个 Java 的 Table API 程序，以及表达式是如何指定为字符串的。
+
+使用DSL表达式时也需要引入静态的 `org.apache.flink.table.api.Expressions.*`。
 
 ```java
 import org.apache.flink.table.api.*;
@@ -77,9 +78,9 @@ counts.execute().print();
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-The Scala Table API is enabled by importing `org.apache.flink.table.api._`, `org.apache.flink.api.scala._`, and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
+Scala 的 Table API 通过引入 `org.apache.flink.table.api._`、`org.apache.flink.api.scala._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
 
-The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
+下面的例子展示了如何创建一个 Scala 的 Table API 程序。通过 Scala 的带美元符号 (`$`)的字符串插值来实现表字段引用。
 
 ```scala
 import org.apache.flink.api.scala._
@@ -110,7 +111,7 @@ val result = orders
 {{< /tab >}}
 {{< tab "Python" >}}
 
-The following example shows how a Python Table API program is constructed and how expressions are specified as strings.
+下面的例子展示了如何创建一个 Python 的 Table API 程序，以及表达式是如何指定为字符串的。
 
 ```python
 from pyflink.table import *
@@ -159,7 +160,7 @@ orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_inser
 {{< /tab >}}
 {{< /tabs >}}
 
-The next example shows a more complex Table API program. The program scans again the `Orders` table. It filters null values, normalizes the field `a` of type String, and calculates for each hour and product `a` the average billing amount `b`.
+下一个例子展示了一个更加复杂的 Table API 程序。这个程序也扫描 `Orders` 表。程序过滤了空值，使字符串类型的字段 `a` 标准化，并且每个小时计算并返回 `a` 的平均账单金额 `b`。
 
 {{< tabs "6df651bc-ae06-44de-a36c-6a1e6d1b7355" >}}
 {{< tab "Java" >}}
@@ -221,26 +222,28 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 {{< /tab >}}
 {{< /tabs >}}
 
-Since the Table API is a unified API for batch and streaming data, both example programs can be executed on batch and streaming inputs without any modification of the table program itself. In both cases, the program produces the same results given that streaming records are not late (see [Streaming Concepts]({{< ref "docs/dev/table/concepts/overview" >}}) for details).
+因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要在流记录不存在延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/dev/table/concepts/overview" >}})获取详情)。
 
 {{< top >}}
 
-Operations
+操作
 ----------
 
-The Table API supports the following operations. Please note that not all operations are available in both batch and streaming yet; they are tagged accordingly.
+Table API支持如下操作。请注意不是所有的操作都可以既支持流也支持批；这些操作也被如是标记了。
 
-### Scan, Projection, and Filter
+### Scan, Projection, and Filter 
 
 #### From
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Similar to the `FROM` clause in a SQL query.
-Performs a scane of registered table.
+和 SQL 查询的 `FROM` 子句类似。
+
+执行一个注册过的表的扫描。
 
 {{< tabs "from" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 ```
@@ -261,10 +264,11 @@ orders = t_env.from_path("Orders")
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Similar to the `VALUES` clause in a SQL query.
-Produces an inline table out of the provided rows.
+和 SQL 查询中的 `VALUES` 子句类似。
 
-You can use a `row(...)` expression to create composite rows:
+基于提供的行生成一张内联表。
+
+你可以使用 `row(...)` 表达式创建复合行：
 
 {{< tabs "fromvalues" >}}
 {{< tab "Java" >}}
@@ -290,7 +294,7 @@ table = t_env.from_elements([(1, 'ABC'), (2, 'ABCDE')])
 {{< /tab >}}
 {{< /tabs >}}
 
-will produce a Table with a schema as follows:
+这将生成一张结构如下的表：
 
 ```
 root
@@ -300,9 +304,9 @@ root
                             // no padding is applied
 ```
 
-The method will derive the types automatically from the input expressions. If types at a certain position differ, the method will try to find a common super type for all types. If a common super type does not exist, an exception will be thrown.
+这个方法会根据输入的表达式自动获取类型。如果在某一个特定位置的类型不一致，该方法会尝试寻找一个所有类型的公共超类型。如果公共超类型不存在，则会抛出异常。
 
-You can also specify the requested type explicitly. It might be helpful for assigning more generic types like e.g. DECIMAL or naming the columns.
+你也可以明确指定所需的类型。指定如 DECIMAL 这样的一般类型或者给列命名可能是有帮助的。
 
 {{< tabs "fromvalueswithtype" >}}
 {{< tab "Java" >}}
@@ -339,7 +343,7 @@ table = t_env.from_elements(
 {{< /tab >}}
 {{< /tabs >}}
 
-will produce a Table with the following schema: 
+这将生成一张结构如下的表：
 
 ```
 root
@@ -351,8 +355,9 @@ root
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Similar to a SQL `SELECT` statement. 
-Performs a select operation.
+和 SQL 的 `SELECT` 子句类似。
+
+执行一个 select 操作。
 
 {{< tabs "select" >}}
 {{< tab "Java" >}}
@@ -375,7 +380,7 @@ result = orders.select(orders.a, orders.c.alias('d'))
 {{< /tab >}}
 {{< /tabs >}}
 
-You can use star `(*)` to act as a wild card, selecting all of the columns in the table.
+你可以选择星号 `(*)` 作为通配符，select 表中的所有列。
 
 {{< tabs "selectstar" >}}
 {{< tab "Java" >}}
@@ -401,7 +406,7 @@ result = orders.select(col("*"))
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Renames fields.
+重命名字段。
 
 {{< tabs "as" >}}
 {{< tab "Java" >}}
@@ -427,11 +432,13 @@ result = orders.alias("x, y, z, t")
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Similar to a SQL `WHERE` clause.
-Filters out rows that do not pass the filter predicate.
+和 SQL 的 `WHERE` 子句类似。
+
+过滤掉未验证通过过滤谓词的行。
 
 {{< tabs "where" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.where($("b").isEqual("red"));
@@ -451,7 +458,7 @@ result = orders.where(orders.a == 'red')
 {{< /tab >}}
 {{< /tabs >}}
 
-Or
+或者
 
 {{< tabs "filter" >}}
 {{< tab "Java" >}}
@@ -474,18 +481,19 @@ result = orders.filter(orders.a == 'red')
 {{< /tab >}}
 {{< /tabs >}}
 
-
-### Column Operations
+### 列操作
 
 #### AddColumns
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Performs a field add operation.
-It will throw an exception if the added fields already exist.
+执行字段添加操作。
+
+如果所添加的字段已经存在，将抛出异常。
 
 {{< tabs "addcolumns" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.addColumns(concat($("c"), "sunny"));
@@ -511,9 +519,11 @@ result = orders.add_columns(concat(orders.c, 'sunny'))
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Performs a field add operation.
-Existing fields will be replaced if the added column name is the same as the existing column name.
-Moreover, if the added fields have duplicate field name, then the last one is used. 
+执行字段添加操作。
+
+如果添加的列名称和已存在的列名称相同，则已存在的字段将被替换。
+
+此外，如果添加的字段里面有重复的字段名，则会使用最后一个字段。
 
 {{< tabs "addorreplacecolumns" >}}
 {{< tab "Java" >}}
@@ -567,11 +577,13 @@ result = orders.drop_columns(orders.b, orders.c)
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Performs a field rename operation.
-The field expressions should be alias expressions, and only the existing fields can be renamed.
+执行字段重命名操作。
+
+字段表达式应该是别名表达式，并且仅当字段已存在时才能被重命名。
 
 {{< tabs "renamecolumns" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
@@ -593,18 +605,20 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 
 {{< top >}}
 
-### Aggregations
+### Aggregations 
 
 #### GroupBy Aggregation
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
-Similar to a SQL `GROUP BY` clause.
-Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.
+和 SQL 的 `GROUP BY` 子句类似。
+
+使用跟着分组键的运行聚合运算符对行进行分组，来按照组聚合行。
 
 {{< tabs "groupby" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
@@ -630,7 +644,7 @@ result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Groups and aggregates a table on a [group window](#group-windows) and possibly one or more grouping keys.
+对表在[分组窗口](#group-windows)和可能的一个或多个聚合键进行分组和聚合。 
 
 {{< tabs "groupbywindow" >}}
 {{< tab "Java" >}}
@@ -671,14 +685,15 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Over Window Aggregation
+#### Over Window Aggregation 
 
-Similar to a SQL `OVER` clause.
-Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows.
-See the [over windows section](#over-windows) for more details.
+和 SQL 的 `OVER` 语句类似。
+
+更多细节详见 [over windows section](#over-windows)
 
 {{< tabs "overwindowagg" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders
@@ -728,19 +743,22 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
 {{< /tab >}}
 {{< /tabs >}}
 
-All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
+所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前，只支持PRECEDING 到当前行范围  (无界或有界)的窗口。目前还不支持FOLLOWING 范围的窗口。ORDER BY必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
 
 #### Distinct Aggregation
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
-Similar to a SQL DISTINCT aggregation clause such as `COUNT(DISTINCT a)`.
-Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values.
-Distinct can be applied to **GroupBy Aggregation**, **GroupBy Window Aggregation** and **Over Window Aggregation**.
+和 SQL DISTINCT 聚合子句类似，例如 `COUNT(DISTINCT a)`。
+
+Distinct 聚合声明的聚合函数（内置或用户定义的）仅应用于不同的输入值。
+
+Distinct 可以应用于 **GroupBy Aggregation**、**GroupBy Window Aggregation** 和 **Over Window Aggregation**。
 
 {{< tabs "distinctagg" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 // Distinct aggregation on group by
@@ -814,10 +832,11 @@ result = orders.over_window(Over
 {{< /tab >}}
 {{< /tabs >}}
 
-User-defined aggregation function can also be used with `DISTINCT` modifiers. To calculate the aggregate results only for distinct values, simply add the distinct modifier towards the aggregation function. 
+用户定义的聚合函数也可以与 `DISTINCT` 修饰符一起使用。要仅计算不同值的聚合结果，只需向聚合函数添加 distinct 修饰符。
 
 {{< tabs "distinctudf" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tEnv.from("Orders");
 
@@ -840,7 +859,7 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Unsupported
+不支持
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -851,11 +870,13 @@ Unsupported
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
-Similar to a SQL `DISTINCT` clause.
-Returns records with distinct value combinations.
+和 SQL 的 `DISTINCT` 子句类似。
+
+返回具有不同值组合的记录。
 
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.distinct();
@@ -879,16 +900,17 @@ result = orders.distinct()
 
 {{< top >}}
 
-### Joins
+### join
 
-#### Inner Join
+#### inner join
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.
+和 SQL 的 JOIN 语句类似。关联两张表。两张表必须有不同的字段名，并且必须定义至少一个使用 join 运算符或使用 where 或 filter 运算符的相等连接谓词。
 
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
+
 ```java
 Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
 Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
@@ -905,6 +927,7 @@ val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
+
 ```python
 from pyflink.table.expressions import col
 
@@ -917,13 +940,15 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
 
 {{< query_state_warning >}}
 
-#### Outer Join
+#### outer join
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
-Similar to SQL `LEFT`/`RIGHT`/`FULL OUTER JOIN` clauses.
-Joins two tables.
-Both tables must have distinct field names and at least one equality join predicate must be defined.
+和 SQL `LEFT`/`RIGHT`/`FULL OUTER JOIN` 语句类似。
+
+关联两张表。
+
+两张表必须有不同的字段名，并且必须定义至少一个等价连接谓词。
 
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
@@ -937,7 +962,7 @@ Table rightOuterResult = left.rightOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
 Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
-```                           
+```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
@@ -965,16 +990,17 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
 
 {{< query_state_warning >}}
 
-#### Interval Join
+#### interval join
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Interval joins are a subset of regular joins that can be processed in a streaming fashion.
+Interval join 是可以以流方式处理的常规 join 的子集。
 
-An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (`<, <=, >=, >`) or a single equality predicate that compares time attributes of the same type (i.e., processing time or event time) of both input tables.
+Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界限的 join 条件。这种条件可以由两个合适的范围谓词（`<、<=、>=、>`）或一个比较两个输入表相同类型（即处理时间或事件时间）的时间属性的相等谓词来定义。
 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
+
 ```java
 Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
 Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
@@ -1016,8 +1042,9 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function.
-A row of the left (outer) table is dropped, if its table function call returns an empty result. 
+join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。
+
+如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
 {{< tab "Java" >}}
@@ -1064,12 +1091,13 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.
+join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
 
-Currently, the predicate of a table function left outer join can only be empty or literal true.
+目前，表函数左外连接的谓词只能为空或字面真。
 
 {{< tabs "outerudtf" >}}
 {{< tab "Java" >}}
+
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
@@ -1108,13 +1136,13 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Join with Temporal TAble
+#### Join with Temporal Table
 
-Temporal tables are tables that track changes over time.
+Temporal table 是跟踪随时间变化的表。
 
-A temporal table function provides access to the state of a temporal table at a specific point in time. The syntax to join a table with a temporal table function is the same as in Inner Join with Table Function.
+Temporal table 函数提供对特定时间点 temporal table 状态的访问。将表与 temporal table 函数 join 的语法与和表函数的 inner join 相同。
 
-Currently only inner joins with temporal tables are supported.
+目前仅支持与temporal table的inner join。
 
 {{< tabs "temporaltablefunc" >}}
 {{< tab "Java" >}}
@@ -1133,7 +1161,7 @@ Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
 {{< /tab >}}
 {{< tabs "Scala" >}}
-```scala
+​```scala
 val ratesHistory = tableEnv.from("RatesHistory")
 
 // register temporal table function with a time attribute and primary key
@@ -1158,7 +1186,7 @@ Currently not supported in Python Table API.
 
 {{< label Batch >}}
 
-Similar to a SQL `UNION` clause. Unions two tables with duplicate records removed. Both tables must have identical field types.
+和 SQL `UNION` 子句类似。Union 两张表会删除重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "union" >}}
 {{< tab "Java" >}}
@@ -1170,6 +1198,7 @@ left.union(right);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
 ```scala
 val left = tableEnv.from("orders1")
 val right = tableEnv.from("orders2")
@@ -1189,9 +1218,9 @@ left.union(right)
 
 {{< label Batch >}} {{< label Streaming >}}
 
+和 SQL `UNION ALL` 子句类似。Union 两张表。
 
-Similar to a SQL `UNION ALL` clause. Unions two tables.
-Both tables must have identical field types.
+两张表必须具有相同的字段类型。
 
 {{< tabs "unionall" >}}
 {{< tab "Java" >}}
@@ -1222,7 +1251,7 @@ left.unionAl(right)
 
 {{< label Batch >}}
 
-Similar to a SQL `INTERSECT` clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.
+和 SQL `INTERSECT` 子句类似。Intersect 返回两个表中都有的记录。如果一条记录在一张或两张表中存在多次，则只返回一条记录，例如，结果表中不存在重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "intersect" >}}
 {{< tab "Java" >}}
@@ -1234,6 +1263,7 @@ left.intersect(right);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+
 ```scala
 val left = tableEnv.from("orders1")
 val right = tableEnv.from("orders2")
@@ -1253,7 +1283,7 @@ left.intersect(right)
 
 {{< label Batch >}}
 
-Similar to a SQL `INTERSECT ALL` clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.
+和 SQL `INTERSECT ALL` 子句类似。IntersectAll 返回两个表中都存在的记录。如果一条记录在两张表中出现多次，则返回它在两个表中出现的每一条，例如，结果表可能存在重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "intersectAll" >}}
 {{< tab "Java" >}}
@@ -1284,10 +1314,11 @@ left.intersectAll(right)
 
 {{< label Batch  >}}
 
-Similar to a SQL `EXCEPT` clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.
+和 SQL `EXCEPT` 子句类似。Minus 返回左表中存在且右表中不存在的记录。左表中的重复记录只返回一次，例如，结果表中没有重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "minus" >}}
 {{< tab "Java" >}}
+
 ```java
 Table left = tableEnv.from("orders1");
 Table right = tableEnv.from("orders2");
@@ -1314,10 +1345,11 @@ left.minus(right)
 #### MinusAll
 {{< label Batch >}}
 
-Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.
+和 SQL `EXCEPT ALL` 子句类似。MinusAll 返回右表中不存在的记录。在左表中出现 n 次，在右表中出现 m 次的记录，在结果表中存在 (n - m) 次，例如，结果中删掉了在右表中存在重复记录的条数的记录。两张表必须具有相同的字段类型。
 
 {{< tabs "minusall" >}}
 {{< tab "Java" >}}
+
 ```java
 Table left = tableEnv.from("orders1");
 Table right = tableEnv.from("orders2");
@@ -1345,7 +1377,7 @@ left.minusAll(right)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to a SQL `IN` clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.
+和 SQL `IN` 子句类似。如果在给定表的子查询中存在包含in的表达式，则返回true。子查询表必须由一列组成。这个列必须与表达式具有相同的数据类型。
 
 {{< tabs "in" >}}
 {{< tab "Java" >}}
@@ -1384,7 +1416,7 @@ result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to a SQL `ORDER BY` clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.
+和 SQL `ORDER BY` 子句类似。返回跨所有并行分区的全局排序记录。对于无界表，该操作需要对时间属性进行排序或在其之后有 fetch 操作。
 
 {{< tabs "orderby" >}}
 {{< tab "Java" >}}
@@ -1408,7 +1440,7 @@ result = in.order_by(in.a.asc)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to the SQL `OFFSET` and `FETCH` clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.
+和 SQL 的 `OFFSET`  和 `FETCH` 语句类似。Offset 操作限制来自偏移位置的（可能已排序）结果。Fetch 操作将（可能已排序的）结果限制为前 n 行。通常，这两个操作前面都有一个排序运算符。对于无界表，offset 操作需要 fetch 操作。
 
 {{< tabs "offsetfetch" >}}
 {{< tab "Java" >}}
@@ -1454,12 +1486,13 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.
+和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。`executeInsert()` 方法将立即提交执行插入操作的 Flink job。
 
-Output tables must be registered in the TableEnvironment (see Connector tables). Moreover, the schema of the registered table must match the schema of the query.
+输出表必须在 TableEnvironment (详见表连接器) 中注册。此外，注册的表的 schema 必须与查询的 schema 相匹配。
 
 {{< tabs "insertinto" >}}
 {{< tab "Java" >}}
+
 ```java
 Table orders = tableEnv.from("Orders");
 orders.executeInsert("OutOrders");
@@ -1483,12 +1516,14 @@ orders.execute_insert("OutOrders")
 
 ### Group Windows
 
-Group window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
+Group window 聚合根据时间或行计数间隔将行分为有限组，并为每个分组进行一次聚合函数计算。对于批处理表，窗口是按时间间隔对记录进行分组的便捷方式。
 
 {{< tabs "248a1eb3-c75a-404e-957e-08a012cbed51" >}}
 {{< tab "Java" >}}
-Windows are defined using the `window(GroupWindow w)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
-The following example shows how to define a window aggregation on a table.
+
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+
+以下示例展示了如何在表上定义窗口聚合。
 
 ```java
 Table table = input
@@ -1498,8 +1533,10 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
-The following example shows how to define a window aggregation on a table.
+
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+
+以下示例展示了如何在表上定义窗口聚合。
 
 ```scala
 val table = input
@@ -1509,8 +1546,10 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `alias` clause. In order to group a table by a window, the window alias must be referenced in the `group_by(...)` clause like a regular grouping attribute. 
-The following example shows how to define a window aggregation on a table.
+
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+
+以下示例展示了如何在表上定义窗口聚合。
 
 ```python
 # define window with alias w, group the table by window w, then aggregate
@@ -1522,8 +1561,10 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 {{< tabs "3a855a09-96d3-4dd5-9cbe-07b7f3dc4af9" >}}
 {{< tab "Java" >}}
-In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
-The following example shows how to define a window aggregation with additional grouping attributes.
+
+在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
+
+以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```java
 Table table = input
@@ -1533,8 +1574,10 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
-The following example shows how to define a window aggregation with additional grouping attributes.
+
+在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
+
+以下示例展示了如何定义有附加分组属性的窗口聚合。。
 
 ```scala
 val table = input
@@ -1544,8 +1587,10 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `group_by(...)` clause references a window alias and at least one additional attribute. A `group_by(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
-The following example shows how to define a window aggregation with additional grouping attributes.
+
+在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
+
+以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```python
 # define window with alias w, group the table by attribute a and window w,
@@ -1556,10 +1601,11 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-Window properties such as the start, end, or rowtime timestamp of a time window can be added in the select statement as a property of the window alias as `w.start`, `w.end`, and `w.rowtime`, respectively. The window start and rowtime timestamps are the inclusive lower and upper window boundaries. In contrast, the window end timestamp is the exclusive upper window boundary. For example a tumbling window of 30 minutes that starts at 2pm would have `14:00:00.000` as start timestamp, `14:29:59.999` as rowtime timestamp, and `14:30:00.000` as end timestamp.
+时间窗口的开始、结束或行时间戳等窗口属性可以作为窗口别名的属性添加到选择语句中，如 `w.start`、`w.end` 和 `w.rowtime`。窗口开始和行时间戳是包含的上下窗口边界。相反，窗口结束时间戳是唯一的上窗口边界。例如，从下午 2 点开始的 30 分钟滚动窗口将 “14:00:00.000” 作为开始时间戳，“14:29:59.999” 作为行时间时间戳，“14:30:00.000” 作为结束时间戳。
 
 {{< tabs "1397cfe2-8ed8-4a39-938c-f2c066c2bdcf" >}}
 {{< tab "Java" >}}
+
 ```java
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
@@ -1586,15 +1632,16 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-The `Window` parameter defines how rows are mapped to windows. `Window` is not an interface that users can implement. Instead, the Table API provides a set of predefined `Window` classes with specific semantics. The supported window definitions are listed below.
+`Window` 参数定义了如何将行映射到窗口。 `Window` 不是用户可以实现的接口。相反，Table API 提供了一组具有特定语义的预定义“Window”类。下面列出了支持的窗口定义。
 
-#### Tumble (Tumbling Windows)
+#### Tumble (滚动窗口)
 
-A tumbling window assigns rows to non-overlapping, continuous windows of fixed length. For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time, processing-time, or on a row-count.
+滚动窗口将行分配给固定长度的非重叠连续窗口。例如，一个 5 分钟的滚动窗口以 5 分钟的间隔对行进行分组。滚动窗口可以定义在事件时间、处理时间或行数上。
 
 {{< tabs "96f964cc-d78c-493b-b190-19cab37a8031" >}}
 {{< tab "Java" >}}
-Tumbling windows are defined by using the `Tumble` class as follows:
+
+滚动窗口是通过 `Tumble` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1607,18 +1654,20 @@ Tumbling windows are defined by using the `Tumble` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
+
 
 ```java
 // Tumbling Event-time Window
@@ -1632,7 +1681,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-Tumbling windows are defined by using the `Tumble` class as follows:
+滚动窗口是通过 `Tumble` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1645,18 +1694,19 @@ Tumbling windows are defined by using the `Tumble` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```scala
 // Tumbling Event-time Window
@@ -1670,7 +1720,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Tumbling windows are defined by using the `Tumble` class as follows:
+滚动窗口是通过 `Tumble` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1683,18 +1733,19 @@ Tumbling windows are defined by using the `Tumble` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>group_by()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```python
 # Tumbling Event-time Window
@@ -1709,13 +1760,14 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Slide (Sliding Windows)
+#### Slide (滑动窗口)
 
-A sliding window has a fixed size and slides by a specified slide interval. If the slide interval is smaller than the window size, sliding windows are overlapping. Thus, rows can be assigned to multiple windows. For example, a sliding window of 15 minutes size and 5 minute slide interval assigns each row to 3 different windows of 15 minute size, which are evaluated in an interval of 5 minutes. Sliding windows can be defined on event-time, processing-time, or on a row-count.
+滑动窗口具有固定大小并按指定的滑动间隔滑动。如果滑动间隔小于窗口大小，则滑动窗口重叠。因此，行可能分配给多个窗口。例如，15 分钟大小和 5 分钟滑动间隔的滑动窗口将每一行分配给 3 个不同的 15 分钟大小的窗口，以 5 分钟的间隔进行一次计算。滑动窗口可以定义在事件时间、处理时间或行数上。
 
 {{< tabs "8a408c78-2a76-4193-a457-e95af384edb5" >}}
 {{< tab "Java" >}}
-Sliding windows are defined by using the `Slide` class as follows:
+
+滑动窗口是通过 `Slide` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1728,22 +1780,23 @@ Sliding windows are defined by using the `Slide` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length of the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>every</code></td>
-      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。滑动间隔的类型必须与窗口长度的类型相同。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```java
 // Sliding Event-time Window
@@ -1763,7 +1816,7 @@ Sliding windows are defined by using the `Slide` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-Sliding windows are defined by using the `Slide` class as follows:
+滑动窗口是通过 `Slide` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1772,26 +1825,26 @@ Sliding windows are defined by using the `Slide` class as follows:
       <th class="text-left">Description</th>
     </tr>
   </thead>
-
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length of the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>every</code></td>
-      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。滑动间隔的类型必须与窗口长度的类型相同。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```scala
 // Sliding Event-time Window
@@ -1805,7 +1858,7 @@ Sliding windows are defined by using the `Slide` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-Sliding windows are defined by using the `Slide` class as follows:
+滑动窗口是通过 `Slide` 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1818,22 +1871,23 @@ Sliding windows are defined by using the `Slide` class as follows:
   <tbody>
     <tr>
       <td><code>over</code></td>
-      <td>Defines the length of the window, either as time or row-count interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。</td>
     </tr>
     <tr>
       <td><code>every</code></td>
-      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+      <td>将窗口的长度定义为时间或行计数间隔。滑动间隔的类型必须与窗口长度的类型相同。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>group_by()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```python
 # Sliding Event-time Window
@@ -1848,13 +1902,13 @@ Sliding windows are defined by using the `Slide` class as follows:
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Session (Session Windows)
+#### Session (会话窗口)
 
-Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
+会话窗口没有固定的大小，其边界是由不活动的间隔定义的，例如，如果在定义的间隔期内没有事件出现，则会话窗口将关闭。例如，定义30 分钟间隔的会话窗口，当观察到一行在 30 分钟内不活动（否则该行将被添加到现有窗口中）且30 分钟内没有添加新行，窗口会关闭。会话窗口支持事件时间和处理时间。
 
 {{< tabs "58943253-807b-4e4c-b068-0dc1b783b7b5" >}}
 {{< tab "Java" >}}
-A session window is defined by using the `Session` class as follows:
+会话窗口是通过 Session 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1867,18 +1921,19 @@ A session window is defined by using the `Session` class as follows:
   <tbody>
     <tr>
       <td><code>withGap</code></td>
-      <td>Defines the gap between two windows as time interval.</td>
+      <td>将两个窗口之间的间隙定义为时间间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```java
 // Session Event-time Window
@@ -1889,7 +1944,7 @@ A session window is defined by using the `Session` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-A session window is defined by using the `Session` class as follows:
+会话窗口是通过 Session 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1898,22 +1953,22 @@ A session window is defined by using the `Session` class as follows:
       <th class="text-left">Description</th>
     </tr>
   </thead>
-
   <tbody>
     <tr>
       <td><code>withGap</code></td>
-      <td>Defines the gap between two windows as time interval.</td>
+      <td>将两个窗口之间的间隙定义为时间间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>groupBy()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```scala
 // Session Event-time Window
@@ -1924,7 +1979,7 @@ A session window is defined by using the `Session` class as follows:
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-A session window is defined by using the `Session` class as follows:
+会话窗口是通过 Session 类定义的，具体如下：
 
 <table class="table table-bordered">
   <thead>
@@ -1933,22 +1988,22 @@ A session window is defined by using the `Session` class as follows:
       <th class="text-left">Description</th>
     </tr>
   </thead>
-
   <tbody>
     <tr>
       <td><code>with_gap</code></td>
-      <td>Defines the gap between two windows as time interval.</td>
+      <td>将两个窗口之间的间隙定义为时间间隔。</td>
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">declared event-time or processing-time time attribute</a>.</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
-      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+      <td>指定窗口的别名。别名用于在 <code>group_by()</code> 子句中引用窗口，并可以在 <code>select()</code> 子句中选择如窗口开始、结束或行时间戳的窗口属性。</td>
     </tr>
   </tbody>
 </table>
+
 
 ```python
 # Session Event-time Window
@@ -1964,12 +2019,13 @@ A session window is defined by using the `Session` class as follows:
 
 ### Over Windows
 
-Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
+Over window 聚合是在标准 SQL（`OVER` 子句）中被知晓，并在 `SELECT` 查询子句中定义的。与在“GROUP BY”子句中指定的 group window 不同， over window 不会折叠行。相反，over window 聚合为每个输入行在其相邻行的范围内计算聚合。
 
-Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
+Over windows 使用 `window(w: OverWindow*)` 子句（在 Python API 中使用 `over_window(*OverWindow)`）定义，并通过 `select()` 方法中的别名引用。以下示例显示如何在表上定义 over window 聚合。
 
 {{< tabs "92e08076-6823-451b-b54f-8e58c1b54dc3" >}}
 {{< tab "Java" >}}
+
 ```java
 Table table = input
   .window([OverWindow w].as("w"))           // define over window with alias w
@@ -1984,6 +2040,7 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
+
 ```python
 # define over window with alias w and aggregate over the over window w
 table = input.over_window([w: OverWindow].alias("w")) \
@@ -1992,56 +2049,56 @@ table = input.over_window([w: OverWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-The `OverWindow` defines a range of rows over which aggregates are computed. `OverWindow` is not an interface that users can implement. Instead, the Table API provides the `Over` class to configure the properties of the over window. Over windows can be defined on event-time or processing-time and on ranges specified as time interval or row-count. The supported over window definitions are exposed as methods on `Over` (and other classes) and are listed below:
+`OverWindow` 定义了计算聚合的行范围。`OverWindow` 不是用户可以实现的接口。相反，Table API 提供了`Over` 类来配置 over window 的属性。可以在事件时间或处理时间以及指定为时间间隔或行计数的范围内定义 over window 。可以通过 `Over` 类（和其他类）上的方法来定义 over window，具体如下：
 
 #### Partition By 
 
-**Optional**
+**可选的**
 
-Defines a partitioning of the input on one or more attributes. Each partition is individually sorted and aggregate functions are applied to each partition separately.
+在一个或多个属性上定义输入的分区。每个分区单独排序，聚合函数分别应用于每个分区。
 
-Note: In streaming environments, over window aggregates can only be computed in parallel if the window includes a partition by clause. Without partitionBy(...) the stream is processed by a single, non-parallel task.
+注意：在流环境中，如果窗口包含 partition by 子句，则只能并行计算 over window 聚合。如果没有 partitionBy(...)，数据流将由单个非并行任务处理。
 
 #### Order By 
 
-**Required**
+**必须的**
 
-Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.
+定义每个分区内行的顺序，从而定义聚合函数应用于行的顺序。
 
-Note: For streaming queries this must be a declared event-time or processing-time time attribute. Currently, only a single sort attribute is supported.
+注意：对于流处理查询，必须声明事件时间或处理时间属性。目前，仅支持单个排序属性。
 
 #### Preceding
 
-**Optional**
+**可选的**
 
-Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.
+定义了包含在窗口中并位于当前行之前的行的间隔。间隔可以是时间或行计数间隔。
 
-Bounded over windows are specified with the size of the interval, e.g., 10.minutes for a time interval or 10.rows for a row-count interval.
+有界 over window 用间隔的大小指定，例如，时间间隔为10分钟或行计数间隔为10行。
 
-Unbounded over windows are specified using a constant, i.e., UNBOUNDED_RANGE for a time interval or UNBOUNDED_ROW for a row-count interval. Unbounded over windows start with the first row of a partition.
+无界 over window 通过常量来指定，例如，用UNBOUNDED_RANGE指定时间间隔或用 UNBOUNDED_ROW 指定行计数间隔。无界 over windows 从分区的第一行开始。
 
-If the preceding clause is omitted, UNBOUNDED_RANGE and CURRENT_RANGE are used as the default preceding and following for the window.
+如果省略前面的子句，则使用 UNBOUNDED_RANGE 和 CURRENT_RANGE 作为窗口前后的默认值。
 
 #### Following
 
-**Optional**
+**可选的**
 
-Defines the window interval of rows that are included in the window and follow the current row. The interval must be specified in the same unit as the preceding interval (time or row-count).
+定义包含在窗口中并在当前行之后的行的窗口间隔。间隔必须以与前一个间隔（时间或行计数）相同的单位指定。
 
-At the moment, over windows with rows following the current row are not supported. Instead you can specify one of two constants:
+目前，不支持在当前行之后有行的 over window。相反，你可以指定两个常量之一：
 
-* `CURRENT_ROW` sets the upper bound of the window to the current row.
-* `CURRENT_RANGE` sets the upper bound of the window to sort key of the current row, i.e., all rows with the same sort key as the current row are included in the window.
+* `CURRENT_ROW` 将窗口的上限设置为当前行。
+* `CURRENT_RANGE` 将窗口的上限设置为当前行的排序键，例如，与当前行具有相同排序键的所有行都包含在窗口中。
 
-If the following clause is omitted, the upper bound of a time interval window is defined as `CURRENT_RANGE` and the upper bound of a row-count interval window is defined as CURRENT_ROW.
+如果省略后面的子句，则时间间隔窗口的上限定义为 `CURRENT_RANGE`，行计数间隔窗口的上限定义为CURRENT_ROW。
 
 #### As
 
-**Required**
+**必须的**
 
-Assigns an alias to the over window. The alias is used to reference the over window in the following `select()` clause.
+为 over window 指定别名。别名用于在之后的 `select()` 子句中引用该 over window。
 
-Note: Currently, all aggregation functions in the same select() call must be computed of the same over window.
+注意：目前，同一个 select() 调用中的所有聚合函数必须在同一个 over window 上计算。
 
 #### Unbounded Over Windows
 
@@ -2144,9 +2201,9 @@ Note: Currently, all aggregation functions in the same select() call must be com
 
 {{< top >}}
 
-### Row-based Operations
+### 基于行的操作
 
-The row-based operations generate outputs with multiple columns.
+基于行的操作生成有多列的输出。
 
 #### Map
 
@@ -2155,7 +2212,7 @@ The row-based operations generate outputs with multiple columns.
 {{< tabs "map" >}}
 {{< tab "Java" >}}
 
-Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+使用用户定义的标量函数或内置标量函数执行map操作。如果输出类型是复合类型，则输出将被展平。
 
 ```java
 public class MyMapFunction extends ScalarFunction {
@@ -2178,7 +2235,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
+使用用户定义的标量函数或内置标量函数执行map操作。如果输出类型是复合类型，则输出将被展平。
 
 ```scala
 class MyMapFunction extends ScalarFunction {
@@ -2197,7 +2254,9 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a map operation with a python [general scalar function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions). The output will be flattened if the output type is a composite type.
+使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行map操作。
+
+如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2232,7 +2291,7 @@ table = input.map(pandas_func).alias('a', 'b')
 {{< tabs "flatmap" >}}
 {{< tab "Java" >}}
 
-Performs a `flatMap` operation with a table function.
+使用表函数执行`flatMap`操作。
 
 ```java
 public class MyFlatMapFunction extends TableFunction<Row> {
@@ -2261,7 +2320,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Performs a `flatMap` operation with a python table function.
+使用表函数执行`flatMap`操作。
 
 ```scala
 class MyFlatMapFunction extends TableFunction[Row] {
@@ -2288,7 +2347,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions).
+通过 python [表函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions)执行`flat_map`操作。
 
 ```python
 from pyflink.table.udf import udtf
@@ -2312,7 +2371,7 @@ input.flat_map(split)
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
 
-Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+使用聚合函数来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```java
 public class MyMinMaxAcc {
@@ -2362,7 +2421,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Performs an aggregate operation with an aggregate function. You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+使用聚合函数来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
@@ -2403,7 +2462,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs an aggregate operation with a python [general aggregate function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions). You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2470,10 +2529,11 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Groups and aggregates a table on a [group window](#group-window) and possibly one or more grouping keys. You have to close the "aggregate" with a select statement. And the select statement does not support "*" or aggregate functions.
+在 [group window](#group-window) 和可能的一个或多个分组键上对表进行分组和聚合。你必须使用 select 语句关闭“聚合”。并且 select 语句不支持“*”或聚合函数。
 
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
+
 ```java
 AggregateFunction myAggFunc = new MyMinMax();
 tableEnv.registerFunction("myAggFunc", myAggFunc);
@@ -2525,9 +2585,9 @@ t.select(t.b, t.rowtime) \
 {{< tabs "flataggregate" >}}
 {{< tab "Java" >}}
 
-Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```java
 /**
@@ -2589,9 +2649,9 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
 
-Instead of using emitValue to output results, you can also use the emitUpdateWithRetract method. Different from emitValue, emitUpdateWithRetract is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The emitUpdateWithRetract method will be used in preference to the emitValue method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than emitValue as it can output values incrementally. 
+除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```scala
 import java.lang.{Integer => JInteger}
@@ -2657,9 +2717,9 @@ val result = orders
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a flat_aggregate operation with a python general [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions)
+使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
 
-Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flat_aggregate" with a select statement. And the select statement does not support aggregate functions.
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flat_aggregate”。并且 select 语句不支持聚合函数。
 
 ```python
 from pyflink.common import Row
@@ -2713,16 +2773,16 @@ result = t.select(t.a, t.c) \
 
 {{< query_state_warning >}}
 
-Data Types
+数据类型
 ----------
 
-Please see the dedicated page about [data types]({{< ref "docs/dev/table/types" >}}).
+请查看[数据类型]({{< ref "docs/dev/table/types" >}})的专门页面。
 
-Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
+行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类 )。
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions).
+任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{< ref "docs/dev/table/functions/udfs" >}}).
+[用户定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将一般类型当作黑匣子一样来传输和处理。
 
 {{< top >}}
 
