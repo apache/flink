@@ -114,7 +114,10 @@ else
 	fi
 	MVN_TEST_MODULES=$(get_test_modules_for_stage ${STAGE})
 
-	run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+  for i in {1..50};do
+	# run_with_watchdog "run_mvn $MVN_COMMON_OPTIONS $MVN_TEST_OPTIONS $PROFILE $MVN_TEST_MODULES verify" $CALLBACK_ON_TIMEOUT
+	  run_with_watchdog "run_mvn -Dcheckstyle.skip=true -Dtest=KafkaSourceLegacyITCase#testMultipleSourcesOnePartition test -pl flink-connectors/flink-connector-kafka"
+	done
 	EXIT_CODE=$?
 fi
 

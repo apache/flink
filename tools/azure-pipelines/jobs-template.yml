@@ -87,23 +87,23 @@ jobs:
   strategy:
     matrix:
       core:
-        module: core
+        module: kafka/gelly
       python:
-        module: python
+        module: kafka/gelly
       libraries:
-        module: libraries
+        module: kafka/gelly
       blink_planner:
-        module: blink_planner
+        module: kafka/gelly
       connectors:
-        module: connectors
+        module: kafka/gelly
       kafka_gelly:
         module: kafka/gelly
       tests:
-        module: tests
+        module: kafka/gelly
       misc:
-        module: misc
+        module: kafka/gelly
       finegrained_resource_management:
-        module: finegrained_resource_management
+        module: kafka/gelly
   steps:
   # if on Azure, free up disk space
   - script: ./tools/azure-pipelines/free_disk_space.sh
