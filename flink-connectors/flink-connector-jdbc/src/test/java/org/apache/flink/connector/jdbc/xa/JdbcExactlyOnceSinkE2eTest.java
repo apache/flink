@@ -86,6 +86,7 @@ import static org.junit.Assert.assertTrue;
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
 @RunWith(Parameterized.class)
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
+    private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private interface JdbcExactlyOnceSinkTestEnv {
         void start();
@@ -160,6 +161,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             cluster = null;
         }
         dbEnv.stop();
+        activeSources.clear();
+        inactiveMappers.clear();
     }
 
     @Test
@@ -249,8 +252,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         private transient volatile ListState<SourceRange> ranges;
 
-        private volatile boolean allDataEmitted = false;
-        private volatile boolean snapshotTaken = false;
         private volatile long lastCheckpointId = -1L;
         private volatile boolean lastSnapshotConfirmed = false;
         private volatile boolean running = true;
@@ -267,10 +268,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 for (SourceRange range : ranges.get()) {
                     emitRange(range, ctx);
                 }
-                allDataEmitted = true;
-                if (snapshotTaken) {
-                    sleep(() -> !lastSnapshotConfirmed);
-                }
             } finally {
                 activeSources.get(getRuntimeContext().getAttemptNumber()).countDown();
             }
@@ -284,28 +281,27 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             inactiveMappers.get(getRuntimeContext().getAttemptNumber()).await();
         }
 
-        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx) {
             for (int i = range.from; i < range.to && running; ) {
                 int count = Math.min(range.to - i, numElementsPerCheckpoint);
                 emit(i, count, range, ctx);
                 i += count;
-                sleep(() -> !snapshotTaken);
             }
         }
 
-        private void emit(int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emit(
+                int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx) {
             synchronized (ctx.getCheckpointLock()) {
-                snapshotTaken = false;
+                lastCheckpointId = -1L;
+                lastSnapshotConfirmed = false;
                 for (int j = start; j < start + count && running; j++) {
                     ctx.collect(
                             new TestEntry(
                                     j, Integer.toString(j), Integer.toString(j), (double) (j), j));
                     toAdvance.advance();
-                    Thread.sleep(10);
                 }
             }
+            sleep(() -> !lastSnapshotConfirmed);
         }
 
         @Override
@@ -343,10 +339,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) {
-            snapshotTaken = true;
-            if (allDataEmitted) {
-                lastCheckpointId = context.getCheckpointId();
-            }
+            lastCheckpointId = context.getCheckpointId();
         }
 
         private void sleep(Supplier<Boolean> condition) {
@@ -408,7 +401,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            remaining = minElementsPerFailure + new Random().nextInt(maxElementsPerFailure);
+            remaining = minElementsPerFailure + RANDOM.nextInt(maxElementsPerFailure);
             inactiveMappers
                     .computeIfAbsent(
                             getRuntimeContext().getAttemptNumber(),
