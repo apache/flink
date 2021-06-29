@@ -2728,8 +2728,11 @@ result = t.select(t.a, t.c) \
 ----------
 
 请查看[数据类型]({{< ref "docs/dev/table/types" >}})的专门页面。
+
 行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类 )。
+
 任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
+
 [用户定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将一般类型当作黑匣子一样来传输和处理。
 
 {{< top >}}
