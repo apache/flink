@@ -205,15 +205,6 @@ class TemporalJoinTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test
-  def testEventTimeTemporalJoinWithDisorder(): Unit = {
-    val sqlQuery = "SELECT * " +
-        "FROM Orders AS o JOIN " +
-        "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.rowtime AS r " +
-        "ON o.currency = r.currency"
-
-    util.verifyExecPlan(sqlQuery)
-  }
 
   @Test
   def testEventTimeTemporalJoinOnTimestampLtzRowtime(): Unit = {
