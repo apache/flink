@@ -226,7 +226,6 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 {{< top >}}
 
 <a name="operations"></a>
-
 操作
 ----------
 
@@ -1030,6 +1029,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。
+
 如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
@@ -1078,6 +1078,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
+
 目前，表函数左外连接的谓词只能为空或字面真。
 
 {{< tabs "outerudtf" >}}
@@ -1124,7 +1125,9 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 #### Join with Temporal Table
 
 Temporal table 是跟踪随时间变化的表。
+
 Temporal table 函数提供对特定时间点 temporal table 状态的访问。将表与 temporal table 函数 join 的语法与和表函数的 inner join 相同。
+
 目前仅支持与temporal table的inner join。
 
 {{< tabs "temporaltablefunc" >}}
@@ -1995,6 +1998,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 ### Over Windows
 
 Over window 聚合是在标准 SQL（`OVER` 子句）中被知晓，并在 `SELECT` 查询子句中定义的。与在“GROUP BY”子句中指定的 group window 不同， over window 不会折叠行。相反，over window 聚合为每个输入行在其相邻行的范围内计算聚合。
+
 Over windows 使用 `window(w: OverWindow*)` 子句（在 Python API 中使用 `over_window(*OverWindow)`）定义，并通过 `select()` 方法中的别名引用。以下示例显示如何在表上定义 over window 聚合。
 
 {{< tabs "92e08076-6823-451b-b54f-8e58c1b54dc3" >}}
@@ -2028,36 +2032,50 @@ table = input.over_window([w: OverWindow].alias("w")) \
 #### Partition By 
 
 **可选的**
+
 在一个或多个属性上定义输入的分区。每个分区单独排序，聚合函数分别应用于每个分区。
+
 注意：在流环境中，如果窗口包含 partition by 子句，则只能并行计算 over window 聚合。如果没有 partitionBy(...)，数据流将由单个非并行任务处理。
 
 #### Order By 
 
 **必须的**
+
 定义每个分区内行的顺序，从而定义聚合函数应用于行的顺序。
+
 注意：对于流处理查询，必须声明事件时间或处理时间属性。目前，仅支持单个排序属性。
 
 #### Preceding
 
 **可选的**
+
 定义了包含在窗口中并位于当前行之前的行的间隔。间隔可以是时间或行计数间隔。
+
 有界 over window 用间隔的大小指定，例如，时间间隔为10分钟或行计数间隔为10行。
+
 无界 over window 通过常量来指定，例如，用UNBOUNDED_RANGE指定时间间隔或用 UNBOUNDED_ROW 指定行计数间隔。无界 over windows 从分区的第一行开始。
+
 如果省略前面的子句，则使用 UNBOUNDED_RANGE 和 CURRENT_RANGE 作为窗口前后的默认值。
 
 #### Following
 
 **可选的**
+
 定义包含在窗口中并在当前行之后的行的窗口间隔。间隔必须以与前一个间隔（时间或行计数）相同的单位指定。
+
 目前，不支持在当前行之后有行的 over window。相反，你可以指定两个常量之一：
+
 * `CURRENT_ROW` 将窗口的上限设置为当前行。
 * `CURRENT_RANGE` 将窗口的上限设置为当前行的排序键，例如，与当前行具有相同排序键的所有行都包含在窗口中。
+* 
 如果省略后面的子句，则时间间隔窗口的上限定义为 `CURRENT_RANGE`，行计数间隔窗口的上限定义为CURRENT_ROW。
 
 #### As
 
 **必须的**
+
 为 over window 指定别名。别名用于在之后的 `select()` 子句中引用该 over window。
+
 注意：目前，同一个 select() 调用中的所有聚合函数必须在同一个 over window 上计算。
 
 #### Unbounded Over Windows
@@ -2218,8 +2236,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行map操作。
-如果输出类型是复合类型，则输出将被展平。
+使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行map操作。如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2549,6 +2566,7 @@ t.select(t.b, t.rowtime) \
 {{< tab "Java" >}}
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
+
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```java
@@ -2612,6 +2630,7 @@ Table result = orders
 {{< tab "Scala" >}}
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
+
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```scala
@@ -2679,6 +2698,7 @@ val result = orders
 {{< tab "Python" >}}
 
 使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
+
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flat_aggregate”。并且 select 语句不支持聚合函数。
 
 ```python
