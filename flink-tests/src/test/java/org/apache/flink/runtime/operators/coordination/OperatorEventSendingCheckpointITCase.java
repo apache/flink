@@ -31,18 +31,19 @@ import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -53,15 +54,16 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.TriFunction;
 
-import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -69,7 +71,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -450,17 +455,85 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
     }
 
-    private static class InterceptingRpcService extends AkkaRpcService {
+    private static class InterceptingRpcService implements RpcService {
 
-        public InterceptingRpcService(
-                ActorSystem actorSystem, AkkaRpcServiceConfiguration configuration) {
-            super(actorSystem, configuration);
+        private final RpcService rpcService;
+
+        public InterceptingRpcService(RpcService rpcService) {
+            this.rpcService = rpcService;
+        }
+
+        @Override
+        public String getAddress() {
+            return rpcService.getAddress();
+        }
+
+        @Override
+        public int getPort() {
+            return rpcService.getPort();
         }
 
         @Override
         public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
-            final CompletableFuture<C> future = super.connect(address, clazz);
+            final CompletableFuture<C> future = rpcService.connect(address, clazz);
             return clazz == TaskExecutorGateway.class ? decorateTmGateway(future) : future;
+        }
+
+        @Override
+        public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
+                String address, F fencingToken, Class<C> clazz) {
+            return rpcService.connect(address, fencingToken, clazz);
+        }
+
+        @Override
+        public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
+            return rpcService.startServer(rpcEndpoint);
+        }
+
+        @Override
+        public <F extends Serializable> RpcServer fenceRpcServer(
+                RpcServer rpcServer, F fencingToken) {
+            return rpcService.fenceRpcServer(rpcServer, fencingToken);
+        }
+
+        @Override
+        public void stopServer(RpcServer selfGateway) {
+            rpcService.stopServer(selfGateway);
+        }
+
+        @Override
+        public CompletableFuture<Void> stopService() {
+            return rpcService.stopService();
+        }
+
+        @Override
+        public CompletableFuture<Void> getTerminationFuture() {
+            return rpcService.getTerminationFuture();
+        }
+
+        @Override
+        public Executor getExecutor() {
+            return rpcService.getExecutor();
+        }
+
+        @Override
+        public ScheduledExecutor getScheduledExecutor() {
+            return rpcService.getScheduledExecutor();
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+            return rpcService.scheduleRunnable(runnable, delay, unit);
+        }
+
+        @Override
+        public void execute(Runnable runnable) {
+            rpcService.execute(runnable);
+        }
+
+        @Override
+        public <T> CompletableFuture<T> execute(Callable<T> callable) {
+            return rpcService.execute(callable);
         }
 
         @SuppressWarnings("unchecked")
@@ -499,12 +572,16 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        protected RpcService createLocalRpcService(Configuration configuration) throws Exception {
+        protected RpcService createLocalRpcService(Configuration configuration, RpcSystem rpcSystem)
+                throws Exception {
             localRpcCreated = true;
 
-            return AkkaRpcServiceUtils.localServiceBuilder(configuration)
-                    .withCustomConfig(AkkaUtils.testDispatcherConfig())
-                    .createAndStart(InterceptingRpcService::new);
+            return new InterceptingRpcService(
+                    rpcSystem
+                            .localServiceBuilder(configuration)
+                            .withExecutorConfiguration(
+                                    RpcUtils.getTestForkJoinExecutorConfiguration())
+                            .createAndStart());
         }
     }
 }

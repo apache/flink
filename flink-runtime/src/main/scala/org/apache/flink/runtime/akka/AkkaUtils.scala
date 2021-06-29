@@ -28,7 +28,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration._
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils
-import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
+import org.apache.flink.runtime.rpc.RpcSystem.{FixedThreadPoolExecutorConfiguration, ForkJoinExecutorConfiguration}
+import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools
 import org.apache.flink.util.NetUtils
 import org.apache.flink.util.TimeUtils
 import org.apache.flink.util.concurrent.FutureUtils
@@ -191,7 +192,7 @@ object AkkaUtils {
       configuration,
       externalAddress,
       None,
-      getForkJoinExecutorConfig(ForkJoinExecutorConfiguration.fromConfiguration(configuration)))
+      getForkJoinExecutorConfig(AkkaBootstrapTools.getForkJoinExecutorConfiguration(configuration)))
   }
 
   /**
@@ -366,25 +367,6 @@ object AkkaUtils {
        |}""".stripMargin
 
     ConfigFactory.parseString(configString)
-  }
-
-  def testDispatcherConfig: Config = {
-    val config =
-      s"""
-         |akka {
-         |  actor {
-         |    default-dispatcher {
-         |      fork-join-executor {
-         |        parallelism-factor = 1.0
-         |        parallelism-min = 2
-         |        parallelism-max = 4
-         |      }
-         |    }
-         |  }
-         |}
-      """.stripMargin
-
-    ConfigFactory.parseString(config)
   }
 
   /**

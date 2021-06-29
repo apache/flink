@@ -26,7 +26,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.AddressResolution;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -52,6 +52,8 @@ import static org.junit.Assert.assertEquals;
 
 /** Tests for the ZooKeeper based leader election and retrieval. */
 public class ZooKeeperLeaderRetrievalTest extends TestLogger {
+
+    private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
 
     private TestingServer testingServer;
 
@@ -112,7 +114,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
 
         try {
             String wrongAddress =
-                    AkkaRpcServiceUtils.getRpcUrl(
+                    RPC_SYSTEM.getRpcUrl(
                             "1.1.1.1",
                             1234,
                             "foobar",
@@ -136,7 +138,7 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                     new InetSocketAddress(localHost, serverSocket.getLocalPort());
 
             String correctAddress =
-                    AkkaRpcServiceUtils.getRpcUrl(
+                    RPC_SYSTEM.getRpcUrl(
                             localHost.getHostName(),
                             correctInetSocketAddress.getPort(),
                             JobMaster.JOB_MANAGER_NAME,
@@ -208,7 +210,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
                 highAvailabilityServices.getJobManagerLeaderRetriever(
                         HighAvailabilityServices.DEFAULT_JOB_ID);
         InetAddress result =
-                LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
+                LeaderRetrievalUtils.findConnectingAddress(
+                        leaderRetrievalService, timeout, RPC_SYSTEM);
 
         assertEquals(InetAddress.getLocalHost(), result);
     }
@@ -231,7 +234,8 @@ public class ZooKeeperLeaderRetrievalTest extends TestLogger {
         public void run() {
             try {
                 result =
-                        LeaderRetrievalUtils.findConnectingAddress(leaderRetrievalService, timeout);
+                        LeaderRetrievalUtils.findConnectingAddress(
+                                leaderRetrievalService, timeout, RPC_SYSTEM);
             } catch (Exception e) {
                 exception = e;
             }

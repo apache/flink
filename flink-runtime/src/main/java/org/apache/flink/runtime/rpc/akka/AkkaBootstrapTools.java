@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -64,7 +65,8 @@ public class AkkaBootstrapTools {
                 NetUtils.getWildcardIPAddress(),
                 Optional.empty(),
                 logger,
-                ForkJoinExecutorConfiguration.fromConfiguration(configuration),
+                AkkaUtils.getForkJoinExecutorConfig(
+                        getForkJoinExecutorConfiguration(configuration)),
                 null);
     }
 
@@ -94,7 +96,7 @@ public class AkkaBootstrapTools {
             String bindAddress,
             @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort,
             Logger logger,
-            ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+            Config actorSystemExecutorConfiguration,
             Config customConfig)
             throws Exception {
 
@@ -161,7 +163,7 @@ public class AkkaBootstrapTools {
             String bindAddress,
             int bindPort,
             Logger logger,
-            ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+            Config actorSystemExecutorConfiguration,
             Config customConfig)
             throws Exception {
 
@@ -180,7 +182,7 @@ public class AkkaBootstrapTools {
                             configuration,
                             new Some<>(new Tuple2<>(externalAddress, externalPort)),
                             new Some<>(new Tuple2<>(bindAddress, bindPort)),
-                            actorSystemExecutorConfiguration.getAkkaConfig());
+                            actorSystemExecutorConfiguration);
 
             if (customConfig != null) {
                 akkaConfig = customConfig.withFallback(akkaConfig);
@@ -220,7 +222,7 @@ public class AkkaBootstrapTools {
             Configuration configuration,
             String actorSystemName,
             Logger logger,
-            ActorSystemExecutorConfiguration actorSystemExecutorConfiguration,
+            Config actorSystemExecutorConfiguration,
             Config customConfig)
             throws Exception {
 
@@ -232,7 +234,7 @@ public class AkkaBootstrapTools {
                             configuration,
                             scala.Option.empty(),
                             scala.Option.empty(),
-                            actorSystemExecutorConfiguration.getAkkaConfig());
+                            actorSystemExecutorConfiguration);
 
             if (customConfig != null) {
                 akkaConfig = customConfig.withFallback(akkaConfig);
@@ -277,92 +279,16 @@ public class AkkaBootstrapTools {
         Config getAkkaConfig();
     }
 
-    /** Configuration for a fork join executor. */
-    public static class ForkJoinExecutorConfiguration implements ActorSystemExecutorConfiguration {
+    public static RpcSystem.ForkJoinExecutorConfiguration getForkJoinExecutorConfiguration(
+            final Configuration configuration) {
+        final double parallelismFactor =
+                configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+        final int minParallelism =
+                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+        final int maxParallelism =
+                configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
 
-        private final double parallelismFactor;
-
-        private final int minParallelism;
-
-        private final int maxParallelism;
-
-        public ForkJoinExecutorConfiguration(
-                double parallelismFactor, int minParallelism, int maxParallelism) {
-            this.parallelismFactor = parallelismFactor;
-            this.minParallelism = minParallelism;
-            this.maxParallelism = maxParallelism;
-        }
-
-        public double getParallelismFactor() {
-            return parallelismFactor;
-        }
-
-        public int getMinParallelism() {
-            return minParallelism;
-        }
-
-        public int getMaxParallelism() {
-            return maxParallelism;
-        }
-
-        @Override
-        public Config getAkkaConfig() {
-            return AkkaUtils.getForkJoinExecutorConfig(this);
-        }
-
-        public static ForkJoinExecutorConfiguration fromConfiguration(
-                final Configuration configuration) {
-            final double parallelismFactor =
-                    configuration.getDouble(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
-            final int minParallelism =
-                    configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
-            final int maxParallelism =
-                    configuration.getInteger(AkkaOptions.FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
-
-            return new ForkJoinExecutorConfiguration(
-                    parallelismFactor, minParallelism, maxParallelism);
-        }
-    }
-
-    /** Configuration for a fixed thread pool executor. */
-    public static class FixedThreadPoolExecutorConfiguration
-            implements ActorSystemExecutorConfiguration {
-
-        private final int minNumThreads;
-
-        private final int maxNumThreads;
-
-        private final int threadPriority;
-
-        public FixedThreadPoolExecutorConfiguration(
-                int minNumThreads, int maxNumThreads, int threadPriority) {
-            if (threadPriority < Thread.MIN_PRIORITY || threadPriority > Thread.MAX_PRIORITY) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "The thread priority must be within (%s, %s) but it was %s.",
-                                Thread.MIN_PRIORITY, Thread.MAX_PRIORITY, threadPriority));
-            }
-
-            this.minNumThreads = minNumThreads;
-            this.maxNumThreads = maxNumThreads;
-            this.threadPriority = threadPriority;
-        }
-
-        public int getMinNumThreads() {
-            return minNumThreads;
-        }
-
-        public int getMaxNumThreads() {
-            return maxNumThreads;
-        }
-
-        public int getThreadPriority() {
-            return threadPriority;
-        }
-
-        @Override
-        public Config getAkkaConfig() {
-            return AkkaUtils.getThreadPoolExecutorConfig(this);
-        }
+        return new RpcSystem.ForkJoinExecutorConfiguration(
+                parallelismFactor, minParallelism, maxParallelism);
     }
 }
