@@ -2067,7 +2067,7 @@ table = input.over_window([w: OverWindow].alias("w")) \
 
 * `CURRENT_ROW` 将窗口的上限设置为当前行。
 * `CURRENT_RANGE` 将窗口的上限设置为当前行的排序键，例如，与当前行具有相同排序键的所有行都包含在窗口中。
-* 
+
 如果省略后面的子句，则时间间隔窗口的上限定义为 `CURRENT_RANGE`，行计数间隔窗口的上限定义为CURRENT_ROW。
 
 #### As
@@ -2351,7 +2351,7 @@ input.flat_map(split)
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```java
 public class MyMinMaxAcc {
@@ -2401,7 +2401,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
@@ -2442,7 +2442,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 语句关闭“聚合”，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2509,7 +2509,7 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 
 {{< label Batch >}} {{< label Streaming >}}
 
-在 [group window](#group-window) 和可能的一个或多个分组键上对表进行分组和聚合。你必须使用 select 语句关闭“聚合”。并且 select 语句不支持“*”或聚合函数。
+在 [group window](#group-window) 和可能的一个或多个分组键上对表进行分组和聚合。你必须使用 select 子句关闭 `aggregate` 。并且 select 子句不支持“*”或聚合函数。
 
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
@@ -2565,7 +2565,7 @@ t.select(t.b, t.rowtime) \
 {{< tabs "flataggregate" >}}
 {{< tab "Java" >}}
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flatAggregate`。并且 select 语句不支持聚合函数。
 
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
@@ -2629,7 +2629,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flatAggregate”。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flatAggregate` 。并且 select 语句不支持聚合函数。
 
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
@@ -2699,7 +2699,7 @@ val result = orders
 
 使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭“flat_aggregate”。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flat_aggregate` 。并且 select 语句不支持聚合函数。
 
 ```python
 from pyflink.common import Row
@@ -2759,7 +2759,7 @@ result = t.select(t.a, t.c) \
 
 请查看[数据类型]({{< ref "docs/dev/table/types" >}})的专门页面。
 
-行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类 )。
+行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类)。
 
 任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
 
