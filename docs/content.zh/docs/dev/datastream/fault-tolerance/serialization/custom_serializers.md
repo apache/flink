@@ -3,8 +3,8 @@ title: 自定义序列化器
 weight: 11
 type: docs
 aliases:
-  - /zh/dev/custom_serializers.
-  - /zh/docs/dev/serialization/types_serialization/
+  - /zh/dev/custom_serializers.html
+  - /zh/docs/dev/datastream/fault-tolerance/serialization/custom_serializers/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
