@@ -354,7 +354,7 @@ Hive 方言支持常用的 Hive [DML](https://cwiki.apache.org/confluence/displa
 为了实现更好的语法和语义的兼容，强烈建议使用 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 
 并将其放在 Module 列表的首位，以便在函数解析时优先使用 Hive 内置函数。
 
-Hive 方言不再支持 [Flink SQL 语法]({{< ref "docs/dev/table/sql/queries" >}}) 。 若需使用 Flink 语法，请切换到 `default` 方言。
+Hive 方言不再支持 [Flink SQL 语法]({{< ref "docs/dev/table/sql/queries/overview" >}}) 。 若需使用 Flink 语法，请切换到 `default` 方言。
 
 以下是一个使用 Hive 方言的示例。
 

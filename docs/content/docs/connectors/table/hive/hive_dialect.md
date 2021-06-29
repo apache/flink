@@ -364,7 +364,7 @@ HiveQL supported by the Hive dialect.
 In order to have better syntax and semantic compatibility, it's highly recommended to use [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule)
 and place it first in the module list, so that Hive built-in functions can be picked up during function resolution.
 
-Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries" >}}). Please switch to `default`
+Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries/overview" >}}). Please switch to `default`
 dialect if you'd like to write in Flink syntax.
 
 Following is an example of using hive dialect to run some queries.
