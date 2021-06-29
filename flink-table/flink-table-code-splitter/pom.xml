@@ -33,8 +33,6 @@ under the License.
 	<description>
 		This module contains a tool to split generated Java code
 		so that each method does not exceed the limit of 64KB.
-		Antlr grammar files are copied from the official antlr repository
-		https://github.com/antlr/grammars-v4/tree/master/java/java
 	</description>
 
 	<packaging>jar</packaging>

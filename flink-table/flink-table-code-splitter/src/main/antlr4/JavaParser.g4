@@ -27,6 +27,15 @@
  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+//
+//  This Java grammar file is copied from the official Antlr repository
+//  https://github.com/antlr/grammars-v4/tree/master/java/java
+//
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
 parser grammar JavaParser;
 
 @header {
