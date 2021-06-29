@@ -982,6 +982,7 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 Interval join 是可以以流方式处理的常规 join 的子集。
+
 Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界限的 join 条件。这种条件可以由两个合适的范围谓词（`<、<=、>=、>`）或一个比较两个输入表相同类型（即处理时间或事件时间）的时间属性的相等谓词来定义。
 
 {{< tabs "intervaljoin" >}}
@@ -1029,7 +1030,6 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
 join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。
-
 如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
@@ -1203,6 +1203,7 @@ left.union(right)
 #### UnionAll
 
 {{< label Batch >}} {{< label Streaming >}}
+
 
 和 SQL `UNION ALL` 子句类似。Union 两张表。
 两张表必须具有相同的字段类型。
