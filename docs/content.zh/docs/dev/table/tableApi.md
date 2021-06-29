@@ -34,7 +34,6 @@ Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查�
 
 下面的例子假设了一张名称是 `Orders` 有属性 `(a, b, c, rowtime)` 的表。`rowtime` 字段是流中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批中的普通时间戳字段。
 
-
 概述 & 例子
 -----------------------------
 
@@ -225,6 +224,8 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要在流记录不存在延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/dev/table/concepts/overview" >}})获取详情)。
 
 {{< top >}}
+
+<a name="operations"></a>
 
 操作
 ----------
@@ -474,6 +475,10 @@ result = orders.filter(orders.a == 'red')
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+
+
+<a name="columln-operations"></a>
 
 ### 列操作
 
@@ -1604,7 +1609,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 `Window` 参数定义了如何将行映射到窗口。 `Window` 不是用户可以实现的接口。相反，Table API 提供了一组具有特定语义的预定义“Window”类。下面列出了支持的窗口定义。
 
-#### Tumble (滚动窗口)
+#### Tumble (Tumbling Windows)
 
 滚动窗口将行分配给固定长度的非重叠连续窗口。例如，一个 5 分钟的滚动窗口以 5 分钟的间隔对行进行分组。滚动窗口可以定义在事件时间、处理时间或行数上。
 
@@ -1730,7 +1735,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Slide (滑动窗口)
+#### Slide (Sliding Windows)
 
 滑动窗口具有固定大小并按指定的滑动间隔滑动。如果滑动间隔小于窗口大小，则滑动窗口重叠。因此，行可能分配给多个窗口。例如，15 分钟大小和 5 分钟滑动间隔的滑动窗口将每一行分配给 3 个不同的 15 分钟大小的窗口，以 5 分钟的间隔进行一次计算。滑动窗口可以定义在事件时间、处理时间或行数上。
 
@@ -1872,7 +1877,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Session (会话窗口)
+#### Session (Session Windows)
 
 会话窗口没有固定的大小，其边界是由不活动的间隔定义的，例如，如果在定义的间隔期内没有事件出现，则会话窗口将关闭。例如，定义30 分钟间隔的会话窗口，当观察到一行在 30 分钟内不活动（否则该行将被添加到现有窗口中）且30 分钟内没有添加新行，窗口会关闭。会话窗口支持事件时间和处理时间。
 
@@ -2155,6 +2160,10 @@ table = input.over_window([w: OverWindow].alias("w")) \
 {{< /tabs >}}
 
 {{< top >}}
+
+
+
+<a name="row-based-operations"></a>
 
 ### 基于行的操作
 
@@ -2724,6 +2733,7 @@ result = t.select(t.a, t.c) \
 
 {{< query_state_warning >}}
 
+<a name="data-types"></a>
 数据类型
 ----------
 
