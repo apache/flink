@@ -42,9 +42,12 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
+import org.hamcrest.CustomTypeSafeMatcher;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -135,6 +138,8 @@ public class RMQSourceTest {
         sourceThread.join();
     }
 
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
     @Test
     public void throwExceptionIfConnectionFactoryReturnNull() throws Exception {
         RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
@@ -155,6 +160,25 @@ public class RMQSourceTest {
     }
 
     @Test
+    public void testResourceCleanupOnOpenFailure() throws Exception {
+        RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+        ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+        Connection connection = Mockito.mock(Connection.class);
+        Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+        Mockito.when(connectionConfig.getHost()).thenReturn("hostDummy");
+        Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+        Mockito.when(connection.createChannel()).thenThrow(new IOException());
+
+        RMQSource<String> rmqSource =
+                new RMQSource<>(
+                        connectionConfig, "queueDummy", true, new StringDeserializationScheme());
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("Cannot create RMQ connection with queueDummy at hostDummy");
+        rmqSource.open(new Configuration());
+        Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
+    }
+
+    @Test
     public void testOpenCallDeclaresQueueInStandardMode() throws Exception {
         FunctionInitializationContext mockContext = getMockContext();
 
@@ -172,6 +196,47 @@ public class RMQSourceTest {
         rmqSource.open(new Configuration());
 
         Mockito.verify(channel).queueDeclare(RMQTestSource.QUEUE_NAME, true, false, false, null);
+    }
+
+    @Test
+    public void testResourceCleanupOnClose() throws Exception {
+        FunctionInitializationContext mockContext = getMockContext();
+
+        RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+        ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+        Connection connection = Mockito.mock(Connection.class);
+        Channel channel = Mockito.mock(Channel.class);
+
+        Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+        Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+        Mockito.when(connectionConfig.getHost()).thenReturn("hostDummy");
+        Mockito.when(connection.createChannel()).thenReturn(channel);
+        Mockito.doThrow(new IOException("Consumer cancel error")).when(channel).basicCancel(any());
+        Mockito.doThrow(new IOException("Channel error")).when(channel).close();
+        Mockito.doThrow(new IOException("Connection error")).when(connection).close();
+
+        RMQSource<String> rmqSource = new RMQMockedRuntimeTestSource(connectionConfig);
+        rmqSource.initializeState(mockContext);
+        rmqSource.open(new Configuration());
+
+        thrown.expect(RuntimeException.class);
+        thrown.expectMessage("Error while cancelling RMQ consumer on queueDummy at hostDummy");
+        thrown.expect(
+                new CustomTypeSafeMatcher<RuntimeException>("should have suppressed exceptions") {
+                    @Override
+                    protected boolean matchesSafely(RuntimeException ex) {
+                        if (ex.getSuppressed().length == 0) {
+                            return false;
+                        }
+                        String expectedMsg =
+                                "Error while closing RMQ source with queueDummy at hostDummy";
+                        return ex.getSuppressed()[0].getMessage().equals(expectedMsg);
+                    }
+                });
+        rmqSource.close();
+        Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).basicCancel(any());
+        Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).close();
+        Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
     }
 
     @Test
