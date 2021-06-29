@@ -65,7 +65,7 @@ class AkkaUtilsTest
   }
 
   test("getHostFromAkkaURL should return host after at sign") {
-    val url = "akka://flink@localhost:1234/user/jobmanager"
+    val url = "akka.tcp://flink@localhost:1234/user/jobmanager"
     val expected = new InetSocketAddress("localhost", 1234)
 
     val result = AkkaUtils.getInetSocketAddressFromAkkaURL(url)
@@ -146,14 +146,14 @@ class AkkaUtilsTest
 
     val akkaConfig = AkkaUtils.getAkkaConfig(configuration, hostname, port)
 
-    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+    akkaConfig.getString("akka.remote.classic.netty.tcp.hostname") should
       equal(NetUtils.unresolvedHostToNormalizedString(hostname))
   }
 
   test("null hostname should go to localhost") {
     val configure = AkkaUtils.getAkkaConfig(new Configuration(), Some((null, 1772)))
 
-    val hostname = configure.getString("akka.remote.netty.tcp.hostname")
+    val hostname = configure.getString("akka.remote.classic.netty.tcp.hostname")
 
     InetAddress.getByName(hostname).isLoopbackAddress should be(true)
   }
@@ -196,7 +196,7 @@ class AkkaUtilsTest
 
     val akkaConfig = AkkaUtils.getAkkaConfig(configuration, ipv6AddressString, port)
 
-    akkaConfig.getString("akka.remote.netty.tcp.hostname") should
+    akkaConfig.getString("akka.remote.classic.netty.tcp.hostname") should
       equal(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString))
   }
 
@@ -216,7 +216,7 @@ class AkkaUtilsTest
 
     val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
 
-    val sslConfig = akkaConfig.getConfig("akka.remote.netty.ssl")
+    val sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl")
 
     sslConfig.getString("ssl-engine-provider") should
       equal("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider")
@@ -233,7 +233,7 @@ class AkkaUtilsTest
 
     val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
 
-    val sslConfig = akkaConfig.getConfig("akka.remote.netty.ssl")
+    val sslConfig = akkaConfig.getConfig("akka.remote.classic.netty.ssl")
 
     sslConfig.getString("ssl-engine-provider") should
       equal("org.apache.flink.runtime.rpc.akka.CustomSSLEngineProvider")

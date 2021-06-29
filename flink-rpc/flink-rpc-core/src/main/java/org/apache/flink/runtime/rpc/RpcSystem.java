@@ -88,8 +88,7 @@ public interface RpcSystem extends RpcSystemUtils, AutoCloseable {
      * @return loaded RpcSystem
      */
     static RpcSystem load(Configuration config) {
-        final ClassLoader classLoader = RpcSystem.class.getClassLoader();
-        return ServiceLoader.load(RpcSystem.class, classLoader).iterator().next();
+        return ServiceLoader.load(RpcSystemLoader.class).iterator().next().loadRpcSystem(config);
     }
 
     /** Descriptor for creating a fork-join thread-pool. */
