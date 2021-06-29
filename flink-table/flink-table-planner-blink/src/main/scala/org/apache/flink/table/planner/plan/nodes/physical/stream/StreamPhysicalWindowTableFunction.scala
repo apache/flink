@@ -77,9 +77,9 @@ class StreamPhysicalWindowTableFunction(
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWindowTableFunction(
       windowing,
+      emitPerRecord,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      emitPerRecord,
       getRelDetailedDescription
     )
   }

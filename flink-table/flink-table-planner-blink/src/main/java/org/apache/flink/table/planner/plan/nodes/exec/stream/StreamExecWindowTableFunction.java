@@ -26,9 +26,18 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Stream {@link ExecNode} which acts as a table-valued function to assign a window for each row of
@@ -36,21 +45,46 @@ import java.util.Collections;
  * well additional 3 columns named {@code window_start}, {@code window_end}, {@code window_time} to
  * indicate the assigned window.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StreamExecWindowTableFunction extends ExecNodeBase<RowData>
-        implements StreamExecNode<RowData> {
+        implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    public static final String FIELD_NAME_WINDOWING = "windowing";
+    public static final String FIELD_NAME_EMIT_PER_RECORD = "emitPerRecord";
+
+    @JsonProperty(FIELD_NAME_WINDOWING)
     private final TimeAttributeWindowingStrategy windowingStrategy;
+
+    @JsonProperty(FIELD_NAME_EMIT_PER_RECORD)
     private final Boolean emitPerRecord;
 
     public StreamExecWindowTableFunction(
             TimeAttributeWindowingStrategy windowingStrategy,
-            InputProperty inputEdge,
-            RowType outputType,
             Boolean emitPerRecord,
+            InputProperty inputProperty,
+            RowType outputType,
             String description) {
-        super(Collections.singletonList(inputEdge), outputType, description);
-        this.windowingStrategy = windowingStrategy;
-        this.emitPerRecord = emitPerRecord;
+        this(
+                windowingStrategy,
+                emitPerRecord,
+                getNewNodeId(),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
+    }
+
+    @JsonCreator
+    public StreamExecWindowTableFunction(
+            @JsonProperty(FIELD_NAME_WINDOWING) TimeAttributeWindowingStrategy windowingStrategy,
+            @JsonProperty(FIELD_NAME_EMIT_PER_RECORD) Boolean emitPerRecord,
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, inputProperties, outputType, description);
+        checkArgument(inputProperties.size() == 1);
+        this.windowingStrategy = checkNotNull(windowingStrategy);
+        this.emitPerRecord = checkNotNull(emitPerRecord);
     }
 
     @Override

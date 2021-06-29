@@ -18,44 +18,25 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowJoin;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowRank;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWindowTableFunction;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.rel.RelNode;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
  * Planner rule that tries to simplify emit behavior of {@link StreamPhysicalWindowTableFunction} to
- * emit per record instead of emit after watermark passed window end if the successor node is {@link
- * StreamPhysicalWindowRank} or {@link StreamPhysicalWindowJoin} which with
- * rowtime-WindowingStrategy.
+ * emit per record instead of emit after watermark passed window end if followed by {@link
+ * StreamPhysicalWindowJoin} and time attribute is event-time.
  */
-public class SimplifyWindowTableFunctionRule
-        extends RelRule<SimplifyWindowTableFunctionRule.Config> {
-
-    public static final RelOptRule WITH_WINDOW_RANK =
-            Config.EMPTY
-                    .withDescription("SimplifyWindowTableFunctionRuleWithWindowRank")
-                    .as(Config.class)
-                    .withWindowRank()
-                    .toRule();
-
-    public static final RelOptRule WITH_CALC_WINDOW_RANK =
-            Config.EMPTY
-                    .withDescription("SimplifyWindowTableFunctionRuleWithCalcWindowRank")
-                    .as(Config.class)
-                    .withCalcWindowRank()
-                    .toRule();
+public class SimplifyWindowTableFunctionWithWindowJoinRule
+        extends RelRule<SimplifyWindowTableFunctionWithWindowJoinRule.Config> {
 
     public static final RelOptRule WITH_WINDOW_JOIN =
             Config.EMPTY
@@ -85,155 +66,63 @@ public class SimplifyWindowTableFunctionRule
                     .withLeftRightCalcWindowJoin()
                     .toRule();
 
-    public SimplifyWindowTableFunctionRule(Config config) {
+    public SimplifyWindowTableFunctionWithWindowJoinRule(Config config) {
         super(config);
     }
 
     @Override
     public boolean matches(RelOptRuleCall call) {
         List<RelNode> rels = call.getRelList();
-        final RelNode node = rels.get(0);
-        if (node instanceof StreamPhysicalWindowRank) {
-            final int windowTVFIdx = rels.size() - 1;
-            final StreamPhysicalWindowTableFunction windowTVF =
-                    (StreamPhysicalWindowTableFunction) rels.get(windowTVFIdx);
-            return needSimplify(windowTVF);
-        } else if (node instanceof StreamPhysicalWindowJoin) {
-            RelNode leftWindowTVFRel;
-            if (call.rule == WITH_WINDOW_JOIN) {
-                leftWindowTVFRel = rels.get(2);
-            } else if (call.rule == WITH_RIGHT_CALC_WINDOW_JOIN) {
-                leftWindowTVFRel = rels.get(2);
-            } else if (call.rule == WITH_LEFT_CALC_WINDOW_JOIN) {
-                leftWindowTVFRel = rels.get(3);
-            } else if (call.rule == WITH_LEFT_RIGHT_CALC_WINDOW_JOIN) {
-                leftWindowTVFRel = rels.get(3);
-            } else {
-                throw new TableException("This should never happen. Please file an issue.");
-            }
-            final StreamPhysicalWindowTableFunction leftWindowTVF =
-                    (StreamPhysicalWindowTableFunction) leftWindowTVFRel;
-            final StreamPhysicalWindowTableFunction rightWindowTVF =
-                    (StreamPhysicalWindowTableFunction) rels.get(rels.size() - 1);
-            return needSimplify(leftWindowTVF) || needSimplify(rightWindowTVF);
+        RelNode leftWindowTVFRel;
+        if (call.rule == WITH_WINDOW_JOIN || call.rule == WITH_RIGHT_CALC_WINDOW_JOIN) {
+            leftWindowTVFRel = rels.get(2);
         } else {
-            throw new IllegalStateException(
-                    this.getClass().getName()
-                            + " matches a wrong relation tree: "
-                            + RelOptUtil.toString(node));
+            leftWindowTVFRel = rels.get(3);
         }
+        final StreamPhysicalWindowTableFunction leftWindowTVF =
+                (StreamPhysicalWindowTableFunction) leftWindowTVFRel;
+        final StreamPhysicalWindowTableFunction rightWindowTVF =
+                (StreamPhysicalWindowTableFunction) rels.get(rels.size() - 1);
+        return SimplifyWindowTableFunctionRuleHelper.needSimplify(leftWindowTVF)
+                || SimplifyWindowTableFunctionRuleHelper.needSimplify(rightWindowTVF);
     }
 
     @Override
     public void onMatch(RelOptRuleCall call) {
         List<RelNode> rels = call.getRelList();
-        final RelNode node = rels.get(0);
-        if (node instanceof StreamPhysicalWindowRank) {
-            RelNode newTree = rebuild(rels);
-            call.transformTo(newTree);
-        } else if (node instanceof StreamPhysicalWindowJoin) {
-            RelNode newLeft;
-            RelNode newRight;
-            if (call.rule == WITH_WINDOW_JOIN) {
-                newLeft = rebuild(rels.subList(1, 3));
-                newRight = rebuild(rels.subList(3, 5));
-            } else if (call.rule == WITH_RIGHT_CALC_WINDOW_JOIN) {
-                newLeft = rebuild(rels.subList(1, 3));
-                newRight = rebuild(rels.subList(3, 6));
-            } else if (call.rule == WITH_LEFT_CALC_WINDOW_JOIN) {
-                newLeft = rebuild(rels.subList(1, 4));
-                newRight = rebuild(rels.subList(4, 6));
-            } else if (call.rule == WITH_LEFT_RIGHT_CALC_WINDOW_JOIN) {
-                newLeft = rebuild(rels.subList(1, 4));
-                newRight = rebuild(rels.subList(4, 7));
-            } else {
-                throw new TableException("This should never happen. Please file an issue.");
-            }
-            final StreamPhysicalWindowJoin join = call.rel(0);
-            final RelNode newJoin =
-                    join.copy(
-                            join.getTraitSet(),
-                            join.getCondition(),
-                            newLeft,
-                            newRight,
-                            join.getJoinType(),
-                            join.isSemiJoinDone());
-            call.transformTo(newJoin);
+        final StreamPhysicalWindowJoin join = call.rel(0);
+        RelNode newLeft;
+        RelNode newRight;
+        if (call.rule == WITH_WINDOW_JOIN) {
+            newLeft = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(1, 3));
+            newRight = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(3, 5));
+        } else if (call.rule == WITH_RIGHT_CALC_WINDOW_JOIN) {
+            newLeft = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(1, 3));
+            newRight = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(3, 6));
+        } else if (call.rule == WITH_LEFT_CALC_WINDOW_JOIN) {
+            newLeft = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(1, 4));
+            newRight = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(4, 6));
         } else {
-            throw new IllegalStateException(
-                    this.getClass().getName()
-                            + " matches a wrong relation tree: "
-                            + RelOptUtil.toString(node));
+            newLeft = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(1, 4));
+            newRight = SimplifyWindowTableFunctionRuleHelper.rebuild(rels.subList(4, 7));
         }
-    }
-
-    private boolean needSimplify(StreamPhysicalWindowTableFunction windowTVF) {
-        return windowTVF.windowing().isRowtime() && !windowTVF.emitPerRecord();
-    }
-
-    /**
-     * Replace the leaf node, and build a new {@link RelNode} tree in the given nodes order which is
-     * in root-down direction.
-     */
-    private RelNode rebuild(List<RelNode> nodes) {
-        final StreamPhysicalWindowTableFunction windowTVF =
-                (StreamPhysicalWindowTableFunction) nodes.get(nodes.size() - 1);
-        if (needSimplify(windowTVF)) {
-            final StreamPhysicalWindowTableFunction newWindowTVF = windowTVF.copy(true);
-            RelNode root = newWindowTVF;
-            for (int i = nodes.size() - 2; i >= 0; i--) {
-                RelNode node = nodes.get(i);
-                root = node.copy(node.getTraitSet(), Collections.singletonList(root));
-            }
-            return root;
-        } else {
-            return nodes.get(0);
-        }
+        final RelNode newJoin =
+                join.copy(
+                        join.getTraitSet(),
+                        join.getCondition(),
+                        newLeft,
+                        newRight,
+                        join.getJoinType(),
+                        join.isSemiJoinDone());
+        call.transformTo(newJoin);
     }
 
     /** Rule configuration. */
     public interface Config extends RelRule.Config {
 
         @Override
-        default SimplifyWindowTableFunctionRule toRule() {
-            return new SimplifyWindowTableFunctionRule(this);
-        }
-
-        default Config withWindowRank() {
-            return withOperandSupplier(
-                            b0 ->
-                                    b0.operand(StreamPhysicalWindowRank.class)
-                                            .oneInput(
-                                                    b1 ->
-                                                            b1.operand(StreamPhysicalExchange.class)
-                                                                    .oneInput(
-                                                                            b2 ->
-                                                                                    b2.operand(
-                                                                                                    StreamPhysicalWindowTableFunction
-                                                                                                            .class)
-                                                                                            .anyInputs())))
-                    .as(Config.class);
-        }
-
-        default Config withCalcWindowRank() {
-            return withOperandSupplier(
-                            b0 ->
-                                    b0.operand(StreamPhysicalWindowRank.class)
-                                            .oneInput(
-                                                    b1 ->
-                                                            b1.operand(StreamPhysicalExchange.class)
-                                                                    .oneInput(
-                                                                            b2 ->
-                                                                                    b2.operand(
-                                                                                                    StreamPhysicalCalc
-                                                                                                            .class)
-                                                                                            .oneInput(
-                                                                                                    b3 ->
-                                                                                                            b3.operand(
-                                                                                                                            StreamPhysicalWindowTableFunction
-                                                                                                                                    .class)
-                                                                                                                    .anyInputs()))))
-                    .as(Config.class);
+        default SimplifyWindowTableFunctionWithWindowJoinRule toRule() {
+            return new SimplifyWindowTableFunctionWithWindowJoinRule(this);
         }
 
         default Config withWindowJoin() {
