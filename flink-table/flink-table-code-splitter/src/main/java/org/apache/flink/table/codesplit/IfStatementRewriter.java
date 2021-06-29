@@ -96,18 +96,18 @@ public class IfStatementRewriter {
                     if (blockStatementContext.statement().statement(0) != null
                             && blockStatementContext.statement().statement(0).block() != null
                             && blockStatementContext
-                            .statement()
-                            .statement(0)
-                            .block()
-                            .blockStatement()
-                            != null
+                                            .statement()
+                                            .statement(0)
+                                            .block()
+                                            .blockStatement()
+                                    != null
                             && blockStatementContext
-                            .statement()
-                            .statement(0)
-                            .block()
-                            .blockStatement()
-                            .size()
-                            > 1) {
+                                            .statement()
+                                            .statement(0)
+                                            .block()
+                                            .blockStatement()
+                                            .size()
+                                    > 1) {
 
                         long counter = CodeSplitUtil.getCounter().incrementAndGet();
 
@@ -123,10 +123,10 @@ public class IfStatementRewriter {
                         String newMethod =
                                 methodDef
                                         + CodeSplitUtil.getContextString(
-                                        blockStatementContext
-                                                .statement()
-                                                .statement(0)
-                                                .block())
+                                                blockStatementContext
+                                                        .statement()
+                                                        .statement(0)
+                                                        .block())
                                         + "\n";
 
                         String newMethodCall =
@@ -147,18 +147,18 @@ public class IfStatementRewriter {
                     if (blockStatementContext.statement().statement(1) != null
                             && blockStatementContext.statement().statement(1).block() != null
                             && blockStatementContext
-                            .statement()
-                            .statement(1)
-                            .block()
-                            .blockStatement()
-                            != null
+                                            .statement()
+                                            .statement(1)
+                                            .block()
+                                            .blockStatement()
+                                    != null
                             && blockStatementContext
-                            .statement()
-                            .statement(1)
-                            .block()
-                            .blockStatement()
-                            .size()
-                            > 1) {
+                                            .statement()
+                                            .statement(1)
+                                            .block()
+                                            .blockStatement()
+                                            .size()
+                                    > 1) {
                         long counter = CodeSplitUtil.getCounter().incrementAndGet();
 
                         String methodDef =
@@ -173,10 +173,10 @@ public class IfStatementRewriter {
                         String newMethod =
                                 methodDef
                                         + CodeSplitUtil.getContextString(
-                                        blockStatementContext
-                                                .statement()
-                                                .statement(1)
-                                                .block())
+                                                blockStatementContext
+                                                        .statement()
+                                                        .statement(1)
+                                                        .block())
                                         + "\n";
 
                         String newMethodCall =

@@ -166,7 +166,7 @@ public class MemberFieldRewriter {
                         type.indexOf('<') == -1
                                 ? type
                                 : type.substring(0, type.indexOf('<'))
-                                + type.substring(type.lastIndexOf('>') + 1);
+                                        + type.substring(type.lastIndexOf('>') + 1);
                 int count = typeCount.getValue();
                 String fieldName = CodeSplitUtil.newName("rewrite");
                 typeFieldNames.put(type, fieldName);
