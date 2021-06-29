@@ -90,7 +90,7 @@ SerializationSchema<SomeObject> serializationSchema = (...);
 SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withSerializationSchema(serializationSchema)
                                                 .withProjectName("project")
-                                                .withSubscriptionName("subscription")
+                                                .withTopicName("topic")
                                                 .build()
 
 dataStream.addSink(pubsubSink);
@@ -123,7 +123,7 @@ SerializationSchema<SomeObject> serializationSchema = (...);
 SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withSerializationSchema(serializationSchema)
                                                 .withProjectName("my-fake-project")
-                                                .withSubscriptionName("subscription")
+                                                .withTopicName("topic")
                                                 .withHostAndPortForEmulator(hostAndPort)
                                                 .build();
 
