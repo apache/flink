@@ -259,7 +259,7 @@ The most frequent issues where users need to interact with Flink's data type han
   by itself. Not all types are seamlessly handled by Kryo (and thus by Flink). For example, many Google Guava collection types do not work well
   by default. The solution is to register additional serializers for the types that cause problems.
   Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment`.
-  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{< ref "docs/dev/datastream/fault-tolerance/serialization/custom_serializers" >}}) for more details on working with custom serializers.
+  Additional Kryo serializers are available in many libraries. See [3rd party serializer]({{< ref "docs/dev/datastream/fault-tolerance/serialization/third_party_serializers" >}}) for more details on working with external serializers.
 
 * **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despite all tricks, a user must pass a *type hint*. That is generally
   only necessary in the Java API. The [Type Hints Section](#type-hints-in-the-java-api) describes that in more detail.
