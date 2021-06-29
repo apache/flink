@@ -73,6 +73,7 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
+import org.apache.flink.runtime.util.LogStackUtils;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -1038,7 +1039,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                     current,
                     newState,
                     error);
-
+            if (error != null) {
+                LOG.warn(
+                        "Print ExecutionGraph {}",
+                        LogStackUtils.getCallStack(Thread.currentThread().getStackTrace()));
+            }
             stateTimestamps[newState.ordinal()] = System.currentTimeMillis();
             notifyJobStatusChange(newState, error);
             return true;

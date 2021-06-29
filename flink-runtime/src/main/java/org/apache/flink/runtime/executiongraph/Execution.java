@@ -55,6 +55,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.LogStackUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -1451,6 +1452,9 @@ public class Execution
                             targetState,
                             getLocationInformation(),
                             error);
+                    LOG.warn(
+                            "Print Execution {}",
+                            LogStackUtils.getCallStack(Thread.currentThread().getStackTrace()));
                 }
             }
 

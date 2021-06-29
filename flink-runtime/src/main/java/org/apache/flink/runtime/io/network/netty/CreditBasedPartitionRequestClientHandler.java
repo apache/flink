@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
+import org.apache.flink.runtime.util.LogStackUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
@@ -44,6 +45,7 @@ import java.util.ArrayDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -243,8 +245,32 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
         writeAndFlushNextMessageIfPossible(ctx.channel());
     }
 
+    private void printLogError(Throwable cause, StackTraceElement[] stackTraceElements) {
+        SocketAddress remoteAddr = null;
+        SocketAddress localAddr = null;
+        if (ctx != null) {
+            remoteAddr = ctx.channel().remoteAddress();
+            localAddr = ctx.channel().localAddress();
+        }
+        LOG.error(
+                "A remote channel of {} to {} throws a exception. and all {} will be notified and"
+                        + " set error.",
+                localAddr == null ? "localAddr" : localAddr,
+                remoteAddr == null ? "remoteAddr" : remoteAddr,
+                String.join(
+                        ",",
+                        inputChannels.values().stream()
+                                .map(RemoteInputChannel::toString)
+                                .collect(Collectors.toList())),
+                cause);
+        LOG.error(
+                "A remote channel throws exception.",
+                LogStackUtils.getCallStack(stackTraceElements));
+    }
+
     private void notifyAllChannelsOfErrorAndClose(Throwable cause) {
         if (channelError.compareAndSet(null, cause)) {
+            printLogError(cause, Thread.currentThread().getStackTrace());
             try {
                 for (RemoteInputChannel inputChannel : inputChannels.values()) {
                     inputChannel.onError(cause);

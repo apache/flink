@@ -75,6 +75,7 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.util.LogStackUtils;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -1073,6 +1074,9 @@ public class Task
                         currentState,
                         newState,
                         ExceptionUtils.stringifyException(cause));
+                LOG.warn(
+                        "Print Task {}",
+                        LogStackUtils.getCallStack(Thread.currentThread().getStackTrace()));
             }
 
             return true;
