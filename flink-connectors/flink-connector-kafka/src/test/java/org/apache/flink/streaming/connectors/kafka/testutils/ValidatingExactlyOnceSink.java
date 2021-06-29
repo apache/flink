@@ -62,6 +62,7 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer>
     @Override
     public void invoke(Integer value) throws Exception {
         numElements++;
+        LOG.info("Sink processed {}", value);
 
         if (duplicateChecker.get(value)) {
             throw new Exception("Received a duplicate: " + value);

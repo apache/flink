@@ -69,6 +69,8 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
         numElementsTotal++;
         numElementsThisTime++;
 
+        LOG.info("{} processed {}", getRuntimeContext().getIndexOfThisSubtask(), value);
+
         if (!failedBefore) {
             Thread.sleep(10);
 
@@ -120,8 +122,10 @@ public class FailingIdentityMapper<T> extends RichMapFunction<T, T>
                 // ignore
             }
             LOG.info(
-                    "============================> Failing mapper  {}: count={}, totalCount={}",
+                    "============================> {} Failing mapper  {}: failure = {} count={}, totalCount={}",
+                    super.toString(),
                     getRuntimeContext().getIndexOfThisSubtask(),
+                    getRuntimeContext().getAttemptNumber(),
                     numElementsThisTime,
                     numElementsTotal);
         }
