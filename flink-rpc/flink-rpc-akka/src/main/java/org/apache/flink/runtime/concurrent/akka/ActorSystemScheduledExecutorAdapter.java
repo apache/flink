@@ -35,13 +35,19 @@ import java.util.concurrent.TimeUnit;
 
 import scala.concurrent.duration.FiniteDuration;
 
-/** Adapter to use a {@link ActorSystem} as a {@link ScheduledExecutor}. */
+/**
+ * Adapter to use a {@link ActorSystem} as a {@link ScheduledExecutor}. Furthermore ensures that the
+ * context class loader is set to the Flink class loader while the runnable is running.
+ */
 public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecutor {
 
     private final ActorSystem actorSystem;
+    private final ClassLoader flinkClassLoader;
 
-    public ActorSystemScheduledExecutorAdapter(ActorSystem actorSystem) {
+    public ActorSystemScheduledExecutorAdapter(
+            ActorSystem actorSystem, ClassLoader flinkClassLoader) {
         this.actorSystem = Preconditions.checkNotNull(actorSystem, "rpcService");
+        this.flinkClassLoader = Preconditions.checkNotNull(flinkClassLoader, "flinkClassLoader");
     }
 
     @Override
@@ -86,7 +92,8 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
                         .schedule(
                                 new FiniteDuration(initialDelay, unit),
                                 new FiniteDuration(period, unit),
-                                scheduledFutureTask,
+                                ClassLoadingUtils.withContextClassLoader(
+                                        scheduledFutureTask, flinkClassLoader),
                                 actorSystem.dispatcher());
 
         scheduledFutureTask.setCancellable(cancellable);
@@ -111,13 +118,18 @@ public final class ActorSystemScheduledExecutorAdapter implements ScheduledExecu
 
     @Override
     public void execute(@Nonnull Runnable command) {
-        actorSystem.dispatcher().execute(command);
+        actorSystem
+                .dispatcher()
+                .execute(ClassLoadingUtils.withContextClassLoader(command, flinkClassLoader));
     }
 
     private Cancellable internalSchedule(Runnable runnable, long delay, TimeUnit unit) {
         return actorSystem
                 .scheduler()
-                .scheduleOnce(new FiniteDuration(delay, unit), runnable, actorSystem.dispatcher());
+                .scheduleOnce(
+                        new FiniteDuration(delay, unit),
+                        ClassLoadingUtils.withContextClassLoader(runnable, flinkClassLoader),
+                        actorSystem.dispatcher());
     }
 
     private long now() {
