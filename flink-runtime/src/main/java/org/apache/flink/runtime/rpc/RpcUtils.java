@@ -19,14 +19,18 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.concurrent.FutureUtils;
+
+import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -160,6 +164,31 @@ public class RpcUtils {
 
     public static RpcSystem.ForkJoinExecutorConfiguration getTestForkJoinExecutorConfiguration() {
         return new RpcSystem.ForkJoinExecutorConfiguration(1.0, 2, 4);
+    }
+
+    /**
+     * Convenient shortcut for constructing a remote RPC Service that takes care of checking for
+     * null and empty optionals.
+     *
+     * @see RpcSystem#remoteServiceBuilder(Configuration, String, String)
+     */
+    public static RpcService createRemoteRpcService(
+            RpcSystem rpcSystem,
+            Configuration configuration,
+            @Nullable String externalAddress,
+            String externalPortRange,
+            @Nullable String bindAddress,
+            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort)
+            throws Exception {
+        RpcSystem.RpcServiceBuilder rpcServiceBuilder =
+                rpcSystem.remoteServiceBuilder(configuration, externalAddress, externalPortRange);
+        if (bindAddress != null) {
+            rpcServiceBuilder = rpcServiceBuilder.withBindAddress(bindAddress);
+        }
+        if (bindPort.isPresent()) {
+            rpcServiceBuilder = rpcServiceBuilder.withBindPort(bindPort.get());
+        }
+        return rpcServiceBuilder.createAndStart();
     }
 
     // We don't want this class to be instantiable

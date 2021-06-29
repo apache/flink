@@ -22,14 +22,11 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcSystem;
 
 import javax.annotation.Nullable;
 
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-
 /**
  * This interface serves as a factory interface for RPC services, with some additional utilities
  * that are reliant on implementation details of the RPC service.
  */
-public interface RpcSystem {
+public interface RpcSystem extends RpcSystemUtils {
 
     /**
      * Returns a builder for an {@link RpcService} that is only reachable from the local machine.
@@ -52,45 +49,6 @@ public interface RpcSystem {
             Configuration configuration,
             @Nullable String externalAddress,
             String externalPortRange);
-
-    /**
-     * Constructs an RPC URL for the given parameters, that can be used to connect to the targeted
-     * RpcService.
-     *
-     * @param hostname The hostname or address where the target RPC service is listening.
-     * @param port The port where the target RPC service is listening.
-     * @param endpointName The name of the RPC endpoint.
-     * @param addressResolution Whether to try address resolution of the given hostname or not. This
-     *     allows to fail fast in case that the hostname cannot be resolved.
-     * @param config The configuration from which to deduce further settings.
-     * @return The RPC URL of the specified RPC endpoint.
-     */
-    String getRpcUrl(
-            String hostname,
-            int port,
-            String endpointName,
-            AddressResolution addressResolution,
-            Configuration config)
-            throws UnknownHostException;
-
-    /**
-     * Returns an {@link InetSocketAddress} corresponding to the given RPC url.
-     *
-     * @see #getRpcUrl
-     * @param url RPC url
-     * @return inet socket address
-     * @throws Exception if the URL is invalid
-     */
-    InetSocketAddress getInetSocketAddressFromRpcUrl(String url) throws Exception;
-
-    /**
-     * Returns the maximum number of bytes that an RPC message may carry according to the given
-     * configuration. If no limit exists then {@link Long#MAX_VALUE} should be returned.
-     *
-     * @param config Flink configuration
-     * @return maximum number of bytes that an RPC message may carry
-     */
-    long getMaximumMessageSizeInBytes(Configuration config);
 
     /** Builder for {@link RpcService}. */
     interface RpcServiceBuilder {

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.net;
 
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
-import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -367,10 +367,10 @@ public class ConnectionUtils {
 
         private static final Duration defaultLoggingDelay = Duration.ofMillis(400);
 
-        private final RpcSystem rpcSystem;
+        private final RpcSystemUtils rpcSystemUtils;
 
-        public LeaderConnectingAddressListener(RpcSystem rpcSystem) {
-            this.rpcSystem = rpcSystem;
+        public LeaderConnectingAddressListener(RpcSystemUtils rpcSystemUtils) {
+            this.rpcSystemUtils = rpcSystemUtils;
         }
 
         private enum LeaderRetrievalState {
@@ -416,7 +416,7 @@ public class ConnectionUtils {
                                                 + "while waiting for the leader retrieval.");
                             }
                         } else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
-                            targetAddress = rpcSystem.getInetSocketAddressFromRpcUrl(akkaURL);
+                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(akkaURL);
 
                             LOG.debug(
                                     "Retrieved new target address {} for akka URL {}.",

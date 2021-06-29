@@ -295,7 +295,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             final RpcSystem rpcSystem = RpcSystem.load();
 
             commonRpcService =
-                    RpcSystemUtils.createRemoteRpcService(
+                    RpcUtils.createRemoteRpcService(
                             rpcSystem,
                             configuration,
                             configuration.getString(JobManagerOptions.ADDRESS),
@@ -354,9 +354,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     }
 
     protected HighAvailabilityServices createHaServices(
-            Configuration configuration, Executor executor, RpcSystem rpcSystem) throws Exception {
+            Configuration configuration, Executor executor, RpcSystemUtils rpcSystemUtils)
+            throws Exception {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION, rpcSystem);
+                configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION, rpcSystemUtils);
     }
 
     protected HeartbeatServices createHeartbeatServices(Configuration configuration) {
@@ -364,10 +365,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     }
 
     protected MetricRegistryImpl createMetricRegistry(
-            Configuration configuration, PluginManager pluginManager, RpcSystem rpcSystem) {
+            Configuration configuration,
+            PluginManager pluginManager,
+            RpcSystemUtils rpcSystemUtils) {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(
-                        configuration, rpcSystem.getMaximumMessageSizeInBytes(configuration)),
+                        configuration, rpcSystemUtils.getMaximumMessageSizeInBytes(configuration)),
                 ReporterSetup.fromConfiguration(configuration, pluginManager));
     }
 

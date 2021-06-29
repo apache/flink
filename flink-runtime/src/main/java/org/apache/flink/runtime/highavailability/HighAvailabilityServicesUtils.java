@@ -38,7 +38,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
-import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
@@ -86,7 +86,7 @@ public class HighAvailabilityServicesUtils {
             Configuration configuration,
             Executor executor,
             AddressResolution addressResolution,
-            RpcSystem rpcSystem)
+            RpcSystemUtils rpcSystemUtils)
             throws Exception {
 
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
@@ -96,7 +96,7 @@ public class HighAvailabilityServicesUtils {
                 final Tuple2<String, Integer> hostnamePort = getJobManagerAddress(configuration);
 
                 final String resourceManagerRpcUrl =
-                        rpcSystem.getRpcUrl(
+                        rpcSystemUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
                                 RpcServiceUtils.createWildcardName(
@@ -104,7 +104,7 @@ public class HighAvailabilityServicesUtils {
                                 addressResolution,
                                 configuration);
                 final String dispatcherRpcUrl =
-                        rpcSystem.getRpcUrl(
+                        rpcSystemUtils.getRpcUrl(
                                 hostnamePort.f0,
                                 hostnamePort.f1,
                                 RpcServiceUtils.createWildcardName(Dispatcher.DISPATCHER_NAME),

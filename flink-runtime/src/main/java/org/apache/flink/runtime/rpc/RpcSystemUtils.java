@@ -19,37 +19,48 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
 
-import javax.annotation.Nullable;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
-import java.util.Optional;
-
-/** Utils related to the {@link RpcSystem}. */
-public final class RpcSystemUtils {
+/** Utils that are dependent on the underlying RPC implementation. */
+public interface RpcSystemUtils {
 
     /**
-     * Convenient shortcut for constructing a remote RPC Service that takes care of checking for
-     * null and empty optionals.
+     * Constructs an RPC URL for the given parameters, that can be used to connect to the targeted
+     * RpcService.
      *
-     * @see RpcSystem#remoteServiceBuilder(Configuration, String, String)
+     * @param hostname The hostname or address where the target RPC service is listening.
+     * @param port The port where the target RPC service is listening.
+     * @param endpointName The name of the RPC endpoint.
+     * @param addressResolution Whether to try address resolution of the given hostname or not. This
+     *     allows to fail fast in case that the hostname cannot be resolved.
+     * @param config The configuration from which to deduce further settings.
+     * @return The RPC URL of the specified RPC endpoint.
      */
-    public static RpcService createRemoteRpcService(
-            RpcSystem rpcSystem,
-            Configuration configuration,
-            @Nullable String externalAddress,
-            String externalPortRange,
-            @Nullable String bindAddress,
-            @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Integer> bindPort)
-            throws Exception {
-        RpcSystem.RpcServiceBuilder rpcServiceBuilder =
-                rpcSystem.remoteServiceBuilder(configuration, externalAddress, externalPortRange);
-        if (bindAddress != null) {
-            rpcServiceBuilder = rpcServiceBuilder.withBindAddress(bindAddress);
-        }
-        if (bindPort.isPresent()) {
-            rpcServiceBuilder = rpcServiceBuilder.withBindPort(bindPort.get());
-        }
-        return rpcServiceBuilder.createAndStart();
-    }
+    String getRpcUrl(
+            String hostname,
+            int port,
+            String endpointName,
+            AddressResolution addressResolution,
+            Configuration config)
+            throws UnknownHostException;
 
-    private RpcSystemUtils() {}
+    /**
+     * Returns an {@link InetSocketAddress} corresponding to the given RPC url.
+     *
+     * @see #getRpcUrl
+     * @param url RPC url
+     * @return inet socket address
+     * @throws Exception if the URL is invalid
+     */
+    InetSocketAddress getInetSocketAddressFromRpcUrl(String url) throws Exception;
+
+    /**
+     * Returns the maximum number of bytes that an RPC message may carry according to the given
+     * configuration. If no limit exists then {@link Long#MAX_VALUE} should be returned.
+     *
+     * @param config Flink configuration
+     * @return maximum number of bytes that an RPC message may carry
+     */
+    long getMaximumMessageSizeInBytes(Configuration config);
 }

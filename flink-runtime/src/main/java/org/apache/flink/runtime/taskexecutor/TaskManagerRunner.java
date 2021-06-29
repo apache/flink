@@ -53,6 +53,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystemUtils;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
@@ -560,7 +561,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
         checkNotNull(configuration);
         checkNotNull(haServices);
 
-        return RpcSystemUtils.createRemoteRpcService(
+        return RpcUtils.createRemoteRpcService(
                 rpcSystem,
                 configuration,
                 determineTaskManagerBindAddress(configuration, haServices, rpcSystem),
@@ -572,7 +573,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
     private static String determineTaskManagerBindAddress(
             final Configuration configuration,
             final HighAvailabilityServices haServices,
-            RpcSystem rpcSystem)
+            RpcSystemUtils rpcSystemUtils)
             throws Exception {
 
         final String configuredTaskManagerHostname =
@@ -585,21 +586,23 @@ public class TaskManagerRunner implements FatalErrorHandler {
             return configuredTaskManagerHostname;
         } else {
             return determineTaskManagerBindAddressByConnectingToResourceManager(
-                    configuration, haServices, rpcSystem);
+                    configuration, haServices, rpcSystemUtils);
         }
     }
 
     private static String determineTaskManagerBindAddressByConnectingToResourceManager(
             final Configuration configuration,
             final HighAvailabilityServices haServices,
-            RpcSystem rpcSystem)
+            RpcSystemUtils rpcSystemUtils)
             throws LeaderRetrievalException {
 
         final Duration lookupTimeout = configuration.get(AkkaOptions.LOOKUP_TIMEOUT_DURATION);
 
         final InetAddress taskManagerAddress =
                 LeaderRetrievalUtils.findConnectingAddress(
-                        haServices.getResourceManagerLeaderRetriever(), lookupTimeout, rpcSystem);
+                        haServices.getResourceManagerLeaderRetriever(),
+                        lookupTimeout,
+                        rpcSystemUtils);
 
         LOG.info(
                 "TaskManager will use hostname/address '{}' ({}) for communication.",
