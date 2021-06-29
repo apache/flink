@@ -1,5 +1,5 @@
 ---
-title: "Scala API Extensions"
+title: "Scala API扩展"
 weight: 201
 type: docs
 aliases:
@@ -25,29 +25,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Scala API Extensions
+# Scala API扩展
 
-In order to keep a fair amount of consistency between the Scala and Java APIs, some
-of the features that allow a high-level of expressiveness in Scala have been left
-out from the standard APIs for both batch and streaming.
+为了在Scala和Java api之间保持一定的一致性，在批处理和流处理的标准api中省略了一些允许Scala高级表达的特性。
 
-If you want to _enjoy the full Scala experience_ you can choose to opt-in to
-extensions that enhance the Scala API via implicit conversions.
+如果你想体验完整的Scala，可以选择通过隐式转换增强Scala API的扩展。
 
-To use all the available extensions, you can just add a simple `import` for the DataStream API
+要使用所有可用的扩展，你只需为DataStream API添加一个简单的引入
 
 {{< highlight scala >}}
 import org.apache.flink.streaming.api.scala.extensions._
 {{< /highlight >}}
 
-Alternatively, you can import individual extensions _a-là-carte_ to only use those
-you prefer.
+或者，您可以引入单个扩展a-là-carte来使用您喜欢的扩展。
 
-## Accept partial functions
+## 接受部分功能
 
-Normally, the DataStream API does not accept anonymous pattern
-matching functions to deconstruct tuples, case classes or collections, like the
-following:
+通常，DataStream API不接受匿名模式匹配函数来解构元组、case类或集合，如下所示：
 
 {{< highlight scala >}}
 val data: DataStream[(Int, String, Double)] = // [...]
@@ -58,9 +52,7 @@ data.map {
 }
 {{< /highlight >}}
 
-This extension introduces new methods in the DataStream Scala API
-that have a one-to-one correspondence in the extended API. These delegating methods
-do support anonymous pattern matching functions.
+这个扩展在DataStream Scala API中引入了新的方法，这些方法在扩展API中具有一对一的对应关系。这些委托方法支持匿名模式匹配函数。
 
 #### DataStream API
 
@@ -184,22 +176,21 @@ data1.join(data2).
 
 
 
-For more information on the semantics of each method, please refer to the [DataStream]({{< ref "docs/dev/datastream/overview" >}}) API documentation.
+有关每个方法语义的更多信息, 请参考 DataStream API 文档。
 
-To use this extension exclusively, you can add the following `import`:
+要单独使用此扩展，您可以添加以下引入：
 
 {{< highlight scala >}}
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 {{< /highlight >}}
 
-for the DataSet extensions and
+用于DataSet扩展
 
 {{< highlight scala >}}
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 {{< /highlight >}}
 
-The following snippet shows a minimal example of how to use these extension
-methods together (with the DataSet API):
+下面的代码片段展示了如何一起使用这些扩展方法(以及DataSet API)的最小示例:
 
 {{< highlight scala >}}
 object Main {
