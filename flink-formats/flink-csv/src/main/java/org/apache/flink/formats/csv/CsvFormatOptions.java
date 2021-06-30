@@ -18,16 +18,13 @@
 
 package org.apache.flink.formats.csv;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 /** Options for CSV format. */
-public class CsvOptions {
-    private CsvOptions() {}
-
-    // ------------------------------------------------------------------------
-    //  Options
-    // ------------------------------------------------------------------------
+@PublicEvolving
+public class CsvFormatOptions {
 
     public static final ConfigOption<String> FIELD_DELIMITER =
             ConfigOptions.key("field-delimiter")
@@ -89,4 +86,6 @@ public class CsvOptions {
                     .withDescription(
                             "Optional null literal string that is interpreted as a\n"
                                     + "null value (disabled by default)");
+
+    private CsvFormatOptions() {}
 }
