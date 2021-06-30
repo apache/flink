@@ -19,9 +19,6 @@
 package org.apache.flink.connector.hbase.options;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
@@ -30,98 +27,22 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.SINK_PARALLELISM;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.ZOOKEEPER_QUORUM;
+import static org.apache.flink.connector.hbase.options.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
 
-/** Common Options for HBase. */
+/** Utilities for {@link HBaseConnectorOptions}. */
 @Internal
-public class HBaseOptions {
+public class HBaseConnectorOptionsUtil {
 
-    public static final ConfigOption<String> TABLE_NAME =
-            ConfigOptions.key("table-name")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The name of HBase table to connect.");
-
-    public static final ConfigOption<String> ZOOKEEPER_QUORUM =
-            ConfigOptions.key("zookeeper.quorum")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("The HBase Zookeeper quorum.");
-
-    public static final ConfigOption<String> ZOOKEEPER_ZNODE_PARENT =
-            ConfigOptions.key("zookeeper.znode.parent")
-                    .stringType()
-                    .defaultValue("/hbase")
-                    .withDescription("The root dir in Zookeeper for HBase cluster.");
-
-    public static final ConfigOption<String> NULL_STRING_LITERAL =
-            ConfigOptions.key("null-string-literal")
-                    .stringType()
-                    .defaultValue("null")
-                    .withDescription(
-                            "Representation for null values for string fields. HBase source and "
-                                    + "sink encodes/decodes empty bytes as null values for all types except string type.");
-
-    public static final ConfigOption<MemorySize> SINK_BUFFER_FLUSH_MAX_SIZE =
-            ConfigOptions.key("sink.buffer-flush.max-size")
-                    .memoryType()
-                    .defaultValue(MemorySize.parse("2mb"))
-                    .withDescription(
-                            "Writing option, maximum size in memory of buffered rows for each "
-                                    + "writing request. This can improve performance for writing data to HBase database, "
-                                    + "but may increase the latency. Can be set to '0' to disable it. ");
-
-    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
-            ConfigOptions.key("sink.buffer-flush.max-rows")
-                    .intType()
-                    .defaultValue(1000)
-                    .withDescription(
-                            "Writing option, maximum number of rows to buffer for each writing request. "
-                                    + "This can improve performance for writing data to HBase database, but may increase the latency. "
-                                    + "Can be set to '0' to disable it.");
-
-    public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
-            ConfigOptions.key("sink.buffer-flush.interval")
-                    .durationType()
-                    .defaultValue(Duration.ofSeconds(1))
-                    .withDescription(
-                            "Writing option, the interval to flush any buffered rows. "
-                                    + "This can improve performance for writing data to HBase database, but may increase the latency. "
-                                    + "Can be set to '0' to disable it. Note, both 'sink.buffer-flush.max-size' and 'sink.buffer-flush.max-rows' "
-                                    + "can be set to '0' with the flush interval set allowing for complete async processing of buffered actions.");
-
-    public static final ConfigOption<Boolean> LOOKUP_ASYNC =
-            ConfigOptions.key("lookup.async")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("whether to set async lookup.");
-
-    public static final ConfigOption<Long> LOOKUP_CACHE_MAX_ROWS =
-            ConfigOptions.key("lookup.cache.max-rows")
-                    .longType()
-                    .defaultValue(-1L)
-                    .withDescription(
-                            "the max number of rows of lookup cache, over this value, the oldest rows will "
-                                    + "be eliminated. \"cache.max-rows\" and \"cache.ttl\" options must all be specified if any of them is "
-                                    + "specified. Cache is not enabled as default.");
-
-    public static final ConfigOption<Duration> LOOKUP_CACHE_TTL =
-            ConfigOptions.key("lookup.cache.ttl")
-                    .durationType()
-                    .defaultValue(Duration.ofSeconds(0))
-                    .withDescription("the cache time to live.");
-
-    public static final ConfigOption<Integer> LOOKUP_MAX_RETRIES =
-            ConfigOptions.key("lookup.max-retries")
-                    .intType()
-                    .defaultValue(3)
-                    .withDescription("the max retry times if lookup database failed.");
-
-    // Prefix for HBase specific properties.
+    /** Prefix for HBase specific properties. */
     public static final String PROPERTIES_PREFIX = "properties.";
 
     // --------------------------------------------------------------------------------------------
@@ -172,9 +93,10 @@ public class HBaseOptions {
 
     public static HBaseLookupOptions getHBaseLookupOptions(ReadableConfig tableOptions) {
         HBaseLookupOptions.Builder builder = HBaseLookupOptions.builder();
-        builder.setLookupAsync(tableOptions.get(LOOKUP_ASYNC));
-        builder.setMaxRetryTimes(tableOptions.get(LOOKUP_MAX_RETRIES));
-        builder.setCacheExpireMs(tableOptions.get(LOOKUP_CACHE_TTL).toMillis());
+        builder.setLookupAsync(tableOptions.get(HBaseConnectorOptions.LOOKUP_ASYNC));
+        builder.setMaxRetryTimes(tableOptions.get(HBaseConnectorOptions.LOOKUP_MAX_RETRIES));
+        builder.setCacheExpireMs(
+                tableOptions.get(HBaseConnectorOptions.LOOKUP_CACHE_TTL).toMillis());
         builder.setCacheMaxSize(tableOptions.get(LOOKUP_CACHE_MAX_ROWS));
         return builder.build();
     }
@@ -199,7 +121,6 @@ public class HBaseOptions {
         return hbaseClientConf;
     }
 
-    // get HBase table properties
     private static Properties getHBaseClientProperties(Map<String, String> tableOptions) {
         final Properties hbaseProperties = new Properties();
 
@@ -216,8 +137,10 @@ public class HBaseOptions {
         return hbaseProperties;
     }
 
-    /** Returns wether the table options contains HBase client properties or not. 'properties'. */
+    /** Returns whether the table options contains HBase client properties or not. 'properties'. */
     private static boolean containsHBaseClientProperties(Map<String, String> tableOptions) {
         return tableOptions.keySet().stream().anyMatch(k -> k.startsWith(PROPERTIES_PREFIX));
     }
+
+    private HBaseConnectorOptionsUtil() {}
 }
