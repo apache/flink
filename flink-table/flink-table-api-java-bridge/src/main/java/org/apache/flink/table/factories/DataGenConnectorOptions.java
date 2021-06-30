@@ -18,28 +18,23 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.END;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.FIELDS;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.KIND;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.LENGTH;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MAX;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MIN;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.START;
 
-/** {@link ConfigOption}s for {@link DataGenTableSourceFactory}. */
-@Internal
-public class DataGenOptions {
-
-    public static final Long ROWS_PER_SECOND_DEFAULT_VALUE = 10000L;
-
-    public static final String FIELDS = "fields";
-    public static final String KIND = "kind";
-    public static final String START = "start";
-    public static final String END = "end";
-    public static final String MIN = "min";
-    public static final String MAX = "max";
-    public static final String LENGTH = "length";
-
-    public static final String SEQUENCE = "sequence";
-    public static final String RANDOM = "random";
+/** Options for the DataGen connector. */
+@PublicEvolving
+public class DataGenConnectorOptions {
 
     public static final ConfigOption<Long> ROWS_PER_SECOND =
             key("rows-per-second")
@@ -53,6 +48,10 @@ public class DataGenOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Total number of rows to emit. By default, the source is unbounded.");
+
+    // --------------------------------------------------------------------------------------------
+    // Placeholder options
+    // --------------------------------------------------------------------------------------------
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
     public static final ConfigOption<String> FIELD_KIND =
@@ -99,5 +98,5 @@ public class DataGenOptions {
                     .noDefaultValue()
                     .withDescription("End value of sequence generator.");
 
-    private DataGenOptions() {}
+    private DataGenConnectorOptions() {}
 }
