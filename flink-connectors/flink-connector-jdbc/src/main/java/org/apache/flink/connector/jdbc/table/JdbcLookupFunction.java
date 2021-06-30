@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
@@ -84,7 +84,7 @@ public class JdbcLookupFunction extends TableFunction<Row> {
     private transient Cache<Row, List<Row>> cache;
 
     public JdbcLookupFunction(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcLookupOptions lookupOptions,
             String[] fieldNames,
             TypeInformation[] fieldTypes,
@@ -257,14 +257,14 @@ public class JdbcLookupFunction extends TableFunction<Row> {
 
     /** Builder for a {@link JdbcLookupFunction}. */
     public static class Builder {
-        private JdbcOptions options;
+        private JdbcConnectorOptions options;
         private JdbcLookupOptions lookupOptions;
         protected String[] fieldNames;
         protected TypeInformation[] fieldTypes;
         protected String[] keyNames;
 
         /** required, jdbc options. */
-        public Builder setOptions(JdbcOptions options) {
+        public Builder setOptions(JdbcConnectorOptions options) {
             this.options = options;
             return this;
         }

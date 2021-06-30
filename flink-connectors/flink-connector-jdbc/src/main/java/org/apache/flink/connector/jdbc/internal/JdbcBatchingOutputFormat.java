@@ -26,8 +26,8 @@ import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
 import org.apache.flink.types.Row;
@@ -251,7 +251,7 @@ public class JdbcBatchingOutputFormat<
 
     /** Builder for a {@link JdbcBatchingOutputFormat}. */
     public static class Builder {
-        private JdbcOptions options;
+        private JdbcConnectorOptions options;
         private String[] fieldNames;
         private String[] keyFields;
         private int[] fieldTypes;
@@ -259,7 +259,7 @@ public class JdbcBatchingOutputFormat<
                 JdbcExecutionOptions.builder();
 
         /** required, jdbc options. */
-        public Builder setOptions(JdbcOptions options) {
+        public Builder setOptions(JdbcConnectorOptions options) {
             this.options = options;
             return this;
         }

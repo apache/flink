@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcReadOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.table.api.TableSchema;
@@ -47,7 +47,7 @@ public class JdbcDynamicTableSource
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown {
 
-    private final JdbcOptions options;
+    private final JdbcConnectorOptions options;
     private final JdbcReadOptions readOptions;
     private final JdbcLookupOptions lookupOptions;
     private TableSchema physicalSchema;
@@ -55,7 +55,7 @@ public class JdbcDynamicTableSource
     private long limit = -1;
 
     public JdbcDynamicTableSource(
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             JdbcReadOptions readOptions,
             JdbcLookupOptions lookupOptions,
             TableSchema physicalSchema) {

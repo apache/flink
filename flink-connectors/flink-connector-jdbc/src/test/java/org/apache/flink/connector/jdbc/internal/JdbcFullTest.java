@@ -30,7 +30,7 @@ import org.apache.flink.connector.jdbc.JdbcInputFormat;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.split.JdbcNumericBetweenParametersProvider;
 import org.apache.flink.types.Row;
 
@@ -80,7 +80,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
             JdbcBatchingOutputFormat jdbcOutputFormat =
                     JdbcBatchingOutputFormat.builder()
                             .setOptions(
-                                    JdbcOptions.builder()
+                                    JdbcConnectorOptions.builder()
                                             .setDBUrl(getDbMetadata().getUrl())
                                             .setTableName(OUTPUT_TABLE)
                                             .build())

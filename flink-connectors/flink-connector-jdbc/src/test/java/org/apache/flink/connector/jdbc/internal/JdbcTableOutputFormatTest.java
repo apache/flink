@@ -24,8 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
@@ -64,8 +64,8 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testUpsertFormatCloseBeforeOpen() throws Exception {
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl(getDbMetadata().getUrl())
                         .setTableName(OUTPUT_TABLE)
                         .build();
@@ -87,8 +87,8 @@ public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testJdbcOutputFormat() throws Exception {
-        JdbcOptions options =
-                JdbcOptions.builder()
+        JdbcConnectorOptions options =
+                JdbcConnectorOptions.builder()
                         .setDBUrl(getDbMetadata().getUrl())
                         .setTableName(OUTPUT_TABLE)
                         .build();
