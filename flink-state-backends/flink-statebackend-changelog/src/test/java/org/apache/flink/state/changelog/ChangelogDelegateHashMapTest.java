@@ -24,9 +24,21 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestTaskStateManager;
+
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
+
+import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
+
+    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+
+    protected TestTaskStateManager getTestTaskStateManager() throws IOException {
+        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+    }
 
     @Override
     protected boolean snapshotUsesStreamFactory() {

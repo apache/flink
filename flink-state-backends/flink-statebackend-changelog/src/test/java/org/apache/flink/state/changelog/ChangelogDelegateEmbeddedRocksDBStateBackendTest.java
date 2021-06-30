@@ -25,15 +25,25 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         extends EmbeddedRocksDBStateBackendTest {
+
+    @Rule public final TemporaryFolder temp = new TemporaryFolder();
+
+    @Override
+    protected TestTaskStateManager getTestTaskStateManager() throws IOException {
+        return ChangelogStateBackendTestUtils.createTaskStateManager(temp.newFolder());
+    }
 
     @Override
     protected boolean snapshotUsesStreamFactory() {

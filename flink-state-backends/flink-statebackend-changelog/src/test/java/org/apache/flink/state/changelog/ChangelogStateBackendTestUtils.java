@@ -21,14 +21,19 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Collections;
 
 /** Test Utilities for Changelog StateBackend. */
@@ -61,5 +66,14 @@ public class ChangelogStateBackendTestUtils {
 
         return createKeyedBackend(
                 stateBackend, IntSerializer.INSTANCE, 10, new KeyGroupRange(0, 9), env);
+    }
+
+    public static TestTaskStateManager createTaskStateManager(File changelogStoragePath)
+            throws IOException {
+        return TestTaskStateManager.builder()
+                .setStateChangelogStorage(
+                        new FsStateChangelogStorage(
+                                Path.fromLocalFile(changelogStoragePath), false, 1024))
+                .build();
     }
 }
