@@ -524,7 +524,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                         .get(0);
         Transformation<?> transformation =
                 (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
-        Assert.assertEquals(1, transformation.getParallelism());
+        // when there's no infer, should use the default parallelism configured
+        Assert.assertEquals(2, transformation.getParallelism());
     }
 
     @Test
