@@ -92,10 +92,6 @@ public final class CliStrings {
                     .append(formatCommand("SHOW TABLES", "Shows all registered tables."))
                     .append(
                             formatCommand(
-                                    "SOURCE",
-                                    "Reads a SQL SELECT query from a file and executes it on the Flink cluster."))
-                    .append(
-                            formatCommand(
                                     "USE CATALOG",
                                     "Sets the current catalog. The current database is set to the catalog's default one. Experimental! Syntax: \"USE CATALOG <name>;\""))
                     .append(
