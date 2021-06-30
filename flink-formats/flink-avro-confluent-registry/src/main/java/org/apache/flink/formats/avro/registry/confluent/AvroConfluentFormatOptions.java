@@ -18,14 +18,15 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
 import java.util.Map;
 
 /** Options for Schema Registry Avro format. */
-public class RegistryAvroOptions {
-    private RegistryAvroOptions() {}
+@PublicEvolving
+public class AvroConfluentFormatOptions {
 
     public static final ConfigOption<String> URL =
             ConfigOptions.key("url")
@@ -113,4 +114,6 @@ public class RegistryAvroOptions {
                                     + "This is useful for options that are not officially exposed "
                                     + "via Flink config options. However, note that Flink options "
                                     + "have higher precedence.");
+
+    private AvroConfluentFormatOptions() {}
 }
