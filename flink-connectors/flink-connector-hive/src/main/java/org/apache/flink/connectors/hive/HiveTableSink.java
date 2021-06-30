@@ -55,7 +55,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.filesystem.FileSystemOutputFormat;
 import org.apache.flink.table.filesystem.FileSystemTableSink;
 import org.apache.flink.table.filesystem.FileSystemTableSink.TableBucketAssigner;
@@ -96,9 +96,9 @@ import java.util.Properties;
 import java.util.UUID;
 
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.convertToUncompacted;
 
 /** Table sink to write to Hive tables. */
@@ -250,13 +250,15 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new org.apache.flink.configuration.Configuration();
         catalogTable.getOptions().forEach(conf::setString);
 
-        String commitPolicies = conf.getString(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
+        String commitPolicies =
+                conf.getString(FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
         if (!getPartitionKeys().isEmpty() && StringUtils.isNullOrWhitespaceOnly(commitPolicies)) {
             throw new FlinkHiveException(
                     String.format(
                             "Streaming write to partitioned hive table %s without providing a commit policy. "
                                     + "Make sure to set a proper value for %s",
-                            identifier, FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND.key()));
+                            identifier,
+                            FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND.key()));
         }
 
         HiveRowDataPartitionComputer partComputer =
@@ -272,7 +274,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                         conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
                         conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
 
-        boolean autoCompaction = conf.getBoolean(FileSystemOptions.AUTO_COMPACTION);
+        boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
             fileNamingBuilder.withPartPrefix(
                     convertToUncompacted(fileNamingBuilder.build().getPartPrefix()));
@@ -314,7 +316,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         DataStream<PartitionCommitInfo> writerStream;
         if (autoCompaction) {
             long compactionSize =
-                    conf.getOptional(FileSystemOptions.COMPACTION_FILE_SIZE)
+                    conf.getOptional(FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
                             .orElse(conf.get(SINK_ROLLING_POLICY_FILE_SIZE))
                             .getBytes();
 

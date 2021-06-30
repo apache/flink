@@ -20,7 +20,7 @@ package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_DELAY;
 
 /**
  * Partition commit trigger by creation time and processing time service, if 'current processing

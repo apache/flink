@@ -43,7 +43,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -75,13 +75,14 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
     public DynamicTableSource createDynamicTableSource(Context context) {
         Configuration conf = Configuration.fromMap(context.getCatalogTable().getOptions());
         return new TestFileTableSource(
-                new Path(conf.getString(FileSystemOptions.PATH)), conf.getString(RUNTIME_SOURCE));
+                new Path(conf.getString(FileSystemConnectorOptions.PATH)),
+                conf.getString(RUNTIME_SOURCE));
     }
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
         Configuration conf = Configuration.fromMap(context.getCatalogTable().getOptions());
-        return new TestFileTableSink(new Path(conf.getString(FileSystemOptions.PATH)));
+        return new TestFileTableSink(new Path(conf.getString(FileSystemConnectorOptions.PATH)));
     }
 
     @Override

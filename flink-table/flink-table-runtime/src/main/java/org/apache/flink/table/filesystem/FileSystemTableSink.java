@@ -85,9 +85,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_FILE_SIZE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.convertToUncompacted;
 
 /** File system {@link DynamicTableSink}. */
@@ -131,7 +131,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         }
         this.bulkWriterFormat = bulkWriterFormat;
         this.serializationFormat = serializationFormat;
-        this.configuredParallelism = tableOptions.get(FileSystemOptions.SINK_PARALLELISM);
+        this.configuredParallelism = tableOptions.get(FileSystemConnectorOptions.SINK_PARALLELISM);
     }
 
     @Override
@@ -188,7 +188,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         FileSystemFactory fsFactory = FileSystem::get;
         RowDataPartitionComputer computer = partitionComputer();
 
-        boolean autoCompaction = tableOptions.getBoolean(FileSystemOptions.AUTO_COMPACTION);
+        boolean autoCompaction =
+                tableOptions.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         Object writer = createWriter(sinkContext);
         boolean isEncoder = writer instanceof Encoder;
         TableBucketAssigner assigner = new TableBucketAssigner(computer);
@@ -234,7 +235,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         if (autoCompaction) {
             long compactionSize =
                     tableOptions
-                            .getOptional(FileSystemOptions.COMPACTION_FILE_SIZE)
+                            .getOptional(FileSystemConnectorOptions.COMPACTION_FILE_SIZE)
                             .orElse(tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE))
                             .getBytes();
 
@@ -407,7 +408,7 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                             "Currently, filesystem sink doesn't support setting parallelism (%d) by '%s' "
                                     + "when the input stream is not INSERT only. The row kinds of input stream are [%s]",
                             parallelism,
-                            FileSystemOptions.SINK_PARALLELISM.key(),
+                            FileSystemConnectorOptions.SINK_PARALLELISM.key(),
                             requestChangelogMode.getContainedKinds().stream()
                                     .map(RowKind::shortString)
                                     .collect(Collectors.joining(","))));

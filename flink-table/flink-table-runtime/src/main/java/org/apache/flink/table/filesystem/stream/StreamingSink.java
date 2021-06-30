@@ -46,7 +46,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
 
 /** Helper for creating streaming file sink. */
 public class StreamingSink {

@@ -31,7 +31,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSinkFactory
-import org.apache.flink.table.filesystem.FileSystemOptions
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.{type4, type_int_string, _}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -40,14 +40,12 @@ import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, Ta
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
 
 import java.util
 import java.util.{function, ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.Seq
@@ -313,7 +311,7 @@ object PartitionableSinkITCase {
       partitionColumns: Array[String]): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("supports-grouping", grouping.toString)
-    properties.putString(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key(), "true")
+    properties.putString(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION.key(), "true")
     properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
     partitionColumns.zipWithIndex.foreach { case (part, i) =>
       properties.putString("partition-column." + i, part)

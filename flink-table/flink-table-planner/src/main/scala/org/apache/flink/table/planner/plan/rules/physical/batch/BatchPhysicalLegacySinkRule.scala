@@ -19,17 +19,16 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLegacySink
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.sinks.PartitionableTableSink
-
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollations, RelNode}
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions
 
 import scala.collection.JavaConversions._
 
@@ -57,7 +56,7 @@ class BatchPhysicalLegacySinkRule extends ConverterRule(
             val shuffleEnable = sink
                 .catalogTable
                 .getOptions
-                .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
+                .get(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION.key())
 
             if (shuffleEnable != null && shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
