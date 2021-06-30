@@ -223,5 +223,5 @@ Stage 2 : Data Source
 EXPLAIN PLAN FOR <query_statement_or_insert_statement>
 ```
 
-For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries" >}}#supported-syntax) page.
+For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}) page.
 For INSERT, please refer to [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) page.
