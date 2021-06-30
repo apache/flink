@@ -96,6 +96,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -156,7 +157,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     @Rule public final ExpectedException expectedException = ExpectedException.none();
 
     @Before
-    public void before() {
+    public void before() throws IOException {
         env = buildMockEnv();
     }
 
@@ -5534,8 +5535,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         long value;
     }
 
-    private MockEnvironment buildMockEnv() {
-        return MockEnvironment.builder().build();
+    private MockEnvironment buildMockEnv() throws IOException {
+        return MockEnvironment.builder().setTaskStateManager(getTestTaskStateManager()).build();
+    }
+
+    protected TestTaskStateManager getTestTaskStateManager() throws IOException {
+        return TestTaskStateManager.builder().build();
     }
 
     /**
