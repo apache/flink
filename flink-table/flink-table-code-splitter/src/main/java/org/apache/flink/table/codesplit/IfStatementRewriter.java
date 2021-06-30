@@ -26,7 +26,48 @@ import org.antlr.v4.runtime.atn.PredictionMode;
 
 import java.util.LinkedHashSet;
 
-/** If rewriter. Rewrite method to two part: 1.if true method. 2.if false method. */
+/**
+ * Extract true and false branch of IFs and ELSEs in long methods into two smaller methods. For
+ * example,
+ *
+ * <pre><code>
+ * public class Example {
+ *     int b;
+ *     public void myFun(int a) {
+ *         if (a > 0) {
+ *             b = a * 2;
+ *             System.out.println(b);
+ *         } else {
+ *             b = a * 3;
+ *             System.out.println(b);
+ *         }
+ *     }
+ * }
+ * </code></pre>
+ *
+ * will be changed into
+ *
+ * <pre><code>
+ * public class Example {
+ *     int b;
+ *     public void myFun(int a) {
+ *         if (a > 0) {
+ *             myFun_trueFilter1(a);
+ *         } else {
+ *             myFun_falseFilter2(a);
+ *         }
+ *     }
+ *     void myFun_trueFilter1(int a) {
+ *         b = a * 2;
+ *         System.out.println(b);
+ *     }
+ *     void myFun_falseFilter2(int a) {
+ *         b = a * 3;
+ *         System.out.println(b);
+ *     }
+ * }
+ * </code></pre>
+ */
 @Internal
 public class IfStatementRewriter {
 

@@ -34,12 +34,44 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-/** Put member variables into arrays so that the number of member variables can be reduced. */
+/**
+ * Group member variables with the same type into arrays to reduce the number of members. For
+ * example,
+ *
+ * <pre><code>
+ * public class Example {
+ *     int a;
+ *     long b;
+ *     int c = 1;
+ *     long d = 2;
+ *     public void myFun() {
+ *         System.out.println(a + b + c + d);
+ *     }
+ * }
+ * </code></pre>
+ *
+ * will be changed into
+ *
+ * <pre><code>
+ * public class Example {
+ *     int[] rewrite$0 = new int[2];
+ *     long[] rewrite$1 = new long[2];
+ *     {
+ *         rewrite$0[1] = 1;
+ *         rewrite$1[1] = 2;
+ *     }
+ *     public void myFun() {
+ *         System.out.println(rewrite$0[0] + rewrite$1[0] + rewrite$0[1] + rewrite$1[1]);
+ *     }
+ * }
+ * </code></pre>
+ */
 @Internal
 public class MemberFieldRewriter {
 
+    private final int maxFieldCount;
+
     private String code;
-    private int maxFieldCount;
     private TokenStreamRewriter rewriter;
 
     public MemberFieldRewriter(String code, int maxFieldCount) {
@@ -69,7 +101,7 @@ public class MemberFieldRewriter {
         return javaParser;
     }
 
-    private class MemberField {
+    private static class MemberField {
         String oldName;
         String type;
         int id;
@@ -83,7 +115,7 @@ public class MemberFieldRewriter {
         }
     }
 
-    private class StackElement {
+    private static class StackElement {
         List<MemberField> fields;
         Map<String, Integer> typeCounts;
 

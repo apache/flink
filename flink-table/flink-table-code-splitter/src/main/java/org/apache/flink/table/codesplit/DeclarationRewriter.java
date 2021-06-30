@@ -33,7 +33,43 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 
-/** Extract and rename local variables to member variables. */
+/**
+ * Extract and rename local variables into member variables. For example,
+ *
+ * <pre><code>
+ * public class Example {
+ *     public void myFun1(int[] arr) {
+ *         int a = 1;
+ *         for (int b : arr) {
+ *             System.out.println(b);
+ *         }
+ *     }
+ *     public void myFun2() {
+ *         int a = 2;
+ *     }
+ * }
+ * </code></pre>
+ *
+ * will be changed into
+ *
+ * <pre><code>
+ * public class Example {
+ *     int a;
+ *     int local$0;
+ *     int local$1;
+ *     public void myFun1(int[] arr) {
+ *         a = 1;
+ *         for (int b : arr) {
+ *             local$0 = b;
+ *             System.out.println(local$0);
+ *         }
+ *     }
+ *     public void myFun2() {
+ *         local$1 = 2;
+ *     }
+ * }
+ * </code></pre>
+ */
 @Internal
 public class DeclarationRewriter {
 

@@ -28,7 +28,42 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 
-/** Try to split function whose length exceeds the limit. */
+/**
+ * Split long functions into several smaller functions. For example,
+ *
+ * <pre><code>
+ * public class Example {
+ *     public void myFun(int a, int b) {
+ *         a += b;
+ *         b += a;
+ *         a *= 2;
+ *         b *= 2;
+ *         System.out.println(a);
+ *         System.out.println(b);
+ *     }
+ * }
+ * </code></pre>
+ *
+ * will be changed into
+ *
+ * <pre><code>
+ * public class Example {
+ *     public void myFun(int a, int b) {
+ *         myFun_split0(a, b);
+ *         myFun_split1(a, b);
+ *     }
+ *     void myFun_split0(int a, int b) {
+ *         a += b;
+ *         b += a;
+ *         a *= 2;
+ *     }
+ *     void myFun_split1(int a, int b) {
+ *         b *= 2;
+ *         System.out.println(a + b);
+ *     }
+ * }
+ * </code></pre>
+ */
 @Internal
 public class FunctionSplitter {
 
