@@ -18,9 +18,10 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcSystem;
 
 import javax.annotation.Nullable;
+
+import java.util.ServiceLoader;
 
 /**
  * This interface serves as a factory interface for RPC services, with some additional utilities
@@ -73,7 +74,8 @@ public interface RpcSystem extends RpcSystemUtils {
      * @return loaded RpcSystem
      */
     static RpcSystem load() {
-        return new AkkaRpcSystem();
+        final ClassLoader classLoader = RpcSystem.class.getClassLoader();
+        return ServiceLoader.load(RpcSystem.class, classLoader).iterator().next();
     }
 
     /** Descriptor for creating a fork-join thread-pool. */

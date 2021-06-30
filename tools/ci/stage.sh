@@ -37,6 +37,8 @@ flink-clients,\
 flink-core,\
 flink-java,\
 flink-optimizer,\
+flink-rpc,\
+flink-rpc/flink-rpc-core,\
 flink-runtime,\
 flink-runtime-web,\
 flink-scala,\
