@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -39,14 +39,14 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class JdbcDynamicTableSink implements DynamicTableSink {
 
-    private final JdbcOptions jdbcOptions;
+    private final JdbcConnectorOptions jdbcOptions;
     private final JdbcExecutionOptions executionOptions;
     private final JdbcDmlOptions dmlOptions;
     private final TableSchema tableSchema;
     private final String dialectName;
 
     public JdbcDynamicTableSink(
-            JdbcOptions jdbcOptions,
+            JdbcConnectorOptions jdbcOptions,
             JdbcExecutionOptions executionOptions,
             JdbcDmlOptions dmlOptions,
             TableSchema tableSchema) {

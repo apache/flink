@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.internal.options;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
 import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
@@ -30,22 +31,23 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Options for the JDBC connector. */
-public class JdbcOptions extends JdbcConnectionOptions {
+@Internal
+public class JdbcConnectorOptions extends JdbcConnectionOptions {
 
     private static final long serialVersionUID = 1L;
 
-    private String tableName;
-    private JdbcDialect dialect;
+    private final String tableName;
+    private final JdbcDialect dialect;
     private final @Nullable Integer parallelism;
 
-    private JdbcOptions(
+    private JdbcConnectorOptions(
             String dbURL,
             String tableName,
-            String driverName,
-            String username,
-            String password,
+            @Nullable String driverName,
+            @Nullable String username,
+            @Nullable String password,
             JdbcDialect dialect,
-            Integer parallelism,
+            @Nullable Integer parallelism,
             int connectionCheckTimeoutSeconds) {
         super(dbURL, driverName, username, password, connectionCheckTimeoutSeconds);
         this.tableName = tableName;
@@ -71,8 +73,8 @@ public class JdbcOptions extends JdbcConnectionOptions {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof JdbcOptions) {
-            JdbcOptions options = (JdbcOptions) o;
+        if (o instanceof JdbcConnectorOptions) {
+            JdbcConnectorOptions options = (JdbcConnectorOptions) o;
             return Objects.equals(url, options.url)
                     && Objects.equals(tableName, options.tableName)
                     && Objects.equals(driverName, options.driverName)
@@ -101,7 +103,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
                 connectionCheckTimeoutSeconds);
     }
 
-    /** Builder of {@link JdbcOptions}. */
+    /** Builder of {@link JdbcConnectorOptions}. */
     public static class Builder {
         private String dbURL;
         private String tableName;
@@ -165,7 +167,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
             return this;
         }
 
-        public JdbcOptions build() {
+        public JdbcConnectorOptions build() {
             checkNotNull(dbURL, "No dbURL supplied.");
             checkNotNull(tableName, "No tableName supplied.");
             if (this.dialect == null) {
@@ -186,7 +188,7 @@ public class JdbcOptions extends JdbcConnectionOptions {
                                 });
             }
 
-            return new JdbcOptions(
+            return new JdbcConnectorOptions(
                     dbURL,
                     tableName,
                     driverName,

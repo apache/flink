@@ -31,8 +31,8 @@ import org.apache.flink.connector.jdbc.internal.executor.TableBufferReducedState
 import org.apache.flink.connector.jdbc.internal.executor.TableBufferedStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.executor.TableInsertOrUpdateStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.executor.TableSimpleStatementExecutor;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -53,7 +53,7 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private JdbcOptions jdbcOptions;
+    private JdbcConnectorOptions jdbcOptions;
     private JdbcExecutionOptions executionOptions;
     private JdbcDmlOptions dmlOptions;
     private TypeInformation<RowData> rowDataTypeInformation;
@@ -61,7 +61,7 @@ public class JdbcDynamicOutputFormatBuilder implements Serializable {
 
     public JdbcDynamicOutputFormatBuilder() {}
 
-    public JdbcDynamicOutputFormatBuilder setJdbcOptions(JdbcOptions jdbcOptions) {
+    public JdbcDynamicOutputFormatBuilder setJdbcOptions(JdbcConnectorOptions jdbcOptions) {
         this.jdbcOptions = jdbcOptions;
         return this;
     }

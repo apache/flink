@@ -21,8 +21,8 @@ package org.apache.flink.connector.jdbc.table;
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -92,8 +92,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
     public void testInvalidDriver() {
         String expectedMsg = "unable to open JDBC writer";
         try {
-            JdbcOptions jdbcOptions =
-                    JdbcOptions.builder()
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
                             .setDriverName("org.apache.derby.jdbc.idontexist")
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setTableName(INPUT_TABLE)
@@ -124,8 +124,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
     public void testInvalidURL() {
         String expectedMsg = "Unknown dbURL,can not find proper dialect.";
         try {
-            JdbcOptions jdbcOptions =
-                    JdbcOptions.builder()
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
                             .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
                             .setTableName(INPUT_TABLE)
@@ -155,8 +155,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testIncompatibleTypes() {
         try {
-            JdbcOptions jdbcOptions =
-                    JdbcOptions.builder()
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
                             .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setTableName(INPUT_TABLE)
@@ -192,8 +192,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testExceptionOnInvalidType() {
         try {
-            JdbcOptions jdbcOptions =
-                    JdbcOptions.builder()
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
                             .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setTableName(OUTPUT_TABLE)
@@ -230,8 +230,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
     public void testExceptionOnClose() {
         String expectedMsg = "Writing records to JDBC failed.";
         try {
-            JdbcOptions jdbcOptions =
-                    JdbcOptions.builder()
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
                             .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setTableName(OUTPUT_TABLE)
@@ -272,8 +272,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testJdbcOutputFormat() throws IOException, SQLException {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setTableName(OUTPUT_TABLE)
@@ -325,8 +325,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testFlush() throws SQLException, IOException {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setTableName(OUTPUT_TABLE_2)
@@ -392,8 +392,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testFlushWithBatchSizeEqualsZero() throws SQLException, IOException {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setTableName(OUTPUT_TABLE_2)
@@ -439,8 +439,8 @@ public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
     @Test
     public void testInvalidConnectionInJdbcOutputFormat() throws IOException, SQLException {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setTableName(OUTPUT_TABLE_3)
