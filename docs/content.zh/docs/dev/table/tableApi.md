@@ -32,7 +32,7 @@ Table API 是批处理和流处理的统一的关系 API。Table API 的查询�
 
 Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个表对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
-下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。`rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
+下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。 `rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
 
 概述 & 例子
 -----------------------------
@@ -478,7 +478,6 @@ result = orders.filter(orders.a == 'red')
 
 
 <a name="columln-operations"></a>
-
 ### 列操作
 
 #### AddColumns
@@ -576,7 +575,6 @@ result = orders.drop_columns(orders.b, orders.c)
 
 {{< tabs "renamecolumns" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
@@ -610,7 +608,6 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 
 {{< tabs "groupby" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
@@ -684,7 +681,6 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 
 {{< tabs "overwindowagg" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders
@@ -1461,11 +1457,11 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 {{< label Batch >}} {{< label Streaming >}}
 
 和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。`executeInsert()` 方法将立即提交执行插入操作的 Flink job。
+
 输出表必须在 TableEnvironment (详见表连接器) 中注册。此外，注册的表的 schema 必须与查询的 schema 相匹配。
 
 {{< tabs "insertinto" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 orders.executeInsert("OutOrders");
@@ -1539,7 +1535,6 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
@@ -1567,7 +1562,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 {{< tabs "1397cfe2-8ed8-4a39-938c-f2c066c2bdcf" >}}
 {{< tab "Java" >}}
-
 ```java
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
