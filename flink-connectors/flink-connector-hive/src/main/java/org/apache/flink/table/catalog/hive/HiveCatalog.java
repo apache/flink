@@ -1758,7 +1758,6 @@ public class HiveCatalog extends AbstractCatalog {
     }
 
     private static Database alterDatabase(Database hiveDB, CatalogDatabase newDatabase) {
-        Map<String, String> params = hiveDB.getParameters();
         Map<String, String> newParams = newDatabase.getProperties();
         String opStr = newParams.remove(ALTER_DATABASE_OP);
         if (opStr == null) {
@@ -1770,11 +1769,7 @@ public class HiveCatalog extends AbstractCatalog {
                 SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
         switch (op) {
             case CHANGE_PROPS:
-                if (params == null) {
-                    hiveDB.setParameters(newParams);
-                } else {
-                    params.putAll(newParams);
-                }
+                hiveDB.setParameters(newParams);
                 break;
             case CHANGE_LOCATION:
                 hiveDB.setLocationUri(newLocation);
