@@ -32,7 +32,7 @@ Table API 是批处理和流处理的统一的关系 API。Table API 的查询�
 
 Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个表对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
-下面的例子假设了一张名称是 `Orders` 有属性 `(a, b, c, rowtime)` 的表。`rowtime` 字段是流中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批中的普通时间戳字段。
+下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。`rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
 
 概述 & 例子
 -----------------------------
@@ -45,7 +45,6 @@ Table API 支持 Scala, Java 和 Python 语言。Scala 语言的 Table API 利�
 {{< tab "Java" >}}
 
  Java 的 Table API 通过引入 `org.apache.flink.table.api.java.*` 来使用。下面的例子展示了如何创建一个 Java 的 Table API 程序，以及表达式是如何指定为字符串的。
-
 使用DSL表达式时也需要引入静态的 `org.apache.flink.table.api.Expressions.*`。
 
 ```java
@@ -221,7 +220,7 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 {{< /tab >}}
 {{< /tabs >}}
 
-因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要在流记录不存在延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/dev/table/concepts/overview" >}})获取详情)。
+因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要流任务没有数据延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/dev/table/concepts/overview" >}})获取详情)。
 
 {{< top >}}
 
@@ -231,7 +230,7 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 
 Table API支持如下操作。请注意不是所有的操作都可以既支持流也支持批；这些操作也被如是标记了。
 
-### Scan, Projection, and Filter 
+### Scan, Projection, and Filter
 
 #### From
 
@@ -242,7 +241,6 @@ Table API支持如下操作。请注意不是所有的操作都可以既支持�
 
 {{< tabs "from" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 ```
@@ -265,6 +263,7 @@ orders = t_env.from_path("Orders")
 
 和 SQL 查询中的 `VALUES` 子句类似。
 基于提供的行生成一张内联表。
+
 你可以使用 `row(...)` 表达式创建复合行：
 
 {{< tabs "fromvalues" >}}
@@ -302,6 +301,7 @@ root
 ```
 
 这个方法会根据输入的表达式自动获取类型。如果在某一个特定位置的类型不一致，该方法会尝试寻找一个所有类型的公共超类型。如果公共超类型不存在，则会抛出异常。
+
 你也可以明确指定所需的类型。指定如 DECIMAL 这样的一般类型或者给列命名可能是有帮助的。
 
 {{< tabs "fromvalueswithtype" >}}
@@ -490,7 +490,6 @@ result = orders.filter(orders.a == 'red')
 
 {{< tabs "addcolumns" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.addColumns(concat($("c"), "sunny"));
@@ -599,7 +598,7 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 
 {{< top >}}
 
-### Aggregations 
+### Aggregations
 
 #### GroupBy Aggregation
 
@@ -678,7 +677,7 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Over Window Aggregation 
+#### Over Window Aggregation
 
 和 SQL 的 `OVER` 语句类似。
 更多细节详见 [over windows section](#over-windows)
@@ -735,7 +734,7 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
 {{< /tab >}}
 {{< /tabs >}}
 
-所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前，只支持PRECEDING 到当前行范围  (无界或有界)的窗口。目前还不支持FOLLOWING 范围的窗口。ORDER BY必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前，只支持 PRECEDING 到当前行范围  (无界或有界)的窗口。目前还不支持 FOLLOWING 范围的窗口。ORDER BY 必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
 
 #### Distinct Aggregation
 
@@ -748,7 +747,6 @@ Distinct 可以应用于 **GroupBy Aggregation**、**GroupBy Window Aggregation*
 
 {{< tabs "distinctagg" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 // Distinct aggregation on group by
@@ -826,7 +824,6 @@ result = orders.over_window(Over
 
 {{< tabs "distinctudf" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tEnv.from("Orders");
 
@@ -865,7 +862,6 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
-
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders.distinct();
@@ -899,7 +895,6 @@ result = orders.distinct()
 
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
-
 ```java
 Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"));
 Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"));
@@ -916,7 +911,6 @@ val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-
 ```python
 from pyflink.table.expressions import col
 
@@ -987,7 +981,6 @@ Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界�
 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
-
 ```java
 Table left = tableEnv.from("MyTable).select($("a"), $("b"), $("c"), $("ltime"));
 Table right = tableEnv.from("MyTable).select($("d"), $("e"), $("f"), $("rtime"));
@@ -1083,7 +1076,6 @@ join表和表函数的结果。左（外部）表的每一行都会join表函数
 
 {{< tabs "outerudtf" >}}
 {{< tab "Java" >}}
-
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
@@ -1128,7 +1120,7 @@ Temporal table 是跟踪随时间变化的表。
 
 Temporal table 函数提供对特定时间点 temporal table 状态的访问。将表与 temporal table 函数 join 的语法与和表函数的 inner join 相同。
 
-目前仅支持与temporal table的inner join。
+目前仅支持与 temporal table 的 inner join 。
 
 {{< tabs "temporaltablefunc" >}}
 {{< tab "Java" >}}
@@ -1184,7 +1176,6 @@ left.union(right);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-
 ```scala
 val left = tableEnv.from("orders1")
 val right = tableEnv.from("orders2")
@@ -1249,7 +1240,6 @@ left.intersect(right);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-
 ```scala
 val left = tableEnv.from("orders1")
 val right = tableEnv.from("orders2")
@@ -1304,7 +1294,6 @@ left.intersectAll(right)
 
 {{< tabs "minus" >}}
 {{< tab "Java" >}}
-
 ```java
 Table left = tableEnv.from("orders1");
 Table right = tableEnv.from("orders2");
@@ -1335,7 +1324,6 @@ left.minus(right)
 
 {{< tabs "minusall" >}}
 {{< tab "Java" >}}
-
 ```java
 Table left = tableEnv.from("orders1");
 Table right = tableEnv.from("orders2");
@@ -1505,7 +1493,6 @@ Group window 聚合根据时间或行计数间隔将行分为有限组，并为�
 
 {{< tabs "248a1eb3-c75a-404e-957e-08a012cbed51" >}}
 {{< tab "Java" >}}
-
 窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
@@ -1517,7 +1504,6 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-
 窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
@@ -1529,8 +1515,7 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-
-窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`group_by(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
 ```python
@@ -1543,7 +1528,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 {{< tabs "3a855a09-96d3-4dd5-9cbe-07b7f3dc4af9" >}}
 {{< tab "Java" >}}
-
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
@@ -1557,7 +1541,7 @@ Table table = input
 {{< tab "Scala" >}}
 
 在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
-以下示例展示了如何定义有附加分组属性的窗口聚合。。
+以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```scala
 val table = input
@@ -1567,8 +1551,7 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-
-在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`groupBy(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `groupBy(...)` 子句只能由单个非并行任务进行计算。
+在流环境中，如果窗口聚合除了窗口之外还根据一个或多个属性进行分组，则它们只能并行计算，例如，`group_by(...)` 子句引用了一个窗口别名和至少一个附加属性。仅引用窗口别名（例如在上面的示例中）的 `group_by(...)` 子句只能由单个非并行任务进行计算。
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```python
@@ -1619,7 +1602,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 {{< tabs "96f964cc-d78c-493b-b190-19cab37a8031" >}}
 {{< tab "Java" >}}
-
 滚动窗口是通过 `Tumble` 类定义的，具体如下：
 
 <table class="table table-bordered">
@@ -1645,8 +1627,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
-
 
 ```java
 // Tumbling Event-time Window
@@ -1686,7 +1666,6 @@ table = input.window([w: GroupWindow].alias("w")) \
   </tbody>
 </table>
 
-
 ```scala
 // Tumbling Event-time Window
 .window(Tumble over 10.minutes on $"rowtime" as $"w")
@@ -1725,7 +1704,6 @@ table = input.window([w: GroupWindow].alias("w")) \
   </tbody>
 </table>
 
-
 ```python
 # Tumbling Event-time Window
 .window(Tumble.over(lit(10).minutes).on(col('rowtime')).alias("w"))
@@ -1745,7 +1723,6 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 {{< tabs "8a408c78-2a76-4193-a457-e95af384edb5" >}}
 {{< tab "Java" >}}
-
 滑动窗口是通过 `Slide` 类定义的，具体如下：
 
 <table class="table table-bordered">
@@ -1775,7 +1752,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
 
 ```java
 // Sliding Event-time Window
@@ -1804,6 +1780,7 @@ table = input.window([w: GroupWindow].alias("w")) \
       <th class="text-left">Description</th>
     </tr>
   </thead>
+
   <tbody>
     <tr>
       <td><code>over</code></td>
@@ -1823,7 +1800,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
 
 ```scala
 // Sliding Event-time Window
@@ -1866,7 +1842,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
 
 ```python
 # Sliding Event-time Window
@@ -1913,7 +1888,6 @@ table = input.window([w: GroupWindow].alias("w")) \
   </tbody>
 </table>
 
-
 ```java
 // Session Event-time Window
 .window(Session.withGap(lit(10).minutes()).on($("rowtime")).as("w"));
@@ -1932,6 +1906,7 @@ table = input.window([w: GroupWindow].alias("w")) \
       <th class="text-left">Description</th>
     </tr>
   </thead>
+
   <tbody>
     <tr>
       <td><code>withGap</code></td>
@@ -1947,7 +1922,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
 
 ```scala
 // Session Event-time Window
@@ -1967,6 +1941,7 @@ table = input.window([w: GroupWindow].alias("w")) \
       <th class="text-left">Description</th>
     </tr>
   </thead>
+
   <tbody>
     <tr>
       <td><code>with_gap</code></td>
@@ -1982,7 +1957,6 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
   </tbody>
 </table>
-
 
 ```python
 # Session Event-time Window
@@ -2004,7 +1978,6 @@ Over windows 使用 `window(w: OverWindow*)` 子句（在 Python API 中使用 `
 
 {{< tabs "92e08076-6823-451b-b54f-8e58c1b54dc3" >}}
 {{< tab "Java" >}}
-
 ```java
 Table table = input
   .window([OverWindow w].as("w"))           // define over window with alias w
@@ -2019,7 +1992,6 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-
 ```python
 # define over window with alias w and aggregate over the over window w
 table = input.over_window([w: OverWindow].alias("w")) \
@@ -2180,10 +2152,7 @@ table = input.over_window([w: OverWindow].alias("w")) \
 
 {{< top >}}
 
-
-
 <a name="row-based-operations"></a>
-
 ### 基于行的操作
 
 基于行的操作生成有多列的输出。
@@ -2514,7 +2483,6 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
-
 ```java
 AggregateFunction myAggFunc = new MyMinMax();
 tableEnv.registerFunction("myAggFunc", myAggFunc);
@@ -2539,7 +2507,6 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-
 ```python
 from pyflink.table import DataTypes
 from pyflink.table.udf import AggregateFunction, udaf
