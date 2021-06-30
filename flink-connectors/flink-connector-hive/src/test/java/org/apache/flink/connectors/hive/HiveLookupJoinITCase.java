@@ -31,8 +31,8 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
-import org.apache.flink.table.filesystem.FileSystemOptions;
 import org.apache.flink.table.filesystem.PartitionFetcher;
 import org.apache.flink.table.filesystem.PartitionReader;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
@@ -50,12 +50,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.junit.Assert.assertEquals;
 
 /** Test lookup join of hive tables. */
@@ -88,7 +88,7 @@ public class HiveLookupJoinITCase {
         tableEnv.executeSql(
                 String.format(
                         "create table bounded_table (x int, y string, z int) tblproperties ('%s'='5min')",
-                        FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+                        FileSystemConnectorOptions.LOOKUP_JOIN_CACHE_TTL.key()));
 
         // create the hive partitioned table
         tableEnv.executeSql(
@@ -96,7 +96,7 @@ public class HiveLookupJoinITCase {
                         "create table bounded_partition_table (x int, y string, z int) partitioned by ("
                                 + " pt_year int, pt_mon string, pt_day string)"
                                 + " tblproperties ('%s'='5min')",
-                        FileSystemOptions.LOOKUP_JOIN_CACHE_TTL.key()));
+                        FileSystemConnectorOptions.LOOKUP_JOIN_CACHE_TTL.key()));
 
         // create the hive partitioned table
         tableEnv.executeSql(
@@ -115,9 +115,9 @@ public class HiveLookupJoinITCase {
                         "create table partition_table_1 (x int, y string, z int) partitioned by ("
                                 + " pt_year int, pt_mon string, pt_day string)"
                                 + " tblproperties ('%s' = 'true', '%s' = 'latest', '%s'='120min')",
-                        FileSystemOptions.STREAMING_SOURCE_ENABLE.key(),
-                        FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE.key(),
-                        FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
+                        FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE.key(),
+                        FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE.key(),
+                        FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
 
         // create the hive partitioned table3 which uses 'partition-time'.
         tableEnv.executeSql(

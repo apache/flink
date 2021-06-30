@@ -42,7 +42,7 @@ import static java.time.temporal.ChronoField.YEAR;
 
 /**
  * Default {@link PartitionTimeExtractor}. See {@link
- * FileSystemOptions#PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN}.
+ * FileSystemConnectorOptions#PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN}.
  */
 public class DefaultPartTimeExtractor implements PartitionTimeExtractor {
 

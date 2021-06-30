@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
@@ -28,8 +29,9 @@ import java.time.Duration;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
 
-/** This class holds configuration constants used by filesystem(Including hive) connector. */
-public class FileSystemOptions {
+/** Options for the filesystem connector. */
+@PublicEvolving
+public class FileSystemConnectorOptions {
 
     public static final ConfigOption<String> PATH =
             key("path").stringType().noDefaultValue().withDescription("The path of a directory");
@@ -280,4 +282,6 @@ public class FileSystemOptions {
                             "The compaction target file size, the default value is the rolling file size.");
 
     public static final ConfigOption<Integer> SINK_PARALLELISM = FactoryUtil.SINK_PARALLELISM;
+
+    private FileSystemConnectorOptions() {}
 }

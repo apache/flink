@@ -25,7 +25,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import java.io.IOException;
 import java.util.List;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_TRIGGER;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_PARTITION_COMMIT_TRIGGER;
 import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PARTITION_TIME;
 import static org.apache.flink.table.filesystem.stream.PartitionCommitPredicate.PROCESS_TIME;
 

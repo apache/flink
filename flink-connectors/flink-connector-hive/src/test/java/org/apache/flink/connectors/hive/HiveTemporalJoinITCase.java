@@ -27,7 +27,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTest;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.types.Row;
@@ -90,8 +90,8 @@ public class HiveTemporalJoinITCase extends TableTestBase {
                                 + " z int, "
                                 + " primary key(x,y) disable novalidate rely)"
                                 + " tblproperties ('%s' = 'true', '%s'='5min')",
-                        FileSystemOptions.STREAMING_SOURCE_ENABLE.key(),
-                        FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
+                        FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE.key(),
+                        FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL.key()));
 
         tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
     }
