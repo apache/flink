@@ -197,7 +197,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -287,7 +287,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -372,7 +372,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -487,7 +487,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -530,7 +530,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
                         true);
         // expect message for serializationSchema1
@@ -542,7 +542,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.DROP,
+                        JsonFormatOptions.MapNullKeyMode.DROP,
                         "null",
                         true);
         // expect result for serializationSchema2
@@ -552,7 +552,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "nullKey",
                         true);
         // expect result for serializationSchema3
@@ -596,14 +596,14 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
         JsonRowDataSerializationSchema scientificDecimalSerializer =
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         false);
 
@@ -641,7 +641,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
                         true);
         String errorMessage = "Fail to serialize at field: f1.";

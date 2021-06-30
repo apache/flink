@@ -64,14 +64,14 @@ public class RowDataToJsonConverters implements Serializable {
     private final TimestampFormat timestampFormat;
 
     /** The handling mode when serializing null keys for map data. */
-    private final JsonOptions.MapNullKeyMode mapNullKeyMode;
+    private final JsonFormatOptions.MapNullKeyMode mapNullKeyMode;
 
     /** The string literal when handling mode for map null key LITERAL. is */
     private final String mapNullKeyLiteral;
 
     public RowDataToJsonConverters(
             TimestampFormat timestampFormat,
-            JsonOptions.MapNullKeyMode mapNullKeyMode,
+            JsonFormatOptions.MapNullKeyMode mapNullKeyMode,
             String mapNullKeyLiteral) {
         this.timestampFormat = timestampFormat;
         this.mapNullKeyMode = mapNullKeyMode;
@@ -286,7 +286,7 @@ public class RowDataToJsonConverters implements Serializable {
                                     String.format(
                                             "JSON format doesn't support to serialize map data with null keys. "
                                                     + "You can drop null key entries or encode null in literals by specifying %s option.",
-                                            JsonOptions.MAP_NULL_KEY_MODE.key()));
+                                            JsonFormatOptions.MAP_NULL_KEY_MODE.key()));
                         default:
                             throw new RuntimeException(
                                     "Unsupported map null key mode. Validator should have checked that.");

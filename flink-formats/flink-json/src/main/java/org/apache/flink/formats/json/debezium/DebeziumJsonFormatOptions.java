@@ -18,16 +18,14 @@
 
 package org.apache.flink.formats.json.debezium;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.formats.json.JsonOptions;
-import org.apache.flink.table.api.ValidationException;
-
-import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory.IDENTIFIER;
+import org.apache.flink.formats.json.JsonFormatOptions;
 
 /** Option utils for debezium-json format. */
-public class DebeziumJsonOptions {
+@PublicEvolving
+public class DebeziumJsonFormatOptions {
 
     public static final ConfigOption<Boolean> SCHEMA_INCLUDE =
             ConfigOptions.key("schema-include")
@@ -39,34 +37,16 @@ public class DebeziumJsonOptions {
                                     + "This option indicates the Debezium JSON data include the schema in the message or not. "
                                     + "Default is false.");
 
-    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
+            JsonFormatOptions.IGNORE_PARSE_ERRORS;
 
-    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonFormatOptions.TIMESTAMP_FORMAT;
 
-    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
+    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE =
+            JsonFormatOptions.MAP_NULL_KEY_MODE;
 
     public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
-            JsonOptions.MAP_NULL_KEY_LITERAL;
+            JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 
-    // --------------------------------------------------------------------------------------------
-    // Validation
-    // --------------------------------------------------------------------------------------------
-
-    /** Validator for debezium decoding format. */
-    public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
-        JsonOptions.validateDecodingFormatOptions(tableOptions);
-    }
-
-    /** Validator for debezium encoding format. */
-    public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
-        JsonOptions.validateEncodingFormatOptions(tableOptions);
-
-        // validator for {@link SCHEMA_INCLUDE}
-        if (tableOptions.get(SCHEMA_INCLUDE)) {
-            throw new ValidationException(
-                    String.format(
-                            "Debezium JSON serialization doesn't support '%s.%s' option been set to true.",
-                            IDENTIFIER, SCHEMA_INCLUDE.key()));
-        }
-    }
+    private DebeziumJsonFormatOptions() {}
 }
