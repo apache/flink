@@ -28,7 +28,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.factories.DataGenOptions;
+import org.apache.flink.table.factories.DataGenConnectorOptionsUtil;
 import org.apache.flink.table.factories.datagen.types.DataGeneratorMapper;
 import org.apache.flink.table.factories.datagen.types.DecimalDataRandomGenerator;
 import org.apache.flink.table.factories.datagen.types.RowDataGenerator;
@@ -73,8 +73,20 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     public RandomGeneratorVisitor(String name, ReadableConfig config) {
         super(name, config);
 
-        this.minKey = key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.MIN);
-        this.maxKey = key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.MAX);
+        this.minKey =
+                key(
+                        DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.MIN);
+        this.maxKey =
+                key(
+                        DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.MAX);
     }
 
     @Override
@@ -85,7 +97,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(CharType charType) {
         ConfigOption<Integer> lenOption =
-                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         return DataGeneratorContainer.of(
@@ -95,7 +111,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(VarCharType varCharType) {
         ConfigOption<Integer> lenOption =
-                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         return DataGeneratorContainer.of(
@@ -187,7 +207,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(ArrayType arrayType) {
         ConfigOption<Integer> lenOption =
-                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 
@@ -205,7 +229,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(MultisetType multisetType) {
         ConfigOption<Integer> lenOption =
-                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 
@@ -227,7 +255,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
     @Override
     public DataGeneratorContainer visit(MapType mapType) {
         ConfigOption<Integer> lenOption =
-                key(DataGenOptions.FIELDS + "." + name + "." + DataGenOptions.LENGTH)
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_COLLECTION_LENGTH_DEFAULT);
 
