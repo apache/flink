@@ -332,6 +332,10 @@ public final class ResourceSpec implements Serializable {
         return new Builder(new CPUResource(cpuCores), MemorySize.ofMebiBytes(taskHeapMemoryMB));
     }
 
+    public static Builder newBuilder(double cpuCores, MemorySize taskHeapMemory) {
+        return new Builder(new CPUResource(cpuCores), taskHeapMemory);
+    }
+
     /** Builder for the {@link ResourceSpec}. */
     public static class Builder {
 
