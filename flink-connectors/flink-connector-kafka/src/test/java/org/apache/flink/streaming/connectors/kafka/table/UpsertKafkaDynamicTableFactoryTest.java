@@ -65,7 +65,7 @@ import java.util.Properties;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.AVRO_CONFLUENT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.AVRO_CONFLUENT;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -334,8 +334,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         final RowType rowType = (RowType) SINK_SCHEMA.toSinkRowDataType().getLogicalType();
         final String valueFormat =
                 options.getOrDefault(
-                        FactoryUtil.FORMAT.key(), options.get(KafkaOptions.VALUE_FORMAT.key()));
-        final String keyFormat = options.get(KafkaOptions.KEY_FORMAT.key());
+                        FactoryUtil.FORMAT.key(),
+                        options.get(KafkaConnectorOptions.VALUE_FORMAT.key()));
+        final String keyFormat = options.get(KafkaConnectorOptions.KEY_FORMAT.key());
 
         KafkaDynamicSink sink = (KafkaDynamicSink) createTableSink(SINK_SCHEMA, options);
 

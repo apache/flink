@@ -18,15 +18,16 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.Description;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ValueFieldsStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
@@ -40,7 +41,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,233 +52,27 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_MODE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_SPECIFIC_OFFSETS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SCAN_STARTUP_TIMESTAMP_MILLIS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_SEMANTIC;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC_PATTERN;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.AT_LEAST_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.EXACTLY_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.NONE;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
-import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
-/** Option utils for Kafka table source sink. */
-public class KafkaOptions {
-    private KafkaOptions() {}
-
-    // --------------------------------------------------------------------------------------------
-    // Format options
-    // --------------------------------------------------------------------------------------------
-
-    public static final ConfigOption<String> KEY_FORMAT =
-            ConfigOptions.key("key" + FORMAT_SUFFIX)
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Defines the format identifier for encoding key data. "
-                                    + "The identifier is used to discover a suitable format factory.");
-
-    public static final ConfigOption<String> VALUE_FORMAT =
-            ConfigOptions.key("value" + FORMAT_SUFFIX)
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Defines the format identifier for encoding value data. "
-                                    + "The identifier is used to discover a suitable format factory.");
-
-    public static final ConfigOption<List<String>> KEY_FIELDS =
-            ConfigOptions.key("key.fields")
-                    .stringType()
-                    .asList()
-                    .defaultValues()
-                    .withDescription(
-                            "Defines an explicit list of physical columns from the table schema "
-                                    + "that configure the data type for the key format. By default, this list is "
-                                    + "empty and thus a key is undefined.");
-
-    public static final ConfigOption<ValueFieldsStrategy> VALUE_FIELDS_INCLUDE =
-            ConfigOptions.key("value.fields-include")
-                    .enumType(ValueFieldsStrategy.class)
-                    .defaultValue(ValueFieldsStrategy.ALL)
-                    .withDescription(
-                            String.format(
-                                    "Defines a strategy how to deal with key columns in the data type "
-                                            + "of the value format. By default, '%s' physical columns of the table schema "
-                                            + "will be included in the value format which means that the key columns "
-                                            + "appear in the data type for both the key and value format.",
-                                    ValueFieldsStrategy.ALL));
-
-    public static final ConfigOption<String> KEY_FIELDS_PREFIX =
-            ConfigOptions.key("key.fields-prefix")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Defines a custom prefix for all fields of the key format to avoid "
-                                                    + "name clashes with fields of the value format. "
-                                                    + "By default, the prefix is empty.")
-                                    .linebreak()
-                                    .text(
-                                            String.format(
-                                                    "If a custom prefix is defined, both the table schema and '%s' will work with prefixed names.",
-                                                    KEY_FIELDS.key()))
-                                    .linebreak()
-                                    .text(
-                                            "When constructing the data type of the key format, the prefix "
-                                                    + "will be removed and the non-prefixed names will be used within the key format.")
-                                    .linebreak()
-                                    .text(
-                                            String.format(
-                                                    "Please note that this option requires that '%s' must be '%s'.",
-                                                    VALUE_FIELDS_INCLUDE.key(),
-                                                    ValueFieldsStrategy.EXCEPT_KEY))
-                                    .build());
-
-    // --------------------------------------------------------------------------------------------
-    // Kafka specific options
-    // --------------------------------------------------------------------------------------------
-
-    public static final ConfigOption<List<String>> TOPIC =
-            ConfigOptions.key("topic")
-                    .stringType()
-                    .asList()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Topic names from which the table is read. Either 'topic' or 'topic-pattern' must be set for source. "
-                                    + "Option 'topic' is required for sink.");
-
-    public static final ConfigOption<String> TOPIC_PATTERN =
-            ConfigOptions.key("topic-pattern")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Optional topic pattern from which the table is read for source. Either 'topic' or 'topic-pattern' must be set.");
-
-    public static final ConfigOption<String> PROPS_BOOTSTRAP_SERVERS =
-            ConfigOptions.key("properties.bootstrap.servers")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Required Kafka server connection string");
-
-    public static final ConfigOption<String> PROPS_GROUP_ID =
-            ConfigOptions.key("properties.group.id")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Required consumer group in Kafka consumer, no need for Kafka producer");
-
-    // --------------------------------------------------------------------------------------------
-    // Scan specific options
-    // --------------------------------------------------------------------------------------------
-
-    public static final ConfigOption<String> SCAN_STARTUP_MODE =
-            ConfigOptions.key("scan.startup.mode")
-                    .stringType()
-                    .defaultValue("group-offsets")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional startup mode for Kafka consumer, valid enumerations are")
-                                    .list(
-                                            text("'earliest-offset'"),
-                                            text("'latest-offset'"),
-                                            text("'group-offsets'"),
-                                            text("'timestamp'"),
-                                            text("'specific-offsets'"))
-                                    .build());
-
-    public static final ConfigOption<String> SCAN_STARTUP_SPECIFIC_OFFSETS =
-            ConfigOptions.key("scan.startup.specific-offsets")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Optional offsets used in case of \"specific-offsets\" startup mode");
-
-    public static final ConfigOption<Long> SCAN_STARTUP_TIMESTAMP_MILLIS =
-            ConfigOptions.key("scan.startup.timestamp-millis")
-                    .longType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Optional timestamp used in case of \"timestamp\" startup mode");
-
-    public static final ConfigOption<Duration> SCAN_TOPIC_PARTITION_DISCOVERY =
-            ConfigOptions.key("scan.topic-partition-discovery.interval")
-                    .durationType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Optional interval for consumer to discover dynamically created Kafka partitions periodically.");
-
-    // --------------------------------------------------------------------------------------------
-    // Sink specific options
-    // --------------------------------------------------------------------------------------------
-
-    public static final ConfigOption<String> SINK_PARTITIONER =
-            ConfigOptions.key("sink.partitioner")
-                    .stringType()
-                    .defaultValue("default")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional output partitioning from Flink's partitions into Kafka's partitions. Valid enumerations are")
-                                    .list(
-                                            text(
-                                                    "'default' (use kafka default partitioner to partition records)"),
-                                            text(
-                                                    "'fixed' (each Flink partition ends up in at most one Kafka partition)"),
-                                            text(
-                                                    "'round-robin' (a Flink partition is distributed to Kafka partitions round-robin when 'key.fields' is not specified)"),
-                                            text(
-                                                    "custom class name (use custom FlinkKafkaPartitioner subclass)"))
-                                    .build());
-
-    public static final ConfigOption<String> SINK_SEMANTIC =
-            ConfigOptions.key("sink.semantic")
-                    .stringType()
-                    .defaultValue("at-least-once")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional semantic when committing. Valid enumerations are")
-                                    .list(text("at-least-once"), text("exactly-once"), text("none"))
-                                    .build());
-
-    // Disable this feature by default
-    public static final ConfigOption<Integer> SINK_BUFFER_FLUSH_MAX_ROWS =
-            ConfigOptions.key("sink.buffer-flush.max-rows")
-                    .intType()
-                    .defaultValue(0)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The max size of buffered records before flushing. "
-                                                    + "When the sink receives many updates on the same key, "
-                                                    + "the buffer will retain the last records of the same key. "
-                                                    + "This can help to reduce data shuffling and avoid possible tombstone messages to the Kafka topic.")
-                                    .linebreak()
-                                    .text("Can be set to '0' to disable it.")
-                                    .linebreak()
-                                    .text(
-                                            "Note both 'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
-                                                    + "must be set to be greater than zero to enable sink buffer flushing.")
-                                    .build());
-
-    // Disable this feature by default
-    public static final ConfigOption<Duration> SINK_BUFFER_FLUSH_INTERVAL =
-            ConfigOptions.key("sink.buffer-flush.interval")
-                    .durationType()
-                    .defaultValue(Duration.ofSeconds(0))
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The flush interval millis. Over this time, asynchronous threads "
-                                                    + "will flush data. When the sink receives many updates on the same key, "
-                                                    + "the buffer will retain the last record of the same key.")
-                                    .linebreak()
-                                    .text("Can be set to '0' to disable it.")
-                                    .linebreak()
-                                    .text(
-                                            "Note both 'sink.buffer-flush.max-rows' and 'sink.buffer-flush.interval' "
-                                                    + "must be set to be greater than zero to enable sink buffer flushing.")
-                                    .build());
+/** Utilities for {@link KafkaConnectorOptions}. */
+@Internal
+class KafkaConnectorOptionsUtil {
 
     private static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
             ConfigOptions.key("schema-registry.subject").stringType().noDefaultValue();
@@ -675,8 +469,8 @@ public class KafkaOptions {
      * Creates an array of indices that determine which physical fields of the table schema to
      * include in the key format and the order that those fields have in the key format.
      *
-     * <p>See {@link #KEY_FORMAT}, {@link #KEY_FIELDS}, and {@link #KEY_FIELDS_PREFIX} for more
-     * information.
+     * <p>See {@link KafkaConnectorOptions#KEY_FORMAT}, {@link KafkaConnectorOptions#KEY_FIELDS},
+     * and {@link KafkaConnectorOptions#KEY_FIELDS_PREFIX} for more information.
      */
     public static int[] createKeyFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
@@ -741,8 +535,9 @@ public class KafkaOptions {
      * Creates an array of indices that determine which physical fields of the table schema to
      * include in the value format.
      *
-     * <p>See {@link #VALUE_FORMAT}, {@link #VALUE_FIELDS_INCLUDE}, and {@link #KEY_FIELDS_PREFIX}
-     * for more information.
+     * <p>See {@link KafkaConnectorOptions#VALUE_FORMAT}, {@link
+     * KafkaConnectorOptions#VALUE_FIELDS_INCLUDE}, and {@link
+     * KafkaConnectorOptions#KEY_FIELDS_PREFIX} for more information.
      */
     public static int[] createValueFormatProjection(
             ReadableConfig options, DataType physicalDataType) {
@@ -841,9 +636,5 @@ public class KafkaOptions {
         public long startupTimestampMillis;
     }
 
-    /** Strategies to derive the data type of a value format by considering a key format. */
-    public enum ValueFieldsStrategy {
-        ALL,
-        EXCEPT_KEY
-    }
+    private KafkaConnectorOptionsUtil() {}
 }
