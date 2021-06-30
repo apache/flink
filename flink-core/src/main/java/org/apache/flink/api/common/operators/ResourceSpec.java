@@ -359,7 +359,7 @@ public final class ResourceSpec implements Serializable {
             return this;
         }
 
-        public Builder setOffTaskHeapMemoryMB(int taskOffHeapMemoryMB) {
+        public Builder setTaskOffHeapMemoryMB(int taskOffHeapMemoryMB) {
             this.taskOffHeapMemory = MemorySize.ofMebiBytes(taskOffHeapMemoryMB);
             return this;
         }
