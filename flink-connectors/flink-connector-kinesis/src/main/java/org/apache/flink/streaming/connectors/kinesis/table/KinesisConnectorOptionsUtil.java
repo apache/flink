@@ -19,10 +19,7 @@
 package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.Description;
 import org.apache.flink.streaming.connectors.kinesis.FixedKinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.KinesisPartitioner;
 import org.apache.flink.streaming.connectors.kinesis.RandomKinesisPartitioner;
@@ -41,17 +38,20 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.description.TextElement.code;
-import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.streaming.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.streaming.connectors.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
+import static org.apache.flink.streaming.connectors.kinesis.table.KinesisConnectorOptions.STREAM;
 
-/**
- * Options for Kinesis tables supported by the {@code CREATE TABLE ... WITH ...} clause of the Flink
- * SQL dialect and the Flink Table API.
- */
+/** Utilities for {@link KinesisConnectorOptions}. */
 @Internal
-public class KinesisOptions {
+class KinesisConnectorOptionsUtil {
 
-    private KinesisOptions() {}
+    // -----------------------------------------------------------------------------------------
+    // Option enumerations
+    // -----------------------------------------------------------------------------------------
+
+    public static final String SINK_PARTITIONER_VALUE_FIXED = "fixed";
+    public static final String SINK_PARTITIONER_VALUE_RANDOM = "random";
 
     // -----------------------------------------------------------------------------------------
     // Kinesis specific options
@@ -85,57 +85,6 @@ public class KinesisOptions {
      */
     public static final String[] NON_VALIDATED_PREFIXES =
             new String[] {AWS_PROPERTIES_PREFIX, CONSUMER_PREFIX, PRODUCER_PREFIX};
-
-    public static final ConfigOption<String> STREAM =
-            ConfigOptions.key("stream")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Name of the Kinesis stream backing this table.");
-
-    // -----------------------------------------------------------------------------------------
-    // Sink specific options
-    // -----------------------------------------------------------------------------------------
-
-    public static final ConfigOption<String> SINK_PARTITIONER =
-            ConfigOptions.key("sink.partitioner")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional output partitioning from Flink's partitions into Kinesis shards. "
-                                                    + "Sinks that write to tables defined with the %s clause always use a "
-                                                    + "field-based partitioner and cannot define this option.",
-                                            code("PARTITION BY"))
-                                    .linebreak()
-                                    .text("Valid enumerations are")
-                                    .list(
-                                            text("random (use a random partition key)"),
-                                            text(
-                                                    "fixed (each Flink partition ends up in at most one Kinesis shard)"),
-                                            text(
-                                                    "custom class name (use a custom %s subclass)",
-                                                    text(KinesisPartitioner.class.getName())))
-                                    .build());
-
-    public static final ConfigOption<String> SINK_PARTITIONER_FIELD_DELIMITER =
-            ConfigOptions.key("sink.partitioner-field-delimiter")
-                    .stringType()
-                    .defaultValue("|")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Optional field delimiter for fields-based partitioner derived from a %s clause",
-                                            code("PARTITION BY"))
-                                    .build());
-
-    // -----------------------------------------------------------------------------------------
-    // Option enumerations
-    // -----------------------------------------------------------------------------------------
-
-    public static final String SINK_PARTITIONER_VALUE_FIXED = "fixed";
-
-    public static final String SINK_PARTITIONER_VALUE_RANDOM = "random";
 
     // -----------------------------------------------------------------------------------------
     // Utilities
@@ -283,4 +232,6 @@ public class KinesisOptions {
                     e);
         }
     }
+
+    private KinesisConnectorOptionsUtil() {}
 }
