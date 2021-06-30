@@ -24,27 +24,33 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
+import static org.apache.flink.changelog.fs.FsStateChangelogCleaner.NO_OP;
 import static org.apache.flink.state.changelog.ChangelogStateBackendTestUtils.createKeyedBackend;
 import static org.junit.Assert.assertSame;
 
@@ -52,6 +58,7 @@ import static org.junit.Assert.assertSame;
 @RunWith(Parameterized.class)
 public class ChangelogDelegateStateTest {
     private MockEnvironment env;
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     @Parameterized.Parameters
     public static List<Supplier<AbstractStateBackend>> delegatedStateBackend() {
@@ -116,9 +123,7 @@ public class ChangelogDelegateStateTest {
             delegatedBackend = createKeyedBackend(backend.get(), env);
             changelogBackend =
                     createKeyedBackend(
-                            new ChangelogStateBackend(
-                                    backend.get(), new InMemoryStateChangelogStorage()),
-                            env);
+                            new ChangelogStateBackend(backend.get(), getChangelogStorage()), env);
 
             State state =
                     changelogBackend.getPartitionedState(
@@ -142,5 +147,10 @@ public class ChangelogDelegateStateTest {
                 changelogBackend.dispose();
             }
         }
+    }
+
+    private StateChangelogStorage<?> getChangelogStorage() throws IOException {
+        return new FsStateChangelogStorage(
+                Path.fromLocalFile(tmp.newFolder()), false, 1024 * 1024 * 10, NO_OP);
     }
 }

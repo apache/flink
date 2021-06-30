@@ -19,12 +19,17 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.changelog.fs.FsStateChangelogStorage;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.HashMapStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+
+import java.io.IOException;
+
+import static org.apache.flink.changelog.fs.FsStateChangelogCleaner.NO_OP;
 
 /** Tests for {@link ChangelogStateBackend} delegating {@link HashMapStateBackendTest}. */
 public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
@@ -48,17 +53,20 @@ public class ChangelogDelegateHashMapTest extends HashMapStateBackendTest {
             throws Exception {
 
         return ChangelogStateBackendTestUtils.createKeyedBackend(
-                new ChangelogStateBackend(
-                        super.getStateBackend(), new InMemoryStateChangelogStorage()),
+                new ChangelogStateBackend(super.getStateBackend(), getStateChangelogStorage()),
                 keySerializer,
                 numberOfKeyGroups,
                 keyGroupRange,
                 env);
     }
 
+    private StateChangelogStorage getStateChangelogStorage() throws IOException {
+        return new FsStateChangelogStorage(
+                Path.fromLocalFile(TEMP_FOLDER.newFolder()), false, 1024 * 1024 * 10, NO_OP);
+    }
+
     @Override
-    protected ConfigurableStateBackend getStateBackend() {
-        return new ChangelogStateBackend(
-                super.getStateBackend(), new InMemoryStateChangelogStorage());
+    protected ChangelogStateBackend getStateBackend() throws IOException {
+        return new ChangelogStateBackend(super.getStateBackend(), getStateChangelogStorage());
     }
 }

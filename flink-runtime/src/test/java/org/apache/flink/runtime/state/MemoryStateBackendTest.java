@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -40,7 +41,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
     @Parameterized.Parameter public boolean useAsyncmode;
 
     @Override
-    protected ConfigurableStateBackend getStateBackend() {
+    protected ConfigurableStateBackend getStateBackend() throws IOException {
         return new MemoryStateBackend(useAsyncmode);
     }
 

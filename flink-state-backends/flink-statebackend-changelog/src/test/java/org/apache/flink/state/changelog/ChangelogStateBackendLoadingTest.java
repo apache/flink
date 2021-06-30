@@ -21,6 +21,8 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.changelog.fs.FsStateChangelogOptions;
+import org.apache.flink.changelog.fs.FsStateChangelogStorage;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -28,6 +30,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -45,7 +48,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -64,8 +67,10 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 
+import static org.apache.flink.changelog.fs.FsStateChangelogCleaner.NO_OP;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -83,11 +88,11 @@ public class ChangelogStateBackendLoadingTest {
     public void testLoadingDefault() throws Exception {
         final StateBackend backend =
                 StateBackendLoader.fromApplicationOrConfigOrDefault(
-                        null, TernaryBoolean.UNDEFINED, config(), cl, null);
+                        null, TernaryBoolean.UNDEFINED, new Configuration(), cl, null);
         final CheckpointStorage storage =
                 CheckpointStorageLoader.load(null, null, backend, config(), cl, null);
 
-        assertTrue(backend instanceof HashMapStateBackend);
+        assertTrue(backend.getClass().toString(), backend instanceof HashMapStateBackend);
     }
 
     @Test
@@ -147,11 +152,12 @@ public class ChangelogStateBackendLoadingTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testRecursiveDelegation() throws Exception {
+        StateChangelogStorage<?> stateChangelogWriterFactory = getStateChangelogStorage();
         final StateBackend appBackend =
                 new ChangelogStateBackend(
                         new ChangelogStateBackend(
-                                new MockStateBackend(), new InMemoryStateChangelogStorage()),
-                        new InMemoryStateChangelogStorage());
+                                new MockStateBackend(), stateChangelogWriterFactory),
+                        stateChangelogWriterFactory);
 
         StateBackendLoader.fromApplicationOrConfigOrDefault(
                 appBackend, TernaryBoolean.UNDEFINED, config("rocksdb", true), cl, null);
@@ -246,7 +252,8 @@ public class ChangelogStateBackendLoadingTest {
                 env, TernaryBoolean.TRUE, MemoryStateBackend.class);
     }
 
-    private Configuration config(String stateBackend, boolean enableChangelogStateBackend) {
+    private Configuration config(String stateBackend, boolean enableChangelogStateBackend)
+            throws IOException {
         final Configuration config = new Configuration();
         config.setBoolean(
                 CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, enableChangelogStateBackend);
@@ -263,15 +270,18 @@ public class ChangelogStateBackendLoadingTest {
         return config;
     }
 
-    private Configuration config(String stateBackend) {
+    private Configuration config(String stateBackend) throws IOException {
         final Configuration config = new Configuration();
         config.setString(backendKey, stateBackend);
+        config.set(FsStateChangelogOptions.BASE_PATH, tmp.newFolder().toString());
 
         return config;
     }
 
-    private Configuration config() {
+    private Configuration config() throws IOException {
         final Configuration config = new Configuration();
+        config.setBoolean(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+        config.set(FsStateChangelogOptions.BASE_PATH, tmp.newFolder().toString());
 
         return config;
     }
@@ -438,5 +448,10 @@ public class ChangelogStateBackendLoadingTest {
         boolean isConfigUpdated() {
             return configUpdated;
         }
+    }
+
+    private StateChangelogStorage<?> getStateChangelogStorage() throws IOException {
+        return new FsStateChangelogStorage(
+                Path.fromLocalFile(tmp.newFolder()), false, 1024 * 1024 * 10, NO_OP);
     }
 }
