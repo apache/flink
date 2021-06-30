@@ -66,8 +66,7 @@ abstract class SimplifyWindowTableFunctionRuleBase extends RelOptRule {
         final StreamPhysicalWindowTableFunction windowTVF =
                 (StreamPhysicalWindowTableFunction) nodes.get(nodes.size() - 1);
         if (needSimplify(windowTVF)) {
-            final StreamPhysicalWindowTableFunction newWindowTVF = windowTVF.copy(true);
-            RelNode root = newWindowTVF;
+            RelNode root = windowTVF.copy(true);
             for (int i = nodes.size() - 2; i >= 0; i--) {
                 RelNode node = nodes.get(i);
                 root = node.copy(node.getTraitSet(), Collections.singletonList(root));
@@ -102,10 +101,8 @@ abstract class SimplifyWindowTableFunctionWithWindowRankRuleBase
 
     @Override
     public void onMatch(RelOptRuleCall call) {
-        StreamPhysicalWindowRank windowRank = call.rel(0);
         List<RelNode> rels = call.getRelList();
         RelNode newTree = rebuild(rels);
-        call.getPlanner().prune(windowRank);
         call.transformTo(newTree);
     }
 }
@@ -169,7 +166,6 @@ abstract class SimplifyWindowTableFunctionWithWindowJoinRuleBase
                         newRight,
                         join.getJoinType(),
                         join.isSemiJoinDone());
-        call.getPlanner().prune(join);
         call.transformTo(newJoin);
     }
 
@@ -198,7 +194,7 @@ class SimplifyWindowTableFunctionRuleWithWindowJoinRule
 
     @Override
     StreamPhysicalWindowTableFunction getLeftWindowTVF(RelOptRuleCall call) {
-        return (StreamPhysicalWindowTableFunction) call.rel(2);
+        return call.rel(2);
     }
 
     @Override
@@ -232,7 +228,7 @@ class SimplifyWindowTableFunctionRuleWithLeftCalcWindowJoinRule
 
     @Override
     StreamPhysicalWindowTableFunction getLeftWindowTVF(RelOptRuleCall call) {
-        return (StreamPhysicalWindowTableFunction) call.rel(3);
+        return call.rel(3);
     }
 
     @Override
@@ -266,7 +262,7 @@ class SimplifyWindowTableFunctionRuleWithRightCalcWindowJoinRule
 
     @Override
     StreamPhysicalWindowTableFunction getLeftWindowTVF(RelOptRuleCall call) {
-        return (StreamPhysicalWindowTableFunction) call.rel(2);
+        return call.rel(2);
     }
 
     @Override
@@ -302,7 +298,7 @@ class SimplifyWindowTableFunctionRuleWithLeftRightCalcWindowJoinRule
 
     @Override
     StreamPhysicalWindowTableFunction getLeftWindowTVF(RelOptRuleCall call) {
-        return (StreamPhysicalWindowTableFunction) call.rel(3);
+        return call.rel(3);
     }
 
     @Override
