@@ -488,11 +488,11 @@ object FlinkStreamRuleSets {
     // optimize window agg rule
     TwoStageOptimizedWindowAggregateRule.INSTANCE,
     // simplify window tvf
-    SimplifyWindowTableFunctionWithWindowRankRule.WITH_CALC_WINDOW_RANK,
-    SimplifyWindowTableFunctionWithWindowRankRule.WITH_WINDOW_RANK,
-    SimplifyWindowTableFunctionWithWindowJoinRule.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionWithWindowJoinRule.WITH_LEFT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionWithWindowJoinRule.WITH_RIGHT_CALC_WINDOW_JOIN,
-    SimplifyWindowTableFunctionWithWindowJoinRule.WITH_WINDOW_JOIN)
+    SimplifyWindowTableFunctionRules.WITH_CALC_WINDOW_RANK,
+    SimplifyWindowTableFunctionRules.WITH_WINDOW_RANK,
+    SimplifyWindowTableFunctionRules.WITH_LEFT_RIGHT_CALC_WINDOW_JOIN,
+    SimplifyWindowTableFunctionRules.WITH_LEFT_CALC_WINDOW_JOIN,
+    SimplifyWindowTableFunctionRules.WITH_RIGHT_CALC_WINDOW_JOIN,
+    SimplifyWindowTableFunctionRules.WITH_WINDOW_JOIN)
 
 }
