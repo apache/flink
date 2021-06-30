@@ -42,8 +42,8 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.SUBJECT;
-import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroOptions.URL;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
 
 /**
  * Format factory for providing configured instances of Debezium Avro to RowData {@link
