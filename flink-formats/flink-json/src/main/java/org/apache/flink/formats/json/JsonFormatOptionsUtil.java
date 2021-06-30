@@ -18,8 +18,7 @@
 
 package org.apache.flink.formats.json;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.api.TableException;
@@ -31,55 +30,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** This class holds configuration constants used by json format. */
-public class JsonOptions {
+import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
+import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
 
-    public static final ConfigOption<Boolean> FAIL_ON_MISSING_FIELD =
-            ConfigOptions.key("fail-on-missing-field")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Optional flag to specify whether to fail if a field is missing or not, false by default.");
-
-    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
-            ConfigOptions.key("ignore-parse-errors")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Optional flag to skip fields and rows with parse errors instead of failing;\n"
-                                    + "fields are set to null in case of errors, false by default.");
-
-    public static final ConfigOption<String> MAP_NULL_KEY_MODE =
-            ConfigOptions.key("map-null-key.mode")
-                    .stringType()
-                    .defaultValue("FAIL")
-                    .withDescription(
-                            "Optional flag to control the handling mode when serializing null key for map data, FAIL by default."
-                                    + " Option DROP will drop null key entries for map data."
-                                    + " Option LITERAL will use 'map-null-key.literal' as key literal.");
-
-    public static final ConfigOption<String> MAP_NULL_KEY_LITERAL =
-            ConfigOptions.key("map-null-key.literal")
-                    .stringType()
-                    .defaultValue("null")
-                    .withDescription(
-                            "Optional flag to specify string literal for null keys when 'map-null-key.mode' is LITERAL, \"null\" by default.");
-
-    public static final ConfigOption<String> TIMESTAMP_FORMAT =
-            ConfigOptions.key("timestamp-format.standard")
-                    .stringType()
-                    .defaultValue("SQL")
-                    .withDescription(
-                            "Optional flag to specify timestamp format, SQL by default."
-                                    + " Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same format."
-                                    + " Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same format.");
-
-    public static final ConfigOption<Boolean> ENCODE_DECIMAL_AS_PLAIN_NUMBER =
-            ConfigOptions.key("encode.decimal-as-plain-number")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
+/** Utilities for {@link JsonFormatOptions}. */
+@Internal
+public class JsonFormatOptionsUtil {
 
     // --------------------------------------------------------------------------------------------
     // Option enumerations
@@ -121,32 +79,21 @@ public class JsonOptions {
      * <p>See {@link #JSON_MAP_NULL_KEY_MODE_FAIL}, {@link #JSON_MAP_NULL_KEY_MODE_DROP}, and {@link
      * #JSON_MAP_NULL_KEY_MODE_LITERAL} for more information.
      */
-    public static MapNullKeyMode getMapNullKeyMode(ReadableConfig config) {
+    public static JsonFormatOptions.MapNullKeyMode getMapNullKeyMode(ReadableConfig config) {
         String mapNullKeyMode = config.get(MAP_NULL_KEY_MODE);
         switch (mapNullKeyMode.toUpperCase()) {
             case JSON_MAP_NULL_KEY_MODE_FAIL:
-                return MapNullKeyMode.FAIL;
+                return JsonFormatOptions.MapNullKeyMode.FAIL;
             case JSON_MAP_NULL_KEY_MODE_DROP:
-                return MapNullKeyMode.DROP;
+                return JsonFormatOptions.MapNullKeyMode.DROP;
             case JSON_MAP_NULL_KEY_MODE_LITERAL:
-                return MapNullKeyMode.LITERAL;
+                return JsonFormatOptions.MapNullKeyMode.LITERAL;
             default:
                 throw new TableException(
                         String.format(
                                 "Unsupported map null key handling mode '%s'. Validator should have checked that.",
                                 mapNullKeyMode));
         }
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Inner classes
-    // --------------------------------------------------------------------------------------------
-
-    /** Handling mode for map data with null key. */
-    public enum MapNullKeyMode {
-        FAIL,
-        DROP,
-        LITERAL
     }
 
     // --------------------------------------------------------------------------------------------
@@ -171,7 +118,7 @@ public class JsonOptions {
     public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
         // validator for {@link MAP_NULL_KEY_MODE}
         Set<String> nullKeyModes =
-                Arrays.stream(MapNullKeyMode.values())
+                Arrays.stream(JsonFormatOptions.MapNullKeyMode.values())
                         .map(Objects::toString)
                         .collect(Collectors.toSet());
         if (!nullKeyModes.contains(tableOptions.get(MAP_NULL_KEY_MODE).toUpperCase())) {
@@ -195,4 +142,6 @@ public class JsonOptions {
                             timestampFormat, TIMESTAMP_FORMAT.key()));
         }
     }
+
+    private JsonFormatOptionsUtil() {}
 }
