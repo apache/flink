@@ -884,7 +884,9 @@ public class SingleInputGate extends IndexedInputGate {
                     return;
                 }
 
+                LOG.info("query channel for {}", channel.getChannelInfo());
                 if (!queueChannelUnsafe(channel, priority)) {
+                    LOG.info("query channel failed for {}", channel.getChannelInfo());
                     return;
                 }
 

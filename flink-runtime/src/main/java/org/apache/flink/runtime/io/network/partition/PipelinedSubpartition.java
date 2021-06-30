@@ -465,6 +465,11 @@ public class PipelinedSubpartition extends ResultSubpartition
                             && buffers.peek().getBufferConsumer().isDataAvailable();
             flushRequested = buffers.size() > 1 || notifyDataAvailable;
         }
+        LOG.info(
+                "flush flushRequested = {}, notifyDataAvailable = {}, buffers.size = {}",
+                flushRequested,
+                notifyDataAvailable,
+                buffers.size());
         if (notifyDataAvailable) {
             notifyDataAvailable();
         }

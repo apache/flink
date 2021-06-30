@@ -204,7 +204,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         ResultSubpartition subpartition = subpartitions[subpartitionIndex];
         ResultSubpartitionView readView = subpartition.createReadView(availabilityListener);
 
-        LOG.debug("Created {}", readView);
+        LOG.info("Created {}", readView);
 
         return readView;
     }
