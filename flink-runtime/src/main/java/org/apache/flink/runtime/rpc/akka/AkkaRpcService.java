@@ -46,6 +46,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
 import akka.actor.Address;
+import akka.actor.DeadLetter;
 import akka.actor.Props;
 import akka.dispatch.Futures;
 import akka.pattern.Patterns;
@@ -144,6 +145,13 @@ public class AkkaRpcService implements RpcService {
         stopped = false;
 
         supervisor = startSupervisorActor();
+        startDeadLettersActor();
+    }
+
+    private void startDeadLettersActor() {
+        final ActorRef deadLettersActor =
+                actorSystem.actorOf(DeadLettersActor.getProps(), "deadLettersActor");
+        actorSystem.eventStream().subscribe(deadLettersActor, DeadLetter.class);
     }
 
     private Supervisor startSupervisorActor() {
