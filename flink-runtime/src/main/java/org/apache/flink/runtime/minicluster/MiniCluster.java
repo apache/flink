@@ -276,7 +276,7 @@ public class MiniCluster implements AutoCloseableAsync {
             try {
                 initializeIOFormatClasses(configuration);
 
-                rpcSystem = RpcSystem.load();
+                rpcSystem = RpcSystem.load(configuration);
 
                 LOG.info("Starting Metrics Registry");
                 metricRegistry =
