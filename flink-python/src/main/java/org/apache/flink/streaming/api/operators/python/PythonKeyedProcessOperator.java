@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -66,9 +67,6 @@ public class PythonKeyedProcessOperator<OUT>
         implements ResultTypeQueryable<OUT>, Triggerable<Row, Object> {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String KEYED_PROCESS_FUNCTION_URN =
-            "flink:transform:keyed_process_function:v1";
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
@@ -211,7 +209,7 @@ public class PythonKeyedProcessOperator<OUT>
                 createPythonEnvironmentManager(),
                 runnerInputTypeInfo,
                 runnerOutputTypeInfo,
-                KEYED_PROCESS_FUNCTION_URN,
+                STATEFUL_FUNCTION_URN,
                 PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
                         pythonFunctionInfo,
                         getRuntimeContext(),

@@ -45,15 +45,13 @@ import org.apache.flink.types.Row;
 
 import java.util.Collections;
 
+import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** KeyedCoProcessOperator. */
 public class PythonKeyedCoProcessOperator<OUT>
         extends TwoInputPythonFunctionOperator<Row, Row, Row, OUT>
         implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
-
-    private static final String KEYED_CO_PROCESS_FUNCTION_URN =
-            "flink:transform:keyed_process_function:v1";
 
     /** The TypeInformation of current key. */
     private final TypeInformation<Row> keyTypeInfo;
@@ -99,7 +97,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 createPythonEnvironmentManager(),
                 getRunnerInputTypeInfo(),
                 getRunnerOutputTypeInfo(),
-                KEYED_CO_PROCESS_FUNCTION_URN,
+                STATEFUL_FUNCTION_URN,
                 PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),

@@ -23,9 +23,9 @@ from apache_beam.coders import Coder, PickleCoder
 
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
-from pyflink.datastream.timerservice import InternalTimerService
 from pyflink.datastream.window import TimeWindow, CountWindow
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice import InternalTimerService
+from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
 from pyflink.fn_execution.internal_state import InternalMergingState
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 

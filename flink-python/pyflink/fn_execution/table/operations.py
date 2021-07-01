@@ -16,28 +16,26 @@
 # limitations under the License.
 ################################################################################
 import abc
-import time
 from functools import reduce
 from itertools import chain
 from typing import Tuple
 
 from apache_beam.coders import PickleCoder
 
-from pyflink.datastream import TimerService
-from pyflink.datastream.functions import ProcessFunction
-from pyflink.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.datastream.runtime_context import create_runtime_context
-from pyflink.fn_execution.timerservice_impl import InternalTimerImpl, TimerOperandType
-from pyflink.fn_execution import flink_fn_execution_pb2, operation_utils
+from pyflink.fn_execution.datastream.timerservice import InternalTimer
+from pyflink.fn_execution.datastream.operations import Operation
+from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerImpl, TimerOperandType
+from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
-from pyflink.fn_execution.operation_utils import extract_user_defined_aggregate_function
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
     CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner, \
     SessionWindowAssigner
 from pyflink.fn_execution.table.window_trigger import EventTimeTrigger, ProcessingTimeTrigger, \
     CountTrigger
+from pyflink.fn_execution.utils import operation_utils
+from pyflink.fn_execution.utils.operation_utils import extract_user_defined_aggregate_function
 
 try:
     from pyflink.fn_execution.table.aggregate_fast import RowKeySelector, \
@@ -55,55 +53,23 @@ except ImportError:
         SimpleNamespaceAggsHandleFunction, GroupWindowAggFunction
     has_cython = False
 
-from pyflink.metrics.metricbase import GenericMetricGroup
 from pyflink.table import FunctionContext, Row
 
-
-# table operations
+# UDF
 SCALAR_FUNCTION_URN = "flink:transform:scalar_function:v1"
+
+# UDTF
 TABLE_FUNCTION_URN = "flink:transform:table_function:v1"
+
+# UDAF
 STREAM_GROUP_AGGREGATE_URN = "flink:transform:stream_group_aggregate:v1"
 STREAM_GROUP_TABLE_AGGREGATE_URN = "flink:transform:stream_group_table_aggregate:v1"
 STREAM_GROUP_WINDOW_AGGREGATE_URN = "flink:transform:stream_group_window_aggregate:v1"
+
+# Pandas UDAF
 PANDAS_AGGREGATE_FUNCTION_URN = "flink:transform:aggregate_function:arrow:v1"
 PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN = \
     "flink:transform:batch_over_window_aggregate_function:arrow:v1"
-
-# datastream operations
-DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:datastream_stateless_function:v1"
-PROCESS_FUNCTION_URN = "flink:transform:process_function:v1"
-KEYED_PROCESS_FUNCTION_URN = "flink:transform:keyed_process_function:v1"
-
-
-class Operation(abc.ABC):
-
-    def __init__(self, spec):
-        self.spec = spec
-        if self.spec.serialized_fn.metric_enabled:
-            self.base_metric_group = GenericMetricGroup(None, None)
-        else:
-            self.base_metric_group = None
-
-    def finish(self):
-        self._update_gauge(self.base_metric_group)
-
-    def _update_gauge(self, base_metric_group):
-        if base_metric_group is not None:
-            for name in base_metric_group._flink_gauge:
-                flink_gauge = base_metric_group._flink_gauge[name]
-                beam_gauge = base_metric_group._beam_gauge[name]
-                beam_gauge.set(flink_gauge())
-            for sub_group in base_metric_group._sub_groups:
-                self._update_gauge(sub_group)
-
-    def process_element(self, value):
-        raise NotImplementedError
-
-    def open(self) -> None:
-        pass
-
-    def close(self) -> None:
-        pass
 
 
 class BundleOperation(object):
@@ -111,9 +77,9 @@ class BundleOperation(object):
         raise NotImplementedError
 
 
-class TableOperation(Operation):
+class BaseOperation(Operation):
     def __init__(self, spec):
-        super(TableOperation, self).__init__(spec)
+        super(BaseOperation, self).__init__(spec)
         self.func, self.user_defined_funcs = self.generate_func(self.spec.serialized_fn)
 
     def process_element(self, value):
@@ -134,7 +100,7 @@ class TableOperation(Operation):
         pass
 
 
-class ScalarFunctionOperation(TableOperation):
+class ScalarFunctionOperation(BaseOperation):
     def __init__(self, spec):
         super(ScalarFunctionOperation, self).__init__(spec)
 
@@ -155,7 +121,7 @@ class ScalarFunctionOperation(TableOperation):
         return generate_func, user_defined_funcs
 
 
-class TableFunctionOperation(TableOperation):
+class TableFunctionOperation(BaseOperation):
     def __init__(self, spec):
         super(TableFunctionOperation, self).__init__(spec)
 
@@ -175,7 +141,7 @@ class TableFunctionOperation(TableOperation):
         return generate_func, user_defined_funcs
 
 
-class PandasAggregateFunctionOperation(TableOperation):
+class PandasAggregateFunctionOperation(BaseOperation):
     def __init__(self, spec):
         super(PandasAggregateFunctionOperation, self).__init__(spec)
 
@@ -193,7 +159,7 @@ class PandasAggregateFunctionOperation(TableOperation):
         return generate_func, user_defined_funcs
 
 
-class PandasBatchOverWindowAggregateFunctionOperation(TableOperation):
+class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
     def __init__(self, spec):
         super(PandasBatchOverWindowAggregateFunctionOperation, self).__init__(spec)
         self.windows = [window for window in self.spec.serialized_fn.windows]
@@ -298,11 +264,11 @@ class PandasBatchOverWindowAggregateFunctionOperation(TableOperation):
         return results
 
 
-class StatefulTableOperation(TableOperation):
+class BaseStatefulOperation(BaseOperation, abc.ABC):
 
     def __init__(self, spec, keyed_state_backend):
         self.keyed_state_backend = keyed_state_backend
-        super(StatefulTableOperation, self).__init__(spec)
+        super(BaseStatefulOperation, self).__init__(spec)
 
     def finish(self):
         super().finish()
@@ -316,7 +282,7 @@ REGISTER_EVENT_TIMER = 0
 REGISTER_PROCESSING_TIMER = 1
 
 
-class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
+class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
 
     def __init__(self, spec, keyed_state_backend):
         self.generate_update_before = spec.serialized_fn.generate_update_before
@@ -568,120 +534,3 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
             return eval('lambda value: [%s]' % named_property_extractor_str)
         else:
             return None
-
-
-class DataStreamStatelessFunctionOperation(Operation):
-
-    def __init__(self, spec):
-        super(DataStreamStatelessFunctionOperation, self).__init__(spec)
-        self.runtime_context = create_runtime_context(
-            self.spec.serialized_fn.runtime_context,
-            self.base_metric_group)
-        self.process_element_func, self.open_func, self.close_func = \
-            operation_utils.extract_data_stream_stateless_function(
-                self.spec.serialized_fn, self.runtime_context)
-
-    def process_element(self, value):
-        return self.process_element_func(value)
-
-    def open(self):
-        self.open_func()
-
-    def close(self):
-        self.close_func()
-
-
-class ProcessFunctionOperation(Operation):
-
-    def __init__(self, spec):
-        super(ProcessFunctionOperation, self).__init__(spec)
-        self.runtime_context = create_runtime_context(
-            self.spec.serialized_fn.runtime_context,
-            self.base_metric_group)
-        self.timer_service = ProcessFunctionOperation.InternalTimerService()
-        self.function_context = ProcessFunctionOperation.InternalProcessFunctionContext(
-            self.timer_service)
-        self.process_element_func, self.open_func, self.close_func = \
-            operation_utils.extract_process_function(
-                self.spec.serialized_fn,
-                self.function_context,
-                self.runtime_context)
-
-    def process_element(self, value):
-        return self.process_element_func(value)
-
-    def open(self):
-        self.open_func()
-
-    def close(self):
-        self.close_func()
-
-    class InternalProcessFunctionContext(ProcessFunction.Context):
-        """
-        Internal implementation of ProcessFunction.Context.
-        """
-
-        def __init__(self, timer_service: TimerService):
-            self._timer_service = timer_service
-            self._timestamp = None
-
-        def timer_service(self):
-            return self._timer_service
-
-        def timestamp(self) -> int:
-            return self._timestamp
-
-        def set_timestamp(self, ts: int):
-            self._timestamp = ts
-
-    class InternalTimerService(TimerService):
-        """
-        Internal implementation of TimerService.
-        """
-        def __init__(self):
-            self._current_watermark = None
-
-        def current_processing_time(self) -> int:
-            return int(time.time() * 1000)
-
-        def current_watermark(self):
-            return self._current_watermark
-
-        def advance_watermark(self, wm):
-            self._current_watermark = wm
-
-        def register_processing_time_timer(self, t: int):
-            raise Exception("Register timers is only supported on a keyed stream.")
-
-        def register_event_time_timer(self, t: int):
-            raise Exception("Register timers is only supported on a keyed stream.")
-
-
-class DataStreamKeyedStatefulOperation(Operation):
-
-    def __init__(self, spec, keyed_state_backend):
-        super(DataStreamKeyedStatefulOperation, self).__init__(spec)
-        self.runtime_context = create_runtime_context(
-            self.spec.serialized_fn.runtime_context,
-            self.base_metric_group,
-            keyed_state_backend)
-        self.keyed_state_backend = keyed_state_backend
-        self.process_element_func, self.open_func, self.close_func = \
-            operation_utils.extract_keyed_stateful_function(
-                self.spec.serialized_fn,
-                keyed_state_backend,
-                self.runtime_context)
-
-    def finish(self):
-        super().finish()
-        if self.keyed_state_backend:
-            self.keyed_state_backend.commit()
-
-    def process_element(self, value):
-        return self.process_element_func(value)
-
-    def open(self):
-        self.open_func()
-
-    def close(self):
-        self.close_func()

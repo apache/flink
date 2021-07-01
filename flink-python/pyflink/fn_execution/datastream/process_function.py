@@ -15,14 +15,16 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
 from pyflink.datastream import TimerService, TimeDomain
-from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction
+from pyflink.datastream.functions import KeyedProcessFunction, KeyedCoProcessFunction, \
+    ProcessFunction
 
 
 class InternalKeyedProcessFunctionOnTimerContext(
         KeyedProcessFunction.OnTimerContext, KeyedCoProcessFunction.OnTimerContext):
     """
-    Internal implementation of ProcessFunction.OnTimerContext.
+    Internal implementation of OnTimerContext of KeyedProcessFunction and KeyedCoProcessFunction.
     """
 
     def __init__(self, timer_service: TimerService):
@@ -56,7 +58,7 @@ class InternalKeyedProcessFunctionOnTimerContext(
 class InternalKeyedProcessFunctionContext(
         KeyedProcessFunction.Context, KeyedCoProcessFunction.Context):
     """
-    Internal implementation of KeyedProcessFunction.Context.
+    Internal implementation of Context of KeyedProcessFunction and KeyedCoProcessFunction.
     """
 
     def __init__(self, timer_service: TimerService):
@@ -69,6 +71,25 @@ class InternalKeyedProcessFunctionContext(
 
     def set_current_key(self, current_key):
         self._current_key = current_key
+
+    def timer_service(self) -> TimerService:
+        return self._timer_service
+
+    def timestamp(self) -> int:
+        return self._timestamp
+
+    def set_timestamp(self, ts: int):
+        self._timestamp = ts
+
+
+class InternalProcessFunctionContext(ProcessFunction.Context):
+    """
+    Internal implementation of ProcessFunction.Context.
+    """
+
+    def __init__(self, timer_service: TimerService):
+        self._timer_service = timer_service
+        self._timestamp = None
 
     def timer_service(self) -> TimerService:
         return self._timer_service

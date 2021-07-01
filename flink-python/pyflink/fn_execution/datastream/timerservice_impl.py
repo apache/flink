@@ -20,7 +20,7 @@ import time
 from enum import Enum
 
 from pyflink.datastream import TimerService
-from pyflink.datastream.timerservice import InternalTimer, K, N, InternalTimerService
+from pyflink.fn_execution.datastream.timerservice import InternalTimer, K, N, InternalTimerService
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 
@@ -114,7 +114,7 @@ class TimerServiceImpl(TimerService):
     def current_watermark(self) -> int:
         return self._internal.current_watermark()
 
-    def advance_watermark(self, wm):
+    def advance_watermark(self, wm: int):
         self._internal.advance_watermark(wm)
 
     def register_processing_time_timer(self, t: int):
@@ -128,3 +128,33 @@ class TimerServiceImpl(TimerService):
 
     def delete_event_time_timer(self, t: int):
         self._internal.delete_event_time_timer(None, t)
+
+
+class NonKeyedTimerServiceImpl(TimerService):
+    """
+    Internal implementation of TimerService for ProcessFunction and CoProcessFunction.
+    """
+
+    def __init__(self):
+        self._current_watermark = None
+
+    def current_processing_time(self) -> int:
+        return int(time.time() * 1000)
+
+    def current_watermark(self):
+        return self._current_watermark
+
+    def advance_watermark(self, wm):
+        self._current_watermark = wm
+
+    def register_processing_time_timer(self, t: int):
+        raise Exception("Register timers is only supported on a keyed stream.")
+
+    def register_event_time_timer(self, t: int):
+        raise Exception("Register timers is only supported on a keyed stream.")
+
+    def delete_processing_time_timer(self, t: int):
+        raise Exception("Deleting timers is only supported on a keyed streams.")
+
+    def delete_event_time_timer(self, t: int):
+        raise Exception("Deleting timers is only supported on a keyed streams.")

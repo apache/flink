@@ -24,9 +24,9 @@ from pyflink.datastream.functions import KeyedStateStore, RuntimeContext, Intern
 from pyflink.datastream.state import StateDescriptor, ListStateDescriptor, \
     ReducingStateDescriptor, AggregatingStateDescriptor, ValueStateDescriptor, MapStateDescriptor, \
     State, AggregatingState, ReducingState, MapState, ListState, ValueState, AppendingState
-from pyflink.datastream.timerservice import InternalTimerService, InternalTimer
+from pyflink.fn_execution.datastream.timerservice import InternalTimerService, InternalTimer
 from pyflink.datastream.window import MAX_LONG_VALUE
-from pyflink.fn_execution.datastream.merging_window_set import MergingWindowSet
+from pyflink.fn_execution.datastream.window.merging_window_set import MergingWindowSet
 from pyflink.fn_execution.internal_state import InternalMergingState, InternalKvState, \
     InternalAppendingState
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend

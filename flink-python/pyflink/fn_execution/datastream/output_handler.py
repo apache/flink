@@ -22,16 +22,16 @@ from typing import List, Tuple, Iterable
 
 from pyflink.common import Row
 from pyflink.common.serializer import TypeSerializer
-from pyflink.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.timerservice_impl import TimerOperandType
+from pyflink.fn_execution.datastream.timerservice import InternalTimer
+from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType
 
 
-class RunnerOutputType(Enum):
+class OutputType(Enum):
     NORMAL_RECORD = 0
     TIMER_OPERATION = 1
 
 
-class RowWithTimerOutputFactory(object):
+class OutputHandler(object):
 
     def __init__(self, namespace_serializer: TypeSerializer):
         self._namespace_serializer = namespace_serializer
@@ -53,11 +53,11 @@ class RowWithTimerOutputFactory(object):
             timer_operand_type_value = timer_operand_type.value
             timer_data = Row(timer_operand_type_value, key, timestamp, encoded_namespace)
 
-            runner_output_type_value = RunnerOutputType.TIMER_OPERATION.value
+            runner_output_type_value = OutputType.TIMER_OPERATION.value
             row = Row(runner_output_type_value, None, timer_data)
             result.append(row)
         return result
 
     def from_normal_data(self, normal_data_iter: Iterable) -> Iterable[Row]:
         for normal_data in normal_data_iter:
-            yield Row(RunnerOutputType.NORMAL_RECORD.value, normal_data, None)
+            yield Row(OutputType.NORMAL_RECORD.value, normal_data, None)

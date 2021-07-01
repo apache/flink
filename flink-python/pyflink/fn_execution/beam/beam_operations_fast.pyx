@@ -25,7 +25,7 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
 from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
-from pyflink.fn_execution.operations import BundleOperation
+from pyflink.fn_execution.table.operations import BundleOperation
 
 cdef class FunctionOperation(Operation):
     """

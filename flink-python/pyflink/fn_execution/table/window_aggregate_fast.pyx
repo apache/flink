@@ -31,7 +31,7 @@ from typing import List, Dict
 import pytz
 from apache_beam.coders import PickleCoder, Coder
 
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
