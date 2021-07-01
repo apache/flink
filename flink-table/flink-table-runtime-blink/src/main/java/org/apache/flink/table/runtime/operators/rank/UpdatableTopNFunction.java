@@ -331,6 +331,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
         RowData currentRow = null;
         // whether we have found the sort key in the buffer
         boolean findsSortKey = false;
+        boolean oldRowRetracted = false;
 
         while (iterator.hasNext() && isInRankEnd(currentRank)) {
             Map.Entry<RowData, Collection<RowData>> entry = iterator.next();
@@ -349,6 +350,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                         RowData rowKey = rowKeyIter.next();
                         RankRow prevRow = rowKeyMap.get(rowKey);
                         collectUpdateBefore(out, prevRow.row, currentRank);
+                        if (currentRow == inputRow && oldRow != null && !oldRowRetracted) {
+                            // In a same unique key, we should retract oldRow first.
+                            collectUpdateBefore(out, oldRow.row, oldRank);
+                            oldRowRetracted = true;
+                        }
                         collectUpdateAfter(out, currentRow, currentRank);
                         currentRow = prevRow.row;
                         currentRank += 1;
@@ -363,6 +369,11 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                             RowData rowKey = rowKeyIter.next();
                             RankRow prevRow = rowKeyMap.get(rowKey);
                             collectUpdateBefore(out, prevRow.row, currentRank);
+                            if (currentRow == inputRow && oldRow != null && !oldRowRetracted) {
+                                // In a same unique key, we should retract oldRow first.
+                                collectUpdateBefore(out, oldRow.row, oldRank);
+                                oldRowRetracted = true;
+                            }
                             collectUpdateAfter(out, currentRow, currentRank);
                             currentRow = prevRow.row;
                             currentRank += 1;
@@ -386,7 +397,9 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
                 // input is an update record, current we reach the old rank position of
                 // the old record, so emit UPDATE_BEFORE and UPDATE_AFTER for this rank number
                 checkArgument(currentRank == oldRank);
-                collectUpdateBefore(out, oldRow.row, oldRank);
+                if (!oldRowRetracted) {
+                    collectUpdateBefore(out, oldRow.row, oldRank);
+                }
                 collectUpdateAfter(out, currentRow, currentRank);
             }
             // this is either a new record within top-n range or an update record,

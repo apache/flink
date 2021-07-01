@@ -132,8 +132,8 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
         expectedOutput.add(insertRecord("book", 2L, 19, 2L));
         // U ("book", 2L, 11)
         expectedOutput.add(updateBeforeRecord("book", 3L, 16, 1L));
-        expectedOutput.add(updateAfterRecord("book", 2L, 11, 1L));
         expectedOutput.add(updateBeforeRecord("book", 2L, 19, 2L));
+        expectedOutput.add(updateAfterRecord("book", 2L, 11, 1L));
         expectedOutput.add(updateAfterRecord("book", 3L, 16, 2L));
         // U ("book", 3L, 15)
         expectedOutput.add(updateBeforeRecord("book", 3L, 16, 2L));
@@ -145,8 +145,8 @@ public class UpdatableTopNFunctionTest extends TopNFunctionTestBase {
         expectedOutput.add(updateAfterRecord("book", 2L, 11, 2L));
         // U ("book", 2L, 1)
         expectedOutput.add(updateBeforeRecord("book", 4L, 2, 1L));
-        expectedOutput.add(updateAfterRecord("book", 2L, 1, 1L));
         expectedOutput.add(updateBeforeRecord("book", 2L, 11, 2L));
+        expectedOutput.add(updateAfterRecord("book", 2L, 1, 1L));
         expectedOutput.add(updateAfterRecord("book", 4L, 2, 2L));
 
         assertorWithRowNumber.assertOutputEquals(
