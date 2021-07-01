@@ -26,7 +26,7 @@ import java.io.Serializable;
  * Handshake message between rpc endpoints. This message can be used to verify compatibility between
  * different endpoints.
  */
-public class RemoteHandshakeMessage implements Serializable {
+public class RemoteHandshakeMessage implements Message, Serializable {
 
     private static final long serialVersionUID = -7150082246232019027L;
 
