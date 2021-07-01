@@ -163,9 +163,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
     // ------------------------------------------------------------------------
 
     private static void safelyTruncateFile(
-            final FileSystem fileSystem,
-            final Path path,
-            final HadoopFsRecoverable recoverable)
+            final FileSystem fileSystem, final Path path, final HadoopFsRecoverable recoverable)
             throws IOException {
 
         ensureTruncateInitialized();
@@ -178,7 +176,7 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
                 isLeaseReleased,
                 "Failed to release lease on file `%s` in %d ms.",
                 path.toString(),
-            LEASE_RECOVERY_TIMEOUT_MS);
+                LEASE_RECOVERY_TIMEOUT_MS);
         long leaseRecoveredTime = System.currentTimeMillis();
         LOG.debug("Lease recovery for file {} take {} ms.", path, leaseRecoveredTime - start);
 
