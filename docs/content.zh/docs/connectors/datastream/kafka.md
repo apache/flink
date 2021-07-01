@@ -106,7 +106,7 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 {{< /tab >}}
@@ -115,7 +115,7 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro-confluent-registry</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 {{< /tab >}}
