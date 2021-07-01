@@ -27,13 +27,16 @@ import org.apache.flink.util.Preconditions;
  */
 public final class LocalRpcInvocation implements RpcInvocation {
 
+    private final String declaringClass;
     private final String methodName;
     private final Class<?>[] parameterTypes;
     private final Object[] args;
 
     private transient String toString;
 
-    public LocalRpcInvocation(String methodName, Class<?>[] parameterTypes, Object[] args) {
+    public LocalRpcInvocation(
+            String declaringClass, String methodName, Class<?>[] parameterTypes, Object[] args) {
+        this.declaringClass = declaringClass;
         this.methodName = Preconditions.checkNotNull(methodName);
         this.parameterTypes = Preconditions.checkNotNull(parameterTypes);
         this.args = args;
@@ -59,17 +62,11 @@ public final class LocalRpcInvocation implements RpcInvocation {
     @Override
     public String toString() {
         if (toString == null) {
-            StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
-
-            if (parameterTypes.length > 0) {
-                paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
-
-                for (int i = 1; i < parameterTypes.length; i++) {
-                    paramTypeStringBuilder.append(", ").append(parameterTypes[i].getSimpleName());
-                }
-            }
-
-            toString = "LocalRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+            toString =
+                    "LocalRpcInvocation("
+                            + RpcInvocation.convertRpcToString(
+                                    declaringClass, methodName, parameterTypes)
+                            + ")";
         }
 
         return toString;

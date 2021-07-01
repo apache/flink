@@ -46,12 +46,16 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
     private transient String toString;
 
     public RemoteRpcInvocation(
-            final String methodName, final Class<?>[] parameterTypes, final Object[] args)
+            final String declaringClassName,
+            final String methodName,
+            final Class<?>[] parameterTypes,
+            final Object[] args)
             throws IOException {
 
         serializedMethodInvocation =
                 new SerializedValue<>(
-                        new RemoteRpcInvocation.MethodInvocation(methodName, parameterTypes, args));
+                        new RemoteRpcInvocation.MethodInvocation(
+                                declaringClassName, methodName, parameterTypes, args));
         methodInvocation = null;
     }
 
@@ -60,6 +64,12 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
         deserializeMethodInvocation();
 
         return methodInvocation.getMethodName();
+    }
+
+    private String getDeclaringClassName() throws IOException, ClassNotFoundException {
+        deserializeMethodInvocation();
+
+        return methodInvocation.getDeclaringClassName();
     }
 
     @Override
@@ -83,21 +93,13 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
             try {
                 Class<?>[] parameterTypes = getParameterTypes();
                 String methodName = getMethodName();
-
-                StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
-
-                if (parameterTypes.length > 0) {
-                    paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
-
-                    for (int i = 1; i < parameterTypes.length; i++) {
-                        paramTypeStringBuilder
-                                .append(", ")
-                                .append(parameterTypes[i].getSimpleName());
-                    }
-                }
+                String declaringClassName = getDeclaringClassName();
 
                 toString =
-                        "RemoteRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+                        "RemoteRpcInvocation("
+                                + RpcInvocation.convertRpcToString(
+                                        declaringClassName, methodName, parameterTypes)
+                                + ")";
             } catch (IOException | ClassNotFoundException e) {
                 toString = "Could not deserialize RemoteRpcInvocation: " + e.getMessage();
             }
@@ -145,15 +147,23 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
     private static final class MethodInvocation implements Serializable {
         private static final long serialVersionUID = 9187962608946082519L;
 
+        private String declaringClassName;
         private String methodName;
         private Class<?>[] parameterTypes;
         private Object[] args;
 
         private MethodInvocation(
-                final String methodName, final Class<?>[] parameterTypes, final Object[] args) {
+                final String declaringClassName,
+                final String methodName,
+                final Class<?>[] parameterTypes,
+                final Object[] args) {
             this.methodName = methodName;
             this.parameterTypes = Preconditions.checkNotNull(parameterTypes);
             this.args = args;
+        }
+
+        String getDeclaringClassName() {
+            return declaringClassName;
         }
 
         String getMethodName() {
