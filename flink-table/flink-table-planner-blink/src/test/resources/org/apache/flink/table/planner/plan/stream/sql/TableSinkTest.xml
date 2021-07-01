@@ -105,11 +105,6 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min],
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInsertMismatchTypeForEmptyChar">
-    <Resource name="sql">
-      <![CDATA[INSERT INTO my_sink SELECT a, '', '' FROM MyTable]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMetadataColumn">
     <Resource name="ast">
       <![CDATA[
@@ -240,6 +235,41 @@ Sink(table=[default_catalog.default_database.retractSink], fields=[cnt, a], chan
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSinkDisorderChangeLogWithRank">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO SinkRankChangeLog
+SELECT person, sum_votes FROM
+ (SELECT person, sum_votes,
+   ROW_NUMBER() OVER (PARTITION BY vote_section ORDER BY sum_votes DESC) AS rank_number
+   FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
+      GROUP BY person))
+   WHERE rank_number < 10
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes])
++- LogicalProject(person=[$0], sum_votes=[$1])
+   +- LogicalFilter(condition=[<($2, 10)])
+      +- LogicalProject(person=[$0], sum_votes=[$1], rank_number=[ROW_NUMBER() OVER (PARTITION BY /($1, 2) ORDER BY $1 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes], upsertMaterialize=[true])
++- Calc(select=[person, sum_votes])
+   +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[$2], orderBy=[sum_votes DESC], select=[person, sum_votes, $2])
+      +- Exchange(distribution=[hash[$2]])
+         +- Calc(select=[person, sum_votes, (sum_votes / 2) AS $2])
+            +- GroupAggregate(groupBy=[person], select=[person, SUM(votes) AS sum_votes])
+               +- Exchange(distribution=[hash[person]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[person, votes])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUpsertSinkWithFilter">
     <Resource name="ast">
       <![CDATA[
@@ -259,6 +289,40 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, cnt], chang
       +- Exchange(distribution=[hash[a]], changelogMode=[I])
          +- Calc(select=[a], changelogMode=[I])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkDisorderChangeLogWithJoin">
+    <Resource name="sql">
+      <![CDATA[
+INSERT INTO SinkJoinChangeLog
+SELECT T.person, T.sum_votes, award.prize FROM
+   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
+   WHERE T.sum_votes = award.votes
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person, sum_votes, prize])
++- LogicalProject(person=[$0], sum_votes=[$1], prize=[$3])
+   +- LogicalFilter(condition=[=($1, $2)])
+      +- LogicalJoin(condition=[true], joinType=[inner])
+         :- LogicalAggregate(group=[{0}], sum_votes=[SUM($1)])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, award]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person, sum_votes, prize], upsertMaterialize=[true])
++- Calc(select=[person, sum_votes, prize])
+   +- Join(joinType=[InnerJoin], where=[(sum_votes = votes)], select=[person, sum_votes, votes, prize], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
+      :- Exchange(distribution=[hash[sum_votes]])
+      :  +- GroupAggregate(groupBy=[person], select=[person, SUM(votes) AS sum_votes])
+      :     +- Exchange(distribution=[hash[person]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[person, votes])
+      +- Exchange(distribution=[hash[votes]])
+         +- TableSourceScan(table=[[default_catalog, default_database, award]], fields=[votes, prize])
 ]]>
     </Resource>
   </TestCase>

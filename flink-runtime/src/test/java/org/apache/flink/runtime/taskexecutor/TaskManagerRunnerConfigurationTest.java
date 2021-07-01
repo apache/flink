@@ -31,6 +31,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -74,6 +75,8 @@ import static org.junit.Assume.assumeNoException;
 @NotThreadSafe
 public class TaskManagerRunnerConfigurationTest extends TestLogger {
 
+    private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
+
     private static final int TEST_TIMEOUT_SECONDS = 10;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -90,7 +93,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
 
             assertThat(taskManagerRpcService.getPort(), is(greaterThanOrEqualTo(0)));
             assertThat(taskManagerRpcService.getAddress(), is(equalTo(taskmanagerHost)));
@@ -109,7 +113,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
             assertThat(taskManagerRpcService.getAddress(), not(isEmptyOrNullString()));
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
@@ -130,7 +135,8 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
         RpcService taskManagerRpcService = null;
         try {
             taskManagerRpcService =
-                    TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+                    TaskManagerRunner.createRpcService(
+                            config, highAvailabilityServices, RPC_SYSTEM);
             assertThat(taskManagerRpcService.getAddress(), is(ipAddress()));
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
@@ -151,7 +157,7 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
                 createHighAvailabilityServices(config);
 
         try {
-            TaskManagerRunner.createRpcService(config, highAvailabilityServices);
+            TaskManagerRunner.createRpcService(config, highAvailabilityServices, RPC_SYSTEM);
             fail("Should fail because -1 is not a valid port range");
         } catch (final IllegalArgumentException e) {
             assertThat(e.getMessage(), containsString("Invalid port range definition: -1"));
@@ -237,7 +243,10 @@ public class TaskManagerRunnerConfigurationTest extends TestLogger {
     private HighAvailabilityServices createHighAvailabilityServices(final Configuration config)
             throws Exception {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                config, Executors.directExecutor(), AddressResolution.NO_ADDRESS_RESOLUTION);
+                config,
+                Executors.directExecutor(),
+                AddressResolution.NO_ADDRESS_RESOLUTION,
+                RpcSystem.load());
     }
 
     private static ServerSocket openServerSocket() {

@@ -31,8 +31,9 @@ public class DeployingDownstreamTasksInBatchJobBenchmark extends DeployingTasksB
 
     private ExecutionVertex[] vertices;
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        createAndSetupExecutionGraph(jobConfiguration);
+        super.setup(jobConfiguration);
 
         final JobVertex source = jobVertices.get(0);
 

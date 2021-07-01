@@ -35,8 +35,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaBootstrapTools;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.util.Preconditions;
@@ -190,32 +189,28 @@ public class MetricUtils {
     }
 
     public static RpcService startRemoteMetricsRpcService(
-            Configuration configuration, String hostname) throws Exception {
+            Configuration configuration, String hostname, RpcSystem rpcSystem) throws Exception {
         final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 
         return startMetricRpcService(
-                configuration,
-                AkkaRpcServiceUtils.remoteServiceBuilder(configuration, hostname, portRange));
+                configuration, rpcSystem.remoteServiceBuilder(configuration, hostname, portRange));
     }
 
-    public static RpcService startLocalMetricsRpcService(Configuration configuration)
-            throws Exception {
-        return startMetricRpcService(
-                configuration, AkkaRpcServiceUtils.localServiceBuilder(configuration));
+    public static RpcService startLocalMetricsRpcService(
+            Configuration configuration, RpcSystem rpcSystem) throws Exception {
+        return startMetricRpcService(configuration, rpcSystem.localServiceBuilder(configuration));
     }
 
     private static RpcService startMetricRpcService(
-            Configuration configuration,
-            AkkaRpcServiceUtils.AkkaRpcServiceBuilder rpcServiceBuilder)
+            Configuration configuration, RpcSystem.RpcServiceBuilder rpcServiceBuilder)
             throws Exception {
         final int threadPriority =
                 configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
         return rpcServiceBuilder
-                .withActorSystemName(METRICS_ACTOR_SYSTEM_NAME)
-                .withActorSystemExecutorConfiguration(
-                        new AkkaBootstrapTools.FixedThreadPoolExecutorConfiguration(
-                                1, 1, threadPriority))
+                .withComponentName(METRICS_ACTOR_SYSTEM_NAME)
+                .withExecutorConfiguration(
+                        new RpcSystem.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority))
                 .createAndStart();
     }
 

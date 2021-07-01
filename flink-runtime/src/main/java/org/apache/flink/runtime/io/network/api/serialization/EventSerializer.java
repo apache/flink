@@ -236,7 +236,7 @@ public class EventSerializer {
             buf.put(locationBytes);
         }
         buf.put((byte) checkpointOptions.getAlignment().ordinal());
-        buf.putLong(checkpointOptions.getAlignmentTimeout());
+        buf.putLong(checkpointOptions.getAlignedCheckpointTimeout());
 
         buf.flip();
         return buf;

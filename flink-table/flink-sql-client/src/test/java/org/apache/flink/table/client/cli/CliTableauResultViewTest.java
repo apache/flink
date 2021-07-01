@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.client.cli;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
@@ -45,8 +48,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
+import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for CliTableauResultView. */
 public class CliTableauResultViewTest {
@@ -156,7 +161,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -206,7 +214,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testCancelBatchResult() throws Exception {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -246,7 +257,11 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testEmptyBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
+
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
                         .setResultChangesSupplier(TypedResult::endOfStream)
@@ -268,7 +283,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testFailedBatchResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, false);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.BATCH);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -295,7 +313,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -354,7 +375,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testEmptyStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -382,7 +406,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testCancelStreamingResult() throws Exception {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()
@@ -435,7 +462,10 @@ public class CliTableauResultViewTest {
 
     @Test
     public void testFailedStreamingResult() {
-        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, true, true);
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+        ResultDescriptor resultDescriptor = new ResultDescriptor("", schema, true, testConfig);
 
         TestingExecutor mockExecutor =
                 new TestingExecutorBuilder()

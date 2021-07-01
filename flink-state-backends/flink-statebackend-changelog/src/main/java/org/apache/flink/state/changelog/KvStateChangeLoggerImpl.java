@@ -28,7 +28,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import java.io.IOException;
 import java.util.Collection;
 
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.MERGE_NS;
+import static org.apache.flink.state.changelog.StateChangeOperation.MERGE_NS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @NotThreadSafe

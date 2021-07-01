@@ -113,7 +113,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             if (t != null) {
                 throw new Error(
                         "This indicates that a fatal error has happened and caused the "
-                                + "coordinator executor thread to exit. Check the earlier logs"
+                                + "coordinator executor thread to exit. Check the earlier logs "
                                 + "to see the root cause of the problem.");
             }
             t = new Thread(r, coordinatorThreadName);

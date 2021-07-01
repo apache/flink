@@ -193,7 +193,7 @@ public class SlotPoolImpl implements SlotPool, SlotPoolService {
     }
 
     @VisibleForTesting
-    DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
+    public DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
         return pendingRequests;
     }
 

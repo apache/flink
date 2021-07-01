@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
@@ -55,7 +56,7 @@ import static org.junit.Assert.fail;
 public class MetricGroupTest extends TestLogger {
 
     private static final MetricRegistryConfiguration defaultMetricRegistryConfiguration =
-            MetricRegistryConfiguration.defaultMetricRegistryConfiguration();
+            MetricRegistryTestUtils.defaultMetricRegistryConfiguration();
 
     private MetricRegistryImpl registry;
 
@@ -245,7 +246,7 @@ public class MetricGroupTest extends TestLogger {
                 TestReporter.class.getName());
 
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
         try {
             GenericMetricGroup root =
                     new GenericMetricGroup(

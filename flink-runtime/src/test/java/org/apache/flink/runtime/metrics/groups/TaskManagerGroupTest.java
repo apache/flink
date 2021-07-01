@@ -23,8 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.AbstractID;
@@ -50,7 +50,7 @@ public class TaskManagerGroupTest extends TestLogger {
     public void setup() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
     @After
@@ -173,7 +173,7 @@ public class TaskManagerGroupTest extends TestLogger {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_TM, "constant.<host>.foo.<host>");
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
         TaskManagerMetricGroup group = new TaskManagerMetricGroup(registry, "host", "id");
 
         assertArrayEquals(

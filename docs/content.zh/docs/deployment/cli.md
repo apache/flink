@@ -71,6 +71,11 @@ $ export JOB_ID="cca7bc1061d61cf15238e92312c2fc20"
 
 此外还有一个提交作业的操作叫做 `run-application` ，它可以设置 [Application 模式]({{< ref "docs/deployment/overview" >}}#application-mode) 来运行作业。由于它在 CLI 前端的工作原理与 `run` 操作类似，本文档将不再单独讨论。
 
+
+`run` 和 `run-application` 操作支持通过 `-D` 选项传递额外的配置参数。例如，可以通过设置 `-Dpipeline.max-parallelism=120` 来设置作业的[最大并行度]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 。该参数对于配置 per-job 或 application 的作业模式非常有用，因为可以在不改变配置文件的情况下给集群传递任意配置参数。
+
+当向现有集群提交 session 模式的作业时，仅支持[执行相关配置参数]({{< ref "docs/deployment/config#execution" >}}) 。
+
 <a name="job-monitoring"> </a>
 
 ### 作业监控

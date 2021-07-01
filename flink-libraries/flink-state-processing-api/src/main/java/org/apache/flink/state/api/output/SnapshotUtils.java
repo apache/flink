@@ -53,7 +53,7 @@ public final class SnapshotUtils {
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,
                         isUnalignedCheckpoint,
-                        CheckpointOptions.NO_ALIGNMENT_TIME_OUT);
+                        CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
 
         operator.prepareSnapshotPreBarrier(CHECKPOINT_ID);
 

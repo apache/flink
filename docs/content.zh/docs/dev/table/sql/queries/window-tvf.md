@@ -48,7 +48,7 @@ See more how to apply further computations based on windowing TVF:
 
 ## Window Functions
 
-Apache Flink provides 3 built-in windowing TVFs: TUMBLE, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window after windowing TVF which can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
+Apache Flink provides 3 built-in windowing TVFs: `TUMBLE`, `HOP` and `CUMULATE`. The return value of windowing TVF is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The "window_time" field is a [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the window after windowing TVF which can be used in subsequent time-based operations, e.g. another windowing TVF, or <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>, <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>. The value of `window_time` always equal to `window_end - 1ms`.
 
 ### TUMBLE
 
@@ -142,7 +142,7 @@ For example, you could have windows of size 10 minutes that slides by 5 minutes.
 
 The `HOP` function assigns windows that cover rows within the interval of size and shifting every slide based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `HOP` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after windowing TVF.
 
-`HOP` takes three required parameters.
+`HOP` takes four required parameters.
 
 ```sql
 HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
@@ -214,7 +214,7 @@ For example, you could have a cumulating window for 1 hour step and 1 day max si
 
 The `CUMULATE` functions assigns windows based on a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column. The return value of `CUMULATE` is a new relation that includes all columns of original relation as well as additional 3 columns named "window_start", "window_end", "window_time" to indicate the assigned window. The original time attribute "timecol" will be a regular timestamp column after window TVF.
 
-`CUMULATE` takes three required parameters.
+`CUMULATE` takes four required parameters.
 
 ```sql
 CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
@@ -223,7 +223,7 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 - `data`: is a table parameter that can be any relation with an time attribute column.
 - `timecol`: is a column descriptor indicating which [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) column of data should be mapped to tumbling windows.
 - `step`: is a duration specifying the increased window size between the end of sequential cumulating windows.
-- `size`: is a duration specifying the max width of the cumulating windows. size must be an integral multiple of step .
+- `size`: is a duration specifying the max width of the cumulating windows. `size` must be an integral multiple of `step`.
 
 Here is an example invocation on the Bid table:
 

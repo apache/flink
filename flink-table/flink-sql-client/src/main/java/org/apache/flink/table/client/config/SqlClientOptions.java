@@ -26,6 +26,8 @@ import org.apache.flink.configuration.ConfigOptions;
 public class SqlClientOptions {
     private SqlClientOptions() {}
 
+    // Execution options
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> EXECUTION_MAX_TABLE_RESULT_ROWS =
             ConfigOptions.key("sql-client.execution.max-table-result.rows")
@@ -53,4 +55,16 @@ public class SqlClientOptions {
                     .defaultValue(false)
                     .withDescription(
                             "Determine whether to output the verbose output to the console. If set the option true, it will print the exception stack. Otherwise, it only output the cause.");
+
+    // Display options
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> DISPLAY_MAX_COLUMN_WIDTH =
+            ConfigOptions.key("sql-client.display.max-column-width")
+                    .intType()
+                    .defaultValue(30)
+                    .withDescription(
+                            "When printing the query results, this parameter determines the number of characters shown on screen before truncating."
+                                    + "This only applies to columns with variable-length types (e.g. STRING) in streaming mode."
+                                    + "Fixed-length types and all types in batch mode are printed using a deterministic column width");
 }

@@ -86,7 +86,7 @@ CREATE TABLE user_actions (
   user_name STRING,
   data STRING,
   ts BIGINT,
-  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  time_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
   -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
   WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
 ) WITH (

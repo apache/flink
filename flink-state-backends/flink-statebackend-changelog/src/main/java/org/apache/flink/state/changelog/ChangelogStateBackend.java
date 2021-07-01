@@ -35,9 +35,12 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogWriterFactory;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
+import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation.BaseBackendBuilder;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -46,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 /**
  * This state backend holds the working state in the underlying delegatedStateBackend, and forwards
@@ -93,28 +97,26 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             CloseableRegistry cancelStreamRegistry)
             throws Exception {
-        AbstractKeyedStateBackend<K> keyedStateBackend =
-                (AbstractKeyedStateBackend<K>)
-                        delegatedStateBackend.createKeyedStateBackend(
-                                env,
-                                jobID,
-                                operatorIdentifier,
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                kvStateRegistry,
-                                ttlTimeProvider,
-                                metricGroup,
-                                stateHandles,
-                                cancelStreamRegistry);
-        // todo: FLINK-21804 get from Environment.getTaskStateManager
-        InMemoryStateChangelogWriterFactory changelogWriterFactory =
-                new InMemoryStateChangelogWriterFactory();
-        return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend,
-                env.getExecutionConfig(),
+        return restore(
+                env,
+                operatorIdentifier,
+                keyGroupRange,
                 ttlTimeProvider,
-                changelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange));
+                stateHandles,
+                baseHandles ->
+                        (AbstractKeyedStateBackend<K>)
+                                delegatedStateBackend.createKeyedStateBackend(
+                                        env,
+                                        jobID,
+                                        operatorIdentifier,
+                                        keySerializer,
+                                        numberOfKeyGroups,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        ttlTimeProvider,
+                                        metricGroup,
+                                        baseHandles,
+                                        cancelStreamRegistry));
     }
 
     @Override
@@ -132,31 +134,27 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             CloseableRegistry cancelStreamRegistry,
             double managedMemoryFraction)
             throws Exception {
-
-        AbstractKeyedStateBackend<K> keyedStateBackend =
-                (AbstractKeyedStateBackend<K>)
-                        delegatedStateBackend.createKeyedStateBackend(
-                                env,
-                                jobID,
-                                operatorIdentifier,
-                                keySerializer,
-                                numberOfKeyGroups,
-                                keyGroupRange,
-                                kvStateRegistry,
-                                ttlTimeProvider,
-                                metricGroup,
-                                stateHandles,
-                                cancelStreamRegistry,
-                                managedMemoryFraction);
-
-        // todo: FLINK-21804 get from Environment.getTaskStateManager
-        InMemoryStateChangelogWriterFactory changelogWriterFactory =
-                new InMemoryStateChangelogWriterFactory();
-        return new ChangelogKeyedStateBackend<>(
-                keyedStateBackend,
-                env.getExecutionConfig(),
+        return restore(
+                env,
+                operatorIdentifier,
+                keyGroupRange,
                 ttlTimeProvider,
-                changelogWriterFactory.createWriter(operatorIdentifier, keyGroupRange));
+                stateHandles,
+                baseHandles ->
+                        (AbstractKeyedStateBackend<K>)
+                                delegatedStateBackend.createKeyedStateBackend(
+                                        env,
+                                        jobID,
+                                        operatorIdentifier,
+                                        keySerializer,
+                                        numberOfKeyGroups,
+                                        keyGroupRange,
+                                        kvStateRegistry,
+                                        ttlTimeProvider,
+                                        metricGroup,
+                                        baseHandles,
+                                        cancelStreamRegistry,
+                                        managedMemoryFraction));
     }
 
     @Override
@@ -191,5 +189,37 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         }
 
         return this;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <K> ChangelogKeyedStateBackend<K> restore(
+            Environment env,
+            String operatorIdentifier,
+            KeyGroupRange keyGroupRange,
+            TtlTimeProvider ttlTimeProvider,
+            Collection<KeyedStateHandle> stateHandles,
+            BaseBackendBuilder<K> baseBackendBuilder)
+            throws Exception {
+        // todo: FLINK-21804 get from Environment.getTaskStateManager
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
+        return ChangelogBackendRestoreOperation.restore(
+                changelogStorage.createReader(),
+                env.getUserCodeClassLoader().asClassLoader(),
+                castHandles(stateHandles),
+                baseBackendBuilder,
+                (baseBackend, baseState) ->
+                        new ChangelogKeyedStateBackend(
+                                baseBackend,
+                                env.getExecutionConfig(),
+                                ttlTimeProvider,
+                                changelogStorage.createWriter(operatorIdentifier, keyGroupRange),
+                                baseState));
+    }
+
+    private Collection<ChangelogStateBackendHandle> castHandles(
+            Collection<KeyedStateHandle> stateHandles) {
+        return stateHandles.stream()
+                .map(keyedStateHandle -> (ChangelogStateBackendHandle) keyedStateHandle)
+                .collect(Collectors.toList());
     }
 }

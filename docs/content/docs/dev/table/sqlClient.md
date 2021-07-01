@@ -34,7 +34,6 @@ The *SQL Client* aims to provide an easy way of writing, debugging, and submitti
 {{< img width="80%" src="/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" >}}
 
 
-
 Getting Started
 ---------------
 
@@ -60,86 +59,26 @@ or explicitly use `embedded` mode:
 ./bin/sql-client.sh embedded
 ```
 
+See [SQL Client startup options](#sql-client-startup-options) below for more details.
+
 ### Running SQL Queries
 
-Once the CLI has been started, you can use the `HELP` command to list all available SQL statements.
-For validating your setup and cluster connection, you can enter your first SQL query and press the `Enter` key to execute it:
+For validating your setup and cluster connection, you can enter the simple query below and press `Enter` to execute it.
 
 ```sql
-SELECT 'Hello World';
-```
-
-This query requires no table source and produces a single row result. The CLI will retrieve results
-from the cluster and visualize them. You can close the result view by pressing the `Q` key.
-
-The CLI supports **three modes** for maintaining and visualizing results.
-
-The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation.
-It can be enabled by executing the following command in the CLI:
-
-```text
-SET 'sql-client.execution.result-mode' = 'table';
-```
-
-The **changelog mode** does not materialize results and visualizes the result stream that is produced
-by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
-
-```text
-SET 'sql-client.execution.result-mode' = 'changelog';
-```
-
-The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
-The displaying content will be influenced by the query execution type(`execution.type`).
-
-```text
 SET 'sql-client.execution.result-mode' = 'tableau';
+SET 'execution.runtime-mode' = 'batch';
+
+SELECT 
+  name, 
+  COUNT(*) AS cnt 
+FROM 
+  (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) 
+GROUP BY name;
 ```
 
-Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
-this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
-Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+The SQL client will retrieve the results from the cluster and visualize them (you can close the result view by pressing the `Q` key):
 
-You can use the following query to see all the result modes in action:
-
-```sql
-SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
-```
-
-This query performs a bounded word count example.
-
-In *changelog mode*, the visualized changelog should be similar to:
-
-```text
-+ Bob, 1
-+ Alice, 1
-+ Greg, 1
-- Bob, 1
-+ Bob, 2
-```
-
-In *table mode*, the visualized result table is continuously updated until the table program ends with:
-
-```text
-Bob, 2
-Alice, 1
-Greg, 1
-```
-
-In *tableau mode*, if you ran the query in streaming mode, the displayed result would be:
-```text
-+-----+----------------------+----------------------+
-| +/- |                 name |                  cnt |
-+-----+----------------------+----------------------+
-|   + |                  Bob |                    1 |
-|   + |                Alice |                    1 |
-|   + |                 Greg |                    1 |
-|   - |                  Bob |                    1 |
-|   + |                  Bob |                    2 |
-+-----+----------------------+----------------------+
-Received a total of 5 rows
-```
-
-And if you ran the query in batch mode, the displayed result would be:
 ```text
 +-------+-----+
 |  name | cnt |
@@ -148,18 +87,18 @@ And if you ran the query in batch mode, the displayed result would be:
 |   Bob |   2 |
 |  Greg |   1 |
 +-------+-----+
-3 rows in set
 ```
 
-All these result modes can be useful during the prototyping of SQL queries. In all these modes,
-results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive,
-the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through
-bigger results that are only limited by the available main memory and the configured
-[maximum number of rows](#sql-client-execution-max-table-result-rows) (`sql-client.execution.max-table-result.rows`).
+The `SET` command allows you to tune the job execution and the sql client behaviour. See [SQL Client Configuration](#sql-client-configuration) below for more details.
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
+After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. 
+The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
-After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. The [configuration section](#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
+### Getting help
+
+The documentation of the SQL client commands can be accessed by typing the `HELP` command.
+
+See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
 
 {{< top >}}
 
@@ -297,7 +236,111 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
 ### SQL Client Configuration
 
+You can configure the SQL client by setting the options below, or any valid [Flink configuration]({{< ref "docs/dev/table/config" >}}) entry:
+
+```sql
+SET 'key' = 'value';
+```
+
 {{< generated/sql_client_configuration >}}
+
+### SQL client result modes
+
+The CLI supports **three modes** for maintaining and visualizing results.
+
+The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation.
+It can be enabled by executing the following command in the CLI:
+
+```text
+SET 'sql-client.execution.result-mode' = 'table';
+```
+
+The result of a query would then look like this, you can use the keys indicated at the bottom of the screen as well
+as the arrows keys to navigate and open the various records:
+
+```text
+
+                           name         age isHappy        dob                         height
+                          user1          20    true 1995-12-03                            1.7
+                          user2          30    true 1972-08-02                           1.89
+                          user3          40   false 1983-12-23                           1.63
+                          user4          41    true 1977-11-13                           1.72
+                          user5          22   false 1998-02-20                           1.61
+                          user6          12    true 1969-04-08                           1.58
+                          user7          38   false 1987-12-15                            1.6
+                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                     + Inc Refresh              G Goto Page                N Next Page                O Open Row
+R Refresh                  - Dec Refresh              L Last Page                P Prev Page
+```
+
+The **changelog mode** does not materialize results and visualizes the result stream that is produced
+by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'changelog';
+```
+
+The result of a query would then look like this: 
+
+```text
+ op                           name         age isHappy        dob                         height
+ +I                          user1          20    true 1995-12-03                            1.7
+ +I                          user2          30    true 1972-08-02                           1.89
+ +I                          user3          40   false 1983-12-23                           1.63
+ +I                          user4          41    true 1977-11-13                           1.72
+ +I                          user5          22   false 1998-02-20                           1.61
+ +I                          user6          12    true 1969-04-08                           1.58
+ +I                          user7          38   false 1987-12-15                            1.6
+ +I                          user8          62    true 1996-08-05                           1.82
+
+
+
+
+Q Quit                                       + Inc Refresh                                O Open Row
+R Refresh                                    - Dec Refresh
+
+```
+
+The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
+The displaying content will be influenced by the query execution type (`execution.type`).
+
+```text
+SET 'sql-client.execution.result-mode' = 'tableau';
+```
+
+The result of a query would then look like this: 
+
+```text
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| op |                           name |         age | isHappy |        dob |                         height |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+| +I |                          user1 |          20 |    true | 1995-12-03 |                            1.7 |
+| +I |                          user2 |          30 |    true | 1972-08-02 |                           1.89 |
+| +I |                          user3 |          40 |   false | 1983-12-23 |                           1.63 |
+| +I |                          user4 |          41 |    true | 1977-11-13 |                           1.72 |
+| +I |                          user5 |          22 |   false | 1998-02-20 |                           1.61 |
+| +I |                          user6 |          12 |    true | 1969-04-08 |                           1.58 |
+| +I |                          user7 |          38 |   false | 1987-12-15 |                            1.6 |
+| +I |                          user8 |          62 |    true | 1996-08-05 |                           1.82 |
++----+--------------------------------+-------------+---------+------------+--------------------------------+
+Received a total of 8 rows
+```
+
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
+All these result modes can be useful during the prototyping of SQL queries. In all these modes,
+results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive,
+the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through
+bigger results that are only limited by the available main memory and the configured
+[maximum number of rows](#sql-client-execution-max-table-result-rows) (`sql-client.execution.max-table-result.rows`).
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
 
 ### Initialize Session Using SQL Files
 

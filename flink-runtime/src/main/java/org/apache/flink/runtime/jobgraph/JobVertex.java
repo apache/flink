@@ -60,8 +60,15 @@ public class JobVertex implements java.io.Serializable {
      * The IDs of all operators contained in this vertex.
      *
      * <p>The ID pairs are stored depth-first post-order; for the forking chain below the ID's would
-     * be stored as [D, E, B, C, A]. A - B - D \ \ C E This is the same order that operators are
-     * stored in the {@code StreamTask}.
+     * be stored as [D, E, B, C, A].
+     *
+     * <pre>
+     *  A - B - D
+     *   \    \
+     *    C    E
+     * </pre>
+     *
+     * This is the same order that operators are stored in the {@code StreamTask}.
      */
     private final List<OperatorIDPair> operatorIDs;
 

@@ -300,7 +300,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         CheckpointStorageLocationReference.getDefault(),
                         config.isExactlyOnceCheckpointMode(),
                         config.isUnalignedCheckpointsEnabled(),
-                        config.getAlignmentTimeout().toMillis());
+                        config.getAlignedCheckpointTimeout().toMillis());
 
         return new CheckpointBarrier(
                 metaData.getCheckpointId(), metaData.getTimestamp(), checkpointOptions);

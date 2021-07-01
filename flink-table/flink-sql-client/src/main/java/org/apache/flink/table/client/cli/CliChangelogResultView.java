@@ -38,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.cli.CliUtils.TIME_FORMATTER;
 import static org.apache.flink.table.client.cli.CliUtils.formatTwoLineHelpOptions;
@@ -62,7 +63,14 @@ public class CliChangelogResultView
     private int scrolling;
 
     public CliChangelogResultView(CliClient client, ResultDescriptor resultDescriptor) {
-        super(client, resultDescriptor);
+        super(
+                client,
+                resultDescriptor,
+                PrintUtils.columnWidthsByType(
+                        resultDescriptor.getResultSchema().getColumns(),
+                        resultDescriptor.maxColumnWidth(),
+                        PrintUtils.NULL_COLUMN,
+                        PrintUtils.ROW_KIND_COLUMN));
 
         if (client.isPlainTerminal()) {
             refreshInterval = DEFAULT_REFRESH_INTERVAL_PLAIN;
@@ -83,16 +91,6 @@ public class CliChangelogResultView
     @Override
     protected String[] getRow(String[] resultRow) {
         return Arrays.copyOfRange(resultRow, 1, resultRow.length);
-    }
-
-    @Override
-    protected int computeColumnWidth(int idx) {
-        // change column has a fixed length
-        if (idx == 0) {
-            return 3;
-        } else {
-            return PrintUtils.MAX_COLUMN_WIDTH;
-        }
     }
 
     @Override
@@ -281,23 +279,19 @@ public class CliChangelogResultView
 
     @Override
     protected List<AttributedString> computeMainHeaderLines() {
-        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
-
         // add change column
-        schemaHeader.append(' ');
-        schemaHeader.style(AttributedStyle.DEFAULT.underline());
-        schemaHeader.append("op");
-        schemaHeader.style(AttributedStyle.DEFAULT);
+        List<String> columnNames = new ArrayList<>(columnWidths.length);
+        columnNames.add("op");
+        columnNames.addAll(resultDescriptor.getResultSchema().getColumnNames());
 
-        resultDescriptor
-                .getResultSchema()
-                .getColumnNames()
+        final AttributedStringBuilder schemaHeader = new AttributedStringBuilder();
+        IntStream.range(0, columnNames.size())
                 .forEach(
-                        s -> {
+                        idx -> {
+                            schemaHeader.style(AttributedStyle.DEFAULT);
                             schemaHeader.append(' ');
                             schemaHeader.style(AttributedStyle.DEFAULT.underline());
-                            normalizeColumn(schemaHeader, s, PrintUtils.MAX_COLUMN_WIDTH);
-                            schemaHeader.style(AttributedStyle.DEFAULT);
+                            normalizeColumn(schemaHeader, columnNames.get(idx), columnWidths[idx]);
                         });
 
         return Collections.singletonList(schemaHeader.toAttributedString());
