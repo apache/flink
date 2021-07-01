@@ -176,6 +176,10 @@ public class AkkaRpcServiceUtils {
         return internalRpcUrl(endpointName, Optional.empty());
     }
 
+    public static boolean isRecipientTerminatedException(Throwable exception) {
+        return exception.getMessage().contains("had already been terminated.");
+    }
+
     private static final class RemoteAddressInformation {
         private final String hostnameAndPort;
         private final AkkaProtocol akkaProtocol;
