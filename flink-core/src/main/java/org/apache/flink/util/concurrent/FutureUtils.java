@@ -70,6 +70,20 @@ public class FutureUtils {
         return COMPLETED_VOID_FUTURE;
     }
 
+    private static final CompletableFuture<?> UNSUPPORTED_OPERATION_FUTURE =
+            completedExceptionally(
+                    new UnsupportedOperationException("This method is unsupported."));
+
+    /**
+     * Returns an exceptionally completed future with an {@link UnsupportedOperationException}.
+     *
+     * @param <T> type of the future
+     * @return exceptionally completed future
+     */
+    public static <T> CompletableFuture<T> unsupportedOperationFuture() {
+        return (CompletableFuture<T>) UNSUPPORTED_OPERATION_FUTURE;
+    }
+
     /**
      * Fakes asynchronous execution by immediately executing the operation and completing the
      * supplied future either normally or exceptionally.
