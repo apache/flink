@@ -58,7 +58,7 @@ EnvironmentSettings settings = EnvironmentSettings
     .inStreamingMode()
     .build();
 
-TableEnvironment tEnv = TableEnvironment.create(env);
+TableEnvironment tEnv = TableEnvironment.create(settings);
 
 // register Orders table in table environment
 // ...
