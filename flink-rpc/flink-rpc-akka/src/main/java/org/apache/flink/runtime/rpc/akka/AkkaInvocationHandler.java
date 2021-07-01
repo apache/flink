@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.StartStoppable;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.LocalRpcInvocation;
@@ -196,7 +197,9 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      *
      * @param method to call
      * @param args of the method call
-     * @return result of the RPC
+     * @return result of the RPC; the result future is completed with a {@link TimeoutException} if
+     *     the requests times out; if the recipient is not reachable, then the result future is
+     *     completed with a {@link RecipientUnreachableException}.
      * @throws Exception if the RPC invocation fails
      */
     private Object invokeRpc(Method method, Object[] args) throws Exception {
