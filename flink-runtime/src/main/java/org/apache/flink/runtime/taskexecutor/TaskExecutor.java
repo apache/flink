@@ -1357,20 +1357,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         // monitor the resource manager as heartbeat target
         resourceManagerHeartbeatManager.monitorTarget(
                 resourceManagerResourceId,
-                new HeartbeatTarget<TaskExecutorHeartbeatPayload>() {
-                    @Override
-                    public void receiveHeartbeat(
-                            ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
-                        resourceManagerGateway.heartbeatFromTaskManager(
-                                resourceID, heartbeatPayload);
-                    }
-
-                    @Override
-                    public void requestHeartbeat(
-                            ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
-                        // the TaskManager won't send heartbeat requests to the ResourceManager
-                    }
-                });
+                new ResourceManagerHeartbeatTarget(resourceManagerGateway));
 
         // set the propagated blob server address
         final InetSocketAddress blobServerAddress =
@@ -1628,22 +1615,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         // monitor the job manager as heartbeat target
         jobManagerHeartbeatManager.monitorTarget(
-                jobManagerResourceID,
-                new HeartbeatTarget<TaskExecutorToJobManagerHeartbeatPayload>() {
-                    @Override
-                    public void receiveHeartbeat(
-                            ResourceID resourceID,
-                            TaskExecutorToJobManagerHeartbeatPayload payload) {
-                        jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
-                    }
-
-                    @Override
-                    public void requestHeartbeat(
-                            ResourceID resourceID,
-                            TaskExecutorToJobManagerHeartbeatPayload payload) {
-                        // request heartbeat will never be called on the task manager side
-                    }
-                });
+                jobManagerResourceID, new JobManagerHeartbeatTarget(jobMasterGateway));
 
         internalOfferSlotsToJobManager(establishedConnection);
     }
@@ -2154,6 +2126,48 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     // ------------------------------------------------------------------------
     //  Utility classes
     // ------------------------------------------------------------------------
+
+    private static final class JobManagerHeartbeatTarget
+            implements HeartbeatTarget<TaskExecutorToJobManagerHeartbeatPayload> {
+        private final JobMasterGateway jobMasterGateway;
+
+        private JobManagerHeartbeatTarget(JobMasterGateway jobMasterGateway) {
+            this.jobMasterGateway = jobMasterGateway;
+        }
+
+        @Override
+        public void receiveHeartbeat(
+                ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
+            jobMasterGateway.heartbeatFromTaskManager(resourceID, payload);
+        }
+
+        @Override
+        public void requestHeartbeat(
+                ResourceID resourceID, TaskExecutorToJobManagerHeartbeatPayload payload) {
+            // request heartbeat will never be called on the task manager side
+        }
+    }
+
+    private static final class ResourceManagerHeartbeatTarget
+            implements HeartbeatTarget<TaskExecutorHeartbeatPayload> {
+        private final ResourceManagerGateway resourceManagerGateway;
+
+        private ResourceManagerHeartbeatTarget(ResourceManagerGateway resourceManagerGateway) {
+            this.resourceManagerGateway = resourceManagerGateway;
+        }
+
+        @Override
+        public void receiveHeartbeat(
+                ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
+            resourceManagerGateway.heartbeatFromTaskManager(resourceID, heartbeatPayload);
+        }
+
+        @Override
+        public void requestHeartbeat(
+                ResourceID resourceID, TaskExecutorHeartbeatPayload heartbeatPayload) {
+            // the TaskManager won't send heartbeat requests to the ResourceManager
+        }
+    }
 
     /** The listener for leader changes of the resource manager. */
     private final class ResourceManagerLeaderListener implements LeaderRetrievalListener {
