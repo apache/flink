@@ -27,8 +27,9 @@ import org.antlr.v4.runtime.atn.PredictionMode;
 import java.util.LinkedHashSet;
 
 /**
- * Extract true and false branch of IFs and ELSEs in long methods into two smaller methods. For
- * example,
+ * Extract true and false branch of IFs and ELSEs in long methods into two smaller methods.
+ *
+ * <p><i>Before</i>
  *
  * <pre><code>
  * public class Example {
@@ -45,7 +46,7 @@ import java.util.LinkedHashSet;
  * }
  * </code></pre>
  *
- * will be changed into
+ * <p><i>After</i>
  *
  * <pre><code>
  * public class Example {

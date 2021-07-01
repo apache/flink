@@ -29,7 +29,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
- * Split long functions into several smaller functions. For example,
+ * Split long functions into several smaller functions.
+ *
+ * <p><i>Before</i>
  *
  * <pre><code>
  * public class Example {
@@ -44,7 +46,7 @@ import java.util.List;
  * }
  * </code></pre>
  *
- * will be changed into
+ * <p><i>After</i>
  *
  * <pre><code>
  * public class Example {

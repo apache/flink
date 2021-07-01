@@ -35,8 +35,9 @@ import java.util.Set;
 import java.util.Stack;
 
 /**
- * Group member variables with the same type into arrays to reduce the number of members. For
- * example,
+ * Group member variables with the same type into arrays to reduce the number of members.
+ *
+ * <p><i>Before</i>
  *
  * <pre><code>
  * public class Example {
@@ -50,7 +51,7 @@ import java.util.Stack;
  * }
  * </code></pre>
  *
- * will be changed into
+ * <p><i>After</i>
  *
  * <pre><code>
  * public class Example {

@@ -34,7 +34,9 @@ import java.util.Set;
 import java.util.Stack;
 
 /**
- * Extract and rename local variables into member variables. For example,
+ * Extract and rename local variables into member variables.
+ *
+ * <p><i>Before</i>
  *
  * <pre><code>
  * public class Example {
@@ -50,7 +52,7 @@ import java.util.Stack;
  * }
  * </code></pre>
  *
- * will be changed into
+ * <p><i>After</i>
  *
  * <pre><code>
  * public class Example {
