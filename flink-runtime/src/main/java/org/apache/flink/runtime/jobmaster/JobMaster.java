@@ -727,23 +727,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                                 // monitor the task manager as heartbeat target
                                 taskManagerHeartbeatManager.monitorTarget(
                                         taskManagerId,
-                                        new HeartbeatTarget<AllocatedSlotReport>() {
-                                            @Override
-                                            public void receiveHeartbeat(
-                                                    ResourceID resourceID,
-                                                    AllocatedSlotReport payload) {
-                                                // the task manager will not request heartbeat, so
-                                                // this method will never be called currently
-                                            }
-
-                                            @Override
-                                            public void requestHeartbeat(
-                                                    ResourceID resourceID,
-                                                    AllocatedSlotReport allocatedSlotReport) {
-                                                taskExecutorGateway.heartbeatFromJobManager(
-                                                        resourceID, allocatedSlotReport);
-                                            }
-                                        });
+                                        new TaskExecutorHeartbeatTarget(taskExecutorGateway));
 
                                 return new JMTMRegistrationSuccess(resourceId);
                             },
@@ -1078,17 +1062,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
             resourceManagerHeartbeatManager.monitorTarget(
                     resourceManagerResourceId,
-                    new HeartbeatTarget<Void>() {
-                        @Override
-                        public void receiveHeartbeat(ResourceID resourceID, Void payload) {
-                            resourceManagerGateway.heartbeatFromJobManager(resourceID);
-                        }
-
-                        @Override
-                        public void requestHeartbeat(ResourceID resourceID, Void payload) {
-                            // request heartbeat will never be called on the job manager side
-                        }
-                    });
+                    new ResourceManagerHeartbeatTarget(resourceManagerGateway));
         } else {
             log.debug(
                     "Ignoring resource manager connection to {} because it's duplicated or outdated.",
@@ -1148,6 +1122,45 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     // ----------------------------------------------------------------------------------------------
     // Utility classes
     // ----------------------------------------------------------------------------------------------
+
+    private static final class TaskExecutorHeartbeatTarget
+            implements HeartbeatTarget<AllocatedSlotReport> {
+        private final TaskExecutorGateway taskExecutorGateway;
+
+        private TaskExecutorHeartbeatTarget(TaskExecutorGateway taskExecutorGateway) {
+            this.taskExecutorGateway = taskExecutorGateway;
+        }
+
+        @Override
+        public void receiveHeartbeat(ResourceID resourceID, AllocatedSlotReport payload) {
+            // the task manager will not request heartbeat, so
+            // this method will never be called currently
+        }
+
+        @Override
+        public void requestHeartbeat(
+                ResourceID resourceID, AllocatedSlotReport allocatedSlotReport) {
+            taskExecutorGateway.heartbeatFromJobManager(resourceID, allocatedSlotReport);
+        }
+    }
+
+    private static final class ResourceManagerHeartbeatTarget implements HeartbeatTarget<Void> {
+        private final ResourceManagerGateway resourceManagerGateway;
+
+        private ResourceManagerHeartbeatTarget(ResourceManagerGateway resourceManagerGateway) {
+            this.resourceManagerGateway = resourceManagerGateway;
+        }
+
+        @Override
+        public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+            resourceManagerGateway.heartbeatFromJobManager(resourceID);
+        }
+
+        @Override
+        public void requestHeartbeat(ResourceID resourceID, Void payload) {
+            // request heartbeat will never be called on the job manager side
+        }
+    }
 
     private class ResourceManagerLeaderListener implements LeaderRetrievalListener {
 
