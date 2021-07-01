@@ -410,6 +410,7 @@ under the License.
 					<systemPropertyVariables>
 						<log.level>WARN</log.level>
 					</systemPropertyVariables>
+					<workingDirectory>${project.build.directory}</workingDirectory>
 					<excludes>
 						<exclude>**/*TestBase*.class</exclude>
 					</excludes>
