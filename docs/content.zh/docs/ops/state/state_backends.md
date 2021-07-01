@@ -159,8 +159,8 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 ```xml
 <dependency>
     <groupId>org.apache.flink</groupId>
-    <artifactId>flink-statebackend-rocksdb{{ site.scala_version_suffix }}</artifactId>
-    <version>{{ site.version }}</version>
+    <artifactId>flink-statebackend-rocksdb{{< scala_version >}}</artifactId>
+    <version>{{< version >}}</version>
     <scope>provided</scope>
 </dependency>
 ```
