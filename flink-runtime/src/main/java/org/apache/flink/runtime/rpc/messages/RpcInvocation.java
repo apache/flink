@@ -24,7 +24,7 @@ import java.io.IOException;
  * Interface for rpc invocation messages. The interface allows to request all necessary information
  * to lookup a method and call it with the corresponding arguments.
  */
-public interface RpcInvocation {
+public interface RpcInvocation extends Message {
 
     /**
      * Returns the method's name.
