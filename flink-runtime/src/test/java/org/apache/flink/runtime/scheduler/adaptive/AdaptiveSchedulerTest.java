@@ -401,7 +401,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // With this approach we don't have to make assumption as to how many
         // tasks are being scheduled.
         final boolean b =
-                mainThreadExecutor.getNonPeriodicScheduledTask().stream()
+                mainThreadExecutor.getActiveNonPeriodicScheduledTask().stream()
                         .anyMatch(
                                 scheduledTask ->
                                         scheduledTask.getDelay(TimeUnit.MINUTES)

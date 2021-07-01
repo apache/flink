@@ -23,6 +23,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
@@ -83,16 +84,20 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
         return execService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
     }
 
-    public Collection<ScheduledFuture<?>> getScheduledTasks() {
-        return execService.getScheduledTasks();
+    public Collection<ScheduledFuture<?>> getActiveScheduledTasks() {
+        return execService.getActiveScheduledTasks();
     }
 
-    public Collection<ScheduledFuture<?>> getPeriodicScheduledTask() {
-        return execService.getPeriodicScheduledTask();
+    public Collection<ScheduledFuture<?>> getActivePeriodicScheduledTask() {
+        return execService.getActivePeriodicScheduledTask();
     }
 
-    public Collection<ScheduledFuture<?>> getNonPeriodicScheduledTask() {
-        return execService.getNonPeriodicScheduledTask();
+    public Collection<ScheduledFuture<?>> getActiveNonPeriodicScheduledTask() {
+        return execService.getActiveNonPeriodicScheduledTask();
+    }
+
+    public List<ScheduledFuture<?>> getAllScheduledTasks() {
+        return execService.getAllScheduledTasks();
     }
 
     /** Triggers all registered tasks. */

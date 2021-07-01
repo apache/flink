@@ -338,7 +338,8 @@ public class FutureUtilsTest extends TestLogger {
 
         assertFalse(retryFuture.isDone());
 
-        final Collection<ScheduledFuture<?>> scheduledTasks = scheduledExecutor.getScheduledTasks();
+        final Collection<ScheduledFuture<?>> scheduledTasks =
+                scheduledExecutor.getActiveScheduledTasks();
 
         assertFalse(scheduledTasks.isEmpty());
 
@@ -381,7 +382,7 @@ public class FutureUtilsTest extends TestLogger {
                         noOpRunnable, TestingUtils.infiniteTime(), scheduledExecutor);
 
         final ScheduledFuture<?> scheduledFuture =
-                scheduledExecutor.getScheduledTasks().iterator().next();
+                scheduledExecutor.getActiveScheduledTasks().iterator().next();
 
         completableFuture.cancel(false);
 
