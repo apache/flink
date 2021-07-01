@@ -196,7 +196,9 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      *
      * @param method to call
      * @param args of the method call
-     * @return result of the RPC
+     * @return result of the RPC; the result future is completed with a {@link TimeoutException} if
+     *     the requests times out; if the recipient is not reachable, then the result future is
+     *     completed with a {@link AkkaRecipientUnreachableException}.
      * @throws Exception if the RPC invocation fails
      */
     private Object invokeRpc(Method method, Object[] args) throws Exception {
