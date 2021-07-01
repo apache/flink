@@ -58,4 +58,27 @@ public interface RpcInvocation extends Message {
      *     serialized classes which cannot be found on the receiving side
      */
     Object[] getArgs() throws IOException, ClassNotFoundException;
+
+    /**
+     * Converts a rpc call into its string representation.
+     *
+     * @param declaringClassName declaringClassName declares the specified rpc
+     * @param methodName methodName of the rpc
+     * @param parameterTypes parameterTypes of the rpc
+     * @return string representation of the rpc
+     */
+    static String convertRpcToString(
+            String declaringClassName, String methodName, Class<?>[] parameterTypes) {
+        final StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
+
+        if (parameterTypes.length > 0) {
+            paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
+
+            for (int i = 1; i < parameterTypes.length; i++) {
+                paramTypeStringBuilder.append(", ").append(parameterTypes[i].getSimpleName());
+            }
+        }
+
+        return declaringClassName + '.' + methodName + '(' + paramTypeStringBuilder + ')';
+    }
 }

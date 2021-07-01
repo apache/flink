@@ -209,7 +209,11 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
         Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
         final RpcInvocation rpcInvocation =
-                createRpcInvocationMessage(methodName, parameterTypes, args);
+                createRpcInvocationMessage(
+                        method.getDeclaringClass().getSimpleName(),
+                        methodName,
+                        parameterTypes,
+                        args);
 
         Class<?> returnType = method.getReturnType();
 
@@ -262,6 +266,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     /**
      * Create the RpcInvocation message for the given RPC.
      *
+     * @param declaringClassName of the RPC
      * @param methodName of the RPC
      * @param parameterTypes of the RPC
      * @param args of the RPC
@@ -269,16 +274,21 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      * @throws IOException if we cannot serialize the RPC invocation parameters
      */
     protected RpcInvocation createRpcInvocationMessage(
-            final String methodName, final Class<?>[] parameterTypes, final Object[] args)
+            final String declaringClassName,
+            final String methodName,
+            final Class<?>[] parameterTypes,
+            final Object[] args)
             throws IOException {
         final RpcInvocation rpcInvocation;
 
         if (isLocal) {
-            rpcInvocation = new LocalRpcInvocation(methodName, parameterTypes, args);
+            rpcInvocation =
+                    new LocalRpcInvocation(declaringClassName, methodName, parameterTypes, args);
         } else {
             try {
                 RemoteRpcInvocation remoteRpcInvocation =
-                        new RemoteRpcInvocation(methodName, parameterTypes, args);
+                        new RemoteRpcInvocation(
+                                declaringClassName, methodName, parameterTypes, args);
 
                 if (remoteRpcInvocation.getSize() > maximumFramesize) {
                     throw new IOException(
