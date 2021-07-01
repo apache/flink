@@ -31,7 +31,7 @@ import org.apache.flink.util.Preconditions;
  *
  * @param <P> type of the payload
  */
-public class UnfencedMessage<P> {
+public class UnfencedMessage<P> implements Message {
     private final P payload;
 
     public UnfencedMessage(P payload) {

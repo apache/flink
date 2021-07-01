@@ -21,8 +21,8 @@ package org.apache.flink.runtime.rpc.messages;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Message for asynchronous runnable invocations */
-public final class RunAsync {
+/** Message for asynchronous runnable invocations. */
+public final class RunAsync implements Message {
 
     private final Runnable runnable;
 
