@@ -37,7 +37,6 @@ import org.apache.hadoop.fs.viewfs.ViewFileSystem;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.protocol.LocatedBlocks;
 import org.apache.hadoop.util.VersionInfo;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
