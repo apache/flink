@@ -19,7 +19,6 @@
 package org.apache.flink.test.recovery;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -91,7 +90,6 @@ public abstract class AbstractTaskManagerProcessFailureRecoveryTest extends Test
         File coordinateTempDir = null;
 
         Configuration config = new Configuration();
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(100));
         config.setString(JobManagerOptions.ADDRESS, "localhost");
         config.setString(RestOptions.BIND_PORT, "0");
         config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 500L);
