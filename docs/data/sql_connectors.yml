@@ -149,6 +149,6 @@ upsert-kafka:
 kinesis:
     name: Kinesis
     category: connector
-    maven: flink-connector-kinesis{{ site.scala_version_suffix }}
+    maven: flink-connector-kinesis$scala_version
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis$scala_version/$version/flink-sql-connector-kinesis$scala_version-$version.jar
 

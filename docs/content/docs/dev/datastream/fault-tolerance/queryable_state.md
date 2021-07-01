@@ -71,7 +71,7 @@ response back to the client.
 
 To enable queryable state on your Flink cluster, you need to do the following:
 
- 1. copy the `flink-queryable-state-runtime{{ site.scala_version_suffix }}-{{site.version }}.jar` 
+ 1. copy the `flink-queryable-state-runtime{{< scala_version >}}-{{< version >}}.jar`
 from the `opt/` folder of your [Flink distribution](https://flink.apache.org/downloads.html "Apache Flink: Downloads"), 
 to the `lib/` folder.
  2. set the property `queryable-state.enable` to `true`. See the [Configuration]({{< ref "docs/deployment/config" >}}#queryable-state) documentation for details and additional parameters.
