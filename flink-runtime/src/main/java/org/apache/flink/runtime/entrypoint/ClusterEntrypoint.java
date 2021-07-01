@@ -294,7 +294,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
-            rpcSystem = RpcSystem.load();
+            rpcSystem = RpcSystem.load(configuration);
 
             commonRpcService =
                     RpcUtils.createRemoteRpcService(
