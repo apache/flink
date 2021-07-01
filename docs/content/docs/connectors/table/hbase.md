@@ -176,14 +176,14 @@ Connector Options
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
+      <td style="word-wrap: break-word;">-1</td>
+      <td>Long</td>
       <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired. Note, "lookup.cache.max-rows" and "lookup.cache.ttl" options must all be specified if any of them is specified. Lookup cache is disabled by default.</td>
     </tr>
     <tr>
       <td><h5>lookup.cache.ttl</h5></td>
       <td>optional</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">0 s</td>
       <td>Duration</td>
       <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired. Note, "cache.max-rows" and "cache.ttl" options must all be specified if any of them is specified.Lookup cache is disabled by default.</td>
     </tr>
