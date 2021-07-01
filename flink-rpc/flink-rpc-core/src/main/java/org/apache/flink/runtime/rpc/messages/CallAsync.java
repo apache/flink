@@ -23,7 +23,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.concurrent.Callable;
 
 /** Message for asynchronous callable invocations. */
-public final class CallAsync {
+public final class CallAsync implements Message {
 
     private final Callable<?> callable;
 
