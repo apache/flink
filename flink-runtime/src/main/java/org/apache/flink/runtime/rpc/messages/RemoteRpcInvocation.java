@@ -84,20 +84,10 @@ public class RemoteRpcInvocation implements RpcInvocation, Serializable {
                 Class<?>[] parameterTypes = getParameterTypes();
                 String methodName = getMethodName();
 
-                StringBuilder paramTypeStringBuilder = new StringBuilder(parameterTypes.length * 5);
-
-                if (parameterTypes.length > 0) {
-                    paramTypeStringBuilder.append(parameterTypes[0].getSimpleName());
-
-                    for (int i = 1; i < parameterTypes.length; i++) {
-                        paramTypeStringBuilder
-                                .append(", ")
-                                .append(parameterTypes[i].getSimpleName());
-                    }
-                }
-
                 toString =
-                        "RemoteRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+                        "RemoteRpcInvocation("
+                                + RpcInvocation.convertRpcToString(methodName, parameterTypes)
+                                + ")";
             } catch (IOException | ClassNotFoundException e) {
                 toString = "Could not deserialize RemoteRpcInvocation: " + e.getMessage();
             }
