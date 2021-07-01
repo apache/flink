@@ -36,11 +36,11 @@ import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import akka.pattern.AskTimeoutException;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -126,7 +126,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
                         .setRequestSlotFunction(
                                 ignored ->
                                         FutureUtils.completedExceptionally(
-                                                new AskTimeoutException("timeout")))
+                                                new TimeoutException("timeout")))
                         .createTestingTaskExecutorGateway();
         final TaskExecutorConnection taskExecutorConnection =
                 new TaskExecutorConnection(ResourceID.generate(), taskExecutorGateway);
@@ -151,7 +151,7 @@ public class DefaultSlotStatusSyncerTest extends TestLogger {
         try {
             allocatedFuture.get();
         } catch (Exception e) {
-            assertThat(e.getCause(), instanceOf(AskTimeoutException.class));
+            assertThat(e.getCause(), instanceOf(TimeoutException.class));
         }
         assertThat(resourceTracker.getAcquiredResources(jobId), is(empty()));
         assertThat(
