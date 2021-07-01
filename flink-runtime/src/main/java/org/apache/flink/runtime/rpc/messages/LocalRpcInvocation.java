@@ -69,7 +69,10 @@ public final class LocalRpcInvocation implements RpcInvocation {
                 }
             }
 
-            toString = "LocalRpcInvocation(" + methodName + '(' + paramTypeStringBuilder + "))";
+            toString =
+                    "LocalRpcInvocation("
+                            + RpcInvocation.convertRpcToString(methodName, parameterTypes)
+                            + ")";
         }
 
         return toString;
