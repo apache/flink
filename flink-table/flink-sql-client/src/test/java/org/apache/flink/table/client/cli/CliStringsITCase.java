@@ -34,14 +34,14 @@ public class CliStringsITCase {
         if (CollectionUtils.isNotEmpty(hintsInPackage)) {
             if (CollectionUtils.isNotEmpty(hintsInHelpMessage)) {
                 for (String hintInPkg : hintsInPackage) {
-                    boolean startWith = false;
+                    boolean containable = false;
                     for (String hintInHelpMsg : hintsInHelpMessage) {
-                        if (hintInHelpMsg.startsWith(hintInPkg)) {
-                            startWith = true;
+                        if (hintInHelpMsg.contains(hintInPkg)) {
+                            containable = true;
                             break;
                         }
                     }
-                    Assert.assertTrue(startWith);
+                    Assert.assertTrue(containable);
                 }
             } else {
                 Assert.fail(
