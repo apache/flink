@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.runners.python.beam;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
@@ -102,27 +103,33 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     private static final String MANAGED_MEMORY_RESOURCE_ID = "python-process-managed-memory";
     private static final String PYTHON_WORKER_MEMORY_LIMIT = "_PYTHON_WORKER_MEMORY_LIMIT";
 
-    protected static final String FLINK_CODER_URN = "flink:coder:v1";
-
-    protected final FlinkFnApi.CoderParam.OutputMode outputMode;
-
-    protected final FlinkFnApi.CoderParam.DataType inputDataType;
-    protected final FlinkFnApi.CoderParam.DataType outputDataType;
-
-    private transient boolean bundleStarted;
-
     private final String taskName;
 
     /** The Python execution environment manager. */
     private final PythonEnvironmentManager environmentManager;
 
+    /** The urn which represents the function kind to be executed. */
     private final String functionUrn;
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
 
-    /** The Python function execution result tuple. */
-    protected final Tuple2<byte[], Integer> resultTuple;
+    /** The flinkMetricContainer will be set to null if metric is configured to be turned off. */
+    @Nullable private FlinkMetricContainer flinkMetricContainer;
+
+    private final MemoryManager memoryManager;
+
+    /** The fraction of total managed memory in the slot that the Python worker could use. */
+    private final double managedMemoryFraction;
+
+    protected final FlinkFnApi.CoderParam.DataType inputDataType;
+    protected final FlinkFnApi.CoderParam.DataType outputDataType;
+
+    protected final FlinkFnApi.CoderParam.OutputMode outputMode;
+
+    // ------------------------------------------------------------------------
+
+    private transient boolean bundleStarted;
 
     /**
      * The bundle factory which has all job-scoped information and can be used to create a {@link
@@ -152,33 +159,28 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
      */
     private transient RemoteBundle remoteBundle;
 
-    /** The Python function execution result receiver. */
-    protected transient LinkedBlockingQueue<byte[]> resultBuffer;
+    /** The Python function execution result tuple: (raw bytes, length). */
+    private transient Tuple2<byte[], Integer> reusableResultTuple;
+
+    /** Buffers the Python function execution result which has still not been processed. */
+    @VisibleForTesting protected transient LinkedBlockingQueue<byte[]> resultBuffer;
 
     /** The receiver which forwards the input elements to a remote environment for processing. */
-    protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
-
-    /** The flinkMetricContainer will be set to null if metric is configured to be turned off. */
-    @Nullable private FlinkMetricContainer flinkMetricContainer;
-
-    @Nullable private final MemoryManager memoryManager;
-
-    /** The fraction of total managed memory in the slot that the Python worker could use. */
-    private final double managedMemoryFraction;
+    @VisibleForTesting protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
     /** The shared resource among Python operators of the same slot. */
-    private OpaqueMemoryResource<PythonSharedResources> sharedResources;
+    private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
     public BeamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
             String functionUrn,
             Map<String, String> jobOptions,
-            FlinkMetricContainer flinkMetricContainer,
+            @Nullable FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
             @Nullable TypeSerializer keySerializer,
             @Nullable TypeSerializer namespaceSerializer,
-            @Nullable MemoryManager memoryManager,
+            MemoryManager memoryManager,
             double managedMemoryFraction,
             FlinkFnApi.CoderParam.DataType inputDataType,
             FlinkFnApi.CoderParam.DataType outputDataType,
@@ -196,13 +198,15 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         this.inputDataType = Preconditions.checkNotNull(inputDataType);
         this.outputDataType = Preconditions.checkNotNull(outputDataType);
         this.outputMode = Preconditions.checkNotNull(outputMode);
-        this.resultTuple = new Tuple2<>();
     }
+
+    // ------------------------------------------------------------------------
 
     @Override
     public void open(PythonConfig config) throws Exception {
         this.bundleStarted = false;
         this.resultBuffer = new LinkedBlockingQueue<>();
+        this.reusableResultTuple = new Tuple2<>();
 
         // The creation of stageBundleFactory depends on the initialized environment manager.
         environmentManager.open();
@@ -288,15 +292,38 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(data));
     }
 
+    /** Checks whether to invoke startBundle. */
+    private void checkInvokeStartBundle() {
+        if (!bundleStarted) {
+            startBundle();
+            bundleStarted = true;
+        }
+    }
+
+    @VisibleForTesting
+    protected void startBundle() {
+        try {
+            remoteBundle =
+                    stageBundleFactory.getBundle(
+                            createOutputReceiverFactory(), stateRequestHandler, progressHandler);
+            mainInputReceiver =
+                    Preconditions.checkNotNull(
+                            Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()),
+                            "Failed to retrieve main input receiver.");
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to start remote bundle", t);
+        }
+    }
+
     @Override
     public Tuple2<byte[], Integer> pollResult() throws Exception {
         byte[] result = resultBuffer.poll();
         if (result == null) {
             return null;
         } else {
-            this.resultTuple.f0 = result;
-            this.resultTuple.f1 = result.length;
-            return this.resultTuple;
+            this.reusableResultTuple.f0 = result;
+            this.reusableResultTuple.f1 = result.length;
+            return this.reusableResultTuple;
         }
     }
 
@@ -311,14 +338,19 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         }
     }
 
-    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
-        return DefaultJobBundleFactory.create(
-                JobInfo.create(
-                        taskName,
-                        taskName,
-                        environmentManager.createRetrievalToken(),
-                        pipelineOptions));
+    private void finishBundle() {
+        try {
+            remoteBundle.close();
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to close remote bundle", t);
+        } finally {
+            remoteBundle = null;
+        }
     }
+
+    // ------------------------------------------------------------------------
+    // Python Execution Environment Management
+    // ------------------------------------------------------------------------
 
     /**
      * Creates a specification which specifies the portability Python execution environment. It's
@@ -338,81 +370,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         throw new RuntimeException("Currently only ProcessPythonEnvironment is supported.");
     }
 
-    protected void startBundle() {
-        try {
-            remoteBundle =
-                    stageBundleFactory.getBundle(
-                            createOutputReceiverFactory(), stateRequestHandler, progressHandler);
-            mainInputReceiver =
-                    Preconditions.checkNotNull(
-                            Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()),
-                            "Failed to retrieve main input receiver.");
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to start remote bundle", t);
-        }
-    }
-
-    private void finishBundle() {
-        try {
-            remoteBundle.close();
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to close remote bundle", t);
-        } finally {
-            remoteBundle = null;
-        }
-    }
-
-    private OutputReceiverFactory createOutputReceiverFactory() {
-        return new OutputReceiverFactory() {
-
-            // the input value type is always byte array
-            @SuppressWarnings("unchecked")
-            @Override
-            public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-                return input -> resultBuffer.add(input.getValue());
-            }
-        };
-    }
-
-    /**
-     * Ignore bundle progress if flinkMetricContainer is null. The flinkMetricContainer will be set
-     * to null if metric is configured to be turned off.
-     */
-    private BundleProgressHandler getProgressHandler(FlinkMetricContainer flinkMetricContainer) {
-        if (flinkMetricContainer == null) {
-            return BundleProgressHandler.ignored();
-        } else {
-            return new BundleProgressHandler() {
-                @Override
-                public void onProgress(BeamFnApi.ProcessBundleProgressResponse progress) {
-                    flinkMetricContainer.updateMetrics(taskName, progress.getMonitoringInfosList());
-                }
-
-                @Override
-                public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
-                    flinkMetricContainer.updateMetrics(taskName, response.getMonitoringInfosList());
-                }
-            };
-        }
-    }
-
-    /** To make the error messages more user friendly, throws an exception with the boot logs. */
-    private StageBundleFactory createStageBundleFactory(
-            JobBundleFactory jobBundleFactory, RunnerApi.Environment environment) throws Exception {
-        try {
-            return jobBundleFactory.forStage(createExecutableStage(environment));
-        } catch (Throwable e) {
-            throw new RuntimeException(environmentManager.getBootLog(), e);
-        }
-    }
-
-    /** Checks whether to invoke startBundle. */
-    private void checkInvokeStartBundle() throws Exception {
-        if (!bundleStarted) {
-            startBundle();
-            bundleStarted = true;
-        }
-    }
+    // ------------------------------------------------------------------------
+    // Construct ExecutableStage
+    // ------------------------------------------------------------------------
 
     /**
      * Creates a {@link ExecutableStage} which contains the Python user-defined functions to be
@@ -513,12 +473,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .build());
     }
 
-    protected abstract byte[] getUserDefinedFunctionsProtoBytes();
-
-    protected abstract RunnerApi.Coder getInputCoderProto();
-
-    protected abstract RunnerApi.Coder getOutputCoderProto();
-
     /** Gets the proto representation of the window coder. */
     private RunnerApi.Coder getWindowCoderProto() {
         return RunnerApi.Coder.newBuilder()
@@ -527,6 +481,70 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                 .setUrn(ModelCoders.GLOBAL_WINDOW_CODER_URN)
                                 .build())
                 .build();
+    }
+
+    protected abstract byte[] getUserDefinedFunctionsProtoBytes();
+
+    protected abstract RunnerApi.Coder getInputCoderProto();
+
+    protected abstract RunnerApi.Coder getOutputCoderProto();
+
+    // ------------------------------------------------------------------------
+    // Construct RemoteBundler
+    // ------------------------------------------------------------------------
+
+    private OutputReceiverFactory createOutputReceiverFactory() {
+        return new OutputReceiverFactory() {
+
+            // the input value type is always byte array
+            @SuppressWarnings("unchecked")
+            @Override
+            public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
+                return input -> resultBuffer.add(input.getValue());
+            }
+        };
+    }
+
+    @VisibleForTesting
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) throws Exception {
+        return DefaultJobBundleFactory.create(
+                JobInfo.create(
+                        taskName,
+                        taskName,
+                        environmentManager.createRetrievalToken(),
+                        pipelineOptions));
+    }
+
+    /** To make the error messages more user friendly, throws an exception with the boot logs. */
+    private StageBundleFactory createStageBundleFactory(
+            JobBundleFactory jobBundleFactory, RunnerApi.Environment environment) throws Exception {
+        try {
+            return jobBundleFactory.forStage(createExecutableStage(environment));
+        } catch (Throwable e) {
+            throw new RuntimeException(environmentManager.getBootLog(), e);
+        }
+    }
+
+    /**
+     * Ignore bundle progress if flinkMetricContainer is null. The flinkMetricContainer will be set
+     * to null if metric is configured to be turned off.
+     */
+    private BundleProgressHandler getProgressHandler(FlinkMetricContainer flinkMetricContainer) {
+        if (flinkMetricContainer == null) {
+            return BundleProgressHandler.ignored();
+        } else {
+            return new BundleProgressHandler() {
+                @Override
+                public void onProgress(BeamFnApi.ProcessBundleProgressResponse progress) {
+                    flinkMetricContainer.updateMetrics(taskName, progress.getMonitoringInfosList());
+                }
+
+                @Override
+                public void onCompleted(BeamFnApi.ProcessBundleResponse response) {
+                    flinkMetricContainer.updateMetrics(taskName, response.getMonitoringInfosList());
+                }
+            };
+        }
     }
 
     private static StateRequestHandler getStateRequestHandler(

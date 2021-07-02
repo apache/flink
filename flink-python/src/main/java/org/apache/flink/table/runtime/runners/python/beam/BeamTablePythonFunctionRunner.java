@@ -33,6 +33,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /** A {@link BeamTablePythonFunctionRunner} used to execute Python functions in Table API. */

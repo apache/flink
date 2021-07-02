@@ -34,6 +34,8 @@ import javax.annotation.Nullable;
 
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.FLINK_CODER_URN;
+
 /**
  * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
  * execute user defined python function.

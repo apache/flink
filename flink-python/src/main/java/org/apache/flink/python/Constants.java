@@ -24,4 +24,7 @@ public class Constants {
     // function urns
     public static final String STATELESS_FUNCTION_URN = "flink:transform:ds:stateless_function:v1";
     public static final String STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1";
+
+    // coder urns
+    public static final String FLINK_CODER_URN = "flink:coder:v1";
 }
