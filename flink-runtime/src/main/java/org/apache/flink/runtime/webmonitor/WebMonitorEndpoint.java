@@ -32,6 +32,7 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
+import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
@@ -739,8 +740,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         jobVertexBackPressureHandler.getMessageHeaders(),
                         jobVertexBackPressureHandler));
 
+        final AbstractRestHandler<?, ?, ?, ?> jobVertexFlameGraphHandler;
         if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
-            final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
+            jobVertexFlameGraphHandler =
                     new JobVertexFlameGraphHandler(
                             leaderRetriever,
                             timeout,
@@ -748,11 +750,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                             executionGraphCache,
                             executor,
                             initializeThreadInfoTracker(executor));
-            handlers.add(
-                    Tuple2.of(
-                            jobVertexFlameGraphHandler.getMessageHeaders(),
-                            jobVertexFlameGraphHandler));
+        } else {
+            jobVertexFlameGraphHandler =
+                    JobVertexFlameGraphHandler.disabledHandler(
+                            leaderRetriever, timeout, responseHeaders);
         }
+        handlers.add(
+                Tuple2.of(
+                        jobVertexFlameGraphHandler.getMessageHeaders(),
+                        jobVertexFlameGraphHandler));
 
         handlers.add(
                 Tuple2.of(
