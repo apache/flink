@@ -114,7 +114,7 @@ class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     def __init__(self, field_coder: 'FieldCoderImpl'):
         super(ValueCoderImpl, self).__init__(field_coder)
 
-    def encode_to_stream(self, value, out_stream):
+    def encode_to_stream(self, value, out_stream: OutputStream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(out_stream)
 

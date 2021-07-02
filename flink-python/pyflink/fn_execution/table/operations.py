@@ -23,7 +23,7 @@ from typing import Tuple
 from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
-from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerImpl, TimerOperandType
+from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType, InternalTimerImpl
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 

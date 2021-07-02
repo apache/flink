@@ -26,6 +26,7 @@ cdef class BeamInputStream(LengthPrefixInputStream):
     cdef char*_input_data
     cdef size_t _input_buffer_size
     cdef size_t _input_pos
+    cdef BInputStream _input_stream
     cdef void _parse_input_stream(self, BInputStream input_stream)
 
 cdef class BeamOutputStream(LengthPrefixOutputStream):
@@ -33,6 +34,5 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
     cdef size_t _output_pos
     cdef size_t _output_buffer_size
     cdef BOutputStream _output_stream
-    cdef void _map_output_data_to_output_stream(self)
     cdef void _maybe_flush(self)
     cdef void _parse_output_stream(self, BOutputStream output_stream)

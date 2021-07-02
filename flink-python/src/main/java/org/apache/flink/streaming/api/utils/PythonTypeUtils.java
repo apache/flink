@@ -448,16 +448,16 @@ public class PythonTypeUtils {
         }
 
         @SuppressWarnings("unchecked")
-        public static TypeSerializer typeInfoSerializerConverter(
-                TypeInformation<?> typeInformation) {
-            TypeSerializer<?> typeSerializer =
+        public static <T> TypeSerializer<T> typeInfoSerializerConverter(
+                TypeInformation<T> typeInformation) {
+            TypeSerializer<T> typeSerializer =
                     typeInfoToSerializerMap.get(typeInformation.getTypeClass());
             if (typeSerializer != null) {
                 return typeSerializer;
             } else {
 
                 if (typeInformation instanceof PickledByteArrayTypeInfo) {
-                    return BytePrimitiveArraySerializer.INSTANCE;
+                    return (TypeSerializer<T>) BytePrimitiveArraySerializer.INSTANCE;
                 }
 
                 if (typeInformation instanceof RowTypeInfo) {
@@ -466,7 +466,7 @@ public class PythonTypeUtils {
                             Arrays.stream(rowTypeInfo.getFieldTypes())
                                     .map(f -> typeInfoSerializerConverter(f))
                                     .toArray(TypeSerializer[]::new);
-                    return new RowSerializer(fieldTypeSerializers);
+                    return (TypeSerializer<T>) new RowSerializer(fieldTypeSerializers);
                 }
 
                 if (typeInformation instanceof TupleTypeInfo) {
@@ -479,40 +479,50 @@ public class PythonTypeUtils {
 
                     TypeSerializer<?>[] fieldTypeSerializers =
                             Arrays.stream(typeInformations)
-                                    .map(f -> typeInfoSerializerConverter(f))
+                                    .map(TypeInfoToSerializerConverter::typeInfoSerializerConverter)
                                     .toArray(TypeSerializer[]::new);
-                    return new TupleSerializer(
-                            Tuple.getTupleClass(tupleTypeInfo.getArity()), fieldTypeSerializers);
+                    return (TypeSerializer<T>)
+                            new TupleSerializer<>(
+                                    Tuple.getTupleClass(tupleTypeInfo.getArity()),
+                                    fieldTypeSerializers);
                 }
 
                 if (typeInformation instanceof BasicArrayTypeInfo) {
                     BasicArrayTypeInfo<?, ?> basicArrayTypeInfo =
                             (BasicArrayTypeInfo<?, ?>) typeInformation;
-                    return new GenericArraySerializer(
-                            basicArrayTypeInfo.getComponentTypeClass(),
-                            typeInfoSerializerConverter(basicArrayTypeInfo.getComponentInfo()));
+                    return (TypeSerializer<T>)
+                            new GenericArraySerializer(
+                                    basicArrayTypeInfo.getComponentTypeClass(),
+                                    typeInfoSerializerConverter(
+                                            basicArrayTypeInfo.getComponentInfo()));
                 }
 
                 if (typeInformation instanceof ObjectArrayTypeInfo) {
                     ObjectArrayTypeInfo<?, ?> objectArrayTypeInfo =
                             (ObjectArrayTypeInfo<?, ?>) typeInformation;
-                    return new GenericArraySerializer(
-                            objectArrayTypeInfo.getComponentInfo().getTypeClass(),
-                            typeInfoSerializerConverter(objectArrayTypeInfo.getComponentInfo()));
+                    return (TypeSerializer<T>)
+                            new GenericArraySerializer(
+                                    objectArrayTypeInfo.getComponentInfo().getTypeClass(),
+                                    typeInfoSerializerConverter(
+                                            objectArrayTypeInfo.getComponentInfo()));
                 }
 
                 if (typeInformation instanceof MapTypeInfo) {
-                    return new MapSerializer(
-                            typeInfoSerializerConverter(
-                                    ((MapTypeInfo<?, ?>) typeInformation).getKeyTypeInfo()),
-                            typeInfoSerializerConverter(
-                                    ((MapTypeInfo<?, ?>) typeInformation).getValueTypeInfo()));
+                    return (TypeSerializer<T>)
+                            new MapSerializer<>(
+                                    typeInfoSerializerConverter(
+                                            ((MapTypeInfo<?, ?>) typeInformation).getKeyTypeInfo()),
+                                    typeInfoSerializerConverter(
+                                            ((MapTypeInfo<?, ?>) typeInformation)
+                                                    .getValueTypeInfo()));
                 }
 
                 if (typeInformation instanceof ListTypeInfo) {
-                    return new ListSerializer(
-                            typeInfoSerializerConverter(
-                                    ((ListTypeInfo<?>) typeInformation).getElementTypeInfo()));
+                    return (TypeSerializer<T>)
+                            new ListSerializer<>(
+                                    typeInfoSerializerConverter(
+                                            ((ListTypeInfo<?>) typeInformation)
+                                                    .getElementTypeInfo()));
                 }
             }
 

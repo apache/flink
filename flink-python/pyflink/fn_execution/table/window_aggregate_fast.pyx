@@ -30,7 +30,7 @@ from typing import List, Dict
 
 import pytz
 
-from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
@@ -345,14 +345,14 @@ cdef class GroupWindowAggFunctionBase:
         self._rowtime_index = rowtime_index
         self._shift_timezone = shift_timezone
         self._window_function = None  # type: InternalWindowProcessFunction[K, W]
-        self._internal_timer_service = None  # type: InternalTimerServiceImpl
+        self._internal_timer_service = None  # type: LegacyInternalTimerServiceImpl
         self._window_context = None  # type: WindowContext
         self._trigger = trigger
         self._trigger_context = None  # type: TriggerContext
         self._window_state = self._state_backend.get_value_state("window_state", state_value_coder)
 
     cpdef void open(self, object function_context):
-        self._internal_timer_service = InternalTimerServiceImpl(self._state_backend)
+        self._internal_timer_service = LegacyInternalTimerServiceImpl(self._state_backend)
         self._window_aggregator.open(
             PerWindowStateDataViewStore(function_context, self._state_backend))
 

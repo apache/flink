@@ -175,7 +175,7 @@ cdef class LengthPrefixBaseCoderImpl:
     """
 
     def __init__(self, field_coder: FieldCoderImpl):
-        self._field_coder = field_coder  # type: FieldCoderImpl
+        self._field_coder = field_coder
         self._data_out_stream = OutputStream()
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
