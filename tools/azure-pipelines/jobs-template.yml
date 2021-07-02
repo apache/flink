@@ -175,9 +175,7 @@ jobs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
 
-  - script: |
-      mkdir -p $(TESTCONTAINER_CACHE_FOLDER)
-      docker save $(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- "testcontainers|kafka|elasticsearch|postgres|mysql") -o $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+  - script: ./tools/azure-pipelines/cache_docker_images.sh
     displayName: Save Testcontainer docker images
     condition: and(not(canceled()), or(failed(), ne(variables.TESTCONTAINER_CACHE_HIT, 'true')))
     continueOnError: true
@@ -278,9 +276,7 @@ jobs:
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
         artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
-    - script: |
-        mkdir -p $(TESTCONTAINER_CACHE_FOLDER)
-        docker save $(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- "testcontainers|kafka|elasticsearch|postgres|mysql") -o $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+    - script: ./tools/azure-pipelines/cache_docker_images.sh
       displayName: Save Testcontainer docker images
       condition: and(not(eq(variables['SKIP'], '1')), ne(variables.TESTCONTAINER_CACHE_HIT, 'true'))
       continueOnError: true
