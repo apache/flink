@@ -228,6 +228,19 @@ jobs:
       displayName: Cache E2E artifacts
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: 'e2e | $(TESTCONTAINER_CACHE_KEY)'
+        path: $(TESTCONTAINER_CACHE_FOLDER)
+        cacheHitVar: TESTCONTAINER_CACHE_HIT
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+      displayName: Cache Testcontainer docker images
+    - script: |
+        docker load -i $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+      displayName: Restore Testcontainer docker images
+      condition: and(not(canceled()), eq(variables.TESTCONTAINER_CACHE_HIT, 'true'))
+      continueOnError: true
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
         echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
@@ -266,3 +279,9 @@ jobs:
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
         artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+    - script: |
+        mkdir -p $(TESTCONTAINER_CACHE_FOLDER)
+        docker save $(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- "testcontainers|kafka|elasticsearch|postgres|mysql") -o $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
+      displayName: Save Testcontainer docker images
+      condition: and(not(canceled()), not(eq(variables['SKIP'])), or(failed(), ne(variables.TESTCONTAINER_CACHE_HIT, 'true')))
+      continueOnError: true
