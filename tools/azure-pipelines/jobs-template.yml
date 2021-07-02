@@ -282,5 +282,5 @@ jobs:
         mkdir -p $(TESTCONTAINER_CACHE_FOLDER)
         docker save $(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- "testcontainers|kafka|elasticsearch|postgres|mysql") -o $(TESTCONTAINER_CACHE_FOLDER)/cache.tar || true
       displayName: Save Testcontainer docker images
-      condition: and(not(canceled()), not(eq(variables['SKIP'])), or(failed(), ne(variables.TESTCONTAINER_CACHE_HIT, 'true')))
+      condition: and(not(eq(variables['SKIP'], '1')), ne(variables.TESTCONTAINER_CACHE_HIT, 'true'))
       continueOnError: true
