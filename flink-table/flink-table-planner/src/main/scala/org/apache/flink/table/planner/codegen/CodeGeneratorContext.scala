@@ -121,11 +121,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     */
   private var currentMethodNameForLocalVariables = "DEFAULT"
 
-  /**
-   * Flag map that indicates whether the generated code for method is split into several methods.
-   */
-  private val isCodeSplitMap = mutable.Map[String, Boolean]()
-
   // map of local variable statements. It will be placed in method if method code not excess
   // max code length, otherwise will be placed in member area of the class. The statements
   // are maintained for multiple methods, so that it's a map from method_name to variables.
@@ -159,15 +154,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def startNewLocalVariableStatement(methodName: String): Unit = {
     currentMethodNameForLocalVariables = methodName
     reusableLocalVariableStatements(methodName) = mutable.LinkedHashSet[String]()
-  }
-
-  /**
-   * Set the flag [[isCodeSplitMap]] to be true for methodName, which indicates
-   * the generated code is split into several methods.
-   * @param methodName the method which will be split.
-   */
-  def setCodeSplit(methodName: String = currentMethodNameForLocalVariables): Unit = {
-    isCodeSplitMap(methodName) = true
   }
 
   /**
@@ -223,19 +209,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         (e.g. member variables and their initialization)
     */
   def reuseMemberCode(): String = {
-    val result = reusableMemberStatements.mkString("\n")
-    if (isCodeSplitMap.nonEmpty) {
-      val localVariableAsMember = reusableLocalVariableStatements.map(
-        statements => if (isCodeSplitMap.getOrElse(statements._1, false)) {
-          statements._2.map("private " + _).mkString("\n")
-        } else {
-          ""
-        }
-      ).filter(_.length > 0).mkString("\n")
-      result + "\n" + localVariableAsMember
-    } else {
-      result
-    }
+    reusableMemberStatements.mkString("\n")
   }
 
   /**
@@ -243,9 +217,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     *         if generated code is split or in local variables of method
     */
   def reuseLocalVariableCode(methodName: String = currentMethodNameForLocalVariables): String = {
-    if (isCodeSplitMap.getOrElse(methodName, false)) {
-      GeneratedExpression.NO_CODE
-    } else if (methodName == null) {
+    if (methodName == null) {
       reusableLocalVariableStatements(currentMethodNameForLocalVariables).mkString("\n")
     } else {
       reusableLocalVariableStatements(methodName).mkString("\n")

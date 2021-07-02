@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
@@ -41,11 +42,11 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.{Sarg, TimestampString}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
 import scala.collection.JavaConversions._
 
@@ -248,13 +249,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       outRow: String = DEFAULT_OUT_RECORD_TERM,
       outRowWriter: Option[String] = Some(DEFAULT_OUT_RECORD_WRITER_TERM),
       reusedOutRow: Boolean = true,
-      outRowAlreadyExists: Boolean = false,
-      allowSplit: Boolean = false,
-      methodName: String = null): GeneratedExpression = {
+      outRowAlreadyExists: Boolean = false): GeneratedExpression = {
     val fieldExprIdxToOutputRowPosMap = fieldExprs.indices.map(i => i -> i).toMap
     generateResultExpression(fieldExprs, fieldExprIdxToOutputRowPosMap, returnType,
-      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists,
-      allowSplit, methodName)
+      returnTypeClazz, outRow, outRowWriter, reusedOutRow, outRowAlreadyExists)
   }
 
   /**
@@ -280,9 +278,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     outRow: String,
     outRowWriter: Option[String],
     reusedOutRow: Boolean,
-    outRowAlreadyExists: Boolean,
-    allowSplit: Boolean,
-    methodName: String)
+    outRowAlreadyExists: Boolean)
   : GeneratedExpression = {
     // initial type check
     if (returnType.getFieldCount != fieldExprs.length) {
@@ -314,34 +310,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ => // ok
     }
 
-    val setFieldsCodes = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
+    val setFieldsCode = fieldExprs.zipWithIndex.map { case (fieldExpr, index) =>
       val pos = fieldExprIdxToOutputRowPosMap.getOrElse(index,
         throw new CodeGenException(s"Illegal field expr index: $index"))
       rowSetField(ctx, returnTypeClazz, outRow, pos.toString, fieldExpr, outRowWriter)
-    }
-    val totalLen = setFieldsCodes.map(_.length).sum
-    val maxCodeLength = ctx.tableConfig.getMaxGeneratedCodeLength
-    val setFieldsCode = if (allowSplit && totalLen > maxCodeLength) {
-      // do the split.
-      if (methodName != null) {
-        ctx.setCodeSplit(methodName)
-      } else {
-        ctx.setCodeSplit()
-      }
-      setFieldsCodes.map(project => {
-        val methodName = newName("split")
-        val method =
-          s"""
-            |private void $methodName() throws Exception {
-            |  $project
-            |}
-            |""".stripMargin
-        ctx.addReusableMember(method)
-        s"$methodName();"
-      }).mkString("\n")
-    } else {
-      setFieldsCodes.mkString("\n")
-    }
+    }.mkString("\n")
 
     val outRowInitCode = if (!outRowAlreadyExists) {
       val initCode = generateRecordStatement(returnType, returnTypeClazz, outRow, outRowWriter, ctx)
