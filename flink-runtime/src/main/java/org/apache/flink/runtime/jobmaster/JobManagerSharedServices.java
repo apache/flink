@@ -26,6 +26,8 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -47,15 +49,19 @@ public class JobManagerSharedServices {
 
     private final LibraryCacheManager libraryCacheManager;
 
+    private final ShuffleMaster<?> shuffleMaster;
+
     @Nonnull private final BlobWriter blobWriter;
 
     public JobManagerSharedServices(
             ScheduledExecutorService scheduledExecutorService,
             LibraryCacheManager libraryCacheManager,
+            ShuffleMaster<?> shuffleMaster,
             @Nonnull BlobWriter blobWriter) {
 
         this.scheduledExecutorService = checkNotNull(scheduledExecutorService);
         this.libraryCacheManager = checkNotNull(libraryCacheManager);
+        this.shuffleMaster = checkNotNull(shuffleMaster);
         this.blobWriter = blobWriter;
     }
 
@@ -65,6 +71,10 @@ public class JobManagerSharedServices {
 
     public LibraryCacheManager getLibraryCacheManager() {
         return libraryCacheManager;
+    }
+
+    public ShuffleMaster<?> getShuffleMaster() {
+        return shuffleMaster;
     }
 
     @Nonnull
@@ -103,7 +113,8 @@ public class JobManagerSharedServices {
     // ------------------------------------------------------------------------
 
     public static JobManagerSharedServices fromConfiguration(
-            Configuration config, BlobServer blobServer, FatalErrorHandler fatalErrorHandler) {
+            Configuration config, BlobServer blobServer, FatalErrorHandler fatalErrorHandler)
+            throws Exception {
 
         checkNotNull(config);
         checkNotNull(blobServer);
@@ -133,6 +144,10 @@ public class JobManagerSharedServices {
                         Hardware.getNumberCPUCores(),
                         new ExecutorThreadFactory("jobmanager-future"));
 
-        return new JobManagerSharedServices(futureExecutor, libraryCacheManager, blobServer);
+        final ShuffleMaster<?> shuffleMaster =
+                ShuffleServiceLoader.loadShuffleServiceFactory(config).createShuffleMaster(config);
+
+        return new JobManagerSharedServices(
+                futureExecutor, libraryCacheManager, shuffleMaster, blobServer);
     }
 }
