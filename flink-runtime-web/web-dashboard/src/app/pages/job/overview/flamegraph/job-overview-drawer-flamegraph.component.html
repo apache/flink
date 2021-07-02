@@ -29,7 +29,7 @@ Type:
 </nz-radio-group>
 
 Measurement:
-<span *ngIf="flameGraph.endTimestamp">
+<span *ngIf="flameGraph.endTimestamp != -1; else notAvailable">
   {{ (now - flameGraph.endTimestamp) | humanizeDuration }} ago
 </span>
 
@@ -41,6 +41,6 @@ Measurement:
   <nz-spin *ngIf="isLoading"></nz-spin>
 </div>
 
-
-
-
+<ng-template #notAvailable>
+  <span>Flame graph is currently unavailable</span>
+</ng-template>
