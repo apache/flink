@@ -575,6 +575,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 allGatesRecoveredFuture.isDone(),
                 "Mailbox loop interrupted before recovery was finished.");
 
+        // we recovered all the gates, we can close the channel IO executor as it is no longer
+        // needed
+        channelIOExecutor.shutdown();
+
         isRunning = true;
     }
 
