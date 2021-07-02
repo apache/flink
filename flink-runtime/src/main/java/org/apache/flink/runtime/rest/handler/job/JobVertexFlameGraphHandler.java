@@ -37,6 +37,8 @@ import org.apache.flink.runtime.webmonitor.threadinfo.JobVertexThreadInfoTracker
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
+import javax.annotation.Nullable;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,7 +56,9 @@ public class JobVertexFlameGraphHandler
             Map<String, String> responseHeaders,
             ExecutionGraphCache executionGraphCache,
             Executor executor,
-            JobVertexThreadInfoTracker<JobVertexThreadInfoStats> threadInfoOperatorTracker) {
+            @Nullable
+                    JobVertexThreadInfoTracker<JobVertexThreadInfoStats>
+                            threadInfoOperatorTracker) {
         super(
                 leaderRetriever,
                 timeout,
@@ -62,6 +66,8 @@ public class JobVertexFlameGraphHandler
                 JobVertexFlameGraphHeaders.getInstance(),
                 executionGraphCache,
                 executor);
+        // If threadInfoOperatorTracker is not initialized, it means the flame graph is disabled and
+        // we should return an empty flame graph when requested
         this.threadInfoOperatorTracker = threadInfoOperatorTracker;
     }
 
@@ -71,8 +77,12 @@ public class JobVertexFlameGraphHandler
             AccessExecutionJobVertex jobVertex)
             throws RestHandlerException {
 
+        if (threadInfoOperatorTracker == null) {
+            return JobVertexFlameGraph.disabled();
+        }
+
         if (jobVertex.getAggregateState().isTerminal()) {
-            return JobVertexFlameGraph.empty();
+            return JobVertexFlameGraph.terminated();
         }
 
         final Optional<JobVertexThreadInfoStats> threadInfoSample =
@@ -102,7 +112,7 @@ public class JobVertexFlameGraphHandler
                         HttpResponseStatus.BAD_REQUEST);
         }
 
-        return operatorFlameGraph.orElse(JobVertexFlameGraph.empty());
+        return operatorFlameGraph.orElse(JobVertexFlameGraph.waiting());
     }
 
     private static FlameGraphTypeQueryParameter.Type getFlameGraphType(
@@ -119,6 +129,8 @@ public class JobVertexFlameGraphHandler
 
     @Override
     public void close() throws Exception {
-        threadInfoOperatorTracker.shutDown();
+        if (threadInfoOperatorTracker != null) {
+            threadInfoOperatorTracker.shutDown();
+        }
     }
 }

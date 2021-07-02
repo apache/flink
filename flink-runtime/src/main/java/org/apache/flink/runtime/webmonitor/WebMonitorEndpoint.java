@@ -740,20 +740,23 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         jobVertexBackPressureHandler.getMessageHeaders(),
                         jobVertexBackPressureHandler));
 
-        if (clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH)) {
-            final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
-                    new JobVertexFlameGraphHandler(
-                            leaderRetriever,
-                            timeout,
-                            responseHeaders,
-                            executionGraphCache,
-                            executor,
-                            initializeThreadInfoTracker(executor));
-            handlers.add(
-                    Tuple2.of(
-                            jobVertexFlameGraphHandler.getMessageHeaders(),
-                            jobVertexFlameGraphHandler));
-        }
+        Boolean isFlameGraphEnabled = clusterConfiguration.get(RestOptions.ENABLE_FLAMEGRAPH);
+        // If flame graph is disabled, there is no need to initialize jobVertexThreadInfoTracker
+        JobVertexThreadInfoTracker<JobVertexThreadInfoStats> jobVertexThreadInfoTracker =
+                isFlameGraphEnabled ? initializeThreadInfoTracker(executor) : null;
+
+        final JobVertexFlameGraphHandler jobVertexFlameGraphHandler =
+                new JobVertexFlameGraphHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        executionGraphCache,
+                        executor,
+                        jobVertexThreadInfoTracker);
+        handlers.add(
+                Tuple2.of(
+                        jobVertexFlameGraphHandler.getMessageHeaders(),
+                        jobVertexFlameGraphHandler));
 
         handlers.add(
                 Tuple2.of(
