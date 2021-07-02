@@ -19,7 +19,6 @@ package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
@@ -27,14 +26,11 @@ import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-import org.apache.flink.util.CloseableIterator;
 
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -56,14 +52,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
         this.handlesAndOffsets = handlesAndOffsets;
         this.keyGroupRange = keyGroupRange;
         this.size = size;
-    }
-
-    public ChangelogStateHandleStreamImpl(
-            List<Tuple3<StreamStateHandle, Long, Long>> sorted, KeyGroupRange keyGroupRange) {
-        this(
-                sorted.stream().map(t -> Tuple2.of(t.f0, t.f1)).collect(Collectors.toList()),
-                keyGroupRange,
-                sorted.stream().mapToLong(t1 -> t1.f2).sum());
     }
 
     @Override
@@ -115,11 +103,6 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
             return new SharedStateRegistryKey(
                     Integer.toString(System.identityHashCode(stateHandle)));
         }
-    }
-
-    public interface StateChangeStreamReader {
-        CloseableIterator<StateChange> read(StreamStateHandle handle, long offset)
-                throws IOException;
     }
 
     public List<Tuple2<StreamStateHandle, Long>> getHandlesAndOffsets() {
