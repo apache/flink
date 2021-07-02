@@ -42,6 +42,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -94,7 +95,8 @@ public class TaskDeploymentDescriptorFactory {
     public TaskDeploymentDescriptor createDeploymentDescriptor(
             AllocationID allocationID,
             @Nullable JobManagerTaskRestore taskRestore,
-            Collection<ResultPartitionDeploymentDescriptor> producedPartitions) {
+            Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
+            throws IOException {
         return new TaskDeploymentDescriptor(
                 jobID,
                 serializedJobInformation,
@@ -108,7 +110,8 @@ public class TaskDeploymentDescriptorFactory {
                 createInputGateDeploymentDescriptors());
     }
 
-    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors() {
+    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors()
+            throws IOException {
         List<InputGateDeploymentDescriptor> inputGates =
                 new ArrayList<>(consumedPartitionGroups.size());
 
@@ -131,14 +134,29 @@ public class TaskDeploymentDescriptorFactory {
                             resultId,
                             partitionType,
                             queueToRequest,
-                            getConsumedPartitionShuffleDescriptors(consumedPartitionGroup)));
+                            getConsumedPartitionShuffleDescriptors(
+                                    consumedIntermediateResult, consumedPartitionGroup)));
         }
 
         return inputGates;
     }
 
-    private ShuffleDescriptor[] getConsumedPartitionShuffleDescriptors(
-            ConsumedPartitionGroup consumedPartitionGroup) {
+    private SerializedValue<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
+            IntermediateResult intermediateResult, ConsumedPartitionGroup consumedPartitionGroup)
+            throws IOException {
+        SerializedValue<ShuffleDescriptor[]> serializedShuffleDescriptors =
+                intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
+        if (serializedShuffleDescriptors == null) {
+            serializedShuffleDescriptors =
+                    computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup);
+            intermediateResult.cacheShuffleDescriptors(
+                    consumedPartitionGroup, serializedShuffleDescriptors);
+        }
+        return serializedShuffleDescriptors;
+    }
+
+    private SerializedValue<ShuffleDescriptor[]> computeConsumedPartitionShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
 
         ShuffleDescriptor[] shuffleDescriptors =
                 new ShuffleDescriptor[consumedPartitionGroup.size()];
@@ -150,7 +168,7 @@ public class TaskDeploymentDescriptorFactory {
                             resultPartitionRetriever.apply(partitionId),
                             partitionDeploymentConstraint);
         }
-        return shuffleDescriptors;
+        return CompressedSerializedValue.fromObject(shuffleDescriptors);
     }
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
@@ -226,6 +244,12 @@ public class TaskDeploymentDescriptorFactory {
             return consumedPartitionDescriptor.getShuffleDescriptor();
         } else if (partitionDeploymentConstraint == PartitionLocationConstraint.CAN_BE_UNKNOWN) {
             // The producing task might not have registered the partition yet
+            //
+            // Currently, UnknownShuffleDescriptor will be created only if there is an intra-region
+            // blocking edge in the graph. This means that when its consumer restarts, the
+            // producer of the UnknownShuffleDescriptors will also restart. Therefore, it's safe to
+            // cache UnknownShuffleDescriptors and there's no need to update the cache when the
+            // corresponding partition becomes consumable.
             return new UnknownShuffleDescriptor(consumedPartitionId);
         } else {
             // throw respective exceptions

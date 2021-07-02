@@ -18,14 +18,18 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.util.CompressedSerializedValue;
+import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nonnegative;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 
@@ -59,17 +63,34 @@ public class InputGateDeploymentDescriptor implements Serializable {
     @Nonnegative private final int consumedSubpartitionIndex;
 
     /** An input channel for each consumed subpartition. */
-    private final ShuffleDescriptor[] inputChannels;
+    private transient ShuffleDescriptor[] inputChannels;
+
+    /** Serialized value of shuffle descriptors. */
+    private final SerializedValue<ShuffleDescriptor[]> serializedInputChannels;
+
+    @VisibleForTesting
+    public InputGateDeploymentDescriptor(
+            IntermediateDataSetID consumedResultId,
+            ResultPartitionType consumedPartitionType,
+            @Nonnegative int consumedSubpartitionIndex,
+            ShuffleDescriptor[] inputChannels)
+            throws IOException {
+        this(
+                consumedResultId,
+                consumedPartitionType,
+                consumedSubpartitionIndex,
+                CompressedSerializedValue.fromObject(inputChannels));
+    }
 
     public InputGateDeploymentDescriptor(
             IntermediateDataSetID consumedResultId,
             ResultPartitionType consumedPartitionType,
             @Nonnegative int consumedSubpartitionIndex,
-            ShuffleDescriptor[] inputChannels) {
+            SerializedValue<ShuffleDescriptor[]> serializedInputChannels) {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.consumedSubpartitionIndex = consumedSubpartitionIndex;
-        this.inputChannels = checkNotNull(inputChannels);
+        this.serializedInputChannels = checkNotNull(serializedInputChannels);
     }
 
     public IntermediateDataSetID getConsumedResultId() {
@@ -91,6 +112,19 @@ public class InputGateDeploymentDescriptor implements Serializable {
     }
 
     public ShuffleDescriptor[] getShuffleDescriptors() {
+        try {
+            if (inputChannels == null) {
+                if (serializedInputChannels != null) {
+                    inputChannels =
+                            serializedInputChannels.deserializeValue(getClass().getClassLoader());
+                } else {
+                    throw new IllegalStateException(
+                            "No input channel available in this InputChannelDeploymentDescriptor.");
+                }
+            }
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException("Could not deserialize shuffle descriptors.", e);
+        }
         return inputChannels;
     }
 
@@ -101,6 +135,6 @@ public class InputGateDeploymentDescriptor implements Serializable {
                         + "consumed subpartition index: %d, input channels: %s]",
                 consumedResultId.toString(),
                 consumedSubpartitionIndex,
-                Arrays.toString(inputChannels));
+                Arrays.toString(getShuffleDescriptors()));
     }
 }
