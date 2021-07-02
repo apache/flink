@@ -19,6 +19,12 @@ public class CliStringsITCase {
     private final String empty = "";
     final String lineBreaker = "\n";
 
+    /**
+     * Test {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP} contains all
+     * commands' help descriptions in package {@link org.apache.flink.table.operations.command}.
+     *
+     * @throws IOException exception.
+     */
     @Test
     public void testCompletenessOfCliClientCommandsInHelp() throws IOException {
         final String operationSuffix = "OPERATION";
@@ -45,9 +51,10 @@ public class CliStringsITCase {
     }
 
     /**
-     * Get Commands Hints in package {@link org.apache.flink.table.operations.command}
+     * Get Commands Hints in package {@link org.apache.flink.table.operations.command}.
      *
-     * @return A list which contains operation name in upper case without 'Operation' suffix and space.
+     * @return A list which contains operation name in upper case without 'Operation' suffix
+     * and space.
      *
      * @throws IOException exception.
      */
@@ -66,7 +73,7 @@ public class CliStringsITCase {
     }
 
     /**
-     * Get Commands Hints in {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP}
+     * Get Commands Hints in {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP}.
      *
      * @return A list which contains operation name in upper case.
      *
