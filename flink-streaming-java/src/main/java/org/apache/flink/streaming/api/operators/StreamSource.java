@@ -162,8 +162,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     /**
      * Marks this source as canceled or stopped.
      *
-     * <p>This indicates that any exit of the {@link #run(Object, StreamStatusMaintainer, Output)}
-     * method cannot be interpreted as the result of a finite source.
+     * <p>This indicates that any exit of the {@link #run(Object, Output, OperatorChain)} method
+     * cannot be interpreted as the result of a finite source.
      */
     protected void markCanceledOrStopped() {
         this.canceledOrStopped = true;
