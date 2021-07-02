@@ -25,10 +25,20 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.util.Preconditions;
+
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
+
+import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.MAIN_INPUT_NAME;
+import static org.apache.flink.python.Constants.MAIN_OUTPUT_NAME;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.TRANSFORM_ID;
 
 /**
  * {@link BeamDataStreamPythonFunctionRunner} is responsible for starting a beam python harness to
@@ -37,6 +47,7 @@ import java.util.Map;
 @Internal
 public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner {
 
+    private final String functionUrn;
     private final FlinkFnApi.UserDefinedDataStreamFunction userDefinedDataStreamFunction;
 
     public BeamDataStreamPythonFunctionRunner(
@@ -56,7 +67,6 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 stateBackend,
@@ -66,11 +76,28 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                 managedMemoryFraction,
                 inputCoderDescriptor,
                 outputCoderDescriptor);
-        this.userDefinedDataStreamFunction = userDefinedDataStreamFunction;
+        this.functionUrn = Preconditions.checkNotNull(functionUrn);
+        this.userDefinedDataStreamFunction =
+                Preconditions.checkNotNull(userDefinedDataStreamFunction);
     }
 
     @Override
-    protected byte[] getUserDefinedFunctionsProtoBytes() {
-        return this.userDefinedDataStreamFunction.toByteArray();
+    protected Map<String, RunnerApi.PTransform> getTransforms() {
+        return Collections.singletonMap(
+                TRANSFORM_ID,
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(TRANSFORM_ID)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(functionUrn)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        userDefinedDataStreamFunction
+                                                                .toByteArray()))
+                                        .build())
+                        .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
+                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
+                        .build());
     }
 }

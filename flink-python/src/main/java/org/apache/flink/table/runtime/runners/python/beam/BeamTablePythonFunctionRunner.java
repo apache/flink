@@ -29,12 +29,23 @@ import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunn
 import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.GeneratedMessageV3;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 
+import java.util.Collections;
 import java.util.Map;
+
+import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.MAIN_INPUT_NAME;
+import static org.apache.flink.python.Constants.MAIN_OUTPUT_NAME;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.TRANSFORM_ID;
 
 /** A {@link BeamTablePythonFunctionRunner} used to execute Python functions in Table API. */
 @Internal
 public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
+
+    /** The urn which represents the function kind to be executed. */
+    private final String functionUrn;
 
     private final GeneratedMessageV3 userDefinedFunctionProto;
 
@@ -55,7 +66,6 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
         super(
                 taskName,
                 environmentManager,
-                functionUrn,
                 jobOptions,
                 flinkMetricContainer,
                 keyedStateBackend,
@@ -65,11 +75,26 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                 managedMemoryFraction,
                 inputCoderDescriptor,
                 outputCoderDescriptor);
+        this.functionUrn = Preconditions.checkNotNull(functionUrn);
         this.userDefinedFunctionProto = Preconditions.checkNotNull(userDefinedFunctionProto);
     }
 
     @Override
-    protected byte[] getUserDefinedFunctionsProtoBytes() {
-        return userDefinedFunctionProto.toByteArray();
+    protected Map<String, RunnerApi.PTransform> getTransforms() {
+        return Collections.singletonMap(
+                TRANSFORM_ID,
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(TRANSFORM_ID)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(functionUrn)
+                                        .setPayload(
+                                                org.apache.beam.vendor.grpc.v1p26p0.com.google
+                                                        .protobuf.ByteString.copyFrom(
+                                                        userDefinedFunctionProto.toByteArray()))
+                                        .build())
+                        .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
+                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
+                        .build());
     }
 }
