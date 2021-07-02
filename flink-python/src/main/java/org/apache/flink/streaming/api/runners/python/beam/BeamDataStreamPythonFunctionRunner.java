@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.BeamUrns;
 
 import javax.annotation.Nullable;
 
@@ -83,11 +84,10 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 
     @Override
     protected Map<String, RunnerApi.PTransform> getTransforms() {
-        return Collections.singletonMap(
-                TRANSFORM_ID,
-                RunnerApi.PTransform.newBuilder()
-                        .setUniqueName(TRANSFORM_ID)
-                        .setSpec(
+        // Use ParDoPayload as a wrapper of the actual payload as timer is only supported in ParDo
+        RunnerApi.ParDoPayload payload =
+                RunnerApi.ParDoPayload.newBuilder()
+                        .setDoFn(
                                 RunnerApi.FunctionSpec.newBuilder()
                                         .setUrn(functionUrn)
                                         .setPayload(
@@ -95,6 +95,20 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
                                                         .protobuf.ByteString.copyFrom(
                                                         userDefinedDataStreamFunction
                                                                 .toByteArray()))
+                                        .build())
+                        .build();
+
+        return Collections.singletonMap(
+                TRANSFORM_ID,
+                RunnerApi.PTransform.newBuilder()
+                        .setUniqueName(TRANSFORM_ID)
+                        .setSpec(
+                                RunnerApi.FunctionSpec.newBuilder()
+                                        .setUrn(
+                                                BeamUrns.getUrn(
+                                                        RunnerApi.StandardPTransforms.Primitives
+                                                                .PAR_DO))
+                                        .setPayload(payload.toByteString())
                                         .build())
                         .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
                         .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
