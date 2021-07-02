@@ -269,7 +269,7 @@ public class DispatcherTest extends TestLogger {
      */
     @Test
     public void testJobSubmissionWithPartialResourceConfigured() throws Exception {
-        ResourceSpec resourceSpec = ResourceSpec.newBuilder(2.0, 0).build();
+        ResourceSpec resourceSpec = ResourceSpec.newBuilder(2.0, 10).build();
 
         final JobVertex firstVertex = new JobVertex("firstVertex");
         firstVertex.setInvokableClass(NoOpInvokable.class);

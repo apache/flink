@@ -26,6 +26,7 @@ import org.apache.flink.configuration.MemorySize;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -70,7 +71,13 @@ public final class ResourceSpec implements Serializable {
     public static final ResourceSpec DEFAULT = UNKNOWN;
 
     /** A ResourceSpec that indicates zero amount of resources. */
-    public static final ResourceSpec ZERO = ResourceSpec.newBuilder(0.0, 0).build();
+    public static final ResourceSpec ZERO =
+            new ResourceSpec(
+                    new CPUResource(0.0),
+                    MemorySize.ZERO,
+                    MemorySize.ZERO,
+                    MemorySize.ZERO,
+                    Collections.emptyMap());
 
     /** How many cpu cores are needed. Can be null only if it is unknown. */
     @Nullable private final CPUResource cpuCores;
@@ -397,6 +404,8 @@ public final class ResourceSpec implements Serializable {
         }
 
         public ResourceSpec build() {
+            checkArgument(cpuCores.getValue().compareTo(BigDecimal.ZERO) > 0);
+            checkArgument(taskHeapMemory.compareTo(MemorySize.ZERO) > 0);
             return new ResourceSpec(
                     cpuCores, taskHeapMemory, taskOffHeapMemory, managedMemory, extendedResources);
         }
