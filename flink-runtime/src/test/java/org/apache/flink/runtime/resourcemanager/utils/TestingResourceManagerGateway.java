@@ -61,7 +61,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -98,8 +97,8 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
                     Tuple3<ResourceID, InstanceID, SlotReport>, CompletableFuture<Acknowledge>>
             sendSlotReportFunction;
 
-    private volatile BiConsumer<ResourceID, TaskExecutorHeartbeatPayload>
-            taskExecutorHeartbeatConsumer;
+    private volatile BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+            taskExecutorHeartbeatFunction;
 
     private volatile Consumer<Tuple3<InstanceID, SlotID, AllocationID>> notifySlotAvailableConsumer;
 
@@ -119,6 +118,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             declareRequiredResourcesFunction =
                     (ignoredA, ignoredB) ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    private volatile Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction;
 
     public TestingResourceManagerGateway() {
         this(
@@ -208,9 +208,15 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.sendSlotReportFunction = sendSlotReportFunction;
     }
 
-    public void setTaskExecutorHeartbeatConsumer(
-            BiConsumer<ResourceID, TaskExecutorHeartbeatPayload> taskExecutorHeartbeatConsumer) {
-        this.taskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+    public void setTaskExecutorHeartbeatFunction(
+            BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+                    taskExecutorHeartbeatFunction) {
+        this.taskExecutorHeartbeatFunction = taskExecutorHeartbeatFunction;
+    }
+
+    public void setJobMasterHeartbeatFunction(
+            Function<ResourceID, CompletableFuture<Void>> jobMasterHeartbeatFunction) {
+        this.jobMasterHeartbeatFunction = jobMasterHeartbeatFunction;
     }
 
     public void setNotifySlotAvailableConsumer(
@@ -319,18 +325,29 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     }
 
     @Override
-    public void heartbeatFromTaskManager(
+    public CompletableFuture<Void> heartbeatFromTaskManager(
             ResourceID heartbeatOrigin, TaskExecutorHeartbeatPayload heartbeatPayload) {
-        final BiConsumer<ResourceID, TaskExecutorHeartbeatPayload>
-                currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatConsumer;
+        final BiFunction<ResourceID, TaskExecutorHeartbeatPayload, CompletableFuture<Void>>
+                currentTaskExecutorHeartbeatConsumer = taskExecutorHeartbeatFunction;
 
         if (currentTaskExecutorHeartbeatConsumer != null) {
-            currentTaskExecutorHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
+            return currentTaskExecutorHeartbeatConsumer.apply(heartbeatOrigin, heartbeatPayload);
+        } else {
+            return FutureUtils.completedVoidFuture();
         }
     }
 
     @Override
-    public void heartbeatFromJobManager(ResourceID heartbeatOrigin) {}
+    public CompletableFuture<Void> heartbeatFromJobManager(ResourceID heartbeatOrigin) {
+        final Function<ResourceID, CompletableFuture<Void>> currentJobMasterHeartbeatFunction =
+                jobMasterHeartbeatFunction;
+
+        if (currentJobMasterHeartbeatFunction != null) {
+            return currentJobMasterHeartbeatFunction.apply(heartbeatOrigin);
+        } else {
+            return FutureUtils.completedVoidFuture();
+        }
+    }
 
     @Override
     public void disconnectTaskManager(ResourceID resourceID, Exception cause) {

@@ -480,14 +480,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public void heartbeatFromTaskManager(
+    public CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID resourceID, final TaskExecutorHeartbeatPayload heartbeatPayload) {
-        taskManagerHeartbeatManager.receiveHeartbeat(resourceID, heartbeatPayload);
+        return taskManagerHeartbeatManager.receiveHeartbeat(resourceID, heartbeatPayload);
     }
 
     @Override
-    public void heartbeatFromJobManager(final ResourceID resourceID) {
-        jobManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
+    public CompletableFuture<Void> heartbeatFromJobManager(final ResourceID resourceID) {
+        return jobManagerHeartbeatManager.receiveHeartbeat(resourceID, null);
     }
 
     @Override
@@ -1201,13 +1201,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
-        public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
             // the ResourceManager will always send heartbeat requests to the JobManager
+            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
-        public void requestHeartbeat(ResourceID resourceID, Void payload) {
-            jobMasterGateway.heartbeatFromResourceManager(resourceID);
+        public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
+            return jobMasterGateway.heartbeatFromResourceManager(resourceID);
         }
     }
 
@@ -1219,14 +1220,15 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
         }
 
         @Override
-        public void receiveHeartbeat(ResourceID resourceID, Void payload) {
+        public CompletableFuture<Void> receiveHeartbeat(ResourceID resourceID, Void payload) {
             // the ResourceManager will always send heartbeat requests to the
             // TaskManager
+            return FutureUtils.unsupportedOperationFuture();
         }
 
         @Override
-        public void requestHeartbeat(ResourceID resourceID, Void payload) {
-            taskExecutorGateway.heartbeatFromResourceManager(resourceID);
+        public CompletableFuture<Void> requestHeartbeat(ResourceID resourceID, Void payload) {
+            return taskExecutorGateway.heartbeatFromResourceManager(resourceID);
         }
     }
 
@@ -1312,17 +1314,29 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         @Override
         public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-            validateRunsInMainThread();
-            log.info(
-                    "The heartbeat of TaskManager with id {} timed out.",
-                    resourceID.getStringWithMetadata());
+            final String message =
+                    String.format(
+                            "The heartbeat of TaskManager with id %s timed out.",
+                            resourceID.getStringWithMetadata());
+            log.info(message);
 
-            closeTaskManagerConnection(
-                    resourceID,
-                    new TimeoutException(
-                            "The heartbeat of TaskManager with id "
-                                    + resourceID.getStringWithMetadata()
-                                    + "  timed out."));
+            handleTaskManagerConnectionLoss(resourceID, new TimeoutException(message));
+        }
+
+        private void handleTaskManagerConnectionLoss(ResourceID resourceID, Exception cause) {
+            validateRunsInMainThread();
+            closeTaskManagerConnection(resourceID, cause);
+        }
+
+        @Override
+        public void notifyTargetUnreachable(ResourceID resourceID) {
+            final String message =
+                    String.format(
+                            "TaskManager with id %s is no longer reachable.",
+                            resourceID.getStringWithMetadata());
+            log.info(message);
+
+            handleTaskManagerConnectionLoss(resourceID, new ResourceManagerException(message));
         }
 
         @Override
@@ -1354,9 +1368,17 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
         @Override
         public void notifyHeartbeatTimeout(final ResourceID resourceID) {
-            validateRunsInMainThread();
-            log.info("The heartbeat of JobManager with id {} timed out.", resourceID);
+            final String message =
+                    String.format(
+                            "The heartbeat of JobManager with id %s timed out.",
+                            resourceID.getStringWithMetadata());
+            log.info(message);
 
+            handleJobManagerConnectionLoss(resourceID, new TimeoutException(message));
+        }
+
+        private void handleJobManagerConnectionLoss(ResourceID resourceID, Exception cause) {
+            validateRunsInMainThread();
             if (jmResourceIdRegistrations.containsKey(resourceID)) {
                 JobManagerRegistration jobManagerRegistration =
                         jmResourceIdRegistrations.get(resourceID);
@@ -1365,12 +1387,20 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                     closeJobManagerConnection(
                             jobManagerRegistration.getJobID(),
                             ResourceRequirementHandling.RETAIN,
-                            new TimeoutException(
-                                    "The heartbeat of JobManager with id "
-                                            + resourceID.getStringWithMetadata()
-                                            + " timed out."));
+                            cause);
                 }
             }
+        }
+
+        @Override
+        public void notifyTargetUnreachable(ResourceID resourceID) {
+            final String message =
+                    String.format(
+                            "JobManager with id %s is no longer reachable.",
+                            resourceID.getStringWithMetadata());
+            log.info(message);
+
+            handleJobManagerConnectionLoss(resourceID, new ResourceManagerException(message));
         }
 
         @Override

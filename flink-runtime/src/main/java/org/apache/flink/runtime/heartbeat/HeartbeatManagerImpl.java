@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.heartbeat;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
@@ -27,6 +29,7 @@ import org.slf4j.Logger;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -191,7 +194,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
     // ----------------------------------------------------------------------------------------------
 
     @Override
-    public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {
+    public CompletableFuture<Void> receiveHeartbeat(
+            ResourceID heartbeatOrigin, I heartbeatPayload) {
         if (!stopped) {
             log.debug("Received heartbeat from {}.", heartbeatOrigin);
             reportHeartbeat(heartbeatOrigin);
@@ -200,10 +204,13 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                 heartbeatListener.reportPayload(heartbeatOrigin, heartbeatPayload);
             }
         }
+
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public void requestHeartbeat(final ResourceID requestOrigin, I heartbeatPayload) {
+    public CompletableFuture<Void> requestHeartbeat(
+            final ResourceID requestOrigin, I heartbeatPayload) {
         if (!stopped) {
             log.debug("Received heartbeat request from {}.", requestOrigin);
 
@@ -214,9 +221,34 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
                     heartbeatListener.reportPayload(requestOrigin, heartbeatPayload);
                 }
 
-                heartbeatTarget.receiveHeartbeat(
-                        getOwnResourceID(), heartbeatListener.retrievePayload(requestOrigin));
+                heartbeatTarget
+                        .receiveHeartbeat(
+                                getOwnResourceID(),
+                                heartbeatListener.retrievePayload(requestOrigin))
+                        .whenCompleteAsync(
+                                (unused, failure) -> {
+                                    if (failure != null) {
+                                        handleHeartbeatRpcFailure(requestOrigin, failure);
+                                    }
+                                },
+                                mainThreadExecutor);
             }
+        }
+
+        return FutureUtils.completedVoidFuture();
+    }
+
+    protected void handleHeartbeatRpcFailure(ResourceID heartbeatTarget, Throwable failure) {
+        if (failure instanceof RecipientUnreachableException) {
+            reportHeartbeatTargetUnreachable(heartbeatTarget);
+        }
+    }
+
+    private void reportHeartbeatTargetUnreachable(ResourceID heartbeatTarget) {
+        final HeartbeatMonitor<O> heartbeatMonitor = heartbeatTargets.get(heartbeatTarget);
+
+        if (heartbeatMonitor != null) {
+            heartbeatMonitor.reportTargetUnreachable();
         }
     }
 

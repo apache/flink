@@ -138,20 +138,22 @@ public interface ResourceManagerGateway
     CompletableFuture<Integer> getNumberOfRegisteredTaskManagers();
 
     /**
-     * Sends the heartbeat to resource manager from task manager
+     * Sends the heartbeat to resource manager from task manager.
      *
      * @param heartbeatOrigin unique id of the task manager
      * @param heartbeatPayload payload from the originating TaskManager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromTaskManager(
+    CompletableFuture<Void> heartbeatFromTaskManager(
             final ResourceID heartbeatOrigin, final TaskExecutorHeartbeatPayload heartbeatPayload);
 
     /**
-     * Sends the heartbeat to resource manager from job manager
+     * Sends the heartbeat to resource manager from job manager.
      *
      * @param heartbeatOrigin unique id of the job manager
+     * @return future which is completed exceptionally if the operation fails
      */
-    void heartbeatFromJobManager(final ResourceID heartbeatOrigin);
+    CompletableFuture<Void> heartbeatFromJobManager(final ResourceID heartbeatOrigin);
 
     /**
      * Disconnects a TaskManager specified by the given resourceID from the {@link ResourceManager}.

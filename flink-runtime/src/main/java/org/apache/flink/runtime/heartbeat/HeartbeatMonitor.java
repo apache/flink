@@ -57,6 +57,9 @@ public interface HeartbeatMonitor<O> {
      */
     long getLastHeartbeat();
 
+    /** Reports that the target is unreachable. */
+    void reportTargetUnreachable();
+
     /**
      * This factory provides an indirection way to create {@link HeartbeatMonitor}.
      *

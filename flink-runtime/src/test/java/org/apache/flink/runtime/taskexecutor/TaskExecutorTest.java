@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskexecutor;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.ConfigConstants;
@@ -41,11 +42,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
-import org.apache.flink.runtime.heartbeat.HeartbeatListener;
-import org.apache.flink.runtime.heartbeat.HeartbeatManager;
-import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -79,6 +76,7 @@ import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Builder;
@@ -97,6 +95,7 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -106,8 +105,9 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
-import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.TriConsumer;
+import org.apache.flink.util.function.TriConsumerWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -117,7 +117,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
-import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 
@@ -141,6 +140,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
@@ -298,23 +298,59 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test
     public void testHeartbeatTimeoutWithJobManager() throws Exception {
-        final TaskSlotTable taskSlotTable = TaskSlotUtils.createTaskSlotTable(1);
+        final TestingHeartbeatServices heartbeatServices = new TestingHeartbeatServices();
+        final ResourceID jmResourceId = ResourceID.generate();
+        runJobManagerHeartbeatTest(
+                jmResourceId,
+                heartbeatServices,
+                ignored -> {},
+                (taskExecutorResourceId, ignoredTaskExecutorGateway, ignoredAllocationId) ->
+                        heartbeatServices.triggerHeartbeatTimeout(
+                                taskExecutorResourceId, jmResourceId));
+    }
 
+    @Test
+    public void testJobManagerBecomesUnreachableTriggersDisconnect() throws Exception {
+        final ResourceID jmResourceId = ResourceID.generate();
+        runJobManagerHeartbeatTest(
+                jmResourceId,
+                new HeartbeatServices(1L, 10000L),
+                jobMasterGatewayBuilder ->
+                        jobMasterGatewayBuilder.setTaskManagerHeartbeatFunction(
+                                (resourceID, taskExecutorToJobManagerHeartbeatPayload) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "job manager is unreachable."))),
+                (ignoredTaskExecutorResourceId, taskExecutorGateway, allocationId) ->
+                        taskExecutorGateway.heartbeatFromJobManager(
+                                jmResourceId,
+                                new AllocatedSlotReport(
+                                        jobId,
+                                        Collections.singleton(
+                                                new AllocatedSlotInfo(0, allocationId)))));
+    }
+
+    private void runJobManagerHeartbeatTest(
+            ResourceID jmResourceId,
+            HeartbeatServices heartbeatServices,
+            Consumer<TestingJobMasterGatewayBuilder> jobMasterGatewayBuilderConsumer,
+            TriConsumer<ResourceID, TaskExecutorGateway, AllocationID> heartbeatAction)
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         final JobLeaderService jobLeaderService =
                 new DefaultJobLeaderService(
                         unresolvedTaskManagerLocation,
                         RetryingRegistrationConfiguration.defaultConfiguration());
 
-        final TestingHeartbeatServices heartbeatServices = new TestingHeartbeatServices();
-
         final String jobMasterAddress = "jm";
         final UUID jmLeaderId = UUID.randomUUID();
 
-        final ResourceID jmResourceId = ResourceID.generate();
         final CountDownLatch registrationAttempts = new CountDownLatch(2);
         final OneShotLatch slotOfferedLatch = new OneShotLatch();
         final CompletableFuture<ResourceID> disconnectTaskManagerFuture = new CompletableFuture<>();
-        final TestingJobMasterGateway jobMasterGateway =
+
+        final TestingJobMasterGatewayBuilder testingJobMasterGatewayBuilder =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
                                 (s, taskManagerUnresolvedLocation, ignored) -> {
@@ -331,8 +367,11 @@ public class TaskExecutorTest extends TestLogger {
                                 (resourceID, slotOffers) -> {
                                     slotOfferedLatch.trigger();
                                     return CompletableFuture.completedFuture(slotOffers);
-                                })
-                        .build();
+                                });
+
+        jobMasterGatewayBuilderConsumer.accept(testingJobMasterGatewayBuilder);
+
+        final TestingJobMasterGateway jobMasterGateway = testingJobMasterGatewayBuilder.build();
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 createTaskExecutorLocalStateStoresManager();
@@ -340,7 +379,7 @@ public class TaskExecutorTest extends TestLogger {
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-                        .setTaskSlotTable(taskSlotTable)
+                        .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
                         .setJobLeaderService(jobLeaderService)
                         .setTaskStateManager(localStateStoresManager)
                         .build();
@@ -385,11 +424,12 @@ public class TaskExecutorTest extends TestLogger {
                     testingResourceManagerGateway.getFencingToken().toUUID());
             slotReportReceived.await();
 
+            final AllocationID allocationId = new AllocationID();
             taskExecutorGateway
                     .requestSlot(
                             new SlotID(unresolvedTaskManagerLocation.getResourceID(), 0),
                             jobId,
-                            new AllocationID(),
+                            allocationId,
                             ResourceProfile.UNKNOWN,
                             jobMasterAddress,
                             testingResourceManagerGateway.getFencingToken(),
@@ -403,9 +443,10 @@ public class TaskExecutorTest extends TestLogger {
             // jm
             slotOfferedLatch.await();
 
-            // trigger the JM heartbeat timeout
-            heartbeatServices.triggerHeartbeatTimeout(
-                    unresolvedTaskManagerLocation.getResourceID(), jmResourceId);
+            heartbeatAction.accept(
+                    unresolvedTaskManagerLocation.getResourceID(),
+                    taskExecutorGateway,
+                    allocationId);
 
             // the timeout should trigger disconnecting from the JobManager
             final ResourceID resourceID = disconnectTaskManagerFuture.get();
@@ -421,11 +462,47 @@ public class TaskExecutorTest extends TestLogger {
 
     @Test
     public void testHeartbeatTimeoutWithResourceManager() throws Exception {
+        runResourceManagerHeartbeatTest(
+                new HeartbeatServices(1L, 3L),
+                (ignoredResourceManagerGateway) -> {},
+                (ignoredA, ignoredB, ignoredC) -> {});
+    }
+
+    @Test
+    public void testResourceManagerBecomesUnreachableTriggersDisconnect() throws Exception {
+        runResourceManagerHeartbeatTest(
+                new HeartbeatServices(1L, 10000L),
+                (rmGateway) ->
+                        rmGateway.setTaskExecutorHeartbeatFunction(
+                                (resourceID, taskExecutorHeartbeatPayload) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "resource manager is unreachable."))),
+                (taskExecutorGateway, rmResourceId, taskExecutorDisconnectFuture) ->
+                        CommonTestUtils.waitUntilCondition(
+                                () -> {
+                                    // request heartbeats until the disconnect future is completed
+                                    taskExecutorGateway.heartbeatFromResourceManager(rmResourceId);
+                                    return taskExecutorDisconnectFuture.isDone();
+                                },
+                                Deadline.fromNow(TimeUtils.toDuration(timeout)),
+                                50L));
+    }
+
+    private void runResourceManagerHeartbeatTest(
+            HeartbeatServices heartbeatServices,
+            Consumer<TestingResourceManagerGateway> setupResourceManagerGateway,
+            TriConsumerWithException<
+                            TaskExecutorGateway,
+                            ResourceID,
+                            CompletableFuture<ResourceID>,
+                            Exception>
+                    heartbeatAction)
+            throws Exception {
         final String rmAddress = "rm";
         final ResourceID rmResourceId = new ResourceID(rmAddress);
-
-        final long heartbeatInterval = 1L;
-        final long heartbeatTimeout = 3L;
 
         final ResourceManagerId rmLeaderId = ResourceManagerId.generate();
 
@@ -435,6 +512,10 @@ public class TaskExecutorTest extends TestLogger {
         final TaskExecutorRegistrationSuccess registrationResponse =
                 new TaskExecutorRegistrationSuccess(
                         new InstanceID(), rmResourceId, new ClusterInformation("localhost", 1234));
+        final Queue<CompletableFuture<RegistrationResponse>> registrationResponses =
+                new ArrayDeque<>(2);
+        registrationResponses.add(CompletableFuture.completedFuture(registrationResponse));
+        registrationResponses.add(new CompletableFuture<>());
 
         final CompletableFuture<ResourceID> taskExecutorRegistrationFuture =
                 new CompletableFuture<>();
@@ -443,8 +524,10 @@ public class TaskExecutorTest extends TestLogger {
                 registration -> {
                     taskExecutorRegistrationFuture.complete(registration.getResourceId());
                     registrationAttempts.countDown();
-                    return CompletableFuture.completedFuture(registrationResponse);
+                    return registrationResponses.poll();
                 });
+
+        setupResourceManagerGateway.accept(rmGateway);
 
         final CompletableFuture<ResourceID> taskExecutorDisconnectFuture =
                 new CompletableFuture<>();
@@ -453,29 +536,17 @@ public class TaskExecutorTest extends TestLogger {
 
         rpc.registerGateway(rmAddress, rmGateway);
 
-        final TaskSlotTable<Task> taskSlotTable =
-                TestingTaskSlotTable.<Task>newBuilder()
-                        .createSlotReportSupplier(SlotReport::new)
-                        .closeAsyncReturns(CompletableFuture.completedFuture(null))
-                        .build();
-
-        HeartbeatServices heartbeatServices =
-                new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
-
-        final TaskExecutorLocalStateStoresManager localStateStoresManager =
-                createTaskExecutorLocalStateStoresManager();
-
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
                         .setUnresolvedTaskManagerLocation(unresolvedTaskManagerLocation)
-                        .setTaskSlotTable(taskSlotTable)
-                        .setTaskStateManager(localStateStoresManager)
                         .build();
 
         final TaskExecutor taskManager = createTaskExecutor(taskManagerServices, heartbeatServices);
 
         try {
             taskManager.start();
+            final TaskExecutorGateway taskExecutorGateway =
+                    taskManager.getSelfGateway(TaskExecutorGateway.class);
 
             // define a leader and see that a registration happens
             resourceManagerLeaderRetriever.notifyListener(rmAddress, rmLeaderId.toUUID());
@@ -483,9 +554,13 @@ public class TaskExecutorTest extends TestLogger {
             // register resource manager success will trigger monitoring heartbeat target between tm
             // and rm
             assertThat(
-                    taskExecutorRegistrationFuture.get(
-                            timeout.toMilliseconds(), TimeUnit.MILLISECONDS),
+                    taskExecutorRegistrationFuture.get(),
                     equalTo(unresolvedTaskManagerLocation.getResourceID()));
+
+            heartbeatAction.accept(
+                    taskExecutorGateway,
+                    rmGateway.getOwnResourceId(),
+                    taskExecutorDisconnectFuture);
 
             // heartbeat timeout should trigger disconnect TaskManager from ResourceManager
             assertThat(
@@ -535,9 +610,11 @@ public class TaskExecutorTest extends TestLogger {
 
         final CompletableFuture<TaskExecutorHeartbeatPayload> heartbeatPayloadCompletableFuture =
                 new CompletableFuture<>();
-        rmGateway.setTaskExecutorHeartbeatConsumer(
-                (resourceID, heartbeatPayload) ->
-                        heartbeatPayloadCompletableFuture.complete(heartbeatPayload));
+        rmGateway.setTaskExecutorHeartbeatFunction(
+                (resourceID, heartbeatPayload) -> {
+                    heartbeatPayloadCompletableFuture.complete(heartbeatPayload);
+                    return FutureUtils.completedVoidFuture();
+                });
 
         rpc.registerGateway(rmAddress, rmGateway);
 
@@ -2317,7 +2394,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingResourceManagerGateway testingResourceManagerGateway =
                 new TestingResourceManagerGateway();
         // Assertions for this test
-        testingResourceManagerGateway.setTaskExecutorHeartbeatConsumer(
+        testingResourceManagerGateway.setTaskExecutorHeartbeatFunction(
                 (ignored, heartbeatPayload) -> {
                     try {
                         final ArrayList<SlotStatus> slots =
@@ -2339,6 +2416,7 @@ public class TaskExecutorTest extends TestLogger {
                     if (terminateSlotReportVerification.isTriggered()) {
                         verifySlotReportFuture.complete(null);
                     }
+                    return FutureUtils.completedVoidFuture();
                 });
         final CompletableFuture<ResourceID> taskExecutorRegistrationFuture =
                 new CompletableFuture<>();
@@ -2784,84 +2862,6 @@ public class TaskExecutorTest extends TestLogger {
         @Override
         public void stop() {
             stopFuture.complete(null);
-        }
-    }
-
-    /** Special {@link HeartbeatServices} which creates a {@link RecordingHeartbeatManagerImpl}. */
-    private static final class RecordingHeartbeatServices extends HeartbeatServices {
-
-        private final BlockingQueue<ResourceID> unmonitoredTargets;
-
-        private final BlockingQueue<ResourceID> monitoredTargets;
-
-        public RecordingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout) {
-            super(heartbeatInterval, heartbeatTimeout);
-
-            this.unmonitoredTargets = new ArrayBlockingQueue<>(1);
-            this.monitoredTargets = new ArrayBlockingQueue<>(1);
-        }
-
-        @Override
-        public <I, O> HeartbeatManager<I, O> createHeartbeatManager(
-                ResourceID resourceId,
-                HeartbeatListener<I, O> heartbeatListener,
-                ScheduledExecutor mainThreadExecutor,
-                Logger log) {
-            return new RecordingHeartbeatManagerImpl<>(
-                    heartbeatTimeout,
-                    resourceId,
-                    heartbeatListener,
-                    mainThreadExecutor,
-                    log,
-                    unmonitoredTargets,
-                    monitoredTargets);
-        }
-
-        public BlockingQueue<ResourceID> getUnmonitoredTargets() {
-            return unmonitoredTargets;
-        }
-
-        public BlockingQueue<ResourceID> getMonitoredTargets() {
-            return monitoredTargets;
-        }
-    }
-
-    /** {@link HeartbeatManagerImpl} which records the unmonitored targets. */
-    private static final class RecordingHeartbeatManagerImpl<I, O>
-            extends HeartbeatManagerImpl<I, O> {
-
-        private final BlockingQueue<ResourceID> unmonitoredTargets;
-
-        private final BlockingQueue<ResourceID> monitoredTargets;
-
-        public RecordingHeartbeatManagerImpl(
-                long heartbeatTimeoutIntervalMs,
-                ResourceID ownResourceID,
-                HeartbeatListener<I, O> heartbeatListener,
-                ScheduledExecutor mainThreadExecutor,
-                Logger log,
-                BlockingQueue<ResourceID> unmonitoredTargets,
-                BlockingQueue<ResourceID> monitoredTargets) {
-            super(
-                    heartbeatTimeoutIntervalMs,
-                    ownResourceID,
-                    heartbeatListener,
-                    mainThreadExecutor,
-                    log);
-            this.unmonitoredTargets = unmonitoredTargets;
-            this.monitoredTargets = monitoredTargets;
-        }
-
-        @Override
-        public void unmonitorTarget(ResourceID resourceID) {
-            super.unmonitorTarget(resourceID);
-            unmonitoredTargets.offer(resourceID);
-        }
-
-        @Override
-        public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {
-            super.monitorTarget(resourceID, heartbeatTarget);
-            monitoredTargets.offer(resourceID);
         }
     }
 

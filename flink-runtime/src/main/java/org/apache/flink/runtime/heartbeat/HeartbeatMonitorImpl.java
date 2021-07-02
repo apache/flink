@@ -91,6 +91,14 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     }
 
     @Override
+    public void reportTargetUnreachable() {
+        if (state.compareAndSet(State.RUNNING, State.UNREACHABLE)) {
+            cancelTimeout();
+            heartbeatListener.notifyTargetUnreachable(resourceID);
+        }
+    }
+
+    @Override
     public void reportHeartbeat() {
         lastHeartbeat = System.currentTimeMillis();
         resetHeartbeatTimeout(heartbeatTimeoutIntervalMs);
@@ -139,6 +147,7 @@ public class HeartbeatMonitorImpl<O> implements HeartbeatMonitor<O>, Runnable {
     private enum State {
         RUNNING,
         TIMEOUT,
+        UNREACHABLE,
         CANCELED
     }
 

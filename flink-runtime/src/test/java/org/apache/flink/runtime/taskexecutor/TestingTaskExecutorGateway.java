@@ -65,7 +65,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final String hostname;
 
-    private final BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer;
+    private final BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
+            heartbeatJobManagerFunction;
 
     private final BiConsumer<JobID, Throwable> disconnectJobManagerConsumer;
 
@@ -82,7 +83,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final Consumer<JobID> freeInactiveSlotsConsumer;
 
-    private final Consumer<ResourceID> heartbeatResourceManagerConsumer;
+    private final Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction;
 
     private final Consumer<Exception> disconnectResourceManagerConsumer;
 
@@ -110,7 +111,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     TestingTaskExecutorGateway(
             String address,
             String hostname,
-            BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer,
+            BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
+                    heartbeatJobManagerFunction,
             BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
             BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
                     submitTaskConsumer,
@@ -126,7 +128,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
                     requestSlotFunction,
             BiFunction<AllocationID, Throwable, CompletableFuture<Acknowledge>> freeSlotFunction,
             Consumer<JobID> freeInactiveSlotsConsumer,
-            Consumer<ResourceID> heartbeatResourceManagerConsumer,
+            Function<ResourceID, CompletableFuture<Void>> heartbeatResourceManagerFunction,
             Consumer<Exception> disconnectResourceManagerConsumer,
             Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
             Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
@@ -144,14 +146,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
-        this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
+        this.heartbeatJobManagerFunction = Preconditions.checkNotNull(heartbeatJobManagerFunction);
         this.disconnectJobManagerConsumer =
                 Preconditions.checkNotNull(disconnectJobManagerConsumer);
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
         this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
-        this.heartbeatResourceManagerConsumer = heartbeatResourceManagerConsumer;
+        this.heartbeatResourceManagerFunction = heartbeatResourceManagerFunction;
         this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
         this.cancelTaskFunction = cancelTaskFunction;
         this.canBeReleasedSupplier = canBeReleasedSupplier;
@@ -238,14 +240,14 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
-    public void heartbeatFromJobManager(
+    public CompletableFuture<Void> heartbeatFromJobManager(
             ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport) {
-        heartbeatJobManagerConsumer.accept(heartbeatOrigin, allocatedSlotReport);
+        return heartbeatJobManagerFunction.apply(heartbeatOrigin, allocatedSlotReport);
     }
 
     @Override
-    public void heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
-        heartbeatResourceManagerConsumer.accept(heartbeatOrigin);
+    public CompletableFuture<Void> heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
+        return heartbeatResourceManagerFunction.apply(heartbeatOrigin);
     }
 
     @Override

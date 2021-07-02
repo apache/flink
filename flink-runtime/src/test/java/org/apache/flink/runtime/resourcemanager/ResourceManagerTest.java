@@ -35,12 +35,14 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.slotmanager.DeclarativeSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -51,6 +53,7 @@ import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.After;
@@ -288,7 +291,11 @@ public class ResourceManagerTest extends TestLogger {
         final CompletableFuture<ResourceManagerId> disconnectFuture = new CompletableFuture<>();
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
-                        .setResourceManagerHeartbeatConsumer(heartbeatRequestFuture::complete)
+                        .setResourceManagerHeartbeatFunction(
+                                resourceId -> {
+                                    heartbeatRequestFuture.complete(resourceId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
                         .build();
         rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
@@ -331,6 +338,53 @@ public class ResourceManagerTest extends TestLogger {
     }
 
     @Test
+    public void testJobMasterBecomesUnreachableTriggersDisconnect() throws Exception {
+        final JobID jobId = new JobID();
+        final ResourceID jobMasterResourceId = ResourceID.generate();
+        final CompletableFuture<ResourceManagerId> disconnectFuture = new CompletableFuture<>();
+        final TestingJobMasterGateway jobMasterGateway =
+                new TestingJobMasterGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .setResourceManagerHeartbeatFunction(
+                                resourceId ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "task executor is unreachable")))
+                        .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
+                        .build();
+        rpcService.registerGateway(jobMasterGateway.getAddress(), jobMasterGateway);
+
+        final LeaderRetrievalService jobMasterLeaderRetrievalService =
+                new SettableLeaderRetrievalService(
+                        jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
+
+        highAvailabilityServices.setJobMasterLeaderRetrieverFunction(
+                requestedJobId -> {
+                    assertThat(requestedJobId, is(equalTo(jobId)));
+                    return jobMasterLeaderRetrievalService;
+                });
+
+        runHeartbeatTargetBecomesUnreachableTest(
+                resourceManagerGateway -> {
+                    final CompletableFuture<RegistrationResponse> registrationFuture =
+                            resourceManagerGateway.registerJobManager(
+                                    jobMasterGateway.getFencingToken(),
+                                    jobMasterResourceId,
+                                    jobMasterGateway.getAddress(),
+                                    jobId,
+                                    TIMEOUT);
+
+                    assertThat(
+                            registrationFuture.get(),
+                            instanceOf(RegistrationResponse.Success.class));
+                },
+                resourceManagerResourceId ->
+                        assertThat(disconnectFuture.get(), is(equalTo(resourceManagerId))));
+    }
+
+    @Test
     public void testHeartbeatTimeoutWithTaskExecutor() throws Exception {
         final ResourceID taskExecutorId = ResourceID.generate();
         final CompletableFuture<ResourceID> heartbeatRequestFuture = new CompletableFuture<>();
@@ -338,7 +392,11 @@ public class ResourceManagerTest extends TestLogger {
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
-                        .setHeartbeatResourceManagerConsumer(heartbeatRequestFuture::complete)
+                        .setHeartbeatResourceManagerFunction(
+                                resourceId -> {
+                                    heartbeatRequestFuture.complete(resourceId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .createTestingTaskExecutorGateway();
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
@@ -359,6 +417,36 @@ public class ResourceManagerTest extends TestLogger {
                             anyOf(is(resourceManagerResourceId), is(nullValue())));
                     assertThat(disconnectFuture.get(), instanceOf(TimeoutException.class));
                 });
+    }
+
+    @Test
+    public void testTaskExecutorBecomesUnreachableTriggersDisconnect() throws Exception {
+        final ResourceID taskExecutorId = ResourceID.generate();
+        final CompletableFuture<Exception> disconnectFuture = new CompletableFuture<>();
+        final TaskExecutorGateway taskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress(UUID.randomUUID().toString())
+                        .setDisconnectResourceManagerConsumer(disconnectFuture::complete)
+                        .setHeartbeatResourceManagerFunction(
+                                resourceId ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "task executor is unreachable")))
+                        .createTestingTaskExecutorGateway();
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+        runHeartbeatTargetBecomesUnreachableTest(
+                resourceManagerGateway ->
+                        registerTaskExecutor(
+                                resourceManagerGateway,
+                                taskExecutorId,
+                                taskExecutorGateway.getAddress()),
+                resourceManagerResourceId ->
+                        assertThat(
+                                disconnectFuture.get(),
+                                instanceOf(ResourceManagerException.class)));
     }
 
     @Test
@@ -426,6 +514,18 @@ public class ResourceManagerTest extends TestLogger {
             ThrowingConsumer<ResourceID, Exception> verifyHeartbeatTimeout)
             throws Exception {
         resourceManager = createAndStartResourceManager(fastHeartbeatServices);
+        final ResourceManagerGateway resourceManagerGateway =
+                resourceManager.getSelfGateway(ResourceManagerGateway.class);
+
+        registerComponentAtResourceManager.accept(resourceManagerGateway);
+        verifyHeartbeatTimeout.accept(resourceManagerResourceId);
+    }
+
+    private void runHeartbeatTargetBecomesUnreachableTest(
+            ThrowingConsumer<ResourceManagerGateway, Exception> registerComponentAtResourceManager,
+            ThrowingConsumer<ResourceID, Exception> verifyHeartbeatTimeout)
+            throws Exception {
+        resourceManager = createAndStartResourceManager(new HeartbeatServices(5L, 10000L));
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 

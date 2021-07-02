@@ -150,14 +150,14 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
     }
 
     @Override
-    public void heartbeatFromJobManager(
+    public CompletableFuture<Void> heartbeatFromJobManager(
             ResourceID heartbeatOrigin, AllocatedSlotReport allocatedSlotReport) {
-        originalGateway.heartbeatFromJobManager(heartbeatOrigin, allocatedSlotReport);
+        return originalGateway.heartbeatFromJobManager(heartbeatOrigin, allocatedSlotReport);
     }
 
     @Override
-    public void heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
-        originalGateway.heartbeatFromResourceManager(heartbeatOrigin);
+    public CompletableFuture<Void> heartbeatFromResourceManager(ResourceID heartbeatOrigin) {
+        return originalGateway.heartbeatFromResourceManager(heartbeatOrigin);
     }
 
     @Override

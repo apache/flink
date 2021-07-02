@@ -90,6 +90,15 @@ public class HeartbeatManagerSenderImpl<I, O> extends HeartbeatManagerImpl<I, O>
         O payload = getHeartbeatListener().retrievePayload(heartbeatMonitor.getHeartbeatTargetId());
         final HeartbeatTarget<O> heartbeatTarget = heartbeatMonitor.getHeartbeatTarget();
 
-        heartbeatTarget.requestHeartbeat(getOwnResourceID(), payload);
+        heartbeatTarget
+                .requestHeartbeat(getOwnResourceID(), payload)
+                .whenCompleteAsync(
+                        (unused, failure) -> {
+                            if (failure != null) {
+                                handleHeartbeatRpcFailure(
+                                        heartbeatMonitor.getHeartbeatTargetId(), failure);
+                            }
+                        },
+                        getMainThreadExecutor());
     }
 }

@@ -21,8 +21,10 @@ package org.apache.flink.runtime.heartbeat;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.hamcrest.Matcher;
@@ -86,9 +88,11 @@ public class HeartbeatManagerTest extends TestLogger {
                 new ArrayBlockingQueue<>(2);
         final TestingHeartbeatTarget<Integer> heartbeatTarget =
                 new TestingHeartbeatTargetBuilder<Integer>()
-                        .setReceiveHeartbeatConsumer(
-                                (ignoredA, payload) ->
-                                        reportedPayloadsHeartbeatTarget.offer(payload))
+                        .setReceiveHeartbeatFunction(
+                                (ignoredA, payload) -> {
+                                    reportedPayloadsHeartbeatTarget.offer(payload);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .createTestingHeartbeatTarget();
 
         heartbeatManager.monitorTarget(targetResourceID, heartbeatTarget);
@@ -366,16 +370,21 @@ public class HeartbeatManagerTest extends TestLogger {
         final CompletableFuture<Integer> someHeartbeatPayloadFuture = new CompletableFuture<>();
         final TestingHeartbeatTarget<Integer> someHeartbeatTarget =
                 new TestingHeartbeatTargetBuilder<Integer>()
-                        .setReceiveHeartbeatConsumer(
-                                (ignored, payload) -> someHeartbeatPayloadFuture.complete(payload))
+                        .setReceiveHeartbeatFunction(
+                                (ignored, payload) -> {
+                                    someHeartbeatPayloadFuture.complete(payload);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .createTestingHeartbeatTarget();
 
         final CompletableFuture<Integer> specialHeartbeatPayloadFuture = new CompletableFuture<>();
         final TestingHeartbeatTarget<Integer> specialHeartbeatTarget =
                 new TestingHeartbeatTargetBuilder<Integer>()
-                        .setReceiveHeartbeatConsumer(
-                                (ignored, payload) ->
-                                        specialHeartbeatPayloadFuture.complete(payload))
+                        .setReceiveHeartbeatFunction(
+                                (ignored, payload) -> {
+                                    specialHeartbeatPayloadFuture.complete(payload);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .createTestingHeartbeatTarget();
 
         final TestingHeartbeatListener<Void, Integer> testingHeartbeatListener =
@@ -457,6 +466,86 @@ public class HeartbeatManagerTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testHeartbeatManagerSenderMarksTargetUnreachableOnRecipientUnreachableException() {
+        final long heartbeatPeriod = 20;
+        final long heartbeatTimeout = 10000L;
+        final ResourceID someTargetId = ResourceID.generate();
+        final HeartbeatTarget<Object> someHeartbeatTarget =
+                new TestingHeartbeatTargetBuilder<>()
+                        .setRequestHeartbeatFunction(
+                                (ignoredA, ignoredB) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "could not receive heartbeat")))
+                        .createTestingHeartbeatTarget();
+        final CompletableFuture<ResourceID> unreachableTargetFuture = new CompletableFuture<>();
+        final HeartbeatListener<Object, Object> testingHeartbeatListener =
+                new TestingHeartbeatListenerBuilder<>()
+                        .setNotifyTargetUnreachableConsumer(unreachableTargetFuture::complete)
+                        .createNewTestingHeartbeatListener();
+
+        final HeartbeatManager<Object, Object> heartbeatManager =
+                new HeartbeatManagerSenderImpl<>(
+                        heartbeatPeriod,
+                        heartbeatTimeout,
+                        ResourceID.generate(),
+                        testingHeartbeatListener,
+                        TestingUtils.defaultScheduledExecutor(),
+                        LOG);
+
+        try {
+            heartbeatManager.monitorTarget(someTargetId, someHeartbeatTarget);
+
+            // the target should become unreachable when requesting a heartbeat
+            unreachableTargetFuture.join();
+        } finally {
+            heartbeatManager.stop();
+        }
+    }
+
+    @Test
+    public void testHeartbeatManagerMarksTargetUnreachableOnRecipientUnreachableException() {
+        final long heartbeatTimeout = 10000L;
+        final ResourceID someTargetId = ResourceID.generate();
+        final HeartbeatTarget<Object> someHeartbeatTarget =
+                new TestingHeartbeatTargetBuilder<>()
+                        .setReceiveHeartbeatFunction(
+                                (ignoredA, ignoredB) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "could not receive heartbeat")))
+                        .createTestingHeartbeatTarget();
+        final CompletableFuture<ResourceID> unreachableTargetFuture = new CompletableFuture<>();
+        final HeartbeatListener<Object, Object> testingHeartbeatListener =
+                new TestingHeartbeatListenerBuilder<>()
+                        .setNotifyTargetUnreachableConsumer(unreachableTargetFuture::complete)
+                        .createNewTestingHeartbeatListener();
+
+        final HeartbeatManager<Object, Object> heartbeatManager =
+                new HeartbeatManagerImpl<>(
+                        heartbeatTimeout,
+                        ResourceID.generate(),
+                        testingHeartbeatListener,
+                        TestingUtils.defaultScheduledExecutor(),
+                        LOG);
+
+        try {
+            heartbeatManager.monitorTarget(someTargetId, someHeartbeatTarget);
+
+            heartbeatManager.requestHeartbeat(someTargetId, null);
+
+            // the target should be unreachable
+            unreachableTargetFuture.join();
+        } finally {
+            heartbeatManager.stop();
+        }
+    }
+
     /** Test {@link HeartbeatTarget} that exposes the last received payload. */
     private static class TargetDependentHeartbeatReceiver implements HeartbeatTarget<Integer> {
 
@@ -474,15 +563,19 @@ public class HeartbeatManagerTest extends TestLogger {
         }
 
         @Override
-        public void receiveHeartbeat(ResourceID heartbeatOrigin, Integer heartbeatPayload) {
+        public CompletableFuture<Void> receiveHeartbeat(
+                ResourceID heartbeatOrigin, Integer heartbeatPayload) {
             this.lastReceivedHeartbeatPayload = heartbeatPayload;
             latch.trigger();
+            return FutureUtils.completedVoidFuture();
         }
 
         @Override
-        public void requestHeartbeat(ResourceID requestOrigin, Integer heartbeatPayload) {
+        public CompletableFuture<Void> requestHeartbeat(
+                ResourceID requestOrigin, Integer heartbeatPayload) {
             this.lastRequestedHeartbeatPayload = heartbeatPayload;
             latch.trigger();
+            return FutureUtils.completedVoidFuture();
         }
 
         public int getLastReceivedHeartbeatPayload() {
@@ -513,6 +606,9 @@ public class HeartbeatManagerTest extends TestLogger {
 
         @Override
         public void notifyHeartbeatTimeout(ResourceID resourceID) {}
+
+        @Override
+        public void notifyTargetUnreachable(ResourceID resourceID) {}
 
         @Override
         public void reportPayload(ResourceID resourceID, Object payload) {}
