@@ -38,8 +38,6 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.util.Preconditions;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -83,10 +81,6 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                     "Adaptive Scheduler is required for reactive mode");
         }
 
-        final ShuffleMaster<?> shuffleMaster =
-                ShuffleServiceLoader.loadShuffleServiceFactory(configuration)
-                        .createShuffleMaster(configuration);
-
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 jobManagerServices
                         .getLibraryCacheManager()
@@ -111,7 +105,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         jobManagerJobMetricGroupFactory,
                         fatalErrorHandler,
                         userCodeClassLoader,
-                        shuffleMaster,
+                        jobManagerServices.getShuffleMaster(),
                         initializationTimestamp);
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =
