@@ -94,6 +94,7 @@ public class IntermediateResultPartition {
             }
         }
         hasDataProduced = false;
+        totalResult.notifyPartitionChanged();
     }
 
     public void addConsumers(ConsumerVertexGroup consumers) {

@@ -46,6 +46,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -234,7 +235,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
     }
 
     private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
-            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation) {
+            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation)
+            throws IOException {
 
         final ShuffleDescriptor[] channelDescriptors = new ShuffleDescriptor[channels];
         for (int channelIndex = 0; channelIndex < channels; ++channelIndex) {
