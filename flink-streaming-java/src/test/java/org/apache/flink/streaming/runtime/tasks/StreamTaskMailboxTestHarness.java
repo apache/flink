@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.core.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 import java.util.Queue;
 
