@@ -27,4 +27,12 @@ public class Constants {
 
     // coder urns
     public static final String FLINK_CODER_URN = "flink:coder:v1";
+
+    // execution graph
+    public static final String TRANSFORM_ID = "transform";
+    public static final String MAIN_INPUT_NAME = "input";
+    public static final String MAIN_OUTPUT_NAME = "output";
+
+    public static final String INPUT_COLLECTION_ID = "input";
+    public static final String OUTPUT_COLLECTION_ID = "output";
 }
