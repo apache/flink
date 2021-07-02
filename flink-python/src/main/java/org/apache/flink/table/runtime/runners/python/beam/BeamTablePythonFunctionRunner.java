@@ -30,9 +30,12 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.protobuf.GeneratedMessageV3;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.MAIN_INPUT_NAME;
@@ -71,6 +74,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                 keyedStateBackend,
                 keySerializer,
                 namespaceSerializer,
+                null,
                 memoryManager,
                 managedMemoryFraction,
                 inputCoderDescriptor,
@@ -96,5 +100,20 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
                         .putInputs(MAIN_INPUT_NAME, INPUT_COLLECTION_ID)
                         .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_COLLECTION_ID)
                         .build());
+    }
+
+    @Override
+    protected List<TimerReference> getTimers(RunnerApi.Components components) {
+        return Collections.emptyList();
+    }
+
+    @Override
+    protected Optional<RunnerApi.Coder> getOptionalTimerCoderProto() {
+        return Optional.empty();
+    }
+
+    @Override
+    public void processTimer(byte[] timerData) throws Exception {
+        throw new UnsupportedOperationException();
     }
 }

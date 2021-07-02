@@ -35,4 +35,9 @@ public class Constants {
 
     public static final String INPUT_COLLECTION_ID = "input";
     public static final String OUTPUT_COLLECTION_ID = "output";
+
+    public static final String WINDOW_CODER_ID = "window_coder";
+    public static final String TIMER_ID = "timer";
+    public static final String TIMER_CODER_ID = "timer_coder";
+    public static final String WRAPPER_TIMER_CODER_ID = "timer_coder_wrapper";
 }

@@ -145,6 +145,7 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
                 null,
                 null,
                 null,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -158,7 +159,8 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(runnerInputTypeInfo),
-                createOutputCoderInfoDescriptor(runnerOutputTypeInfo));
+                createOutputCoderInfoDescriptor(runnerOutputTypeInfo),
+                null);
     }
 
     @Override

@@ -17,6 +17,7 @@
 ################################################################################
 from abc import abstractmethod
 
+from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -123,3 +124,14 @@ class StatefulFunctionOperation(FunctionOperation):
 
     def generate_operation(self):
         return self.operation_cls(self.spec, self.keyed_state_backend)
+
+    def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
+        # ignore timer_family_id
+        self.operation.add_timer_info(timer_info)
+
+    def process_timer(self, tag, timer_data):
+        output_stream = self.consumer.output_stream
+        self._value_coder_impl.encode_to_stream(
+            # the field user_key holds the timer data
+            self.operation.process_timer(timer_data.user_key), output_stream, True)
+        output_stream.maybe_flush()
