@@ -132,7 +132,6 @@ jobs:
   - task: Cache@2
     inputs:
       key: '"$(module)" | $(TESTCONTAINER_CACHE_KEY)'
-      restoreKeys: '"$(module)" | $(TESTCONTAINER_CACHE_FALLBACK_KEY)'
       path: $(TESTCONTAINER_CACHE_FOLDER)
       cacheHitVar: TESTCONTAINER_CACHE_HIT
     continueOnError: true
