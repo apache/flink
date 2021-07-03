@@ -43,9 +43,7 @@ public final class CliStrings {
 
     public static final String CMD_DESC_DELIMITER = "\t\t";
 
-    /**
-     * SQL Client HELP command helper class.
-     */
+    /** SQL Client HELP command helper class. */
     public static class SQLCliCommandsDescriptions {
         private int commandMaxLength = -1;
         private List<Tuple2<String, String>> commandsDescriptions;
@@ -54,7 +52,8 @@ public final class CliStrings {
             commandsDescriptions = new ArrayList<>();
         }
 
-        public SQLCliCommandsDescriptions commandDescription(Tuple2<String, String> commandDescription) {
+        public SQLCliCommandsDescriptions commandDescription(
+                Tuple2<String, String> commandDescription) {
             Preconditions.checkState(
                     checkCommandDescription(commandDescription),
                     "All contents of command description must not be empty.");
@@ -72,8 +71,8 @@ public final class CliStrings {
 
         private boolean checkCommandDescription(Tuple2<String, String> commandDescription) {
             return Objects.nonNull(commandDescription)
-                    && StringUtils.isNotBlank(commandDescription.f0) && StringUtils.isNotBlank(
-                    commandDescription.f1);
+                    && StringUtils.isNotBlank(commandDescription.f0)
+                    && StringUtils.isNotBlank(commandDescription.f1);
         }
 
         public void clearCommandsDescriptions() {
@@ -96,21 +95,22 @@ public final class CliStrings {
                 boolean clearCmdsDescs) {
             Preconditions.checkNotNull(cmdDescDelimiter, "delimiter must not be null.");
             Preconditions.checkState(
-                    StringUtils.isNotBlank(cmdFormat),
-                    "commandFormat must not be null.");
+                    StringUtils.isNotBlank(cmdFormat), "command format must not be null.");
             Preconditions.checkState(
                     StringUtils.isNotBlank(descFormat),
-                    "commandDescFormat must not be null.");
+                    "command description format must not be null.");
             AttributedStringBuilder attributedStringBuilder = new AttributedStringBuilder();
             if (!this.commandsDescriptions.isEmpty()) {
-                this.commandsDescriptions.forEach(cmdDescTuple2 -> {
-                    attributedStringBuilder.style(AttributedStyle.DEFAULT.bold())
-                            .append(String.format(cmdFormat, cmdDescTuple2.f0))
-                            .append(CMD_DESC_DELIMITER)
-                            .style(AttributedStyle.DEFAULT)
-                            .append(String.format(descFormat, cmdDescTuple2.f1))
-                            .append('\n');
-                });
+                this.commandsDescriptions.forEach(
+                        cmdDescTuple2 -> {
+                            attributedStringBuilder
+                                    .style(AttributedStyle.DEFAULT.bold())
+                                    .append(String.format(cmdFormat, cmdDescTuple2.f0))
+                                    .append(CMD_DESC_DELIMITER)
+                                    .style(AttributedStyle.DEFAULT)
+                                    .append(String.format(descFormat, cmdDescTuple2.f1))
+                                    .append('\n');
+                        });
             }
             if (clearCmdsDescs) {
                 this.clearCommandsDescriptions();
@@ -124,36 +124,46 @@ public final class CliStrings {
                     .commandDescription(Tuple2.of("HELP", "Prints the available commands."))
                     .commandDescription(Tuple2.of("QUIT/EXIT", "Quits the SQL CLI client."))
                     .commandDescription(Tuple2.of("CLEAR", "Clears the current terminal."))
-                    .commandDescription(Tuple2.of(
-                            "SET",
-                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties."))
-                    .commandDescription(Tuple2.of(
-                            "RESET",
-                            "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties."))
-                    .commandDescription(Tuple2.of(
-                            "INSERT INTO",
-                            "Inserts the results of a SQL SELECT query into a declared table sink."))
-                    .commandDescription(Tuple2.of(
-                            "INSERT OVERWRITE",
-                            "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
-                    .commandDescription(Tuple2.of(
-                            "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
-                    .commandDescription(Tuple2.of(
-                            "EXPLAIN",
-                            "Describes the execution plan of a query or table with the given name."))
-                    .commandDescription(Tuple2.of(
-                            "BEGIN STATEMENT SET",
-                            "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\""))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "SET",
+                                    "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "RESET",
+                                    "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "INSERT INTO",
+                                    "Inserts the results of a SQL SELECT query into a declared table sink."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "INSERT OVERWRITE",
+                                    "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "EXPLAIN",
+                                    "Describes the execution plan of a query or table with the given name."))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "BEGIN STATEMENT SET",
+                                    "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\""))
                     .commandDescription(Tuple2.of("END", "Ends a statement set. Syntax: \"END;\""))
-                    .commandDescription(Tuple2.of(
-                            "ADD JAR",
-                            "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\""))
-                    .commandDescription(Tuple2.of(
-                            "REMOVE JAR",
-                            "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\""))
-                    .commandDescription(Tuple2.of(
-                            "SHOW JARS",
-                            "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands."));
+                    .commandDescription(
+                            Tuple2.of(
+                                    "ADD JAR",
+                                    "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\""))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "REMOVE JAR",
+                                    "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\""))
+                    .commandDescription(
+                            Tuple2.of(
+                                    "SHOW JARS",
+                                    "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands."));
     public static final String COMMAND_FORMAT =
             String.format("%%-%ds", SQL_CLI_COMMANDS_DESCRIPTIONS.getCommandMaxLength());
 
@@ -162,11 +172,9 @@ public final class CliStrings {
     public static final AttributedString MESSAGE_HELP =
             new AttributedStringBuilder()
                     .append("The following commands are available:\n\n")
-                    .append(SQL_CLI_COMMANDS_DESCRIPTIONS.formatCommand(
-                            CMD_DESC_DELIMITER,
-                            COMMAND_FORMAT,
-                            "%s",
-                            true))
+                    .append(
+                            SQL_CLI_COMMANDS_DESCRIPTIONS.formatCommand(
+                                    CMD_DESC_DELIMITER, COMMAND_FORMAT, "%s", true))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
@@ -174,7 +182,8 @@ public final class CliStrings {
                             ": Make sure that a statement ends with \";\" for finalizing (multi-line) statements.")
                     // About Documentation Link.
                     .style(AttributedStyle.DEFAULT)
-                    .append("\nYou can also type any Flink SQL statement, please visit https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
+                    .append(
+                            "\nYou can also type any Flink SQL statement, please visit https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
                     .append("\n")
                     .toAttributedString();
 

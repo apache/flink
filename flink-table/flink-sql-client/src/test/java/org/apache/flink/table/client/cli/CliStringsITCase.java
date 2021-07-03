@@ -32,9 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-/**
- * CliStrings test class.
- */
+/** CliStrings test class. */
 public class CliStringsITCase {
 
     private final String space = " ";
@@ -42,8 +40,8 @@ public class CliStringsITCase {
     final String lineBreaker = "\n";
 
     /**
-     * Test {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP} contains all
-     * commands' help descriptions in package {@link org.apache.flink.table.operations.command}.
+     * Test {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP} contains all commands'
+     * help descriptions in package {@link org.apache.flink.table.operations.command}.
      *
      * @throws IOException exception.
      */
@@ -75,9 +73,8 @@ public class CliStringsITCase {
     /**
      * Get Commands Hints in package {@link org.apache.flink.table.operations.command}.
      *
-     * @return A list which contains operation name in upper case without 'Operation' suffix
-     *         and space.
-     *
+     * @return A list which contains operation name in upper case without 'Operation' suffix and
+     *     space.
      * @throws IOException exception.
      */
     public List<String> getCommandsHintsInPackage(String packageName, String suffix)
@@ -86,10 +83,14 @@ public class CliStringsITCase {
                 ClassPath.from(Thread.currentThread().getContextClassLoader())
                         .getTopLevelClasses(packageName);
         return topLevelClasses.stream()
-                .map(classInfo -> classInfo.getSimpleName().toUpperCase()).map(upperClassname -> {
-                    int posStartSuffix = upperClassname.lastIndexOf(suffix);
-                    return posStartSuffix > -1 ? upperClassname.substring(0, posStartSuffix) : null;
-                })
+                .map(classInfo -> classInfo.getSimpleName().toUpperCase())
+                .map(
+                        upperClassname -> {
+                            int posStartSuffix = upperClassname.lastIndexOf(suffix);
+                            return posStartSuffix > -1
+                                    ? upperClassname.substring(0, posStartSuffix)
+                                    : null;
+                        })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
@@ -98,24 +99,19 @@ public class CliStringsITCase {
      * Get Commands Hints in {@link org.apache.flink.table.client.cli.CliStrings#MESSAGE_HELP}.
      *
      * @return A list which contains operation name in upper case.
-     *
      * @throws IOException exception.
      */
     private List<String> getCommandsHintsInHelpMessage() {
-        return Arrays
-                .stream(CliStrings.MESSAGE_HELP.toString().split(lineBreaker))
-                .filter(line -> StringUtils.isNotBlank(line)
-                        && line.contains(CliStrings.CMD_DESC_DELIMITER))
-                .map(line -> line.split(CliStrings.CMD_DESC_DELIMITER)[0]
-                        .toUpperCase()
-                        .replaceAll(space, empty))
+        return Arrays.stream(CliStrings.MESSAGE_HELP.toString().split(lineBreaker))
+                .filter(
+                        line ->
+                                StringUtils.isNotBlank(line)
+                                        && line.contains(CliStrings.CMD_DESC_DELIMITER))
+                .map(
+                        line ->
+                                line.split(CliStrings.CMD_DESC_DELIMITER)[0]
+                                        .toUpperCase()
+                                        .replaceAll(space, empty))
                 .collect(Collectors.toList());
     }
 }
-
-
-
-
-
-
-

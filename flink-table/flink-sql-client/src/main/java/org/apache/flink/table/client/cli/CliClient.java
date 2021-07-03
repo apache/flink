@@ -313,8 +313,7 @@ public class CliClient implements AutoCloseable {
 
         for (String statement : CliStatementSplitter.splitContent(content)) {
             terminal.writer()
-                    .println(
-                            new AttributedString(String.format("%s%s", prompt, statement)));
+                    .println(new AttributedString(String.format("%s%s", prompt, statement)));
             terminal.flush();
 
             if (!executeStatement(statement, mode)) {
