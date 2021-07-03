@@ -59,7 +59,7 @@ The following configuration methods can be used:
     * The query is internally treated as CQL statement.
     * __DO__ set the upsert query for processing __Tuple__ data type.
     * __DO NOT__ set the query for processing __POJO__ data types.
-2. _setClusterBuilder()_
+2. _setClusterBuilder(ClusterBuilder clusterBuilder)_
     * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
     * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
