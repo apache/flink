@@ -41,6 +41,8 @@ public final class CliStrings {
     public static final String CLI_NAME = "Flink SQL CLI Client";
     public static final String DEFAULT_MARGIN = " ";
 
+    // --------------------------------------------------------------------------------------------
+
     public static final String CMD_DESC_DELIMITER = "\t\t";
 
     /** SQL Client HELP command helper class. */
