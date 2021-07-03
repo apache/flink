@@ -516,7 +516,7 @@ conditional:
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
   - sql: COALESCE(value1, value2 [, value3]*)
-    description: Returns the first value that is not NULL from value1, value2, .... E.g., IF(5 > 3, 5, 3) returns 5.
+    description: Returns the first value that is not NULL from value1, value2, .... E.g., COALESCE(NULL, 5) returns 5.
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)
