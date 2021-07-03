@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.client.cli;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.reflect.ClassPath;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
+import org.apache.flink.shaded.guava18.com.google.common.reflect.ClassPath;
+
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -31,9 +32,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * CliStrings test class.
+ */
 public class CliStringsITCase {
 
-    private final String single_space = " ";
+    private final String space = " ";
     private final String empty = "";
     final String lineBreaker = "\n";
 
@@ -72,7 +76,7 @@ public class CliStringsITCase {
      * Get Commands Hints in package {@link org.apache.flink.table.operations.command}.
      *
      * @return A list which contains operation name in upper case without 'Operation' suffix
-     * and space.
+     *         and space.
      *
      * @throws IOException exception.
      */
@@ -104,7 +108,7 @@ public class CliStringsITCase {
                         && line.contains(CliStrings.CMD_DESC_DELIMITER))
                 .map(line -> line.split(CliStrings.CMD_DESC_DELIMITER)[0]
                         .toUpperCase()
-                        .replaceAll(single_space, empty))
+                        .replaceAll(space, empty))
                 .collect(Collectors.toList());
     }
 }

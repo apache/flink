@@ -43,6 +43,9 @@ public final class CliStrings {
 
     public static final String CMD_DESC_DELIMITER = "\t\t";
 
+    /**
+     * SQL Client HELP command helper class.
+     */
     public static class SQLCliCommandsDescriptions {
         private int commandMaxLength = -1;
         private List<Tuple2<String, String>> commandsDescriptions;
@@ -134,8 +137,7 @@ public final class CliStrings {
                             "INSERT OVERWRITE",
                             "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
                     .commandDescription(Tuple2.of(
-                            "SELECT",
-                            "Executes a SQL SELECT query on the Flink cluster."))
+                            "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
                     .commandDescription(Tuple2.of(
                             "EXPLAIN",
                             "Describes the execution plan of a query or table with the given name."))
