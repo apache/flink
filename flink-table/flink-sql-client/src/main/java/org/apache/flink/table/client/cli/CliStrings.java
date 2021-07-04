@@ -186,7 +186,6 @@ public final class CliStrings {
                     .style(AttributedStyle.DEFAULT)
                     .append(
                             "\nYou can also type any Flink SQL statement, please visit https://ci.apache.org/projects/flink/flink-docs-stable/docs/dev/table/sql/overview/ for more details.")
-                    .append("\n")
                     .toAttributedString();
 
     public static final String MESSAGE_WELCOME;
