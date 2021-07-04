@@ -24,342 +24,227 @@ under the License.
 
 # 有状态流处理
 
-## What is State?
+## 什么是状态？
 
-While many operations in a dataflow simply look at one individual *event at a
-time* (for example an event parser), some operations remember information
-across multiple events (for example window operators). These operations are
-called **stateful**.
+虽然数据流中的很多操作一次只着眼于一个单独的事件（例如事件解析器），但有些操作会记住多个事件的信息（例如窗口算子）。
+这些操作称为**有状态的**（stateful）。
 
-Some examples of stateful operations:
+有状态操作的一些示例：
 
-  - When an application searches for certain event patterns, the state will
-    store the sequence of events encountered so far.
-  - When aggregating events per minute/hour/day, the state holds the pending
-    aggregates.
-  - When training a machine learning model over a stream of data points, the
-    state holds the current version of the model parameters.
-  - When historic data needs to be managed, the state allows efficient access
-    to events that occurred in the past.
+  - 当应用程序搜索某些事件模式时，状态将存储到目前为止遇到的事件序列。
+  - 当每分钟/每小时/每天聚合事件时，状态会持有待处理的聚合。
+  - 当在数据点的流上训练一个机器学习模型时，状态会保存模型参数的当前版本。
+  - 当需要管理历史数据时，状态允许有效访问过去发生的事件。
 
-Flink needs to be aware of the state in order to make it fault tolerant using
+Flink 需要知道状态以便使用
 [checkpoints]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
-and [savepoints]({{< ref "docs/ops/state/savepoints" >}}).
+和 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 进行容错。
 
-Knowledge about the state also allows for rescaling Flink applications, meaning
-that Flink takes care of redistributing state across parallel instances.
+关于状态的知识也允许我们重新调节 Flink 应用程序，这意味着 Flink 负责跨并行实例重新分布状态。
 
-[Queryable state]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) allows you to access state from outside of Flink during runtime.
+[可查询的状态]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}})允许你在运行时从 Flink 外部访问状态。
 
-When working with state, it might also be useful to read about [Flink's state
-backends]({{< ref "docs/ops/state/state_backends" >}}). Flink
-provides different state backends that specify how and where state is stored.
+在使用状态时，阅读 [Flink 的状态后端]({{< ref "docs/ops/state/state_backends" >}})可能也很有用。 
+Flink 提供了不同的状态后端，用于指定状态存储的方式和位置。
 
 {{< top >}}
 
-## Keyed State
+## 键控状态（Keyed State）
 
-Keyed state is maintained in what can be thought of as an embedded key/value
-store.  The state is partitioned and distributed strictly together with the
-streams that are read by the stateful operators. Hence, access to the key/value
-state is only possible on *keyed streams*, i.e. after a keyed/partitioned data
-exchange, and is restricted to the values associated with the current event's
-key. Aligning the keys of streams and state makes sure that all state updates
-are local operations, guaranteeing consistency without transaction overhead.
-This alignment also allows Flink to redistribute the state and adjust the
-stream partitioning transparently.
+键控状态被维护在一个可以认为是键/值存储的地方。状态和有状态算子读取的流一起被严格地分区和分布。
+因此，只能在*键控流*（keyed streams）上访问键/值状态，即在键控的/分区的数据交换后，
+并且仅限于和当前事件的键相关联的值。对齐流和状态的键确保所有状态更新都是本地操作，保证一致性而没有事务开销。
+这个对齐也允许 Flink 重新分布状态并透明地调整流的分区。
 
-{{< img src="/fig/state_partitioning.svg" alt="State and Partitioning" class="offset" width="50%" >}}
+{{< img src="/fig/state_partitioning.svg" alt="状态和分区" class="offset" width="50%" >}}
 
-Keyed State is further organized into so-called *Key Groups*. Key Groups are
-the atomic unit by which Flink can redistribute Keyed State; there are exactly
-as many Key Groups as the defined maximum parallelism.  During execution each
-parallel instance of a keyed operator works with the keys for one or more Key
-Groups.
+键控状态被进一步组织成*键组*（Key Groups）。键组是 Flink 可以重新分布键控状态的原子单元；有与定义的最大并行度一样多的键组。
+在执行期间，每个键控算子的并行实例和一个或多个键组的键一起使用。
 
-## State Persistence
+## 状态持久化
 
-Flink implements fault tolerance using a combination of **stream replay** and
-**checkpointing**. A checkpoint marks a specific point in each of the
-input streams along with the corresponding state for each of the operators. A
-streaming dataflow can be resumed from a checkpoint while maintaining
-consistency *(exactly-once processing semantics)* by restoring the state of the
-operators and replaying the records from the point of the checkpoint.
+Flink 使用**流重放**（stream replay）和**检查点**（checkpointing）的组合来实现容错。
+检查点标记了每一个输入流的特定点和每个算子的相应状态。 流式数据流可以从检查点恢复，
+同时通过重新恢复算子状态并从检查点重放记录来保证一致性 *（精确一次处理语义）*。
 
-The checkpoint interval is a means of trading off the overhead of fault
-tolerance during execution with the recovery time (the number of records that
-need to be replayed).
+检查点间隔是一种权衡执行期间容错开销与恢复时间（需要重放的记录数）的方法。
 
-The fault tolerance mechanism continuously draws snapshots of the distributed
-streaming data flow. For streaming applications with small state, these
-snapshots are very light-weight and can be drawn frequently without much impact
-on performance.  The state of the streaming applications is stored at a
-configurable place, usually in a distributed file system.
+容错机制不断地绘制分布式数据流快照。对于小状态的流式应用，它们的快照非常轻量，可以被被频繁绘制，对性能没有太大影响。
+流式应用的状态存储在一个可配置的地方，通常是在分布式文件系统中。
 
-In case of a program failure (due to machine-, network-, or software failure),
-Flink stops the distributed streaming dataflow.  The system then restarts the
-operators and resets them to the latest successful checkpoint. The input
-streams are reset to the point of the state snapshot. Any records that are
-processed as part of the restarted parallel dataflow are guaranteed to not have
-affected the previously checkpointed state.
+如果程序出现故障（由于机器、网络或者软件故障），Flink 会停止分布式数据流。之后系统会重启算子并且将它们重置到最近的成功检查点。
+输入流被重置到状态快照的点。作为重新启动的并行数据流的一部分被处理的任何记录都保证不会影响之前检查点的状态。
 
 {{< hint warning >}}
-By default, checkpointing is disabled. See [Checkpointing]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}) for details on how to enable and configure checkpointing.
+默认情况下，检查点是被禁用的。关于如何启用和配置检查点的详细信息，请参阅[检查点]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})。
 {{< /hint >}}
 
 {{< hint info >}}
-For this mechanism to realize its full guarantees, the data
-stream source (such as message queue or broker) needs to be able to rewind the
-stream to a defined recent point. [Apache Kafka](http://kafka.apache.org) has
-this ability and Flink's connector to Kafka exploits this. See [Fault
-Tolerance Guarantees of Data Sources and Sinks]({{< ref "docs/connectors/datastream/guarantees" >}}) for more information about the guarantees
-provided by Flink's connectors.
+为了让该机制实现其完全保证，数据流的源（例如消息队列或 broker）需要能够将流回滚到定义的最近点。
+[Apache Kafka](http://kafka.apache.org) 具有这个能力，Flink 的 Kafka 
+连接器利用了这一点。关于 Flink 连接器提供的保证的更多信息请参阅[数据源和 sink 的容错保证]({{< ref "docs/connectors/datastream/guarantees" >}})
 {{< /hint >}}
 
 {{< hint info >}} 
-Because Flink's checkpoints are realized through distributed
-snapshots, we use the words *snapshot* and *checkpoint* interchangeably. Often
-we also use the term *snapshot* to mean either *checkpoint* or *savepoint*.
+由于 Flink 的检查点是通过分布式快照实现的，所以我们交替使用*快照*（snapshot）和*检查点*（checkpoint）两个词。
+通常我们也使用术语*快照*来表示*检查点*或*保存点*（savepoint）。
 {{< /hint >}}
 
-### Checkpointing
+### 检查点
 
-The central part of Flink's fault tolerance mechanism is drawing consistent
-snapshots of the distributed data stream and operator state.  These snapshots
-act as consistent checkpoints to which the system can fall back in case of a
-failure. Flink's mechanism for drawing these snapshots is described in
-"[Lightweight Asynchronous Snapshots for Distributed
-Dataflows](http://arxiv.org/abs/1506.08603)". It is inspired by the standard
-[Chandy-Lamport algorithm](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf)
-for distributed snapshots and is specifically tailored to Flink's execution
-model.
+Flink 容错机制的核心部分是绘制分布式数据流和算子状态的一致快照。 这些快照充当一致性检查点，
+系统可以在发生故障时可以回退到这些检查点。[分布式数据流的轻量级异步快照](http://arxiv.org/abs/1506.08603)中描述了 Flink 绘制这些快照的机制。
+它受到标准 [Chandy-Lamport 算法](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf)的启发，
+专门针对 Flink 的执行模型量身定制。
 
-Keep in mind that everything to do with checkpointing can be done
-asynchronously. The checkpoint barriers don't travel in lock step and
-operations can asynchronously snapshot their state.
+请记住，与检查点有关的一切都可以异步完成。检查点屏障（checkpoint barrier）不会在锁定步骤中移动，操作可以异步快照它们的状态。
 
-Since Flink 1.11, checkpoints can be taken with or without alignment. In this 
-section, we describe aligned checkpoints first.
+从 Flink 1.11 开始，检查点可以在对齐或不对齐的情况下进行。在本节中，我们先描述对齐的检查点。
 
-#### Barriers
+#### 屏障（barrier）
 
-A core element in Flink's distributed snapshotting are the *stream barriers*.
-These barriers are injected into the data stream and flow with the records as
-part of the data stream. Barriers never overtake records, they flow strictly in
-line.  A barrier separates the records in the data stream into the set of
-records that goes into the current snapshot, and the records that go into the
-next snapshot. Each barrier carries the ID of the snapshot whose records it
-pushed in front of it. Barriers do not interrupt the flow of the stream and are
-hence very lightweight. Multiple barriers from different snapshots can be in
-the stream at the same time, which means that various snapshots may happen
-concurrently.
+Flink 分布式快照的一个核心元素是*流屏障*（stream barriers）。
+这些屏障被注入到数据流中，并作为数据流的一部分与记录一起流动。屏障永远不会超过记录，它们严格按照顺序流动。
+屏障将数据流中的记录分为进入当前快照的记录集和进入下一个快照的记录。每个屏障都带有它推送到它前面的记录的快照的 ID。
+屏障不会被流中断因此非常轻量。来自不同快照的多个屏障可以在同时在流中，这意味着各种快照可能会同时发生。
 
 <div style="text-align: center">
-  {{< img src="/fig/stream_barriers.svg" alt="Checkpoint barriers in data streams" width="60%" >}}
+  {{< img src="/fig/stream_barriers.svg" alt="数据流中的检查点屏障" width="60%" >}}
 </div>
 
-Stream barriers are injected into the parallel data flow at the stream sources.
-The point where the barriers for snapshot *n* are injected (let's call it
-<i>S<sub>n</sub></i>) is the position in the source stream up to which the
-snapshot covers the data. For example, in Apache Kafka, this position would be
-the last record's offset in the partition. This position <i>S<sub>n</sub></i>
-is reported to the *checkpoint coordinator* (Flink's JobManager).
+流屏障被注入到数据源的并行数据流中。快照 *n* 的屏障被注入到的位置（我们称之为 <i>S<sub>n</sub></i>
+）是数据源中快照覆盖数据的位置。例如，在 Apache Kafka 中，这个位置就是分区最后一条记录的偏移量。 
+这个位置 <i>S<sub>n</sub></i> 会上报给*检查点协调器*（checkpoint coordinator）（Flink 的 JobManager）。
 
-The barriers then flow downstream. When an intermediate operator has received a
-barrier for snapshot *n* from all of its input streams, it emits a barrier for
-snapshot *n* into all of its outgoing streams. Once a sink operator (the end of
-a streaming DAG) has received the barrier *n* from all of its input streams, it
-acknowledges that snapshot *n* to the checkpoint coordinator. After all sinks
-have acknowledged a snapshot, it is considered completed.
+然后屏障向下游流动。当一个中间的算子已经从它所有的输入流中接收到了快照屏障 *n*，它会将快照 *n* 的屏障发送到它所有的输出流中。 
+一旦一个 sink 算子（DAG 流结束）从其所有的输入流中接收到了屏障 *n*，它就会向检查点协调器确认快照 *n*。 
+等到所有的 sink 都已经确认了这个快照，它就被认为完成了。
 
-Once snapshot *n* has been completed, the job will never again ask the source
-for records from before <i>S<sub>n</sub></i>, since at that point these records
-(and their descendant records) will have passed through the entire data flow
-topology.
+一旦快照 *n* 完成了，任务将再也不会向源询问 <i>S<sub>n</sub></i> 之前的记录，
+因此这时这些记录（和它们的后代记录）将通过整个数据流拓扑。
 
 <div style="text-align: center">
-  {{< img src="/fig/stream_aligning.svg" alt="Aligning data streams at operators with multiple inputs" width="60%" >}}
+  {{< img src="/fig/stream_aligning.svg" alt="将算子处数据流与多个输入对齐" width="60%" >}}
 </div>
 
-Operators that receive more than one input stream need to *align* the input
-streams on the snapshot barriers. The figure above illustrates this:
+接收多个输入流的算子需要在快照屏障上和输入流*对齐*。上图说明了这一点：
 
-  - As soon as the operator receives snapshot barrier *n* from an incoming
-    stream, it cannot process any further records from that stream until it has
-    received the barrier *n* from the other inputs as well. Otherwise, it would
-    mix records that belong to snapshot *n* and with records that belong to
-    snapshot *n+1*.
-  - Once the last stream has received barrier *n*, the operator emits all
-    pending outgoing records, and then emits snapshot *n* barriers itself.
-  - It snapshots the state and resumes processing records from all input streams,
-    processing records from the input buffers before processing the records
-    from the streams.
-  - Finally, the operator writes the state asynchronously to the state backend.
+  - 一旦算子从一个输入流里接收到了快照屏障 *n*，它就无法处理该流中的任何进一步记录，直到它也从其他输入流中接收到屏障 *n*。
+    否则，它将混合属于快照 *n* 的记录和属于快照 *n+1* 的记录。
+  - 一旦最后一个流接收到了屏障 *n*，算子将发出所有待输出的记录，然后自己发出快照 *n* 的屏障。
+  - 它对状态进行快照并恢复处理来自所有输入流的记录，在处理来自流的记录之前处理来自输入缓冲区的记录。
+  - 最后，算子将状态异步写入状态后端（state backend）。
   
-Note that the alignment is needed for all operators with multiple inputs and for 
-operators after a shuffle when they consume output streams of multiple upstream 
-subtasks.
+请注意，所有具有多个输入的算子以及在使用多个上游子任务的输出流时经过 shuffle 后的算子都需要对齐。
 
-#### Snapshotting Operator State
+#### 对算子状态进行快照
 
-When operators contain any form of *state*, this state must be part of the
-snapshots as well.
+当算子包含流任何形式的*状态*（state）时，该状态也必须是快照的一部分。
 
-Operators snapshot their state at the point in time when they have received all
-snapshot barriers from their input streams, and before emitting the barriers to
-their output streams. At that point, all updates to the state from records
-before the barriers have been made, and no updates that depend on records
-from after the barriers have been applied. Because the state of a snapshot may
-be large, it is stored in a configurable *[state backend]({{< ref "docs/ops/state/state_backends" >}})*. By default, this is the JobManager's
-memory, but for production use a distributed reliable storage should be
-configured (such as HDFS). After the state has been stored, the operator
-acknowledges the checkpoint, emits the snapshot barrier into the output
-streams, and proceeds.
+算子在收到来自输入流的所有快照屏障时以及将屏障发送到其输出流之前对其状态进行快照。
+在这个时候，所有的来自屏障之前的记录状态更新已经完成，并且没有依赖于应用屏障后的记录的更新。
+由于快照状态会比较大，所以它存储在一个可配置的 *[状态后端]({{< ref "docs/ops/state/state_backends" >}})*。 
+默认地，它是 JobManager 的内存，但是对于生产用途，应该配置分布式可靠存储（例如 HDFS）。
+在状态被存储之后，算子确认检查点，将快照屏障发射到输出流中，然后继续。
 
-The resulting snapshot now contains:
+生成的快照现在包含：
 
-  - For each parallel stream data source, the offset/position in the stream
-    when the snapshot was started
-  - For each operator, a pointer to the state that was stored as part of the
-    snapshot
+  - 对于每个并行流数据源，快照开始时在流中的偏移量/位置
+  - 对于每个算子，指向作为快照一部分存储的状态的指针
 
 <div style="text-align: center">
-  {{< img src="/fig/checkpointing.svg" alt="Illustration of the Checkpointing Mechanism" width="75%" >}}
+  {{< img src="/fig/checkpointing.svg" alt="检查点机制插图" width="75%" >}}
 </div>
 
-#### Recovery
+#### 恢复
 
-Recovery under this mechanism is straightforward: Upon a failure, Flink selects
-the latest completed checkpoint *k*. The system then re-deploys the entire
-distributed dataflow, and gives each operator the state that was snapshotted as
-part of checkpoint *k*. The sources are set to start reading the stream from
-position <i>S<sub>k</sub></i>. For example in Apache Kafka, that means telling
-the consumer to start fetching from offset <i>S<sub>k</sub></i>.
+这种机制下的恢复很简单：发生故障时，Flink 选择最近完成的检查点 *k*。系统接着会重新部署整个分布式数据流（dataflow），
+并为每个算子提供作为检查点 *k* 一部分的快照状态。源被设置为从位置 <i>S<sub>k</sub></i> 开始读流。 
+例如在 Apache Kafka 中，这意味着告诉消费者（consumer）从偏移量（offset）<i>S<sub>k</sub></i> 开始获取。 
 
-If state was snapshotted incrementally, the operators start with the state of
-the latest full snapshot and then apply a series of incremental snapshot
-updates to that state.
+如果状态被增量快照，算子就从最近全量快照的状态开始，接着将一系列的增量快照（incremental snapshot）更新应用到这个状态上。
 
-See [Restart Strategies]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies) for more information.
+有关更多信息，请查阅[重启策略]({{< ref "docs/ops/state/task_failure_recovery" >}}#restart-strategies)。
 
-### Unaligned Checkpointing
+### 未对齐的检查点
 
-Checkpointing can also be performed unaligned.
-The basic idea is that checkpoints can overtake all in-flight data as long as 
-the in-flight data becomes part of the operator state.
+检查点（checkpointing）也可以不对齐地执行。
+基本思想是，检查点可以超过所有正在处理的（in-flight）数据，只要正在处理的的数据成为算子状态的一部分。
 
-Note that this approach is actually closer to the [Chandy-Lamport algorithm
-](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf), but
-Flink still inserts the barrier in the sources to avoid overloading the
-checkpoint coordinator.
+请注意，这种方法实际上更接近于 [Chandy-Lamport 算法](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) ，
+但是 Flink 仍然在源中插入屏障来避免检查点协调器过载。
 
-{{< img src="/fig/stream_unaligning.svg" alt="Unaligned checkpointing" >}}
+{{< img src="/fig/stream_unaligning.svg" alt="未对齐的检查点" >}}
 
-The figure depicts how an operator handles unaligned checkpoint barriers:
+该图描绘了一个算子如何处理未对齐的检查点屏障：
 
-- The operator reacts on the first barrier that is stored in its input buffers.
-- It immediately forwards the barrier to the downstream operator by adding it 
-  to the end of the output buffers.
-- The operator marks all overtaken records to be stored asynchronously and 
-  creates a snapshot of its own state.
+- 算子对存储在其输入缓冲区中的第一个屏障做出反应。
+- 它通过将屏障添加到输出缓冲区的末尾的方式来立即将屏障转发给下游算子。
+- 算子将所有被超过的记录标记为异步存储并创建其自身状态的快照。
  
-Consequently, the operator only briefly stops the processing of input to mark
-the buffers, forwards the barrier, and creates the snapshot of the other state.
+因此，算子只简单地停止输入处理以标记缓冲区，转发屏障，并且创建另一个状态的快照。
   
-Unaligned checkpointing ensures that barriers are arriving at the sink as fast 
-as possible. It's especially suited for applications with at least one slow 
-moving data path, where alignment times can reach hours. However, since it's
-adding additional I/O pressure, it doesn't help when the I/O to the state 
-backends is the bottleneck. See the more in-depth discussion in 
-[ops]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints)
-for other limitations.
+未对齐的检查点确保屏障会尽可能快地达到 sink 。这非常适合那些具有至少一个缓慢移动数据路径的应用程序，其中对齐时间可以达到数小时。
+然而，由于它增加了额外的 I/O 压力，当到状态后端的 I/O 成为瓶颈时，它将无济于事。 有关其他限制，
+请参阅 [ops]({{< ref "docs/ops/state/checkpoints" >}}#unaligned-checkpoints)中更深入的讨论。
 
-Note that savepoints will always be aligned.
+注意，保存点将总是对齐。
 
-#### Unaligned Recovery
+#### 未对齐的恢复
 
-Operators first recover the in-flight data before starting processing any data
-from upstream operators in unaligned checkpointing. Aside from that, it 
-performs the same steps as during [recovery of aligned checkpoints](#recovery).
+在开始处理来自未对齐检查点的上游算子的任何数据之前，算子首先恢复运行中（in-flight）的数据。除此之外，它执行和在[对齐的检查点的恢复](#恢复)期间相同的步骤。
 
-### State Backends
+### 状态后端
 
-The exact data structures in which the key/values indexes are stored depends on
-the chosen [state backend]({{< ref "docs/ops/state/state_backends" >}}). One state backend stores data in an in-memory
-hash map, another state backend uses [RocksDB](http://rocksdb.org) as the
-key/value store.  In addition to defining the data structure that holds the
-state, the state backends also implement the logic to take a point-in-time
-snapshot of the key/value state and store that snapshot as part of a
-checkpoint. State backends can be configured without changing your application
-logic.
+存储键/值索引的确切数据结构取决于所选的[状态后端]({{< ref "docs/ops/state/state_backends" >}})。
+一个状态后端将数据存储在内存哈希映射中，另外一个状态后端使用 [RocksDB](http://rocksdb.org) 作为键/值存储。
+除了定义保存状态的数据结构之外，状态后端还实现了获取键/值状态的时间点（point-in-time）的快照并将该快照作为检查点的一部分存储的逻辑。
+可以在不更改应用程序逻辑的情况下配置状态后端。
 
-{{< img src="/fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" >}}
+{{< img src="/fig/checkpoints.svg" alt="检查点和快照" class="offset" width="60%" >}}
 
 {{< top >}}
 
-### Savepoints
+### 保存点
 
-All programs that use checkpointing can resume execution from a **savepoint**.
-Savepoints allow both updating your programs and your Flink cluster without
-losing any state.
+所有使用检查点的程序都可以从**保存点**恢复运行。保存点允许在不丢失任何状态的情况下更新你的程序和 Flink 集群。
 
-[Savepoints]({{< ref "docs/ops/state/savepoints" >}}) are
-**manually triggered checkpoints**, which take a snapshot of the program and
-write it out to a state backend. They rely on the regular checkpointing
-mechanism for this.
+[保存点]({{< ref "docs/ops/state/savepoints" >}})是**手动触发检查点**的，它拍摄程序的快照并将其写出到状态后端。
+为此，它们依赖于定期的检查点机制。
 
-Savepoints are similar to checkpoints except that they are
-**triggered by the user** and **don't automatically expire** when newer
-checkpoints are completed.
+保存点和检查点类似，不同之处在于保存点**由用户触发**并且**不会在新的检查点完成时自动过期**。
 
 {{< top >}}
 
-### Exactly Once vs. At Least Once
+### 精确一次 vs 最少一次
 
-The alignment step may add latency to the streaming program. Usually, this
-extra latency is on the order of a few milliseconds, but we have seen cases
-where the latency of some outliers increased noticeably. For applications that
-require consistently super low latencies (few milliseconds) for all records,
-Flink has a switch to skip the stream alignment during a checkpoint. Checkpoint
-snapshots are still drawn as soon as an operator has seen the checkpoint
-barrier from each input.
+对齐的步骤可能会给流处理程序增加延迟。 通常，这额外的延迟大约是几毫秒，但是我们已经看到一些异常值的延迟显著增加的情况。
+对于要求所有记录始终保持超低延迟（几毫秒）的应用程序，Flink 有一个开关可以在检查点期间跳过流对齐。
+一旦算子看到每个输入的检查点屏障，检查点快照就仍然会被绘制。
 
-When the alignment is skipped, an operator keeps processing all inputs, even
-after some checkpoint barriers for checkpoint *n* arrived. That way, the
-operator also processes elements that belong to checkpoint *n+1* before the
-state snapshot for checkpoint *n* was taken.  On a restore, these records will
-occur as duplicates, because they are both included in the state snapshot of
-checkpoint *n*, and will be replayed as part of the data after checkpoint *n*.
+如果跳过对齐，算子继续处理所有输入，即使在检查点 *n* 的一些检查点屏障到达之后也是如此。
+这样，算子还会在获取检查点 *n* 的状态快照之前处理属于检查点 *n+1* 的元素。
+在恢复时，这些记录将作为副本出现，因为它们都包含在检查点 *n* 的状态快照中，并且将在检查点 *n* 之后作为数据的一部分重放。
 
 {{< hint info >}}
-Alignment happens only for operators with multiple predecessors
-(joins) as well as operators with multiple senders (after a stream
-repartitioning/shuffle).  Because of that, dataflows with only embarrassingly
-parallel streaming operations (`map()`, `flatMap()`, `filter()`, ...) actually
-give *exactly once* guarantees even in *at least once* mode.
+对齐只发生在有多个前驱（连接）的算子和有多个发送者（在流重新分区/shuffle 之后）的算子。
+因此，即使在*至少一次*（at least once）模式下，实际上只有令人尴尬的并行流操作（`map()`、`flatMap()`、`filter()` 等）的数据流提供*精确一次*（exactly once）保证。
 {{< /hint >}}
 
 {{< top >}}
 
-## State and Fault Tolerance in Batch Programs
+## 批处理中的状态和容错
 
-Flink executes [batch programs]({{< ref "docs/dev/dataset/overview" >}}) as a special case of
-streaming programs, where the streams are bounded (finite number of elements).
-A *DataSet* is treated internally as a stream of data. The concepts above thus
-apply to batch programs in the same way as well as they apply to streaming
-programs, with minor exceptions:
+Flink 执行[批处理程序]({{< ref "docs/dev/dataset/overview" >}})作为流处理程序的一个特例，其中流是有界的（元素数量有限）。
+*DataSet* 在内部被视为数据流。因此，上述概念以同样的方式适用于批处理程序以及流处理程序，除了少数例外：
 
-  - [Fault tolerance for batch programs]({{< ref "docs/ops/state/task_failure_recovery" >}})
-    does not use checkpointing.  Recovery happens by fully replaying the
-    streams.  That is possible, because inputs are bounded. This pushes the
-    cost more towards the recovery, but makes the regular processing cheaper,
-    because it avoids checkpoints.
+  - [批处理程序的容错]({{< ref "docs/ops/state/task_failure_recovery" >}})
+    并不使用检查点。恢复是通过完全重放流来实现的。这是可能的，因为输入是有界的。
+    这将成本更多地推向了恢复，但是使得定期的处理程序更便宜，因为它避免了检查点。
 
-  - Stateful operations in the DataSet API use simplified in-memory/out-of-core
-    data structures, rather than key/value indexes.
+  - DataSet API 中有状态的操作使用简化的内存/核外（out-of-core）数据结构，而不是键/值索引。
 
-  - The DataSet API introduces special synchronized (superstep-based)
-    iterations, which are only possible on bounded streams. For details, check
-    out the [iteration docs]({{< ref "docs/dev/dataset/iterations" >}}).
+  - DataSet API 引入了特殊的同步（基于超级步）迭代，这只能在有界流上使用。
+    有关详细信息，请查看[迭代文档]({{< ref "docs/dev/dataset/iterations" >}})。
 
 {{< top >}}
