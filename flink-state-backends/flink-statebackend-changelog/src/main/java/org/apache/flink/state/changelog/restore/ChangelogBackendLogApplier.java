@@ -22,9 +22,11 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.MapSerializer;
+import org.apache.flink.api.java.typeutils.runtime.DataInputViewStream;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
@@ -43,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE;
 import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
@@ -91,9 +94,10 @@ class ChangelogBackendLogApplier {
             DataInputView in, ChangelogKeyedStateBackend<?> backend, ClassLoader classLoader)
             throws Exception {
         StateMetaInfoSnapshot snapshot = readStateMetaInfoSnapshot(in, classLoader);
+        StateTtlConfig ttlConfig = readTtlConfig(in);
         switch (snapshot.getBackendStateType()) {
             case KEY_VALUE:
-                restoreKvMetaData(backend, snapshot);
+                restoreKvMetaData(backend, snapshot, ttlConfig);
                 return;
             case PRIORITY_QUEUE:
                 restorePqMetaData(backend, snapshot);
@@ -107,8 +111,25 @@ class ChangelogBackendLogApplier {
         }
     }
 
+    private static StateTtlConfig readTtlConfig(DataInputView in) throws IOException {
+        if (in.readBoolean()) {
+            try {
+                try (ObjectInputStream objectInputStream =
+                        new ObjectInputStream(new DataInputViewStream(in))) {
+                    return (StateTtlConfig) objectInputStream.readObject();
+                }
+            } catch (ClassNotFoundException e) {
+                throw new IOException(e);
+            }
+        } else {
+            return StateTtlConfig.DISABLED;
+        }
+    }
+
     private static void restoreKvMetaData(
-            ChangelogKeyedStateBackend<?> backend, StateMetaInfoSnapshot snapshot)
+            ChangelogKeyedStateBackend<?> backend,
+            StateMetaInfoSnapshot snapshot,
+            StateTtlConfig ttlConfig)
             throws Exception {
         RegisteredKeyValueStateBackendMetaInfo meta =
                 new RegisteredKeyValueStateBackendMetaInfo(snapshot);
@@ -116,7 +137,12 @@ class ChangelogBackendLogApplier {
         // persisted in log before data changes.
         // An alternative solution to load metadata "natively" by the base backends would require
         // base state to be always present, i.e. the 1st checkpoint would have to be "full" always.
-        backend.getOrCreateKeyedState(meta.getNamespaceSerializer(), toStateDescriptor(meta));
+        StateDescriptor stateDescriptor = toStateDescriptor(meta);
+        // todo: support changing ttl (FLINK-23143)
+        if (ttlConfig.isEnabled()) {
+            stateDescriptor.enableTimeToLive(ttlConfig);
+        }
+        backend.getOrCreateKeyedState(meta.getNamespaceSerializer(), stateDescriptor);
     }
 
     private static StateDescriptor toStateDescriptor(RegisteredKeyValueStateBackendMetaInfo meta) {
@@ -167,7 +193,7 @@ class ChangelogBackendLogApplier {
             throws Exception {
         String name = checkNotNull(in.readUTF());
         BackendStateType type = BackendStateType.byCode(in.readByte());
-        ChangelogState state = backend.getExistingState(name, type);
+        ChangelogState state = backend.getExistingStateForRecovery(name, type);
         StateChangeApplier changeApplier = state.getChangeApplier(factory);
         changeApplier.apply(operation, in);
     }
