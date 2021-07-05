@@ -16,13 +16,13 @@
 # limitations under the License.
 ################################################################################
 import abc
-import pickle
 from enum import Enum
 
 from pyflink.common import Row
 from pyflink.common.serializer import VoidNamespaceSerializer
 from pyflink.datastream import TimeDomain, RuntimeContext
 from pyflink.fn_execution import flink_fn_execution_pb2
+from pyflink.fn_execution import pickle
 from pyflink.fn_execution.datastream.process_function import \
     InternalKeyedProcessFunctionOnTimerContext, InternalKeyedProcessFunctionContext, \
     InternalProcessFunctionContext
