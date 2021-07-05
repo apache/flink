@@ -98,8 +98,8 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     }
 
     @Override
-    public void close() throws Exception {
-        super.close();
+    public void dispose() throws Exception {
+        super.dispose();
         sinkWriter.close();
     }
 
