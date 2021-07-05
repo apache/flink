@@ -233,7 +233,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 
   - `state.backend.rocksdb.memory.write-buffer-ratio`，默认值 `0.5`，即 50% 的给定内存会分配给写缓冲区使用。
   - `state.backend.rocksdb.memory.high-prio-pool-ratio`，默认值 `0.1`，即 10% 的 block cache 内存会优先分配给索引及过滤器。
-  我们强烈建议不要将此值设置为零，以防止索引和过滤器被频繁踢出缓存而导致性能问题。此外，我们默认将L0级的过滤器和索引将被固定到缓存中以提高性能，更多详细信息请参阅 [RocksDB 文档](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks)。
+    我们强烈建议不要将此值设置为零，以防止索引和过滤器被频繁踢出缓存而导致性能问题。此外，我们默认将L0级的过滤器和索引将被固定到缓存中以提高性能，更多详细信息请参阅 [RocksDB 文档](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks)。
 
 <span class="label label-info">注意</span> 上述机制开启时将覆盖用户在 [`PredefinedOptions`](#predefined-per-columnfamily-options) 和 [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb) 中对 block cache 和 write buffer 进行的配置。
 
@@ -283,7 +283,7 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
   - 通过 `state.backend.rocksdb.options-factory` 选项将工厂实现类的名称设置到`flink-conf.yaml` 。
   
   - 通过程序设置，例如 `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());` 。
-  
+
 <span class="label label-info">注意</span> 通过程序设置的 `RocksDBOptionsFactory` 将覆盖 `flink-conf.yaml` 配置文件的设置，且 `RocksDBOptionsFactory` 设置的优先级高于预定义选项（`PredefinedOptions`）。
 
 <span class="label label-info">注意</span> RocksDB是一个本地库，它直接从进程分配内存，
@@ -302,29 +302,38 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 ```java
 
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
-
     private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
-    private long blockCacheSize = DEFAULT_SIZE;
 
+    public static final ConfigOption<MemorySize> BLOCK_CACHE_SIZE = ConfigOptions
+            .key("my.custom.rocksdb.block.cache.size")
+            .memoryType()
+            .noDefaultValue()
+            .withDescription(
+                    "The amount of the cache for data blocks in RocksDB. "
+                            + "RocksDB has default block-cache size as '8MB'.");
+    
+    private MemorySize blockCacheSize = new MemorySize(DEFAULT_SIZE);    
+    
     @Override
-    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+    public DBOptions createDBOptions(
+            DBOptions currentOptions,
+            Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setIncreaseParallelism(4)
-               .setUseFsync(false);
+                .setUseFsync(false);
     }
 
     @Override
     public ColumnFamilyOptions createColumnOptions(
-        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setTableFormatConfig(
-            new BlockBasedTableConfig()
-                .setBlockCacheSize(blockCacheSize)
-                .setBlockSize(128 * 1024));            // 128 KB
+                new BlockBasedTableConfig()
+                        .setBlockCacheSize(blockCacheSize.getBytes())
+                        .setBlockSize(128 * 1024));            // 128 KB
     }
 
     @Override
-    public RocksDBOptionsFactory configure(Configuration configuration) {
-        this.blockCacheSize =
-            configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+        this.blockCacheSize = configuration.get(BLOCK_CACHE_SIZE);
         return this;
     }
 }

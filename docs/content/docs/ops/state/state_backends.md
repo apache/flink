@@ -72,7 +72,7 @@ The EmbeddedRocksDBStateBackend always performs asynchronous snapshots.
 Limitations of the EmbeddedRocksDBStateBackend:
 
   - As RocksDB's JNI bridge API is based on byte[], the maximum supported size per key and per value is 2^31 bytes each. 
-  States that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
+    States that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
 
 The EmbeddedRocksDBStateBackend is encouraged for:
 
@@ -209,9 +209,9 @@ For advanced tuning, Flink also provides two parameters to control the division 
 
   - `state.backend.rocksdb.memory.write-buffer-ratio`, by default `0.5`, which means 50% of the given memory would be used by write buffer manager.
   - `state.backend.rocksdb.memory.high-prio-pool-ratio`, by default `0.1`, which means 10% of the given memory would be set as high priority for index and filters in shared block cache.
-  We strongly suggest not to set this to zero, to prevent index and filters from competing against data blocks for staying in cache and causing performance issues.
-  Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
-  more details please refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
+    We strongly suggest not to set this to zero, to prevent index and filters from competing against data blocks for staying in cache and causing performance issues.
+    Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
+    more details please refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
 
 {{< hint info >}}
 When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb).
@@ -293,29 +293,38 @@ Below is an example how to define a custom ConfigurableOptionsFactory (set class
 ```java
 
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
-
     private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
-    private long blockCacheSize = DEFAULT_SIZE;
 
+    public static final ConfigOption<MemorySize> BLOCK_CACHE_SIZE = ConfigOptions
+            .key("my.custom.rocksdb.block.cache.size")
+            .memoryType()
+            .noDefaultValue()
+            .withDescription(
+                    "The amount of the cache for data blocks in RocksDB. "
+                            + "RocksDB has default block-cache size as '8MB'.");
+    
+    private MemorySize blockCacheSize = new MemorySize(DEFAULT_SIZE);    
+    
     @Override
-    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+    public DBOptions createDBOptions(
+            DBOptions currentOptions,
+            Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setIncreaseParallelism(4)
-               .setUseFsync(false);
+                .setUseFsync(false);
     }
 
     @Override
     public ColumnFamilyOptions createColumnOptions(
-        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setTableFormatConfig(
-            new BlockBasedTableConfig()
-                .setBlockCacheSize(blockCacheSize)
-                .setBlockSize(128 * 1024));            // 128 KB
+                new BlockBasedTableConfig()
+                        .setBlockCacheSize(blockCacheSize.getBytes())
+                        .setBlockSize(128 * 1024));            // 128 KB
     }
 
     @Override
-    public RocksDBOptionsFactory configure(Configuration configuration) {
-        this.blockCacheSize =
-            configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+        this.blockCacheSize = configuration.get(BLOCK_CACHE_SIZE);
         return this;
     }
 }
