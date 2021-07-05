@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
 
 import java.util.Collection;
@@ -42,6 +43,7 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
      * internally within the shuffle service. The descriptor should provide enough information to
      * read from or write data to the partition.
      *
+     * @param jobID job ID of the corresponding job which registered the partition
      * @param partitionDescriptor general job graph information about the partition
      * @param producerDescriptor general producer information (location, execution id, connection
      *     info)
@@ -49,7 +51,9 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
      *     and their data exchange.
      */
     CompletableFuture<T> registerPartitionWithProducer(
-            PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor);
+            JobID jobID,
+            PartitionDescriptor partitionDescriptor,
+            ProducerDescriptor producerDescriptor);
 
     /**
      * Release any external resources occupied by the given partition.
