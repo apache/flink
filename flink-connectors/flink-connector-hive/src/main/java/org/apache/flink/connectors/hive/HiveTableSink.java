@@ -24,6 +24,7 @@ import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveCompactReaderFactory;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.connectors.hive.write.HiveBulkWriterFactory;
 import org.apache.flink.connectors.hive.write.HiveOutputFormatFactory;
 import org.apache.flink.connectors.hive.write.HiveWriterFactory;
@@ -67,6 +68,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -217,7 +219,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         builder.setPartitionComputer(
                 new HiveRowPartitionComputer(
                         hiveShim,
-                        defaultPartName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray()));
@@ -248,10 +250,19 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 new org.apache.flink.configuration.Configuration();
         catalogTable.getOptions().forEach(conf::setString);
 
+        String commitPolicies = conf.getString(FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND);
+        if (!getPartitionKeys().isEmpty() && StringUtils.isNullOrWhitespaceOnly(commitPolicies)) {
+            throw new FlinkHiveException(
+                    String.format(
+                            "Streaming write to partitioned hive table %s without providing a commit policy. "
+                                    + "Make sure to set a proper value for %s",
+                            identifier, FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND.key()));
+        }
+
         HiveRowDataPartitionComputer partComputer =
                 new HiveRowDataPartitionComputer(
                         hiveShim,
-                        defaultPartName(),
+                        JobConfUtils.getDefaultPartitionName(jobConf),
                         tableSchema.getFieldNames(),
                         tableSchema.getFieldDataTypes(),
                         getPartitionKeyArray());
@@ -330,12 +341,6 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         return StreamingSink.sink(
                 writerStream, path, identifier, getPartitionKeys(), msFactory(), fsFactory(), conf);
-    }
-
-    private String defaultPartName() {
-        return jobConf.get(
-                HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
     }
 
     private CompactReader.Factory<RowData> createCompactReaderFactory(
