@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.deployment;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -54,18 +55,20 @@ public class ShuffleDescriptorTest extends TestLogger {
     @Test
     public void testMixedLocalRemoteUnknownDeployment() throws Exception {
         ResourceID consumerResourceID = ResourceID.generate();
+        JobID jobID = new JobID();
 
         // Local and remote channel are only allowed for certain execution
         // states.
         for (ExecutionState state : ExecutionState.values()) {
             ResultPartitionID localPartitionId = new ResultPartitionID();
             ResultPartitionDeploymentDescriptor localPartition =
-                    createResultPartitionDeploymentDescriptor(localPartitionId, consumerResourceID);
+                    createResultPartitionDeploymentDescriptor(
+                            jobID, localPartitionId, consumerResourceID);
 
             ResultPartitionID remotePartitionId = new ResultPartitionID();
             ResultPartitionDeploymentDescriptor remotePartition =
                     createResultPartitionDeploymentDescriptor(
-                            remotePartitionId, ResourceID.generate());
+                            jobID, remotePartitionId, ResourceID.generate());
 
             ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
@@ -196,7 +199,7 @@ public class ShuffleDescriptorTest extends TestLogger {
     }
 
     private static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(
-            ResultPartitionID id, ResourceID location)
+            JobID jobID, ResultPartitionID id, ResourceID location)
             throws ExecutionException, InterruptedException {
         ProducerDescriptor producerDescriptor =
                 new ProducerDescriptor(
@@ -208,7 +211,8 @@ public class ShuffleDescriptorTest extends TestLogger {
                 PartitionDescriptorBuilder.newBuilder().setPartitionId(id.getPartitionId()).build();
         ShuffleDescriptor shuffleDescriptor =
                 ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER
-                        .registerPartitionWithProducer(partitionDescriptor, producerDescriptor)
+                        .registerPartitionWithProducer(
+                                jobID, partitionDescriptor, producerDescriptor)
                         .get();
         return new ResultPartitionDeploymentDescriptor(
                 partitionDescriptor, shuffleDescriptor, 1, true);

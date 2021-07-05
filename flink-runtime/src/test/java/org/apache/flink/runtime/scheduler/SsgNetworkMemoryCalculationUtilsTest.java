@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -130,7 +131,9 @@ public class SsgNetworkMemoryCalculationUtilsTest {
     private static class TestShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
         @Override
         public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
-                PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+                JobID jobID,
+                PartitionDescriptor partitionDescriptor,
+                ProducerDescriptor producerDescriptor) {
             return null;
         }
 
