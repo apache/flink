@@ -105,8 +105,8 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
             mainOperator.setKeyContextElement1(streamRecord);
             mainOperator.processElement(streamRecord);
         } else {
-            mainOperator.finish();
             mainOperator.endInput();
+            mainOperator.finish();
             controller.suspendDefaultAction();
             mailboxProcessor.suspend();
         }
