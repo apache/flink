@@ -188,5 +188,6 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
     @Override
     public void close() throws Exception {
         FunctionUtils.closeFunction(watermarkGenerator);
+        super.close();
     }
 }

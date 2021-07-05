@@ -134,6 +134,7 @@ public class TemporalProcessTimeJoinOperator extends BaseTwoInputStreamOperatorW
     @Override
     public void close() throws Exception {
         FunctionUtils.closeFunction(joinCondition);
+        super.close();
     }
 
     /**
