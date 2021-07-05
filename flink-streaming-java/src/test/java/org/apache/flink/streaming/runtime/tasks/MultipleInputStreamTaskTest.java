@@ -73,7 +73,6 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
-import org.apache.flink.streaming.util.TestBoundedMultipleInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.SerializedValue;
 
@@ -997,35 +996,6 @@ public class MultipleInputStreamTaskTest {
                     output.collect(new StreamRecord<>(element.getValue().toString()));
                 }
             }
-        }
-    }
-
-    private static class TestBoundedMultipleInputOperatorFactory
-            extends AbstractStreamOperatorFactory<String> {
-        @Override
-        public <T extends StreamOperator<String>> T createStreamOperator(
-                StreamOperatorParameters<String> parameters) {
-            return (T) new TestBoundedMultipleInputOperator("Operator0", parameters);
-        }
-
-        @Override
-        public Class<? extends StreamOperator<String>> getStreamOperatorClass(
-                ClassLoader classLoader) {
-            return TestBoundedMultipleInputOperator.class;
-        }
-    }
-
-    private static class DuplicatingOperatorFactory extends AbstractStreamOperatorFactory<String> {
-        @Override
-        public <T extends StreamOperator<String>> T createStreamOperator(
-                StreamOperatorParameters<String> parameters) {
-            return (T) new DuplicatingOperator(parameters);
-        }
-
-        @Override
-        public Class<? extends StreamOperator<String>> getStreamOperatorClass(
-                ClassLoader classLoader) {
-            return DuplicatingOperator.class;
         }
     }
 
