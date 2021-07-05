@@ -65,6 +65,8 @@ import static org.apache.flink.table.planner.utils.TableTestUtil.readFromResourc
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId;
 import static org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests {@link HiveTableSink}. */
 public class HiveTableSinkITCase {
@@ -372,6 +374,39 @@ public class HiveTableSinkITCase {
                             .getPath());
         } finally {
             tEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
+    @Test
+    public void testStreamingSinkWithoutCommitPolicy() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamTableEnvironment tableEnv = HiveTestUtils.createTableEnvInStreamingMode(env);
+        tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+        tableEnv.useCatalog(hiveCatalog.getName());
+
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+            tableEnv.executeSql("create table dest(x int) partitioned by (p string)");
+
+            tableEnv.getConfig().setSqlDialect(SqlDialect.DEFAULT);
+            tableEnv.executeSql(
+                    "create table src (i int, p string) with ("
+                            + "'connector'='datagen',"
+                            + "'number-of-rows'='5')");
+            tableEnv.executeSql("insert into dest select * from src").await();
+            fail("Streaming write partitioned table without commit policy should fail");
+        } catch (FlinkHiveException e) {
+            // expected
+            assertTrue(
+                    e.getMessage()
+                            .contains(
+                                    String.format(
+                                            "Streaming write to partitioned hive table `%s`.`%s`.`%s` without providing a commit policy",
+                                            hiveCatalog.getName(), "db1", "dest")));
+        } finally {
+            tableEnv.executeSql("drop database db1 cascade");
         }
     }
 
