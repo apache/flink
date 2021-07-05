@@ -26,6 +26,10 @@ import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContextImpl;
+import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -103,7 +107,8 @@ public class JobManagerSharedServices {
     // ------------------------------------------------------------------------
 
     public static JobManagerSharedServices fromConfiguration(
-            Configuration config, BlobServer blobServer, FatalErrorHandler fatalErrorHandler) {
+            Configuration config, BlobServer blobServer, FatalErrorHandler fatalErrorHandler)
+            throws Exception {
 
         checkNotNull(config);
         checkNotNull(blobServer);
@@ -133,6 +138,13 @@ public class JobManagerSharedServices {
                         Hardware.getNumberCPUCores(),
                         new ExecutorThreadFactory("jobmanager-future"));
 
-        return new JobManagerSharedServices(futureExecutor, libraryCacheManager, blobServer);
+        final ShuffleMasterContext shuffleMasterContext =
+                new ShuffleMasterContextImpl(config, fatalErrorHandler);
+        final ShuffleMaster<?> shuffleMaster =
+                ShuffleServiceLoader.loadShuffleServiceFactory(config)
+                        .createShuffleMaster(shuffleMasterContext);
+
+        return new JobManagerSharedServices(
+                futureExecutor, libraryCacheManager, shuffleMaster, blobServer);
     }
 }
