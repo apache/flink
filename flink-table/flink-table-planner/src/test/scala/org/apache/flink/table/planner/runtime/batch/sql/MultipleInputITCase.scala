@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
@@ -180,6 +181,27 @@ class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
         |SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
         |""".stripMargin
     )
+  }
+
+  @Test
+  def testMaxSupportedInputs(): Unit = {
+    val rowType = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO)
+    val data = Seq(BatchTestBase.row(1, "test"))
+    val nullables: Array[Boolean] = Array(true, true)
+    registerCollection("left_table", data, rowType, "a, b", nullables)
+    registerCollection("right_table", data, rowType, "c, d", nullables)
+
+    val numJoins = MultipleInputSelectionHandler.MAX_SUPPORTED_INPUT_COUNT - 1
+
+    val sql = new StringBuilder("SELECT t0.a, t0.b")
+    for (i <- 1 to numJoins) {
+      sql.append(s", t$i.c, t$i.d")
+    }
+    sql.append(" from left_table as t0")
+    for (i <- 1 to numJoins) {
+      sql.append(s" left join right_table as t$i on t0.a = t$i.c and t$i.c = 1")
+    }
+    checkMultipleInputResult(sql.toString())
   }
 
   def checkMultipleInputResult(sql: String): Unit = {
