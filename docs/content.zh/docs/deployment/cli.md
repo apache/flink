@@ -28,7 +28,7 @@ under the License.
 <a name="Command-Line Interface"> </a>
 # 命令行界面
 
-Flink提供了命令界面（CLI）`bin/flink` 来运行 JAR 格式的程序，同时控制其执行。该 CLI 作为所有 Flink 安装配置的一部分，在单节点或分布式安装的方式中都可以使用。命令行程序与运行中的 JobManager 建立连接来通信，JobManager 的连接信息可以通过`conf/flink-config.yaml`指定。
+Flink提供了命令行界面（CLI）`bin/flink` 来运行 JAR 格式的程序，同时控制其执行。该 CLI 作为 Flink 安装配置的一部分，在单节点或分布式安装的方式中都可以使用。命令行程序与运行中的 JobManager 建立连接来通信，JobManager 的连接信息可以通过`conf/flink-config.yaml`指定。
 
 <a name="job-lifecycle-management"> </a>
 
@@ -152,7 +152,7 @@ $ ./bin/flink savepoint \
 
 #### 优雅地终止作业并创建最终 Savepoint
 
-终止作业运行的操作是 `stop`。`stop` 操作停止从 source 到 sink 的作业流，是一种更优雅的终止方式。当用户请求终止一项作业时，所有的 sources 将被要求发送最后的 checkpoint 障碍，这会触发创建 checkpoint ，在成功完成 checkpoint 的创建后，Flink 会调用 `cancel()` 方法来终止作业。
+终止作业运行的操作是 `stop`。`stop` 操作停止从 source 到 sink 的作业流，是一种更优雅的终止方式。当用户请求终止一项作业时，所有的 sources 将被要求发送最后的 checkpoint 屏障，这会触发创建 checkpoint ，在成功完成 checkpoint 的创建后，Flink 会调用 `cancel()` 方法来终止作业。
 
 ```bash
 $ ./bin/flink stop \
@@ -321,12 +321,12 @@ Flink 兼容多种集群管理框架，例如 [Kubernetes]({{< ref "docs/deploym
 下面的参数组合的总结：
 
 * YARN
-  * `./bin/flink run --target yarn-session`: 将作业以 `Session` 模式提交到 YARN 集群上运行的 Flink。
-  * `./bin/flink run --target yarn-per-job`: 将作业以 `Per-Job` 模式提交到 Flink，会基于 YARN 集群新启动一个对应 Flink。
-  * `./bin/flink run-application --target yarn-application`: 将作业以 `yarn-application` 模式提交到 Flink，会基于 YARN 集群新启动一个对应 Flink。
+  * `./bin/flink run --target yarn-session`: 将作业以 `Session` 模式提交到 YARN 集群上运行。
+  * `./bin/flink run --target yarn-per-job`: 作业以 `Per-Job` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
+  * `./bin/flink run-application --target yarn-application`: 作业以 `yarn-application` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
 * Kubernetes
-  * `./bin/flink run --target kubernetes-session`: 将作业以 `Session` 模式提交 Kubernetes 集群上运行的 Flink。
-  * `./bin/flink run-application --target kubernetes-application`: 将作业以 `yarn-application` 模式提交到 Flink，会基于 Kubernetes 集群新启动一个对应 Flink 。
+  * `./bin/flink run --target kubernetes-session`: 将作业以 `Session` 模式提交到 Kubernetes 集群上运行。
+  * `./bin/flink run-application --target kubernetes-application`: 作业以 `yarn-application` 模式提交，会基于 Kubernetes 集群新启动一个对应 Flink Job。
 * Standalone:
   * `./bin/flink run --target local`: 将作业以 `Session` 模式提交到最小集群模式部署的本地 Flink。
   * `./bin/flink run --target remote`: 将作业提交到运行中的 Flink 集群。
