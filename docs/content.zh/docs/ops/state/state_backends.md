@@ -269,31 +269,35 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 下面是自定义 `ConfigurableRocksDBOptionsFactory` 的一个示例 (开发完成后，请将您的实现类全名设置到 `state.backend.rocksdb.options-factory`).
 
 ```java
-
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
+    public static final ConfigOption<Integer> BLOCK_RESTART_INTERVAL = ConfigOptions
+            .key("my.custom.rocksdb.block.restart-interval")
+            .intType()
+            .defaultValue(16)
+            .withDescription(
+                    " Block restart interval. RocksDB has default block restart interval as 16. ");
 
-    private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
-    private long blockCacheSize = DEFAULT_SIZE;
+    private int blockRestartInterval = BLOCK_RESTART_INTERVAL.defaultValue();
 
     @Override
-    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
-        return currentOptions.setIncreaseParallelism(4)
-               .setUseFsync(false);
+    public DBOptions createDBOptions(DBOptions currentOptions,
+                                     Collection<AutoCloseable> handlesToClose) {
+        return currentOptions
+                .setIncreaseParallelism(4)
+                .setUseFsync(false);
     }
 
     @Override
-    public ColumnFamilyOptions createColumnOptions(
-        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+    public ColumnFamilyOptions createColumnOptions(ColumnFamilyOptions currentOptions,
+                                                   Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setTableFormatConfig(
-            new BlockBasedTableConfig()
-                .setBlockCacheSize(blockCacheSize)
-                .setBlockSize(128 * 1024));            // 128 KB
+                new BlockBasedTableConfig()
+                        .setBlockRestartInterval(blockRestartInterval));
     }
 
     @Override
-    public RocksDBOptionsFactory configure(Configuration configuration) {
-        this.blockCacheSize =
-            configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+        this.blockRestartInterval = configuration.get(BLOCK_RESTART_INTERVAL);
         return this;
     }
 }
