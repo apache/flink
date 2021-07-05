@@ -236,7 +236,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      */
     private volatile boolean failing;
 
-    private boolean disposedOperators;
+    private boolean closedOperators;
 
     /** Thread pool for async snapshot workers. */
     private final ExecutorService asyncOperationsThreadPool;
@@ -506,7 +506,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
     /**
      * Instructs the task to go through its normal termination routine, i.e. exit the run-loop and
-     * call {@link StreamOperator#close()} and {@link StreamOperator#dispose()} on its operators.
+     * call {@link StreamOperator#finish()} and {@link StreamOperator#close()} on its operators.
      *
      * <p>This is used by the source task to get out of the run-loop when the job is stopped with a
      * savepoint.
@@ -552,7 +552,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             LOG.debug("Re-restore attempt rejected.");
             return;
         }
-        disposedOperators = false;
+        closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
         operatorChain = new OperatorChain<>(this, recordWriter);
@@ -891,19 +891,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
      */
     private void closeAllOperators() throws Exception {
-        if (operatorChain != null && !disposedOperators) {
+        if (operatorChain != null && !closedOperators) {
             Exception closingException = null;
             for (StreamOperatorWrapper<?, ?> operatorWrapper :
                     operatorChain.getAllOperators(true)) {
                 StreamOperator<?> operator = operatorWrapper.getStreamOperator();
                 try {
                     operator.close();
-                    //                    operator.dispose();
                 } catch (Exception e) {
                     closingException = firstOrSuppressed(e, closingException);
                 }
             }
-            disposedOperators = true;
+            closedOperators = true;
             if (closingException != null) {
                 throw closingException;
             }
