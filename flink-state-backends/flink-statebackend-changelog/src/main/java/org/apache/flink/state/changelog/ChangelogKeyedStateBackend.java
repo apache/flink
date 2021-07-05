@@ -284,6 +284,7 @@ public class ChangelogKeyedStateBackend<K>
             lastState = previous;
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
+            functionDelegationHelper.addOrUpdate(stateDescriptor);
             return (S) previous;
         }
 
