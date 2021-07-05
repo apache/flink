@@ -74,6 +74,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
+import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -837,6 +839,19 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         }
     }
 
+    @Override
+    public CompletableFuture<?> stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> partitionIds) {
+        CompletableFuture<?> future = new CompletableFuture<>();
+        try {
+            partitionTracker.stopTrackingAndReleasePartitions(partitionIds, false);
+            future.complete(null);
+        } catch (Throwable throwable) {
+            future.completeExceptionally(throwable);
+        }
+        return future;
+    }
+
     // ----------------------------------------------------------------------------------------------
     // Internal methods
     // ----------------------------------------------------------------------------------------------
@@ -846,6 +861,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
 
     private void startJobExecution() throws Exception {
         validateRunsInMainThread();
+
+        JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
+        shuffleMaster.registerJob(context);
 
         startJobMasterServices();
 
@@ -913,6 +931,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         return FutureUtils.runAfterwards(
                 terminationFuture,
                 () -> {
+                    shuffleMaster.unregisterJob(jobGraph.getJobID());
                     disconnectTaskManagerResourceManagerConnections(cause);
                     stopJobMasterServices();
                 });

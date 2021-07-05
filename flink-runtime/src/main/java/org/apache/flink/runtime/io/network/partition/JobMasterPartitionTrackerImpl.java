@@ -99,10 +99,12 @@ public class JobMasterPartitionTrackerImpl
     }
 
     @Override
-    public void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds) {
+    public void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds, boolean releaseOnShuffleMaster) {
         stopTrackingAndHandlePartitions(
                 resultPartitionIds,
-                (tmID, partitionDescs) -> internalReleasePartitions(tmID, partitionDescs));
+                (tmID, partitionDescs) ->
+                        internalReleasePartitions(tmID, partitionDescs, releaseOnShuffleMaster));
     }
 
     @Override
@@ -138,11 +140,14 @@ public class JobMasterPartitionTrackerImpl
 
     private void internalReleasePartitions(
             ResourceID potentialPartitionLocation,
-            Collection<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors) {
+            Collection<ResultPartitionDeploymentDescriptor> partitionDeploymentDescriptors,
+            boolean releaseOnShuffleMaster) {
 
         internalReleasePartitionsOnTaskExecutor(
                 potentialPartitionLocation, partitionDeploymentDescriptors);
-        internalReleasePartitionsOnShuffleMaster(partitionDeploymentDescriptors.stream());
+        if (releaseOnShuffleMaster) {
+            internalReleasePartitionsOnShuffleMaster(partitionDeploymentDescriptors.stream());
+        }
     }
 
     private void internalReleaseOrPromotePartitions(
