@@ -74,6 +74,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
+import org.apache.flink.runtime.shuffle.JobShuffleContext;
+import org.apache.flink.runtime.shuffle.JobShuffleContextImpl;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -381,6 +383,8 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     @Override
     protected void onStart() throws JobMasterException {
         try {
+            JobShuffleContext context = new JobShuffleContextImpl(jobGraph.getJobID(), this);
+            shuffleMaster.registerJob(context);
             startJobExecution();
         } catch (Exception e) {
             final JobMasterException jobMasterException =
@@ -837,6 +841,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
         }
     }
 
+    @Override
+    public CompletableFuture<?> stopTrackingPartitions(Collection<ResultPartitionID> partitionIDS) {
+        CompletableFuture<?> future = new CompletableFuture<>();
+        try {
+            partitionTracker.stopTrackingAndReleasePartitions(partitionIDS);
+        } catch (Throwable throwable) {
+            future.completeExceptionally(throwable);
+        }
+        return future;
+    }
+
     // ----------------------------------------------------------------------------------------------
     // Internal methods
     // ----------------------------------------------------------------------------------------------
@@ -976,6 +991,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         }
                     });
 
+            shuffleMaster.unregisterJob(jobGraph.getJobID());
             final ExecutionGraphInfo executionGraphInfo = schedulerNG.requestJob();
             scheduledExecutorService.execute(
                     () -> jobCompletionActions.jobReachedGloballyTerminalState(executionGraphInfo));
