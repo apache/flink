@@ -65,7 +65,8 @@ flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-sql-client,\
 flink-table/flink-table-planner-blink,\
-flink-table/flink-table-runtime-blink"
+flink-table/flink-table-runtime-blink,\
+flink-table/flink-table-code-splitter"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
