@@ -311,29 +311,37 @@ Flink还提供了两个参数来控制*写路径*（MemTable）和*读路径*（
 {% highlight java %}
 
 public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
-
     private static final long DEFAULT_SIZE = 256 * 1024 * 1024;  // 256 MB
-    private long blockCacheSize = DEFAULT_SIZE;
+    private MemorySize blockCacheSize = new MemorySize(DEFAULT_SIZE);
+
+    public static final ConfigOption<MemorySize> BLOCK_CACHE_SIZE = ConfigOptions
+            .key("my.custom.rocksdb.block.cache.size")
+            .memoryType()
+            .noDefaultValue()
+            .withDescription(
+                    "The amount of the cache for data blocks in RocksDB. "
+                            + "RocksDB has default block-cache size as '8MB'.");
 
     @Override
-    public DBOptions createDBOptions(DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+    public DBOptions createDBOptions(
+            DBOptions currentOptions,
+            Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setIncreaseParallelism(4)
-               .setUseFsync(false);
+                .setUseFsync(false);
     }
 
     @Override
     public ColumnFamilyOptions createColumnOptions(
-        ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
+            ColumnFamilyOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         return currentOptions.setTableFormatConfig(
-            new BlockBasedTableConfig()
-                .setBlockCacheSize(blockCacheSize)
-                .setBlockSize(128 * 1024));            // 128 KB
+                new BlockBasedTableConfig()
+                        .setBlockCacheSize(blockCacheSize.getBytes())
+                        .setBlockSize(128 * 1024));            // 128 KB
     }
 
     @Override
-    public RocksDBOptionsFactory configure(Configuration configuration) {
-        this.blockCacheSize =
-            configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
+    public RocksDBOptionsFactory configure(ReadableConfig configuration) {
+        configuration.get(BLOCK_CACHE_SIZE);
         return this;
     }
 }

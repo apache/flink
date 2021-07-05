@@ -159,7 +159,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(Configuration configuration) {
+    public OptionsFactory configure(ReadableConfig configuration) {
         return this;
     }
 }
