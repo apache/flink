@@ -182,6 +182,27 @@ class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
     )
   }
 
+  @Test
+  def testManyInputs(): Unit = {
+    val rowType = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO)
+    val data = Seq(BatchTestBase.row(1, "test"))
+    val nullables: Array[Boolean] = Array(true, true)
+    registerCollection("left_table", data, rowType, "a, b", nullables)
+    registerCollection("right_table", data, rowType, "c, d", nullables)
+
+    val numInputs = 56
+
+    val sql = new StringBuilder("SELECT t0.a, t0.b")
+    for (i <- 1 to numInputs) {
+      sql.append(s", t$i.c, t$i.d")
+    }
+    sql.append(" from left_table as t0")
+    for (i <- 1 to numInputs) {
+      sql.append(s" left join right_table as t$i on t0.a = t$i.c and t$i.c = 1")
+    }
+    checkMultipleInputResult(sql.toString())
+  }
+
   def checkMultipleInputResult(sql: String): Unit = {
     tEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED, false)
