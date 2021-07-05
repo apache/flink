@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-uber-blink_${scala.binary.version}</artifactId>
+	<artifactId>flink-table-uber_${scala.binary.version}</artifactId>
 	<name>Flink : Table : Uber</name>
 	<description>
 		This module contains the entire Table/SQL distribution for writing table programs
