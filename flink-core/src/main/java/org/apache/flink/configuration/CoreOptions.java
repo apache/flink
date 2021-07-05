@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
@@ -33,6 +34,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 @PublicEvolving
 @ConfigGroups(groups = {@ConfigGroup(name = "Environment", keyPrefix = "env")})
 public class CoreOptions {
+
+    @Internal
+    public static final String PARENT_FIRST_LOGGING_PATTERNS =
+            "org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback";
 
     // ------------------------------------------------------------------------
     //  Classloading Parameters
@@ -92,7 +97,8 @@ public class CoreOptions {
     public static final ConfigOption<String> ALWAYS_PARENT_FIRST_LOADER_PATTERNS =
             ConfigOptions.key("classloader.parent-first-patterns.default")
                     .defaultValue(
-                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache.logging;org.apache.commons.logging;ch.qos.logback;org.xml;javax.xml;org.apache.xerces;org.w3c")
+                            "java.;scala.;org.apache.flink.;com.esotericsoftware.kryo;org.apache.hadoop.;javax.annotation.;org.xml;javax.xml;org.apache.xerces;org.w3c;"
+                                    + PARENT_FIRST_LOGGING_PATTERNS)
                     .withDeprecatedKeys("classloader.parent-first-patterns")
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
@@ -149,8 +155,8 @@ public class CoreOptions {
             ConfigOptions.key("plugin.classloader.parent-first-patterns.default")
                     .stringType()
                     .defaultValue(
-                            "java.;org.apache.flink.;javax.annotation.;org.slf4j;org.apache.log4j;org.apache"
-                                    + ".logging;org.apache.commons.logging;ch.qos.logback")
+                            "java.;org.apache.flink.;javax.annotation.;"
+                                    + PARENT_FIRST_LOGGING_PATTERNS)
                     .withDescription(
                             "A (semicolon-separated) list of patterns that specifies which classes should always be"
                                     + " resolved through the plugin parent ClassLoader first. A pattern is a simple prefix that is checked "
