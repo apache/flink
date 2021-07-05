@@ -31,7 +31,39 @@ import java.util.concurrent.CompletableFuture;
  * @param <T> partition shuffle descriptor used for producer/consumer deployment and their data
  *     exchange.
  */
-public interface ShuffleMaster<T extends ShuffleDescriptor> {
+public interface ShuffleMaster<T extends ShuffleDescriptor> extends AutoCloseable {
+
+    /**
+     * Starts this shuffle master as a service. One can do some initialization here, for example
+     * getting access and connecting to the external system.
+     */
+    default void start() throws Exception {}
+
+    /**
+     * Closes this shuffle master service which should release all resources. A shuffle master will
+     * only be closed when the cluster is shut down.
+     */
+    @Override
+    default void close() throws Exception {}
+
+    /**
+     * Registers the target job together with the corresponding {@link JobShuffleContext} to this
+     * shuffle master. Through the shuffle context, one can obtain some basic information like job
+     * ID, job configuration. It enables ShuffleMaster to notify JobMaster about lost result
+     * partitions, so that JobMaster can identify and reproduce unavailable partitions earlier.
+     *
+     * @param context the corresponding shuffle context of the target job.
+     */
+    default void registerJob(JobShuffleContext context) {}
+
+    /**
+     * Unregisters the target job from this shuffle master, which means the corresponding job has
+     * reached a global termination state and all the allocated resources except for the cluster
+     * partitions can be cleared.
+     *
+     * @param jobID ID of the target job to be unregistered.
+     */
+    default void unregisterJob(JobID jobID) {}
 
     /**
      * Asynchronously register a partition and its producer with the shuffle service.
