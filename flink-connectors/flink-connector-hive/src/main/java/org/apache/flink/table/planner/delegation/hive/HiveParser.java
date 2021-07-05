@@ -42,8 +42,11 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.ComputedFieldSchema;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
@@ -58,11 +61,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.ql.exec.ColumnInfo;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -266,6 +273,36 @@ public class HiveParser extends ParserImpl {
                                             ((CreateTableASDesc) work).getCreateTableDesc());
                     return Collections.singletonList(
                             new CreateTableASOperation(createTableOperation, insertOperation));
+                } else if (work instanceof HiveParserCreateTableDesc) {
+                    HiveParserSemanticAnalyzer hiveParserSemanticAnalyzer =
+                            new HiveParserSemanticAnalyzer(
+                                    queryState,
+                                    hiveShim,
+                                    frameworkConfig,
+                                    plannerContext.getCluster());
+                    HiveParserCreateTableDesc hiveParserCreateTableDesc =
+                            (HiveParserCreateTableDesc) work;
+                    // analyze create table with computed column
+                    HiveParserRowResolver hiveParserRowResolver = new HiveParserRowResolver();
+                    for (FieldSchema col : hiveParserCreateTableDesc.getCols()) {
+                        if (col.getType() == null) {
+                            ComputedFieldSchema computedCol = (ComputedFieldSchema) col;
+                            HiveParserASTNode hiveParserASTNode = computedCol.getAstNode();
+                            ExprNodeDesc exprNodeDesc =
+                                    hiveParserSemanticAnalyzer.genExprNodeDesc(
+                                            hiveParserASTNode, hiveParserRowResolver);
+                            computedCol.setType(exprNodeDesc.getTypeString());
+                            computedCol.setExpression(exprNodeDesc.getExprString());
+                        }
+
+                        ColumnInfo columnInfo =
+                                new ColumnInfo(
+                                        col.getName(),
+                                        TypeInfoUtils.getTypeInfoFromTypeString(col.getType()),
+                                        null,
+                                        false);
+                        hiveParserRowResolver.put(null, col.getName(), columnInfo);
+                    }
                 }
                 return Collections.singletonList(ddlConverter.convert(work));
             } else {

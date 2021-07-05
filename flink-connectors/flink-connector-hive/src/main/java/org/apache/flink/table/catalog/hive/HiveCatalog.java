@@ -28,6 +28,7 @@ import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -745,6 +746,11 @@ public class HiveCatalog extends AbstractCatalog {
         if (isHiveTable) {
             // Table schema
             List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
+            //            List<FieldSchema> computedCols =
+            // getComputedFieldSchema(hiveTable.getParameters());
+            //            if (computedCols != null && !computedCols.isEmpty()) {
+            //                fields.addAll(computedCols);
+            //            }
             Set<String> notNullColumns =
                     client.getNotNullColumns(
                             hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
@@ -755,6 +761,15 @@ public class HiveCatalog extends AbstractCatalog {
                                     hiveTable.getDbName(),
                                     hiveTable.getTableName(),
                                     HiveTableUtil.relyConstraint((byte) 0));
+            //            properties = retrieveFlinkProperties(properties);
+            DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
+            tableSchemaProps.putProperties(properties);
+            List<TableColumn> computedColumns =
+                    tableSchemaProps.getOptionalTableSchema(Schema.SCHEMA)
+                            .orElseGet(() -> TableSchema.builder().build()).getTableColumns()
+                            .stream()
+                            .filter(column -> column instanceof TableColumn.ComputedColumn)
+                            .collect(Collectors.toList());
             // PK columns cannot be null
             primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
             tableSchema =
@@ -762,7 +777,8 @@ public class HiveCatalog extends AbstractCatalog {
                             fields,
                             hiveTable.getPartitionKeys(),
                             notNullColumns,
-                            primaryKey.orElse(null));
+                            primaryKey.orElse(null),
+                            computedColumns);
 
             if (!hiveTable.getPartitionKeys().isEmpty()) {
                 partitionKeys = getFieldNames(hiveTable.getPartitionKeys());

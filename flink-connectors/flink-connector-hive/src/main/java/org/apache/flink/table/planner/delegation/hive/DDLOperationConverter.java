@@ -298,7 +298,11 @@ public class DDLOperationConverter {
         ObjectIdentifier viewIdentifier = parseObjectIdentifier(desc.getCompoundName());
         TableSchema schema =
                 HiveTableUtil.createTableSchema(
-                        desc.getSchema(), Collections.emptyList(), Collections.emptySet(), null);
+                        desc.getSchema(),
+                        Collections.emptyList(),
+                        Collections.emptySet(),
+                        null,
+                        null);
         Map<String, String> props = new HashMap<>();
         String comment;
         if (desc.isAlterViewAs()) {
@@ -439,7 +443,7 @@ public class DDLOperationConverter {
         }
         TableSchema tableSchema =
                 HiveTableUtil.createTableSchema(
-                        desc.getCols(), desc.getPartCols(), notNullColSet, uniqueConstraint);
+                        desc.getCols(), desc.getPartCols(), notNullColSet, uniqueConstraint, null);
         return new CreateTableOperation(
                 identifier,
                 new CatalogTableImpl(

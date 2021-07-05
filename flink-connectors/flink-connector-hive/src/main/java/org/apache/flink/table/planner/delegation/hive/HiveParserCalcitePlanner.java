@@ -149,6 +149,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getComputedFieldSchema;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.generateErrorMessage;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.rewriteGroupingFunctionAST;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.verifyCanHandleAst;
@@ -841,6 +842,19 @@ public class HiveParserCalcitePlanner {
                             new ColumnInfo(
                                     colName,
                                     TypeInfoFactory.getPrimitiveTypeInfo(partCol.getType()),
+                                    tableAlias,
+                                    true);
+                    rowResolver.put(tableAlias, colName, colInfo);
+                }
+
+                // 3.3 Add computed columns
+                List<FieldSchema> fieldSchema = getComputedFieldSchema(table.getParameters());
+                for (FieldSchema computedCol : fieldSchema) {
+                    colName = computedCol.getName();
+                    colInfo =
+                            new ColumnInfo(
+                                    colName,
+                                    TypeInfoFactory.getPrimitiveTypeInfo(computedCol.getType()),
                                     tableAlias,
                                     true);
                     rowResolver.put(tableAlias, colName, colInfo);

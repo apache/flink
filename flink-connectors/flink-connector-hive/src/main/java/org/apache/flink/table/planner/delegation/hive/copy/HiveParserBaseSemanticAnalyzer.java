@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocati
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionExpression;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitionSpec;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PartitioningSpec;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.ComputedFieldSchema;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.NotNullConstraint;
 import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.PrimaryKey;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
@@ -119,6 +120,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.removeASTChild;
+import static org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser.TOK_TABCOL;
 
 /**
  * Counterpart of hive's org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer, and also contains
@@ -233,10 +235,13 @@ public class HiveParserBaseSemanticAnalyzer {
                     checkColumnName(name);
                     // child 0 is the name of the column
                     col.setName(unescapeIdentifier(name));
-                    // child 1 is the type of the column
-                    HiveParserASTNode typeChild = (HiveParserASTNode) (child.getChild(1));
-                    col.setType(getTypeStringFromAST(typeChild));
-
+                    if (child.getType() == TOK_TABCOL) {
+                        // child 1 is the type of the column
+                        HiveParserASTNode typeChild = (HiveParserASTNode) (child.getChild(1));
+                        col.setType(getTypeStringFromAST(typeChild));
+                    } else {
+                        col = new ComputedFieldSchema(col, (HiveParserASTNode) child.getChild(1));
+                    }
                     // child 2 is the optional comment of the column
                     // child 3 is the optional constraint
                     HiveParserASTNode constraintChild = null;

@@ -215,6 +215,7 @@ TOK_DROPTABLE;
 TOK_DATABASECOMMENT;
 TOK_TABCOLLIST;
 TOK_TABCOL;
+TOK_TABCMPTCOL;
 TOK_TABLECOMMENT;
 TOK_TABLEPARTCOLS;
 TOK_TABLEROWFORMAT;
@@ -2332,6 +2333,7 @@ columnNameTypeOrConstraint
 @after { popMsg(state); }
     : ( tableConstraint )
     | ( columnNameTypeConstraint )
+    | ( computedColumn)
     ;
 
 columnNameTypeConstraint
@@ -2341,6 +2343,15 @@ columnNameTypeConstraint
     -> {containExcludedCharForCreateTableColumnName($colName.text)}? {throwColumnNameException()}
     -> ^(TOK_TABCOL $colName colType $comment? colConstraint?)
     ;
+
+computedColumn
+@init { pushMsg("computed column", state); }
+@after { popMsg(state); }
+    : colName=identifier KW_AS expression (KW_COMMENT comment=StringLiteral)?
+    -> {containExcludedCharForCreateTableColumnName($colName.text)}? {throwColumnNameException()}
+    -> ^(TOK_TABCMPTCOL $colName expression $comment?)
+    ;
+
 
 colConstraint
 @init { pushMsg("column constraint", state); }

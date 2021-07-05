@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation.hive.desc;
 
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
 
@@ -241,6 +242,38 @@ public class HiveParserCreateTableDesc implements Serializable {
 
         public boolean isRely() {
             return rely;
+        }
+    }
+
+    /** Counterpart of hive's computed column. */
+    public static class ComputedFieldSchema extends FieldSchema implements Serializable {
+        private String expression;
+        private HiveParserASTNode astNode;
+
+        public ComputedFieldSchema(FieldSchema fieldSchema, HiveParserASTNode astNode) {
+            super(fieldSchema);
+            this.astNode = astNode;
+        }
+
+        public ComputedFieldSchema(String name, String type, String expression, String comment) {
+            super(name, type, comment);
+            this.expression = expression;
+        }
+
+        public HiveParserASTNode getAstNode() {
+            return astNode;
+        }
+
+        public String getExpression() {
+            return expression;
+        }
+
+        public void setExpression(String expression) {
+            this.expression = expression;
+        }
+
+        public void setAstNode(HiveParserASTNode astNode) {
+            this.astNode = astNode;
         }
     }
 }

@@ -303,6 +303,14 @@ public class HiveDialectITCase {
     }
 
     @Test
+    public void testCreateTableWithComputedColumns() throws Exception {
+        tableEnv.executeSql("create table src (x int, y int, z as x + y)");
+        tableEnv.executeSql("insert into src values (1,1),(2,2)");
+        List<Row> results = queryResult(tableEnv.sqlQuery("select x, y, z from src"));
+        assertEquals("[+I[1, 1, 2], +I[2, 2, 4]]", results.toString());
+    }
+
+    @Test
     public void testCreateTableAs() throws Exception {
         tableEnv.executeSql("create table src (x int,y string)");
         tableEnv.executeSql("create table tbl1 as select x from src group by x").await();

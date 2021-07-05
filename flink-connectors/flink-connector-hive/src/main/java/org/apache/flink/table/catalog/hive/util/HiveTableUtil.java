@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
 import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat;
+import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -32,7 +33,6 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
@@ -42,6 +42,7 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
+import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc.ComputedFieldSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -78,6 +79,7 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableS
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utils to for Hive-backed table. */
@@ -96,12 +98,15 @@ public class HiveTableUtil {
             List<FieldSchema> cols,
             List<FieldSchema> partitionKeys,
             Set<String> notNullColumns,
-            UniqueConstraint primaryKey) {
+            UniqueConstraint primaryKey,
+            List<TableColumn> computedColumns) {
         List<FieldSchema> allCols = new ArrayList<>(cols);
         allCols.addAll(partitionKeys);
 
         String[] colNames = new String[allCols.size()];
         DataType[] colTypes = new DataType[allCols.size()];
+
+        TableSchema.Builder builder = TableSchema.builder();
 
         for (int i = 0; i < allCols.size(); i++) {
             FieldSchema fs = allCols.get(i);
@@ -112,9 +117,20 @@ public class HiveTableUtil {
             if (notNullColumns.contains(colNames[i])) {
                 colTypes[i] = colTypes[i].notNull();
             }
+            if (fs instanceof ComputedFieldSchema) {
+                ComputedFieldSchema cfs = (ComputedFieldSchema) fs;
+                builder.add(TableColumn.computed(colNames[i], colTypes[i], cfs.getExpression()));
+            } else {
+                builder.add(TableColumn.physical(colNames[i], colTypes[i]));
+            }
         }
 
-        TableSchema.Builder builder = TableSchema.builder().fields(colNames, colTypes);
+        if (computedColumns != null) {
+            for (TableColumn column : computedColumns) {
+                builder.add(column);
+            }
+        }
+
         if (primaryKey != null) {
             builder.primaryKey(
                     primaryKey.getName(), primaryKey.getColumns().toArray(new String[0]));
@@ -124,18 +140,19 @@ public class HiveTableUtil {
 
     /** Create Hive columns from Flink TableSchema. */
     public static List<FieldSchema> createHiveColumns(TableSchema schema) {
-        String[] fieldNames = schema.getFieldNames();
-        DataType[] fieldTypes = schema.getFieldDataTypes();
+        List<TableColumn> tableColumns = schema.getTableColumns();
 
-        List<FieldSchema> columns = new ArrayList<>(fieldNames.length);
-
-        for (int i = 0; i < fieldNames.length; i++) {
-            columns.add(
-                    new FieldSchema(
-                            fieldNames[i],
-                            HiveTypeUtil.toHiveTypeInfo(fieldTypes[i], true).getTypeName(),
-                            null));
-        }
+        List<FieldSchema> columns =
+                tableColumns.stream()
+                        .filter(column -> column instanceof TableColumn.PhysicalColumn)
+                        .map(
+                                column ->
+                                        new FieldSchema(
+                                                column.getName(),
+                                                HiveTypeUtil.toHiveTypeInfo(column.getType(), true)
+                                                        .getTypeName(),
+                                                null))
+                        .collect(Collectors.toList());
 
         return columns;
     }
@@ -231,6 +248,36 @@ public class HiveTableUtil {
         extractRowFormat(hiveTable.getSd(), properties);
         extractStoredAs(hiveTable.getSd(), properties, hiveConf);
         extractLocation(hiveTable.getSd(), properties);
+    }
+
+    /** Put computed columns to properties. */
+    public static void putComputedColumnsProperties(
+            TableSchema schema, Map<String, String> properties) {
+        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        descriptorProperties.putProperties(properties);
+
+        descriptorProperties.putTableSchema(SCHEMA, schema);
+
+        properties.putAll(descriptorProperties.asMap());
+    }
+
+    public static List<FieldSchema> getComputedFieldSchema(Map<String, String> params) {
+        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        descriptorProperties.putProperties(params);
+
+        TableSchema tableSchema = descriptorProperties.getTableSchema(SCHEMA);
+
+        return tableSchema.getTableColumns().stream()
+                .filter(tableColumn -> tableColumn instanceof TableColumn.ComputedColumn)
+                .map(
+                        tableColumn ->
+                                new ComputedFieldSchema(
+                                        tableColumn.getName(),
+                                        HiveTypeUtil.toHiveTypeInfo(tableColumn.getType(), true)
+                                                .getTypeName(),
+                                        ((TableColumn.ComputedColumn) tableColumn).getExpression(),
+                                        ""))
+                .collect(Collectors.toList());
     }
 
     private static void extractExternal(Table hiveTable, Map<String, String> properties) {
@@ -360,6 +407,7 @@ public class HiveTableUtil {
 
         if (isHiveTable) {
             HiveTableUtil.initiateTableFromProperties(hiveTable, properties, hiveConf);
+            HiveTableUtil.putComputedColumnsProperties(table.getSchema(), properties);
             List<FieldSchema> allColumns = HiveTableUtil.createHiveColumns(table.getSchema());
             // Table columns and partition keys
             if (table instanceof CatalogTable) {
@@ -386,7 +434,7 @@ public class HiveTableUtil {
             hiveTable.getParameters().putAll(properties);
         } else {
             DescriptorProperties tableSchemaProps = new DescriptorProperties(true);
-            tableSchemaProps.putTableSchema(Schema.SCHEMA, table.getSchema());
+            tableSchemaProps.putTableSchema(SCHEMA, table.getSchema());
 
             if (table instanceof CatalogTable) {
                 tableSchemaProps.putPartitionKeys(((CatalogTable) table).getPartitionKeys());
