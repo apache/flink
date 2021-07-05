@@ -331,7 +331,9 @@ public class HiveCatalogGenericMetadataTest extends HiveCatalogMetadataTestBase 
                         .build();
         CatalogTable catalogTable = new CatalogTableImpl(tableSchema, Collections.emptyMap(), null);
         catalog.createTable(path1, catalogTable, false);
-        assertEquals(tableSchema, catalog.getTable(path1).getSchema());
+        CatalogTable retrievedTable = (CatalogTable) catalog.getTable(path1);
+        assertEquals(tableSchema, retrievedTable.getSchema());
+        assertEquals(Collections.emptyMap(), retrievedTable.getOptions());
     }
 
     // ------ functions ------
