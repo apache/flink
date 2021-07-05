@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.test.util.TestContainerVersions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
@@ -71,7 +72,7 @@ public class SQLClientSchemaRegistryITCase {
 
     @Rule
     public final KafkaContainer kafka =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+            new KafkaContainer(DockerImageName.parse(TestContainerVersions.KAFKA))
                     .withNetwork(network)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 

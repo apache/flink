@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.streaming.kinesis.test.model.Order;
+import org.apache.flink.test.util.TestContainerVersions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
@@ -66,8 +67,7 @@ public class KinesisTableApiITCase extends TestLogger {
 
     @ClassRule
     public static final KinesaliteContainer KINESALITE =
-            new KinesaliteContainer(
-                            DockerImageName.parse("instructure/kinesalite").withTag("latest"))
+            new KinesaliteContainer(DockerImageName.parse(TestContainerVersions.KINESALITE))
                     .withNetwork(network)
                     .withNetworkAliases(INTER_CONTAINER_KINESALITE_ALIAS);
 

@@ -53,7 +53,7 @@ variables:
   MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
-  TESTCONTAINER_CACHE_KEY: testcontainer-cache | $(Agent.OS) | **/cache_docker_images.sh
+  TESTCONTAINER_CACHE_KEY: testcontainer-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/TestContainerVersions.java
   TESTCONTAINER_CACHE_FOLDER: $(Pipeline.Workspace)/.docker-cache
   FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
