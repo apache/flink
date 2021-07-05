@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFac
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.util.Hardware;
@@ -55,8 +55,8 @@ public class NettyShuffleServiceFactory
     private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
     @Override
-    public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
-        return new NettyShuffleMaster(configuration);
+    public NettyShuffleMaster createShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
+        return new NettyShuffleMaster(shuffleMasterContext.getConfiguration());
     }
 
     @Override
