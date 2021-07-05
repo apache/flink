@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -48,7 +49,9 @@ public class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
 
     @Override
     public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
-            PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+            JobID jobID,
+            PartitionDescriptor partitionDescriptor,
+            ProducerDescriptor producerDescriptor) {
         if (throwExceptionalOnRegistration) {
             throw new RuntimeException("Forced partition registration failure");
         } else if (autoCompleteRegistration) {
