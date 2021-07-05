@@ -686,6 +686,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         operator.notifyCheckpointComplete(checkpointId);
     }
 
+    /** Calls dispose on the operator. */
+    public void dispose() throws Exception {
+        operator.dispose();
+    }
+
     /** Calls close and dispose on the operator. */
     public void close() throws Exception {
         operator.close();

@@ -36,7 +36,9 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Base class for Tests for subclasses of {@link AbstractSinkWriterOperator}. */
 public abstract class SinkWriterOperatorTestBase extends TestLogger {
@@ -180,6 +182,18 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
                                 Tuple3.of(2, initialTime + 2, Long.MIN_VALUE).toString())));
     }
 
+    @Test
+    public void testSinkWriterIsClosedWhenDisposed() throws Exception {
+        final ClosingSinkWriter sinkWriter = new ClosingSinkWriter();
+        final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+                createTestHarness(
+                        TestSink.newBuilder().withWriterState().setWriter(sinkWriter).build());
+        testHarness.open();
+        assertFalse(sinkWriter.closed);
+        testHarness.dispose();
+        assertTrue(sinkWriter.closed);
+    }
+
     /**
      * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
      * {@code flush} is {@code true}.
@@ -221,6 +235,17 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
             elements.addAll(cachedCommittables);
             cachedCommittables.clear();
             this.processingTimerService.registerProcessingTimer(time + 1000, this);
+        }
+    }
+
+    private static class ClosingSinkWriter extends TestSink.DefaultSinkWriter {
+
+        boolean closed = false;
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            this.closed = true;
         }
     }
 
