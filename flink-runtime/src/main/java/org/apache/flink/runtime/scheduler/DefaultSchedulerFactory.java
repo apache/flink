@@ -133,7 +133,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                shuffleMaster);
     }
 
     @Override

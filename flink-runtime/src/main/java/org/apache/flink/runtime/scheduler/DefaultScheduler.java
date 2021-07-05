@@ -47,6 +47,7 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.topology.Vertex;
 import org.apache.flink.util.ExceptionUtils;
@@ -97,6 +98,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
+    private final ShuffleMaster<?> shuffleMaster;
+
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -116,7 +119,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             long initializationTimestamp,
             final ComponentMainThreadExecutor mainThreadExecutor,
             final JobStatusListener jobStatusListener,
-            final ExecutionGraphFactory executionGraphFactory)
+            final ExecutionGraphFactory executionGraphFactory,
+            final ShuffleMaster<?> shuffleMaster)
             throws Exception {
 
         super(
@@ -138,6 +142,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         this.delayExecutor = checkNotNull(delayExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
         this.executionVertexOperations = checkNotNull(executionVertexOperations);
+        this.shuffleMaster = checkNotNull(shuffleMaster);
 
         final FailoverStrategy failoverStrategy =
                 failoverStrategyFactory.create(
@@ -147,6 +152,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 failoverStrategy,
                 jobGraph.getName(),
                 jobGraph.getJobID());
+
+        enrichResourceProfile();
 
         this.executionFailureHandler =
                 new ExecutionFailureHandler(
@@ -614,5 +621,14 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         public Optional<TaskManagerLocation> getStateLocation(ExecutionVertexID executionVertexId) {
             return stateLocationRetriever.getStateLocation(executionVertexId);
         }
+    }
+
+    private void enrichResourceProfile() {
+        Set<SlotSharingGroup> ssgs = new HashSet<>();
+        getJobGraph().getVertices().forEach(jv -> ssgs.add(jv.getSlotSharingGroup()));
+        ssgs.forEach(
+                ssg ->
+                        SsgNetworkMemoryCalculationUtils.enrichNetworkMemory(
+                                ssg, this::getExecutionJobVertex, shuffleMaster));
     }
 }

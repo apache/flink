@@ -566,7 +566,8 @@ public class SchedulerTestingUtils {
                     System.currentTimeMillis(),
                     mainThreadExecutor,
                     jobStatusListener,
-                    executionGraphFactory);
+                    executionGraphFactory,
+                    shuffleMaster);
         }
     }
 }
