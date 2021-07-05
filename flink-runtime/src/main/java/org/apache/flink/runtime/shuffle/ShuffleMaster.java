@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.configuration.MemorySize;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
@@ -61,4 +63,16 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
      * @param shuffleDescriptor shuffle descriptor of the result partition to release externally.
      */
     void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor);
+
+    /**
+     * Compute shuffle memory size for a task with the given {@link TaskInputsOutputsDescriptor}.
+     *
+     * @param taskInputsOutputsDescriptor describes task inputs and outputs information for shuffle
+     *     memory calculation.
+     * @return shuffle memory size for a task with the given {@link TaskInputsOutputsDescriptor}.
+     */
+    default MemorySize computeShuffleMemorySizeForTask(
+            TaskInputsOutputsDescriptor taskInputsOutputsDescriptor) {
+        return MemorySize.ZERO;
+    }
 }
