@@ -106,9 +106,4 @@ public class ProcTimeMiniBatchAssignerOperator extends AbstractStreamOperator<Ro
             output.emitWatermark(mark);
         }
     }
-
-    @Override
-    public void close() throws Exception {
-        super.close();
-    }
 }

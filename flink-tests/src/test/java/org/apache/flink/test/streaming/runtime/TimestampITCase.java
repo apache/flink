@@ -768,8 +768,8 @@ public class TimestampITCase extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
-            super.close();
+        public void finish() throws Exception {
+            super.finish();
             finalWatermarks[getRuntimeContext().getIndexOfThisSubtask()] = watermarks;
         }
     }

@@ -151,28 +151,30 @@ public abstract class AbstractMapBundleOperator<K, V, IN, OUT> extends AbstractS
     }
 
     @Override
+    public void finish() throws Exception {
+        finishBundle();
+        super.finish();
+    }
+
+    @Override
     public void close() throws Exception {
+        Exception exception = null;
+
         try {
-            finishBundle();
-        } finally {
-            Exception exception = null;
-
-            try {
-                super.close();
-                if (function != null) {
-                    FunctionUtils.closeFunction(function);
-                }
-            } catch (InterruptedException interrupted) {
-                exception = interrupted;
-
-                Thread.currentThread().interrupt();
-            } catch (Exception e) {
-                exception = e;
+            super.close();
+            if (function != null) {
+                FunctionUtils.closeFunction(function);
             }
+        } catch (InterruptedException interrupted) {
+            exception = interrupted;
 
-            if (exception != null) {
-                LOG.warn("Errors occurred while closing the BundleOperator.", exception);
-            }
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            exception = e;
+        }
+
+        if (exception != null) {
+            LOG.warn("Errors occurred while closing the BundleOperator.", exception);
         }
     }
 }
