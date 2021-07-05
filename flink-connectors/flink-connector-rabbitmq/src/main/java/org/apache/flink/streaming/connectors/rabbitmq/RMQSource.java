@@ -410,10 +410,16 @@ public class RMQSource<OUT> extends MultipleIdsMessageAcknowledgingSourceBase<OU
                 if (usesCorrelationId) {
                     Preconditions.checkNotNull(
                             correlationId,
-                            "RabbitMQ source was instantiated "
-                                    + "with usesCorrelationId set to true yet we couldn't extract the correlation id from it !");
+                            "RabbitMQ source was instantiated with usesCorrelationId set to "
+                                    + "true yet we couldn't extract the correlation id from it!");
                     if (!addId(correlationId)) {
                         // we have already processed this message
+                        try {
+                            channel.basicReject(deliveryTag, false);
+                        } catch (IOException e) {
+                            throw new RuntimeException(
+                                    "Message could not be acknowledged with basicReject.", e);
+                        }
                         return false;
                     }
                 }
