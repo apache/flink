@@ -34,16 +34,15 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
-
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.util.{TimestampString, Util}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinition, FunctionIdentifier}
 
 import java.util
 import java.util.{TimeZone, List => JList}
-
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -532,7 +531,15 @@ class RexNodeToExpressionConverter(
     Try(functionCatalog.lookupFunction(identifier)) match {
       case Success(f: java.util.Optional[FunctionLookup.Result]) =>
         if (f.isPresent) {
-          Some(new CallExpression(f.get().getFunctionDefinition, operands, outputType))
+          // we should simplify this logic once FLINK-23384 is fixed
+          val identifier = f.get.getFunctionDefinition match {
+            case funcDefinition: BuiltInFunctionDefinition =>
+              FunctionIdentifier.of(funcDefinition.getName)
+            case _ =>
+              f.get.getFunctionIdentifier
+          }
+
+          Some(new CallExpression(identifier, f.get.getFunctionDefinition, operands, outputType))
         } else {
           None
         }

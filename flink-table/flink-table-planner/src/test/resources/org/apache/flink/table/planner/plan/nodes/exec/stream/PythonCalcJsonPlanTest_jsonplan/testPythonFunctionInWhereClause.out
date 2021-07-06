@@ -132,7 +132,7 @@
     }, {
       "kind" : "REX_CALL",
       "operator" : {
-        "name" : "org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$BooleanPythonScalarFunction$7a841a4bac68feb7427ad21acb894ac4",
+        "name" : "pyFunc",
         "kind" : "OTHER_FUNCTION",
         "syntax" : "FUNCTION",
         "functionKind" : "SCALAR",
@@ -178,7 +178,7 @@
         "f0" : "BOOLEAN NOT NULL"
       } ]
     },
-    "description" : "PythonCalc(select=[a, b, org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$BooleanPythonScalarFunction$7a841a4bac68feb7427ad21acb894ac4(b, f0) AS f0])"
+    "description" : "PythonCalc(select=[a, b, pyFunc(b, f0) AS f0])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {

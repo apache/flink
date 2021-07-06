@@ -345,7 +345,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalFilter(condition=[<(org$apache$flink$table$planner$expressions$utils$Func1$$879c8537562dbe74f3349fa0e6502755($2), 32)])
++- LogicalFilter(condition=[<(myUdf($2), 32)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, filter=[greaterThan(amount, 2)]]])
 ]]>
     </Resource>

@@ -344,7 +344,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, id, amount, price], where=[<(Func1$(amount), 32)])
+FlinkLogicalCalc(select=[name, id, amount, price], where=[<(myUdf(amount), 32)])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[greaterThan(amount, 2)]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
