@@ -58,9 +58,21 @@ public class StateChangelogStorageLoader {
                                 pluginManager.load(StateChangelogStorageFactory.class),
                                 ServiceLoader.load(StateChangelogStorageFactory.class).iterator());
         iterator.forEachRemaining(
-                factory ->
-                        STATE_CHANGELOG_STORAGE_FACTORIES.putIfAbsent(
-                                factory.getIdentifier().toLowerCase(), factory));
+                factory -> {
+                    String identifier = factory.getIdentifier().toLowerCase();
+                    StateChangelogStorageFactory prev =
+                            STATE_CHANGELOG_STORAGE_FACTORIES.get(identifier);
+                    if (prev == null) {
+                        STATE_CHANGELOG_STORAGE_FACTORIES.put(identifier, factory);
+                    } else {
+                        LOG.warn(
+                                "StateChangelogStorageLoader found duplicated factory,"
+                                        + " using {} instead of {} for name {}.",
+                                prev.getClass().getName(),
+                                factory.getClass().getName(),
+                                identifier);
+                    }
+                });
         LOG.info(
                 "StateChangelogStorageLoader initialized with shortcut names {{}}.",
                 String.join(",", STATE_CHANGELOG_STORAGE_FACTORIES.keySet()));
