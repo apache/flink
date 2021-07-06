@@ -458,7 +458,7 @@ temporal:
   - sql: FLOOR(timepoint TO timeintervalunit) 
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
