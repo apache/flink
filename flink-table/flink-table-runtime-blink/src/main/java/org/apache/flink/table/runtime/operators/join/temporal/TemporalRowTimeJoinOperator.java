@@ -209,7 +209,6 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
             if (lastUnprocessedTime < Long.MAX_VALUE || !rightState.isEmpty()) {
                 registerProcessingCleanupTimer();
             } else {
-                cleanupLastTimer();
                 nextLeftIndex.clear();
             }
         }
