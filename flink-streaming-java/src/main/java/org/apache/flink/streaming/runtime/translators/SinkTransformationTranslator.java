@@ -224,17 +224,14 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
             OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
             int parallelism,
             int maxParallelism,
-            Context context)
-            throws IOException {
-
-        if (!sinkTransformation.getSink().createCommitter().isPresent()) {
-            return -1;
-        }
+            Context context) {
 
         final String prefix = "Sink Committer:";
         final CommittableTypeInformation<CommT> committableTypeInfo =
                 extractCommittableTypeInformation(sinkTransformation.getSink());
-        checkNotNull(committableTypeInfo);
+        if (committableTypeInfo == null) {
+            return -1;
+        }
 
         return addOperatorToStreamGraph(
                 committerFactory,
@@ -262,10 +259,9 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
             int inputId,
             SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
             OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
-            Context context)
-            throws IOException {
+            Context context) {
 
-        if (!sinkTransformation.getSink().createGlobalCommitter().isPresent()) {
+        if (!sinkTransformation.getSink().getGlobalCommittableSerializer().isPresent()) {
             return;
         }
 

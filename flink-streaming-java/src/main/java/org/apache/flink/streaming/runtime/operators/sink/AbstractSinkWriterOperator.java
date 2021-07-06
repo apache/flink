@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -30,7 +29,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.List;
 
@@ -112,26 +110,8 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     }
 
     protected Sink.InitContext createInitContext() {
-        return new InitContextImpl(
-                new UserCodeClassLoader() {
-                    @Override
-                    public ClassLoader asClassLoader() {
-                        return getRuntimeContext().getUserCodeClassLoader();
-                    }
-
-                    @Override
-                    public void registerReleaseHookIfAbsent(
-                            String releaseHookName, Runnable releaseHook) {
-                        getRuntimeContext()
-                                .registerUserCodeClassLoaderReleaseHookIfAbsent(
-                                        releaseHookName, releaseHook);
-                    }
-                },
-                getRuntimeContext().getIndexOfThisSubtask(),
-                getRuntimeContext().getNumberOfParallelSubtasks(),
-                processingTimeService,
-                mailboxExecutor,
-                getMetricGroup());
+        return InitContextImpl.of(
+                getRuntimeContext(), processingTimeService, mailboxExecutor, getMetricGroup());
     }
 
     /**
@@ -162,87 +142,6 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
                 return element.getTimestamp();
             }
             return null;
-        }
-    }
-
-    private static class InitContextImpl implements Sink.InitContext {
-
-        private final UserCodeClassLoader userCodeClassLoader;
-
-        private final int subtaskIdx;
-
-        private final int numberOfParallelSubtasks;
-
-        private final ProcessingTimeService processingTimeService;
-
-        private final MailboxExecutor mailboxExecutor;
-
-        private final MetricGroup metricGroup;
-
-        public InitContextImpl(
-                UserCodeClassLoader userCodeClassLoader,
-                int subtaskIdx,
-                int numberOfParallelSubtasks,
-                ProcessingTimeService processingTimeService,
-                MailboxExecutor mailboxExecutor,
-                MetricGroup metricGroup) {
-            this.userCodeClassLoader = userCodeClassLoader;
-            this.subtaskIdx = subtaskIdx;
-            this.numberOfParallelSubtasks = numberOfParallelSubtasks;
-            this.mailboxExecutor = mailboxExecutor;
-            this.processingTimeService = checkNotNull(processingTimeService);
-            this.metricGroup = checkNotNull(metricGroup);
-        }
-
-        @Override
-        public UserCodeClassLoader getUserCodeClassLoader() {
-            return userCodeClassLoader;
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return numberOfParallelSubtasks;
-        }
-
-        @Override
-        public MailboxExecutor getMailboxExecutor() {
-            return mailboxExecutor;
-        }
-
-        @Override
-        public Sink.ProcessingTimeService getProcessingTimeService() {
-            return new ProcessingTimerServiceImpl(processingTimeService);
-        }
-
-        @Override
-        public int getSubtaskId() {
-            return subtaskIdx;
-        }
-
-        @Override
-        public MetricGroup metricGroup() {
-            return metricGroup;
-        }
-    }
-
-    private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
-
-        private final ProcessingTimeService processingTimeService;
-
-        public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
-            this.processingTimeService = checkNotNull(processingTimeService);
-        }
-
-        @Override
-        public long getCurrentProcessingTime() {
-            return processingTimeService.getCurrentProcessingTime();
-        }
-
-        @Override
-        public void registerProcessingTimer(
-                long time, ProcessingTimeCallback processingTimerCallback) {
-            checkNotNull(processingTimerCallback);
-            processingTimeService.registerTimer(time, processingTimerCallback::onProcessingTime);
         }
     }
 }

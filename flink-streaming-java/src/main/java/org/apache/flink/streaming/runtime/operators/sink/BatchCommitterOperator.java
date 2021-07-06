@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -39,14 +41,37 @@ final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
         implements OneInputStreamOperator<CommT, CommT>, BoundedOneInput {
 
     /** Responsible for committing the committable to the external system. */
-    private final Committer<CommT> committer;
+    private Committer<CommT> committer;
 
     /** Record all the committables until the end of the input. */
     private final List<CommT> allCommittables;
 
-    public BatchCommitterOperator(Committer<CommT> committer) {
-        this.committer = checkNotNull(committer);
+    private final Sink<?, CommT, ?, ?> sink;
+
+    private final MailboxExecutor mailboxExecutor;
+
+    public BatchCommitterOperator(Sink<?, CommT, ?, ?> sink, MailboxExecutor mailboxExecutor) {
+        this.sink = checkNotNull(sink);
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.allCommittables = new ArrayList<>();
+    }
+
+    @Override
+    public void open() throws Exception {
+        super.open();
+
+        Sink.InitContext initContext =
+                InitContextImpl.of(
+                        getRuntimeContext(),
+                        processingTimeService,
+                        mailboxExecutor,
+                        getMetricGroup());
+        committer =
+                sink.createCommitter(initContext)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Could not create committer from the sink"));
     }
 
     @Override

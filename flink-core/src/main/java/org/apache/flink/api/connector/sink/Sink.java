@@ -64,7 +64,20 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
      * @return A committer.
      * @throws IOException if fail to create a committer.
      */
-    Optional<Committer<CommT>> createCommitter() throws IOException;
+    @Deprecated
+    default Optional<Committer<CommT>> createCommitter() throws IOException {
+        return Optional.empty();
+    }
+
+    /**
+     * Creates a {@link Committer}.
+     *
+     * @return A committer.
+     * @throws IOException if fail to create a committer.
+     */
+    default Optional<Committer<CommT>> createCommitter(InitContext context) throws IOException {
+        return createCommitter();
+    }
 
     /**
      * Creates a {@link GlobalCommitter}.
@@ -72,7 +85,22 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
      * @return A global committer.
      * @throws IOException if fail to create a global committer.
      */
-    Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter() throws IOException;
+    @Deprecated
+    default Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter()
+            throws IOException {
+        return Optional.empty();
+    }
+
+    /**
+     * Creates a {@link GlobalCommitter}.
+     *
+     * @return A global committer.
+     * @throws IOException if fail to create a global committer.
+     */
+    default Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter(InitContext context)
+            throws IOException {
+        return createGlobalCommitter();
+    }
 
     /** Returns the serializer of the committable type. */
     Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer() throws IOException;

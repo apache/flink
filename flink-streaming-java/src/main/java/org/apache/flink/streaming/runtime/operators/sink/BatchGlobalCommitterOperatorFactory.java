@@ -24,9 +24,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import java.io.IOException;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -39,7 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT>
         extends AbstractStreamOperatorFactory<GlobalCommT>
-        implements OneInputStreamOperatorFactory<CommT, GlobalCommT> {
+        implements OneInputStreamOperatorFactory<CommT, GlobalCommT>,
+                YieldingOperatorFactory<GlobalCommT> {
 
     private final Sink<?, CommT, ?, GlobalCommT> sink;
 
@@ -51,19 +50,8 @@ public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT>
     @SuppressWarnings("unchecked")
     public <T extends StreamOperator<GlobalCommT>> T createStreamOperator(
             StreamOperatorParameters<GlobalCommT> parameters) {
-        final BatchGlobalCommitterOperator<CommT, GlobalCommT> batchGlobalCommitterOperator;
-        try {
-            batchGlobalCommitterOperator =
-                    new BatchGlobalCommitterOperator<>(
-                            sink.createGlobalCommitter()
-                                    .orElseThrow(
-                                            () ->
-                                                    new IllegalStateException(
-                                                            "Could not create global committer from the sink")));
-        } catch (IOException e) {
-            throw new FlinkRuntimeException("Could not create the GlobalCommitter.", e);
-        }
-
+        final BatchGlobalCommitterOperator<CommT, GlobalCommT> batchGlobalCommitterOperator =
+                new BatchGlobalCommitterOperator<>(sink, getMailboxExecutor());
         batchGlobalCommitterOperator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),

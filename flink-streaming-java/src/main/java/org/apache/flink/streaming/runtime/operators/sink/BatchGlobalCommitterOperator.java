@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -45,14 +47,38 @@ final class BatchGlobalCommitterOperator<CommT, GlobalCommT>
      * Aggregate committables to global committables and commit the global committables to the
      * external system.
      */
-    private final GlobalCommitter<CommT, GlobalCommT> globalCommitter;
+    private GlobalCommitter<CommT, GlobalCommT> globalCommitter;
 
     /** Record all the committables until the end of the input. */
-    private final List<CommT> allCommittables;
+    private List<CommT> allCommittables;
 
-    BatchGlobalCommitterOperator(GlobalCommitter<CommT, GlobalCommT> globalCommitter) {
-        this.globalCommitter = checkNotNull(globalCommitter);
+    private final Sink<?, CommT, ?, GlobalCommT> sink;
+
+    private final MailboxExecutor mailboxExecutor;
+
+    public BatchGlobalCommitterOperator(
+            Sink<?, CommT, ?, GlobalCommT> sink, MailboxExecutor mailboxExecutor) {
+        this.sink = checkNotNull(sink);
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.allCommittables = new ArrayList<>();
+    }
+
+    @Override
+    public void open() throws Exception {
+        super.open();
+
+        Sink.InitContext initContext =
+                InitContextImpl.of(
+                        getRuntimeContext(),
+                        processingTimeService,
+                        mailboxExecutor,
+                        getMetricGroup());
+        globalCommitter =
+                sink.createGlobalCommitter(initContext)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "Could not create global committer from the sink"));
     }
 
     @Override
