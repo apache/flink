@@ -27,7 +27,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+	<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 	<name>Flink : Table : Planner</name>
 	<description>
 		This module connects Table/SQL API and runtime. It is responsible
@@ -347,7 +347,7 @@ under the License.
 								<filter>
 									<artifact>*:*</artifact>
 									<excludes>
-										<!-- Excluded all these files for a clean flink-table-planner-blink JAR -->
+										<!-- Excluded all these files for a clean flink-table-planner JAR -->
 										<exclude>org-apache-calcite-jdbc.properties</exclude>
 										<exclude>common.proto</exclude>
 										<exclude>requests.proto</exclude>
@@ -378,7 +378,7 @@ under the License.
 									<include>commons-codec:commons-codec</include>
 									<include>commons-io:commons-io</include>
 
-									<!-- flink-table-planner-blink dependencies -->
+									<!-- flink-table-planner dependencies -->
 									<include>org.apache.flink:flink-sql-parser</include>
 									<include>org.apache.flink:flink-sql-parser-hive</include>
 
