@@ -45,7 +45,7 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      * @param context The additional information about the input record
      * @throws IOException if fail to add an element.
      */
-    void write(InputT element, Context context) throws IOException;
+    void write(InputT element, Context context) throws IOException, InterruptedException;
 
     /**
      * Add a watermark to the writer.
@@ -55,7 +55,7 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      * @param watermark The watermark.
      * @throws IOException if fail to add a watermark.
      */
-    default void writeWatermark(Watermark watermark) throws IOException {}
+    default void writeWatermark(Watermark watermark) throws IOException, InterruptedException {}
 
     /**
      * Prepare for a commit.
@@ -66,7 +66,7 @@ public interface SinkWriter<InputT, CommT, WriterStateT> extends AutoCloseable {
      * @return The data is ready to commit.
      * @throws IOException if fail to prepare for a commit.
      */
-    List<CommT> prepareCommit(boolean flush) throws IOException;
+    List<CommT> prepareCommit(boolean flush) throws IOException, InterruptedException;
 
     /**
      * @return The writer's state.
