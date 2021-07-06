@@ -194,7 +194,7 @@ data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
 #### KeyedStream &rarr; WindowedStream
 
 Windows can be defined on already partitioned KeyedStreams. Windows group the data in each key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
-See [windows](windows.html) for a complete description of windows.
+See [windows]({{< ref "docs/dev/datastream/operators/windows" >}}) for a complete description of windows.
 
 {{< tabs window >}}
 {{< tab "Java">}}
