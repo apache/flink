@@ -258,7 +258,7 @@
           "operands" : [ {
             "kind" : "REX_CALL",
             "operator" : {
-              "name" : "org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$JavaFunc0$ea91f94853664692cdbdcd38ac065769",
+              "name" : "udf1",
               "kind" : "OTHER_FUNCTION",
               "syntax" : "FUNCTION",
               "functionKind" : "SCALAR",
@@ -403,7 +403,7 @@
         }
       } ]
     },
-    "description" : "Calc(select=[a, CAST(a) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((org$apache$flink$table$planner$runtime$utils$JavaUserDefinedScalarFunctions$JavaFunc0$ea91f94853664692cdbdcd38ac065769(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
+    "description" : "Calc(select=[a, CAST(a) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((udf1(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
     "dynamicTableSink" : {

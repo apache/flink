@@ -257,4 +257,9 @@ class TableSourceTest extends TableTestBase {
 
     util.verifyExecPlan(stmtSet)
   }
+
+  @Test
+  def testBuiltInFunctionWithFilterPushdown(): Unit = {
+    util.verifyExecPlan("SELECT a FROM ProjectableTable WHERE IFNULL(a, 1) = 1")
+  }
 }
