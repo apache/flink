@@ -212,14 +212,6 @@ public class MailboxProcessor implements Closeable {
         sendPoisonMail(() -> suspended = true);
     }
 
-    public void ensureDefaultActionSuspend() {
-        if (isDefaultActionUnavailable()) {
-            ensureControlFlowSignalCheck();
-        } else {
-            suspendDefaultAction(null);
-        }
-    }
-
     /**
      * Execute a single (as small as possible) step of the mailbox.
      *

@@ -725,7 +725,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
         // Resumes the mailbox processor. The mailbox processor would be completed
         // after all records are processed by the downstream tasks.
-        mailboxProcessor.ensureDefaultActionSuspend();
         mailboxProcessor.runMailboxLoop();
 
         // make sure no further checkpoint and notification actions happen.
