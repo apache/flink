@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 /**
@@ -33,8 +34,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  */
 abstract class AbstractSinkWriterOperatorFactory<InputT, CommT>
         extends AbstractStreamOperatorFactory<CommT>
-        implements OneInputStreamOperatorFactory<InputT, CommT> {
-
+        implements OneInputStreamOperatorFactory<InputT, CommT>, YieldingOperatorFactory<CommT> {
     @Override
     @SuppressWarnings("unchecked")
     public <T extends StreamOperator<CommT>> T createStreamOperator(

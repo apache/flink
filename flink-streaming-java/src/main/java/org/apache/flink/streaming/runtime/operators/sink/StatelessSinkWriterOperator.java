@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -42,8 +43,9 @@ final class StatelessSinkWriterOperator<InputT, CommT>
 
     StatelessSinkWriterOperator(
             final ProcessingTimeService processingTimeService,
+            MailboxExecutor mailboxExecutor,
             final Sink<InputT, CommT, ?, ?> sink) {
-        super(processingTimeService);
+        super(processingTimeService, mailboxExecutor);
         this.sink = sink;
     }
 

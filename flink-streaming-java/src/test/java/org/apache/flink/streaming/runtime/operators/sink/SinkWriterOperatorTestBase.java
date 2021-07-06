@@ -18,28 +18,39 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarness;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 /** Base class for Tests for subclasses of {@link AbstractSinkWriterOperator}. */
 public abstract class SinkWriterOperatorTestBase extends TestLogger {
+
+    @Rule public SharedObjects sharedObjects = SharedObjects.create();
 
     protected abstract AbstractSinkWriterOperatorFactory<Integer, String> createWriterOperator(
             TestSink sink);
@@ -203,6 +214,25 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
                         new org.apache.flink.api.common.eventtime.Watermark(initialTime + 1)));
     }
 
+    @Test
+    public void testInitContext() throws Exception {
+        SharedReference<AtomicBoolean> mailExecuted = sharedObjects.add(new AtomicBoolean(false));
+        TestSink.DefaultSinkWriter writer = new InitVerifyingWriter(mailExecuted);
+
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        TestSink sink = TestSink.newBuilder().setWriter(writer).withWriterState().build();
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(createWriterOperator(sink)).build()) {
+            harness.processAll();
+        }
+
+        // verify that async processing worked as expected
+        assertThat(mailExecuted.get().get(), equalTo(true));
+    }
+
     /**
      * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
      * {@code flush} is {@code true}.
@@ -251,5 +281,26 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
             throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
                 createWriterOperator(sink), IntSerializer.INSTANCE);
+    }
+
+    private static class InitVerifyingWriter extends TestSink.DefaultSinkWriter {
+        private final SharedReference<AtomicBoolean> mailExecuted;
+
+        public InitVerifyingWriter(SharedReference<AtomicBoolean> mailExecuted) {
+            this.mailExecuted = mailExecuted;
+        }
+
+        @Override
+        public void init(Sink.InitContext context) {
+            super.init(context);
+            assertThat(context.getUserCodeClassLoader(), notNullValue());
+            assertThat(context.getProcessingTimeService(), notNullValue());
+            assertThat(context.getMailboxExecutor(), notNullValue());
+            assertThat(context.metricGroup(), notNullValue());
+            assertThat(context.getSubtaskId(), equalTo(0));
+            assertThat(context.getNumberOfParallelSubtasks(), equalTo(1));
+
+            context.getMailboxExecutor().execute(() -> mailExecuted.get().set(true), "mail");
+        }
     }
 }

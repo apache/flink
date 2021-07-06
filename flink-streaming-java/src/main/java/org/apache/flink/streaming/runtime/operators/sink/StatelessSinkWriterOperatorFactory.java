@@ -42,7 +42,7 @@ public final class StatelessSinkWriterOperatorFactory<InputT, CommT>
     @Override
     AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
             ProcessingTimeService processingTimeService) {
-        return new StatelessSinkWriterOperator<>(processingTimeService, sink);
+        return new StatelessSinkWriterOperator<>(processingTimeService, getMailboxExecutor(), sink);
     }
 
     @Override

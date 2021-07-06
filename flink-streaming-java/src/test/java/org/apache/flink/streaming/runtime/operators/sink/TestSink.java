@@ -79,6 +79,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
     @Override
     public SinkWriter<Integer, String, String> createWriter(
             InitContext context, List<String> states) {
+        writer.init(context);
         writer.restoredFrom(states);
         writer.setProcessingTimerService(context.getProcessingTimeService());
         return writer;
@@ -242,6 +243,8 @@ public class TestSink implements Sink<Integer, String, String, String> {
         void setProcessingTimerService(ProcessingTimeService processingTimerService) {
             this.processingTimerService = processingTimerService;
         }
+
+        public void init(InitContext context) {}
     }
 
     // -------------------------------------- Sink Committer ---------------------------------------
