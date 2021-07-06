@@ -24,6 +24,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramRetriever;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.ProgramInvocationException;
+import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -37,6 +40,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -76,24 +80,30 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 
     @Nullable private final File jarFile;
 
+    @Nullable private final Configuration configuration;
+
     private ClassPathPackagedProgramRetriever(
             @Nonnull String[] programArguments,
             @Nullable String jobClassName,
             @Nonnull Supplier<Iterable<File>> jarsOnClassPath,
             @Nullable File userLibDirectory,
-            @Nullable File jarFile)
+            @Nullable File jarFile,
+            @Nullable Configuration configuration)
             throws IOException {
         this.userLibDirectory = userLibDirectory;
         this.programArguments = requireNonNull(programArguments, "programArguments");
         this.jobClassName = jobClassName;
         this.jarsOnClassPath = requireNonNull(jarsOnClassPath);
-        this.userClassPaths = discoverUserClassPaths(userLibDirectory);
+        this.configuration = configuration;
+        this.userClassPaths = discoverUserClassPaths(userLibDirectory, configuration);
         this.jarFile = jarFile;
     }
 
-    private Collection<URL> discoverUserClassPaths(@Nullable File jobDir) throws IOException {
+    private Collection<URL> discoverUserClassPaths(
+            @Nullable File jobDir, @Nullable Configuration configuration) throws IOException {
+        final Collection<URL> pipelineClassPaths = getPipelineClassPaths(configuration);
         if (jobDir == null) {
-            return Collections.emptyList();
+            return pipelineClassPaths;
         }
 
         final Path workingDirectory = FileUtils.getCurrentWorkingDirectory();
@@ -102,7 +112,18 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
                         .map(path -> FileUtils.relativizePath(workingDirectory, path))
                         .map(FunctionUtils.uncheckedFunction(FileUtils::toURL))
                         .collect(Collectors.toList());
+        // merge userClassPaths and pipelineClassPath
+        relativeJarURLs.addAll(pipelineClassPaths);
         return Collections.unmodifiableCollection(relativeJarURLs);
+    }
+
+    private Collection<URL> getPipelineClassPaths(@Nullable Configuration configuration)
+            throws MalformedURLException {
+        if (configuration == null) {
+            return Collections.emptyList();
+        }
+        return ConfigUtils.decodeListFromConfig(
+                configuration, PipelineOptions.CLASSPATHS, URL::new);
     }
 
     @Override
@@ -252,6 +273,8 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
 
         private File jarFile;
 
+        @Nullable private Configuration configuration;
+
         private Builder(String[] programArguments) {
             this.programArguments = requireNonNull(programArguments);
         }
@@ -276,9 +299,19 @@ public class ClassPathPackagedProgramRetriever implements PackagedProgramRetriev
             return this;
         }
 
+        public Builder setConfiguration(Configuration configuration) {
+            this.configuration = configuration;
+            return this;
+        }
+
         public ClassPathPackagedProgramRetriever build() throws IOException {
             return new ClassPathPackagedProgramRetriever(
-                    programArguments, jobClassName, jarsOnClassPath, userLibDirectory, jarFile);
+                    programArguments,
+                    jobClassName,
+                    jarsOnClassPath,
+                    userLibDirectory,
+                    jarFile,
+                    configuration);
         }
     }
 

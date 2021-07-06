@@ -56,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.contains;
@@ -313,6 +314,32 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
         assertThat(
                 jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList()),
                 containsInAnyOrder(expectedURLs.stream().map(URL::toString).toArray()));
+    }
+
+    @Test
+    public void testRetrieveCorrectUserClasspathsWithPipelineClasspaths()
+            throws IOException, FlinkException, ProgramInvocationException {
+        final Configuration configuration = new Configuration();
+        final List<String> pipelineJars =
+                Arrays.asList("file:///path/of/p1.jar", "http://path/of/p2.jar");
+        configuration.set(PipelineOptions.CLASSPATHS, pipelineJars);
+
+        final ClassPathPackagedProgramRetriever retrieverUnderTest =
+                ClassPathPackagedProgramRetriever.newBuilder(PROGRAM_ARGUMENTS)
+                        .setUserLibDirectory(userDirHasEntryClass)
+                        .setJarFile(TestJob.getTestJobJar())
+                        .setConfiguration(configuration)
+                        .build();
+        final JobGraph jobGraph = retrieveJobGraph(retrieverUnderTest, new Configuration());
+
+        final List<URL> expectedMergedURLs = new ArrayList<>(expectedURLs);
+        expectedMergedURLs.addAll(
+                pipelineJars.stream()
+                        .map(FunctionUtils.uncheckedFunction(URL::new))
+                        .collect(Collectors.toList()));
+        assertThat(
+                jobGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList()),
+                containsInAnyOrder(expectedMergedURLs.stream().map(URL::toString).toArray()));
     }
 
     @Test

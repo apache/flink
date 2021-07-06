@@ -111,7 +111,8 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
                 ClassPathPackagedProgramRetriever.newBuilder(programArguments)
                         .setUserLibDirectory(userLibDir)
-                        .setJobClassName(jobClassName);
+                        .setJobClassName(jobClassName)
+                        .setConfiguration(configuration);
 
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(jobClassName)
