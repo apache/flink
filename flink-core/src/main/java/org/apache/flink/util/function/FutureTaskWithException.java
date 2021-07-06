@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.concurrent;
+package org.apache.flink.util.function;
 
-import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.annotation.Internal;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
@@ -26,6 +26,7 @@ import java.util.concurrent.FutureTask;
 import static org.apache.flink.util.function.FunctionUtils.asCallable;
 
 /** {@link FutureTask} that also implements {@link RunnableWithException}. */
+@Internal
 public class FutureTaskWithException<V> extends FutureTask<V> implements RunnableWithException {
     public FutureTaskWithException(Callable<V> callable) {
         super(callable);

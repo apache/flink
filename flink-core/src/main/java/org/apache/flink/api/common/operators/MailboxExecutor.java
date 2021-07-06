@@ -15,13 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.concurrent.FutureTaskWithException;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
-import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
-import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.function.FutureTaskWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -33,8 +30,8 @@ import java.util.concurrent.RejectedExecutionException;
 
 /**
  * {@link java.util.concurrent.Executor} like interface for an build around a mailbox-based
- * execution model (see {@link TaskMailbox}). {@code MailboxExecutor} can also execute downstream
- * messages of a mailbox by yielding control from the task thread.
+ * execution model. {@code MailboxExecutor} can also execute downstream messages of a mailbox by
+ * yielding control from the task thread.
  *
  * <p>All submission functions can be called from any thread and will enqueue the action for further
  * processing in a FIFO fashion.
@@ -48,13 +45,13 @@ import java.util.concurrent.RejectedExecutionException;
  * <p>The yielding functions will only process events from the operator itself and any downstream
  * operator. Events of upstream operators are only processed when the input has been fully processed
  * or if they yield themselves. This method avoid congestion and potential deadlocks, but will
- * process {@link Mail}s slightly out-of-order, effectively creating a view on the mailbox that
- * contains no message from upstream operators.
+ * process mails slightly out-of-order, effectively creating a view on the mailbox that contains no
+ * message from upstream operators.
  *
- * <p><b>All yielding functions must be called in the mailbox thread</b> (see {@link
- * TaskMailbox#isMailboxThread()}) to not violate the single-threaded execution model. There are two
- * typical cases, both waiting until the resource is available. The main difference is if the
- * resource becomes available through a mailbox message itself or not.
+ * <p><b>All yielding functions must be called in the mailbox thread</b> to not violate the
+ * single-threaded execution model. There are two typical cases, both waiting until the resource is
+ * available. The main difference is if the resource becomes available through a mailbox message
+ * itself or not.
  *
  * <p>If the resource becomes available through a mailbox mail, we can effectively block the task
  * thread. Implicitly, this requires the mail to be enqueued by a different thread.
@@ -65,21 +62,26 @@ import java.util.concurrent.RejectedExecutionException;
  * }
  * }</pre>
  *
+ * <pre>in some other thread{@code
+ * mailboxExecutor.execute(() -> free resource, "freeing resource");
+ * }</pre>
+ *
  * <p>If the resource becomes available through an external mechanism or the corresponding mail
  * needs to be enqueued in the task thread, we cannot block.
  *
  * <pre>{@code
  * while (resource not available) {
  *     if (!mailboxExecutor.tryYield()) {
- *         do stuff or sleep for a small amount of time
+ *         // do stuff or sleep for a small amount of time
+ *         if (special condition) {
+ *             free resource
+ *         }
  *     }
  * }
  * }</pre>
  */
 @PublicEvolving
 public interface MailboxExecutor {
-    /** A constant for empty args to save on object allocation. */
-    Object[] EMPTY_ARGS = new Object[0];
 
     /**
      * Executes the given command at some time in the future in the mailbox thread.
@@ -95,7 +97,7 @@ public interface MailboxExecutor {
      *     because the mailbox is quiesced or closed.
      */
     default void execute(ThrowingRunnable<? extends Exception> command, String description) {
-        execute(command, description, EMPTY_ARGS);
+        execute(command, description, new Object[0]);
     }
 
     /**
@@ -162,7 +164,7 @@ public interface MailboxExecutor {
     default @Nonnull Future<Void> submit(
             @Nonnull RunnableWithException command, String description) {
         FutureTaskWithException<Void> future = new FutureTaskWithException<>(command);
-        execute(future, description, EMPTY_ARGS);
+        execute(future, description);
         return future;
     }
 
@@ -208,7 +210,7 @@ public interface MailboxExecutor {
      */
     default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> command, String description) {
         FutureTaskWithException<T> future = new FutureTaskWithException<>(command);
-        execute(future, description, EMPTY_ARGS);
+        execute(future, description);
         return future;
     }
 
@@ -222,9 +224,8 @@ public interface MailboxExecutor {
      * @throws InterruptedException on interruption.
      * @throws IllegalStateException if the mailbox is closed and can no longer supply runnables for
      *     yielding.
-     * @throws FlinkRuntimeException if executed {@link RunnableWithException} thrown an exception.
      */
-    void yield() throws InterruptedException, FlinkRuntimeException;
+    void yield() throws InterruptedException;
 
     /**
      * This methods attempts to run the command at the head of the mailbox. This is intended to be
@@ -239,5 +240,22 @@ public interface MailboxExecutor {
      *     yielding.
      * @throws RuntimeException if executed {@link RunnableWithException} thrown an exception.
      */
-    boolean tryYield() throws FlinkRuntimeException;
+    boolean tryYield();
+
+    MailboxExecutor NO_OP =
+            new MailboxExecutor() {
+                @Override
+                public void execute(
+                        ThrowingRunnable<? extends Exception> command,
+                        String descriptionFormat,
+                        Object... descriptionArgs) {}
+
+                @Override
+                public void yield() {}
+
+                @Override
+                public boolean tryYield() {
+                    return false;
+                }
+            };
 }
