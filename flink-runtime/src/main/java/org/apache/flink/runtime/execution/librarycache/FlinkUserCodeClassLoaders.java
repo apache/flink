@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.execution.librarycache;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoader;
 
@@ -82,7 +83,8 @@ public class FlinkUserCodeClassLoaders {
     /**
      * Regular URLClassLoader that first loads from the parent and only after that from the URLs.
      */
-    static class ParentFirstClassLoader extends FlinkUserCodeClassLoader {
+    @VisibleForTesting
+    public static class ParentFirstClassLoader extends FlinkUserCodeClassLoader {
 
         ParentFirstClassLoader(
                 URL[] urls, ClassLoader parent, Consumer<Throwable> classLoadingExceptionHandler) {

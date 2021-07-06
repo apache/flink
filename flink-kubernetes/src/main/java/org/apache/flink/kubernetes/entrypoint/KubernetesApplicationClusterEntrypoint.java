@@ -107,7 +107,7 @@ public final class KubernetesApplicationClusterEntrypoint extends ApplicationClu
         final File userLibDir = tryFindUserLibDirectory().orElse(null);
 
         final ClassPathPackagedProgramRetriever.Builder retrieverBuilder =
-                ClassPathPackagedProgramRetriever.newBuilder(programArguments)
+                ClassPathPackagedProgramRetriever.newBuilder(programArguments, configuration)
                         .setUserLibDirectory(userLibDir)
                         .setJarFile(pipelineJars.get(0))
                         .setJobClassName(jobClassName);
