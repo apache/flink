@@ -719,7 +719,7 @@ class BufferingSink(threshold: Int = 0)
     checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
     if(context.isRestored) {
-      for(element <- checkpointedState.get()) {
+      for(element <- checkpointedState.get().asScala) {
         bufferedElements += element
       }
     }
