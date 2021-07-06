@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
@@ -26,9 +27,11 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.List;
 
@@ -60,7 +63,11 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     /** The sink writer that does most of the work. */
     protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-    AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+    private final MailboxExecutor mailboxExecutor;
+
+    AbstractSinkWriterOperator(
+            ProcessingTimeService processingTimeService, MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.context = new Context<>();
     }
@@ -107,9 +114,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     protected Sink.InitContext createInitContext() {
         return new InitContextImpl(
-                getRuntimeContext().getIndexOfThisSubtask(),
-                processingTimeService,
-                getMetricGroup());
+                getRuntimeContext(), processingTimeService, mailboxExecutor, getMetricGroup());
     }
 
     /**
@@ -145,19 +150,50 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     private static class InitContextImpl implements Sink.InitContext {
 
-        private final int subtaskIdx;
-
         private final ProcessingTimeService processingTimeService;
+
+        private final MailboxExecutor mailboxExecutor;
 
         private final MetricGroup metricGroup;
 
+        private final StreamingRuntimeContext runtimeContext;
+
         public InitContextImpl(
-                int subtaskIdx,
+                StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
+                MailboxExecutor mailboxExecutor,
                 MetricGroup metricGroup) {
-            this.subtaskIdx = subtaskIdx;
+            this.runtimeContext = checkNotNull(runtimeContext);
+            this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
+        }
+
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return new UserCodeClassLoader() {
+                @Override
+                public ClassLoader asClassLoader() {
+                    return runtimeContext.getUserCodeClassLoader();
+                }
+
+                @Override
+                public void registerReleaseHookIfAbsent(
+                        String releaseHookName, Runnable releaseHook) {
+                    runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(
+                            releaseHookName, releaseHook);
+                }
+            };
+        }
+
+        @Override
+        public int getNumberOfParallelSubtasks() {
+            return runtimeContext.getNumberOfParallelSubtasks();
+        }
+
+        @Override
+        public MailboxExecutor getMailboxExecutor() {
+            return mailboxExecutor;
         }
 
         @Override
@@ -167,7 +203,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
         @Override
         public int getSubtaskId() {
-            return subtaskIdx;
+            return runtimeContext.getIndexOfThisSubtask();
         }
 
         @Override

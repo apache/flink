@@ -20,8 +20,10 @@
 package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -83,6 +85,24 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     interface InitContext {
+        /**
+         * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
+         * but are part of the jar file of a user job.
+         *
+         * @see UserCodeClassLoader
+         */
+        UserCodeClassLoader getUserCodeClassLoader();
+
+        /**
+         * Returns the mailbox executor that allows to execute {@link Runnable}s inside the task
+         * thread in between record processing.
+         *
+         * <p>Note that this method should not be used per-record for performance reasons in the
+         * same way as records should not be sent to the external system individually. Rather,
+         * implementers are expected to batch records and only enqueue a single {@link Runnable} per
+         * batch to handle the result.
+         */
+        MailboxExecutor getMailboxExecutor();
 
         /**
          * Returns a {@link ProcessingTimeService} that can be used to get the current time and
@@ -92,6 +112,9 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 
         /** @return The id of task where the writer is. */
         int getSubtaskId();
+
+        /** @return The number of parallel Sink tasks. */
+        int getNumberOfParallelSubtasks();
 
         /** @return The metric group this writer belongs to. */
         MetricGroup metricGroup();
