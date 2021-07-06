@@ -567,7 +567,8 @@ public class SchedulerTestingUtils {
                     mainThreadExecutor,
                     jobStatusListener,
                     executionGraphFactory,
-                    shuffleMaster);
+                    shuffleMaster,
+                    rpcTimeout);
         }
     }
 }

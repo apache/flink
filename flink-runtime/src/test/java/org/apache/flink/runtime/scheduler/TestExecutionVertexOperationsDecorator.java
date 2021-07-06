@@ -40,6 +40,10 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 
     private final List<ExecutionVertexID> deployedVertices = new ArrayList<>();
 
+    private final List<ExecutionVertexID> canceledVertices = new ArrayList<>();
+
+    private final List<ExecutionVertexID> failedVertices = new ArrayList<>();
+
     private boolean failDeploy;
 
     public TestExecutionVertexOperationsDecorator(final ExecutionVertexOperations delegate) {
@@ -59,11 +63,13 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 
     @Override
     public CompletableFuture<?> cancel(final ExecutionVertex executionVertex) {
+        canceledVertices.add(executionVertex.getID());
         return delegate.cancel(executionVertex);
     }
 
     @Override
     public void markFailed(ExecutionVertex executionVertex, Throwable cause) {
+        failedVertices.add(executionVertex.getID());
         delegate.markFailed(executionVertex, cause);
     }
 
@@ -77,5 +83,13 @@ public class TestExecutionVertexOperationsDecorator implements ExecutionVertexOp
 
     public List<ExecutionVertexID> getDeployedVertices() {
         return Collections.unmodifiableList(deployedVertices);
+    }
+
+    public List<ExecutionVertexID> getCanceledVertices() {
+        return Collections.unmodifiableList(canceledVertices);
+    }
+
+    public List<ExecutionVertexID> getFailedVertices() {
+        return Collections.unmodifiableList(failedVertices);
     }
 }
