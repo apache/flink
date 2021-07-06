@@ -134,7 +134,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 mainThreadExecutor,
                 jobStatusListener,
                 executionGraphFactory,
-                shuffleMaster);
+                shuffleMaster,
+                rpcTimeout);
     }
 
     @Override
