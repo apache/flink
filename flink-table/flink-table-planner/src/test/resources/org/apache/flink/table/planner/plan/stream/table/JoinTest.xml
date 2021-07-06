@@ -112,7 +112,7 @@ LogicalProject(a=[$0], e=[$5], lptime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
-+- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lptime >= (rptime - 1000:INTERVAL DAY TO SECOND)) AND (lptime < rptime))], select=[a, lptime, d, e, rptime])
++- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (PROCTIME_MATERIALIZE(lptime) >= (PROCTIME_MATERIALIZE(rptime) - 1000:INTERVAL DAY TO SECOND)) AND (PROCTIME_MATERIALIZE(lptime) < PROCTIME_MATERIALIZE(rptime)))], select=[a, lptime, d, e, rptime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lptime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lptime])
@@ -158,12 +158,12 @@ LogicalProject(a=[$0], e=[$5], lptime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
-+- Join(joinType=[InnerJoin], where=[((a = d) AND ($f4 = $f40))], select=[a, lptime, $f4, d, e, $f40], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a, $f4]])
-   :  +- Calc(select=[a, lptime, PROCTIME_MATERIALIZE(lptime) AS $f4])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=0, leftUpperBound=0, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (PROCTIME_MATERIALIZE(lptime) = PROCTIME_MATERIALIZE(rptime)))], select=[a, lptime, d, e, rptime])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, lptime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lptime])
-   +- Exchange(distribution=[hash[d, $f4]])
-      +- Calc(select=[d, e, PROCTIME_MATERIALIZE(rptime) AS $f4])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, e, rptime])
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rptime])
 ]]>
     </Resource>
@@ -180,7 +180,7 @@ LogicalProject(a=[$0], e=[$5], lptime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
-+- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lptime >= (rptime - 1000:INTERVAL DAY TO SECOND)) AND (lptime < rptime))], select=[a, lptime, d, e, rptime])
++- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (PROCTIME_MATERIALIZE(lptime) >= (PROCTIME_MATERIALIZE(rptime) - 1000:INTERVAL DAY TO SECOND)) AND (PROCTIME_MATERIALIZE(lptime) < PROCTIME_MATERIALIZE(rptime)))], select=[a, lptime, d, e, rptime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lptime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lptime])
@@ -202,7 +202,7 @@ LogicalProject(a=[$0], e=[$5], lptime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, PROCTIME_MATERIALIZE(lptime) AS lptime])
-+- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lptime >= (rptime - 1000:INTERVAL DAY TO SECOND)) AND (lptime < rptime))], select=[a, lptime, d, e, rptime])
++- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=false, leftLowerBound=-1000, leftUpperBound=-1, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (PROCTIME_MATERIALIZE(lptime) >= (PROCTIME_MATERIALIZE(rptime) - 1000:INTERVAL DAY TO SECOND)) AND (PROCTIME_MATERIALIZE(lptime) < PROCTIME_MATERIALIZE(rptime)))], select=[a, lptime, d, e, rptime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lptime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lptime])
@@ -312,7 +312,7 @@ LogicalProject(a=[$0], e=[$5], lrtime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, lrtime])
-+- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
++- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (CAST(lrtime) >= (CAST(rrtime) - 300000:INTERVAL DAY TO SECOND)) AND (CAST(lrtime) < (CAST(rrtime) + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lrtime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
@@ -334,7 +334,7 @@ LogicalProject(a=[$0], e=[$5], lrtime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, lrtime])
-+- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
++- IntervalJoin(joinType=[LeftOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (CAST(lrtime) >= (CAST(rrtime) - 300000:INTERVAL DAY TO SECOND)) AND (CAST(lrtime) < (CAST(rrtime) + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lrtime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
@@ -379,7 +379,7 @@ LogicalProject(a=[$0], e=[$5], lrtime=[$3])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, e, lrtime])
-+- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
++- IntervalJoin(joinType=[RightOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (CAST(lrtime) >= (CAST(rrtime) - 300000:INTERVAL DAY TO SECOND)) AND (CAST(lrtime) < (CAST(rrtime) + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lrtime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])

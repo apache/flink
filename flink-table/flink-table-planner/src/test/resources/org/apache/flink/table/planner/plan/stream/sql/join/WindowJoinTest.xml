@@ -2252,7 +2252,7 @@ LogicalProject(rowtime=[$0], a=[$1], l_cnt=[$2], l_uv=[$3], r_cnt=[$4], r_uv=[$5
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[rowtime, a, l_cnt, l_uv, r_cnt, r_uv, a0, b, c, rowtime0, PROCTIME_MATERIALIZE(proctime) AS proctime])
-+- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=0, rightTimeIndex=3], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[rowtime, a, l_cnt, l_uv, r_cnt, r_uv, a0, b, c, rowtime0, proctime])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=0, rightTimeIndex=3], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 10000:INTERVAL SECOND)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[rowtime, a, l_cnt, l_uv, r_cnt, r_uv, a0, b, c, rowtime0, proctime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[window_time AS rowtime, a, cnt AS l_cnt, uv AS l_uv, cnt0 AS r_cnt, uv0 AS r_uv])
    :     +- WindowJoin(leftWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], rightWindow=[CUMULATE(win_start=[window_start], win_end=[window_end], max_size=[1 h], step=[10 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, window_start, window_end, window_time, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])
@@ -2426,7 +2426,7 @@ LogicalProject(rowtime=[$0], a=[$1], l_b=[$2], l_c=[$3], r_b=[$4], r_c=[$5], a0=
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[rowtime, a, l_b, l_c, r_b, r_c, a0, b, c, rowtime0, PROCTIME_MATERIALIZE(proctime) AS proctime])
-+- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=0, rightTimeIndex=3], where=[AND(=(a, a0), >=(rowtime, -(rowtime0, 10000:INTERVAL SECOND)), <=(rowtime, +(rowtime0, 3600000:INTERVAL HOUR)))], select=[rowtime, a, l_b, l_c, r_b, r_c, a0, b, c, rowtime0, proctime])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=0, rightTimeIndex=3], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 10000:INTERVAL SECOND)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[rowtime, a, l_b, l_c, r_b, r_c, a0, b, c, rowtime0, proctime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[window_time AS rowtime, a, b AS l_b, c AS l_c, b0 AS r_b, c0 AS r_c])
    :     +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, c, window_start, window_end, window_time, a0, b0, c0, window_start0, window_end0])

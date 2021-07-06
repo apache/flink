@@ -230,7 +230,6 @@ class IntervalJoinTest extends TableTestBase {
 
   @Test
   def testJoinWithEquiProcTime(): Unit = {
-    // TODO: this should be translated into window join
     val sqlQuery =
       """
         |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE
@@ -242,7 +241,6 @@ class IntervalJoinTest extends TableTestBase {
 
   @Test
   def testJoinWithEquiRowTime(): Unit = {
-    // TODO: this should be translated into window join
     val sqlQuery =
       """
         |SELECT t1.a, t2.b FROM MyTable t1, MyTable2 t2 WHERE

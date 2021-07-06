@@ -466,7 +466,7 @@
         }
       } ]
     },
-    "description" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (rowtime >= (rowtime0 - 10000:INTERVAL SECOND)) AND (rowtime <= (rowtime0 + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])"
+    "description" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-10000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (CAST(rowtime) >= (CAST(rowtime0) - 10000:INTERVAL SECOND)) AND (CAST(rowtime) <= (CAST(rowtime0) + 3600000:INTERVAL HOUR)))], select=[a, rowtime, a0, b, rowtime0])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {

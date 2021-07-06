@@ -625,7 +625,7 @@
         }
       } ]
     },
-    "description" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (proctime >= (proctime0 - 3600000:INTERVAL HOUR)) AND (proctime <= (proctime0 + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])"
+    "description" : "IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=false, leftLowerBound=-3600000, leftUpperBound=3600000, leftTimeIndex=1, rightTimeIndex=2], where=[((a = a0) AND (PROCTIME_MATERIALIZE(proctime) >= (PROCTIME_MATERIALIZE(proctime0) - 3600000:INTERVAL HOUR)) AND (PROCTIME_MATERIALIZE(proctime) <= (PROCTIME_MATERIALIZE(proctime0) + 3600000:INTERVAL HOUR)))], select=[a, proctime, a0, b, proctime0])"
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
     "projection" : [ {
