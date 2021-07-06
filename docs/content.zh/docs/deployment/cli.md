@@ -251,7 +251,7 @@ $ ./bin/flink run \
         <tr>
             <td><code class="highlighter-rouge">run</code></td>
             <td>
-                该操作用于执行作业。必须指定包含作业的 jar 包。如有必要，可以传递与 Flink 或作业相关的参数。
+                该操作用于执行作业。不过需要包含作业所需 jar 包。如有必要，可以传递与 Flink 或作业相关的参数。
             </td>
         </tr>
         <tr>
@@ -322,11 +322,11 @@ Flink 兼容多种集群管理框架，例如 [Kubernetes]({{< ref "docs/deploym
 
 * YARN
   * `./bin/flink run --target yarn-session`: 将作业以 `Session` 模式提交到 YARN 集群上运行。
-  * `./bin/flink run --target yarn-per-job`: 作业以 `Per-Job` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
-  * `./bin/flink run-application --target yarn-application`: 作业以 `yarn-application` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
+  * `./bin/flink run --target yarn-per-job`: 将作业以 `Per-Job` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
+  * `./bin/flink run-application --target yarn-application`: 将作业以 `yarn-application` 模式提交，会基于 YARN 集群新启动一个对应 Flink Job。
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: 将作业以 `Session` 模式提交到 Kubernetes 集群上运行。
-  * `./bin/flink run-application --target kubernetes-application`: 作业以 `yarn-application` 模式提交，会基于 Kubernetes 集群新启动一个对应 Flink Job。
+  * `./bin/flink run-application --target kubernetes-application`: 将作业以 `yarn-application` 模式提交，会基于 Kubernetes 集群新启动一个对应 Flink Job。
 * Standalone:
   * `./bin/flink run --target local`: 将作业以 `Session` 模式提交到最小集群模式部署的本地 Flink。
   * `./bin/flink run --target remote`: 将作业提交到运行中的 Flink 集群。
