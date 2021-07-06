@@ -56,6 +56,7 @@ public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT
         return new StatefulSinkWriterOperator<>(
                 previousSinkStateName,
                 processingTimeService,
+                getMailboxExecutor(),
                 sink,
                 sink.getWriterStateSerializer().get());
     }

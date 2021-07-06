@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
@@ -29,6 +30,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.List;
 
@@ -60,7 +62,11 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     /** The sink writer that does most of the work. */
     protected SinkWriter<InputT, CommT, ?> sinkWriter;
 
-    AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+    private final MailboxExecutor mailboxExecutor;
+
+    AbstractSinkWriterOperator(
+            ProcessingTimeService processingTimeService, MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.context = new Context<>();
     }
@@ -107,8 +113,24 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     protected Sink.InitContext createInitContext() {
         return new InitContextImpl(
+                new UserCodeClassLoader() {
+                    @Override
+                    public ClassLoader asClassLoader() {
+                        return getRuntimeContext().getUserCodeClassLoader();
+                    }
+
+                    @Override
+                    public void registerReleaseHookIfAbsent(
+                            String releaseHookName, Runnable releaseHook) {
+                        getRuntimeContext()
+                                .registerUserCodeClassLoaderReleaseHookIfAbsent(
+                                        releaseHookName, releaseHook);
+                    }
+                },
                 getRuntimeContext().getIndexOfThisSubtask(),
+                getRuntimeContext().getNumberOfParallelSubtasks(),
                 processingTimeService,
+                mailboxExecutor,
                 getMetricGroup());
     }
 
@@ -145,19 +167,46 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     private static class InitContextImpl implements Sink.InitContext {
 
+        private final UserCodeClassLoader userCodeClassLoader;
+
         private final int subtaskIdx;
 
+        private final int numberOfParallelSubtasks;
+
         private final ProcessingTimeService processingTimeService;
+
+        private final MailboxExecutor mailboxExecutor;
 
         private final MetricGroup metricGroup;
 
         public InitContextImpl(
+                UserCodeClassLoader userCodeClassLoader,
                 int subtaskIdx,
+                int numberOfParallelSubtasks,
                 ProcessingTimeService processingTimeService,
+                MailboxExecutor mailboxExecutor,
                 MetricGroup metricGroup) {
+            this.userCodeClassLoader = userCodeClassLoader;
             this.subtaskIdx = subtaskIdx;
+            this.numberOfParallelSubtasks = numberOfParallelSubtasks;
+            this.mailboxExecutor = mailboxExecutor;
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
+        }
+
+        @Override
+        public UserCodeClassLoader getUserCodeClassLoader() {
+            return userCodeClassLoader;
+        }
+
+        @Override
+        public int getNumberOfParallelSubtasks() {
+            return numberOfParallelSubtasks;
+        }
+
+        @Override
+        public MailboxExecutor getMailboxExecutor() {
+            return mailboxExecutor;
         }
 
         @Override
