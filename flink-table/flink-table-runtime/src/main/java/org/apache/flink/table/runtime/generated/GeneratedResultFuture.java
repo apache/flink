@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 
 /**
@@ -27,7 +29,12 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
  */
 public class GeneratedResultFuture<T extends ResultFuture<?>> extends GeneratedClass<T> {
 
-    private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = 2L;
+
+    @VisibleForTesting
+    public GeneratedResultFuture(String className, String code, Object[] references) {
+        super(className, code, references, new Configuration());
+    }
 
     /**
      * Creates a GeneratedResultFuture.
@@ -35,8 +42,10 @@ public class GeneratedResultFuture<T extends ResultFuture<?>> extends GeneratedC
      * @param className class name of the generated ResultFuture.
      * @param code code of the generated ResultFuture.
      * @param references referenced objects of the generated ResultFuture.
+     * @param conf configuration when generating ResultFuture.
      */
-    public GeneratedResultFuture(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedResultFuture(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

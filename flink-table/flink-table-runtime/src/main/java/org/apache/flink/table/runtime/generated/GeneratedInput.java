@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Describes a generated {@link InputFormat}.
@@ -27,7 +28,7 @@ import org.apache.flink.api.common.io.InputFormat;
  */
 public class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<F> {
 
-    private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * Creates a GeneratedInput.
@@ -35,8 +36,9 @@ public class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<
      * @param className class name of the generated Function.
      * @param code code of the generated Function.
      * @param references referenced objects of the generated Function.
+     * @param conf configuration when generating Function.
      */
-    public GeneratedInput(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedInput(String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

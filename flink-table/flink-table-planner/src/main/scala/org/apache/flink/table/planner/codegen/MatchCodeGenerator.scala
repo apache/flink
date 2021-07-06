@@ -37,7 +37,7 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVar
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
-import org.apache.flink.table.types.logical.{LocalZonedTimestampType, RowType, TimestampKind, TimestampType}
+import org.apache.flink.table.types.logical.{LocalZonedTimestampType, RowType, TimestampKind}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast
@@ -292,7 +292,8 @@ class MatchCodeGenerator(
         }
       """.stripMargin
 
-    new GeneratedFunction[F](funcName, funcCode, ctx.references.toArray)
+    new GeneratedFunction[F](
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   private def generateOneRowPerMatchExpression(

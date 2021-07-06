@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 /**
@@ -27,7 +28,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
  */
 public class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedClass<C> {
 
-    private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * Creates a GeneratedOperator.
@@ -35,8 +36,10 @@ public class GeneratedOperator<C extends StreamOperator<?>> extends GeneratedCla
      * @param className class name of the generated StreamOperator.
      * @param code code of the generated StreamOperator.
      * @param references referenced objects of the generated StreamOperator.
+     * @param conf configuration when generating StreamOperator.
      */
-    public GeneratedOperator(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedOperator(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

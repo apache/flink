@@ -94,8 +94,18 @@ public class TableConfigOptions {
     public static final ConfigOption<Integer> MAX_LENGTH_GENERATED_CODE =
             key("table.generated-code.max-length")
                     .intType()
-                    .defaultValue(64000)
+                    .defaultValue(4000)
                     .withDescription(
                             "Specifies a threshold where generated code will be split into sub-function calls. "
-                                    + "Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary.");
+                                    + "Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary. "
+                                    + "Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with more than 8K byte code.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This option is rarely used. The default value is good enough for almost all cases.")
+    public static final ConfigOption<Integer> MAX_MEMBERS_GENERATED_CODE =
+            key("table.generated-code.max-members")
+                    .intType()
+                    .defaultValue(10000)
+                    .withDescription(
+                            "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
 }

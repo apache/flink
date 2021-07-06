@@ -18,6 +18,13 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.codesplit.JavaCodeSplitter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -28,18 +35,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class GeneratedClass<T> implements Serializable {
 
+    private static final Logger LOG = LoggerFactory.getLogger(GeneratedClass.class);
+
     private final String className;
     private final String code;
+    private final String splitCode;
     private final Object[] references;
 
     private transient Class<T> compiledClass;
 
-    protected GeneratedClass(String className, String code, Object[] references) {
+    protected GeneratedClass(
+            String className, String code, Object[] references, Configuration conf) {
         checkNotNull(className, "name must not be null");
         checkNotNull(code, "code must not be null");
         checkNotNull(references, "references must not be null");
+        checkNotNull(conf, "conf must not be null");
         this.className = className;
         this.code = code;
+        this.splitCode =
+                code.isEmpty()
+                        ? code
+                        : JavaCodeSplitter.split(
+                                code,
+                                conf.getInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE),
+                                conf.getInteger(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE));
         this.references = references;
     }
 
@@ -74,7 +93,14 @@ public abstract class GeneratedClass<T> implements Serializable {
     public Class<T> compile(ClassLoader classLoader) {
         if (compiledClass == null) {
             // cache the compiled class
-            compiledClass = CompileUtils.compile(classLoader, className, code);
+            try {
+                // first try to compile the split code
+                compiledClass = CompileUtils.compile(classLoader, className, splitCode);
+            } catch (Throwable t) {
+                // compile the original code as fallback
+                LOG.warn("Failed to compile split code, falling back to original code", t);
+                compiledClass = CompileUtils.compile(classLoader, className, code);
+            }
         }
         return compiledClass;
     }

@@ -79,7 +79,8 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
         }
       """.stripMargin
 
-    new GeneratedRecordEqualiser(className, classCode, ctx.references.toArray)
+    new GeneratedRecordEqualiser(
+      className, classCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   private def getEqualsMethodName(idx: Int) = s"""equalsAtIndex$idx"""

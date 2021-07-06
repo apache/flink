@@ -7,7 +7,7 @@ The Apache Software Foundation (http://www.apache.org/).
 This project bundles the following dependencies under the BSD 3-clause license.
 See bundled license files for details.
 
-- antlr:4.7
+- org.antlr:antlr4-runtime:4.7
 
 This project bundles the following files under the BSD license.
 See bundled license files for details.
