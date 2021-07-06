@@ -210,4 +210,12 @@ Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testBuiltInFunctionWithFilterPushdown">
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a], where=[(IFNULL(a, 1) = 1)])
++- TableSourceScan(table=[[default_catalog, default_database, ProjectableTable, filter=[], project=[a]]], fields=[a])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

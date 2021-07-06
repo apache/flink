@@ -581,7 +581,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
         functionCatalog)
 
     assertEquals(1, convertedExpressions.length)
-    assertEquals("greaterThan(myUdf(amount), 100)",
+    assertEquals("greaterThan(MyUdf(amount), 100)",
       convertedExpressions(0).toString)
     assertEquals(0, unconvertedRexNodes.length)
   }
