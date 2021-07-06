@@ -37,9 +37,23 @@ public class TriggersTest {
                 EventTimeTriggers.afterEndOfWindow()
                         .withEarlyFirings(ElementTriggers.every())
                         .withLateFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
+
         expected =
                 "EventTime.afterEndOfWindow()"
                         + ".withEarlyFirings(Element.every())"
+                        + ".withLateFirings(ProcessingTime.every(1000))";
+        assertEquals(expected, trigger.toString());
+        assertTrue(trigger instanceof EventTimeTriggers.AfterEndOfWindowEarlyAndLate);
+
+        trigger =
+                EventTimeTriggers.afterEndOfWindow()
+                        .withEarlyFirings(
+                                ProcessingTimeTriggers.afterElement(Duration.ofSeconds(1)))
+                        .withLateFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
+
+        expected =
+                "EventTime.afterEndOfWindow()"
+                        + ".withEarlyFirings(ProcessingTime.afterElement(1000))"
                         + ".withLateFirings(ProcessingTime.every(1000))";
         assertEquals(expected, trigger.toString());
         assertTrue(trigger instanceof EventTimeTriggers.AfterEndOfWindowEarlyAndLate);
@@ -105,6 +119,16 @@ public class TriggersTest {
                 ProcessingTimeTriggers.afterEndOfWindow()
                         .withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)));
         expected = "ProcessingTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.every(1000))";
+        assertEquals(expected, trigger.toString());
+        //noinspection ConstantConditions
+        assertTrue(trigger instanceof ProcessingTimeTriggers.AfterEndOfWindowNoLate);
+
+        trigger =
+                ProcessingTimeTriggers.afterEndOfWindow()
+                        .withEarlyFirings(
+                                ProcessingTimeTriggers.afterElement(Duration.ofSeconds(1)));
+        expected =
+                "ProcessingTime.afterEndOfWindow().withEarlyFirings(ProcessingTime.afterElement(1000))";
         assertEquals(expected, trigger.toString());
         //noinspection ConstantConditions
         assertTrue(trigger instanceof ProcessingTimeTriggers.AfterEndOfWindowNoLate);

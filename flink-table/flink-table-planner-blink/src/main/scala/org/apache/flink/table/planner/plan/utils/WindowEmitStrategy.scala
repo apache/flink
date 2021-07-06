@@ -17,6 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import java.time.Duration
+
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
@@ -27,15 +29,15 @@ import org.apache.flink.table.planner.{JBoolean, JLong}
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.triggers._
 
-import java.time.Duration
-
 class WindowEmitStrategy(
     isEventTime: JBoolean,
     isSessionWindow: JBoolean,
     earlyFireDelay: Duration,
     earlyFireDelayEnabled: JBoolean,
+    earlyFirePeriodicEnabled: JBoolean,
     lateFireDelay: Duration,
     lateFireDelayEnabled: JBoolean,
+    lateFirePeriodicEnabled: JBoolean,
     allowLateness: JLong) {
 
   checkValidation()
@@ -73,8 +75,13 @@ class WindowEmitStrategy(
   }
 
   def getTrigger: Trigger[TimeWindow] = {
-    val earlyTrigger = createTriggerFromFireDelay(earlyFireDelayEnabled, earlyFireDelay)
-    val lateTrigger = createTriggerFromFireDelay(lateFireDelayEnabled, lateFireDelay)
+    val earlyTrigger = createTriggerFromFireDelay(
+      earlyFireDelayEnabled,
+      earlyFireDelay,
+      earlyFirePeriodicEnabled)
+    val lateTrigger = createTriggerFromFireDelay(
+      lateFireDelayEnabled,
+      lateFireDelay, lateFirePeriodicEnabled)
 
     if (isEventTime) {
       val trigger = EventTimeTriggers.afterEndOfWindow[TimeWindow]()
@@ -98,8 +105,14 @@ class WindowEmitStrategy(
 
   override def toString: String = {
     val builder = new StringBuilder
-    val earlyString = fireDelayToString(earlyFireDelayEnabled, earlyFireDelay)
-    val lateString = fireDelayToString(lateFireDelayEnabled, lateFireDelay)
+    val earlyString = fireDelayToString(
+      earlyFireDelayEnabled,
+      earlyFireDelay,
+      earlyFirePeriodicEnabled)
+    val lateString = fireDelayToString(
+      lateFireDelayEnabled,
+      lateFireDelay,
+      lateFirePeriodicEnabled)
     if (earlyString != null) {
       builder.append("early ").append(earlyString)
     }
@@ -114,24 +127,36 @@ class WindowEmitStrategy(
 
   private def createTriggerFromFireDelay(
       enableDelayEmit: JBoolean,
-      fireDelay: Duration): Option[Trigger[TimeWindow]] = {
+      fireDelay: Duration,
+      periodicTriggerEnabled: JBoolean): Option[Trigger[TimeWindow]] = {
     if (!enableDelayEmit) {
       None
     } else {
       if (fireDelay.toMillis > 0) {
-        Some(ProcessingTimeTriggers.every(fireDelay))
+        if (periodicTriggerEnabled) {
+          Some(ProcessingTimeTriggers.every(fireDelay))
+        } else {
+          Some(ProcessingTimeTriggers.afterElement(fireDelay))
+        }
       } else {
         Some(ElementTriggers.every())
       }
     }
   }
 
-  private def fireDelayToString(enableDelayEmit: JBoolean, fireDelay: Duration): String = {
+  private def fireDelayToString(
+      enableDelayEmit: JBoolean,
+      fireDelay: Duration,
+      periodicTriggerEnabled: JBoolean): String = {
     if (!enableDelayEmit) {
       null
     } else {
       if (fireDelay.toMillis > 0) {
-        s"delay ${fireDelay.toMillis} millisecond"
+        if (periodicTriggerEnabled) {
+          s"delay ${fireDelay.toMillis} millisecond periodic"
+        } else {
+          s"delay ${fireDelay.toMillis} millisecond non_periodic"
+        }
       } else {
         "no delay"
       }
@@ -150,18 +175,24 @@ object WindowEmitStrategy {
     val earlyFireDelay: Duration = tableConfig.getConfiguration
       .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
       .orElse(null)
+    val earlyFirePeriodicEnabled = tableConfig.getConfiguration.getBoolean(
+      TABLE_EXEC_EMIT_EARLY_FIRE_PERIODIC_ENABLED)
     val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
       TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
     val lateFireDelay: Duration = tableConfig.getConfiguration
       .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
       .orElse(null)
-      new WindowEmitStrategy(
+    val lateFirePeriodicEnabled = tableConfig.getConfiguration.getBoolean(
+      TABLE_EXEC_EMIT_LATE_FIRE_PERIODIC_ENABLED)
+    new WindowEmitStrategy(
       isEventTime,
       isSessionWindow,
       earlyFireDelay,
       enableEarlyFireDelay,
+      earlyFirePeriodicEnabled,
       lateFireDelay,
       enableLateFireDelay,
+      lateFirePeriodicEnabled,
       allowLateness)
   }
 
@@ -195,41 +226,59 @@ object WindowEmitStrategy {
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.early-fire.enabled")
-      .defaultValue(Boolean.box(false))
-      .withDescription("Specifies whether to enable early-fire emit." +
-          "Early-fire is an emit strategy before watermark advanced to end of window.")
+    .defaultValue(Boolean.box(false))
+    .withDescription("Specifies whether to enable early-fire emit." +
+      "Early-fire is an emit strategy before watermark advanced to end of window.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_DELAY: ConfigOption[Duration] =
   key("table.exec.emit.early-fire.delay")
-      .durationType()
-      .noDefaultValue()
-      .withDescription("The early firing delay in milli second, early fire is " +
-          "the emit strategy before watermark advanced to end of window. " +
-          "< 0 is illegal configuration. " +
-          "0 means no delay (fire on every element). " +
-          "> 0 means the fire interval. ")
+    .durationType()
+    .noDefaultValue()
+    .withDescription("The early firing delay in milli second, early fire is " +
+      "the emit strategy before watermark advanced to end of window. " +
+      "< 0 is illegal configuration. " +
+      "0 means no delay (fire on every element). " +
+      "> 0 means the fire interval. ")
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val TABLE_EXEC_EMIT_EARLY_FIRE_PERIODIC_ENABLED: ConfigOption[JBoolean] =
+  key("table.exec.emit.early-fire.periodic.enabled")
+    .defaultValue(Boolean.box(true))
+    .withDescription("It only work when early-fire delay > 0, it will trigger " +
+      "periodically by default. If set to false , it will trigger the window after the new " +
+      "data reached")
 
   // It is a experimental config, will may be removed later.
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.late-fire.enabled")
-      .defaultValue(Boolean.box(false))
-      .withDescription("Specifies whether to enable late-fire emit. " +
-          "Late-fire is an emit strategy after watermark advanced to end of window.")
+    .defaultValue(Boolean.box(false))
+    .withDescription("Specifies whether to enable late-fire emit. " +
+      "Late-fire is an emit strategy after watermark advanced to end of window.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_DELAY: ConfigOption[Duration] =
   key("table.exec.emit.late-fire.delay")
-      .durationType()
-      .noDefaultValue()
-      .withDescription("The late firing delay in milli second, late fire is " +
-          "the emit strategy after watermark advanced to end of window. " +
-          "< 0 is illegal configuration. " +
-          "0 means no delay (fire on every element). " +
-          "> 0 means the fire interval.")
+    .durationType()
+    .noDefaultValue()
+    .withDescription("The late firing delay in milli second, late fire is " +
+      "the emit strategy after watermark advanced to end of window. " +
+      "< 0 is illegal configuration. " +
+      "0 means no delay (fire on every element). " +
+      "> 0 means the fire interval.")
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val TABLE_EXEC_EMIT_LATE_FIRE_PERIODIC_ENABLED: ConfigOption[JBoolean] =
+  key("table.exec.emit.late-fire.periodic.enabled")
+    .defaultValue(Boolean.box(true))
+    .withDescription("It only work when late-fire delay > 0, it will trigger " +
+      "periodically by default. If set to false , it will trigger the window after the new " +
+      "data reached")
 
   // It is a experimental config, will may be removed later.
   @Experimental
@@ -238,10 +287,10 @@ object WindowEmitStrategy {
     .durationType()
     .noDefaultValue()
     .withDescription("Sets the time by which elements are allowed to be late. " +
-        "Elements that arrive behind the watermark by more than the specified time " +
-        "will be dropped. " +
-        "Note: use the value if it is set, else use 'minIdleStateRetentionTime' in table config." +
-        "< 0 is illegal configuration. " +
-        "0 means disable allow lateness. " +
-        "> 0 means allow-lateness.")
+      "Elements that arrive behind the watermark by more than the specified time " +
+      "will be dropped. " +
+      "Note: use the value if it is set, else use 'minIdleStateRetentionTime' in table config." +
+      "< 0 is illegal configuration. " +
+      "0 means disable allow lateness. " +
+      "> 0 means allow-lateness.")
 }

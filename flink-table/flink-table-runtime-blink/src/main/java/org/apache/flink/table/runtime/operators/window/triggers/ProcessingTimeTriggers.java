@@ -39,6 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>fire when the processing time advances by a certain interval after reception of the first
  *       element after the last firing for a given window ({@link
  *       ProcessingTimeTriggers#every(Duration)}).
+ *   <li>fire when the processing time advances by a certain interval after reception of the
+ *       elements ({@link ProcessingTimeTriggers#afterElement(Duration)}.
  * </ul>
  *
  * <p>In the first case, the trigger can also specify an <tt>early</tt> trigger. The <tt>early
@@ -68,24 +70,31 @@ public class ProcessingTimeTriggers {
     }
 
     /**
-     * Trigger every a given interval, the first trigger time is interval after the first element in
-     * the pane.
+     * Creates a trigger that fires with certain delay after reception of the elements.
+     *
+     * @param time the certain interval
+     */
+    public static <W extends Window> AfterElementNonPeriodic<W> afterElement(Duration time) {
+        return new AfterElementNonPeriodic<>(time.toMillis());
+    }
+
+    /**
+     * An abstract trigger which will register an timer after element put in the pane.
      *
      * @param <W> type of window
      */
-    public static final class AfterFirstElementPeriodic<W extends Window> extends WindowTrigger<W> {
+    public abstract static class AfterElement<W extends Window> extends WindowTrigger<W> {
 
         private static final long serialVersionUID = -4710472821577125673L;
 
-        private final long interval;
-        private final ReducingStateDescriptor<Long> nextFiringStateDesc;
+        protected final long interval;
+        protected ReducingStateDescriptor<Long> nextFiringStateDesc;
 
-        AfterFirstElementPeriodic(long interval) {
+        AfterElement(long interval, String desc) {
             checkArgument(interval > 0);
             this.interval = interval;
             this.nextFiringStateDesc =
-                    new ReducingStateDescriptor<>(
-                            "processingTime-every-" + interval, new Min(), LongSerializer.INSTANCE);
+                    new ReducingStateDescriptor<>(desc, new Min(), LongSerializer.INSTANCE);
         }
 
         @Override
@@ -102,21 +111,6 @@ public class ProcessingTimeTriggers {
                 nextFiring.add(nextTimer);
             }
             return false;
-        }
-
-        @Override
-        public boolean onProcessingTime(long time, W window) throws Exception {
-            ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
-            Long timer = nextFiring.get();
-            if (timer != null && timer == time) {
-                long newTimer = time + interval;
-                ctx.registerProcessingTimeTimer(newTimer);
-                nextFiring.clear();
-                nextFiring.add(newTimer);
-                return true;
-            } else {
-                return false;
-            }
         }
 
         @Override
@@ -150,11 +144,6 @@ public class ProcessingTimeTriggers {
             }
         }
 
-        @Override
-        public String toString() {
-            return "ProcessingTime.every(" + interval + ")";
-        }
-
         private static class Min implements ReduceFunction<Long> {
             private static final long serialVersionUID = 1L;
 
@@ -162,6 +151,73 @@ public class ProcessingTimeTriggers {
             public Long reduce(Long value1, Long value2) throws Exception {
                 return Math.min(value1, value2);
             }
+        }
+    }
+
+    /**
+     * Trigger every a given interval, the first trigger time is interval after the first element in
+     * the pane.
+     *
+     * @param <W> type of window
+     */
+    public static class AfterFirstElementPeriodic<W extends Window> extends AfterElement<W> {
+
+        private static final long serialVersionUID = -4710472821577125673L;
+
+        AfterFirstElementPeriodic(long interval) {
+            super(interval, "processingTime-every-" + interval);
+        }
+
+        @Override
+        public boolean onProcessingTime(long time, W window) throws Exception {
+            ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
+            Long timer = nextFiring.get();
+            if (timer != null && timer == time) {
+                long newTimer = time + interval;
+                ctx.registerProcessingTimeTimer(newTimer);
+                nextFiring.clear();
+                nextFiring.add(newTimer);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "ProcessingTime.every(" + interval + ")";
+        }
+    }
+
+    /**
+     * Trigger after element put in the pane after a given interval.
+     *
+     * @param <W> type of window
+     */
+    public static final class AfterElementNonPeriodic<W extends Window> extends AfterElement<W> {
+
+        private static final long serialVersionUID = -1703773959965621996L;
+
+        AfterElementNonPeriodic(long interval) {
+            super(interval, "after-element-" + interval);
+        }
+
+        @Override
+        public boolean onProcessingTime(long time, W window) throws Exception {
+            ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
+            Long timer = nextFiring.get();
+            if (timer != null && timer == time) {
+                // trigger after clear
+                nextFiring.clear();
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "ProcessingTime.afterElement(" + interval + ")";
         }
     }
 
