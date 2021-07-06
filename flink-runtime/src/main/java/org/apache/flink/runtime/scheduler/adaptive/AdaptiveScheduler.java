@@ -959,9 +959,15 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph, ReservedSlots reservedSlots) {
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final LogicalSlot assignedSlot = reservedSlots.getSlotFor(executionVertex.getID());
-            executionVertex
-                    .getCurrentExecutionAttempt()
-                    .registerProducedPartitions(assignedSlot.getTaskManagerLocation(), false);
+            final CompletableFuture<Void> registrationFuture =
+                    executionVertex
+                            .getCurrentExecutionAttempt()
+                            .registerProducedPartitions(
+                                    assignedSlot.getTaskManagerLocation(), false);
+            Preconditions.checkState(
+                    registrationFuture.isDone(),
+                    "Partition registration must be completed immediately for reactive mode");
+
             executionVertex.tryAssignResource(assignedSlot);
         }
 
