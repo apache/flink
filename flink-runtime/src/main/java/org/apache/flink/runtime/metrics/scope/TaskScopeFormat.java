@@ -20,9 +20,10 @@ package org.apache.flink.runtime.metrics.scope;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.util.AbstractID;
 
-/** The scope format for the {@link org.apache.flink.runtime.metrics.groups.TaskMetricGroup}. */
+/** The scope format for the {@link TaskMetricGroup}. */
 public class TaskScopeFormat extends ScopeFormat {
 
     public TaskScopeFormat(String format, TaskManagerJobScopeFormat parentFormat) {

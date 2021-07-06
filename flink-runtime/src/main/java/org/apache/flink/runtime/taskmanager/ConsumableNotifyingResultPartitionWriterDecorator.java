@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartit
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -159,7 +159,7 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void setMetricGroup(TaskIOMetricGroup metrics) {
+        public void setMetricGroup(InternalTaskIOMetricGroup metrics) {
             partitionWriter.setMetricGroup(metrics);
         }
 

@@ -30,7 +30,7 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
@@ -44,7 +44,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.chaining.ExceptionInChainedStubException;
 import org.apache.flink.runtime.operators.resettable.SpillingResettableMutableObjectIterator;
@@ -187,7 +187,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
     /** The accumulator map used in the RuntimeContext. */
     protected Map<String, Accumulator<?, ?>> accumulatorMap;
 
-    private OperatorMetricGroup metrics;
+    private InternalOperatorMetricGroup metrics;
     private final CompletableFuture<Void> terminationFuture = new CompletableFuture<>();
 
     // --------------------------------------------------------------------------------------------
@@ -1139,7 +1139,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
                         this.accumulatorMap);
     }
 
-    public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
+    public DistributedRuntimeUDFContext createRuntimeContext(OperatorMetricGroup metrics) {
         Environment env = getEnvironment();
 
         return new DistributedRuntimeUDFContext(

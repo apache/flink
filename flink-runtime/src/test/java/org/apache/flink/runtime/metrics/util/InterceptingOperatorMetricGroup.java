@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.metrics.Metric;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/** An {@link OperatorMetricGroup} that exposes all registered metrics. */
+/** An {@link InternalOperatorMetricGroup} that exposes all registered metrics. */
 public class InterceptingOperatorMetricGroup
         extends UnregisteredMetricGroups.UnregisteredOperatorMetricGroup {
 

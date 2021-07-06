@@ -164,7 +164,7 @@ public class TestUtils {
                 .thenReturn(Thread.currentThread().getContextClassLoader());
 
         Mockito.when(mockedRuntimeContext.getMetricGroup())
-                .thenReturn(new UnregisteredMetricsGroup());
+                .thenReturn(UnregisteredMetricsGroup.createUnregisteredOperatorMetricGroup());
 
         return mockedRuntimeContext;
     }

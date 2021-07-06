@@ -42,7 +42,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
@@ -65,7 +65,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
     private final DistributedCache distributedCache;
 
-    private final MetricGroup metrics;
+    private final OperatorMetricGroup metrics;
 
     public AbstractRuntimeUDFContext(
             TaskInfo taskInfo,
@@ -73,7 +73,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
             ExecutionConfig executionConfig,
             Map<String, Accumulator<?, ?>> accumulators,
             Map<String, Future<Path>> cpTasks,
-            MetricGroup metrics) {
+            OperatorMetricGroup metrics) {
         this.taskInfo = checkNotNull(taskInfo);
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionConfig = executionConfig;
@@ -108,7 +108,7 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     }
 
     @Override
-    public MetricGroup getMetricGroup() {
+    public OperatorMetricGroup getMetricGroup() {
         return metrics;
     }
 

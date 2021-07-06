@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalTaskIOMetricGroup;
 
 import javax.annotation.Nullable;
 
@@ -75,7 +75,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
     }
 
     @Override
-    public void setMetricGroup(TaskIOMetricGroup metrics) {}
+    public void setMetricGroup(InternalTaskIOMetricGroup metrics) {}
 
     @Override
     public void flushAll() {}
