@@ -75,7 +75,11 @@ The following configuration methods can be used:
 7. _setFailureHandler([CassandraFailureHandler failureHandler])_
     * An __optional__ setting
     * Sets the custom failure handler.
-8. _build()_
+8. _setDefaultKeyspace(String keyspace)_
+    * Sets the default keyspace to be used.
+9. _enableIgnoreNullFields()_
+    * Enables ignoring null values, treats null values as unset and avoids writing null fields and creating tombstones.
+10. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log
