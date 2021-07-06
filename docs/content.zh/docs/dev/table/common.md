@@ -840,34 +840,21 @@ print(table.explain())
 ```text
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
-  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[Unregistered_DataStream_1]])
++- LogicalTableScan(table=[[Unregistered_DataStream_2]])
 
-== Optimized Logical Plan ==
-DataStreamUnion(all=[true], union all=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
-    DataStreamScan(id=[1], fields=[count, word])
-  DataStreamScan(id=[2], fields=[count, word])
+== Optimized Physical Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-Stage 2 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 3 : Operator
-		content : from: (count, word)
-		ship_strategy : REBALANCE
-
-		Stage 4 : Operator
-			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
-			ship_strategy : FORWARD
-
-			Stage 5 : Operator
-				content : from: (count, word)
-				ship_strategy : REBALANCE
+== Optimized Execution Plan ==
+Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- DataStreamScan(table=[[Unregistered_DataStream_1]], fields=[count, word])
++- DataStreamScan(table=[[Unregistered_DataStream_2]], fields=[count, word])
 ```
 </div>
 
@@ -998,78 +985,38 @@ print(explanation)
 <div>
 ```text
 == Abstract Syntax Tree ==
-LogicalLegacySink(name=[MySink1], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
    +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
 
-LogicalLegacySink(name=[MySink2], fields=[count, word])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- LogicalUnion(all=[true])
-   :- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
+:- LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]])
 
-== Optimized Logical Plan ==
-Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')], reuse_id=[1])
-+- TableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
++- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
-LegacySink(name=[MySink1], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
++- Union(all=[true], union=[count, word])
+:- Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+== Optimized Execution Plan ==
+Calc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])(reuse_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
+
+LegacySink(name=[`default_catalog`.`default_database`.`MySink1`], fields=[count, word])
 +- Reused(reference_id=[1])
 
-LegacySink(name=[MySink2], fields=[count, word])
+LegacySink(name=[`default_catalog`.`default_database`.`MySink2`], fields=[count, word])
 +- Union(all=[true], union=[count, word])
-   :- Reused(reference_id=[1])
-   +- TableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
-
-== Physical Execution Plan ==
-Stage 1 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 2 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 3 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource1, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 4 : Operator
-				content : Calc(where: (word LIKE _UTF-16LE'F%'), select: (count, word))
-				ship_strategy : FORWARD
-
-				Stage 5 : Operator
-					content : SinkConversionToRow
-					ship_strategy : FORWARD
-
-					Stage 6 : Operator
-						content : Map
-						ship_strategy : FORWARD
-
-Stage 8 : Data Source
-	content : collect elements with CollectionInputFormat
-
-	Stage 9 : Operator
-		content : CsvTableSource(read fields: count, word)
-		ship_strategy : REBALANCE
-
-		Stage 10 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]), fields:(count, word))
-			ship_strategy : FORWARD
-
-			Stage 12 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				Stage 13 : Operator
-					content : Map
-					ship_strategy : FORWARD
-
-					Stage 7 : Data Sink
-						content : Sink: CsvTableSink(count, word)
-						ship_strategy : FORWARD
-
-						Stage 14 : Data Sink
-							content : Sink: CsvTableSink(count, word)
-							ship_strategy : FORWARD
+:- Reused(reference_id=[1])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource2, source: [CsvTableSource(read fields: count, word)]]], fields=[count, word])
 
 ```
 </div>
