@@ -1,5 +1,5 @@
 ---
-title: "Scala API扩展"
+title: "Scala API 扩展"
 weight: 201
 type: docs
 aliases:
@@ -27,9 +27,9 @@ under the License.
 
 # Scala API扩展
 
-为了在 Scala 和 Java API 之间保持一定的一致性，在批处理和流处理的标准 API 中省略了一些允许 Scala 高级表达的特性。
+为了在 Scala 和 Java API 之间保持大致相同的使用体验，在批处理和流处理的标准 API 中省略了一些允许 Scala 高级表达的特性。
 
-如果你想拥有完整的 Scala 体验，可以选择通过隐式转换增强 Scala API 的扩展。
+_如果你想拥有完整的 Scala 体验，可以选择通过隐式转换增强 Scala API 的扩展。_
 
 要使用所有可用的扩展，你只需为 DataStream API 添加一个简单的引入
 
@@ -37,9 +37,9 @@ under the License.
 import org.apache.flink.streaming.api.scala.extensions._
 {{< /highlight >}}
 
-或者，您可以引入单个扩展 a-là-carte 来使用您喜欢的扩展。
+或者，您可以引入单个扩展  _a-là-carte_ 来使用您喜欢的扩展。
 
-## 接受部分功能
+## Accept partial functions
 
 通常，DataStream API 不接受匿名模式匹配函数来解构元组、case 类或集合，如下所示：
 
@@ -178,19 +178,19 @@ data1.join(data2).
 
 有关每个方法语义的更多信息, 请参考 [DataStream]({{< ref "docs/dev/datastream/overview" >}}) API 文档。
 
-要单独使用此扩展，您可以添加以下引入：
+要单独使用此扩展，你可以添加以下引入：
 
 {{< highlight scala >}}
 import org.apache.flink.api.scala.extensions.acceptPartialFunctions
 {{< /highlight >}}
 
-用于DataSet扩展
+用于 DataSet 扩展
 
 {{< highlight scala >}}
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 {{< /highlight >}}
 
-下面的代码片段展示了如何一起使用这些扩展方法(以及 DataSet API)的最小示例:
+下面的代码片段展示了如何一起使用这些扩展方法 (以及 DataSet API) 的最小示例:
 
 {{< highlight scala >}}
 object Main {
