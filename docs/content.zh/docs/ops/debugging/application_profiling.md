@@ -47,7 +47,7 @@ env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX
 env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
 ```
 
-## 分析内存溢出(OOM)问题
+## 分析内存溢出（OOM）问题
 
 如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions` ，那么启用在内存溢出错误时堆转储是一个好主意。
 
@@ -55,11 +55,11 @@ env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCo
 env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PREFIX}.hprof"
 ```
 
-堆转储(Heap Dump)将使你能够方便地分析用户代码中潜在的内存泄漏问题。如果内存泄漏是由 Flink 引起的，那么请联系[开发人员邮件列表](mailto:dev@flink.apache.org)。
+堆转储（Heap Dump）将使你能够方便地分析用户代码中潜在的内存泄漏问题。如果内存泄漏是由 Flink 引起的，那么请联系[开发人员邮件列表](mailto:dev@flink.apache.org)。
 
 ## 分析内存和垃圾回收行为
 
-内存使用和垃圾回收会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响力小到性能下降，大到集群全面瘫痪。如果你想更好地理解应用程序的内存和 GC 行为，可以在 `TaskManagers` 上启用内存日志记录
+内存使用和垃圾回收会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响小到性能下降，大到集群完全瘫痪。如果你想更好地理解应用程序的内存和 GC 行为，可以在 `TaskManagers` 上启用内存日志记录
 
 ```yaml
 taskmanager.debug.memory.log: true
