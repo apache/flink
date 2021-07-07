@@ -28,6 +28,7 @@ import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
@@ -570,6 +571,18 @@ public class TableImpl implements Table {
                         Collections.emptyMap());
 
         return tableEnvironment.executeInternal(Collections.singletonList(operation));
+    }
+
+    @Override
+    public TableResult executeInsert(TableDescriptor descriptor) {
+        return executeInsert(descriptor, false);
+    }
+
+    @Override
+    public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        tableEnvironment.createTemporaryTable(path, descriptor);
+        return executeInsert(path, overwrite);
     }
 
     @Override
