@@ -80,7 +80,7 @@ class MemorySize(object):
 
     def get_java_memory_size(self):
         """
-        Get the Java MemorySize object.
+        Gets the Java MemorySize object.
 
         :return: The Java MemorySize object.
         """
@@ -91,6 +91,18 @@ class MemorySize(object):
 
     def __hash__(self):
         return self._j_memory_size.hashCode()
+
+    def __lt__(self, other: 'MemorySize'):
+        if not isinstance(other, MemorySize):
+            raise Exception("Does not support comparison with non-MemorySize %s" % other)
+
+        return self._j_memory_size.compareTo(other._j_memory_size) == -1
+
+    def __le__(self, other: 'MemorySize'):
+        return self.__eq__(other) and self.__lt__(other)
+
+    def __str__(self):
+        return self._j_memory_size.toString()
 
 
 class SlotSharingGroup(object):
@@ -103,7 +115,7 @@ class SlotSharingGroup(object):
 
     def get_name(self) -> str:
         """
-        Get the name of this SlotSharingGroup.
+        Gets the name of this SlotSharingGroup.
 
         :return: The name of the SlotSharingGroup.
         """
@@ -111,7 +123,7 @@ class SlotSharingGroup(object):
 
     def get_managed_memory(self) -> Optional[MemorySize]:
         """
-        Get the task managed memory for this SlotSharingGroup.
+        Gets the task managed memory for this SlotSharingGroup.
 
         :return: The task managed memory of the SlotSharingGroup.
         """
@@ -120,7 +132,7 @@ class SlotSharingGroup(object):
 
     def get_task_heap_memory(self) -> Optional[MemorySize]:
         """
-        Get the task heap memory for this SlotSharingGroup.
+        Gets the task heap memory for this SlotSharingGroup.
 
         :return: The task heap memory of the SlotSharingGroup.
         """
@@ -129,7 +141,7 @@ class SlotSharingGroup(object):
 
     def get_task_off_heap_memory(self) -> Optional[MemorySize]:
         """
-        Get the task off-heap memory for this SlotSharingGroup.
+        Gets the task off-heap memory for this SlotSharingGroup.
 
         :return: The task off-heap memory of the SlotSharingGroup.
         """
@@ -138,7 +150,7 @@ class SlotSharingGroup(object):
 
     def get_cpu_cores(self) -> Optional[float]:
         """
-       Get the CPU cores for this SlotSharingGroup.
+       Gets the CPU cores for this SlotSharingGroup.
 
         :return: The CPU cores of the SlotSharingGroup.
         """
@@ -147,7 +159,7 @@ class SlotSharingGroup(object):
 
     def get_external_resources(self) -> dict:
         """
-        Get the external resource from this SlotSharingGroup.
+        Gets the external resource from this SlotSharingGroup.
 
         :return: User specified resources of the SlotSharingGroup.
         """
@@ -155,7 +167,7 @@ class SlotSharingGroup(object):
 
     def get_java_slot_sharing_group(self):
         """
-        Get the Java SlotSharingGroup object.
+        Gets the Java SlotSharingGroup object.
 
         :return: The Java SlotSharingGroup object.
         """
@@ -164,7 +176,7 @@ class SlotSharingGroup(object):
     @staticmethod
     def builder(name: str) -> 'Builder':
         """
-        Get the Builder with the given name for this SlotSharingGroup.
+        Gets the Builder with the given name for this SlotSharingGroup.
 
         :param name: The name of the SlotSharingGroup.
         :return: The builder for the SlotSharingGroup.
@@ -190,7 +202,7 @@ class SlotSharingGroup(object):
 
         def set_cpu_cores(self, cpu_cores: float) -> 'SlotSharingGroup.Builder':
             """
-            Set the CPU cores for this SlotSharingGroup.
+            Sets the CPU cores for this SlotSharingGroup.
 
             :param cpu_cores: The CPU cores of the SlotSharingGroup.
             :return: This object.
@@ -200,7 +212,7 @@ class SlotSharingGroup(object):
 
         def set_task_heap_memory(self, task_heap_memory: MemorySize) -> 'SlotSharingGroup.Builder':
             """
-            Set the task heap memory for this SlotSharingGroup.
+            Sets the task heap memory for this SlotSharingGroup.
 
             :param task_heap_memory: The task heap memory of the SlotSharingGroup.
             :return: This object.
@@ -210,7 +222,7 @@ class SlotSharingGroup(object):
 
         def set_task_heap_memory_mb(self, task_heap_memory_mb: int) -> 'SlotSharingGroup.Builder':
             """
-            Set the task heap memory for this SlotSharingGroup in MB.
+            Sets the task heap memory for this SlotSharingGroup in MB.
 
             :param task_heap_memory_mb: The task heap memory of the SlotSharingGroup in MB.
             :return: This object.
@@ -221,7 +233,7 @@ class SlotSharingGroup(object):
         def set_task_off_heap_memory(self, task_off_heap_memory: MemorySize) \
                 -> 'SlotSharingGroup.Builder':
             """
-            Set the task off-heap memory for this SlotSharingGroup.
+            Sets the task off-heap memory for this SlotSharingGroup.
 
             :param task_off_heap_memory: The task off-heap memory of the SlotSharingGroup.
             :return: This object.
@@ -232,7 +244,7 @@ class SlotSharingGroup(object):
         def set_task_off_heap_memory_mb(self, task_off_heap_memory_mb: int) \
                 -> 'SlotSharingGroup.Builder':
             """
-            Set the task off-heap memory for this SlotSharingGroup in MB.
+            Sets the task off-heap memory for this SlotSharingGroup in MB.
 
             :param task_off_heap_memory_mb: The task off-heap memory of the SlotSharingGroup in MB.
             :return: This object.
@@ -242,7 +254,7 @@ class SlotSharingGroup(object):
 
         def set_managed_memory(self, managed_memory: MemorySize) -> 'SlotSharingGroup.Builder':
             """
-            Set the task managed memory for this SlotSharingGroup.
+            Sets the task managed memory for this SlotSharingGroup.
 
             :param managed_memory: The task managed memory of the SlotSharingGroup.
             :return: This object.
@@ -252,7 +264,7 @@ class SlotSharingGroup(object):
 
         def set_managed_memory_mb(self, managed_memory_mb: int) -> 'SlotSharingGroup.Builder':
             """
-            Set the task managed memory for this SlotSharingGroup in MB.
+            Sets the task managed memory for this SlotSharingGroup in MB.
 
             :param managed_memory_mb: The task managed memory of the SlotSharingGroup in MB.
             :return: This object.
@@ -262,7 +274,7 @@ class SlotSharingGroup(object):
 
         def set_external_resource(self, name: str, value: float) -> 'SlotSharingGroup.Builder':
             """
-            Add the given external resource. The old value with the same resource name will be
+            Adds the given external resource. The old value with the same resource name will be
             replaced if present.
 
             :param name: The resource name of the given external resource.
@@ -274,7 +286,7 @@ class SlotSharingGroup(object):
 
         def build(self) -> 'SlotSharingGroup':
             """
-            Build the SlotSharingGroup.
+            Builds the SlotSharingGroup.
 
             :return: The SlotSharingGroup object.
             """
