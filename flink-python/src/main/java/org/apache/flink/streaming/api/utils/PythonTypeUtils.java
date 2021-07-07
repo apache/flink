@@ -61,7 +61,7 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.StringSeriali
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.HashMap;

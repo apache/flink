@@ -36,7 +36,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitorImp
 import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;

@@ -109,7 +109,7 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriConsumerWithException;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
 import org.junit.After;
 import org.junit.Before;
