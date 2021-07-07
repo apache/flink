@@ -451,7 +451,7 @@ public class RemoteInputChannel extends InputChannel {
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
-    void onSenderBacklog(int backlog) throws IOException {
+    public void onSenderBacklog(int backlog) throws IOException {
         notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
     }
 

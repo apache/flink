@@ -788,6 +788,54 @@ public abstract class NettyMessage {
         }
     }
 
+    /** Backlog announcement from the producer to the consumer for credit allocation. */
+    static class BacklogAnnouncement extends NettyMessage {
+
+        static final byte ID = 9;
+
+        final int backlog;
+
+        final InputChannelID receiverId;
+
+        BacklogAnnouncement(int backlog, InputChannelID receiverId) {
+            checkArgument(backlog > 0, "Must be positive.");
+            checkArgument(receiverId != null, "Must be not null.");
+
+            this.backlog = backlog;
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            ByteBuf result = null;
+
+            try {
+                result =
+                        allocateBuffer(
+                                allocator, ID, Integer.BYTES + InputChannelID.getByteBufLength());
+                result.writeInt(backlog);
+                receiverId.writeTo(result);
+
+                out.write(result, promise);
+            } catch (Throwable t) {
+                handleException(result, null, t);
+            }
+        }
+
+        static BacklogAnnouncement readFrom(ByteBuf buffer) {
+            int backlog = buffer.readInt();
+            InputChannelID receiverId = InputChannelID.fromByteBuf(buffer);
+
+            return new BacklogAnnouncement(backlog, receiverId);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("BacklogAnnouncement(%d : %s)", backlog, receiverId);
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     void writeToChannel(

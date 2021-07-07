@@ -343,6 +343,20 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
                     }
                 }
             }
+        } else if (msgClazz == NettyMessage.BacklogAnnouncement.class) {
+            NettyMessage.BacklogAnnouncement announcement = (NettyMessage.BacklogAnnouncement) msg;
+
+            RemoteInputChannel inputChannel = inputChannels.get(announcement.receiverId);
+            if (inputChannel == null || inputChannel.isReleased()) {
+                cancelRequestFor(announcement.receiverId);
+                return;
+            }
+
+            try {
+                inputChannel.onSenderBacklog(announcement.backlog);
+            } catch (Throwable throwable) {
+                inputChannel.onError(throwable);
+            }
         } else {
             throw new IllegalStateException(
                     "Received unknown message from producer: " + msg.getClass());
