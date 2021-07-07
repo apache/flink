@@ -322,7 +322,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                     try {
                         final String logs = outContent.toString();
                         final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-                        final String host = hostAndPort.getHostText();
+                        final String host = hostAndPort.getHost();
                         final int port = hostAndPort.getPort();
                         LOG.info("Extracted hostname:port: {}:{}", host, port);
 

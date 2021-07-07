@@ -34,7 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<zookeeper.optional.version>3.5.6</zookeeper.optional.version>
+		<zookeeper.optional.version>3.5.9</zookeeper.optional.version>
 	</properties>
 
 	<dependencies>
