@@ -384,7 +384,7 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
      * <p>Initially an operation is in the default slot sharing group. An operation can be put into
      * the default group explicitly by setting the slot sharing group with name {@code "default"}.
      *
-     * @param slotSharingGroup which contains name and its resource spec.
+     * @param slotSharingGroup Which contains name and its resource spec.
      */
     @PublicEvolving
     public SingleOutputStreamOperator<T> slotSharingGroup(SlotSharingGroup slotSharingGroup) {
