@@ -41,6 +41,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Random;
 
+import static org.apache.flink.runtime.io.network.netty.NettyMessage.BacklogAnnouncement;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.NettyMessageEncoder;
@@ -145,6 +146,14 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
     @Test
     public void testCompressedBufferResponse() {
         testBufferResponse(false, true);
+    }
+
+    @Test
+    public void testBacklogAnnouncement() {
+        BacklogAnnouncement expected = new BacklogAnnouncement(1024, inputChannelId);
+        BacklogAnnouncement actual = encodeAndDecode(expected, channel);
+        assertEquals(expected.backlog, actual.backlog);
+        assertEquals(expected.receiverId, actual.receiverId);
     }
 
     private void testErrorResponse(ErrorResponse expect) {
