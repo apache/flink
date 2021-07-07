@@ -22,7 +22,6 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -43,7 +42,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -56,20 +54,6 @@ import java.util.stream.Collectors;
 public class RawFormatFactory implements DeserializationFormatFactory, SerializationFormatFactory {
 
     public static final String IDENTIFIER = "raw";
-    private static final String BIG_ENDIAN = "big-endian";
-    private static final String LITTLE_ENDIAN = "little-endian";
-
-    public static final ConfigOption<String> ENDIANNESS =
-            ConfigOptions.key("endianness")
-                    .stringType()
-                    .defaultValue(BIG_ENDIAN)
-                    .withDescription("Defines the endianness for bytes of numeric values.");
-
-    public static final ConfigOption<String> CHARSET =
-            ConfigOptions.key("charset")
-                    .stringType()
-                    .defaultValue(StandardCharsets.UTF_8.displayName())
-                    .withDescription("Defines the string charset.");
 
     @Override
     public String factoryIdentifier() {
@@ -84,8 +68,8 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(ENDIANNESS);
-        options.add(CHARSET);
+        options.add(RawFormatOptions.ENDIANNESS);
+        options.add(RawFormatOptions.CHARSET);
         return options;
     }
 
@@ -184,29 +168,29 @@ public class RawFormatFactory implements DeserializationFormatFactory, Serializa
     }
 
     private static boolean isBigEndian(ReadableConfig formatOptions) {
-        String endiannessName = formatOptions.get(ENDIANNESS);
-        if (BIG_ENDIAN.equalsIgnoreCase(endiannessName)) {
+        String endiannessName = formatOptions.get(RawFormatOptions.ENDIANNESS);
+        if (RawFormatOptions.BIG_ENDIAN.equalsIgnoreCase(endiannessName)) {
             return true;
-        } else if (LITTLE_ENDIAN.equalsIgnoreCase(endiannessName)) {
+        } else if (RawFormatOptions.LITTLE_ENDIAN.equalsIgnoreCase(endiannessName)) {
             return false;
         } else {
             throw new ValidationException(
                     String.format(
                             "Unsupported endianness name: %s. "
                                     + "Valid values of '%s.%s' option are 'big-endian' and 'little-endian'.",
-                            endiannessName, IDENTIFIER, ENDIANNESS.key()));
+                            endiannessName, IDENTIFIER, RawFormatOptions.ENDIANNESS.key()));
         }
     }
 
     private static String validateAndGetCharsetName(ReadableConfig formatOptions) {
-        String charsetName = formatOptions.get(CHARSET);
+        String charsetName = formatOptions.get(RawFormatOptions.CHARSET);
         try {
             Charset.forName(charsetName);
         } catch (Exception e) {
             throw new ValidationException(
                     String.format(
                             "Unsupported '%s.%s' name: %s.",
-                            IDENTIFIER, CHARSET.key(), charsetName),
+                            IDENTIFIER, RawFormatOptions.CHARSET.key(), charsetName),
                     e);
         }
         return charsetName;
