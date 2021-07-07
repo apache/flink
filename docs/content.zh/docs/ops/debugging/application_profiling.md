@@ -41,7 +41,7 @@ env.java.opts: "-XX:+UnlockCommercialFeatures -XX:+UnlockDiagnosticVMOptions -XX
 
 ## 使用 JITWatch 分析
 
-[JITWatch](https://github.com/AdoptOpenJDK/jitwatch/wiki) Java HotSpot JIT 编译器的日志分析器和可视化工具，用于检查内联决策，热方法，字节码和汇编。配置示例：
+[JITWatch](https://github.com/AdoptOpenJDK/jitwatch/wiki) Java HotSpot JIT 编译器的日志分析器和可视化工具，用于检查内联决策、热点方法、字节码和汇编。配置示例：
 
 ```yaml
 env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCompilation -XX:LogFile=${FLINK_LOG_PREFIX}.jit -XX:+PrintAssembly"
@@ -49,7 +49,7 @@ env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCo
 
 ## 分析内存溢出（OOM）问题
 
-如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions` ，那么启用在内存溢出错误时堆转储是一个好主意。
+如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions` ，那么启用在内存溢出错误时堆转储（Heap Dump）是一个好主意。
 
 ```yaml
 env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PREFIX}.hprof"
@@ -59,7 +59,7 @@ env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PRE
 
 ## 分析内存和垃圾回收行为
 
-内存使用和垃圾回收会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响小到性能下降，大到集群完全瘫痪。如果你想更好地理解应用程序的内存和 GC 行为，可以在 `TaskManagers` 上启用内存日志记录
+内存使用和垃圾回收会对你的应用程序产生巨大的影响。如果 GC 停顿时间过长，其影响小到性能下降，大到集群完全瘫痪。如果你想更好地理解应用程序的内存和 GC 行为，可以在 `TaskManagers` 上启用内存日志记录。
 
 ```yaml
 taskmanager.debug.memory.log: true
