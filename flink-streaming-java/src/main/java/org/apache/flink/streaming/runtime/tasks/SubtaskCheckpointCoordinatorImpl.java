@@ -421,7 +421,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                     try {
                         ar.getFinishedFuture().get();
                     } catch (Exception e) {
-                        LOG.error(
+                        LOG.debug(
                                 "Async runnable for checkpoint "
                                         + ar.getCheckpointId()
                                         + " throws exception and exit",
