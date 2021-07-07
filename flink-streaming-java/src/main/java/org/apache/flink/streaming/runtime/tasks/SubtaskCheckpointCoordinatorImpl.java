@@ -49,7 +49,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -551,7 +550,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             Map<OperatorID, OperatorSnapshotFutures> snapshotFutures,
             CheckpointMetaData metadata,
             CheckpointMetricsBuilder metrics,
-            Supplier<Boolean> isRunning) {
+            Supplier<Boolean> isRunning)
+            throws IOException {
         AsyncCheckpointRunnable asyncCheckpointRunnable =
                 new AsyncCheckpointRunnable(
                         snapshotFutures,
@@ -564,12 +564,8 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         asyncExceptionHandler,
                         isRunning);
 
-        try {
-            registerAsyncCheckpointRunnable(
-                    asyncCheckpointRunnable.getCheckpointId(), asyncCheckpointRunnable);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        registerAsyncCheckpointRunnable(
+                asyncCheckpointRunnable.getCheckpointId(), asyncCheckpointRunnable);
 
         // we are transferring ownership over snapshotInProgressList for cleanup to the thread,
         // active on submit
