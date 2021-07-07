@@ -25,6 +25,8 @@ import org.apache.flink.core.plugin.PluginManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ServiceLoader;
@@ -78,6 +80,7 @@ public class StateChangelogStorageLoader {
                 String.join(",", STATE_CHANGELOG_STORAGE_FACTORIES.keySet()));
     }
 
+    @Nullable
     public static StateChangelogStorage<?> load(Configuration configuration) {
         final String identifier =
                 configuration

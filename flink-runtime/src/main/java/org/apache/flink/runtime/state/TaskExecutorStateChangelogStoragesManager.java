@@ -28,9 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This class holds the all {@link StateChangelogStorage} objects for a task executor (manager). No
@@ -45,9 +47,9 @@ public class TaskExecutorStateChangelogStoragesManager {
     /**
      * This map holds all state changelog storages for tasks running on the task manager / executor
      * that own the instance of this. Maps from job id to all the subtask's state changelog
-     * storages.
+     * storages. Value type AtomicReference is for containing the null value.
      */
-    private final Map<JobID, StateChangelogStorage<?>> changelogStoragesByJobId;
+    private final Map<JobID, AtomicReference<StateChangelogStorage<?>>> changelogStoragesByJobId;
 
     private boolean closed;
 
@@ -63,6 +65,7 @@ public class TaskExecutorStateChangelogStoragesManager {
                 ShutdownHookUtil.addShutdownHook(this::shutdown, getClass().getSimpleName(), LOG);
     }
 
+    @Nullable
     public StateChangelogStorage<?> stateChangelogStorageForJob(
             @Nonnull JobID jobId, Configuration configuration) {
         if (closed) {
@@ -71,32 +74,30 @@ public class TaskExecutorStateChangelogStoragesManager {
                             + "register a new StateChangelogStorage.");
         }
 
-        StateChangelogStorage<?> stateChangelogStorage = changelogStoragesByJobId.get(jobId);
+        AtomicReference<StateChangelogStorage<?>> stateChangelogStorage =
+                changelogStoragesByJobId.get(jobId);
 
         if (stateChangelogStorage == null) {
-            stateChangelogStorage = StateChangelogStorageLoader.load(configuration);
-
+            StateChangelogStorage<?> loaded = StateChangelogStorageLoader.load(configuration);
+            stateChangelogStorage = new AtomicReference<>(loaded);
             changelogStoragesByJobId.put(jobId, stateChangelogStorage);
 
-            if (stateChangelogStorage != null) {
-                LOG.debug(
-                        "Registered new state changelog storage for job {} : {}.",
-                        jobId,
-                        stateChangelogStorage);
+            if (loaded != null) {
+                LOG.debug("Registered new state changelog storage for job {} : {}.", jobId, loaded);
             } else {
                 LOG.info(
                         "Try to registered new state changelog storage for job {},"
-                                + "but result is null.",
+                                + " but result is null.",
                         jobId);
             }
         } else {
             LOG.debug(
                     "Found existing state changelog storage for job {}: {}.",
                     jobId,
-                    stateChangelogStorage);
+                    stateChangelogStorage.get());
         }
 
-        return stateChangelogStorage;
+        return stateChangelogStorage.get();
     }
 
     public void releaseStateChangelogStorageForJob(@Nonnull JobID jobId) {
@@ -105,10 +106,11 @@ public class TaskExecutorStateChangelogStoragesManager {
             return;
         }
 
-        StateChangelogStorage<?> cleanupChangelogStorage = changelogStoragesByJobId.remove(jobId);
+        AtomicReference<StateChangelogStorage<?>> cleanupChangelogStorage =
+                changelogStoragesByJobId.remove(jobId);
 
         if (cleanupChangelogStorage != null) {
-            doRelease(cleanupChangelogStorage);
+            doRelease(cleanupChangelogStorage.get());
         }
     }
 
@@ -118,7 +120,7 @@ public class TaskExecutorStateChangelogStoragesManager {
         }
         closed = true;
 
-        HashMap<JobID, StateChangelogStorage<?>> toRelease =
+        HashMap<JobID, AtomicReference<StateChangelogStorage<?>>> toRelease =
                 new HashMap<>(changelogStoragesByJobId);
         changelogStoragesByJobId.clear();
 
@@ -126,8 +128,9 @@ public class TaskExecutorStateChangelogStoragesManager {
 
         LOG.info("Shutting down TaskExecutorStateChangelogStoragesManager.");
 
-        for (Map.Entry<JobID, StateChangelogStorage<?>> entry : toRelease.entrySet()) {
-            doRelease(entry.getValue());
+        for (Map.Entry<JobID, AtomicReference<StateChangelogStorage<?>>> entry :
+                toRelease.entrySet()) {
+            doRelease(entry.getValue().get());
         }
     }
 
