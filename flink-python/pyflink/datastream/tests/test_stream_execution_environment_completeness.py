@@ -39,7 +39,6 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
         # Currently only the methods for configuration is added.
         # 'isForceCheckpointing', 'getNumberOfExecutionRetries', 'setNumberOfExecutionRetries'
         # is deprecated, exclude them.
-        # TODO the registerSlotSharingGroup should be removed from this list after FLINK-23165.
         return {'getLastJobExecutionResult', 'getId', 'getIdString',
                 'registerCachedFile', 'createCollectionsEnvironment', 'createLocalEnvironment',
                 'createRemoteEnvironment', 'addOperator', 'fromElements',
@@ -49,7 +48,7 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
                 'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
                 'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners', "fromSequence", "registerSlotSharingGroup"}
+                'clearJobListeners', 'getJobListeners', "fromSequence"}
 
 
 if __name__ == '__main__':

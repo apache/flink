@@ -28,6 +28,7 @@ from pyflink.common.job_client import JobClient
 from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.typeinfo import TypeInformation, Types
+from pyflink.datastream import SlotSharingGroup
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
 from pyflink.datastream.connectors import Source
@@ -98,6 +99,24 @@ class StreamExecutionEnvironment(object):
         """
         self._j_stream_execution_environment = \
             self._j_stream_execution_environment.setMaxParallelism(max_parallelism)
+        return self
+
+    def register_slot_sharing_group(self, slot_sharing_group: SlotSharingGroup) \
+            -> 'StreamExecutionEnvironment':
+        """
+        Register a slot sharing group with its resource spec.
+
+        Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+        deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+        grouped operators together. In cases grouped operators are deployed into separate slots, the
+        slot resources will be derived from the specified group requirements.
+
+        :param slot_sharing_group: Which contains name and its resource spec.
+        :return: This object.
+        """
+        self._j_stream_execution_environment = \
+            self._j_stream_execution_environment.registerSlotSharingGroup(
+                slot_sharing_group.get_java_slot_sharing_group())
         return self
 
     def get_parallelism(self) -> int:
