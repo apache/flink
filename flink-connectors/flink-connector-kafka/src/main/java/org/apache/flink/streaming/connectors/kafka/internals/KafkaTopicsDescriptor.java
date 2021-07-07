@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Kafka Topics Descriptor describes how the consumer subscribes to Kafka topics - either a fixed
@@ -41,17 +42,25 @@ public class KafkaTopicsDescriptor implements Serializable {
     private final Pattern topicPattern;
 
     public KafkaTopicsDescriptor(
-            @Nullable List<String> fixedTopics, @Nullable Pattern topicPattern) {
+        @Nullable List<String> fixedTopics, @Nullable Pattern topicPattern) {
         checkArgument(
-                (fixedTopics != null && topicPattern == null)
-                        || (fixedTopics == null && topicPattern != null),
-                "Exactly one of either fixedTopics or topicPattern must be specified.");
+            (fixedTopics != null && topicPattern == null)
+                || (fixedTopics == null && topicPattern != null),
+            "Exactly one of either fixedTopics or topicPattern must be specified.");
 
         if (fixedTopics != null) {
             checkArgument(
-                    !fixedTopics.isEmpty(),
-                    "If subscribing to a fixed topics list, the supplied list cannot be empty.");
+                !fixedTopics.isEmpty(),
+                "If subscribing to a fixed topics list, the supplied list cannot be empty.");
+            fixedTopics.forEach(topic -> {
+                checkNotNull(topic, "An null topic exists in the subscribed topics list.");
+                checkArgument(!"".equals(topic), "An empty topic exists in the subscribed topics list.");
+            });
         }
+        if (topicPattern != null) {
+            checkArgument(!"".equals(topicPattern.toString()), "topicPattern is an empty pattern.");
+        }
+
 
         this.fixedTopics = fixedTopics;
         this.topicPattern = topicPattern;
@@ -85,7 +94,7 @@ public class KafkaTopicsDescriptor implements Serializable {
     @Override
     public String toString() {
         return (fixedTopics == null)
-                ? "Topic Regex Pattern (" + topicPattern.pattern() + ")"
-                : "Fixed Topics (" + fixedTopics + ")";
+            ? "Topic Regex Pattern (" + topicPattern.pattern() + ")"
+            : "Fixed Topics (" + fixedTopics + ")";
     }
 }
