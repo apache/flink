@@ -563,22 +563,17 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                         env,
                         asyncExceptionHandler,
                         isRunning);
-        registerConsumer().accept(asyncCheckpointRunnable);
+
+        try {
+            registerAsyncCheckpointRunnable(
+                    asyncCheckpointRunnable.getCheckpointId(), asyncCheckpointRunnable);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
 
         // we are transferring ownership over snapshotInProgressList for cleanup to the thread,
         // active on submit
         asyncOperationsThreadPool.execute(asyncCheckpointRunnable);
-    }
-
-    private Consumer<AsyncCheckpointRunnable> registerConsumer() {
-        return asyncCheckpointRunnable -> {
-            try {
-                registerAsyncCheckpointRunnable(
-                        asyncCheckpointRunnable.getCheckpointId(), asyncCheckpointRunnable);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        };
     }
 
     private Consumer<AsyncCheckpointRunnable> unregisterConsumer() {
