@@ -180,6 +180,7 @@ public class TestTaskStateManager implements TaskStateManager {
         return SequentialChannelStateReader.NO_OP;
     }
 
+    @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
         return new InMemoryStateChangelogStorage();

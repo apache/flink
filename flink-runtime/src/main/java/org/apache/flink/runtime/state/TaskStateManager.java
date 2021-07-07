@@ -91,5 +91,6 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
     SequentialChannelStateReader getSequentialChannelStateReader();
 
     /** Returns the configured state changelog storage for this task. */
+    @Nullable
     StateChangelogStorage<?> getStateChangelogStorage();
 }

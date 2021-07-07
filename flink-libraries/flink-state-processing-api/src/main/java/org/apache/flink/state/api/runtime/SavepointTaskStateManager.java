@@ -88,6 +88,7 @@ final class SavepointTaskStateManager implements TaskStateManager {
         return InflightDataRescalingDescriptor.NO_RESCALE;
     }
 
+    @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
         throw new UnsupportedOperationException(MSG);

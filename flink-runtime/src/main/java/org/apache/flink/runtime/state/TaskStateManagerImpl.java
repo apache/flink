@@ -72,7 +72,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
     private final TaskLocalStateStore localStateStore;
 
     /** The changelog storage where the manager reads and writes the changelog */
-    private final StateChangelogStorage<?> stateChangelogStorage;
+    @Nullable private final StateChangelogStorage<?> stateChangelogStorage;
 
     /** The checkpoint responder through which this manager can report to the job manager. */
     private final CheckpointResponder checkpointResponder;
@@ -83,7 +83,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
-            @Nonnull StateChangelogStorage<?> stateChangelogStorage,
+            @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder) {
         this(
@@ -103,7 +103,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
-            @Nonnull StateChangelogStorage<?> stateChangelogStorage,
+            @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder,
             @Nonnull SequentialChannelStateReaderImpl sequentialChannelStateReader) {
@@ -216,6 +216,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return sequentialChannelStateReader;
     }
 
+    @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
         return stateChangelogStorage;
