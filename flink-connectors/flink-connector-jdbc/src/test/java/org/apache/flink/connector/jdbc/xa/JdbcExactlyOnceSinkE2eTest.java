@@ -89,7 +89,7 @@ import static org.junit.Assert.assertTrue;
 @RunWith(Parameterized.class)
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
-    // debugging FLINK-22889
+
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
 
     private interface JdbcExactlyOnceSinkTestEnv {
