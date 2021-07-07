@@ -77,7 +77,8 @@ class TableEnvironmentTest(object):
         t = t_env.from_elements([], schema)
         result = t.select(t.a + 1, t.b, t.c)
 
-        actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
+        actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
+                                ExplainDetail.JSON_EXECUTION_PLAN)
 
         assert isinstance(actual, str)
 
@@ -970,7 +971,8 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)
         stmt_set.add_insert_sql("insert into sink2 select * from %s where a < 100" % source)
 
-        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
+        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
+                                  ExplainDetail.JSON_EXECUTION_PLAN)
         self.assertIsInstance(actual, str)
 
     def test_register_java_function(self):
