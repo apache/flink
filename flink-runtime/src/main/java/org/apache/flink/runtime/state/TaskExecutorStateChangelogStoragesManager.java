@@ -32,7 +32,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 
 /**
  * This class holds the all {@link StateChangelogStorage} objects for a task executor (manager). No
@@ -47,9 +47,9 @@ public class TaskExecutorStateChangelogStoragesManager {
     /**
      * This map holds all state changelog storages for tasks running on the task manager / executor
      * that own the instance of this. Maps from job id to all the subtask's state changelog
-     * storages. Value type AtomicReference is for containing the null value.
+     * storages. Value type Optional is for containing the null value.
      */
-    private final Map<JobID, AtomicReference<StateChangelogStorage<?>>> changelogStoragesByJobId;
+    private final Map<JobID, Optional<StateChangelogStorage<?>>> changelogStoragesByJobId;
 
     private boolean closed;
 
@@ -74,12 +74,12 @@ public class TaskExecutorStateChangelogStoragesManager {
                             + "register a new StateChangelogStorage.");
         }
 
-        AtomicReference<StateChangelogStorage<?>> stateChangelogStorage =
+        Optional<StateChangelogStorage<?>> stateChangelogStorage =
                 changelogStoragesByJobId.get(jobId);
 
         if (stateChangelogStorage == null) {
             StateChangelogStorage<?> loaded = StateChangelogStorageLoader.load(configuration);
-            stateChangelogStorage = new AtomicReference<>(loaded);
+            stateChangelogStorage = Optional.ofNullable(loaded);
             changelogStoragesByJobId.put(jobId, stateChangelogStorage);
 
             if (loaded != null) {
@@ -90,14 +90,16 @@ public class TaskExecutorStateChangelogStoragesManager {
                                 + " but result is null.",
                         jobId);
             }
-        } else {
+        } else if (stateChangelogStorage.isPresent()) {
             LOG.debug(
                     "Found existing state changelog storage for job {}: {}.",
                     jobId,
                     stateChangelogStorage.get());
+        } else {
+            LOG.debug("Found a previously loaded NULL state changelog storage for job {}.", jobId);
         }
 
-        return stateChangelogStorage.get();
+        return stateChangelogStorage.orElse(null);
     }
 
     public void releaseStateChangelogStorageForJob(@Nonnull JobID jobId) {
@@ -106,11 +108,11 @@ public class TaskExecutorStateChangelogStoragesManager {
             return;
         }
 
-        AtomicReference<StateChangelogStorage<?>> cleanupChangelogStorage =
+        Optional<StateChangelogStorage<?>> cleanupChangelogStorage =
                 changelogStoragesByJobId.remove(jobId);
 
         if (cleanupChangelogStorage != null) {
-            doRelease(cleanupChangelogStorage.get());
+            cleanupChangelogStorage.ifPresent(this::doRelease);
         }
     }
 
@@ -120,7 +122,7 @@ public class TaskExecutorStateChangelogStoragesManager {
         }
         closed = true;
 
-        HashMap<JobID, AtomicReference<StateChangelogStorage<?>>> toRelease =
+        HashMap<JobID, Optional<StateChangelogStorage<?>>> toRelease =
                 new HashMap<>(changelogStoragesByJobId);
         changelogStoragesByJobId.clear();
 
@@ -128,9 +130,8 @@ public class TaskExecutorStateChangelogStoragesManager {
 
         LOG.info("Shutting down TaskExecutorStateChangelogStoragesManager.");
 
-        for (Map.Entry<JobID, AtomicReference<StateChangelogStorage<?>>> entry :
-                toRelease.entrySet()) {
-            doRelease(entry.getValue().get());
+        for (Map.Entry<JobID, Optional<StateChangelogStorage<?>>> entry : toRelease.entrySet()) {
+            entry.getValue().ifPresent(this::doRelease);
         }
     }
 

@@ -85,6 +85,40 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
     }
 
     @Test
+    public void testConsistencyAmongTask() {
+        TaskExecutorStateChangelogStoragesManager manager =
+                new TaskExecutorStateChangelogStoragesManager();
+        Configuration configuration = new Configuration();
+        configuration.set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
+
+        JobID jobId1 = new JobID(1L, 1L);
+        StateChangelogStorage<?> storage1 =
+                manager.stateChangelogStorageForJob(jobId1, configuration);
+        Assert.assertNull(storage1);
+
+        // change configuration, assert the result not change.
+        configuration.set(
+                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE,
+                CheckpointingOptions.STATE_CHANGE_LOG_STORAGE.defaultValue());
+        StateChangelogStorage<?> storage2 =
+                manager.stateChangelogStorageForJob(jobId1, configuration);
+        Assert.assertNull(storage2);
+
+        JobID jobId2 = new JobID(1L, 2L);
+        StateChangelogStorage<?> storage3 =
+                manager.stateChangelogStorageForJob(jobId2, configuration);
+        Assert.assertNotNull(storage3);
+
+        configuration.set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
+        StateChangelogStorage<?> storage4 =
+                manager.stateChangelogStorageForJob(jobId2, configuration);
+        Assert.assertNotNull(storage4);
+        Assert.assertEquals(storage3, storage4);
+
+        manager.shutdown();
+    }
+
+    @Test
     public void testShutdown() {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
