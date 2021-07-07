@@ -163,6 +163,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                         taskName,
                         checkpointMetaData.getCheckpointId());
             }
+
+            finishedFuture.complete(null);
         } catch (Exception e) {
             LOG.info(
                     "{} - asynchronous part of checkpoint {} could not be completed.",
@@ -170,10 +172,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                     checkpointMetaData.getCheckpointId(),
                     e);
             handleExecutionException(e);
+            finishedFuture.completeExceptionally(e);
         } finally {
             unregisterConsumer.accept(this);
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
-            finishedFuture.complete(null);
         }
     }
 
