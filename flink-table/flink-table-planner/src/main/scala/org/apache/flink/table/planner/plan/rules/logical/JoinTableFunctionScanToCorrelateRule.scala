@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.plan.RelOptRule.{any, none, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalJoin, LogicalTableFunctionScan}
 
