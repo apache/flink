@@ -177,7 +177,6 @@ import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -1868,56 +1867,80 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testWaitingForPendingCheckpointsOnFinished() throws Exception {
-        AtomicInteger asyncCheckpointExecuted = new AtomicInteger(0);
-        TestCheckpointResponder responder =
-                new TestCheckpointResponder() {
-                    @Override
-                    public void acknowledgeCheckpoint(
-                            JobID jobID,
-                            ExecutionAttemptID executionAttemptID,
-                            long checkpointId,
-                            CheckpointMetrics checkpointMetrics,
-                            TaskStateSnapshot subtaskState) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
 
-                        try {
-                            // Slightly extend the running time for the AsyncRunnable
+        try {
+            OneShotLatch asyncCheckpointExecuted = new OneShotLatch();
+            OneShotLatch canCheckpointBeAcknowledged = new OneShotLatch();
+            OneShotLatch invokeCompleted = new OneShotLatch();
+
+            TestCheckpointResponder responder =
+                    new TestCheckpointResponder() {
+                        @Override
+                        public void acknowledgeCheckpoint(
+                                JobID jobID,
+                                ExecutionAttemptID executionAttemptID,
+                                long checkpointId,
+                                CheckpointMetrics checkpointMetrics,
+                                TaskStateSnapshot subtaskState) {
+
                             try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
+                                asyncCheckpointExecuted.trigger();
+                                canCheckpointBeAcknowledged.await();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
                             }
-                            asyncCheckpointExecuted.incrementAndGet();
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         }
-                    }
-                };
+                    };
 
-        try (StreamTaskMailboxTestHarness<String> harness =
-                new StreamTaskMailboxTestHarnessBuilder<>(
-                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
-                        .setCheckpointResponder(responder)
-                        .setupOperatorChain(new EmptyOperator())
-                        .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
-                        .build()) {
+            CompletableFuture<Void> taskClosed =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try (StreamTaskMailboxTestHarness<String> harness =
+                                        new StreamTaskMailboxTestHarnessBuilder<>(
+                                                        OneInputStreamTask::new,
+                                                        BasicTypeInfo.STRING_TYPE_INFO)
+                                                .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                                                .modifyStreamConfig(
+                                                        config ->
+                                                                config.setCheckpointingEnabled(
+                                                                        true))
+                                                .setCheckpointResponder(responder)
+                                                .setupOperatorChain(new EmptyOperator())
+                                                .finishForSingletonOperatorChain(
+                                                        StringSerializer.INSTANCE)
+                                                .build()) {
 
-            harness.streamTask
-                    .getCheckpointCoordinator()
-                    .setEnableCheckpointAfterTasksFinished(true);
+                                    harness.streamTask
+                                            .getCheckpointCoordinator()
+                                            .setEnableCheckpointAfterTasksFinished(true);
 
-            harness.streamTask.triggerCheckpointOnBarrier(
-                    new CheckpointMetaData(1, 101),
-                    CheckpointOptions.forCheckpointWithDefaultLocation(),
-                    new CheckpointMetricsBuilder()
-                            .setBytesProcessedDuringAlignment(0L)
-                            .setAlignmentDurationNanos(0L));
+                                    harness.streamTask.triggerCheckpointOnBarrier(
+                                            new CheckpointMetaData(1, 101),
+                                            CheckpointOptions.forCheckpointWithDefaultLocation(),
+                                            new CheckpointMetricsBuilder()
+                                                    .setBytesProcessedDuringAlignment(0L)
+                                                    .setAlignmentDurationNanos(0L));
 
-            harness.waitForTaskCompletion();
-            harness.finishProcessing();
+                                    harness.waitForTaskCompletion();
+                                    invokeCompleted.trigger();
+                                    harness.finishProcessing();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
+                            },
+                            executor);
 
-            assertThat(asyncCheckpointExecuted.get(), equalTo(1));
+            asyncCheckpointExecuted.await();
+            invokeCompleted.await();
+            // Give some potential time for the task to finish before the
+            // checkpoint is acknowledged
+            Thread.sleep(500);
+            assertFalse(taskClosed.isDone());
+            canCheckpointBeAcknowledged.trigger();
+            taskClosed.get();
+        } finally {
+            executor.shutdownNow();
         }
     }
 
