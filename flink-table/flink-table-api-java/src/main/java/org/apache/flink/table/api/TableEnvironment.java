@@ -738,6 +738,28 @@ public interface TableEnvironment {
     Table from(String path);
 
     /**
+     * Returns a {@link Table} backed by the given {@link TableDescriptor descriptor}.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary table (see {@link #createTemporaryTable(String, TableDescriptor)}) using a unique
+     * identifier and then read. Note that calling this method multiple times, even with the same
+     * descriptor, results in multiple temporary tables. In such cases, it is recommended to
+     * register it under a name using #createTemporaryTable(String, TableDescriptor) and reference
+     * it via {@link #from(String)}.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Table table = tEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(Schema.newBuilder()
+     *     .column("f0", DataTypes.STRING())
+     *     .build())
+     *   .build());
+     * }</pre>
+     */
+    Table from(TableDescriptor descriptor);
+
+    /**
      * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
