@@ -28,12 +28,9 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ddl.CreateTableASOperation;
-import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -42,10 +39,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
-import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateTableDesc;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.parse.CalciteParser;
@@ -60,7 +55,6 @@ import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.lockmgr.LockException;
 import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
@@ -68,7 +62,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
@@ -232,42 +225,15 @@ public class HiveParser extends ParserImpl {
                 HiveParserQueryState queryState = new HiveParserQueryState(hiveConf);
                 HiveParserDDLSemanticAnalyzer ddlAnalyzer =
                         new HiveParserDDLSemanticAnalyzer(
-                                queryState, hiveCatalog, getCatalogManager().getCurrentDatabase());
-                Serializable work = ddlAnalyzer.analyzeInternal(node);
-                DDLOperationConverter ddlConverter =
-                        new DDLOperationConverter(this, getCatalogManager(), hiveShim);
-                if (work instanceof HiveParserCreateViewDesc) {
-                    // analyze and expand the view query
-                    analyzeCreateView(
-                            (HiveParserCreateViewDesc) work, context, queryState, hiveShim);
-                } else if (work instanceof CreateTableASDesc) {
-                    // analyze the query
-                    CreateTableASDesc ctasDesc = (CreateTableASDesc) work;
-                    HiveParserCalcitePlanner calcitePlanner =
-                            createCalcitePlanner(context, queryState, hiveShim);
-                    calcitePlanner.setCtasDesc(ctasDesc);
-                    RelNode queryRelNode = calcitePlanner.genLogicalPlan(ctasDesc.getQuery());
-                    // create a table to represent the dest table
-                    HiveParserCreateTableDesc createTableDesc = ctasDesc.getCreateTableDesc();
-                    String[] dbTblName = createTableDesc.getCompoundName().split("\\.");
-                    Table destTable = new Table(Table.getEmptyTable(dbTblName[0], dbTblName[1]));
-                    destTable.getSd().setCols(createTableDesc.getCols());
-                    // create the insert operation
-                    CatalogSinkModifyOperation insertOperation =
-                            dmlHelper.createInsertOperation(
-                                    queryRelNode,
-                                    destTable,
-                                    Collections.emptyMap(),
-                                    Collections.emptyList(),
-                                    false);
-                    CreateTableOperation createTableOperation =
-                            (CreateTableOperation)
-                                    ddlConverter.convert(
-                                            ((CreateTableASDesc) work).getCreateTableDesc());
-                    return Collections.singletonList(
-                            new CreateTableASOperation(createTableOperation, insertOperation));
-                }
-                return Collections.singletonList(ddlConverter.convert(work));
+                                queryState,
+                                hiveCatalog,
+                                getCatalogManager(),
+                                this,
+                                hiveShim,
+                                context,
+                                dmlHelper);
+                operation = ddlAnalyzer.convertToOperation(node);
+                return Collections.singletonList(operation);
             } else {
                 final boolean explain = node.getType() == HiveASTParser.TOK_EXPLAIN;
                 // first child is the underlying explicandum
@@ -291,7 +257,7 @@ public class HiveParser extends ParserImpl {
         }
     }
 
-    private HiveParserCalcitePlanner createCalcitePlanner(
+    public HiveParserCalcitePlanner createCalcitePlanner(
             HiveParserContext context, HiveParserQueryState queryState, HiveShim hiveShim)
             throws SemanticException {
         HiveParserCalcitePlanner calciteAnalyzer =
@@ -307,16 +273,16 @@ public class HiveParser extends ParserImpl {
         return calciteAnalyzer;
     }
 
-    private void analyzeCreateView(
-            HiveParserCreateViewDesc desc,
+    public void analyzeCreateView(
+            HiveParserCreateViewInfo createViewInfo,
             HiveParserContext context,
             HiveParserQueryState queryState,
             HiveShim hiveShim)
             throws SemanticException {
         HiveParserCalcitePlanner calciteAnalyzer =
                 createCalcitePlanner(context, queryState, hiveShim);
-        calciteAnalyzer.setCreateViewDesc(desc);
-        calciteAnalyzer.genLogicalPlan(desc.getQuery());
+        calciteAnalyzer.setCreatViewInfo(createViewInfo);
+        calciteAnalyzer.genLogicalPlan(createViewInfo.getQuery());
     }
 
     private Operation analyzeSql(
