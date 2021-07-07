@@ -23,6 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, smallTupleData3, tupleData2, tupleData3, tupleData5}
 import org.apache.flink.table.utils.LegacyRowResource
@@ -35,7 +36,6 @@ import java.io.File
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
-
 import scala.collection.JavaConversions._
 import scala.collection.{Seq, mutable}
 import scala.io.Source
@@ -1357,5 +1357,26 @@ class TableSinkITCase extends StreamingTestBase {
          |)
          |""".stripMargin)
     tEnv.executeSql(s"INSERT INTO $sinkTableName SELECT * FROM $sourceTableName").await()
+  }
+
+  @Test
+  def testExecuteInsertToTableDescriptor(): Unit = {
+    val schema = Schema.newBuilder()
+      .column("f0", DataTypes.INT())
+      .build();
+
+    val tableId = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T", TableDescriptor.forConnector("values")
+      .schema(schema)
+      .option("data-id", tableId)
+      .option("bounded", "true")
+      .build())
+
+    val tableResult = tEnv.from("T").executeInsert(TableDescriptor.forConnector("values")
+      .schema(schema)
+      .build())
+
+    tableResult.await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
   }
 }

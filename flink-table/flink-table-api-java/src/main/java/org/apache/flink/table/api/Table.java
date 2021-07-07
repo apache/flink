@@ -1356,6 +1356,65 @@ public interface Table {
     TableResult executeInsert(String tablePath, boolean overwrite);
 
     /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table defined by a {@link TableDescriptor}. It executes the insert operation.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
+     * even with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.executeInsert(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build());
+     * }</pre>
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     */
+    TableResult executeInsert(TableDescriptor descriptor);
+
+    /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table defined by a {@link TableDescriptor}. It executes the insert operation.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
+     * even with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.executeInsert(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build(), true);
+     * }</pre>
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     */
+    TableResult executeInsert(TableDescriptor descriptor, boolean overwrite);
+
+    /**
      * Collects the contents of the current table local client.
      *
      * <pre>{@code
