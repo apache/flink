@@ -49,7 +49,7 @@ env.java.opts: "-XX:+UnlockDiagnosticVMOptions -XX:+TraceClassLoading -XX:+LogCo
 
 ## 分析内存溢出（OOM）问题
 
-如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions` ，那么启用在内存溢出错误时堆转储（Heap Dump）是一个好主意。
+如果你的 Flink 应用程序遇到 `OutOfMemoryExceptions`，那么启用在内存溢出错误时堆转储（Heap Dump）是一个好主意。
 
 ```yaml
 env.java.opts: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${FLINK_LOG_PREFIX}.hprof"
