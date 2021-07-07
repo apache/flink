@@ -156,6 +156,9 @@ class FieldCoder(ABC):
     def get_impl(self) -> coder_impl.FieldCoderImpl:
         pass
 
+    def __eq__(self, other):
+        return type(self) == type(other)
+
 
 class IterableCoder(LengthPrefixBaseCoder):
     """
@@ -434,6 +437,11 @@ class DecimalCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.DecimalCoderImpl(self.precision, self.scale)
 
+    def __eq__(self, other: 'DecimalCoder'):
+        return (self.__class__ == other.__class__ and
+                self.precision == other.precision and
+                self.scale == other.scale)
+
 
 class BigDecimalCoder(FieldCoder):
     """
@@ -491,6 +499,9 @@ class TimestampCoder(FieldCoder):
     def get_impl(self):
         return coder_impl.TimestampCoderImpl(self.precision)
 
+    def __eq__(self, other: 'TimestampCoder'):
+        return self.__class__ == other.__class__ and self.precision == other.precision
+
 
 class LocalZonedTimestampCoder(FieldCoder):
     """
@@ -503,6 +514,11 @@ class LocalZonedTimestampCoder(FieldCoder):
 
     def get_impl(self):
         return coder_impl.LocalZonedTimestampCoderImpl(self.precision, self.timezone)
+
+    def __eq__(self, other: 'LocalZonedTimestampCoder'):
+        return (self.__class__ == other.__class__ and
+                self.precision == other.precision and
+                self.timezone == other.timezone)
 
 
 class CloudPickleCoder(FieldCoder):
@@ -536,6 +552,11 @@ class TupleCoder(FieldCoder):
 
     def __repr__(self):
         return 'TupleCoder[%s]' % ', '.join(str(c) for c in self._field_coders)
+
+    def __eq__(self, other: 'TupleCoder'):
+        return (self.__class__ == other.__class__ and
+                [self._field_coders[i] == other._field_coders[i]
+                 for i in range(len(self._field_coders))])
 
 
 class TimeWindowCoder(FieldCoder):

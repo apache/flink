@@ -21,7 +21,7 @@ from pyflink.datastream import RuntimeContext
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
     AggregatingStateDescriptor, AggregatingState
-from pyflink.fn_execution.coders import from_type_info, MapCoder, BasicArrayCoder
+from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.metrics import MetricGroup
 
@@ -111,7 +111,7 @@ class StreamingRuntimeContext(RuntimeContext):
 
     def get_list_state(self, state_descriptor: ListStateDescriptor) -> ListState:
         if self._keyed_state_backend:
-            array_coder = from_type_info(state_descriptor.type_info)  # type: BasicArrayCoder
+            array_coder = from_type_info(state_descriptor.type_info)  # type: GenericArrayCoder
             return self._keyed_state_backend.get_list_state(
                 state_descriptor.name, array_coder._elem_coder)
         else:

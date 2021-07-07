@@ -20,14 +20,12 @@ from functools import reduce
 from itertools import chain
 from typing import Tuple
 
-from apache_beam.coders import PickleCoder
-
+from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
 from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerImpl, TimerOperandType
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
-from pyflink.fn_execution.beam.beam_coders import DataViewFilterCoder
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
     CountTumblingWindowAssigner, SlidingWindowAssigner, CountSlidingWindowAssigner, \

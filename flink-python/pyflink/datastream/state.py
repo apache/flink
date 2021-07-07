@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 
 from typing import TypeVar, Generic, Iterable, List, Iterator, Dict, Tuple
 
-from pyflink.common.typeinfo import TypeInformation, Types, PickledBytesTypeInfo
+from pyflink.common.typeinfo import TypeInformation, Types
 
 __all__ = [
     'ValueStateDescriptor',
@@ -316,10 +316,6 @@ class ValueStateDescriptor(StateDescriptor):
         :param name: The name of the state.
         :param value_type_info: the type information of the state.
         """
-        if not isinstance(value_type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the value could only be PickledBytesTypeInfo "
-                             "(created via Types.PICKLED_BYTE_ARRAY()) currently, got %s."
-                             % type(value_type_info))
         super(ValueStateDescriptor, self).__init__(name, value_type_info)
 
 
@@ -336,10 +332,6 @@ class ListStateDescriptor(StateDescriptor):
         :param name: The name of the state.
         :param elem_type_info: the type information of the state element.
         """
-        if not isinstance(elem_type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the element could only be "
-                             "PickledBytesTypeInfo (created via Types.PICKLED_BYTE_ARRAY()) "
-                             "currently, got %s" % type(elem_type_info))
         super(ListStateDescriptor, self).__init__(name, Types.LIST(elem_type_info))
 
 
@@ -357,14 +349,6 @@ class MapStateDescriptor(StateDescriptor):
         :param key_type_info: The type information of the key.
         :param value_type_info: the type information of the value.
         """
-        if not isinstance(key_type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the key could only be PickledBytesTypeInfo "
-                             "(created via Types.PICKLED_BYTE_ARRAY()) currently, got %s"
-                             % type(key_type_info))
-        if not isinstance(value_type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the value could only be PickledBytesTypeInfo "
-                             "(created via Types.PICKLED_BYTE_ARRAY()) currently, got %s"
-                             % type(value_type_info))
         super(MapStateDescriptor, self).__init__(name, Types.MAP(key_type_info, value_type_info))
 
 
@@ -392,10 +376,6 @@ class ReducingStateDescriptor(StateDescriptor):
                 reduce_function = ReduceFunctionWrapper(reduce_function)  # type: ignore
             else:
                 raise TypeError("The input must be a ReduceFunction or a callable function!")
-        if not isinstance(type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the state could only be PickledBytesTypeInfo "
-                             "(created via Types.PICKLED_BYTE_ARRAY()) currently, got %s"
-                             % type(type_info))
         self._reduce_function = reduce_function
 
     def get_reduce_function(self):
@@ -418,10 +398,6 @@ class AggregatingStateDescriptor(StateDescriptor):
         from pyflink.datastream.functions import AggregateFunction
         if not isinstance(agg_function, AggregateFunction):
             raise TypeError("The input must be a pyflink.datastream.functions.AggregateFunction!")
-        if not isinstance(state_type_info, PickledBytesTypeInfo):
-            raise ValueError("The type information of the state could only be PickledBytesTypeInfo "
-                             "(created via Types.PICKLED_BYTE_ARRAY()) currently, got %s"
-                             % type(state_type_info))
         self._agg_function = agg_function
 
     def get_agg_function(self):
