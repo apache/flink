@@ -323,7 +323,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install Python Flink
 {{< stable >}}
-RUN pip3 install apache-flink[=={{version}}]
+RUN pip3 install apache-flink[=={{< version >}}]
 {{< /stable >}}
 {{< unstable >}}
 RUN pip3 install apache-flink
