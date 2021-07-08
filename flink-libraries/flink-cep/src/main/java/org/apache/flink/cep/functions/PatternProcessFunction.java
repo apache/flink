@@ -28,49 +28,50 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * It is called with a map of detected events which are identified by their names.
- * The names are defined by the {@link org.apache.flink.cep.pattern.Pattern} specifying
- * the sought-after pattern. This is the preferred way to process found matches.
+ * It is called with a map of detected events which are identified by their names. The names are
+ * defined by the {@link org.apache.flink.cep.pattern.Pattern} specifying the sought-after pattern.
+ * This is the preferred way to process found matches.
  *
  * <pre>{@code
  * PatternStream<IN> pattern = ...
  *
  * DataStream<OUT> result = pattern.process(new MyPatternProcessFunction());
  * }</pre>
+ *
  * @param <IN> type of incoming elements
  * @param <OUT> type of produced elements based on found matches
  */
 @PublicEvolving
 public abstract class PatternProcessFunction<IN, OUT> extends AbstractRichFunction {
 
-	/**
-	 * Generates resulting elements given a map of detected pattern events. The events
-	 * are identified by their specified names.
-	 *
-	 * <p>{@link PatternProcessFunction.Context#timestamp()} in this case returns the time of the last element that was
-	 * assigned to the match, resulting in this partial match being finished.
-	 *
-	 * @param match map containing the found pattern. Events are identified by their names.
-	 * @param ctx enables access to time features and emitting results through side outputs
-	 * @param out Collector used to output the generated elements
-	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the
-	 *                   operation to fail and may trigger recovery.
-	 */
-	public abstract void processMatch(
-		final Map<String, List<IN>> match,
-		final Context ctx,
-		final Collector<OUT> out) throws Exception;
+    /**
+     * Generates resulting elements given a map of detected pattern events. The events are
+     * identified by their specified names.
+     *
+     * <p>{@link PatternProcessFunction.Context#timestamp()} in this case returns the time of the
+     * last element that was assigned to the match, resulting in this partial match being finished.
+     *
+     * @param match map containing the found pattern. Events are identified by their names.
+     * @param ctx enables access to time features and emitting results through side outputs
+     * @param out Collector used to output the generated elements
+     * @throws Exception This method may throw exceptions. Throwing an exception will cause the
+     *     operation to fail and may trigger recovery.
+     */
+    public abstract void processMatch(
+            final Map<String, List<IN>> match, final Context ctx, final Collector<OUT> out)
+            throws Exception;
 
-	/**
-	 * Gives access to time related characteristics as well as enables emitting elements to side outputs.
-	 */
-	public interface Context extends TimeContext {
-		/**
-		 * Emits a record to the side output identified by the {@link OutputTag}.
-		 *
-		 * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
-		 * @param value The record to emit.
-		 */
-		<X> void output(final OutputTag<X> outputTag, final X value);
-	}
+    /**
+     * Gives access to time related characteristics as well as enables emitting elements to side
+     * outputs.
+     */
+    public interface Context extends TimeContext {
+        /**
+         * Emits a record to the side output identified by the {@link OutputTag}.
+         *
+         * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
+         * @param value The record to emit.
+         */
+        <X> void output(final OutputTag<X> outputTag, final X value);
+    }
 }

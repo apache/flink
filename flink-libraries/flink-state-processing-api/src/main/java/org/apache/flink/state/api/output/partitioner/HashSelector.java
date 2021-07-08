@@ -31,18 +31,17 @@ import org.apache.flink.util.Preconditions;
 @Internal
 public class HashSelector<IN> implements KeySelector<IN, Integer> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final KeySelector<IN, ?> keySelector;
+    private final KeySelector<IN, ?> keySelector;
 
-	public HashSelector(KeySelector<IN, ?> keySelector) {
-		Preconditions.checkNotNull(keySelector);
-		this.keySelector = keySelector;
-	}
+    public HashSelector(KeySelector<IN, ?> keySelector) {
+        Preconditions.checkNotNull(keySelector);
+        this.keySelector = keySelector;
+    }
 
-	@Override
-	public Integer getKey(IN value) throws Exception {
-		return keySelector.getKey(value).hashCode();
-	}
+    @Override
+    public Integer getKey(IN value) throws Exception {
+        return keySelector.getKey(value).hashCode();
+    }
 }
-

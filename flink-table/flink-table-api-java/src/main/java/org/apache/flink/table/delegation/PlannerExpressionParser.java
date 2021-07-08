@@ -27,44 +27,47 @@ import java.lang.reflect.Constructor;
 import java.util.List;
 
 /**
- * Temporary utility for parsing expressions inside a String. This parses exactly the same expressions
- * that would be accepted by the Scala Expression DSL.
+ * Temporary utility for parsing expressions inside a String. This parses exactly the same
+ * expressions that would be accepted by the Scala Expression DSL.
  *
  * <p>{@link PlannerExpressionParser} is used by {@link ExpressionParser} to parse expressions.
  */
 @Internal
 public interface PlannerExpressionParser {
 
-	static PlannerExpressionParser create() {
-		return SingletonPlannerExpressionParser.getExpressionParser();
-	}
+    static PlannerExpressionParser create() {
+        return SingletonPlannerExpressionParser.getExpressionParser();
+    }
 
-	Expression parseExpression(String exprString);
+    Expression parseExpression(String exprString);
 
-	List<Expression> parseExpressionList(String expression);
+    List<Expression> parseExpressionList(String expression);
 
-	/**
-	 * Util class to create {@link PlannerExpressionParser} instance. Use singleton pattern to avoid
-	 * creating many {@link PlannerExpressionParser}.
-	 */
-	class SingletonPlannerExpressionParser {
+    /**
+     * Util class to create {@link PlannerExpressionParser} instance. Use singleton pattern to avoid
+     * creating many {@link PlannerExpressionParser}.
+     */
+    class SingletonPlannerExpressionParser {
 
-		private static volatile PlannerExpressionParser expressionParser;
+        private static volatile PlannerExpressionParser expressionParser;
 
-		private SingletonPlannerExpressionParser() {}
+        private SingletonPlannerExpressionParser() {}
 
-		public static PlannerExpressionParser getExpressionParser() {
+        public static PlannerExpressionParser getExpressionParser() {
 
-			if (expressionParser == null) {
-				try {
-					Class<?> clazz = Class.forName("org.apache.flink.table.expressions.PlannerExpressionParserImpl");
-					Constructor<?> con = clazz.getConstructor();
-					expressionParser = (PlannerExpressionParser) con.newInstance();
-				} catch (Throwable t) {
-					throw new TableException("Construction of PlannerExpressionParserImpl class failed.", t);
-				}
-			}
-			return expressionParser;
-		}
-	}
+            if (expressionParser == null) {
+                try {
+                    Class<?> clazz =
+                            Class.forName(
+                                    "org.apache.flink.table.expressions.PlannerExpressionParserImpl");
+                    Constructor<?> con = clazz.getConstructor();
+                    expressionParser = (PlannerExpressionParser) con.newInstance();
+                } catch (Throwable t) {
+                    throw new TableException(
+                            "Construction of PlannerExpressionParserImpl class failed.", t);
+                }
+            }
+            return expressionParser;
+        }
+    }
 }

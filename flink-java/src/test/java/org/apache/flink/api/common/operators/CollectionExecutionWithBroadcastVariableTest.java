@@ -34,96 +34,95 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link CollectionExecutor} with broadcast variables.
- */
+/** Tests for {@link CollectionExecutor} with broadcast variables. */
 @SuppressWarnings("serial")
 public class CollectionExecutionWithBroadcastVariableTest {
 
-	private static final String BC_VAR_NAME = "BC";
+    private static final String BC_VAR_NAME = "BC";
 
-	private static final String[] TEST_DATA = { "A", "B", "C", "D" };
-	private static final String SUFFIX = "-suffixed";
+    private static final String[] TEST_DATA = {"A", "B", "C", "D"};
+    private static final String SUFFIX = "-suffixed";
 
-	@Test
-	public void testUnaryOp() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+    @Test
+    public void testUnaryOp() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
-			DataSet<String> bcData = env.fromElements(SUFFIX);
+            DataSet<String> bcData = env.fromElements(SUFFIX);
 
-			List<String> result = new ArrayList<String>();
+            List<String> result = new ArrayList<String>();
 
-			env.fromElements(TEST_DATA)
-					.map(new SuffixAppender()).withBroadcastSet(bcData, BC_VAR_NAME)
-					.output(new LocalCollectionOutputFormat<String>(result));
+            env.fromElements(TEST_DATA)
+                    .map(new SuffixAppender())
+                    .withBroadcastSet(bcData, BC_VAR_NAME)
+                    .output(new LocalCollectionOutputFormat<String>(result));
 
-			env.execute();
+            env.execute();
 
-			assertEquals(TEST_DATA.length, result.size());
-			for (String s : result) {
-				assertTrue(s.indexOf(SUFFIX) > 0);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(TEST_DATA.length, result.size());
+            for (String s : result) {
+                assertTrue(s.indexOf(SUFFIX) > 0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testBinaryOp() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+    @Test
+    public void testBinaryOp() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 
-			DataSet<String> bcData = env.fromElements(SUFFIX);
-			DataSet<String> inData = env.fromElements(TEST_DATA);
+            DataSet<String> bcData = env.fromElements(SUFFIX);
+            DataSet<String> inData = env.fromElements(TEST_DATA);
 
-			List<String> result = new ArrayList<String>();
+            List<String> result = new ArrayList<String>();
 
-			inData.cross(inData).with(new SuffixCross()).withBroadcastSet(bcData, BC_VAR_NAME)
-					.output(new LocalCollectionOutputFormat<String>(result));
+            inData.cross(inData)
+                    .with(new SuffixCross())
+                    .withBroadcastSet(bcData, BC_VAR_NAME)
+                    .output(new LocalCollectionOutputFormat<String>(result));
 
-			env.execute();
+            env.execute();
 
-			assertEquals(TEST_DATA.length * TEST_DATA.length, result.size());
-			for (String s : result) {
-				assertTrue(s.indexOf(SUFFIX) == 2);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            assertEquals(TEST_DATA.length * TEST_DATA.length, result.size());
+            for (String s : result) {
+                assertTrue(s.indexOf(SUFFIX) == 2);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private static final class SuffixAppender extends RichMapFunction<String, String> {
+    private static final class SuffixAppender extends RichMapFunction<String, String> {
 
-		private String suffix;
+        private String suffix;
 
-		@Override
-		public void open(Configuration parameters) {
-			suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
-		}
+        @Override
+        public void open(Configuration parameters) {
+            suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
+        }
 
-		@Override
-		public String map(String value) {
-			return value + suffix;
-		}
-	}
+        @Override
+        public String map(String value) {
+            return value + suffix;
+        }
+    }
 
-	private static final class SuffixCross extends RichCrossFunction<String, String, String> {
+    private static final class SuffixCross extends RichCrossFunction<String, String, String> {
 
-		private String suffix;
+        private String suffix;
 
-		@Override
-		public void open(Configuration parameters) {
-			suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
-		}
+        @Override
+        public void open(Configuration parameters) {
+            suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
+        }
 
-		@Override
-		public String cross(String s1, String s2) {
-			return s1 + s2 + suffix;
-		}
-	}
+        @Override
+        public String cross(String s1, String s2) {
+            return s1 + s2 + suffix;
+        }
+    }
 }

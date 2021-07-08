@@ -15,15 +15,17 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import collections
 import os
+import sys
 
+from pyflink.java_gateway import get_gateway
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
                                        Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
                                        CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase)
+from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
 
 
 class FileSystemDescriptorTests(PyFlinkTestCase):
@@ -42,12 +44,19 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
 
 class KafkaDescriptorTests(PyFlinkTestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        super(KafkaDescriptorTests, cls).setUpClass()
+        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-kafka')
+
     def test_version(self):
         kafka = Kafka().version("0.11")
 
         properties = kafka.to_properties()
         expected = {'connector.version': '0.11',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -57,6 +66,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
                     'connector.topic': 'topic1',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -65,6 +75,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.properties.bootstrap.servers': 'localhost:9092',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -74,6 +85,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.properties.group.id': 'testGroup',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -130,6 +142,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
 
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'fixed',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.type': 'kafka',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
@@ -144,6 +157,7 @@ class KafkaDescriptorTests(PyFlinkTestCase):
                         'org.apache.flink.streaming.connectors.kafka.partitioner.'
                         'FlinkFixedPartitioner',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
@@ -153,11 +167,23 @@ class KafkaDescriptorTests(PyFlinkTestCase):
         properties = kafka.to_properties()
         expected = {'connector.sink-partitioner': 'round-robin',
                     'connector.type': 'kafka',
+                    'connector.startup-mode': 'group-offsets',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
 
+    @classmethod
+    def tearDownClass(cls):
+        if cls._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
+
 
 class ElasticsearchDescriptorTest(PyFlinkTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(ElasticsearchDescriptorTest, cls).setUpClass()
+        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
+        _load_specific_flink_module_jars('/flink-connectors/flink-connector-elasticsearch-base')
 
     def test_version(self):
         elasticsearch = Elasticsearch().version("6")
@@ -342,6 +368,11 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
                     'connector.type': 'elasticsearch',
                     'connector.property-version': '1'}
         self.assertEqual(expected, properties)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._cxt_clz_loader is not None:
+            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
 
 
 class CustomConnectorDescriptorTests(PyFlinkTestCase):
@@ -609,6 +640,16 @@ class JsonDescriptorTests(PyFlinkTestCase):
         properties = json.to_properties()
         self.assertEqual(expected, properties)
 
+    def test_ignore_parse_errors(self):
+        json = Json().ignore_parse_errors(True)
+
+        expected = {'format.ignore-parse-errors': 'true',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = json.to_properties()
+        self.assertEqual(expected, properties)
+
     def test_json_schema(self):
         json = Json().json_schema(
             "{"
@@ -703,18 +744,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_timestamps_from_extractor(self):
         rowtime = Rowtime().timestamps_from_extractor(
-            "org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor")
+            "org.apache.flink.table.legacyutils.CustomExtractor")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.timestamps.type': 'custom',
             'rowtime.timestamps.class':
-                'org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor',
+                'org.apache.flink.table.legacyutils.CustomExtractor',
             'rowtime.timestamps.serialized':
-                'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                'vbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLm'
-                'FwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1'
-                'Y6piFNsGAIAAHhwdAACdHM'}
+                'rO0ABXNyADJvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUV4dHJhY3Rvctj'
+                'ZLTGK9XvxAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLmFwYWNoZS5mbGluay'
+                '50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1Y6piFNsGAIAAHhwd'
+                'AACdHM'}
         self.assertEqual(expected, properties)
 
     def test_watermarks_periodic_ascending(self):
@@ -741,19 +782,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_watermarks_from_strategy(self):
         rowtime = Rowtime().watermarks_from_strategy(
-            "org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner")
+            "org.apache.flink.table.legacyutils.CustomAssigner")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.watermarks.type': 'custom',
             'rowtime.watermarks.class':
-                'org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner',
+                'org.apache.flink.table.legacyutils.CustomAssigner',
             'rowtime.watermarks.serialized':
-                'rO0ABXNyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                'vbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3'
-                'RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY'
-                '2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OW'
-                'aT4CAAB4cA'}
+                'rO0ABXNyADFvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUFzc2lnbmVyu_8'
+                'TLNBQBsACAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW'
+                '5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhY'
+                'mxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OWaT4CAAB4cA'}
         self.assertEqual(expected, properties)
 
 
@@ -797,6 +837,64 @@ class SchemaDescriptorTests(PyFlinkTestCase):
                     'schema.10.name': 'boolean_field',
                     'schema.10.data-type': 'BOOLEAN'}
         self.assertEqual(expected, properties)
+
+    def test_fields(self):
+        fields = collections.OrderedDict([
+            ("int_field", DataTypes.INT()),
+            ("long_field", DataTypes.BIGINT()),
+            ("string_field", DataTypes.STRING()),
+            ("timestamp_field", DataTypes.TIMESTAMP(3)),
+            ("time_field", DataTypes.TIME()),
+            ("date_field", DataTypes.DATE()),
+            ("double_field", DataTypes.DOUBLE()),
+            ("float_field", DataTypes.FLOAT()),
+            ("byte_field", DataTypes.TINYINT()),
+            ("short_field", DataTypes.SMALLINT()),
+            ("boolean_field", DataTypes.BOOLEAN())
+        ])
+
+        schema = Schema().fields(fields)
+
+        properties = schema.to_properties()
+        expected = {'schema.0.name': 'int_field',
+                    'schema.0.data-type': 'INT',
+                    'schema.1.name': 'long_field',
+                    'schema.1.data-type': 'BIGINT',
+                    'schema.2.name': 'string_field',
+                    'schema.2.data-type': 'VARCHAR(2147483647)',
+                    'schema.3.name': 'timestamp_field',
+                    'schema.3.data-type': 'TIMESTAMP(3)',
+                    'schema.4.name': 'time_field',
+                    'schema.4.data-type': 'TIME(0)',
+                    'schema.5.name': 'date_field',
+                    'schema.5.data-type': 'DATE',
+                    'schema.6.name': 'double_field',
+                    'schema.6.data-type': 'DOUBLE',
+                    'schema.7.name': 'float_field',
+                    'schema.7.data-type': 'FLOAT',
+                    'schema.8.name': 'byte_field',
+                    'schema.8.data-type': 'TINYINT',
+                    'schema.9.name': 'short_field',
+                    'schema.9.data-type': 'SMALLINT',
+                    'schema.10.name': 'boolean_field',
+                    'schema.10.data-type': 'BOOLEAN'}
+        self.assertEqual(expected, properties)
+
+        if sys.version_info[:2] <= (3, 5):
+            fields = {
+                "int_field": DataTypes.INT(),
+                "long_field": DataTypes.BIGINT(),
+                "string_field": DataTypes.STRING(),
+                "timestamp_field": DataTypes.TIMESTAMP(3),
+                "time_field": DataTypes.TIME(),
+                "date_field": DataTypes.DATE(),
+                "double_field": DataTypes.DOUBLE(),
+                "float_field": DataTypes.FLOAT(),
+                "byte_field": DataTypes.TINYINT(),
+                "short_field": DataTypes.SMALLINT(),
+                "boolean_field": DataTypes.BOOLEAN()
+            }
+            self.assertRaises(TypeError, Schema().fields, fields)
 
     def test_field_in_string(self):
         schema = Schema()\
@@ -939,7 +1037,7 @@ class AbstractTableDescriptorTests(object):
         assert properties == expected
 
     def test_register_temporary_table(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -972,66 +1070,11 @@ class AbstractTableDescriptorTests(object):
                           .field("b", DataTypes.STRING())
                           .field("c", DataTypes.STRING()))\
              .create_temporary_table("sink")
-        t_env.scan("source") \
-             .select("a + 1, b, c") \
-             .insert_into("sink")
-        self.t_env.execute("test")
+        t_env.from_path("source").select("a + 1, b, c").execute_insert("sink").wait()
 
         with open(sink_path, 'r') as f:
             lines = f.read()
             assert lines == '2,Hi,Hello\n' + "3,Hello,Hello\n"
-
-
-class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescriptorTests):
-
-    def test_in_append_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor\
-            .with_format(OldCsv())\
-            .in_append_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'append',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_retract_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_retract_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'retract',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_upsert_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_upsert_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'upsert',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-
-class BatchTableDescriptorTests(PyFlinkBatchTableTestCase, AbstractTableDescriptorTests):
-    pass
 
 
 if __name__ == '__main__':

@@ -22,31 +22,30 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
 /**
- * {@link MessageQueryParameter} for filtering metrics provided by
- * {@link MetricStore}.
+ * {@link MessageQueryParameter} for filtering metrics provided by {@link MetricStore}.
  *
  * @see org.apache.flink.runtime.rest.handler.job.metrics.AbstractMetricsHandler
  */
 public class MetricsFilterParameter extends MessageQueryParameter<String> {
 
-	private static final String QUERY_PARAMETER_NAME = "get";
+    private static final String QUERY_PARAMETER_NAME = "get";
 
-	public MetricsFilterParameter() {
-		super(QUERY_PARAMETER_NAME, MessageParameterRequisiteness.OPTIONAL);
-	}
+    public MetricsFilterParameter() {
+        super(QUERY_PARAMETER_NAME, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public String convertStringToValue(String value) {
-		return value;
-	}
+    @Override
+    public String convertStringToValue(String value) {
+        return value;
+    }
 
-	@Override
-	public String convertValueToString(String value) {
-		return value;
-	}
+    @Override
+    public String convertValueToString(String value) {
+        return value;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of string values to select specific metrics.";
-	}
+    @Override
+    public String getDescription() {
+        return "Comma-separated list of string values to select specific metrics.";
+    }
 }

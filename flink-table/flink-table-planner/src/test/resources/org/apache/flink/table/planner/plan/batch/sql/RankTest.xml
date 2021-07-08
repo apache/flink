@@ -1,0 +1,360 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
+   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
+      +- Sort(orderBy=[name ASC, cnt DESC])
+         +- Exchange(distribution=[hash[name]])
+            +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
+               +- Exchange(distribution=[hash[name, eat]])
+                  +- LocalHashAggregate(groupBy=[name, eat], select=[name, eat, Partial_SUM(age) AS sum$0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDuplicateRankFunctionColumnName">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable2) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, rk)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
++- Sort(orderBy=[b ASC, a ASC])
+   +- Exchange(distribution=[hash[b]])
+      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+         +- Sort(orderBy=[b ASC, a ASC])
+            +- Calc(select=[a, b])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, rk)]]], fields=[a, b, rk])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSameRankFunctionsWithSameGroup">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk1,
+        RANK() OVER (PARTITION BY b ORDER BY a) rk2 FROM MyTable) t
+WHERE rk1 < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, w0$o0 AS rk1, w0$o0 AS rk2])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[b ASC, a ASC])
+               +- Calc(select=[a, b])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankFunctionInMiddle">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
++- LogicalFilter(condition=[<($1, 10)])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS rk, b, c])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[false], select=[a, b, c])
+            +- Sort(orderBy=[a ASC])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithEquals">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a, c) rk FROM MyTable) t
+WHERE rk = 2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[=($2, 2)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, 2:BIGINT AS $2])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
+   +- Sort(orderBy=[b ASC, a ASC, c ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
+            +- Sort(orderBy=[b ASC, a ASC, c ASC])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithRange">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b, c ORDER BY a) rk FROM MyTable) t
+WHERE rk <= 2 AND rk > -2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[AND(<=($2, 2), >($2, -2))])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, w0$o0])
++- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, w0$o0])
+   +- Sort(orderBy=[b ASC, c ASC, a ASC])
+      +- Exchange(distribution=[hash[b, c]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[false], select=[a, b, c])
+            +- Sort(orderBy=[b ASC, c ASC, a ASC])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankValueFilterWithUpperValue">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY a) rk FROM MyTable) t
+WHERE rk <= 2 AND a > 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[AND(<=($2, 2), >($0, 10))])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, w0$o0], where=[(a > 10)])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[false], select=[a, b])
+            +- Sort(orderBy=[b ASC, a ASC])
+               +- Calc(select=[a, b])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutPartitionBy">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b])
+         +- Sort(orderBy=[a ASC])
+            +- Calc(select=[a, b])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankWithAnotherRankAsInput">
+    <Resource name="sql">
+      <![CDATA[
+SELECT CAST(rna AS INT) AS rn1, CAST(rnb AS INT) AS rn2 FROM (
+  SELECT *, row_number() over (partition by a order by b desc) AS rnb
+  FROM (
+    SELECT *, row_number() over (partition by a, c order by b desc) AS rna
+    FROM MyTable
+  )
+  WHERE rna <= 100
+)
+WHERE rnb <= 200
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rn1=[CAST($3):INTEGER NOT NULL], rn2=[CAST($4):INTEGER NOT NULL])
++- LogicalFilter(condition=[<=($4, 200)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[$3], rnb=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[<=($3, 100)])
+         +- LogicalProject(a=[$0], b=[$1], c=[$2], rna=[ROW_NUMBER() OVER (PARTITION BY $0, $2 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CAST(rna) AS rn1, CAST(w0$o0) AS rn2], where=[(w0$o0 <= 200)])
++- OverAggregate(partitionBy=[a], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0_0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o0_0])
+   +- Sort(orderBy=[a ASC, b DESC])
+      +- Exchange(distribution=[hash[a]])
+         +- Calc(select=[a, b, c, w0$o0], where=[(w0$o0 <= 100)])
+            +- OverAggregate(partitionBy=[a, c], orderBy=[b DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+               +- Sort(orderBy=[a ASC, c ASC, b DESC])
+                  +- Exchange(distribution=[hash[a, c]])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRedundantRankNumberColumnRemove">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  CONCAT('http://txmov2.a.yximgs.com', uri) AS url,
+  reqcount AS download_count,
+  start_time AS `timestamp`
+FROM
+  (
+    SELECT
+      uri,
+      reqcount,
+      rownum_2,
+      start_time
+    FROM
+      (
+        SELECT
+          uri,
+          reqcount,
+          start_time,
+          RANK() OVER (
+            PARTITION BY start_time
+            ORDER BY
+              reqcount DESC
+          ) AS rownum_2
+        FROM
+          (
+            SELECT
+            uri,
+            reqcount,
+            start_time,
+            RANK() OVER (
+                PARTITION BY start_time, bucket_id
+                ORDER BY
+                reqcount DESC
+            ) AS rownum_1
+            FROM MyTable1
+          )
+        WHERE
+          rownum_1 <= 100000
+      )
+    WHERE
+      rownum_2 <= 100000
+  )
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download_count=[$1], timestamp=[$2])
++- LogicalFilter(condition=[<=($3, 100000)])
+   +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_2=[RANK() OVER (PARTITION BY $2 ORDER BY $1 DESC NULLS LAST)])
+      +- LogicalFilter(condition=[<=($3, 100000)])
+         +- LogicalProject(uri=[$0], reqcount=[$1], start_time=[$2], rownum_1=[RANK() OVER (PARTITION BY $2, $3 ORDER BY $1 DESC NULLS LAST)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time])
+   +- Sort(orderBy=[start_time ASC, reqcount DESC])
+      +- Exchange(distribution=[hash[start_time]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time])
+            +- Sort(orderBy=[start_time ASC, reqcount DESC])
+               +- Calc(select=[uri, reqcount, start_time])
+                  +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[true], select=[uri, reqcount, start_time, bucket_id])
+                     +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
+                        +- Exchange(distribution=[hash[start_time, bucket_id]])
+                           +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time, bucket_id], orderBy=[reqcount DESC], global=[false], select=[uri, reqcount, start_time, bucket_id])
+                              +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
+                                 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

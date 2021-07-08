@@ -25,42 +25,38 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Interface defining couple of essential methods for asynchronous and non blocking data polling.
  *
- * <p>For the most efficient usage, user of this class is supposed to call {@link #pollNext()}
- * until it returns that no more elements are available. If that happens, he should check if
- * input {@link #isFinished()}. If not, he should wait for {@link #getAvailableFuture()}
- * {@link CompletableFuture} to be completed. For example:
+ * <p>For the most efficient usage, user of this class is supposed to call {@link #pollNext()} until
+ * it returns that no more elements are available. If that happens, he should check if input {@link
+ * #isFinished()}. If not, he should wait for {@link #getAvailableFuture()} {@link
+ * CompletableFuture} to be completed. For example:
  *
- * <pre>
- * {@code
- *	AsyncDataInput<T> input = ...;
- *	while (!input.isFinished()) {
- *		Optional<T> next;
+ * <pre>{@code
+ * AsyncDataInput<T> input = ...;
+ * while (!input.isFinished()) {
+ * 	Optional<T> next;
  *
- *		while (true) {
- *			next = input.pollNext();
- *			if (!next.isPresent()) {
- *				break;
- *			}
- *			// do something with next
- *		}
+ * 	while (true) {
+ * 		next = input.pollNext();
+ * 		if (!next.isPresent()) {
+ * 			break;
+ * 		}
+ * 		// do something with next
+ * 	}
  *
- *		input.getAvailableFuture().get();
- *	}
+ * 	input.getAvailableFuture().get();
  * }
- * </pre>
+ * }</pre>
  */
 @Internal
 public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
-	/**
-	 * Poll the next element. This method should be non blocking.
-	 *
-	 * @return {@code Optional.empty()} will be returned if there is no data to return or
-	 * if {@link #isFinished()} returns true. Otherwise {@code Optional.of(element)}.
-	 */
-	Optional<T> pollNext() throws Exception;
+    /**
+     * Poll the next element. This method should be non blocking.
+     *
+     * @return {@code Optional.empty()} will be returned if there is no data to return or if {@link
+     *     #isFinished()} returns true. Otherwise {@code Optional.of(element)}.
+     */
+    Optional<T> pollNext() throws Exception;
 
-	/**
-	 * @return true if is finished and for example end of input was reached, false otherwise.
-	 */
-	boolean isFinished();
+    /** @return true if is finished and for example end of input was reached, false otherwise. */
+    boolean isFinished();
 }

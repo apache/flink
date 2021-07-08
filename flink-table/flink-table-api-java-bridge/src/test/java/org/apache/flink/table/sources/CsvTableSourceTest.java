@@ -21,21 +21,23 @@ package org.apache.flink.table.sources;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.utils.TypeConversions;
 
-/**
- * Tests for {@link CsvTableSource}.
- */
+/** Tests for {@link CsvTableSource}. */
 public class CsvTableSourceTest extends TableSourceTestBase {
 
-	@Override
-	protected TableSource<?> createTableSource(TableSchema requestedSchema) {
-		CsvTableSource.Builder builder = CsvTableSource.builder()
-			.path("ignored")
-			.fieldDelimiter("|");
+    @Override
+    protected TableSource<?> createTableSource(TableSchema requestedSchema) {
+        CsvTableSource.Builder builder =
+                CsvTableSource.builder().path("ignored").fieldDelimiter("|");
 
-		requestedSchema.getTableColumns().forEach(
-			column -> builder.field(column.getName(), TypeConversions.fromDataTypeToLegacyInfo(column.getType()))
-		);
+        requestedSchema
+                .getTableColumns()
+                .forEach(
+                        column ->
+                                builder.field(
+                                        column.getName(),
+                                        TypeConversions.fromDataTypeToLegacyInfo(
+                                                column.getType())));
 
-		return builder.build();
-	}
+        return builder.build();
+    }
 }

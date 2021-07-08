@@ -32,65 +32,67 @@ import org.apache.flink.graph.utils.proxy.OptionalBoolean;
 import org.apache.flink.types.LongValue;
 
 /**
- * Annotates edges of an undirected graph with the degree of both the source
- * and target degree vertices.
+ * Annotates edges of an undirected graph with the degree of both the source and target degree
+ * vertices.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
  * @param <EV> edge value type
  */
 public class EdgeDegreePair<K, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Edge<K, Tuple3<EV, LongValue, LongValue>>> {
+        extends GraphAlgorithmWrappingDataSet<
+                K, VV, EV, Edge<K, Tuple3<EV, LongValue, LongValue>>> {
 
-	// Optional configuration
-	private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
+    // Optional configuration
+    private OptionalBoolean reduceOnTargetId = new OptionalBoolean(false, false);
 
-	/**
-	 * The degree can be counted from either the edge source or target IDs.
-	 * By default the source IDs are counted. Reducing on target IDs may
-	 * optimize the algorithm if the input edge list is sorted by target ID.
-	 *
-	 * @param reduceOnTargetId set to {@code true} if the input edge list
-	 *                         is sorted by target ID
-	 * @return this
-	 */
-	public EdgeDegreePair<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
-		this.reduceOnTargetId.set(reduceOnTargetId);
+    /**
+     * The degree can be counted from either the edge source or target IDs. By default the source
+     * IDs are counted. Reducing on target IDs may optimize the algorithm if the input edge list is
+     * sorted by target ID.
+     *
+     * @param reduceOnTargetId set to {@code true} if the input edge list is sorted by target ID
+     * @return this
+     */
+    public EdgeDegreePair<K, VV, EV> setReduceOnTargetId(boolean reduceOnTargetId) {
+        this.reduceOnTargetId.set(reduceOnTargetId);
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		super.mergeConfiguration(other);
+    @Override
+    protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+        super.mergeConfiguration(other);
 
-		EdgeDegreePair rhs = (EdgeDegreePair) other;
+        EdgeDegreePair rhs = (EdgeDegreePair) other;
 
-		reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
-	}
+        reduceOnTargetId.mergeWith(rhs.reduceOnTargetId);
+    }
 
-	@Override
-	public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
-			throws Exception {
-		// s, t, d(s)
-		DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees = input
-			.run(new EdgeSourceDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId.get())
-				.setParallelism(parallelism));
+    @Override
+    public DataSet<Edge<K, Tuple3<EV, LongValue, LongValue>>> runInternal(Graph<K, VV, EV> input)
+            throws Exception {
+        // s, t, d(s)
+        DataSet<Edge<K, Tuple2<EV, LongValue>>> edgeSourceDegrees =
+                input.run(
+                        new EdgeSourceDegree<K, VV, EV>()
+                                .setReduceOnTargetId(reduceOnTargetId.get())
+                                .setParallelism(parallelism));
 
-		// t, d(t)
-		DataSet<Vertex<K, LongValue>> vertexDegrees = input
-			.run(new VertexDegree<K, VV, EV>()
-				.setReduceOnTargetId(reduceOnTargetId.get())
-				.setParallelism(parallelism));
+        // t, d(t)
+        DataSet<Vertex<K, LongValue>> vertexDegrees =
+                input.run(
+                        new VertexDegree<K, VV, EV>()
+                                .setReduceOnTargetId(reduceOnTargetId.get())
+                                .setParallelism(parallelism));
 
-		// s, t, (d(s), d(t))
-		return edgeSourceDegrees
-			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
-			.where(1)
-			.equalTo(0)
-			.with(new JoinEdgeDegreeWithVertexDegree<>())
-				.setParallelism(parallelism)
-				.name("Edge target degree");
-	}
+        // s, t, (d(s), d(t))
+        return edgeSourceDegrees
+                .join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
+                .where(1)
+                .equalTo(0)
+                .with(new JoinEdgeDegreeWithVertexDegree<>())
+                .setParallelism(parallelism)
+                .name("Edge target degree");
+    }
 }

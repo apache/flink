@@ -19,26 +19,77 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.Float8Vector;
 
-/**
- * {@link ArrowFieldWriter} for Double.
- */
+/** {@link ArrowFieldWriter} for Double. */
 @Internal
-public final class DoubleWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class DoubleWriter<T> extends ArrowFieldWriter<T> {
 
-	public DoubleWriter(Float8Vector doubleVector) {
-		super(doubleVector);
-	}
+    public static DoubleWriter<RowData> forRow(Float8Vector doubleVector) {
+        return new DoubleWriterForRow(doubleVector);
+    }
 
-	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((Float8Vector) getValueVector()).setNull(getCount());
-		} else {
-			((Float8Vector) getValueVector()).setSafe(getCount(), row.getDouble(ordinal));
-		}
-	}
+    public static DoubleWriter<ArrayData> forArray(Float8Vector doubleVector) {
+        return new DoubleWriterForArray(doubleVector);
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    private DoubleWriter(Float8Vector doubleVector) {
+        super(doubleVector);
+    }
+
+    abstract boolean isNullAt(T in, int ordinal);
+
+    abstract double readDouble(T in, int ordinal);
+
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((Float8Vector) getValueVector()).setNull(getCount());
+        } else {
+            ((Float8Vector) getValueVector()).setSafe(getCount(), readDouble(in, ordinal));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    /** {@link DoubleWriter} for {@link RowData} input. */
+    public static final class DoubleWriterForRow extends DoubleWriter<RowData> {
+
+        private DoubleWriterForRow(Float8Vector doubleVector) {
+            super(doubleVector);
+        }
+
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        double readDouble(RowData in, int ordinal) {
+            return in.getDouble(ordinal);
+        }
+    }
+
+    /** {@link DoubleWriter} for {@link ArrayData} input. */
+    public static final class DoubleWriterForArray extends DoubleWriter<ArrayData> {
+
+        private DoubleWriterForArray(Float8Vector doubleVector) {
+            super(doubleVector);
+        }
+
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        double readDouble(ArrayData in, int ordinal) {
+            return in.getDouble(ordinal);
+        }
+    }
 }

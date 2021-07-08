@@ -34,38 +34,43 @@ import org.junit.rules.Timeout;
  */
 public class JoinDeadlockITCase extends JavaProgramTestBase {
 
-	protected String resultPath;
+    protected String resultPath;
 
-	@Rule
-	public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
+    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        resultPath = getTempDirPath("result");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Long> longs = env.generateSequence(0, 100000);
+        DataSet<Long> longs = env.generateSequence(0, 100000);
 
-		DataSet<Tuple1<Long>> longT1 = longs.map(new TupleWrapper());
-		DataSet<Tuple1<Long>> longT2 = longT1.project(0);
-		DataSet<Tuple1<Long>> longT3 = longs.map(new TupleWrapper());
+        DataSet<Tuple1<Long>> longT1 = longs.map(new TupleWrapper());
+        DataSet<Tuple1<Long>> longT2 = longT1.project(0);
+        DataSet<Tuple1<Long>> longT3 = longs.map(new TupleWrapper());
 
-		longT2.join(longT3).where(0).equalTo(0).projectFirst(0)
-				.join(longT1).where(0).equalTo(0).projectFirst(0)
-				.writeAsText(resultPath);
+        longT2.join(longT3)
+                .where(0)
+                .equalTo(0)
+                .projectFirst(0)
+                .join(longT1)
+                .where(0)
+                .equalTo(0)
+                .projectFirst(0)
+                .writeAsText(resultPath);
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	private static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
+    private static class TupleWrapper implements MapFunction<Long, Tuple1<Long>> {
 
-		@Override
-		public Tuple1<Long> map(Long l) throws Exception {
-			return new Tuple1<Long>(l);
-		}
-	}
+        @Override
+        public Tuple1<Long> map(Long l) throws Exception {
+            return new Tuple1<Long>(l);
+        }
+    }
 }

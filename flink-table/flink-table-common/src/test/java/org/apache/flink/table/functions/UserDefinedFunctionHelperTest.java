@@ -20,6 +20,8 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
@@ -33,258 +35,293 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link UserDefinedFunctionHelper}.
- */
+/** Tests for {@link UserDefinedFunctionHelper}. */
 @RunWith(Parameterized.class)
 @SuppressWarnings("unused")
 public class UserDefinedFunctionHelperTest {
 
-	@Parameterized.Parameters
-	public static List<TestSpec> testData() {
-		return Arrays.asList(
-			TestSpec
-				.forClass(ValidScalarFunction.class)
-				.expectSuccess(),
+    @Parameterized.Parameters
+    public static List<TestSpec> testData() {
+        return Arrays.asList(
+                TestSpec.forClass(ValidScalarFunction.class).expectSuccess(),
+                TestSpec.forInstance(new ValidScalarFunction()).expectSuccess(),
+                TestSpec.forClass(PrivateScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + PrivateScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forClass(MissingImplementationScalarFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + MissingImplementationScalarFunction.class.getName()
+                                        + "' does not implement a method named 'eval'."),
+                TestSpec.forClass(PrivateMethodScalarFunction.class)
+                        .expectErrorMessage(
+                                "Method 'eval' of function class '"
+                                        + PrivateMethodScalarFunction.class.getName()
+                                        + "' is not public."),
+                TestSpec.forInstance(new ValidTableAggregateFunction()).expectSuccess(),
+                TestSpec.forInstance(new MissingEmitTableAggregateFunction())
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + MissingEmitTableAggregateFunction.class.getName()
+                                        + "' does not implement a method named 'emitUpdateWithRetract' or 'emitValue'."),
+                TestSpec.forInstance(new ValidTableFunction()).expectSuccess(),
+                TestSpec.forInstance(new ParameterizedTableFunction(12)).expectSuccess(),
+                TestSpec.forClass(ParameterizedTableFunction.class)
+                        .expectErrorMessage(
+                                "Function class '"
+                                        + ParameterizedTableFunction.class.getName()
+                                        + "' must have a public default constructor."),
+                TestSpec.forClass(HierarchicalTableAggregateFunction.class).expectSuccess(),
+                TestSpec.forCatalogFunction(
+                                ValidScalarFunction.class.getName(), FunctionLanguage.JAVA)
+                        .expectSuccess(),
+                TestSpec.forCatalogFunction("I don't exist.", FunctionLanguage.JAVA)
+                        .expectErrorMessage("Cannot instantiate user-defined function 'f'."));
+    }
 
-			TestSpec
-				.forInstance(new ValidScalarFunction())
-				.expectSuccess(),
+    @Parameter public TestSpec testSpec;
 
-			TestSpec
-				.forClass(PrivateScalarFunction.class)
-				.expectErrorMessage(
-					"Function class '" + PrivateScalarFunction.class.getName() + "' is not public."),
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-			TestSpec
-				.forClass(MissingImplementationScalarFunction.class)
-				.expectErrorMessage(
-					"Function class '" + MissingImplementationScalarFunction.class.getName() +
-						"' does not implement a method named 'eval'."),
+    @Test
+    public void testInstantiation() {
+        if (testSpec.functionClass != null) {
+            testErrorMessage();
+            assertThat(
+                    UserDefinedFunctionHelper.instantiateFunction(testSpec.functionClass),
+                    notNullValue());
+        } else if (testSpec.catalogFunction != null) {
+            testErrorMessage();
+            assertThat(
+                    UserDefinedFunctionHelper.instantiateFunction(
+                            UserDefinedFunctionHelperTest.class.getClassLoader(),
+                            new Configuration(),
+                            "f",
+                            testSpec.catalogFunction),
+                    notNullValue());
+        }
+    }
 
-			TestSpec
-				.forClass(PrivateMethodScalarFunction.class)
-				.expectErrorMessage(
-					"Method 'eval' of function class '" + PrivateMethodScalarFunction.class.getName() +
-						"' is not public."),
+    @Test
+    public void testValidation() {
+        if (testSpec.functionClass != null) {
+            testErrorMessage();
+            UserDefinedFunctionHelper.validateClass(testSpec.functionClass);
+        } else if (testSpec.functionInstance != null) {
+            testErrorMessage();
+            UserDefinedFunctionHelper.prepareInstance(
+                    new Configuration(), testSpec.functionInstance);
+        }
+    }
 
-			TestSpec
-				.forInstance(new ValidTableAggregateFunction())
-				.expectSuccess(),
+    private void testErrorMessage() {
+        if (testSpec.expectedErrorMessage != null) {
+            thrown.expect(ValidationException.class);
+            thrown.expect(containsCause(new ValidationException(testSpec.expectedErrorMessage)));
+        }
+    }
 
-			TestSpec
-				.forInstance(new MissingEmitTableAggregateFunction())
-				.expectErrorMessage(
-					"Function class '" + MissingEmitTableAggregateFunction.class.getName() +
-						"' does not implement a method named 'emitUpdateWithRetract' or 'emitValue'."),
+    // --------------------------------------------------------------------------------------------
+    // Test utilities
+    // --------------------------------------------------------------------------------------------
 
-			TestSpec
-				.forInstance(new ValidTableFunction())
-				.expectSuccess(),
+    private static class TestSpec {
 
-			TestSpec
-				.forInstance(new ParameterizedTableFunction(12))
-				.expectSuccess(),
+        final @Nullable Class<? extends UserDefinedFunction> functionClass;
 
-			TestSpec
-				.forClass(ParameterizedTableFunction.class)
-				.expectErrorMessage(
-					"Function class '" + ParameterizedTableFunction.class.getName() +
-						"' must have a public default constructor."),
+        final @Nullable UserDefinedFunction functionInstance;
 
-			TestSpec
-				.forClass(HierarchicalTableAggregateFunction.class)
-				.expectSuccess()
-		);
-	}
+        final @Nullable CatalogFunction catalogFunction;
 
-	@Parameter
-	public TestSpec testSpec;
+        @Nullable String expectedErrorMessage;
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+        TestSpec(Class<? extends UserDefinedFunction> functionClass) {
+            this.functionClass = functionClass;
+            this.functionInstance = null;
+            this.catalogFunction = null;
+        }
 
-	@Test
-	public void testInstantiation() {
-		if (testSpec.functionClass != null) {
-			if (testSpec.expectedErrorMessage != null) {
-				thrown.expect(ValidationException.class);
-				thrown.expectMessage(testSpec.expectedErrorMessage);
-			}
-			assertThat(
-				UserDefinedFunctionHelper.instantiateFunction(testSpec.functionClass),
-				notNullValue());
-		}
-	}
+        TestSpec(UserDefinedFunction functionInstance) {
+            this.functionClass = null;
+            this.functionInstance = functionInstance;
+            this.catalogFunction = null;
+        }
 
-	@Test
-	public void testValidation() {
-		if (testSpec.expectedErrorMessage != null) {
-			thrown.expect(ValidationException.class);
-			thrown.expectMessage(testSpec.expectedErrorMessage);
-		}
-		if (testSpec.functionClass != null) {
-			UserDefinedFunctionHelper.validateClass(testSpec.functionClass);
-		} else if (testSpec.functionInstance != null) {
-			UserDefinedFunctionHelper.prepareInstance(new Configuration(), testSpec.functionInstance);
-		}
-	}
+        TestSpec(CatalogFunction catalogFunction) {
+            this.functionClass = null;
+            this.functionInstance = null;
+            this.catalogFunction = catalogFunction;
+        }
 
-	// --------------------------------------------------------------------------------------------
-	// Test utilities
-	// --------------------------------------------------------------------------------------------
+        static TestSpec forClass(Class<? extends UserDefinedFunction> function) {
+            return new TestSpec(function);
+        }
 
-	private static class TestSpec {
+        static TestSpec forInstance(UserDefinedFunction function) {
+            return new TestSpec(function);
+        }
 
-		final @Nullable Class<? extends UserDefinedFunction> functionClass;
+        static TestSpec forCatalogFunction(String className, FunctionLanguage language) {
+            return new TestSpec(new CatalogFunctionMock(className, language));
+        }
 
-		final @Nullable UserDefinedFunction functionInstance;
+        TestSpec expectErrorMessage(String expectedErrorMessage) {
+            this.expectedErrorMessage = expectedErrorMessage;
+            return this;
+        }
 
-		@Nullable String expectedErrorMessage;
+        TestSpec expectSuccess() {
+            this.expectedErrorMessage = null;
+            return this;
+        }
+    }
 
-		TestSpec(Class<? extends UserDefinedFunction> functionClass) {
-			this.functionClass = functionClass;
-			this.functionInstance = null;
-		}
+    private static class CatalogFunctionMock implements CatalogFunction {
 
-		TestSpec(UserDefinedFunction functionInstance) {
-			this.functionClass = null;
-			this.functionInstance = functionInstance;
-		}
+        private final String className;
 
-		static TestSpec forClass(Class<? extends UserDefinedFunction> function) {
-			return new TestSpec(function);
-		}
+        private final FunctionLanguage language;
 
-		static TestSpec forInstance(UserDefinedFunction function) {
-			return new TestSpec(function);
-		}
+        CatalogFunctionMock(String className, FunctionLanguage language) {
+            this.className = className;
+            this.language = language;
+        }
 
-		TestSpec expectErrorMessage(String expectedErrorMessage) {
-			this.expectedErrorMessage = expectedErrorMessage;
-			return this;
-		}
+        @Override
+        public String getClassName() {
+            return className;
+        }
 
-		TestSpec expectSuccess() {
-			this.expectedErrorMessage = null;
-			return this;
-		}
-	}
+        @Override
+        public CatalogFunction copy() {
+            return null;
+        }
 
-	// --------------------------------------------------------------------------------------------
-	// Test classes for validation
-	// --------------------------------------------------------------------------------------------
+        @Override
+        public Optional<String> getDescription() {
+            return Optional.empty();
+        }
 
-	/**
-	 * Valid scalar function.
-	 */
-	public static class ValidScalarFunction extends ScalarFunction {
-		public String eval(int i) {
-			return null;
-		}
-	}
+        @Override
+        public Optional<String> getDetailedDescription() {
+            return Optional.empty();
+        }
 
-	private static class PrivateScalarFunction extends ScalarFunction {
-		public String eval(int i) {
-			return null;
-		}
-	}
+        @Override
+        public boolean isGeneric() {
+            return false;
+        }
 
-	/**
-	 * No implementation method.
-	 */
-	public static class MissingImplementationScalarFunction extends ScalarFunction {
-		// nothing to do
-	}
+        @Override
+        public FunctionLanguage getFunctionLanguage() {
+            return language;
+        }
+    }
 
-	/**
-	 * Implementation method is private.
-	 */
-	public static class PrivateMethodScalarFunction extends ScalarFunction {
-		private String eval(int i) {
-			return null;
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Test classes for validation
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Valid table aggregate function.
-	 */
-	public static class ValidTableAggregateFunction extends TableAggregateFunction<String, String> {
+    /** Valid scalar function. */
+    public static class ValidScalarFunction extends ScalarFunction {
+        public String eval(int i) {
+            return null;
+        }
+    }
 
-		public void accumulate(String acc, String in) {
-			// nothing to do
-		}
+    private static class PrivateScalarFunction extends ScalarFunction {
+        public String eval(int i) {
+            return null;
+        }
+    }
 
-		public void emitValue(String acc, Collector<String> out) {
-			// nothing to do
-		}
+    /** No implementation method. */
+    public static class MissingImplementationScalarFunction extends ScalarFunction {
+        // nothing to do
+    }
 
-		@Override
-		public String createAccumulator() {
-			return null;
-		}
-	}
+    /** Implementation method is private. */
+    public static class PrivateMethodScalarFunction extends ScalarFunction {
+        private String eval(int i) {
+            return null;
+        }
+    }
 
-	/**
-	 * No emitting method implementation.
-	 */
-	public static class MissingEmitTableAggregateFunction extends TableAggregateFunction<String, String> {
+    /** Valid table aggregate function. */
+    public static class ValidTableAggregateFunction extends TableAggregateFunction<String, String> {
 
-		public void accumulate(String acc, String in) {
-			// nothing to do
-		}
+        public void accumulate(String acc, String in) {
+            // nothing to do
+        }
 
-		@Override
-		public String createAccumulator() {
-			return null;
-		}
-	}
+        public void emitValue(String acc, Collector<String> out) {
+            // nothing to do
+        }
 
-	/**
-	 * Valid table function.
-	 */
-	public static class ValidTableFunction extends TableFunction<String> {
-		public void eval(String i) {
-			// nothing to do
-		}
-	}
+        @Override
+        public String createAccumulator() {
+            return null;
+        }
+    }
 
-	/**
-	 * Table function with parameters in constructor.
-	 */
-	public static class ParameterizedTableFunction extends TableFunction<String> {
+    /** No emitting method implementation. */
+    public static class MissingEmitTableAggregateFunction
+            extends TableAggregateFunction<String, String> {
 
-		public ParameterizedTableFunction(int param) {
-			// nothing to do
-		}
+        public void accumulate(String acc, String in) {
+            // nothing to do
+        }
 
-		public void eval(String i) {
-			// nothing to do
-		}
-	}
+        @Override
+        public String createAccumulator() {
+            return null;
+        }
+    }
 
-	private abstract static class AbstractTableAggregateFunction extends TableAggregateFunction<String, String> {
-		public void accumulate(String acc, String in) {
-			// nothing to do
-		}
-	}
+    /** Valid table function. */
+    public static class ValidTableFunction extends TableFunction<String> {
+        public void eval(String i) {
+            // nothing to do
+        }
+    }
 
-	/**
-	 * Hierarchy that is implementing different methods.
-	 */
-	public static class HierarchicalTableAggregateFunction extends AbstractTableAggregateFunction {
+    /** Table function with parameters in constructor. */
+    public static class ParameterizedTableFunction extends TableFunction<String> {
 
-		public void emitValue(String acc, Collector<String> out) {
-			// nothing to do
-		}
+        public ParameterizedTableFunction(int param) {
+            // nothing to do
+        }
 
-		@Override
-		public String createAccumulator() {
-			return null;
-		}
-	}
+        public void eval(String i) {
+            // nothing to do
+        }
+    }
+
+    private abstract static class AbstractTableAggregateFunction
+            extends TableAggregateFunction<String, String> {
+        public void accumulate(String acc, String in) {
+            // nothing to do
+        }
+    }
+
+    /** Hierarchy that is implementing different methods. */
+    public static class HierarchicalTableAggregateFunction extends AbstractTableAggregateFunction {
+
+        public void emitValue(String acc, Collector<String> out) {
+            // nothing to do
+        }
+
+        @Override
+        public String createAccumulator() {
+            return null;
+        }
+    }
 }

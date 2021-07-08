@@ -25,17 +25,19 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
- * Testing implementation of {@link PermanentBlobService} which always fails the
- * {@link #getFile(JobID, PermanentBlobKey)} call.
+ * Testing implementation of {@link PermanentBlobService} which always fails the {@link
+ * #getFile(JobID, PermanentBlobKey)} call.
  */
 public enum FailingPermanentBlobService implements PermanentBlobService {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
-		throw new FileNotFoundException(String.format("Could not find file for blob key %s belonging to job %s.", key, jobId));
-	}
+    @Override
+    public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
+        throw new FileNotFoundException(
+                String.format(
+                        "Could not find file for blob key %s belonging to job %s.", key, jobId));
+    }
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

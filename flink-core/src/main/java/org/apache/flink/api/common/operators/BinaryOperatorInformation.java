@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.api.common.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
- *  A class for holding information about a single input operator, such as input/output TypeInformation.
+ * A class for holding information about a single input operator, such as input/output
+ * TypeInformation.
  *
  * @param <IN1> Output type of first input operator
  * @param <IN2> Output type of second input operator
@@ -32,33 +32,31 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 @Internal
 public class BinaryOperatorInformation<IN1, IN2, OUT> extends OperatorInformation<OUT> {
 
-	/**
-	 * Input type of the first input
-	 */
-	protected final TypeInformation<IN1> inputType1;
+    /** Input type of the first input */
+    protected final TypeInformation<IN1> inputType1;
 
-	/**
-	 * Input type of the second input
-	 */
-	protected final TypeInformation<IN2> inputType2;
+    /** Input type of the second input */
+    protected final TypeInformation<IN2> inputType2;
 
-	/**
-	 * @param inputType1 Input type of first input
-	 * @param inputType2 Input type of second input
-	 * @param outputType The output type of the operator
-	 */
-	public BinaryOperatorInformation(TypeInformation<IN1> inputType1, TypeInformation<IN2> inputType2, TypeInformation<OUT> outputType) {
-		super(outputType);
-		this.inputType1 = inputType1;
-		this.inputType2 = inputType2;
-	}
+    /**
+     * @param inputType1 Input type of first input
+     * @param inputType2 Input type of second input
+     * @param outputType The output type of the operator
+     */
+    public BinaryOperatorInformation(
+            TypeInformation<IN1> inputType1,
+            TypeInformation<IN2> inputType2,
+            TypeInformation<OUT> outputType) {
+        super(outputType);
+        this.inputType1 = inputType1;
+        this.inputType2 = inputType2;
+    }
 
-	public TypeInformation<IN1> getFirstInputType() {
-		return inputType1;
-	}
+    public TypeInformation<IN1> getFirstInputType() {
+        return inputType1;
+    }
 
-	public TypeInformation<IN2> getSecondInputType() {
-		return inputType2;
-	}
-
+    public TypeInformation<IN2> getSecondInputType() {
+        return inputType2;
+    }
 }

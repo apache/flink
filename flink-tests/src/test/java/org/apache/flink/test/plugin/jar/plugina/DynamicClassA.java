@@ -21,13 +21,13 @@ package org.apache.flink.test.plugin.jar.plugina;
 import org.apache.flink.test.plugin.TestSpi;
 
 /**
- * This class exists in the test to validate that dynamic classloading ({@link Class#forName(String)} works inside of
- * plugin code.
+ * This class exists in the test to validate that dynamic classloading ({@link
+ * Class#forName(String)} works inside of plugin code.
  */
 public class DynamicClassA implements TestSpi {
 
-	@Override
-	public String testMethod() {
-		return getClass().getName();
-	}
+    @Override
+    public String testMethod() {
+        return getClass().getName();
+    }
 }

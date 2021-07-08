@@ -23,21 +23,19 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 
-/**
- * {@link AbstractMultipleInputTransformation} implementation for non-keyed streams.
- */
+/** {@link AbstractMultipleInputTransformation} implementation for non-keyed streams. */
 @Internal
 public class MultipleInputTransformation<OUT> extends AbstractMultipleInputTransformation<OUT> {
-	public MultipleInputTransformation(
-			String name,
-			StreamOperatorFactory<OUT> operatorFactory,
-			TypeInformation<OUT> outputType,
-			int parallelism) {
-		super(name, operatorFactory, outputType, parallelism);
-	}
+    public MultipleInputTransformation(
+            String name,
+            StreamOperatorFactory<OUT> operatorFactory,
+            TypeInformation<OUT> outputType,
+            int parallelism) {
+        super(name, operatorFactory, outputType, parallelism);
+    }
 
-	public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
-		inputs.add(input);
-		return this;
-	}
+    public MultipleInputTransformation<OUT> addInput(Transformation<?> input) {
+        inputs.add(input);
+        return this;
+    }
 }

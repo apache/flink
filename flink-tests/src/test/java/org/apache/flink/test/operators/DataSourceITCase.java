@@ -29,54 +29,48 @@ import org.junit.Assert;
 
 import java.util.List;
 
-/**
- * Tests for the DataSource.
- */
+/** Tests for the DataSource. */
 public class DataSourceITCase extends JavaProgramTestBase {
 
-	private String inputPath;
+    private String inputPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		inputPath = createTempFile("input", "ab\n"
-				+ "cd\n"
-				+ "ef\n");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        inputPath = createTempFile("input", "ab\n" + "cd\n" + "ef\n");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		/*
-		 * Test passing a configuration object to an input format
-		 */
+    @Override
+    protected void testProgram() throws Exception {
+        /*
+         * Test passing a configuration object to an input format
+         */
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Configuration ifConf = new Configuration();
-		ifConf.setString("prepend", "test");
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Configuration ifConf = new Configuration();
+        ifConf.setString("prepend", "test");
 
-		DataSet<String> ds = env.createInput(new TestInputFormat(new Path(inputPath))).withParameters(ifConf);
-		List<String> result = ds.collect();
+        DataSet<String> ds =
+                env.createInput(new TestInputFormat(new Path(inputPath))).withParameters(ifConf);
+        List<String> result = ds.collect();
 
-		String expectedResult = "ab\n"
-				+ "cd\n"
-				+ "ef\n";
+        String expectedResult = "ab\n" + "cd\n" + "ef\n";
 
-		compareResultAsText(result, expectedResult);
-	}
+        compareResultAsText(result, expectedResult);
+    }
 
-	private static class TestInputFormat extends TextInputFormat {
-		private static final long serialVersionUID = 1L;
+    private static class TestInputFormat extends TextInputFormat {
+        private static final long serialVersionUID = 1L;
 
-		public TestInputFormat(Path filePath) {
-			super(filePath);
-		}
+        public TestInputFormat(Path filePath) {
+            super(filePath);
+        }
 
-		@Override
-		public void configure(Configuration parameters) {
-			super.configure(parameters);
+        @Override
+        public void configure(Configuration parameters) {
+            super.configure(parameters);
 
-			Assert.assertNotNull(parameters.getString("prepend", null));
-			Assert.assertEquals("test", parameters.getString("prepend", null));
-		}
-
-	}
+            Assert.assertNotNull(parameters.getString("prepend", null));
+            Assert.assertEquals("test", parameters.getString("prepend", null));
+        }
+    }
 }

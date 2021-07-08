@@ -30,90 +30,109 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.LongPredicate;
 
-/**
- * Test implementation of a {@link TaskLocalStateStore}.
- */
+/** Test implementation of a {@link TaskLocalStateStore}. */
 public class TestTaskLocalStateStore implements TaskLocalStateStore {
 
-	private final SortedMap<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointID;
+    private final SortedMap<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointID;
 
-	private final LocalRecoveryConfig localRecoveryConfig;
+    private final LocalRecoveryConfig localRecoveryConfig;
 
-	private boolean disposed;
+    private boolean disposed;
 
-	public TestTaskLocalStateStore() {
-		this(TestLocalRecoveryConfig.disabled());
-	}
+    public TestTaskLocalStateStore() {
+        this(TestLocalRecoveryConfig.disabled());
+    }
 
-	public TestTaskLocalStateStore(@Nonnull LocalRecoveryConfig localRecoveryConfig) {
-		this.localRecoveryConfig = localRecoveryConfig;
-		this.taskStateSnapshotsByCheckpointID = new TreeMap<>();
-		this.disposed = false;
-	}
+    public TestTaskLocalStateStore(@Nonnull LocalRecoveryConfig localRecoveryConfig) {
+        this.localRecoveryConfig = localRecoveryConfig;
+        this.taskStateSnapshotsByCheckpointID = new TreeMap<>();
+        this.disposed = false;
+    }
 
-	@Override
-	public void storeLocalState(long checkpointId, @Nullable TaskStateSnapshot localState) {
-		Preconditions.checkState(!disposed);
-		taskStateSnapshotsByCheckpointID.put(checkpointId, localState);
-	}
+    @Override
+    public void storeLocalState(long checkpointId, @Nullable TaskStateSnapshot localState) {
+        Preconditions.checkState(!disposed);
+        taskStateSnapshotsByCheckpointID.put(checkpointId, localState);
+    }
 
-	@Nullable
-	@Override
-	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
-		Preconditions.checkState(!disposed);
-		return taskStateSnapshotsByCheckpointID.get(checkpointID);
-	}
+    @Nullable
+    @Override
+    public TaskStateSnapshot retrieveLocalState(long checkpointID) {
+        Preconditions.checkState(!disposed);
+        return taskStateSnapshotsByCheckpointID.get(checkpointID);
+    }
 
-	public void dispose() {
-		if (!disposed) {
-			disposed = true;
-			for (TaskStateSnapshot stateSnapshot : taskStateSnapshotsByCheckpointID.values()) {
-				try {
-					stateSnapshot.discardState();
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}
-			taskStateSnapshotsByCheckpointID.clear();
-		}
-	}
+    public void dispose() {
+        if (!disposed) {
+            disposed = true;
+            for (TaskStateSnapshot stateSnapshot : taskStateSnapshotsByCheckpointID.values()) {
+                try {
+                    stateSnapshot.discardState();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            taskStateSnapshotsByCheckpointID.clear();
+        }
+    }
 
-	@Nonnull
-	@Override
-	public LocalRecoveryConfig getLocalRecoveryConfig() {
-		Preconditions.checkState(!disposed);
-		return Preconditions.checkNotNull(localRecoveryConfig);
-	}
+    @Nonnull
+    @Override
+    public LocalRecoveryConfig getLocalRecoveryConfig() {
+        Preconditions.checkState(!disposed);
+        return Preconditions.checkNotNull(localRecoveryConfig);
+    }
 
-	@Override
-	public void confirmCheckpoint(long confirmedCheckpointId) {
-		Preconditions.checkState(!disposed);
-		Iterator<Map.Entry<Long, TaskStateSnapshot>> iterator = taskStateSnapshotsByCheckpointID.entrySet().iterator();
-		while (iterator.hasNext()) {
-			Map.Entry<Long, TaskStateSnapshot> entry = iterator.next();
-			if (entry.getKey() < confirmedCheckpointId) {
-				iterator.remove();
-				try {
-					entry.getValue().discardState();
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else {
-				break;
-			}
-		}
-	}
+    @Override
+    public void confirmCheckpoint(long confirmedCheckpointId) {
+        Preconditions.checkState(!disposed);
+        Iterator<Map.Entry<Long, TaskStateSnapshot>> iterator =
+                taskStateSnapshotsByCheckpointID.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, TaskStateSnapshot> entry = iterator.next();
+            if (entry.getKey() < confirmedCheckpointId) {
+                iterator.remove();
+                try {
+                    entry.getValue().discardState();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                break;
+            }
+        }
+    }
 
-	@Override
-	public void pruneMatchingCheckpoints(LongPredicate matcher) {
-		taskStateSnapshotsByCheckpointID.keySet().removeIf(matcher::test);
-	}
+    @Override
+    public void abortCheckpoint(long abortedCheckpointId) {
+        Preconditions.checkState(!disposed);
+        Iterator<Map.Entry<Long, TaskStateSnapshot>> iterator =
+                taskStateSnapshotsByCheckpointID.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, TaskStateSnapshot> entry = iterator.next();
+            if (entry.getKey() == abortedCheckpointId) {
+                iterator.remove();
+                try {
+                    entry.getValue().discardState();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (entry.getKey() > abortedCheckpointId) {
+                break;
+            }
+        }
+    }
 
-	public boolean isDisposed() {
-		return disposed;
-	}
+    @Override
+    public void pruneMatchingCheckpoints(LongPredicate matcher) {
+        taskStateSnapshotsByCheckpointID.keySet().removeIf(matcher::test);
+    }
 
-	public SortedMap<Long, TaskStateSnapshot> getTaskStateSnapshotsByCheckpointID() {
-		return taskStateSnapshotsByCheckpointID;
-	}
+    public boolean isDisposed() {
+        return disposed;
+    }
+
+    public SortedMap<Long, TaskStateSnapshot> getTaskStateSnapshotsByCheckpointID() {
+        return taskStateSnapshotsByCheckpointID;
+    }
 }

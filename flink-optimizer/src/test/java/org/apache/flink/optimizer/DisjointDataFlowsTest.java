@@ -18,38 +18,36 @@
 
 package org.apache.flink.optimizer;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class DisjointDataFlowsTest extends CompilerTestBase {
 
-	@Test
-	public void testDisjointFlows() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			// generate two different flows
-			env.generateSequence(1, 10)
-					.output(new DiscardingOutputFormat<Long>());
-			env.generateSequence(1, 10)
-					.output(new DiscardingOutputFormat<Long>());
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			new JobGraphGenerator().compileJobGraph(op);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    public void testDisjointFlows() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            // generate two different flows
+            env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
+            env.generateSequence(1, 10).output(new DiscardingOutputFormat<Long>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            new JobGraphGenerator().compileJobGraph(op);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

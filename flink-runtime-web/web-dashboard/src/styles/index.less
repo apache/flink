@@ -16,8 +16,22 @@
  * limitations under the License.
  */
 
+@import "../../node_modules/d3-flame-graph/dist/d3-flamegraph.css";
 @import "../../node_modules/ng-zorro-antd/ng-zorro-antd.less";
 @import "./base";
 @import "./global";
 @import "./theme";
 @import "./rewrite";
+
+
+.d3-flame-graph-tip {
+  line-height: 1;
+  font-family: Verdana;
+  font-size: 14px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1000;
+}

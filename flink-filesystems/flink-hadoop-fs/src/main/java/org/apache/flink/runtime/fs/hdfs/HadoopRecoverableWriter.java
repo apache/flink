@@ -37,119 +37,126 @@ import java.util.UUID;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * An implementation of the {@link RecoverableWriter} for
- * Hadoop's file system abstraction.
- */
+/** An implementation of the {@link RecoverableWriter} for Hadoop's file system abstraction. */
 @Internal
 public class HadoopRecoverableWriter implements RecoverableWriter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(HadoopRecoverableWriter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopRecoverableWriter.class);
 
-	/** The Hadoop file system on which the writer operates. */
-	private final org.apache.hadoop.fs.FileSystem fs;
+    /** The Hadoop file system on which the writer operates. */
+    private final org.apache.hadoop.fs.FileSystem fs;
 
-	/**
-	 * Creates a new Recoverable writer.
-	 * @param fs The Hadoop file system on which the writer operates.
-	 */
-	public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs) {
-		this.fs = checkNotNull(fs);
+    /**
+     * Creates a new Recoverable writer.
+     *
+     * @param fs The Hadoop file system on which the writer operates.
+     */
+    public HadoopRecoverableWriter(org.apache.hadoop.fs.FileSystem fs) {
+        this.fs = checkNotNull(fs);
 
-		// This writer is only supported on a subset of file systems
-		if (!"hdfs".equalsIgnoreCase(fs.getScheme())) {
-			throw new UnsupportedOperationException(
-					"Recoverable writers on Hadoop are only supported for HDFS");
-		}
+        // This writer is only supported on a subset of file systems
+        if (!("hdfs".equalsIgnoreCase(fs.getScheme())
+                || "viewfs".equalsIgnoreCase(fs.getScheme()))) {
+            throw new UnsupportedOperationException(
+                    "Recoverable writers on Hadoop are only supported for HDFS");
+        }
 
-		// Part of functionality depends on specific versions. We check these schemes and versions eagerly for
-		// better error messages.
-		if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
-			LOG.warn("WARNING: You are running on hadoop version " + VersionInfo.getVersion() + "." +
-					" If your RollingPolicy does not roll on every checkpoint/savepoint, the StreamingFileSink will throw an exception upon recovery.");
-		}
-	}
+        // Part of functionality depends on specific versions. We check these schemes and versions
+        // eagerly for
+        // better error messages.
+        if (!HadoopUtils.isMinHadoopVersion(2, 7)) {
+            LOG.warn(
+                    "WARNING: You are running on hadoop version "
+                            + VersionInfo.getVersion()
+                            + "."
+                            + " If your RollingPolicy does not roll on every checkpoint/savepoint, the StreamingFileSink will throw an exception upon recovery.");
+        }
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
-		final org.apache.hadoop.fs.Path targetFile = HadoopFileSystem.toHadoopPath(filePath);
-		final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(fs, targetFile);
-		return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
-	}
+    @Override
+    public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
+        final org.apache.hadoop.fs.Path targetFile = HadoopFileSystem.toHadoopPath(filePath);
+        final org.apache.hadoop.fs.Path tempFile = generateStagingTempFilePath(fs, targetFile);
+        return new HadoopRecoverableFsDataOutputStream(fs, targetFile, tempFile);
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
-		if (recoverable instanceof HadoopFsRecoverable) {
-			return new HadoopRecoverableFsDataOutputStream(fs, (HadoopFsRecoverable) recoverable);
-		}
-		else {
-			throw new IllegalArgumentException(
-					"Hadoop File System cannot recover a recoverable for another file system: " + recoverable);
-		}
-	}
+    @Override
+    public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
+        if (recoverable instanceof HadoopFsRecoverable) {
+            return new HadoopRecoverableFsDataOutputStream(fs, (HadoopFsRecoverable) recoverable);
+        } else {
+            throw new IllegalArgumentException(
+                    "Hadoop File System cannot recover a recoverable for another file system: "
+                            + recoverable);
+        }
+    }
 
-	@Override
-	public boolean requiresCleanupOfRecoverableState() {
-		return false;
-	}
+    @Override
+    public boolean requiresCleanupOfRecoverableState() {
+        return false;
+    }
 
-	@Override
-	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+        return false;
+    }
 
-	@Override
-	public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
-		if (recoverable instanceof HadoopFsRecoverable) {
-			return new HadoopRecoverableFsDataOutputStream.HadoopFsCommitter(fs, (HadoopFsRecoverable) recoverable);
-		}
-		else {
-			throw new IllegalArgumentException(
-					"Hadoop File System  cannot recover a recoverable for another file system: " + recoverable);
-		}
-	}
+    @Override
+    public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
+        if (recoverable instanceof HadoopFsRecoverable) {
+            return new HadoopRecoverableFsDataOutputStream.HadoopFsCommitter(
+                    fs, (HadoopFsRecoverable) recoverable);
+        } else {
+            throw new IllegalArgumentException(
+                    "Hadoop File System  cannot recover a recoverable for another file system: "
+                            + recoverable);
+        }
+    }
 
-	@Override
-	public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
-		@SuppressWarnings("unchecked")
-		SimpleVersionedSerializer<CommitRecoverable> typedSerializer = (SimpleVersionedSerializer<CommitRecoverable>)
-				(SimpleVersionedSerializer<?>) HadoopRecoverableSerializer.INSTANCE;
+    @Override
+    public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
+        @SuppressWarnings("unchecked")
+        SimpleVersionedSerializer<CommitRecoverable> typedSerializer =
+                (SimpleVersionedSerializer<CommitRecoverable>)
+                        (SimpleVersionedSerializer<?>) HadoopRecoverableSerializer.INSTANCE;
 
-		return typedSerializer;
-	}
+        return typedSerializer;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
-		@SuppressWarnings("unchecked")
-		SimpleVersionedSerializer<ResumeRecoverable> typedSerializer = (SimpleVersionedSerializer<ResumeRecoverable>)
-				(SimpleVersionedSerializer<?>) HadoopRecoverableSerializer.INSTANCE;
+    @Override
+    public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
+        @SuppressWarnings("unchecked")
+        SimpleVersionedSerializer<ResumeRecoverable> typedSerializer =
+                (SimpleVersionedSerializer<ResumeRecoverable>)
+                        (SimpleVersionedSerializer<?>) HadoopRecoverableSerializer.INSTANCE;
 
-		return typedSerializer;
-	}
+        return typedSerializer;
+    }
 
-	@Override
-	public boolean supportsResume() {
-		return true;
-	}
+    @Override
+    public boolean supportsResume() {
+        return true;
+    }
 
-	@VisibleForTesting
-	static org.apache.hadoop.fs.Path generateStagingTempFilePath(
-			org.apache.hadoop.fs.FileSystem fs,
-			org.apache.hadoop.fs.Path targetFile) throws IOException {
+    @VisibleForTesting
+    static org.apache.hadoop.fs.Path generateStagingTempFilePath(
+            org.apache.hadoop.fs.FileSystem fs, org.apache.hadoop.fs.Path targetFile)
+            throws IOException {
 
-		checkArgument(targetFile.isAbsolute(), "targetFile must be absolute");
+        checkArgument(targetFile.isAbsolute(), "targetFile must be absolute");
 
-		final org.apache.hadoop.fs.Path parent = targetFile.getParent();
-		final String name = targetFile.getName();
+        final org.apache.hadoop.fs.Path parent = targetFile.getParent();
+        final String name = targetFile.getName();
 
-		checkArgument(parent != null, "targetFile must not be the root directory");
+        checkArgument(parent != null, "targetFile must not be the root directory");
 
-		while (true) {
-			org.apache.hadoop.fs.Path candidate = new org.apache.hadoop.fs.Path(
-					parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
-			if (!fs.exists(candidate)) {
-				return candidate;
-			}
-		}
-	}
+        while (true) {
+            org.apache.hadoop.fs.Path candidate =
+                    new org.apache.hadoop.fs.Path(
+                            parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
+            if (!fs.exists(candidate)) {
+                return candidate;
+            }
+        }
+    }
 }

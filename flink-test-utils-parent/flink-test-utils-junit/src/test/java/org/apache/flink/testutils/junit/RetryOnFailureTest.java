@@ -24,58 +24,52 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the RetryOnFailure annotation.
- */
+/** Tests for the RetryOnFailure annotation. */
 public class RetryOnFailureTest {
 
-	@Rule
-	public RetryRule retryRule = new RetryRule();
+    @Rule public RetryRule retryRule = new RetryRule();
 
-	private static final int NUMBER_OF_RUNS = 5;
+    private static final int NUMBER_OF_RUNS = 5;
 
-	private static int numberOfFailedRuns;
+    private static int numberOfFailedRuns;
 
-	private static int numberOfSuccessfulRuns;
+    private static int numberOfSuccessfulRuns;
 
-	private static boolean firstRun = true;
+    private static boolean firstRun = true;
 
-	@AfterClass
-	public static void verify() throws Exception {
-		assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
-		assertEquals(3, numberOfSuccessfulRuns);
-	}
+    @AfterClass
+    public static void verify() throws Exception {
+        assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
+        assertEquals(3, numberOfSuccessfulRuns);
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testRetryOnFailure() throws Exception {
-		// All but the (expected) last run should be successful
-		if (numberOfFailedRuns < NUMBER_OF_RUNS) {
-			numberOfFailedRuns++;
-			throw new RuntimeException("Expected test exception");
-		}
-		else {
-			numberOfSuccessfulRuns++;
-		}
-	}
+    @Test
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    public void testRetryOnFailure() throws Exception {
+        // All but the (expected) last run should be successful
+        if (numberOfFailedRuns < NUMBER_OF_RUNS) {
+            numberOfFailedRuns++;
+            throw new RuntimeException("Expected test exception");
+        } else {
+            numberOfSuccessfulRuns++;
+        }
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testRetryOnceOnFailure() throws Exception {
-		if (firstRun) {
-			numberOfFailedRuns++;
-			firstRun = false;
-			throw new RuntimeException("Expected test exception");
-		}
-		else {
-			numberOfSuccessfulRuns++;
-		}
-	}
+    @Test
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    public void testRetryOnceOnFailure() throws Exception {
+        if (firstRun) {
+            numberOfFailedRuns++;
+            firstRun = false;
+            throw new RuntimeException("Expected test exception");
+        } else {
+            numberOfSuccessfulRuns++;
+        }
+    }
 
-	@Test
-	@RetryOnFailure(times = NUMBER_OF_RUNS)
-	public void testDontRetryOnSuccess() throws Exception {
-		numberOfSuccessfulRuns++;
-	}
-
+    @Test
+    @RetryOnFailure(times = NUMBER_OF_RUNS)
+    public void testDontRetryOnSuccess() throws Exception {
+        numberOfSuccessfulRuns++;
+    }
 }

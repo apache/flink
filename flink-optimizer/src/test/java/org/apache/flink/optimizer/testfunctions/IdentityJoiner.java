@@ -16,17 +16,16 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.optimizer.testfunctions;
 
 import org.apache.flink.api.common.functions.JoinFunction;
 
 public class IdentityJoiner<T> implements JoinFunction<T, T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public T join(T first, T second) {
-		return first;
-	}
+    @Override
+    public T join(T first, T second) {
+        return first;
+    }
 }

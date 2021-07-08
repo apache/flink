@@ -17,18 +17,23 @@
 
 package org.apache.flink.test.streaming.api.datastream;
 
+import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
+import org.apache.flink.api.common.eventtime.TimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
@@ -36,6 +41,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -56,274 +62,316 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Integration test for {@link DataStreamUtils#reinterpretAsKeyedStream(DataStream, KeySelector, TypeInformation)}.
+ * Integration test for {@link DataStreamUtils#reinterpretAsKeyedStream(DataStream, KeySelector,
+ * TypeInformation)}.
  */
 public class ReinterpretDataStreamAsKeyedStreamITCase {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * This test checks that reinterpreting a data stream to a keyed stream works as expected. This test consists of
-	 * two jobs. The first job materializes a keyBy into files, one files per partition. The second job opens the
-	 * files created by the first jobs as sources (doing the correct assignment of files to partitions) and
-	 * reinterprets the sources as keyed, because we know they have been partitioned in a keyBy from the first job.
-	 */
-	@Test
-	public void testReinterpretAsKeyedStream() throws Exception {
+    /**
+     * This test checks that reinterpreting a data stream to a keyed stream works as expected. This
+     * test consists of two jobs. The first job materializes a keyBy into files, one files per
+     * partition. The second job opens the files created by the first jobs as sources (doing the
+     * correct assignment of files to partitions) and reinterprets the sources as keyed, because we
+     * know they have been partitioned in a keyBy from the first job.
+     */
+    @Test
+    public void testReinterpretAsKeyedStream() throws Exception {
 
-		final int maxParallelism = 8;
-		final int numEventsPerInstance = 100;
-		final int parallelism = 3;
-		final int numTotalEvents = numEventsPerInstance * parallelism;
-		final int numUniqueKeys = 100;
+        final int maxParallelism = 8;
+        final int numEventsPerInstance = 100;
+        final int parallelism = 3;
+        final int numTotalEvents = numEventsPerInstance * parallelism;
+        final int numUniqueKeys = 100;
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime);
-		env.setMaxParallelism(maxParallelism);
-		env.setParallelism(parallelism);
-		env.enableCheckpointing(100);
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setMaxParallelism(maxParallelism);
+        env.setParallelism(parallelism);
+        env.enableCheckpointing(100);
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 
-		final List<File> partitionFiles = new ArrayList<>(parallelism);
-		for (int i = 0; i < parallelism; ++i) {
-			File partitionFile = temporaryFolder.newFile();
-			partitionFiles.add(i, partitionFile);
-		}
+        final List<File> partitionFiles = new ArrayList<>(parallelism);
+        for (int i = 0; i < parallelism; ++i) {
+            File partitionFile = temporaryFolder.newFile();
+            partitionFiles.add(i, partitionFile);
+        }
 
-		env.addSource(new RandomTupleSource(numEventsPerInstance, numUniqueKeys))
-			.keyBy(0)
-			.addSink(new ToPartitionFileSink(partitionFiles));
+        env.addSource(new RandomTupleSource(numEventsPerInstance, numUniqueKeys))
+                .keyBy(0)
+                .addSink(new ToPartitionFileSink(partitionFiles));
 
-		env.execute();
+        env.execute();
 
-		DataStreamUtils.reinterpretAsKeyedStream(
-			env.addSource(new FromPartitionFileSource(partitionFiles)),
-			(KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
-			TypeInformation.of(Integer.class))
-			.timeWindow(Time.seconds(1)) // test that also timers and aggregated state work as expected
-			.reduce((ReduceFunction<Tuple2<Integer, Integer>>) (value1, value2) ->
-				new Tuple2<>(value1.f0, value1.f1 + value2.f1))
-			.addSink(new ValidatingSink(numTotalEvents)).setParallelism(1);
+        DataStream<Tuple2<Integer, Integer>> source =
+                env.addSource(new FromPartitionFileSource(partitionFiles))
+                        .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create());
 
-		env.execute();
-	}
+        DataStreamUtils.reinterpretAsKeyedStream(
+                        source,
+                        (KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
+                        TypeInformation.of(Integer.class))
+                .window(
+                        TumblingEventTimeWindows.of(
+                                Time.seconds(
+                                        1))) // test that also timers and aggregated state work as
+                // expected
+                .reduce(
+                        (ReduceFunction<Tuple2<Integer, Integer>>)
+                                (value1, value2) -> new Tuple2<>(value1.f0, value1.f1 + value2.f1))
+                .addSink(new ValidatingSink(numTotalEvents))
+                .setParallelism(1);
 
-	private static class RandomTupleSource implements ParallelSourceFunction<Tuple2<Integer, Integer>> {
-		private static final long serialVersionUID = 1L;
+        env.execute();
+    }
 
-		private final int numKeys;
-		private int remainingEvents;
+    private static class RandomTupleSource
+            implements ParallelSourceFunction<Tuple2<Integer, Integer>> {
+        private static final long serialVersionUID = 1L;
 
-		RandomTupleSource(int numEvents, int numKeys) {
-			this.numKeys = numKeys;
-			this.remainingEvents = numEvents;
-		}
+        private final int numKeys;
+        private int remainingEvents;
 
-		@Override
-		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
-			Random random = new Random(42);
-			while (remainingEvents > 0) {
-				synchronized (out.getCheckpointLock()) {
-					out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
-					--remainingEvents;
-				}
-			}
-		}
+        RandomTupleSource(int numEvents, int numKeys) {
+            this.numKeys = numKeys;
+            this.remainingEvents = numEvents;
+        }
 
-		@Override
-		public void cancel() {
-			this.remainingEvents = 0;
-		}
-	}
+        @Override
+        public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
+            Random random = new Random(42);
+            while (remainingEvents > 0) {
+                synchronized (out.getCheckpointLock()) {
+                    out.collect(new Tuple2<>(random.nextInt(numKeys), 1));
+                    --remainingEvents;
+                }
+            }
+        }
 
-	private static class ToPartitionFileSink extends RichSinkFunction<Tuple2<Integer, Integer>> {
+        @Override
+        public void cancel() {
+            this.remainingEvents = 0;
+        }
+    }
 
-		private static final long serialVersionUID = 1L;
+    private static class ToPartitionFileSink extends RichSinkFunction<Tuple2<Integer, Integer>> {
 
-		private final List<File> allPartitions;
-		private DataOutputStream dos;
+        private static final long serialVersionUID = 1L;
 
-		ToPartitionFileSink(List<File> allPartitions) {
-			this.allPartitions = allPartitions;
-		}
+        private final List<File> allPartitions;
+        private DataOutputStream dos;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-			dos = new DataOutputStream(
-				new BufferedOutputStream(
-					new FileOutputStream(allPartitions.get(subtaskIdx))));
-		}
+        ToPartitionFileSink(List<File> allPartitions) {
+            this.allPartitions = allPartitions;
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			dos.close();
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            dos =
+                    new DataOutputStream(
+                            new BufferedOutputStream(
+                                    new FileOutputStream(allPartitions.get(subtaskIdx))));
+        }
 
-		@Override
-		public void invoke(Tuple2<Integer, Integer> value, Context context) throws Exception {
-			dos.writeInt(value.f0);
-			dos.writeInt(value.f1);
-		}
-	}
+        @Override
+        public void close() throws Exception {
+            super.close();
+            dos.close();
+        }
 
-	private static class FromPartitionFileSource extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
-	implements CheckpointedFunction, CheckpointListener {
-		private static final long serialVersionUID = 1L;
+        @Override
+        public void invoke(Tuple2<Integer, Integer> value, Context context) throws Exception {
+            dos.writeInt(value.f0);
+            dos.writeInt(value.f1);
+        }
+    }
 
-		private final List<File> allPartitions;
-		private DataInputStream din;
-		private volatile boolean running;
+    private static class FromPartitionFileSource
+            extends RichParallelSourceFunction<Tuple2<Integer, Integer>>
+            implements CheckpointedFunction, CheckpointListener {
+        private static final long serialVersionUID = 1L;
 
-		private long fileLength;
-		private long waitForFailurePos;
-		private long position;
-		private transient ListState<Long> positionState;
-		private transient boolean isRestored;
+        private final List<File> allPartitions;
+        private DataInputStream din;
+        private volatile boolean running;
 
-		private transient volatile boolean canFail;
+        private long fileLength;
+        private long waitForFailurePos;
+        private long position;
+        private transient ListState<Long> positionState;
+        private transient boolean isRestored;
 
-		FromPartitionFileSource(List<File> allPartitions) {
-			this.allPartitions = allPartitions;
-		}
+        private transient volatile boolean canFail;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
-			File partitionFile = allPartitions.get(subtaskIdx);
-			fileLength = partitionFile.length();
-			waitForFailurePos = fileLength * 3 / 4;
-			din = new DataInputStream(
-				new BufferedInputStream(
-					new FileInputStream(partitionFile)));
+        FromPartitionFileSource(List<File> allPartitions) {
+            this.allPartitions = allPartitions;
+        }
 
-			long toSkip = position;
-			while (toSkip > 0L) {
-				toSkip -= din.skip(toSkip);
-			}
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            File partitionFile = allPartitions.get(subtaskIdx);
+            fileLength = partitionFile.length();
+            waitForFailurePos = fileLength * 3 / 4;
+            din = new DataInputStream(new BufferedInputStream(new FileInputStream(partitionFile)));
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			din.close();
-		}
+            long toSkip = position;
+            while (toSkip > 0L) {
+                toSkip -= din.skip(toSkip);
+            }
+        }
 
-		@Override
-		public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
+        @Override
+        public void close() throws Exception {
+            super.close();
+            din.close();
+        }
 
-			running = true;
+        @Override
+        public void run(SourceContext<Tuple2<Integer, Integer>> out) throws Exception {
 
-			while (running && hasMoreDataToRead()) {
+            running = true;
 
-				synchronized (out.getCheckpointLock()) {
-					Integer key = din.readInt();
-					Integer val = din.readInt();
-					out.collect(new Tuple2<>(key, val));
+            while (running && hasMoreDataToRead()) {
 
-					position += 2 * Integer.BYTES;
-				}
+                synchronized (out.getCheckpointLock()) {
+                    Integer key = din.readInt();
+                    Integer val = din.readInt();
+                    out.collect(new Tuple2<>(key, val));
 
-				if (shouldWaitForCompletedCheckpointAndFailNow()) {
-					while (!canFail) {
-						// wait for a checkpoint to complete
-						Thread.sleep(10L);
-					}
-					throw new Exception("Artificial failure.");
-				}
-			}
-		}
+                    position += 2 * Integer.BYTES;
+                }
 
-		private boolean shouldWaitForCompletedCheckpointAndFailNow() {
-			return !isRestored && position > waitForFailurePos;
-		}
+                if (shouldWaitForCompletedCheckpointAndFailNow()) {
+                    while (!canFail) {
+                        // wait for a checkpoint to complete
+                        Thread.sleep(10L);
+                    }
+                    throw new Exception("Artificial failure.");
+                }
+            }
+        }
 
-		private boolean hasMoreDataToRead() {
-			return position < fileLength;
-		}
+        private boolean shouldWaitForCompletedCheckpointAndFailNow() {
+            return !isRestored && position > waitForFailurePos;
+        }
 
-		@Override
-		public void cancel() {
-			this.running = false;
-		}
+        private boolean hasMoreDataToRead() {
+            return position < fileLength;
+        }
 
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) {
-			canFail = !isRestored;
-		}
+        @Override
+        public void cancel() {
+            this.running = false;
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			positionState.clear();
-			positionState.add(position);
-		}
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) {
+            canFail = !isRestored;
+        }
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			canFail = false;
-			position = 0L;
-			isRestored = context.isRestored();
-			positionState = context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>("posState", Long.class));
+        @Override
+        public void notifyCheckpointAborted(long checkpointId) {}
 
-			if (isRestored) {
-				for (long value : positionState.get()) {
-					position += value;
-				}
-			}
-		}
-	}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            positionState.clear();
+            positionState.add(position);
+        }
 
-	private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>>
-		implements CheckpointedFunction {
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            canFail = false;
+            position = 0L;
+            isRestored = context.isRestored();
+            positionState =
+                    context.getOperatorStateStore()
+                            .getListState(new ListStateDescriptor<>("posState", Long.class));
 
-		private static final long serialVersionUID = 1L;
-		private final int expectedSum;
-		private int runningSum = 0;
+            if (isRestored) {
+                for (long value : positionState.get()) {
+                    position += value;
+                }
+            }
+        }
+    }
 
-		private transient ListState<Integer> sumState;
+    private static class ValidatingSink extends RichSinkFunction<Tuple2<Integer, Integer>>
+            implements CheckpointedFunction {
 
-		private ValidatingSink(int expectedSum) {
-			this.expectedSum = expectedSum;
-		}
+        private static final long serialVersionUID = 1L;
+        private final int expectedSum;
+        private int runningSum = 0;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
-		}
+        private transient ListState<Integer> sumState;
 
-		@Override
-		public void invoke(Tuple2<Integer, Integer> value, Context context) throws Exception {
-			runningSum += value.f1;
-		}
+        private ValidatingSink(int expectedSum) {
+            this.expectedSum = expectedSum;
+        }
 
-		@Override
-		public void close() throws Exception {
-			Assert.assertEquals(expectedSum, runningSum);
-			super.close();
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
+        }
 
-		@Override
-		public void snapshotState(FunctionSnapshotContext context) throws Exception {
-			sumState.clear();
-			sumState.add(runningSum);
-		}
+        @Override
+        public void invoke(Tuple2<Integer, Integer> value, Context context) throws Exception {
+            runningSum += value.f1;
+        }
 
-		@Override
-		public void initializeState(FunctionInitializationContext context) throws Exception {
-			sumState = context.getOperatorStateStore().getListState(
-				new ListStateDescriptor<>("sumState", Integer.class));
+        @Override
+        public void close() throws Exception {
+            Assert.assertEquals(expectedSum, runningSum);
+            super.close();
+        }
 
-			if (context.isRestored()) {
-				for (int value : sumState.get()) {
-					runningSum += value;
-				}
-			}
-		}
-	}
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            sumState.clear();
+            sumState.add(runningSum);
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            sumState =
+                    context.getOperatorStateStore()
+                            .getListState(new ListStateDescriptor<>("sumState", Integer.class));
+
+            if (context.isRestored()) {
+                for (int value : sumState.get()) {
+                    runningSum += value;
+                }
+            }
+        }
+    }
+
+    /**
+     * This {@link WatermarkStrategy} assigns the current system time as the event-time timestamp.
+     * In a real use case you should use proper timestamps and an appropriate {@link
+     * WatermarkStrategy}.
+     */
+    private static class IngestionTimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
+
+        private IngestionTimeWatermarkStrategy() {}
+
+        public static <T> IngestionTimeWatermarkStrategy<T> create() {
+            return new IngestionTimeWatermarkStrategy<>();
+        }
+
+        @Override
+        public WatermarkGenerator<T> createWatermarkGenerator(
+                WatermarkGeneratorSupplier.Context context) {
+            return new AscendingTimestampsWatermarks<>();
+        }
+
+        @Override
+        public TimestampAssigner<T> createTimestampAssigner(
+                TimestampAssignerSupplier.Context context) {
+            return (event, timestamp) -> System.currentTimeMillis();
+        }
+    }
 }

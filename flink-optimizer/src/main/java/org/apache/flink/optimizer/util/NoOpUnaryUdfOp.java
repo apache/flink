@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer.util;
 
-import java.util.List;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.NoOpFunction;
@@ -28,27 +26,28 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
+import java.util.List;
 
 public class NoOpUnaryUdfOp<OUT> extends SingleInputOperator<OUT, OUT, NoOpFunction> {
-	
-	@SuppressWarnings("rawtypes")
-	public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
-	
-	public NoOpUnaryUdfOp() {
-		// pass null here because we override getOutputType to return type
-		// of input operator
-		super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), null, "");
-	}
 
-	@Override
-	public UnaryOperatorInformation<OUT, OUT> getOperatorInfo() {
-		TypeInformation<OUT> previousOut = input.getOperatorInfo().getOutputType();
-		return new UnaryOperatorInformation<OUT, OUT>(previousOut, previousOut);
-	}
+    @SuppressWarnings("rawtypes")
+    public static final NoOpUnaryUdfOp INSTANCE = new NoOpUnaryUdfOp();
 
-	@Override
-	protected List<OUT> executeOnCollections(List<OUT> inputData, RuntimeContext runtimeContext, ExecutionConfig executionConfig) {
-		return inputData;
-	}
+    public NoOpUnaryUdfOp() {
+        // pass null here because we override getOutputType to return type
+        // of input operator
+        super(new UserCodeClassWrapper<NoOpFunction>(NoOpFunction.class), null, "");
+    }
+
+    @Override
+    public UnaryOperatorInformation<OUT, OUT> getOperatorInfo() {
+        TypeInformation<OUT> previousOut = input.getOperatorInfo().getOutputType();
+        return new UnaryOperatorInformation<OUT, OUT>(previousOut, previousOut);
+    }
+
+    @Override
+    protected List<OUT> executeOnCollections(
+            List<OUT> inputData, RuntimeContext runtimeContext, ExecutionConfig executionConfig) {
+        return inputData;
+    }
 }
-

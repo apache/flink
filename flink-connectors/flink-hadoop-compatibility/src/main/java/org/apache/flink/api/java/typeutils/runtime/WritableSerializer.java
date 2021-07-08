@@ -37,190 +37,190 @@ import java.io.IOException;
 
 /**
  * A {@link TypeSerializer} for {@link Writable}.
+ *
  * @param <T>
  */
 @Internal
 public final class WritableSerializer<T extends Writable> extends TypeSerializer<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Class<T> typeClass;
+    private final Class<T> typeClass;
 
-	private transient Kryo kryo;
+    private transient Kryo kryo;
 
-	private transient T copyInstance;
+    private transient T copyInstance;
 
-	public WritableSerializer(Class<T> typeClass) {
-		this.typeClass = typeClass;
-	}
+    public WritableSerializer(Class<T> typeClass) {
+        this.typeClass = typeClass;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public T createInstance() {
-		if (typeClass == NullWritable.class) {
-			return (T) NullWritable.get();
-		}
-		return InstantiationUtil.instantiate(typeClass);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public T createInstance() {
+        if (typeClass == NullWritable.class) {
+            return (T) NullWritable.get();
+        }
+        return InstantiationUtil.instantiate(typeClass);
+    }
 
-	@Override
-	public T copy(T from) {
-		checkKryoInitialized();
+    @Override
+    public T copy(T from) {
+        checkKryoInitialized();
 
-		return KryoUtils.copy(from, kryo, this);
-	}
+        return KryoUtils.copy(from, kryo, this);
+    }
 
-	@Override
-	public T copy(T from, T reuse) {
-		checkKryoInitialized();
+    @Override
+    public T copy(T from, T reuse) {
+        checkKryoInitialized();
 
-		return KryoUtils.copy(from, reuse, kryo, this);
-	}
+        return KryoUtils.copy(from, reuse, kryo, this);
+    }
 
-	@Override
-	public int getLength() {
-		return -1;
-	}
+    @Override
+    public int getLength() {
+        return -1;
+    }
 
-	@Override
-	public void serialize(T record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public void serialize(T record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public T deserialize(DataInputView source) throws IOException {
-		return deserialize(createInstance(), source);
-	}
+    @Override
+    public T deserialize(DataInputView source) throws IOException {
+        return deserialize(createInstance(), source);
+    }
 
-	@Override
-	public T deserialize(T reuse, DataInputView source) throws IOException {
-		reuse.readFields(source);
-		return reuse;
-	}
+    @Override
+    public T deserialize(T reuse, DataInputView source) throws IOException {
+        reuse.readFields(source);
+        return reuse;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		ensureInstanceInstantiated();
-		copyInstance.readFields(source);
-		copyInstance.write(target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        ensureInstanceInstantiated();
+        copyInstance.readFields(source);
+        copyInstance.write(target);
+    }
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public WritableSerializer<T> duplicate() {
-		return new WritableSerializer<T>(typeClass);
-	}
+    @Override
+    public WritableSerializer<T> duplicate() {
+        return new WritableSerializer<T>(typeClass);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private void ensureInstanceInstantiated() {
-		if (copyInstance == null) {
-			copyInstance = createInstance();
-		}
-	}
+    private void ensureInstanceInstantiated() {
+        if (copyInstance == null) {
+            copyInstance = createInstance();
+        }
+    }
 
-	private void checkKryoInitialized() {
-		if (this.kryo == null) {
-			this.kryo = new Kryo();
+    private void checkKryoInitialized() {
+        if (this.kryo == null) {
+            this.kryo = new Kryo();
 
-			Kryo.DefaultInstantiatorStrategy instantiatorStrategy = new Kryo.DefaultInstantiatorStrategy();
-			instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
-			kryo.setInstantiatorStrategy(instantiatorStrategy);
+            Kryo.DefaultInstantiatorStrategy instantiatorStrategy =
+                    new Kryo.DefaultInstantiatorStrategy();
+            instantiatorStrategy.setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
+            kryo.setInstantiatorStrategy(instantiatorStrategy);
 
-			this.kryo.setAsmEnabled(true);
-			this.kryo.register(typeClass);
-		}
-	}
-	// --------------------------------------------------------------------------------------------
+            this.kryo.setAsmEnabled(true);
+            this.kryo.register(typeClass);
+        }
+    }
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public int hashCode() {
-		return this.typeClass.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return this.typeClass.hashCode();
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof WritableSerializer) {
-			WritableSerializer<?> other = (WritableSerializer<?>) obj;
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof WritableSerializer) {
+            WritableSerializer<?> other = (WritableSerializer<?>) obj;
 
-			return typeClass == other.typeClass;
-		} else {
-			return false;
-		}
-	}
+            return typeClass == other.typeClass;
+        } else {
+            return false;
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Serializer configuration snapshotting & compatibility
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Serializer configuration snapshotting & compatibility
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public TypeSerializerSnapshot<T> snapshotConfiguration() {
-		return new WritableSerializerSnapshot<>(typeClass);
-	}
+    @Override
+    public TypeSerializerSnapshot<T> snapshotConfiguration() {
+        return new WritableSerializerSnapshot<>(typeClass);
+    }
 
-	/**
-	 * The config snapshot for this serializer.
-	 * @deprecated This class is no longer used as a snapshot for any serializer.
-	 *             It is fully replaced by {@link WritableSerializerSnapshot}.
-	 */
-	@Deprecated
-	public static final class WritableSerializerConfigSnapshot<T extends Writable>
-			extends GenericTypeSerializerConfigSnapshot<T> {
+    /**
+     * The config snapshot for this serializer.
+     *
+     * @deprecated This class is no longer used as a snapshot for any serializer. It is fully
+     *     replaced by {@link WritableSerializerSnapshot}.
+     */
+    @Deprecated
+    public static final class WritableSerializerConfigSnapshot<T extends Writable>
+            extends GenericTypeSerializerConfigSnapshot<T> {
 
-		private static final int VERSION = 1;
+        private static final int VERSION = 1;
 
-		/** This empty nullary constructor is required for deserializing the configuration. */
-		public WritableSerializerConfigSnapshot() {}
+        /** This empty nullary constructor is required for deserializing the configuration. */
+        public WritableSerializerConfigSnapshot() {}
 
-		public WritableSerializerConfigSnapshot(Class<T> writableTypeClass) {
-			super(writableTypeClass);
-		}
+        public WritableSerializerConfigSnapshot(Class<T> writableTypeClass) {
+            super(writableTypeClass);
+        }
 
-		@Override
-		public int getVersion() {
-			return VERSION;
-		}
+        @Override
+        public int getVersion() {
+            return VERSION;
+        }
 
-		@Override
-		public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-			return new WritableSerializerSnapshot<>(getTypeClass())
-				.resolveSchemaCompatibility(newSerializer);
-		}
-	}
+        @Override
+        public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+                TypeSerializer<T> newSerializer) {
+            return new WritableSerializerSnapshot<>(getTypeClass())
+                    .resolveSchemaCompatibility(newSerializer);
+        }
+    }
 
-	/**
-	 * {@link WritableSerializer} snapshot class.
-	 */
-	public static final class WritableSerializerSnapshot<T extends Writable>
-		extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
+    /** {@link WritableSerializer} snapshot class. */
+    public static final class WritableSerializerSnapshot<T extends Writable>
+            extends GenericTypeSerializerSnapshot<T, WritableSerializer> {
 
-		@SuppressWarnings("unused")
-		public WritableSerializerSnapshot() {
-		}
+        @SuppressWarnings("unused")
+        public WritableSerializerSnapshot() {}
 
-		WritableSerializerSnapshot(Class<T> typeClass) {
-			super(typeClass);
-		}
+        WritableSerializerSnapshot(Class<T> typeClass) {
+            super(typeClass);
+        }
 
-		@Override
-		protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
-			return new WritableSerializer<>(typeClass);
-		}
+        @Override
+        protected TypeSerializer<T> createSerializer(Class<T> typeClass) {
+            return new WritableSerializer<>(typeClass);
+        }
 
-		@SuppressWarnings("unchecked")
-		@Override
-		protected Class<T> getTypeClass(WritableSerializer serializer) {
-			return serializer.typeClass;
-		}
+        @SuppressWarnings("unchecked")
+        @Override
+        protected Class<T> getTypeClass(WritableSerializer serializer) {
+            return serializer.typeClass;
+        }
 
-		@Override
-		protected Class<?> serializerClass() {
-			return WritableSerializer.class;
-		}
-	}
-
+        @Override
+        protected Class<?> serializerClass() {
+            return WritableSerializer.class;
+        }
+    }
 }

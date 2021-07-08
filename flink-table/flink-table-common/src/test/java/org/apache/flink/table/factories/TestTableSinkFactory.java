@@ -31,40 +31,38 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 
-/**
- * Test table sink factory.
- */
+/** Test table sink factory. */
 public class TestTableSinkFactory implements TableFactory, TableSinkFactory<Row> {
 
-	public static final String CONNECTOR_TYPE_VALUE_TEST = "test";
-	public static final String FORMAT_TYPE_VALUE_TEST = "test";
-	public static final String FORMAT_PATH = "format.path";
-	public static final String REQUIRED_TEST = "required.test";
-	public static final String REQUIRED_TEST_VALUE = "required-0";
+    public static final String CONNECTOR_TYPE_VALUE_TEST = "test";
+    public static final String FORMAT_TYPE_VALUE_TEST = "test";
+    public static final String FORMAT_PATH = "format.path";
+    public static final String REQUIRED_TEST = "required.test";
+    public static final String REQUIRED_TEST_VALUE = "required-0";
 
-	@Override
-	public TableSink<Row> createTableSink(Map<String, String> properties) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public TableSink<Row> createTableSink(Map<String, String> properties) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST);
-		context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
-		context.put(REQUIRED_TEST, REQUIRED_TEST_VALUE);
-		context.put(CONNECTOR_PROPERTY_VERSION, "1");
-		context.put(FORMAT_PROPERTY_VERSION, "1");
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST);
+        context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
+        context.put(REQUIRED_TEST, REQUIRED_TEST_VALUE);
+        context.put(CONNECTOR_PROPERTY_VERSION, "1");
+        context.put(FORMAT_PROPERTY_VERSION, "1");
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		List<String> properties = new ArrayList<>();
-		// connector
-		properties.add(FORMAT_PATH);
-		properties.add("schema.#.name");
-		properties.add("schema.#.field.#.name");
-		return properties;
-	}
+    @Override
+    public List<String> supportedProperties() {
+        List<String> properties = new ArrayList<>();
+        // connector
+        properties.add(FORMAT_PATH);
+        properties.add("schema.#.name");
+        properties.add("schema.#.field.#.name");
+        return properties;
+    }
 }

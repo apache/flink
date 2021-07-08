@@ -19,39 +19,34 @@
 package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
-
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.flink.python.PythonFunctionRunner;
 
 /**
- * The base interface of python environment manager which is used to create the Environment object and the
- * RetrievalToken of Beam Fn API.
+ * The base interface of python environment manager which is used to create the PythonEnvironment
+ * object and the RetrievalToken.
  */
 @Internal
 public interface PythonEnvironmentManager extends AutoCloseable {
 
-	/**
-	 * Initialize the environment manager.
-	 */
-	void open() throws Exception;
+    /** Initialize the environment manager. */
+    void open() throws Exception;
 
-	/**
-	 * Creates the Environment object used in Apache Beam Fn API.
-	 *
-	 * @return The Environment object which represents the environment(process, docker, etc) the python worker would run
-	 *         in.
-	 */
-	RunnerApi.Environment createEnvironment() throws Exception;
+    /**
+     * Creates the PythonEnvironment object used in {@link PythonFunctionRunner}.
+     *
+     * @return The PythonEnvironment object which represents the environment(process, docker, etc)
+     *     the python worker would run in.
+     */
+    PythonEnvironment createEnvironment() throws Exception;
 
-	/**
-	 * Creates the RetrievalToken used in Apache Beam Fn API. It contains a list of files which need to transmit through
-	 * ArtifactService provided by Apache Beam.
-	 *
-	 * @return The path of the RetrievalToken file.
-	 */
-	String createRetrievalToken() throws Exception;
+    /**
+     * Creates the RetrievalToken used in {@link PythonFunctionRunner}. It contains a list of files
+     * which need to transmit through ArtifactService provided by {@link PythonFunctionRunner}.
+     *
+     * @return The path of the RetrievalToken file.
+     */
+    String createRetrievalToken() throws Exception;
 
-	/**
-	 * Returns the boot log of the Python Environment.
-	 */
-	String getBootLog() throws Exception;
+    /** Returns the boot log of the Python Environment. */
+    String getBootLog() throws Exception;
 }

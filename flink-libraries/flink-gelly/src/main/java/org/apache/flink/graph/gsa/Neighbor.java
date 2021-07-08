@@ -21,8 +21,8 @@ package org.apache.flink.graph.gsa;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 /**
- * This class represents a {@code <sourceVertex, edge>} pair. This is a wrapper
- * around {@code Tuple2<VV, EV>} for convenience in the GatherFunction.
+ * This class represents a {@code <sourceVertex, edge>} pair. This is a wrapper around {@code
+ * Tuple2<VV, EV>} for convenience in the GatherFunction.
  *
  * @param <VV> the vertex value type
  * @param <EV> the edge value type
@@ -30,17 +30,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 @SuppressWarnings("serial")
 public class Neighbor<VV, EV> extends Tuple2<VV, EV> {
 
-	public Neighbor() {}
+    public Neighbor() {}
 
-	public Neighbor(VV neighborValue, EV edgeValue) {
-		super(neighborValue, edgeValue);
-	}
+    public Neighbor(VV neighborValue, EV edgeValue) {
+        super(neighborValue, edgeValue);
+    }
 
-	public VV getNeighborValue() {
-		return this.f0;
-	}
+    public VV getNeighborValue() {
+        return this.f0;
+    }
 
-	public EV getEdgeValue() {
-		return this.f1;
-	}
+    public EV getEdgeValue() {
+        return this.f1;
+    }
 }

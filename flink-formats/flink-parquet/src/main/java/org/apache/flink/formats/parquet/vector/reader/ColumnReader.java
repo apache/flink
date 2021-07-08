@@ -17,18 +17,16 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.vector.writable.WritableColumnVector;
+import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 
 import java.io.IOException;
 
-/**
- * Read a batch of records for a column to {@link WritableColumnVector} from parquet data file.
- */
+/** Read a batch of records for a column to {@link WritableColumnVector} from parquet data file. */
 public interface ColumnReader<VECTOR extends WritableColumnVector> {
 
-	/**
-	 * @param readNumber number to read.
-	 * @param vector vector to write.
-	 */
-	void readToVector(int readNumber, VECTOR vector) throws IOException;
+    /**
+     * @param readNumber number to read.
+     * @param vector vector to write.
+     */
+    void readToVector(int readNumber, VECTOR vector) throws IOException;
 }

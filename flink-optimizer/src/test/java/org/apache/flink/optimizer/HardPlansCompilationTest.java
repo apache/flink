@@ -28,43 +28,57 @@ import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+
 import org.junit.Test;
 
 /**
  * This class tests plans that once failed because of a bug:
+ *
  * <ul>
- *   <li> Ticket 158
+ *   <li>Ticket 158
  * </ul>
  */
 @SuppressWarnings({"serial"})
 public class HardPlansCompilationTest extends CompilerTestBase {
-	
-	/**
-	 * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce ->
-	 * |--------------------------/                  /
-	 * |--------------------------------------------/
-	 * 
-	 * First cross has SameKeyFirst output contract
-	 */
-	@Test
-	public void testTicket158() {
-		// construct the plan
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(DEFAULT_PARALLELISM);
-		DataSet<Long> set1 = env.generateSequence(0,1);
 
-		set1.map(new IdentityMapper<Long>()).name("Map1")
-				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce1")
-				.cross(set1).with(new IdentityCrosser<Long>()).withForwardedFieldsFirst("*").name("Cross1")
-				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce2")
-				.cross(set1).with(new IdentityCrosser<Long>()).name("Cross2")
-				.groupBy("*").reduceGroup(new IdentityGroupReducer<Long>()).name("Reduce3")
-				.output(new DiscardingOutputFormat<Long>()).name("Sink");
+    /**
+     * Source -> Map -> Reduce -> Cross -> Reduce -> Cross -> Reduce -> |--------------------------/
+     * / |--------------------------------------------/
+     *
+     * <p>First cross has SameKeyFirst output contract
+     */
+    @Test
+    public void testTicket158() {
+        // construct the plan
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(DEFAULT_PARALLELISM);
+        DataSet<Long> set1 = env.generateSequence(0, 1);
 
-		Plan plan = env.createProgramPlan();
-		OptimizedPlan oPlan = compileNoStats(plan);
+        set1.map(new IdentityMapper<Long>())
+                .name("Map1")
+                .groupBy("*")
+                .reduceGroup(new IdentityGroupReducer<Long>())
+                .name("Reduce1")
+                .cross(set1)
+                .with(new IdentityCrosser<Long>())
+                .withForwardedFieldsFirst("*")
+                .name("Cross1")
+                .groupBy("*")
+                .reduceGroup(new IdentityGroupReducer<Long>())
+                .name("Reduce2")
+                .cross(set1)
+                .with(new IdentityCrosser<Long>())
+                .name("Cross2")
+                .groupBy("*")
+                .reduceGroup(new IdentityGroupReducer<Long>())
+                .name("Reduce3")
+                .output(new DiscardingOutputFormat<Long>())
+                .name("Sink");
 
-		JobGraphGenerator jobGen = new JobGraphGenerator();
-		jobGen.compileJobGraph(oPlan);
-	}
+        Plan plan = env.createProgramPlan();
+        OptimizedPlan oPlan = compileNoStats(plan);
+
+        JobGraphGenerator jobGen = new JobGraphGenerator();
+        jobGen.compileJobGraph(oPlan);
+    }
 }

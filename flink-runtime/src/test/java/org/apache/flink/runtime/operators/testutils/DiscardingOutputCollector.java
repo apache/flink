@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-
-
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.util.Collector;
 
 public class DiscardingOutputCollector<T> implements Collector<T> {
-	
-	@Override
-	public void collect(T rec) {}
 
-	@Override
-	public void close() {}
+    @Override
+    public void collect(T rec) {}
+
+    @Override
+    public void close() {}
 }

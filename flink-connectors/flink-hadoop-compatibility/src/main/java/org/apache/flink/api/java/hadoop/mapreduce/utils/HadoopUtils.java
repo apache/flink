@@ -25,35 +25,33 @@ import org.apache.hadoop.conf.Configuration;
 
 import java.util.Map;
 
-/**
- * Utility class to work with next generation of Apache Hadoop MapReduce classes.
- */
+/** Utility class to work with next generation of Apache Hadoop MapReduce classes. */
 @Internal
 public final class HadoopUtils {
 
-	/**
-	 * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
-	 */
-	public static void mergeHadoopConf(Configuration hadoopConfig) {
+    /**
+     * Merge HadoopConfiguration into Configuration. This is necessary for the HDFS configuration.
+     */
+    public static void mergeHadoopConf(Configuration hadoopConfig) {
 
-		// we have to load the global configuration here, because the HadoopInputFormatBase does not
-		// have access to a Flink configuration object
-		org.apache.flink.configuration.Configuration flinkConfiguration = GlobalConfiguration.loadConfiguration();
+        // we have to load the global configuration here, because the HadoopInputFormatBase does not
+        // have access to a Flink configuration object
+        org.apache.flink.configuration.Configuration flinkConfiguration =
+                GlobalConfiguration.loadConfiguration();
 
-		Configuration hadoopConf =
-			org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration(flinkConfiguration);
+        Configuration hadoopConf =
+                org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils.getHadoopConfiguration(
+                        flinkConfiguration);
 
-		for (Map.Entry<String, String> e : hadoopConf) {
-			if (hadoopConfig.get(e.getKey()) == null) {
-				hadoopConfig.set(e.getKey(), e.getValue());
-			}
-		}
-	}
+        for (Map.Entry<String, String> e : hadoopConf) {
+            if (hadoopConfig.get(e.getKey()) == null) {
+                hadoopConfig.set(e.getKey(), e.getValue());
+            }
+        }
+    }
 
-	/**
-	 * Private constructor to prevent instantiation.
-	 */
-	private HadoopUtils() {
-		throw new RuntimeException();
-	}
+    /** Private constructor to prevent instantiation. */
+    private HadoopUtils() {
+        throw new RuntimeException();
+    }
 }

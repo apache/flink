@@ -42,143 +42,167 @@ import static org.apache.flink.streaming.tests.TestOperatorEnum.EVENT_SOURCE;
 import static org.apache.flink.streaming.tests.TestOperatorEnum.TIME_WINDOW_OPER;
 
 /**
- * The test program for a job that simply accumulates data in various states.
- * This is used to stress the RocksDB memory and check that the cache/write buffer management work
- * properly, limiting the overall memory footprint of RocksDB.
+ * The test program for a job that simply accumulates data in various states. This is used to stress
+ * the RocksDB memory and check that the cache/write buffer management work properly, limiting the
+ * overall memory footprint of RocksDB.
  */
 public class RocksDBStateMemoryControlTestProgram {
 
-	public static void main(String[] args) throws Exception {
-		final ParameterTool pt = ParameterTool.fromArgs(args);
-		final boolean useValueState = pt.getBoolean("useValueState", false);
-		final boolean useListState = pt.getBoolean("useListState", false);
-		final boolean useMapState = pt.getBoolean("useMapState", false);
+    public static void main(String[] args) throws Exception {
+        final ParameterTool pt = ParameterTool.fromArgs(args);
+        final boolean useValueState = pt.getBoolean("useValueState", false);
+        final boolean useListState = pt.getBoolean("useListState", false);
+        final boolean useMapState = pt.getBoolean("useMapState", false);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		setupEnvironment(env, pt);
-		KeyedStream<Event, Integer> keyedStream = env
-			.addSource(DataStreamAllroundTestJobFactory.createEventSource(pt))
-			.name(EVENT_SOURCE.getName())
-			.uid(EVENT_SOURCE.getUid())
-			.assignTimestampsAndWatermarks(createTimestampExtractor(pt))
-			.keyBy(Event::getKey);
+        setupEnvironment(env, pt);
+        KeyedStream<Event, Integer> keyedStream =
+                env.addSource(DataStreamAllroundTestJobFactory.createEventSource(pt))
+                        .name(EVENT_SOURCE.getName())
+                        .uid(EVENT_SOURCE.getUid())
+                        .assignTimestampsAndWatermarks(createTimestampExtractor(pt))
+                        .keyBy(Event::getKey);
 
-		keyedStream.map(new ValueStateMapper(useValueState)).name("ValueStateMapper").uid("ValueStateMapper");
-		keyedStream.map(new ListStateMapper(useListState)).name("ListStateMapper").uid("ListStateMapper");
-		keyedStream.map(new MapStateMapper(useMapState)).name("MapStateMapper").uid("MapStateMapper");
+        keyedStream
+                .map(new ValueStateMapper(useValueState))
+                .name("ValueStateMapper")
+                .uid("ValueStateMapper");
+        keyedStream
+                .map(new ListStateMapper(useListState))
+                .name("ListStateMapper")
+                .uid("ListStateMapper");
+        keyedStream
+                .map(new MapStateMapper(useMapState))
+                .name("MapStateMapper")
+                .uid("MapStateMapper");
 
-		boolean useWindow = pt.getBoolean("useWindow", false);
-		if (useWindow) {
-			applyTumblingWindows(keyedStream, pt)
-				.apply(new WindowFunction<Event, Event, Integer, TimeWindow>() {
-					@Override
-					public void apply(Integer integer, TimeWindow window, Iterable<Event> input, Collector<Event> out) {
-						for (Event e : input) {
-							out.collect(e);
-						}
-					}
-				})
-				.name(TIME_WINDOW_OPER.getName())
-				.uid(TIME_WINDOW_OPER.getUid());
-		}
+        boolean useWindow = pt.getBoolean("useWindow", false);
+        if (useWindow) {
+            applyTumblingWindows(keyedStream, pt)
+                    .apply(
+                            new WindowFunction<Event, Event, Integer, TimeWindow>() {
+                                @Override
+                                public void apply(
+                                        Integer integer,
+                                        TimeWindow window,
+                                        Iterable<Event> input,
+                                        Collector<Event> out) {
+                                    for (Event e : input) {
+                                        out.collect(e);
+                                    }
+                                }
+                            })
+                    .name(TIME_WINDOW_OPER.getName())
+                    .uid(TIME_WINDOW_OPER.getUid());
+        }
 
-		env.execute("RocksDB test job");
-	}
+        env.execute("RocksDB test job");
+    }
 
-	private static class ValueStateMapper extends RichMapFunction<Event, Event> {
+    private static class ValueStateMapper extends RichMapFunction<Event, Event> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private transient ValueState<String> valueState;
+        private transient ValueState<String> valueState;
 
-		private final boolean useValueState;
+        private final boolean useValueState;
 
-		ValueStateMapper(boolean useValueState) {
-			this.useValueState = useValueState;
-		}
+        ValueStateMapper(boolean useValueState) {
+            this.useValueState = useValueState;
+        }
 
-		@Override
-		public void open(Configuration parameters) {
-			int index = getRuntimeContext().getIndexOfThisSubtask();
-			if (useValueState) {
-				valueState = getRuntimeContext()
-					.getState(new ValueStateDescriptor<>("valueState-" + index, StringSerializer.INSTANCE));
-			}
-		}
+        @Override
+        public void open(Configuration parameters) {
+            int index = getRuntimeContext().getIndexOfThisSubtask();
+            if (useValueState) {
+                valueState =
+                        getRuntimeContext()
+                                .getState(
+                                        new ValueStateDescriptor<>(
+                                                "valueState-" + index, StringSerializer.INSTANCE));
+            }
+        }
 
-		@Override
-		public Event map(Event event) throws Exception {
-			if (useValueState) {
-				String value = valueState.value();
-				if (value != null) {
-					valueState.update(event.getPayload().concat(value));
-				} else {
-					valueState.update(event.getPayload());
-				}
-			}
-			return event;
-		}
-	}
+        @Override
+        public Event map(Event event) throws Exception {
+            if (useValueState) {
+                String value = valueState.value();
+                if (value != null) {
+                    valueState.update(event.getPayload().concat(value));
+                } else {
+                    valueState.update(event.getPayload());
+                }
+            }
+            return event;
+        }
+    }
 
-	private static class ListStateMapper extends RichMapFunction<Event, Event> {
+    private static class ListStateMapper extends RichMapFunction<Event, Event> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private transient ListState<String> listState;
+        private transient ListState<String> listState;
 
-		private final boolean useListState;
+        private final boolean useListState;
 
-		ListStateMapper(boolean useListState) {
-			this.useListState = useListState;
-		}
+        ListStateMapper(boolean useListState) {
+            this.useListState = useListState;
+        }
 
-		@Override
-		public void open(Configuration parameters) {
-			int index = getRuntimeContext().getIndexOfThisSubtask();
-			if (useListState) {
-				listState = getRuntimeContext()
-					.getListState(new ListStateDescriptor<>("listState-" + index, StringSerializer.INSTANCE));
-			}
-		}
+        @Override
+        public void open(Configuration parameters) {
+            int index = getRuntimeContext().getIndexOfThisSubtask();
+            if (useListState) {
+                listState =
+                        getRuntimeContext()
+                                .getListState(
+                                        new ListStateDescriptor<>(
+                                                "listState-" + index, StringSerializer.INSTANCE));
+            }
+        }
 
-		@Override
-		public Event map(Event event) throws Exception {
-			if (useListState) {
-				listState.add(event.getPayload());
-			}
-			return event;
-		}
-	}
+        @Override
+        public Event map(Event event) throws Exception {
+            if (useListState) {
+                listState.add(event.getPayload());
+            }
+            return event;
+        }
+    }
 
-	private static class MapStateMapper extends RichMapFunction<Event, Event> {
+    private static class MapStateMapper extends RichMapFunction<Event, Event> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private transient MapState<Long, String> mapState;
+        private transient MapState<Long, String> mapState;
 
-		private final boolean useMapState;
+        private final boolean useMapState;
 
-		MapStateMapper(boolean useMapState) {
-			this.useMapState = useMapState;
-		}
+        MapStateMapper(boolean useMapState) {
+            this.useMapState = useMapState;
+        }
 
-		@Override
-		public void open(Configuration parameters) {
-			int index = getRuntimeContext().getIndexOfThisSubtask();
-			if (useMapState) {
-				mapState = getRuntimeContext()
-					.getMapState(new MapStateDescriptor<>("mapState-" + index, LongSerializer.INSTANCE, StringSerializer.INSTANCE));
-			}
-		}
+        @Override
+        public void open(Configuration parameters) {
+            int index = getRuntimeContext().getIndexOfThisSubtask();
+            if (useMapState) {
+                mapState =
+                        getRuntimeContext()
+                                .getMapState(
+                                        new MapStateDescriptor<>(
+                                                "mapState-" + index,
+                                                LongSerializer.INSTANCE,
+                                                StringSerializer.INSTANCE));
+            }
+        }
 
-		@Override
-		public Event map(Event event) throws Exception {
-			if (useMapState) {
-				mapState.put(event.getSequenceNumber(), event.getPayload());
-			}
-			return event;
-		}
-	}
-
+        @Override
+        public Event map(Event event) throws Exception {
+            if (useMapState) {
+                mapState.put(event.getSequenceNumber(), event.getPayload());
+            }
+            return event;
+        }
+    }
 }

@@ -18,29 +18,30 @@
 
 package org.apache.flink.runtime.operators.hash;
 
-import java.io.IOException;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
+
+import java.io.IOException;
 
 /**
  * @param <PT> probe side type
  * @param <BT> build side type
  */
 public abstract class AbstractHashTableProber<PT, BT> {
-	
-	protected final TypeComparator<PT> probeTypeComparator;
-	
-	protected final TypePairComparator<PT, BT> pairComparator;
-	
-	public AbstractHashTableProber(TypeComparator<PT> probeTypeComparator, TypePairComparator<PT, BT> pairComparator) {
-		this.probeTypeComparator = probeTypeComparator;
-		this.pairComparator = pairComparator;
-	}
-	
-	public abstract BT getMatchFor(PT probeSideRecord, BT targetForMatch);
 
-	public abstract BT getMatchFor(PT probeSideRecord);
-	
-	public abstract void updateMatch(BT record) throws IOException;
+    protected final TypeComparator<PT> probeTypeComparator;
+
+    protected final TypePairComparator<PT, BT> pairComparator;
+
+    public AbstractHashTableProber(
+            TypeComparator<PT> probeTypeComparator, TypePairComparator<PT, BT> pairComparator) {
+        this.probeTypeComparator = probeTypeComparator;
+        this.pairComparator = pairComparator;
+    }
+
+    public abstract BT getMatchFor(PT probeSideRecord, BT targetForMatch);
+
+    public abstract BT getMatchFor(PT probeSideRecord);
+
+    public abstract void updateMatch(BT record) throws IOException;
 }

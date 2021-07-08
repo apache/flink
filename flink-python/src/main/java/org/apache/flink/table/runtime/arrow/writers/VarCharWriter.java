@@ -19,26 +19,79 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * {@link ArrowFieldWriter} for VarChar.
- */
+/** {@link ArrowFieldWriter} for VarChar. */
 @Internal
-public final class VarCharWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class VarCharWriter<T> extends ArrowFieldWriter<T> {
 
-	public VarCharWriter(VarCharVector varCharVector) {
-		super(varCharVector);
-	}
+    public static VarCharWriter<RowData> forRow(VarCharVector varCharVector) {
+        return new VarCharWriterForRow(varCharVector);
+    }
 
-	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((VarCharVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarCharVector) getValueVector()).setSafe(getCount(), row.getString(ordinal).getBytes());
-		}
-	}
+    public static VarCharWriter<ArrayData> forArray(VarCharVector varCharVector) {
+        return new VarCharWriterForArray(varCharVector);
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    private VarCharWriter(VarCharVector varCharVector) {
+        super(varCharVector);
+    }
+
+    abstract boolean isNullAt(T in, int ordinal);
+
+    abstract StringData readString(T in, int ordinal);
+
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((VarCharVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarCharVector) getValueVector())
+                    .setSafe(getCount(), readString(in, ordinal).toBytes());
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    /** {@link VarCharWriter} for {@link RowData} input. */
+    public static final class VarCharWriterForRow extends VarCharWriter<RowData> {
+
+        private VarCharWriterForRow(VarCharVector varCharVector) {
+            super(varCharVector);
+        }
+
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        StringData readString(RowData in, int ordinal) {
+            return in.getString(ordinal);
+        }
+    }
+
+    /** {@link VarCharWriter} for {@link ArrayData} input. */
+    public static final class VarCharWriterForArray extends VarCharWriter<ArrayData> {
+
+        private VarCharWriterForArray(VarCharVector varCharVector) {
+            super(varCharVector);
+        }
+
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        StringData readString(ArrayData in, int ordinal) {
+            return in.getString(ordinal);
+        }
+    }
 }

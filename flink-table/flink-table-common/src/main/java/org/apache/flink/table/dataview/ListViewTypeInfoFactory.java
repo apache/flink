@@ -27,22 +27,22 @@ import org.apache.flink.table.api.dataview.ListView;
 import java.lang.reflect.Type;
 import java.util.Map;
 
-/**
- * TypeInformation factory for {@link ListView}.
- */
+/** TypeInformation factory for {@link ListView}. */
 @Internal
+@Deprecated
 public class ListViewTypeInfoFactory<T> extends TypeInfoFactory<ListView<T>> {
 
-	@Override
-	public TypeInformation<ListView<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		TypeInformation<?> elementType = genericParameters.get("T");
+    @Override
+    public TypeInformation<ListView<T>> createTypeInfo(
+            Type t, Map<String, TypeInformation<?>> genericParameters) {
+        TypeInformation<?> elementType = genericParameters.get("T");
 
-		if (elementType == null) {
-			// we might can get the elementType later from the ListView constructor
-			elementType = new GenericTypeInfo<>(Object.class);
-		}
+        if (elementType == null) {
+            // we might can get the elementType later from the ListView constructor
+            elementType = new GenericTypeInfo<>(Object.class);
+        }
 
-		//noinspection unchecked
-		return new ListViewTypeInfo<>((TypeInformation<T>) elementType);
-	}
+        //noinspection unchecked
+        return new ListViewTypeInfo<>((TypeInformation<T>) elementType);
+    }
 }

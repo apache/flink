@@ -18,25 +18,26 @@
 
 package org.apache.flink.api.common.io;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.core.io.IOReadableWritable;
 import org.apache.flink.core.memory.DataInputView;
 
+import java.io.IOException;
+
 /**
- * Reads elements by deserializing them with their regular serialization/deserialization functionality.
- * 
+ * Reads elements by deserializing them with their regular serialization/deserialization
+ * functionality.
+ *
  * @see SerializedOutputFormat
  */
 @Public
 public class SerializedInputFormat<T extends IOReadableWritable> extends BinaryInputFormat<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
-		reuse.read(dataInput);
-		return reuse;
-	}
+    @Override
+    protected T deserialize(T reuse, DataInputView dataInput) throws IOException {
+        reuse.read(dataInput);
+        return reuse;
+    }
 }

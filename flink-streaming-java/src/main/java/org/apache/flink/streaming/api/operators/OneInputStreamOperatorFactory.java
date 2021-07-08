@@ -23,5 +23,4 @@ package org.apache.flink.streaming.api.operators;
  * @param <IN> The input type of the operator.
  * @param <OUT> The output type of the operator.
  */
-public interface OneInputStreamOperatorFactory<IN, OUT> extends StreamOperatorFactory<OUT> {
-}
+public interface OneInputStreamOperatorFactory<IN, OUT> extends StreamOperatorFactory<OUT> {}

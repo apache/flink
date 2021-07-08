@@ -23,45 +23,43 @@ import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.impl.pb.ContainerStatusPBImpl;
 
-/**
- * A {@link ContainerStatus} implementation for testing.
- */
+/** A {@link ContainerStatus} implementation for testing. */
 class TestingContainerStatus extends ContainerStatusPBImpl {
 
-	private final ContainerId containerId;
-	private final ContainerState containerState;
-	private final String diagnostics;
-	private final int exitStatus;
+    private final ContainerId containerId;
+    private final ContainerState containerState;
+    private final String diagnostics;
+    private final int exitStatus;
 
-	TestingContainerStatus(
-		final ContainerId containerId,
-		final ContainerState containerState,
-		final String diagnostics,
-		final int exitStatus) {
+    TestingContainerStatus(
+            final ContainerId containerId,
+            final ContainerState containerState,
+            final String diagnostics,
+            final int exitStatus) {
 
-		this.containerId = containerId;
-		this.containerState = containerState;
-		this.diagnostics = diagnostics;
-		this.exitStatus = exitStatus;
-	}
+        this.containerId = containerId;
+        this.containerState = containerState;
+        this.diagnostics = diagnostics;
+        this.exitStatus = exitStatus;
+    }
 
-	@Override
-	public ContainerId getContainerId() {
-		return containerId;
-	}
+    @Override
+    public ContainerId getContainerId() {
+        return containerId;
+    }
 
-	@Override
-	public ContainerState getState() {
-		return containerState;
-	}
+    @Override
+    public ContainerState getState() {
+        return containerState;
+    }
 
-	@Override
-	public int getExitStatus() {
-		return exitStatus;
-	}
+    @Override
+    public int getExitStatus() {
+        return exitStatus;
+    }
 
-	@Override
-	public String getDiagnostics() {
-		return diagnostics;
-	}
+    @Override
+    public String getDiagnostics() {
+        return diagnostics;
+    }
 }

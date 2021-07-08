@@ -25,18 +25,18 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Function;
 
-/**
- * {@link SlotMatchingStrategy} which picks the first matching slot.
- */
+/** {@link SlotMatchingStrategy} which picks the first matching slot. */
 public enum AnyMatchingSlotMatchingStrategy implements SlotMatchingStrategy {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public <T extends TaskManagerSlotInformation> Optional<T> findMatchingSlot(
-			ResourceProfile requestedProfile,
-			Collection<T> freeSlots,
-			Function<InstanceID, Integer> numberRegisteredSlotsLookup) {
+    @Override
+    public <T extends TaskManagerSlotInformation> Optional<T> findMatchingSlot(
+            ResourceProfile requestedProfile,
+            Collection<T> freeSlots,
+            Function<InstanceID, Integer> numberRegisteredSlotsLookup) {
 
-		return freeSlots.stream().filter(slot -> slot.isMatchingRequirement(requestedProfile)).findAny();
-	}
+        return freeSlots.stream()
+                .filter(slot -> slot.isMatchingRequirement(requestedProfile))
+                .findAny();
+    }
 }

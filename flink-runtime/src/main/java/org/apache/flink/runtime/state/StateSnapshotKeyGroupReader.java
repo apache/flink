@@ -27,18 +27,17 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 
-/**
- * Interface for state de-serialization into {@link StateTable}s by key-group.
- */
+/** Interface for state de-serialization into {@link StateTable}s by key-group. */
 @Internal
 public interface StateSnapshotKeyGroupReader {
 
-	/**
-	 * Read the data for the specified key-group from the input.
-	 *
-	 * @param div        the input
-	 * @param keyGroupId the key-group to write
-	 * @throws IOException on write related problems
-	 */
-	void readMappingsInKeyGroup(@Nonnull DataInputView div, @Nonnegative int keyGroupId) throws IOException;
+    /**
+     * Read the data for the specified key-group from the input.
+     *
+     * @param div the input
+     * @param keyGroupId the key-group to write
+     * @throws IOException on write related problems
+     */
+    void readMappingsInKeyGroup(@Nonnull DataInputView div, @Nonnegative int keyGroupId)
+            throws IOException;
 }

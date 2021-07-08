@@ -15,12 +15,14 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from enum import Enum
+
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['ExecutionMode']
 
 
-class ExecutionMode(object):
+class ExecutionMode(Enum):
     """
     The execution mode specifies how a batch program is executed in terms
     of data exchange: pipelining or batched.
@@ -71,33 +73,10 @@ class ExecutionMode(object):
     BATCH_FORCED = 3
 
     @staticmethod
-    def _from_j_execution_mode(j_execution_mode):
-        gateway = get_gateway()
-        JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
-        if j_execution_mode == JExecutionMode.PIPELINED:
-            return ExecutionMode.PIPELINED
-        elif j_execution_mode == JExecutionMode.PIPELINED_FORCED:
-            return ExecutionMode.PIPELINED_FORCED
-        elif j_execution_mode == JExecutionMode.BATCH:
-            return ExecutionMode.BATCH
-        elif j_execution_mode == JExecutionMode.BATCH_FORCED:
-            return ExecutionMode.BATCH_FORCED
-        else:
-            raise Exception("Unsupported java exection mode: %s" % j_execution_mode)
+    def _from_j_execution_mode(j_execution_mode) -> 'ExecutionMode':
+        return ExecutionMode[j_execution_mode.name()]
 
-    @staticmethod
-    def _to_j_execution_mode(execution_mode):
+    def _to_j_execution_mode(self):
         gateway = get_gateway()
         JExecutionMode = gateway.jvm.org.apache.flink.api.common.ExecutionMode
-        if execution_mode == ExecutionMode.PIPELINED:
-            return JExecutionMode.PIPELINED
-        elif execution_mode == ExecutionMode.PIPELINED_FORCED:
-            return JExecutionMode.PIPELINED_FORCED
-        elif execution_mode == ExecutionMode.BATCH:
-            return JExecutionMode.BATCH
-        elif execution_mode == ExecutionMode.BATCH_FORCED:
-            return JExecutionMode.BATCH_FORCED
-        else:
-            raise TypeError("Unsupported execution mode: %s, supported execution modes are: "
-                            "ExecutionMode.PIPELINED, ExecutionMode.PIPELINED_FORCED, "
-                            "ExecutionMode.BATCH and ExecutionMode.BATCH_FORCED." % execution_mode)
+        return getattr(JExecutionMode, self.name)

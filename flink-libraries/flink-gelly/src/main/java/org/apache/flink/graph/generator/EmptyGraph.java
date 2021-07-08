@@ -35,45 +35,48 @@ import java.util.Collections;
 /**
  * @see <a href="http://mathworld.wolfram.com/EmptyGraph.html">Empty Graph at Wolfram MathWorld</a>
  */
-public class EmptyGraph
-extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
+public class EmptyGraph extends GraphGeneratorBase<LongValue, NullValue, NullValue> {
 
-	public static final int MINIMUM_VERTEX_COUNT = 0;
+    public static final int MINIMUM_VERTEX_COUNT = 0;
 
-	// Required to create the DataSource
-	private final ExecutionEnvironment env;
+    // Required to create the DataSource
+    private final ExecutionEnvironment env;
 
-	// Required configuration
-	private final long vertexCount;
+    // Required configuration
+    private final long vertexCount;
 
-	/**
-	 * The {@link Graph} containing no edges.
-	 *
-	 * @param env the Flink execution environment
-	 * @param vertexCount number of vertices
-	 */
-	public EmptyGraph(ExecutionEnvironment env, long vertexCount) {
-		Preconditions.checkArgument(vertexCount >= MINIMUM_VERTEX_COUNT,
-			"Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
+    /**
+     * The {@link Graph} containing no edges.
+     *
+     * @param env the Flink execution environment
+     * @param vertexCount number of vertices
+     */
+    public EmptyGraph(ExecutionEnvironment env, long vertexCount) {
+        Preconditions.checkArgument(
+                vertexCount >= MINIMUM_VERTEX_COUNT,
+                "Vertex count must be at least " + MINIMUM_VERTEX_COUNT);
 
-		this.env = env;
-		this.vertexCount = vertexCount;
-	}
+        this.env = env;
+        this.vertexCount = vertexCount;
+    }
 
-	@Override
-	public Graph<LongValue, NullValue, NullValue> generate() {
-		Preconditions.checkState(vertexCount >= 0);
+    @Override
+    public Graph<LongValue, NullValue, NullValue> generate() {
+        Preconditions.checkState(vertexCount >= 0);
 
-		// Vertices
-		DataSet<Vertex<LongValue, NullValue>> vertices = GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
+        // Vertices
+        DataSet<Vertex<LongValue, NullValue>> vertices =
+                GraphGeneratorUtils.vertexSequence(env, parallelism, vertexCount);
 
-		// Edges
-		DataSource<Edge<LongValue, NullValue>> edges = env
-			.fromCollection(Collections.<Edge<LongValue, NullValue>>emptyList(), TypeInformation.of(new TypeHint<Edge<LongValue, NullValue>>(){}))
-				.setParallelism(parallelism)
-				.name("Empty edge set");
+        // Edges
+        DataSource<Edge<LongValue, NullValue>> edges =
+                env.fromCollection(
+                                Collections.<Edge<LongValue, NullValue>>emptyList(),
+                                TypeInformation.of(new TypeHint<Edge<LongValue, NullValue>>() {}))
+                        .setParallelism(parallelism)
+                        .name("Empty edge set");
 
-		// Graph
-		return Graph.fromDataSet(vertices, edges, env);
-	}
+        // Graph
+        return Graph.fromDataSet(vertices, edges, env);
+    }
 }

@@ -18,32 +18,32 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.sql.Date;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.sql.Date;
+
 public class SqlDateComparatorTest extends ComparatorTestBase<Date> {
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected TypeComparator<Date> createComparator(boolean ascending) {
-		return (TypeComparator) new DateComparator(ascending);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected TypeComparator<Date> createComparator(boolean ascending) {
+        return (TypeComparator) new DateComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Date> createSerializer() {
-		return new SqlDateSerializer();
-	}
+    @Override
+    protected TypeSerializer<Date> createSerializer() {
+        return new SqlDateSerializer();
+    }
 
-	@Override
-	protected Date[] getSortedTestData() {
-		return new Date[] {
-			Date.valueOf("1970-01-01"),
-			Date.valueOf("1990-10-14"),
-			Date.valueOf("2013-08-12"),
-			Date.valueOf("2040-05-12")
-		};
-	}
+    @Override
+    protected Date[] getSortedTestData() {
+        return new Date[] {
+            Date.valueOf("1970-01-01"),
+            Date.valueOf("1990-10-14"),
+            Date.valueOf("2013-08-12"),
+            Date.valueOf("2040-05-12")
+        };
+    }
 }

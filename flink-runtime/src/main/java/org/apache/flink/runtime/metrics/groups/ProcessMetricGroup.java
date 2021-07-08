@@ -20,16 +20,14 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.runtime.metrics.MetricRegistry;
 
-/**
- * {@link AbstractImitatingJobManagerMetricGroup} implementation for process related metrics.
- */
+/** {@link AbstractImitatingJobManagerMetricGroup} implementation for process related metrics. */
 public class ProcessMetricGroup extends AbstractImitatingJobManagerMetricGroup {
 
-	ProcessMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, hostname);
-	}
+    ProcessMetricGroup(MetricRegistry registry, String hostname) {
+        super(registry, hostname);
+    }
 
-	public static ProcessMetricGroup create(MetricRegistry metricRegistry, String hostname) {
-		return new ProcessMetricGroup(metricRegistry, hostname);
-	}
+    public static ProcessMetricGroup create(MetricRegistry metricRegistry, String hostname) {
+        return new ProcessMetricGroup(metricRegistry, hostname);
+    }
 }

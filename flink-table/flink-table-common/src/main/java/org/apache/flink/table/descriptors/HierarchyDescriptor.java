@@ -21,18 +21,14 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A descriptor that may exist in an arbitrary level (be recursively included by other
- * descriptors).
+ * A descriptor that may exist in an arbitrary level (be recursively included by other descriptors).
  */
 @PublicEvolving
 public abstract class HierarchyDescriptor implements Descriptor {
 
-	/**
-	 * Internal method for properties conversion. All the property keys will be prefixed with the
-	 * given key prefix.
-	 */
-	public abstract void addPropertiesWithPrefix(
-			String keyPrefix,
-			DescriptorProperties properties);
-
+    /**
+     * Internal method for properties conversion. All the property keys will be prefixed with the
+     * given key prefix.
+     */
+    public abstract void addPropertiesWithPrefix(String keyPrefix, DescriptorProperties properties);
 }

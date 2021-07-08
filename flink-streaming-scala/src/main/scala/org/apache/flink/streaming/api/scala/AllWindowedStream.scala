@@ -19,13 +19,13 @@
 package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.annotation.{Public, PublicEvolving}
-import org.apache.flink.api.common.functions.{AggregateFunction, FoldFunction, ReduceFunction}
+import org.apache.flink.api.common.functions.{AggregateFunction, ReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWStream}
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction.AggregationType
 import org.apache.flink.streaming.api.functions.aggregation.{ComparableAggregator, SumAggregator}
+import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaProcessAllWindowFunctionWrapper, ScalaReduceFunction}
 import org.apache.flink.streaming.api.scala.function.{AllWindowFunction, ProcessAllWindowFunction}
-import org.apache.flink.streaming.api.scala.function.util.{ScalaAllWindowFunction, ScalaAllWindowFunctionWrapper, ScalaFoldFunction, ScalaProcessAllWindowFunctionWrapper, ScalaReduceFunction}
 import org.apache.flink.streaming.api.windowing.evictors.Evictor
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.Trigger
@@ -278,7 +278,7 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
    * one accumulator per window.
    *
    * @param aggregateFunction The aggregation function.
-   * @return The data stream that is the result of applying the fold function to the window.
+   * @return The data stream that is the result of applying the aggregate function to the window.
    */
   @PublicEvolving
   def aggregate[ACC: TypeInformation, R: TypeInformation](
@@ -386,184 +386,6 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
 
     asScalaStream(javaStream.aggregate(
       cleanPreAggregator, applyFunction, accumulatorType, resultType))
-  }
-
-  // ----------------------------- fold() -------------------------------------
-
-  /**
-   * Applies the given fold function to each window. The window function is called for each
-   * evaluation of the window for each key individually. The output of the reduce function is
-   * interpreted as a regular non-windowed stream.
-   *
-   * @param function The fold function.
-   * @return The data stream that is the result of applying the fold function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  def fold[R: TypeInformation](
-      initialValue: R,
-      function: FoldFunction[T,R]): DataStream[R] = {
-    
-    if (function == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-
-    val resultType : TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.fold(initialValue, function, resultType))
-  }
-
-  /**
-   * Applies the given fold function to each window. The window function is called for each
-   * evaluation of the window for each key individually. The output of the reduce function is
-   * interpreted as a regular non-windowed stream.
-   *
-   * @param function The fold function.
-   * @return The data stream that is the result of applying the fold function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  def fold[R: TypeInformation](initialValue: R)(function: (R, T) => R): DataStream[R] = {
-    if (function == null) {
-      throw new NullPointerException("Fold function must not be null.")
-    }
-    val cleanFun = clean(function)
-    val folder = new ScalaFoldFunction[T,R](cleanFun)
-    
-    fold(initialValue, folder)
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  def fold[ACC: TypeInformation, R: TypeInformation](
-      initialValue: ACC,
-      preAggregator: FoldFunction[T, ACC],
-      windowFunction: AllWindowFunction[ACC, R, W]): DataStream[R] = {
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
-    val applyFunction = new ScalaAllWindowFunctionWrapper[ACC, R, W](cleanWindowFunction)
-
-    asScalaStream(javaStream.fold(
-      initialValue,
-      cleanFolder,
-      applyFunction,
-      implicitly[TypeInformation[ACC]],
-      implicitly[TypeInformation[R]]))
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The process window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  @PublicEvolving
-  def fold[ACC: TypeInformation, R: TypeInformation](
-      initialValue: ACC,
-      preAggregator: FoldFunction[T, ACC],
-      windowFunction: ProcessAllWindowFunction[ACC, R, W]): DataStream[R] = {
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
-    val applyFunction = new ScalaProcessAllWindowFunctionWrapper[ACC, R, W](cleanWindowFunction)
-
-    asScalaStream(javaStream.fold(
-      initialValue,
-      cleanFolder,
-      applyFunction,
-      implicitly[TypeInformation[ACC]],
-      implicitly[TypeInformation[R]]))
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  def fold[ACC: TypeInformation, R: TypeInformation](
-      initialValue: ACC,
-      preAggregator: (ACC, T) => ACC,
-      windowFunction: (W, Iterable[ACC], Collector[R]) => Unit): DataStream[R] = {
-
-    if (preAggregator == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
-    if (windowFunction == null) {
-      throw new NullPointerException("WindowApply function must not be null.")
-    }
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
-    val folder = new ScalaFoldFunction[T, ACC](cleanFolder)
-    val applyFunction = new ScalaAllWindowFunction[ACC, R, W](cleanWindowFunction)
-
-    val accType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
-    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.fold(initialValue, folder, applyFunction, accType, returnType))
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    */
-  @deprecated("use [[aggregate()]] instead")
-  @PublicEvolving
-  def fold[ACC: TypeInformation, R: TypeInformation](
-      initialValue: ACC,
-      preAggregator: (ACC, T) => ACC,
-      windowFunction: ProcessAllWindowFunction[ACC, R, W]): DataStream[R] = {
-
-    if (preAggregator == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
-    if (windowFunction == null) {
-      throw new NullPointerException("WindowApply function must not be null.")
-    }
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
-    val folder = new ScalaFoldFunction[T, ACC](cleanFolder)
-    val applyFunction = new ScalaProcessAllWindowFunctionWrapper[ACC, R, W](cleanWindowFunction)
-
-    val accType: TypeInformation[ACC] = implicitly[TypeInformation[ACC]]
-    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.fold(initialValue, folder, applyFunction, accType, returnType))
   }
 
   // ---------------------------- apply() -------------------------------------
@@ -687,73 +509,6 @@ class AllWindowedStream[T, W <: Window](javaStream: JavaAllWStream[T, W]) {
     
     val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
     asScalaStream(javaStream.apply(reducer, applyFunction, returnType))
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    * @deprecated Use [[fold(R, FoldFunction, AllWindowFunction)]] instead.
-    */
-  @deprecated
-  def apply[R: TypeInformation](
-      initialValue: R,
-      preAggregator: FoldFunction[T, R],
-      windowFunction: AllWindowFunction[R, R, W]): DataStream[R] = {
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-    
-    val applyFunction = new ScalaAllWindowFunctionWrapper[R, R, W](cleanWindowFunction)
-    
-    asScalaStream(javaStream.apply(
-      initialValue,
-      cleanFolder,
-      applyFunction,
-      implicitly[TypeInformation[R]]))
-  }
-
-  /**
-    * Applies the given window function to each window. The window function is called for each
-    * evaluation of the window for each key individually. The output of the window function is
-    * interpreted as a regular non-windowed stream.
-    *
-    * Arriving data is pre-aggregated using the given pre-aggregation folder.
-    *
-    * @param initialValue Initial value of the fold
-    * @param preAggregator The reduce function that is used for pre-aggregation
-    * @param windowFunction The window function.
-    * @return The data stream that is the result of applying the window function to the window.
-    * @deprecated Use [[fold(R, FoldFunction, AllWindowFunction]] instead.
-    */
-  @deprecated
-  def apply[R: TypeInformation](
-      initialValue: R,
-      preAggregator: (R, T) => R,
-      windowFunction: (W, Iterable[R], Collector[R]) => Unit): DataStream[R] = {
-
-    if (preAggregator == null) {
-      throw new NullPointerException("Reduce function must not be null.")
-    }
-    if (windowFunction == null) {
-      throw new NullPointerException("WindowApply function must not be null.")
-    }
-
-    val cleanFolder = clean(preAggregator)
-    val cleanWindowFunction = clean(windowFunction)
-
-    val folder = new ScalaFoldFunction[T, R](cleanFolder)
-    val applyFunction = new ScalaAllWindowFunction[R, R, W](cleanWindowFunction)
-
-    val returnType: TypeInformation[R] = implicitly[TypeInformation[R]]
-    asScalaStream(javaStream.apply(initialValue, folder, applyFunction, returnType))
   }
 
   // ------------------------------------------------------------------------

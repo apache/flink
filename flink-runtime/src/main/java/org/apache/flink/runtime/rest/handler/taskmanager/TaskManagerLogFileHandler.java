@@ -37,24 +37,35 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Rest handler which serves the log files from {@link TaskExecutor}.
- */
-public class TaskManagerLogFileHandler extends AbstractTaskManagerFileHandler<TaskManagerMessageParameters> {
+/** Rest handler which serves the log files from {@link TaskExecutor}. */
+public class TaskManagerLogFileHandler
+        extends AbstractTaskManagerFileHandler<TaskManagerMessageParameters> {
 
-	public TaskManagerLogFileHandler(
-			@Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			@Nonnull Time timeout,
-			@Nonnull Map<String, String> responseHeaders,
-			@Nonnull UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters> untypedResponseMessageHeaders,
-			@Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			@Nonnull TransientBlobService transientBlobService,
-			@Nonnull Time cacheEntryDuration) {
-		super(leaderRetriever, timeout, responseHeaders, untypedResponseMessageHeaders, resourceManagerGatewayRetriever, transientBlobService, cacheEntryDuration);
-	}
+    public TaskManagerLogFileHandler(
+            @Nonnull GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            @Nonnull Time timeout,
+            @Nonnull Map<String, String> responseHeaders,
+            @Nonnull
+                    UntypedResponseMessageHeaders<EmptyRequestBody, TaskManagerMessageParameters>
+                            untypedResponseMessageHeaders,
+            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            @Nonnull TransientBlobService transientBlobService,
+            @Nonnull Time cacheEntryDuration) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                untypedResponseMessageHeaders,
+                resourceManagerGatewayRetriever,
+                transientBlobService,
+                cacheEntryDuration);
+    }
 
-	@Override
-	protected CompletableFuture<TransientBlobKey> requestFileUpload(ResourceManagerGateway resourceManagerGateway, Tuple2<ResourceID, String> taskManagerIdAndFileName) {
-		return resourceManagerGateway.requestTaskManagerFileUploadByType(taskManagerIdAndFileName.f0, FileType.LOG, timeout);
-	}
+    @Override
+    protected CompletableFuture<TransientBlobKey> requestFileUpload(
+            ResourceManagerGateway resourceManagerGateway,
+            Tuple2<ResourceID, String> taskManagerIdAndFileName) {
+        return resourceManagerGateway.requestTaskManagerFileUploadByType(
+                taskManagerIdAndFileName.f0, FileType.LOG, timeout);
+    }
 }

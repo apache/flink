@@ -26,56 +26,53 @@ import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
 import javax.annotation.Nullable;
 
 /**
- * A size-based cache of accessed checkpoints for completed and failed
- * checkpoints.
+ * A size-based cache of accessed checkpoints for completed and failed checkpoints.
  *
- * <p>Having this cache in place for accessed stats improves the user
- * experience quite a bit as accessed checkpoint stats stay available
- * and don't expire. For example if you manage to click on the last
- * checkpoint in the history, it is not available via the stats as soon
- * as another checkpoint is triggered. With the cache in place, the
- * checkpoint will still be available for investigation.
+ * <p>Having this cache in place for accessed stats improves the user experience quite a bit as
+ * accessed checkpoint stats stay available and don't expire. For example if you manage to click on
+ * the last checkpoint in the history, it is not available via the stats as soon as another
+ * checkpoint is triggered. With the cache in place, the checkpoint will still be available for
+ * investigation.
  */
 public class CheckpointStatsCache {
 
-	@Nullable
-	private final Cache<Long, AbstractCheckpointStats> cache;
+    @Nullable private final Cache<Long, AbstractCheckpointStats> cache;
 
-	public CheckpointStatsCache(int maxNumEntries) {
-		if (maxNumEntries > 0) {
-			this.cache = CacheBuilder.<Long, AbstractCheckpointStats>newBuilder()
-				.maximumSize(maxNumEntries)
-				.build();
-		} else {
-			this.cache = null;
-		}
-	}
+    public CheckpointStatsCache(int maxNumEntries) {
+        if (maxNumEntries > 0) {
+            this.cache =
+                    CacheBuilder.<Long, AbstractCheckpointStats>newBuilder()
+                            .maximumSize(maxNumEntries)
+                            .build();
+        } else {
+            this.cache = null;
+        }
+    }
 
-	/**
-	 * Try to add the checkpoint to the cache.
-	 *
-	 * @param checkpoint Checkpoint to be added.
-	 */
-	public void tryAdd(AbstractCheckpointStats checkpoint) {
-		// Don't add in progress checkpoints as they will be replaced by their
-		// completed/failed version eventually.
-		if (cache != null && checkpoint != null && !checkpoint.getStatus().isInProgress()) {
-			cache.put(checkpoint.getCheckpointId(), checkpoint);
-		}
-	}
+    /**
+     * Try to add the checkpoint to the cache.
+     *
+     * @param checkpoint Checkpoint to be added.
+     */
+    public void tryAdd(AbstractCheckpointStats checkpoint) {
+        // Don't add in progress checkpoints as they will be replaced by their
+        // completed/failed version eventually.
+        if (cache != null && checkpoint != null && !checkpoint.getStatus().isInProgress()) {
+            cache.put(checkpoint.getCheckpointId(), checkpoint);
+        }
+    }
 
-	/**
-	 * Try to look up a checkpoint by it's ID in the cache.
-	 *
-	 * @param checkpointId ID of the checkpoint to look up.
-	 * @return The checkpoint or <code>null</code> if checkpoint not found.
-	 */
-	public AbstractCheckpointStats tryGet(long checkpointId) {
-		if (cache != null) {
-			return cache.getIfPresent(checkpointId);
-		} else {
-			return null;
-		}
-	}
-
+    /**
+     * Try to look up a checkpoint by it's ID in the cache.
+     *
+     * @param checkpointId ID of the checkpoint to look up.
+     * @return The checkpoint or <code>null</code> if checkpoint not found.
+     */
+    public AbstractCheckpointStats tryGet(long checkpointId) {
+        if (cache != null) {
+            return cache.getIfPresent(checkpointId);
+        } else {
+            return null;
+        }
+    }
 }

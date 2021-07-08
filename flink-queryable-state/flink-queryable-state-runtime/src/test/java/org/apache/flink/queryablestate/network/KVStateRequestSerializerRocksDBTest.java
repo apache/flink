@@ -34,64 +34,68 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /**
- * Additional tests for the serialization and deserialization using
- * the KvStateSerializer with a RocksDB state back-end.
+ * Additional tests for the serialization and deserialization using the KvStateSerializer with a
+ * RocksDB state back-end.
  */
 public final class KVStateRequestSerializerRocksDBTest {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Tests list serialization and deserialization match.
-	 *
-	 * @see KvStateRequestSerializerTest#testListSerialization()
-	 * KvStateRequestSerializerTest#testListSerialization() using the heap state back-end
-	 * test
-	 */
-	@Test
-	public void testListSerialization() throws Exception {
-		final long key = 0L;
+    /**
+     * Tests list serialization and deserialization match.
+     *
+     * @see KvStateRequestSerializerTest#testListSerialization()
+     *     KvStateRequestSerializerTest#testListSerialization() using the heap state back-end test
+     */
+    @Test
+    public void testListSerialization() throws Exception {
+        final long key = 0L;
 
-		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend = RocksDBTestUtils
-			.builderForTestDefaults(temporaryFolder.getRoot(), LongSerializer.INSTANCE)
-			.build();
+        final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
+                RocksDBTestUtils.builderForTestDefaults(
+                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+                        .build();
 
-		longHeapKeyedStateBackend.setCurrentKey(key);
+        longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalListState<Long, VoidNamespace, Long> listState = longHeapKeyedStateBackend.createInternalState(VoidNamespaceSerializer.INSTANCE,
-				new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
+        final InternalListState<Long, VoidNamespace, Long> listState =
+                longHeapKeyedStateBackend.createInternalState(
+                        VoidNamespaceSerializer.INSTANCE,
+                        new ListStateDescriptor<>("test", LongSerializer.INSTANCE));
 
-		KvStateRequestSerializerTest.testListSerialization(key, listState);
-		longHeapKeyedStateBackend.dispose();
-	}
+        KvStateRequestSerializerTest.testListSerialization(key, listState);
+        longHeapKeyedStateBackend.dispose();
+    }
 
-	/**
-	 * Tests map serialization and deserialization match.
-	 *
-	 * @see KvStateRequestSerializerTest#testMapSerialization()
-	 * KvStateRequestSerializerTest#testMapSerialization() using the heap state back-end
-	 * test
-	 */
-	@Test
-	public void testMapSerialization() throws Exception {
-		final long key = 0L;
+    /**
+     * Tests map serialization and deserialization match.
+     *
+     * @see KvStateRequestSerializerTest#testMapSerialization()
+     *     KvStateRequestSerializerTest#testMapSerialization() using the heap state back-end test
+     */
+    @Test
+    public void testMapSerialization() throws Exception {
+        final long key = 0L;
 
-		// objects for RocksDB state list serialisation
-		final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend = RocksDBTestUtils
-			.builderForTestDefaults(temporaryFolder.getRoot(), LongSerializer.INSTANCE)
-			.build();
+        // objects for RocksDB state list serialisation
+        final RocksDBKeyedStateBackend<Long> longHeapKeyedStateBackend =
+                RocksDBTestUtils.builderForTestDefaults(
+                                temporaryFolder.getRoot(), LongSerializer.INSTANCE)
+                        .build();
 
-		longHeapKeyedStateBackend.setCurrentKey(key);
+        longHeapKeyedStateBackend.setCurrentKey(key);
 
-		final InternalMapState<Long, VoidNamespace, Long, String> mapState =
-				(InternalMapState<Long, VoidNamespace, Long, String>)
-						longHeapKeyedStateBackend.getPartitionedState(
-								VoidNamespace.INSTANCE,
-								VoidNamespaceSerializer.INSTANCE,
-								new MapStateDescriptor<>("test", LongSerializer.INSTANCE, StringSerializer.INSTANCE));
+        final InternalMapState<Long, VoidNamespace, Long, String> mapState =
+                (InternalMapState<Long, VoidNamespace, Long, String>)
+                        longHeapKeyedStateBackend.getPartitionedState(
+                                VoidNamespace.INSTANCE,
+                                VoidNamespaceSerializer.INSTANCE,
+                                new MapStateDescriptor<>(
+                                        "test",
+                                        LongSerializer.INSTANCE,
+                                        StringSerializer.INSTANCE));
 
-		KvStateRequestSerializerTest.testMapSerialization(key, mapState);
-		longHeapKeyedStateBackend.dispose();
-	}
+        KvStateRequestSerializerTest.testMapSerialization(key, mapState);
+        longHeapKeyedStateBackend.dispose();
+    }
 }

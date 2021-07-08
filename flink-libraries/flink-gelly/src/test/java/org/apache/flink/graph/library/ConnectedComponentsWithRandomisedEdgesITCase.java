@@ -31,66 +31,67 @@ import org.apache.flink.types.NullValue;
 
 import java.io.BufferedReader;
 
-/**
- * Test {@link ConnectedComponents} with a randomly generated graph.
- */
+/** Test {@link ConnectedComponents} with a randomly generated graph. */
 @SuppressWarnings("serial")
 public class ConnectedComponentsWithRandomisedEdgesITCase extends JavaProgramTestBase {
 
-	private static final long SEED = 9487520347802987L;
+    private static final long SEED = 9487520347802987L;
 
-	private static final int NUM_VERTICES = 1000;
+    private static final int NUM_VERTICES = 1000;
 
-	private static final int NUM_EDGES = 10000;
+    private static final int NUM_EDGES = 10000;
 
-	private String resultPath;
+    private String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempFilePath("results");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        resultPath = getTempFilePath("results");
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		DataSet<Long> vertexIds = env.generateSequence(1, NUM_VERTICES);
-		DataSet<String> edgeString = env.fromElements(ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED).split("\n"));
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        DataSet<Long> vertexIds = env.generateSequence(1, NUM_VERTICES);
+        DataSet<String> edgeString =
+                env.fromElements(
+                        ConnectedComponentsData.getRandomOddEvenEdges(NUM_EDGES, NUM_VERTICES, SEED)
+                                .split("\n"));
 
-		DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeParser());
+        DataSet<Edge<Long, NullValue>> edges = edgeString.map(new EdgeParser());
 
-		DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
+        DataSet<Vertex<Long, Long>> initialVertices = vertexIds.map(new IdAssigner());
 
-		Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
+        Graph<Long, Long, NullValue> graph = Graph.fromDataSet(initialVertices, edges, env);
 
-		DataSet<Vertex<Long, Long>> result = graph.run(new ConnectedComponents<>(100));
+        DataSet<Vertex<Long, Long>> result = graph.run(new ConnectedComponents<>(100));
 
-		result.writeAsCsv(resultPath, "\n", " ");
-		env.execute();
-	}
+        result.writeAsCsv(resultPath, "\n", " ");
+        env.execute();
+    }
 
-	/**
-	 * A map function that takes a Long value and creates a 2-tuple out of it:
-	 * <pre>(Long value) -> (value, value)</pre>.
-	 */
-	public static final class IdAssigner implements MapFunction<Long, Vertex<Long, Long>> {
-		@Override
-		public Vertex<Long, Long> map(Long value) {
-			return new Vertex<>(value, value);
-		}
-	}
+    /**
+     * A map function that takes a Long value and creates a 2-tuple out of it: {@code (Long value)
+     * -> (value, value)}.
+     */
+    public static final class IdAssigner implements MapFunction<Long, Vertex<Long, Long>> {
+        @Override
+        public Vertex<Long, Long> map(Long value) {
+            return new Vertex<>(value, value);
+        }
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		for (BufferedReader reader : getResultReader(resultPath)) {
-			ConnectedComponentsData.checkOddEvenResult(reader);
-		}
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        for (BufferedReader reader : getResultReader(resultPath)) {
+            ConnectedComponentsData.checkOddEvenResult(reader);
+        }
+    }
 
-	private static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
-		public Edge<Long, NullValue> map(String value) {
-			String[] nums = value.split(" ");
-			return new Edge<>(Long.parseLong(nums[0]), Long.parseLong(nums[1]),
-					NullValue.getInstance());
-		}
-	}
+    private static final class EdgeParser extends RichMapFunction<String, Edge<Long, NullValue>> {
+        public Edge<Long, NullValue> map(String value) {
+            String[] nums = value.split(" ");
+            return new Edge<>(
+                    Long.parseLong(nums[0]), Long.parseLong(nums[1]), NullValue.getInstance());
+        }
+    }
 }

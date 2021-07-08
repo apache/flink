@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-2.2.0_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-hive-2.2.0</name>
+	<name>Flink : Connectors : SQL : Hive 2.2.0</name>
 
 	<packaging>jar</packaging>
 
@@ -65,7 +65,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.orc</groupId>
 			<artifactId>orc-core</artifactId>
-			<version>${hive.connector.orc.version}</version>
+			<version>${hive-2.2.0-orc-version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>log4j</groupId>
@@ -88,6 +88,12 @@ under the License.
 			<artifactId>aircompressor</artifactId>
 			<version>0.8</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>3.5.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -109,8 +115,15 @@ under the License.
 									<include>org.apache.hive:hive-exec</include>
 									<include>org.apache.orc:orc-core</include>
 									<include>io.airlift:aircompressor</include>
+									<include>org.antlr:antlr-runtime</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.parquet</pattern>
+									<shadedPattern>org.apache.hive.shaded.parquet</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

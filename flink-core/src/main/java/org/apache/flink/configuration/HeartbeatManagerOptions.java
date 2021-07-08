@@ -23,28 +23,27 @@ import org.apache.flink.annotation.docs.Documentation;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * The set of configuration options relating to heartbeat manager settings.
- */
+/** The set of configuration options relating to heartbeat manager settings. */
 @PublicEvolving
 public class HeartbeatManagerOptions {
 
-	/** Time interval for requesting heartbeat from sender side. */
-	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-	public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
-			key("heartbeat.interval")
-			.defaultValue(10000L)
-			.withDescription("Time interval for requesting heartbeat from sender side.");
+    /** Time interval for requesting heartbeat from sender side. */
+    @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
+    public static final ConfigOption<Long> HEARTBEAT_INTERVAL =
+            key("heartbeat.interval")
+                    .defaultValue(10000L)
+                    .withDescription("Time interval for requesting heartbeat from sender side.");
 
-	/** Timeout for requesting and receiving heartbeat for both sender and receiver sides. */
-	@Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
-	public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
-			key("heartbeat.timeout")
-			.defaultValue(50000L)
-			.withDescription("Timeout for requesting and receiving heartbeat for both sender and receiver sides.");
+    /** Timeout for requesting and receiving heartbeat for both sender and receiver sides. */
+    @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
+    public static final ConfigOption<Long> HEARTBEAT_TIMEOUT =
+            key("heartbeat.timeout")
+                    .defaultValue(50000L)
+                    .withDescription(
+                            "Timeout for requesting and receiving heartbeat for both sender and receiver sides.");
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** Not intended to be instantiated. */
-	private HeartbeatManagerOptions() {}
+    /** Not intended to be instantiated. */
+    private HeartbeatManagerOptions() {}
 }

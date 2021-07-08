@@ -25,38 +25,36 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests for the DropwizardMeterWrapper.
- */
+/** Tests for the DropwizardMeterWrapper. */
 public class DropwizardMeterWrapperTest {
 
-	@Test
-	public void testWrapper() {
-		com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
-		when(dropwizardMeter.getOneMinuteRate()).thenReturn(1.0);
-		when(dropwizardMeter.getCount()).thenReturn(100L);
+    @Test
+    public void testWrapper() {
+        com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
+        when(dropwizardMeter.getOneMinuteRate()).thenReturn(1.0);
+        when(dropwizardMeter.getCount()).thenReturn(100L);
 
-		DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
+        DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
-		assertEquals(1.0, wrapper.getRate(), 0.00001);
-		assertEquals(100L, wrapper.getCount());
-	}
+        assertEquals(1.0, wrapper.getRate(), 0.00001);
+        assertEquals(100L, wrapper.getCount());
+    }
 
-	@Test
-	public void testMarkEvent() {
-		com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
-		DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
-		wrapper.markEvent();
+    @Test
+    public void testMarkEvent() {
+        com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
+        DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
+        wrapper.markEvent();
 
-		verify(dropwizardMeter).mark();
-	}
+        verify(dropwizardMeter).mark();
+    }
 
-	@Test
-	public void testMarkEventN() {
-		com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
-		DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
-		wrapper.markEvent(10L);
+    @Test
+    public void testMarkEventN() {
+        com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
+        DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
+        wrapper.markEvent(10L);
 
-		verify(dropwizardMeter).mark(10L);
-	}
+        verify(dropwizardMeter).mark(10L);
+    }
 }

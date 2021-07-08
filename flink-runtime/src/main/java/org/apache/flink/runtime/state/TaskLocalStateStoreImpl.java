@@ -50,317 +50,372 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.LongPredicate;
 
-/**
- * Main implementation of a {@link TaskLocalStateStore}.
- */
+/** Main implementation of a {@link TaskLocalStateStore}. */
 public class TaskLocalStateStoreImpl implements OwnedTaskLocalStateStore {
 
-	/** Logger for this class. */
-	private static final Logger LOG = LoggerFactory.getLogger(TaskLocalStateStoreImpl.class);
+    /** Logger for this class. */
+    private static final Logger LOG = LoggerFactory.getLogger(TaskLocalStateStoreImpl.class);
 
-	/** Dummy value to use instead of null to satisfy {@link ConcurrentHashMap}. */
-	@VisibleForTesting
-	static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0);
+    /** Dummy value to use instead of null to satisfy {@link ConcurrentHashMap}. */
+    @VisibleForTesting static final TaskStateSnapshot NULL_DUMMY = new TaskStateSnapshot(0);
 
-	/** JobID from the owning subtask. */
-	@Nonnull
-	private final JobID jobID;
+    /** JobID from the owning subtask. */
+    @Nonnull private final JobID jobID;
 
-	/** AllocationID of the owning slot. */
-	@Nonnull
-	private final AllocationID allocationID;
+    /** AllocationID of the owning slot. */
+    @Nonnull private final AllocationID allocationID;
 
-	/** JobVertexID of the owning subtask. */
-	@Nonnull
-	private final JobVertexID jobVertexID;
+    /** JobVertexID of the owning subtask. */
+    @Nonnull private final JobVertexID jobVertexID;
 
-	/** Subtask index of the owning subtask. */
-	@Nonnegative
-	private final int subtaskIndex;
+    /** Subtask index of the owning subtask. */
+    @Nonnegative private final int subtaskIndex;
 
-	/** The configured mode for local recovery. */
-	@Nonnull
-	private final LocalRecoveryConfig localRecoveryConfig;
+    /** The configured mode for local recovery. */
+    @Nonnull private final LocalRecoveryConfig localRecoveryConfig;
 
-	/** Executor that runs the discarding of released state objects. */
-	@Nonnull
-	private final Executor discardExecutor;
+    /** Executor that runs the discarding of released state objects. */
+    @Nonnull private final Executor discardExecutor;
 
-	/** Lock for synchronisation on the storage map and the discarded status. */
-	@Nonnull
-	private final Object lock;
+    /** Lock for synchronisation on the storage map and the discarded status. */
+    @Nonnull private final Object lock;
 
-	/** Status flag if this store was already discarded. */
-	@GuardedBy("lock")
-	private boolean disposed;
+    /** Status flag if this store was already discarded. */
+    @GuardedBy("lock")
+    private boolean disposed;
 
-	/** Maps checkpoint ids to local TaskStateSnapshots. */
-	@Nonnull
-	@GuardedBy("lock")
-	private final SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID;
+    /** Maps checkpoint ids to local TaskStateSnapshots. */
+    @Nonnull
+    @GuardedBy("lock")
+    private final SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID;
 
-	public TaskLocalStateStoreImpl(
-		@Nonnull JobID jobID,
-		@Nonnull AllocationID allocationID,
-		@Nonnull JobVertexID jobVertexID,
-		@Nonnegative int subtaskIndex,
-		@Nonnull LocalRecoveryConfig localRecoveryConfig,
-		@Nonnull Executor discardExecutor) {
+    public TaskLocalStateStoreImpl(
+            @Nonnull JobID jobID,
+            @Nonnull AllocationID allocationID,
+            @Nonnull JobVertexID jobVertexID,
+            @Nonnegative int subtaskIndex,
+            @Nonnull LocalRecoveryConfig localRecoveryConfig,
+            @Nonnull Executor discardExecutor) {
 
-		this(
-			jobID,
-			allocationID,
-			jobVertexID,
-			subtaskIndex,
-			localRecoveryConfig,
-			discardExecutor,
-			new TreeMap<>(),
-			new Object());
-	}
+        this(
+                jobID,
+                allocationID,
+                jobVertexID,
+                subtaskIndex,
+                localRecoveryConfig,
+                discardExecutor,
+                new TreeMap<>(),
+                new Object());
+    }
 
-	@VisibleForTesting
-	TaskLocalStateStoreImpl(
-		@Nonnull JobID jobID,
-		@Nonnull AllocationID allocationID,
-		@Nonnull JobVertexID jobVertexID,
-		@Nonnegative int subtaskIndex,
-		@Nonnull LocalRecoveryConfig localRecoveryConfig,
-		@Nonnull Executor discardExecutor,
-		@Nonnull SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID,
-		@Nonnull Object lock) {
+    @VisibleForTesting
+    TaskLocalStateStoreImpl(
+            @Nonnull JobID jobID,
+            @Nonnull AllocationID allocationID,
+            @Nonnull JobVertexID jobVertexID,
+            @Nonnegative int subtaskIndex,
+            @Nonnull LocalRecoveryConfig localRecoveryConfig,
+            @Nonnull Executor discardExecutor,
+            @Nonnull SortedMap<Long, TaskStateSnapshot> storedTaskStateByCheckpointID,
+            @Nonnull Object lock) {
 
-		this.jobID = jobID;
-		this.allocationID = allocationID;
-		this.jobVertexID = jobVertexID;
-		this.subtaskIndex = subtaskIndex;
-		this.discardExecutor = discardExecutor;
-		this.localRecoveryConfig = localRecoveryConfig;
-		this.storedTaskStateByCheckpointID = storedTaskStateByCheckpointID;
-		this.lock = lock;
-		this.disposed = false;
-	}
+        this.jobID = jobID;
+        this.allocationID = allocationID;
+        this.jobVertexID = jobVertexID;
+        this.subtaskIndex = subtaskIndex;
+        this.discardExecutor = discardExecutor;
+        this.localRecoveryConfig = localRecoveryConfig;
+        this.storedTaskStateByCheckpointID = storedTaskStateByCheckpointID;
+        this.lock = lock;
+        this.disposed = false;
+    }
 
-	@Override
-	public void storeLocalState(
-		@Nonnegative long checkpointId,
-		@Nullable TaskStateSnapshot localState) {
+    @Override
+    public void storeLocalState(
+            @Nonnegative long checkpointId, @Nullable TaskStateSnapshot localState) {
 
-		if (localState == null) {
-			localState = NULL_DUMMY;
-		}
+        if (localState == null) {
+            localState = NULL_DUMMY;
+        }
 
-		if (LOG.isTraceEnabled()) {
-			LOG.trace(
-				"Stored local state for checkpoint {} in subtask ({} - {} - {}) : {}.",
-				checkpointId, jobID, jobVertexID, subtaskIndex, localState);
-		} else if (LOG.isDebugEnabled()) {
-			LOG.debug(
-				"Stored local state for checkpoint {} in subtask ({} - {} - {})",
-				checkpointId, jobID, jobVertexID, subtaskIndex);
-		}
+        if (LOG.isTraceEnabled()) {
+            LOG.trace(
+                    "Stored local state for checkpoint {} in subtask ({} - {} - {}) : {}.",
+                    checkpointId,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex,
+                    localState);
+        } else if (LOG.isDebugEnabled()) {
+            LOG.debug(
+                    "Stored local state for checkpoint {} in subtask ({} - {} - {})",
+                    checkpointId,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex);
+        }
 
-		Map.Entry<Long, TaskStateSnapshot> toDiscard = null;
+        Map.Entry<Long, TaskStateSnapshot> toDiscard = null;
 
-		synchronized (lock) {
-			if (disposed) {
-				// we ignore late stores and simply discard the state.
-				toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, localState);
-			} else {
-				TaskStateSnapshot previous =
-					storedTaskStateByCheckpointID.put(checkpointId, localState);
+        synchronized (lock) {
+            if (disposed) {
+                // we ignore late stores and simply discard the state.
+                toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, localState);
+            } else {
+                TaskStateSnapshot previous =
+                        storedTaskStateByCheckpointID.put(checkpointId, localState);
 
-				if (previous != null) {
-					toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, previous);
-				}
-			}
-		}
+                if (previous != null) {
+                    toDiscard = new AbstractMap.SimpleEntry<>(checkpointId, previous);
+                }
+            }
+        }
 
-		if (toDiscard != null) {
-			asyncDiscardLocalStateForCollection(Collections.singletonList(toDiscard));
-		}
-	}
+        if (toDiscard != null) {
+            asyncDiscardLocalStateForCollection(Collections.singletonList(toDiscard));
+        }
+    }
 
-	@Override
-	@Nullable
-	public TaskStateSnapshot retrieveLocalState(long checkpointID) {
+    @Override
+    @Nullable
+    public TaskStateSnapshot retrieveLocalState(long checkpointID) {
 
-		TaskStateSnapshot snapshot;
+        TaskStateSnapshot snapshot;
 
-		synchronized (lock) {
-			snapshot = storedTaskStateByCheckpointID.get(checkpointID);
-		}
+        synchronized (lock) {
+            snapshot = storedTaskStateByCheckpointID.get(checkpointID);
+        }
 
-		if (snapshot != null) {
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("Found registered local state for checkpoint {} in subtask ({} - {} - {}) : {}",
-					checkpointID, jobID, jobVertexID, subtaskIndex, snapshot);
-			} else if (LOG.isDebugEnabled()) {
-				LOG.debug("Found registered local state for checkpoint {} in subtask ({} - {} - {})",
-					checkpointID, jobID, jobVertexID, subtaskIndex);
-			}
-		} else {
-			LOG.debug("Did not find registered local state for checkpoint {} in subtask ({} - {} - {})",
-				checkpointID, jobID, jobVertexID, subtaskIndex);
-		}
+        if (snapshot != null) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace(
+                        "Found registered local state for checkpoint {} in subtask ({} - {} - {}) : {}",
+                        checkpointID,
+                        jobID,
+                        jobVertexID,
+                        subtaskIndex,
+                        snapshot);
+            } else if (LOG.isDebugEnabled()) {
+                LOG.debug(
+                        "Found registered local state for checkpoint {} in subtask ({} - {} - {})",
+                        checkpointID,
+                        jobID,
+                        jobVertexID,
+                        subtaskIndex);
+            }
+        } else {
+            LOG.debug(
+                    "Did not find registered local state for checkpoint {} in subtask ({} - {} - {})",
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex);
+        }
 
-		return (snapshot != NULL_DUMMY) ? snapshot : null;
-	}
+        return (snapshot != NULL_DUMMY) ? snapshot : null;
+    }
 
-	@Override
-	@Nonnull
-	public LocalRecoveryConfig getLocalRecoveryConfig() {
-		return localRecoveryConfig;
-	}
+    @Override
+    @Nonnull
+    public LocalRecoveryConfig getLocalRecoveryConfig() {
+        return localRecoveryConfig;
+    }
 
-	@Override
-	public void confirmCheckpoint(long confirmedCheckpointId) {
+    @Override
+    public void confirmCheckpoint(long confirmedCheckpointId) {
 
-		LOG.debug("Received confirmation for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
-			confirmedCheckpointId, jobID, jobVertexID, subtaskIndex);
+        LOG.debug(
+                "Received confirmation for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
+                confirmedCheckpointId,
+                jobID,
+                jobVertexID,
+                subtaskIndex);
 
-		pruneCheckpoints(
-			(snapshotCheckpointId) -> snapshotCheckpointId < confirmedCheckpointId,
-			true);
+        pruneCheckpoints(
+                (snapshotCheckpointId) -> snapshotCheckpointId < confirmedCheckpointId, true);
+    }
 
-	}
+    @Override
+    public void abortCheckpoint(long abortedCheckpointId) {
 
-	@Override
-	public void pruneMatchingCheckpoints(@Nonnull LongPredicate matcher) {
+        LOG.debug(
+                "Received abort information for checkpoint {} in subtask ({} - {} - {}). Starting to prune history.",
+                abortedCheckpointId,
+                jobID,
+                jobVertexID,
+                subtaskIndex);
 
-		pruneCheckpoints(
-			matcher,
-			false);
-	}
+        pruneCheckpoints(
+                snapshotCheckpointId -> snapshotCheckpointId == abortedCheckpointId, false);
+    }
 
-	/**
-	 * Disposes the state of all local snapshots managed by this object.
-	 */
-	@Override
-	public CompletableFuture<Void> dispose() {
+    @Override
+    public void pruneMatchingCheckpoints(@Nonnull LongPredicate matcher) {
 
-		Collection<Map.Entry<Long, TaskStateSnapshot>> statesCopy;
+        pruneCheckpoints(matcher, false);
+    }
 
-		synchronized (lock) {
-			disposed = true;
-			statesCopy = new ArrayList<>(storedTaskStateByCheckpointID.entrySet());
-			storedTaskStateByCheckpointID.clear();
-		}
+    /** Disposes the state of all local snapshots managed by this object. */
+    @Override
+    public CompletableFuture<Void> dispose() {
 
-		return CompletableFuture.runAsync(
-			() -> {
-				// discard all remaining state objects.
-				syncDiscardLocalStateForCollection(statesCopy);
+        Collection<Map.Entry<Long, TaskStateSnapshot>> statesCopy;
 
-				// delete the local state subdirectory that belong to this subtask.
-				LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
-				for (int i = 0; i < directoryProvider.allocationBaseDirsCount(); ++i) {
-					File subtaskBaseDirectory = directoryProvider.selectSubtaskBaseDirectory(i);
-					try {
-						deleteDirectory(subtaskBaseDirectory);
-					} catch (IOException e) {
-						LOG.warn("Exception when deleting local recovery subtask base directory {} in subtask ({} - {} - {})",
-							subtaskBaseDirectory, jobID, jobVertexID, subtaskIndex, e);
-					}
-				}
-			},
-			discardExecutor);
-	}
+        synchronized (lock) {
+            disposed = true;
+            statesCopy = new ArrayList<>(storedTaskStateByCheckpointID.entrySet());
+            storedTaskStateByCheckpointID.clear();
+        }
 
-	private void asyncDiscardLocalStateForCollection(Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
-		if (!toDiscard.isEmpty()) {
-			discardExecutor.execute(() -> syncDiscardLocalStateForCollection(toDiscard));
-		}
-	}
+        return CompletableFuture.runAsync(
+                () -> {
+                    // discard all remaining state objects.
+                    syncDiscardLocalStateForCollection(statesCopy);
 
-	private void syncDiscardLocalStateForCollection(Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
-		for (Map.Entry<Long, TaskStateSnapshot> entry : toDiscard) {
-			discardLocalStateForCheckpoint(entry.getKey(), entry.getValue());
-		}
-	}
+                    // delete the local state subdirectory that belong to this subtask.
+                    LocalRecoveryDirectoryProvider directoryProvider =
+                            localRecoveryConfig.getLocalStateDirectoryProvider();
+                    for (int i = 0; i < directoryProvider.allocationBaseDirsCount(); ++i) {
+                        File subtaskBaseDirectory = directoryProvider.selectSubtaskBaseDirectory(i);
+                        try {
+                            deleteDirectory(subtaskBaseDirectory);
+                        } catch (IOException e) {
+                            LOG.warn(
+                                    "Exception when deleting local recovery subtask base directory {} in subtask ({} - {} - {})",
+                                    subtaskBaseDirectory,
+                                    jobID,
+                                    jobVertexID,
+                                    subtaskIndex,
+                                    e);
+                        }
+                    }
+                },
+                discardExecutor);
+    }
 
-	/**
-	 * Helper method that discards state objects with an executor and reports exceptions to the log.
-	 */
-	private void discardLocalStateForCheckpoint(long checkpointID, TaskStateSnapshot o) {
+    private void asyncDiscardLocalStateForCollection(
+            Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
+        if (!toDiscard.isEmpty()) {
+            discardExecutor.execute(() -> syncDiscardLocalStateForCollection(toDiscard));
+        }
+    }
 
-		if (LOG.isTraceEnabled()) {
-			LOG.trace("Discarding local task state snapshot of checkpoint {} for subtask ({} - {} - {}).",
-				checkpointID, jobID, jobVertexID, subtaskIndex);
-		} else {
-			LOG.debug("Discarding local task state snapshot {} of checkpoint {} for subtask ({} - {} - {}).",
-				o, checkpointID, jobID, jobVertexID, subtaskIndex);
-		}
+    private void syncDiscardLocalStateForCollection(
+            Collection<Map.Entry<Long, TaskStateSnapshot>> toDiscard) {
+        for (Map.Entry<Long, TaskStateSnapshot> entry : toDiscard) {
+            discardLocalStateForCheckpoint(entry.getKey(), entry.getValue());
+        }
+    }
 
-		try {
-			o.discardState();
-		} catch (Exception discardEx) {
-			LOG.warn("Exception while discarding local task state snapshot of checkpoint {} in subtask ({} - {} - {}).",
-				checkpointID, jobID, jobVertexID, subtaskIndex, discardEx);
-		}
+    /**
+     * Helper method that discards state objects with an executor and reports exceptions to the log.
+     */
+    private void discardLocalStateForCheckpoint(long checkpointID, TaskStateSnapshot o) {
 
-		LocalRecoveryDirectoryProvider directoryProvider = localRecoveryConfig.getLocalStateDirectoryProvider();
-		File checkpointDir = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointID);
+        if (LOG.isTraceEnabled()) {
+            LOG.trace(
+                    "Discarding local task state snapshot of checkpoint {} for subtask ({} - {} - {}).",
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex);
+        } else {
+            LOG.debug(
+                    "Discarding local task state snapshot {} of checkpoint {} for subtask ({} - {} - {}).",
+                    o,
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex);
+        }
 
-		LOG.debug("Deleting local state directory {} of checkpoint {} for subtask ({} - {} - {}).",
-			checkpointDir, checkpointID, jobID, jobVertexID, subtaskIndex);
+        try {
+            o.discardState();
+        } catch (Exception discardEx) {
+            LOG.warn(
+                    "Exception while discarding local task state snapshot of checkpoint {} in subtask ({} - {} - {}).",
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex,
+                    discardEx);
+        }
 
-		try {
-			deleteDirectory(checkpointDir);
-		} catch (IOException ex) {
-			LOG.warn("Exception while deleting local state directory of checkpoint {} in subtask ({} - {} - {}).",
-				checkpointID, jobID, jobVertexID, subtaskIndex, ex);
-		}
-	}
+        LocalRecoveryDirectoryProvider directoryProvider =
+                localRecoveryConfig.getLocalStateDirectoryProvider();
+        File checkpointDir = directoryProvider.subtaskSpecificCheckpointDirectory(checkpointID);
 
-	/**
-	 * Helper method to delete a directory.
-	 */
-	private void deleteDirectory(File directory) throws IOException {
-		Path path = new Path(directory.toURI());
-		FileSystem fileSystem = path.getFileSystem();
-		if (fileSystem.exists(path)) {
-			fileSystem.delete(path, true);
-		}
-	}
+        LOG.debug(
+                "Deleting local state directory {} of checkpoint {} for subtask ({} - {} - {}).",
+                checkpointDir,
+                checkpointID,
+                jobID,
+                jobVertexID,
+                subtaskIndex);
 
-	/**
-	 * Pruning the useless checkpoints, it should be called only when holding the {@link #lock}.
-	 */
-	private void pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
+        try {
+            deleteDirectory(checkpointDir);
+        } catch (IOException ex) {
+            LOG.warn(
+                    "Exception while deleting local state directory of checkpoint {} in subtask ({} - {} - {}).",
+                    checkpointID,
+                    jobID,
+                    jobVertexID,
+                    subtaskIndex,
+                    ex);
+        }
+    }
 
-		final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
+    /** Helper method to delete a directory. */
+    private void deleteDirectory(File directory) throws IOException {
+        Path path = new Path(directory.toURI());
+        FileSystem fileSystem = path.getFileSystem();
+        if (fileSystem.exists(path)) {
+            fileSystem.delete(path, true);
+        }
+    }
 
-		synchronized (lock) {
+    /** Pruning the useless checkpoints, it should be called only when holding the {@link #lock}. */
+    private void pruneCheckpoints(LongPredicate pruningChecker, boolean breakOnceCheckerFalse) {
 
-			Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
-				storedTaskStateByCheckpointID.entrySet().iterator();
+        final List<Map.Entry<Long, TaskStateSnapshot>> toRemove = new ArrayList<>();
 
-			while (entryIterator.hasNext()) {
+        synchronized (lock) {
+            Iterator<Map.Entry<Long, TaskStateSnapshot>> entryIterator =
+                    storedTaskStateByCheckpointID.entrySet().iterator();
 
-				Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
-				long entryCheckpointId = snapshotEntry.getKey();
+            while (entryIterator.hasNext()) {
 
-				if (pruningChecker.test(entryCheckpointId)) {
-					toRemove.add(snapshotEntry);
-					entryIterator.remove();
-				} else if (breakOnceCheckerFalse) {
-					break;
-				}
-			}
-		}
+                Map.Entry<Long, TaskStateSnapshot> snapshotEntry = entryIterator.next();
+                long entryCheckpointId = snapshotEntry.getKey();
 
-		asyncDiscardLocalStateForCollection(toRemove);
-	}
+                if (pruningChecker.test(entryCheckpointId)) {
+                    toRemove.add(snapshotEntry);
+                    entryIterator.remove();
+                } else if (breakOnceCheckerFalse) {
+                    break;
+                }
+            }
+        }
 
-	@Override
-	public String toString() {
-		return "TaskLocalStateStore{" +
-			"jobID=" + jobID +
-			", jobVertexID=" + jobVertexID +
-			", allocationID=" + allocationID.toHexString() +
-			", subtaskIndex=" + subtaskIndex +
-			", localRecoveryConfig=" + localRecoveryConfig +
-			", storedCheckpointIDs=" + storedTaskStateByCheckpointID.keySet() +
-			'}';
-	}
+        asyncDiscardLocalStateForCollection(toRemove);
+    }
+
+    @Override
+    public String toString() {
+        return "TaskLocalStateStore{"
+                + "jobID="
+                + jobID
+                + ", jobVertexID="
+                + jobVertexID
+                + ", allocationID="
+                + allocationID.toHexString()
+                + ", subtaskIndex="
+                + subtaskIndex
+                + ", localRecoveryConfig="
+                + localRecoveryConfig
+                + ", storedCheckpointIDs="
+                + storedTaskStateByCheckpointID.keySet()
+                + '}';
+    }
 }

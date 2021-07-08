@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 # test pyflink shell environment
-from pyflink.shell import b_env, bt_env, FileSystem, OldCsv, DataTypes, Schema
+from pyflink.shell import s_env, st_env, FileSystem, OldCsv, DataTypes, Schema
 
 import tempfile
 import os
@@ -28,9 +28,9 @@ if os.path.exists(sink_path):
         os.remove(sink_path)
     else:
         shutil.rmtree(sink_path)
-b_env.set_parallelism(1)
-t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-bt_env.connect(FileSystem().path(sink_path)) \
+s_env.set_parallelism(1)
+t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
+st_env.connect(FileSystem().path(sink_path)) \
     .with_format(OldCsv()
                  .field_delimiter(',')
                  .field("a", DataTypes.BIGINT())
@@ -40,11 +40,9 @@ bt_env.connect(FileSystem().path(sink_path)) \
                  .field("a", DataTypes.BIGINT())
                  .field("b", DataTypes.STRING())
                  .field("c", DataTypes.STRING())) \
-    .create_temporary_table("batch_sink")
+    .create_temporary_table("csv_sink")
 
-t.select("a + 1, b, c").insert_into("batch_sink")
-
-bt_env.execute("test")
+t.select("a + 1, b, c").execute_insert("csv_sink").wait()
 
 with open(sink_path, 'r') as f:
     lines = f.read()

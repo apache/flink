@@ -34,58 +34,61 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Utility for auditing logged messages.
  *
- * <p>Implementation note: Make sure to not expose log4j dependencies in the interface of this class to ease updates
- * in logging infrastructure.
+ * <p>Implementation note: Make sure to not expose log4j dependencies in the interface of this class
+ * to ease updates in logging infrastructure.
  */
 public class TestLoggerResource extends ExternalResource {
-	private static final LoggerContext LOGGER_CONTEXT = (LoggerContext) LogManager.getContext(false);
+    private static final LoggerContext LOGGER_CONTEXT =
+            (LoggerContext) LogManager.getContext(false);
 
-	private final String loggerName;
-	private final org.slf4j.event.Level level;
+    private final String loggerName;
+    private final org.slf4j.event.Level level;
 
-	private ConcurrentLinkedQueue<String> loggingEvents;
+    private ConcurrentLinkedQueue<String> loggingEvents;
 
-	public TestLoggerResource(Class<?> clazz, org.slf4j.event.Level level) {
-		this.loggerName = clazz.getCanonicalName();
-		this.level = level;
-	}
+    public TestLoggerResource(Class<?> clazz, org.slf4j.event.Level level) {
+        this.loggerName = clazz.getCanonicalName();
+        this.level = level;
+    }
 
-	public List<String> getMessages() {
-			return new ArrayList<>(loggingEvents);
-	}
+    public List<String> getMessages() {
+        return new ArrayList<>(loggingEvents);
+    }
 
-	@Override
-	protected void before() throws Throwable {
-		loggingEvents = new ConcurrentLinkedQueue<>();
+    @Override
+    protected void before() throws Throwable {
+        loggingEvents = new ConcurrentLinkedQueue<>();
 
-		Appender testAppender = new AbstractAppender("test-appender", null, null, false) {
-			@Override
-			public void append(LogEvent event) {
-				loggingEvents.add(event.getMessage().getFormattedMessage());
-			}
-		};
-		testAppender.start();
+        Appender testAppender =
+                new AbstractAppender("test-appender", null, null, false) {
+                    @Override
+                    public void append(LogEvent event) {
+                        loggingEvents.add(event.getMessage().getFormattedMessage());
+                    }
+                };
+        testAppender.start();
 
-		AppenderRef appenderRef = AppenderRef.createAppenderRef(testAppender.getName(), null, null);
-		LoggerConfig logger = LoggerConfig.createLogger(
-			false,
-			Level.getLevel(level.name()),
-			"test",
-			null,
-			new AppenderRef[]{appenderRef},
-			null,
-			LOGGER_CONTEXT.getConfiguration(),
-			null);
-		logger.addAppender(testAppender, null, null);
+        AppenderRef appenderRef = AppenderRef.createAppenderRef(testAppender.getName(), null, null);
+        LoggerConfig logger =
+                LoggerConfig.createLogger(
+                        false,
+                        Level.getLevel(level.name()),
+                        "test",
+                        null,
+                        new AppenderRef[] {appenderRef},
+                        null,
+                        LOGGER_CONTEXT.getConfiguration(),
+                        null);
+        logger.addAppender(testAppender, null, null);
 
-		LOGGER_CONTEXT.getConfiguration().addLogger(loggerName, logger);
-		LOGGER_CONTEXT.updateLoggers();
-	}
+        LOGGER_CONTEXT.getConfiguration().addLogger(loggerName, logger);
+        LOGGER_CONTEXT.updateLoggers();
+    }
 
-	@Override
-	protected void after() {
-		LOGGER_CONTEXT.getConfiguration().removeLogger(loggerName);
-		LOGGER_CONTEXT.updateLoggers();
-		loggingEvents = null;
-	}
+    @Override
+    protected void after() {
+        LOGGER_CONTEXT.getConfiguration().removeLogger(loggerName);
+        LOGGER_CONTEXT.updateLoggers();
+        loggingEvents = null;
+    }
 }

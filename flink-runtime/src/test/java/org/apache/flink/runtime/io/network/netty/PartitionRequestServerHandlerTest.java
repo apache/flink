@@ -18,13 +18,18 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.PartitionRequest;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ResumeConsumption;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.util.TestLogger;
 
@@ -32,73 +37,118 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link PartitionRequestServerHandler}.
- */
+/** Tests for {@link PartitionRequestServerHandler}. */
 public class PartitionRequestServerHandlerTest extends TestLogger {
 
-	/**
-	 * Tests that {@link PartitionRequestServerHandler} responds {@link ErrorResponse} with wrapped
-	 * {@link PartitionNotFoundException} after receiving invalid {@link PartitionRequest}.
-	 */
-	@Test
-	public void testResponsePartitionNotFoundException() {
-		final PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			new PartitionRequestQueue());
-		final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
-		final ResultPartitionID partitionId = new ResultPartitionID();
+    /**
+     * Tests that {@link PartitionRequestServerHandler} responds {@link ErrorResponse} with wrapped
+     * {@link PartitionNotFoundException} after receiving invalid {@link PartitionRequest}.
+     */
+    @Test
+    public void testResponsePartitionNotFoundException() {
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        new PartitionRequestQueue());
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+        final ResultPartitionID partitionId = new ResultPartitionID();
 
-		// Write the message of partition request to server
-		channel.writeInbound(new PartitionRequest(partitionId, 0, new InputChannelID(), 2));
-		channel.runPendingTasks();
+        // Write the message of partition request to server
+        channel.writeInbound(new PartitionRequest(partitionId, 0, new InputChannelID(), 2));
+        channel.runPendingTasks();
 
-		// Read the response message after handling partition request
-		final Object msg = channel.readOutbound();
-		assertThat(msg, instanceOf(ErrorResponse.class));
+        // Read the response message after handling partition request
+        final Object msg = channel.readOutbound();
+        assertThat(msg, instanceOf(ErrorResponse.class));
 
-		final ErrorResponse err = (ErrorResponse) msg;
-		assertThat(err.cause, instanceOf(PartitionNotFoundException.class));
+        final ErrorResponse err = (ErrorResponse) msg;
+        assertThat(err.cause, instanceOf(PartitionNotFoundException.class));
 
-		final ResultPartitionID actualPartitionId = ((PartitionNotFoundException) err.cause).getPartitionId();
-		assertThat(partitionId, is(actualPartitionId));
-	}
+        final ResultPartitionID actualPartitionId =
+                ((PartitionNotFoundException) err.cause).getPartitionId();
+        assertThat(partitionId, is(actualPartitionId));
+    }
 
-	@Test
-	public void testResumeConsumption() {
-		final InputChannelID inputChannelID = new InputChannelID();
-		final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
-		final TestViewReader testViewReader = new TestViewReader(inputChannelID, 2, partitionRequestQueue);
-		final PartitionRequestServerHandler serverHandler = new PartitionRequestServerHandler(
-			new ResultPartitionManager(),
-			new TaskEventDispatcher(),
-			partitionRequestQueue);
-		final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
-		partitionRequestQueue.notifyReaderCreated(testViewReader);
+    @Test
+    public void testResumeConsumption() {
+        final InputChannelID inputChannelID = new InputChannelID();
+        final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        final TestViewReader testViewReader =
+                new TestViewReader(inputChannelID, 2, partitionRequestQueue);
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler);
+        partitionRequestQueue.notifyReaderCreated(testViewReader);
 
-		// Write the message of resume consumption to server
-		channel.writeInbound(new ResumeConsumption(inputChannelID));
-		channel.runPendingTasks();
+        // Write the message of resume consumption to server
+        channel.writeInbound(new ResumeConsumption(inputChannelID));
+        channel.runPendingTasks();
 
-		assertTrue(testViewReader.consumptionResumed);
-	}
+        assertTrue(testViewReader.consumptionResumed);
+    }
 
-	private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {
-		private boolean consumptionResumed = false;
+    @Test
+    public void testAcknowledgeAllRecordsProcessed() throws IOException {
+        InputChannelID inputChannelID = new InputChannelID();
 
-		TestViewReader(InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
-			super(receiverId, initialCredit, requestQueue);
-		}
+        ResultPartition resultPartition =
+                PartitionTestUtils.createPartition(ResultPartitionType.PIPELINED_BOUNDED);
+        ResultPartitionProvider partitionProvider =
+                (partitionId, index, availabilityListener) ->
+                        resultPartition.createSubpartitionView(index, availabilityListener);
 
-		@Override
-		public void resumeConsumption() {
-			consumptionResumed = true;
-		}
-	}
+        // Creates the netty network handler stack.
+        PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
+        final PartitionRequestServerHandler serverHandler =
+                new PartitionRequestServerHandler(
+                        new ResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        partitionRequestQueue);
+        final EmbeddedChannel channel = new EmbeddedChannel(serverHandler, partitionRequestQueue);
+
+        // Creates and registers the view to netty.
+        NetworkSequenceViewReader viewReader =
+                new CreditBasedSequenceNumberingViewReader(
+                        inputChannelID, 2, partitionRequestQueue);
+        viewReader.requestSubpartitionView(partitionProvider, resultPartition.getPartitionId(), 0);
+        partitionRequestQueue.notifyReaderCreated(viewReader);
+
+        // Write the message to acknowledge all records are processed to server
+        resultPartition.notifyEndOfUserRecords();
+        CompletableFuture<Void> allRecordsProcessedFuture =
+                resultPartition.getAllRecordsProcessedFuture();
+        assertFalse(allRecordsProcessedFuture.isDone());
+        channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
+        channel.runPendingTasks();
+
+        assertTrue(allRecordsProcessedFuture.isDone());
+        assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
+    }
+
+    private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {
+        private boolean consumptionResumed = false;
+
+        TestViewReader(
+                InputChannelID receiverId, int initialCredit, PartitionRequestQueue requestQueue) {
+            super(receiverId, initialCredit, requestQueue);
+        }
+
+        @Override
+        public void resumeConsumption() {
+            consumptionResumed = true;
+        }
+    }
 }

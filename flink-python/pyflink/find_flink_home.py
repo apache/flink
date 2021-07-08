@@ -23,9 +23,16 @@ import sys
 
 
 def _is_flink_home(path):
-    pyflink_file = path + "/bin/pyflink-gateway-server.sh"
+    flink_script_file = path + "/bin/flink"
+    if len(glob.glob(flink_script_file)) > 0:
+        return True
+    else:
+        return False
+
+
+def _is_apache_flink_libraries_home(path):
     flink_dist_jar_file = path + "/lib/flink-dist*.jar"
-    if os.path.isfile(pyflink_file) and len(glob.glob(flink_dist_jar_file)) > 0:
+    if len(glob.glob(flink_dist_jar_file)) > 0:
         return True
     else:
         return False
@@ -42,17 +49,22 @@ def _find_flink_home():
         try:
             current_dir = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
             flink_root_dir = os.path.abspath(current_dir + "/../../")
-            build_target = flink_root_dir + "/build-target"
-            if _is_flink_home(build_target):
-                os.environ['FLINK_HOME'] = build_target
-                return build_target
+            build_target = glob.glob(flink_root_dir + "/flink-dist/target/flink-*-bin/flink-*")
+            if len(build_target) > 0 and _is_flink_home(build_target[0]):
+                os.environ['FLINK_HOME'] = build_target[0]
+                return build_target[0]
 
-            from importlib.util import find_spec
-            module_home = os.path.dirname(find_spec("pyflink").origin)
-
-            if _is_flink_home(module_home):
-                os.environ['FLINK_HOME'] = module_home
-                return module_home
+            FLINK_HOME = None
+            for module_home in __import__('pyflink').__path__:
+                if _is_apache_flink_libraries_home(module_home):
+                    os.environ['FLINK_LIB_DIR'] = os.path.join(module_home, 'lib')
+                    os.environ['FLINK_PLUGINS_DIR'] = os.path.join(module_home, 'plugins')
+                    os.environ['FLINK_OPT_DIR'] = os.path.join(module_home, 'opt')
+                if _is_flink_home(module_home):
+                    FLINK_HOME = module_home
+            if FLINK_HOME is not None:
+                os.environ['FLINK_HOME'] = FLINK_HOME
+                return FLINK_HOME
         except Exception:
             pass
         logging.error("Could not find valid FLINK_HOME(Flink distribution directory) "

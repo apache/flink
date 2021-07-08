@@ -21,26 +21,26 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * A {@link IterativeCondition condition} which negates the condition it wraps
- * and returns {@code true} if the original condition returns {@code false}.
+ * A {@link IterativeCondition condition} which negates the condition it wraps and returns {@code
+ * true} if the original condition returns {@code false}.
  *
  * @param <T> Type of the element to filter
- * @deprecated Please use {@link RichNotCondition} instead. This class exists just for
- * backwards compatibility and will be removed in FLINK-10113.
+ * @deprecated Please use {@link RichNotCondition} instead. This class exists just for backwards
+ *     compatibility and will be removed in FLINK-10113.
  */
 @Internal
 @Deprecated
 public class NotCondition<T> extends IterativeCondition<T> {
-	private static final long serialVersionUID = -2109562093871155005L;
+    private static final long serialVersionUID = -2109562093871155005L;
 
-	private final IterativeCondition<T> original;
+    private final IterativeCondition<T> original;
 
-	public NotCondition(final IterativeCondition<T> original) {
-		this.original = original;
-	}
+    public NotCondition(final IterativeCondition<T> original) {
+        this.original = original;
+    }
 
-	@Override
-	public boolean filter(T value, Context<T> ctx) throws Exception {
-		return original != null && !original.filter(value, ctx);
-	}
+    @Override
+    public boolean filter(T value, Context<T> ctx) throws Exception {
+        return original != null && !original.filter(value, ctx);
+    }
 }

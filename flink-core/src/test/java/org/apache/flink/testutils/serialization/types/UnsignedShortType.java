@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class UnsignedShortType implements SerializationTestType {
 
-	private int value;
+    private int value;
 
-	public UnsignedShortType() {
-		this.value = 0;
-	}
+    public UnsignedShortType() {
+        this.value = 0;
+    }
 
-	private UnsignedShortType(int value) {
-		this.value = value;
-	}
+    private UnsignedShortType(int value) {
+        this.value = value;
+    }
 
-	@Override
-	public UnsignedShortType getRandom(Random rnd) {
-		return new UnsignedShortType(rnd.nextInt(32768) + 32768);
-	}
+    @Override
+    public UnsignedShortType getRandom(Random rnd) {
+        return new UnsignedShortType(rnd.nextInt(32768) + 32768);
+    }
 
-	@Override
-	public int length() {
-		return 2;
-	}
+    @Override
+    public int length() {
+        return 2;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeShort(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeShort(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readUnsignedShort();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readUnsignedShort();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value;
-	}
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof UnsignedShortType) {
-			UnsignedShortType other = (UnsignedShortType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof UnsignedShortType) {
+            UnsignedShortType other = (UnsignedShortType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

@@ -26,34 +26,31 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-/**
- * A test for {@link KeyGroupsStateHandle}
- */
+/** A test for {@link KeyGroupsStateHandle} */
 public class KeyGroupsStateHandleTest {
 
-	@Test
-	public void testNonEmptyIntersection() {
-		KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
-		byte[] dummy = new byte[10];
-		StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
-		KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
+    @Test
+    public void testNonEmptyIntersection() {
+        KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
+        byte[] dummy = new byte[10];
+        StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
+        KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
 
-		KeyGroupRange expectedRange = new KeyGroupRange(0, 3);
-		KeyGroupsStateHandle newHandle = handle.getIntersection(expectedRange);
-		assertNotNull(newHandle);
-		assertEquals(streamHandle, newHandle.getDelegateStateHandle());
-		assertEquals(expectedRange, newHandle.getKeyGroupRange());
-	}
+        KeyGroupRange expectedRange = new KeyGroupRange(0, 3);
+        KeyGroupsStateHandle newHandle = handle.getIntersection(expectedRange);
+        assertNotNull(newHandle);
+        assertEquals(streamHandle, newHandle.getDelegateStateHandle());
+        assertEquals(expectedRange, newHandle.getKeyGroupRange());
+    }
 
-	@Test
-	public void testEmptyIntersection() {
-		KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
-		byte[] dummy = new byte[10];
-		StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
-		KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
-		// return null if the the keygroup intersection is empty.
-		KeyGroupRange newRange = new KeyGroupRange(8, 11);
-		assertNull(handle.getIntersection(newRange));
-	}
+    @Test
+    public void testEmptyIntersection() {
+        KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
+        byte[] dummy = new byte[10];
+        StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
+        KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
+        // return null if the the keygroup intersection is empty.
+        KeyGroupRange newRange = new KeyGroupRange(8, 11);
+        assertNull(handle.getIntersection(newRange));
+    }
 }
-

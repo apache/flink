@@ -24,19 +24,19 @@ import org.apache.flink.core.fs.FSDataOutputStream;
 import java.io.IOException;
 
 /**
- * An interface with methods related to the interplay between the {@link BroadcastState Broadcast State} and
- * the {@link OperatorStateBackend}.
+ * An interface with methods related to the interplay between the {@link BroadcastState Broadcast
+ * State} and the {@link OperatorStateBackend}.
  *
  * @param <K> The key type of the elements in the {@link BroadcastState Broadcast State}.
  * @param <V> The value type of the elements in the {@link BroadcastState Broadcast State}.
  */
 public interface BackendWritableBroadcastState<K, V> extends BroadcastState<K, V> {
 
-	BackendWritableBroadcastState<K, V> deepCopy();
+    BackendWritableBroadcastState<K, V> deepCopy();
 
-	long write(FSDataOutputStream out) throws IOException;
+    long write(FSDataOutputStream out) throws IOException;
 
-	void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo);
+    void setStateMetaInfo(RegisteredBroadcastStateBackendMetaInfo<K, V> stateMetaInfo);
 
-	RegisteredBroadcastStateBackendMetaInfo<K, V> getStateMetaInfo();
+    RegisteredBroadcastStateBackendMetaInfo<K, V> getStateMetaInfo();
 }

@@ -26,30 +26,24 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * This class checks the functionality of the {@link RoundRobinChannelSelector} class.
- */
+/** This class checks the functionality of the {@link RoundRobinChannelSelector} class. */
 public class DefaultChannelSelectorTest {
 
-	/**
-	 * This test checks the channel selection.
-	 */
-	@Test
-	public void channelSelect() {
-		final StringValue dummyRecord = new StringValue("abc");
-		final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<>();
-		selector.setup(2);
+    /** This test checks the channel selection. */
+    @Test
+    public void channelSelect() {
+        final StringValue dummyRecord = new StringValue("abc");
+        final RoundRobinChannelSelector<StringValue> selector = new RoundRobinChannelSelector<>();
+        selector.setup(2);
 
-		assertSelectedChannel(selector, dummyRecord, 0);
-		assertSelectedChannel(selector, dummyRecord, 1);
-	}
+        assertSelectedChannel(selector, dummyRecord, 0);
+        assertSelectedChannel(selector, dummyRecord, 1);
+    }
 
-	private void assertSelectedChannel(
-		ChannelSelector<StringValue> selector,
-		StringValue record,
-		int expectedChannel) {
+    private void assertSelectedChannel(
+            ChannelSelector<StringValue> selector, StringValue record, int expectedChannel) {
 
-		int actualResult = selector.selectChannel(record);
-		assertEquals(expectedChannel, actualResult);
-	}
+        int actualResult = selector.selectChannel(record);
+        assertEquals(expectedChannel, actualResult);
+    }
 }

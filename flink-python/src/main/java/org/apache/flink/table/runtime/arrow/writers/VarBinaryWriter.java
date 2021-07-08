@@ -19,26 +19,77 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.VarBinaryVector;
 
-/**
- * {@link ArrowFieldWriter} for VarBinary.
- */
+/** {@link ArrowFieldWriter} for VarBinary. */
 @Internal
-public final class VarBinaryWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class VarBinaryWriter<T> extends ArrowFieldWriter<T> {
 
-	public VarBinaryWriter(VarBinaryVector varBinaryVector) {
-		super(varBinaryVector);
-	}
+    public static VarBinaryWriter<RowData> forRow(VarBinaryVector varBinaryVector) {
+        return new VarBinaryWriterForRow(varBinaryVector);
+    }
 
-	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((VarBinaryVector) getValueVector()).setNull(getCount());
-		} else {
-			((VarBinaryVector) getValueVector()).setSafe(getCount(), row.getBinary(ordinal));
-		}
-	}
+    public static VarBinaryWriter<ArrayData> forArray(VarBinaryVector varBinaryVector) {
+        return new VarBinaryWriterForArray(varBinaryVector);
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    private VarBinaryWriter(VarBinaryVector varBinaryVector) {
+        super(varBinaryVector);
+    }
+
+    abstract boolean isNullAt(T in, int ordinal);
+
+    abstract byte[] readBinary(T in, int ordinal);
+
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((VarBinaryVector) getValueVector()).setNull(getCount());
+        } else {
+            ((VarBinaryVector) getValueVector()).setSafe(getCount(), readBinary(in, ordinal));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    /** {@link VarBinaryWriter} for {@link RowData} input. */
+    public static final class VarBinaryWriterForRow extends VarBinaryWriter<RowData> {
+
+        private VarBinaryWriterForRow(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
+
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        byte[] readBinary(RowData in, int ordinal) {
+            return in.getBinary(ordinal);
+        }
+    }
+
+    /** {@link VarBinaryWriter} for {@link ArrayData} input. */
+    public static final class VarBinaryWriterForArray extends VarBinaryWriter<ArrayData> {
+
+        private VarBinaryWriterForArray(VarBinaryVector varBinaryVector) {
+            super(varBinaryVector);
+        }
+
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        byte[] readBinary(ArrayData in, int ordinal) {
+            return in.getBinary(ordinal);
+        }
+    }
 }

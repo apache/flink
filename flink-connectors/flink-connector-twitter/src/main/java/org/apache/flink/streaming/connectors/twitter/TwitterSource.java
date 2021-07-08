@@ -41,167 +41,173 @@ import java.util.Objects;
 import java.util.Properties;
 
 /**
- * Implementation of {@link SourceFunction} specialized to emit tweets from
- * Twitter. This is not a parallel source because the Twitter API only allows
- * two concurrent connections.
+ * Implementation of {@link SourceFunction} specialized to emit tweets from Twitter. This is not a
+ * parallel source because the Twitter API only allows two concurrent connections.
  */
 public class TwitterSource extends RichSourceFunction<String> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TwitterSource.class);
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// ----- Required property keys
+    // ----- Required property keys
 
-	public static final String CONSUMER_KEY = "twitter-source.consumerKey";
+    public static final String CONSUMER_KEY = "twitter-source.consumerKey";
 
-	public static final String CONSUMER_SECRET = "twitter-source.consumerSecret";
+    public static final String CONSUMER_SECRET = "twitter-source.consumerSecret";
 
-	public static final String TOKEN = "twitter-source.token";
+    public static final String TOKEN = "twitter-source.token";
 
-	public static final String TOKEN_SECRET = "twitter-source.tokenSecret";
+    public static final String TOKEN_SECRET = "twitter-source.tokenSecret";
 
-	// ------ Optional property keys
+    // ------ Optional property keys
 
-	public static final String CLIENT_NAME = "twitter-source.name";
+    public static final String CLIENT_NAME = "twitter-source.name";
 
-	public static final String CLIENT_HOSTS = "twitter-source.hosts";
+    public static final String CLIENT_HOSTS = "twitter-source.hosts";
 
-	public static final String CLIENT_BUFFER_SIZE = "twitter-source.bufferSize";
+    public static final String CLIENT_BUFFER_SIZE = "twitter-source.bufferSize";
 
-	// ----- Fields set by the constructor
+    // ----- Fields set by the constructor
 
-	private final Properties properties;
+    private final Properties properties;
 
-	private EndpointInitializer initializer = new SampleStatusesEndpoint();
+    private EndpointInitializer initializer = new SampleStatusesEndpoint();
 
-	// ----- Runtime fields
-	private transient BasicClient client;
-	private transient Object waitLock;
-	private transient boolean running = true;
+    // ----- Runtime fields
+    private transient BasicClient client;
+    private transient Object waitLock;
+    private transient boolean running = true;
 
-	/**
-	 * Create {@link TwitterSource} for streaming.
-	 *
-	 * @param properties For the source
-	 */
-	public TwitterSource(Properties properties) {
-		checkProperty(properties, CONSUMER_KEY);
-		checkProperty(properties, CONSUMER_SECRET);
-		checkProperty(properties, TOKEN);
-		checkProperty(properties, TOKEN_SECRET);
+    /**
+     * Create {@link TwitterSource} for streaming.
+     *
+     * @param properties For the source
+     */
+    public TwitterSource(Properties properties) {
+        checkProperty(properties, CONSUMER_KEY);
+        checkProperty(properties, CONSUMER_SECRET);
+        checkProperty(properties, TOKEN);
+        checkProperty(properties, TOKEN_SECRET);
 
-		this.properties = properties;
-	}
+        this.properties = properties;
+    }
 
-	private static void checkProperty(Properties p, String key) {
-		if (!p.containsKey(key)) {
-			throw new IllegalArgumentException("Required property '" + key + "' not set.");
-		}
-	}
+    private static void checkProperty(Properties p, String key) {
+        if (!p.containsKey(key)) {
+            throw new IllegalArgumentException("Required property '" + key + "' not set.");
+        }
+    }
 
-	/**
-	 * Set a custom endpoint initializer.
-	 */
-	public void setCustomEndpointInitializer(EndpointInitializer initializer) {
-		Objects.requireNonNull(initializer, "Initializer has to be set");
-		ClosureCleaner.ensureSerializable(initializer);
-		this.initializer = initializer;
-	}
+    /** Set a custom endpoint initializer. */
+    public void setCustomEndpointInitializer(EndpointInitializer initializer) {
+        Objects.requireNonNull(initializer, "Initializer has to be set");
+        ClosureCleaner.ensureSerializable(initializer);
+        this.initializer = initializer;
+    }
 
-	// ----- Source lifecycle
+    // ----- Source lifecycle
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		waitLock = new Object();
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        waitLock = new Object();
+    }
 
-	@Override
-	public void run(final SourceContext<String> ctx) throws Exception {
-		LOG.info("Initializing Twitter Streaming API connection");
+    @Override
+    public void run(final SourceContext<String> ctx) throws Exception {
+        LOG.info("Initializing Twitter Streaming API connection");
 
-		StreamingEndpoint endpoint = initializer.createEndpoint();
+        StreamingEndpoint endpoint = initializer.createEndpoint();
 
-		Authentication auth = new OAuth1(properties.getProperty(CONSUMER_KEY),
-			properties.getProperty(CONSUMER_SECRET),
-			properties.getProperty(TOKEN),
-			properties.getProperty(TOKEN_SECRET));
+        Authentication auth =
+                new OAuth1(
+                        properties.getProperty(CONSUMER_KEY),
+                        properties.getProperty(CONSUMER_SECRET),
+                        properties.getProperty(TOKEN),
+                        properties.getProperty(TOKEN_SECRET));
 
-		client = new ClientBuilder()
-			.name(properties.getProperty(CLIENT_NAME, "flink-twitter-source"))
-			.hosts(properties.getProperty(CLIENT_HOSTS, Constants.STREAM_HOST))
-			.endpoint(endpoint)
-			.authentication(auth)
-			.processor(new HosebirdMessageProcessor() {
-				public DelimitedStreamReader reader;
+        client =
+                new ClientBuilder()
+                        .name(properties.getProperty(CLIENT_NAME, "flink-twitter-source"))
+                        .hosts(properties.getProperty(CLIENT_HOSTS, Constants.STREAM_HOST))
+                        .endpoint(endpoint)
+                        .authentication(auth)
+                        .processor(
+                                new HosebirdMessageProcessor() {
+                                    public DelimitedStreamReader reader;
 
-				@Override
-				public void setup(InputStream input) {
-					reader = new DelimitedStreamReader(input, Constants.DEFAULT_CHARSET, Integer.parseInt(properties.getProperty(CLIENT_BUFFER_SIZE, "50000")));
-				}
+                                    @Override
+                                    public void setup(InputStream input) {
+                                        reader =
+                                                new DelimitedStreamReader(
+                                                        input,
+                                                        Constants.DEFAULT_CHARSET,
+                                                        Integer.parseInt(
+                                                                properties.getProperty(
+                                                                        CLIENT_BUFFER_SIZE,
+                                                                        "50000")));
+                                    }
 
-				@Override
-				public boolean process() throws IOException, InterruptedException {
-					String line = reader.readLine();
-					ctx.collect(line);
-					return true;
-				}
-			})
-			.build();
+                                    @Override
+                                    public boolean process()
+                                            throws IOException, InterruptedException {
+                                        String line = reader.readLine();
+                                        ctx.collect(line);
+                                        return true;
+                                    }
+                                })
+                        .build();
 
-		client.connect();
-		running = true;
+        client.connect();
+        running = true;
 
-		LOG.info("Twitter Streaming API connection established successfully");
+        LOG.info("Twitter Streaming API connection established successfully");
 
-		// just wait now
-		while (running) {
-			synchronized (waitLock) {
-				waitLock.wait(100L);
-			}
-		}
-	}
+        // just wait now
+        while (running) {
+            synchronized (waitLock) {
+                waitLock.wait(100L);
+            }
+        }
+    }
 
-	@Override
-	public void close() {
-		this.running = false;
-		LOG.info("Closing source");
-		if (client != null) {
-			// client seems to be thread-safe
-			client.stop();
-		}
-		// leave main method
-		synchronized (waitLock) {
-			waitLock.notify();
-		}
-	}
+    @Override
+    public void close() {
+        this.running = false;
+        LOG.info("Closing source");
+        if (client != null) {
+            // client seems to be thread-safe
+            client.stop();
+        }
+        // leave main method
+        synchronized (waitLock) {
+            waitLock.notify();
+        }
+    }
 
-	@Override
-	public void cancel() {
-		LOG.info("Cancelling Twitter source");
-		close();
-	}
+    @Override
+    public void cancel() {
+        LOG.info("Cancelling Twitter source");
+        close();
+    }
 
-	// ------ Custom endpoints
+    // ------ Custom endpoints
 
-	/**
-	 * Implementing this interface allows users of this source to set a custom endpoint.
-	 */
-	public interface EndpointInitializer {
-		StreamingEndpoint createEndpoint();
-	}
+    /** Implementing this interface allows users of this source to set a custom endpoint. */
+    public interface EndpointInitializer {
+        StreamingEndpoint createEndpoint();
+    }
 
-	/**
-	 * Default endpoint initializer returning the {@see StatusesSampleEndpoint}.
-	 */
-	private static class SampleStatusesEndpoint implements EndpointInitializer, Serializable {
-		@Override
-		public StreamingEndpoint createEndpoint() {
-			// this default endpoint initializer returns the sample endpoint: Returning a sample from the firehose (all tweets)
-			StatusesSampleEndpoint endpoint = new StatusesSampleEndpoint();
-			endpoint.stallWarnings(false);
-			endpoint.delimited(false);
-			return endpoint;
-		}
-	}
+    /** Default endpoint initializer returning the {@see StatusesSampleEndpoint}. */
+    private static class SampleStatusesEndpoint implements EndpointInitializer, Serializable {
+        @Override
+        public StreamingEndpoint createEndpoint() {
+            // this default endpoint initializer returns the sample endpoint: Returning a sample
+            // from the firehose (all tweets)
+            StatusesSampleEndpoint endpoint = new StatusesSampleEndpoint();
+            endpoint.stallWarnings(false);
+            endpoint.delimited(false);
+            return endpoint;
+        }
+    }
 }

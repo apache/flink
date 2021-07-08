@@ -17,212 +17,167 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.SupplierWithException;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
 
-/**
- * A customizable {@link Executor} for testing purposes.
- */
+/** A customizable {@link Executor} for testing purposes. */
 class TestingExecutor implements Executor {
 
-	private int numCancelCalls = 0;
+    private static final Configuration defaultConfig = TableConfig.getDefault().getConfiguration();
+    private int numCancelCalls = 0;
 
-	private int numRetrieveResultChancesCalls = 0;
-	private final List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChanges;
+    private int numRetrieveResultChancesCalls = 0;
+    private final List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+            resultChanges;
 
-	private int numSnapshotResultCalls = 0;
-	private final List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResults;
+    private int numRetrieveResultPageCalls = 0;
+    private final List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages;
 
-	private int numRetrieveResultPageCalls = 0;
-	private final List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages;
+    private final SqlParserHelper helper;
 
-	private int numUseCatalogCalls = 0;
-	private final BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer;
+    TestingExecutor(
+            List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+                    resultChanges,
+            List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages) {
+        this.resultChanges = resultChanges;
+        this.resultPages = resultPages;
+        helper = new SqlParserHelper();
+        helper.registerTables();
+    }
 
-	private int numUseDatabaseCalls = 0;
-	private BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer;
+    @Override
+    public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
+        numCancelCalls++;
+    }
 
-	TestingExecutor(
-			List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChanges,
-			List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResults,
-			List<SupplierWithException<List<Row>, SqlExecutionException>> resultPages,
-			BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer,
-			BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer) {
-		this.resultChanges = resultChanges;
-		this.snapshotResults = snapshotResults;
-		this.resultPages = resultPages;
-		this.useCatalogConsumer = useCatalogConsumer;
-		this.useDatabaseConsumer = useDatabaseConsumer;
-	}
+    @Override
+    public void addJar(String sessionId, String jarUrl) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void cancelQuery(String sessionId, String resultId) throws SqlExecutionException {
-		numCancelCalls++;
-	}
+    @Override
+    public void removeJar(String sessionId, String jarUrl) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveResultChanges(String sessionId, String resultId) throws SqlExecutionException {
-		return resultChanges.get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1)).get();
-	}
+    @Override
+    public List<String> listJars(String sessionId) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
-		return resultPages.get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1)).get();
-	}
+    @Override
+    public TypedResult<List<Row>> retrieveResultChanges(String sessionId, String resultId)
+            throws SqlExecutionException {
+        return resultChanges
+                .get(Math.min(numRetrieveResultChancesCalls++, resultChanges.size() - 1))
+                .get();
+    }
 
-	@Override
-	public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize) throws SqlExecutionException {
-		return snapshotResults.get(Math.min(numSnapshotResultCalls++, snapshotResults.size() - 1)).get();
-	}
+    @Override
+    public List<Row> retrieveResultPage(String resultId, int page) throws SqlExecutionException {
+        return resultPages
+                .get(Math.min(numRetrieveResultPageCalls++, resultPages.size() - 1))
+                .get();
+    }
 
-	@Override
-	public void useCatalog(String sessionId, String catalogName) throws SqlExecutionException {
-		numUseCatalogCalls++;
-		useCatalogConsumer.accept(sessionId, catalogName);
-	}
+    @Override
+    public TypedResult<Integer> snapshotResult(String sessionId, String resultId, int pageSize)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void useDatabase(String sessionId, String databaseName) throws SqlExecutionException {
-		numUseDatabaseCalls++;
-		useDatabaseConsumer.accept(sessionId, databaseName);
-	}
+    @Override
+    public void start() throws SqlExecutionException {}
 
-	@Override
-	public void start() throws SqlExecutionException {
-	}
+    @Override
+    public String openSession(@Nullable String sessionId) throws SqlExecutionException {
+        return sessionId;
+    }
 
-	@Override
-	public String openSession(SessionContext session) throws SqlExecutionException {
-		return session.getSessionId();
-	}
+    @Override
+    public void closeSession(String sessionId) throws SqlExecutionException {}
 
-	@Override
-	public void closeSession(String sessionId) throws SqlExecutionException {
-	}
+    @Override
+    public Map<String, String> getSessionConfigMap(String sessionId) throws SqlExecutionException {
+        return defaultConfig.toMap();
+    }
 
-	@Override
-	public Map<String, String> getSessionProperties(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+    @Override
+    public ReadableConfig getSessionConfig(String sessionId) throws SqlExecutionException {
+        return defaultConfig;
+    }
 
-	@Override
-	public void resetSessionProperties(String sessionId) throws SqlExecutionException {
-	}
+    @Override
+    public void resetSessionProperties(String sessionId) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void setSessionProperty(String sessionId, String key, String value) throws SqlExecutionException {
-	}
+    @Override
+    public void resetSessionProperty(String sessionId, String key) throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void addView(String sessionId, String name, String query) throws SqlExecutionException {
-	}
+    @Override
+    public void setSessionProperty(String sessionId, String key, String value)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void removeView(String sessionId, String name) throws SqlExecutionException {
-	}
+    @Override
+    public List<String> completeStatement(String sessionId, String statement, int position) {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public Map<String, ViewEntry> listViews(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+    @Override
+    public TableResult executeOperation(String sessionId, Operation operation)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public List<String> listCatalogs(String sessionid) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+    @Override
+    public TableResult executeModifyOperations(String sessionId, List<ModifyOperation> operations)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public List<String> listDatabases(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+    @Override
+    public Operation parseStatement(String sessionId, String statement)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void createTable(String sessionId, String ddl) throws SqlExecutionException {
-	}
+    @Override
+    public ResultDescriptor executeQuery(String sessionId, QueryOperation query)
+            throws SqlExecutionException {
+        throw new UnsupportedOperationException("Not implemented.");
+    }
 
-	@Override
-	public void dropTable(String sessionId, String ddl) throws SqlExecutionException {
-	}
+    public int getNumCancelCalls() {
+        return numCancelCalls;
+    }
 
-	@Override
-	public List<String> listTables(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
+    public int getNumRetrieveResultChancesCalls() {
+        return numRetrieveResultChancesCalls;
+    }
 
-	@Override
-	public List<String> listUserDefinedFunctions(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public List<String> listFunctions(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public List<String> listModules(String sessionId) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public TableSchema getTableSchema(String sessionId, String name) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public String explainStatement(String sessionId, String statement) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public List<String> completeStatement(String sessionId, String statement, int position) {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public ResultDescriptor executeQuery(String sessionId, String query) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	@Override
-	public ProgramTargetDescriptor executeUpdate(String sessionId, String statement) throws SqlExecutionException {
-		throw new UnsupportedOperationException("Not implemented.");
-	}
-
-	public int getNumCancelCalls() {
-		return numCancelCalls;
-	}
-
-	public int getNumRetrieveResultChancesCalls() {
-		return numRetrieveResultChancesCalls;
-	}
-
-	public int getNumSnapshotResultCalls() {
-		return numSnapshotResultCalls;
-	}
-
-	public int getNumRetrieveResultPageCalls() {
-		return numRetrieveResultPageCalls;
-	}
-
-	public int getNumUseCatalogCalls() {
-		return numUseCatalogCalls;
-	}
-
-	public int getNumUseDatabaseCalls() {
-		return numUseDatabaseCalls;
-	}
+    public int getNumRetrieveResultPageCalls() {
+        return numRetrieveResultPageCalls;
+    }
 }

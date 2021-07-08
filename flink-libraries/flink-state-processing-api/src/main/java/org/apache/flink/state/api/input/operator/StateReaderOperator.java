@@ -32,12 +32,11 @@ import org.apache.flink.state.api.runtime.VoidTriggerable;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
-import org.apache.flink.streaming.api.operators.TimerSerializer;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.Iterator;
 
 /**
  * Base class for executing functions that read keyed state.
@@ -48,99 +47,103 @@ import java.util.Iterator;
  * @param <OUT> The output type.
  */
 @Internal
-public abstract class StateReaderOperator<F extends Function, KEY, N, OUT> implements KeyContext, Serializable {
+public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
+        implements KeyContext, Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	protected final F function;
+    protected final F function;
 
-	private final TypeInformation<KEY> keyType;
+    private final TypeInformation<KEY> keyType;
 
-	protected final TypeSerializer<N> namespaceSerializer;
+    protected final TypeSerializer<N> namespaceSerializer;
 
-	private transient ExecutionConfig executionConfig;
+    private transient ExecutionConfig executionConfig;
 
-	private transient KeyedStateBackend<KEY> keyedStateBackend;
+    private transient KeyedStateBackend<KEY> keyedStateBackend;
 
-	private transient TypeSerializer<KEY> keySerializer;
+    private transient TypeSerializer<KEY> keySerializer;
 
-	private transient InternalTimeServiceManager<KEY> timerServiceManager;
+    private transient InternalTimeServiceManager<KEY> timerServiceManager;
 
-	protected StateReaderOperator(F function, TypeInformation<KEY> keyType, TypeSerializer<N> namespaceSerializer) {
-		Preconditions.checkNotNull(function, "The user function must not be null");
-		Preconditions.checkNotNull(keyType, "The key type must not be null");
-		Preconditions.checkNotNull(namespaceSerializer, "The namespace serializer must not be null");
+    protected StateReaderOperator(
+            F function, TypeInformation<KEY> keyType, TypeSerializer<N> namespaceSerializer) {
+        Preconditions.checkNotNull(function, "The user function must not be null");
+        Preconditions.checkNotNull(keyType, "The key type must not be null");
+        Preconditions.checkNotNull(
+                namespaceSerializer, "The namespace serializer must not be null");
 
-		this.function = function;
-		this.keyType = keyType;
-		this.namespaceSerializer = namespaceSerializer;
-	}
+        this.function = function;
+        this.keyType = keyType;
+        this.namespaceSerializer = namespaceSerializer;
+    }
 
-	public abstract void processElement(KEY key, N namespace, Collector<OUT> out) throws Exception;
+    public abstract void processElement(KEY key, N namespace, Collector<OUT> out) throws Exception;
 
-	public abstract Iterator<Tuple2<KEY, N>> getKeysAndNamespaces(SavepointRuntimeContext ctx) throws Exception;
+    public abstract CloseableIterator<Tuple2<KEY, N>> getKeysAndNamespaces(
+            SavepointRuntimeContext ctx) throws Exception;
 
-	public final void setup(
-		ExecutionConfig executionConfig,
-		KeyedStateBackend<KEY> keyKeyedStateBackend,
-		InternalTimeServiceManager<KEY> timerServiceManager,
-		SavepointRuntimeContext ctx) {
+    public final void setup(
+            ExecutionConfig executionConfig,
+            KeyedStateBackend<KEY> keyKeyedStateBackend,
+            InternalTimeServiceManager<KEY> timerServiceManager,
+            SavepointRuntimeContext ctx) {
 
-		this.executionConfig = executionConfig;
-		this.keyedStateBackend = keyKeyedStateBackend;
-		this.timerServiceManager = timerServiceManager;
-		this.keySerializer = keyType.createSerializer(executionConfig);
+        this.executionConfig = executionConfig;
+        this.keyedStateBackend = keyKeyedStateBackend;
+        this.timerServiceManager = timerServiceManager;
+        this.keySerializer = keyType.createSerializer(executionConfig);
 
-		FunctionUtils.setFunctionRuntimeContext(function, ctx);
-	}
+        FunctionUtils.setFunctionRuntimeContext(function, ctx);
+    }
 
-	protected final InternalTimerService<N> getInternalTimerService(String name) {
-		TimerSerializer<KEY, N> timerSerializer = new TimerSerializer<>(keySerializer, namespaceSerializer);
-		return timerServiceManager.getInternalTimerService(name, timerSerializer, VoidTriggerable.instance());
-	}
+    protected final InternalTimerService<N> getInternalTimerService(String name) {
+        return timerServiceManager.getInternalTimerService(
+                name, keySerializer, namespaceSerializer, VoidTriggerable.instance());
+    }
 
-	public void open() throws Exception {
-		FunctionUtils.openFunction(function, new Configuration());
-	}
+    public void open() throws Exception {
+        FunctionUtils.openFunction(function, new Configuration());
+    }
 
-	public void close() throws Exception {
-		Exception exception = null;
+    public void close() throws Exception {
+        Exception exception = null;
 
-		try {
-			FunctionUtils.closeFunction(function);
-		} catch (Exception e) {
-			// The state backend must always be closed
-			// to release native resources.
-			exception = e;
-		}
+        try {
+            FunctionUtils.closeFunction(function);
+        } catch (Exception e) {
+            // The state backend must always be closed
+            // to release native resources.
+            exception = e;
+        }
 
-		keyedStateBackend.dispose();
+        keyedStateBackend.dispose();
 
-		if (exception != null) {
-			throw exception;
-		}
-	}
+        if (exception != null) {
+            throw exception;
+        }
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public final void setCurrentKey(Object key) {
-		keyedStateBackend.setCurrentKey((KEY) key);
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public final void setCurrentKey(Object key) {
+        keyedStateBackend.setCurrentKey((KEY) key);
+    }
 
-	@Override
-	public final Object getCurrentKey() {
-		return keyedStateBackend.getCurrentKey();
-	}
+    @Override
+    public final Object getCurrentKey() {
+        return keyedStateBackend.getCurrentKey();
+    }
 
-	public final KeyedStateBackend<KEY> getKeyedStateBackend() {
-		return keyedStateBackend;
-	}
+    public final KeyedStateBackend<KEY> getKeyedStateBackend() {
+        return keyedStateBackend;
+    }
 
-	public final TypeInformation<KEY> getKeyType() {
-		return keyType;
-	}
+    public final TypeInformation<KEY> getKeyType() {
+        return keyType;
+    }
 
-	public final ExecutionConfig getExecutionConfig() {
-		return this.executionConfig;
-	}
+    public final ExecutionConfig getExecutionConfig() {
+        return this.executionConfig;
+    }
 }

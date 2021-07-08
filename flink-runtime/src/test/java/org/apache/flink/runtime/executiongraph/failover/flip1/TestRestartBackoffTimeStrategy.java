@@ -19,40 +19,38 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-/**
- * A RestartBackoffTimeStrategy implementation for tests.
- */
+/** A RestartBackoffTimeStrategy implementation for tests. */
 public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
 
-	private boolean canRestart;
+    private boolean canRestart;
 
-	private long backoffTime;
+    private long backoffTime;
 
-	public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
-		this.canRestart = canRestart;
-		this.backoffTime = backoffTime;
-	}
+    public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
+        this.canRestart = canRestart;
+        this.backoffTime = backoffTime;
+    }
 
-	@Override
-	public boolean canRestart() {
-		return canRestart;
-	}
+    @Override
+    public boolean canRestart() {
+        return canRestart;
+    }
 
-	@Override
-	public long getBackoffTime() {
-		return backoffTime;
-	}
+    @Override
+    public long getBackoffTime() {
+        return backoffTime;
+    }
 
-	@Override
-	public void notifyFailure(Throwable cause) {
-		// ignore
-	}
+    @Override
+    public void notifyFailure(Throwable cause) {
+        // ignore
+    }
 
-	public void setCanRestart(final boolean canRestart) {
-		this.canRestart = canRestart;
-	}
+    public void setCanRestart(final boolean canRestart) {
+        this.canRestart = canRestart;
+    }
 
-	public void setBackoffTime(final long backoffTime) {
-		this.backoffTime = backoffTime;
-	}
+    public void setBackoffTime(final long backoffTime) {
+        this.backoffTime = backoffTime;
+    }
 }

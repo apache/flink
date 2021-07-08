@@ -24,23 +24,22 @@ import org.apache.flink.api.java.DataSet;
 import java.io.Serializable;
 
 /**
- * Interface to be implemented by the transformation function
- * applied in {@link Graph#joinWithEdges(DataSet, EdgeJoinFunction)},
- * {@link Graph#joinWithEdgesOnSource(DataSet, EdgeJoinFunction)}, and
- * {@link Graph#joinWithEdgesOnTarget(DataSet, EdgeJoinFunction)} methods.
+ * Interface to be implemented by the transformation function applied in {@link
+ * Graph#joinWithEdges(DataSet, EdgeJoinFunction)}, {@link Graph#joinWithEdgesOnSource(DataSet,
+ * EdgeJoinFunction)}, and {@link Graph#joinWithEdgesOnTarget(DataSet, EdgeJoinFunction)} methods.
  *
  * @param <EV> the edge value type
  * @param <T> the input value type
  */
 public interface EdgeJoinFunction<EV, T> extends Function, Serializable {
 
-	/**
-	 * Applies a transformation on the current edge value
-	 * and the value of the matched tuple of the input DataSet.
-	 *
-	 * @param edgeValue the current edge value
-	 * @param inputValue the value of the matched Tuple2 input
-	 * @return the new edge value
-	 */
-	EV edgeJoin(EV edgeValue, T inputValue) throws Exception;
+    /**
+     * Applies a transformation on the current edge value and the value of the matched tuple of the
+     * input DataSet.
+     *
+     * @param edgeValue the current edge value
+     * @param inputValue the value of the matched Tuple2 input
+     * @return the new edge value
+     */
+    EV edgeJoin(EV edgeValue, T inputValue) throws Exception;
 }

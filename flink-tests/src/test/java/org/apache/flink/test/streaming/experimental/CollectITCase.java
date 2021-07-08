@@ -32,26 +32,26 @@ import static org.junit.Assert.assertEquals;
 /**
  * This test verifies the behavior of DataStreamUtils.collect().
  *
- * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
- * for more information.
+ * <p>This experimental class is relocated from flink-streaming-contrib. Please see
+ * package-info.java for more information.
  */
 public class CollectITCase extends AbstractTestBase {
 
-	@Test
-	public void testCollect() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+    @Test
+    public void testCollect() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		final long n = 10;
-		DataStream<Long> stream = env.generateSequence(1, n);
+        final long n = 10;
+        DataStream<Long> stream = env.generateSequence(1, n);
 
-		long i = 1;
-		for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
-			long x = it.next();
-			assertEquals("received wrong element", i, x);
-			i++;
-		}
+        long i = 1;
+        for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
+            long x = it.next();
+            assertEquals("received wrong element", i, x);
+            i++;
+        }
 
-		assertEquals("received wrong number of elements", n + 1, i);
-	}
+        assertEquals("received wrong number of elements", n + 1, i);
+    }
 }

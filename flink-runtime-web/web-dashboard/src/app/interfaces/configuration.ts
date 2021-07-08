@@ -24,5 +24,6 @@ export interface ConfigurationInterface {
   'flink-revision': string;
   features: {
     'web-submit': boolean;
+    'web-cancel': boolean;
   };
 }

@@ -20,18 +20,16 @@ package org.apache.flink.table.catalog.exceptions;
 
 import org.apache.flink.table.catalog.ObjectPath;
 
-/**
- * Exception for trying to operate partition on a non-partitioned table.
- */
+/** Exception for trying to operate partition on a non-partitioned table. */
 public class TableNotPartitionedException extends Exception {
 
-	private static final String MSG = "Table %s in catalog %s is not partitioned.";
+    private static final String MSG = "Table %s in catalog %s is not partitioned.";
 
-	public TableNotPartitionedException(String catalogName, ObjectPath tablePath) {
-		this(catalogName, tablePath, null);
-	}
+    public TableNotPartitionedException(String catalogName, ObjectPath tablePath) {
+        this(catalogName, tablePath, null);
+    }
 
-	public TableNotPartitionedException(String catalogName, ObjectPath tablePath, Throwable cause) {
-		super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
-	}
+    public TableNotPartitionedException(String catalogName, ObjectPath tablePath, Throwable cause) {
+        super(String.format(MSG, tablePath.getFullName(), catalogName), cause);
+    }
 }

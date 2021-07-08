@@ -31,61 +31,73 @@ import org.slf4j.Logger;
 
 import java.util.List;
 
-/**
- * Utils for getting query parameters from {@link HandlerRequest}.
- */
+/** Utils for getting query parameters from {@link HandlerRequest}. */
 public class HandlerRequestUtils {
 
-	/**
-	 * Returns the value of a query parameter, or {@code null} if the query parameter is not set.
-	 * @throws RestHandlerException If the query parameter is repeated.
-	 */
-	public static <X, P extends MessageQueryParameter<X>, R extends RequestBody, M extends MessageParameters> X getQueryParameter(
-			final HandlerRequest<R, M> request,
-			final Class<P> queryParameterClass) throws RestHandlerException {
+    /**
+     * Returns the value of a query parameter, or {@code null} if the query parameter is not set.
+     *
+     * @throws RestHandlerException If the query parameter is repeated.
+     */
+    public static <
+                    X,
+                    P extends MessageQueryParameter<X>,
+                    R extends RequestBody,
+                    M extends MessageParameters>
+            X getQueryParameter(
+                    final HandlerRequest<R, M> request, final Class<P> queryParameterClass)
+                    throws RestHandlerException {
 
-		return getQueryParameter(request, queryParameterClass, null);
-	}
+        return getQueryParameter(request, queryParameterClass, null);
+    }
 
-	public static <X, P extends MessageQueryParameter<X>, R extends RequestBody, M extends MessageParameters> X getQueryParameter(
-			final HandlerRequest<R, M> request,
-			final Class<P> queryParameterClass,
-			final X defaultValue) throws RestHandlerException {
+    public static <
+                    X,
+                    P extends MessageQueryParameter<X>,
+                    R extends RequestBody,
+                    M extends MessageParameters>
+            X getQueryParameter(
+                    final HandlerRequest<R, M> request,
+                    final Class<P> queryParameterClass,
+                    final X defaultValue)
+                    throws RestHandlerException {
 
-		final List<X> values = request.getQueryParameter(queryParameterClass);
-		final X value;
-		if (values.size() > 1) {
-			throw new RestHandlerException(
-				String.format("Expected only one value %s.", values),
-				HttpResponseStatus.BAD_REQUEST);
-		} else if (values.size() == 1) {
-			value = values.get(0);
-		} else {
-			value = defaultValue;
-		}
-		return value;
-	}
+        final List<X> values = request.getQueryParameter(queryParameterClass);
+        final X value;
+        if (values.size() > 1) {
+            throw new RestHandlerException(
+                    String.format("Expected only one value %s.", values),
+                    HttpResponseStatus.BAD_REQUEST);
+        } else if (values.size() == 1) {
+            value = values.get(0);
+        } else {
+            value = defaultValue;
+        }
+        return value;
+    }
 
-	/**
-	 * Returns {@code requestValue} if it is not null, otherwise returns the query parameter value
-	 * if it is not null, otherwise returns the default value.
-	 */
-	public static <T> T fromRequestBodyOrQueryParameter(
-			T requestValue,
-			SupplierWithException<T, RestHandlerException> queryParameterExtractor,
-			T defaultValue,
-			Logger log) throws RestHandlerException {
-		if (requestValue != null) {
-			return requestValue;
-		} else {
-			T queryParameterValue = queryParameterExtractor.get();
-			if (queryParameterValue != null) {
-				log.warn("Configuring the job submission via query parameters is deprecated." +
-					" Please migrate to submitting a JSON request instead.");
-				return queryParameterValue;
-			} else {
-				return defaultValue;
-			}
-		}
-	}
+    /**
+     * Returns {@code requestValue} if it is not null, otherwise returns the query parameter value
+     * if it is not null, otherwise returns the default value.
+     */
+    public static <T> T fromRequestBodyOrQueryParameter(
+            T requestValue,
+            SupplierWithException<T, RestHandlerException> queryParameterExtractor,
+            T defaultValue,
+            Logger log)
+            throws RestHandlerException {
+        if (requestValue != null) {
+            return requestValue;
+        } else {
+            T queryParameterValue = queryParameterExtractor.get();
+            if (queryParameterValue != null) {
+                log.warn(
+                        "Configuring the job submission via query parameters is deprecated."
+                                + " Please migrate to submitting a JSON request instead.");
+                return queryParameterValue;
+            } else {
+                return defaultValue;
+            }
+        }
+    }
 }

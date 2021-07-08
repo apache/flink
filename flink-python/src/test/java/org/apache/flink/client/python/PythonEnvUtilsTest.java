@@ -22,13 +22,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.OperatingSystem;
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -49,161 +54,184 @@ import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 
-/**
- * Tests for the {@link PythonEnvUtils}.
- */
+/** Tests for the {@link PythonEnvUtils}. */
 public class PythonEnvUtilsTest {
 
-	private String tmpDirPath;
+    private String tmpDirPath;
 
-	@Before
-	public void prepareTestEnvironment() {
-		File tmpDirFile = new File(System.getProperty("java.io.tmpdir"), "pyflink_" + UUID.randomUUID());
-		tmpDirFile.mkdirs();
-		this.tmpDirPath = tmpDirFile.getAbsolutePath();
-	}
+    @Before
+    public void prepareTestEnvironment() {
+        File tmpDirFile =
+                new File(System.getProperty("java.io.tmpdir"), "pyflink_" + UUID.randomUUID());
+        tmpDirFile.mkdirs();
+        this.tmpDirPath = tmpDirFile.getAbsolutePath();
+    }
 
-	@Test
-	public void testPreparePythonEnvironment() throws IOException {
-		// xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
-		File zipFile = new File(tmpDirPath + File.separator + "a.zip");
-		File dirFile = new File(tmpDirPath + File.separator + "module_dir");
-		File subdirFile = new File(tmpDirPath + File.separator + "subdir");
-		File relativeFile = new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
-		File schemeFile = new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.zip");
+    @Test
+    public void testPreparePythonEnvironment() throws IOException {
+        // Skip this test on Windows as we can not control the Window Driver letters.
+        Assume.assumeFalse(OperatingSystem.isWindows());
 
-		// The files must actually exist
-		zipFile.createNewFile();
-		dirFile.mkdir();
-		subdirFile.mkdir();
-		relativeFile.createNewFile();
-		schemeFile.createNewFile();
+        // xxx/a.zip, xxx/subdir/b.py, xxx/subdir/c.zip
+        File zipFile = new File(tmpDirPath + File.separator + "a.zip");
+        File dirFile = new File(tmpDirPath + File.separator + "module_dir");
+        File subdirFile = new File(tmpDirPath + File.separator + "subdir");
+        File relativeFile =
+                new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
+        File schemeFile =
+                new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.egg");
 
-		String workingDir = new File("").getAbsolutePath();
-		String absolutePath = relativeFile.getAbsolutePath();
+        // The files must actually exist
+        try (ZipArchiveOutputStream zipOut =
+                new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
+            ZipArchiveEntry entry = new ZipArchiveEntry("zipDir" + "/zipfile0");
+            zipOut.putArchiveEntry(entry);
+            zipOut.write(new byte[] {1, 1, 1, 1, 1});
+            zipOut.closeArchiveEntry();
+        }
+        dirFile.mkdir();
+        subdirFile.mkdir();
+        relativeFile.createNewFile();
+        schemeFile.createNewFile();
 
-		Path zipPath = new Path(zipFile.getAbsolutePath());
-		Path dirPath = new Path(dirFile.getAbsolutePath());
-		Path relativePath = new Path(Paths.get(workingDir).relativize(Paths.get(absolutePath)).toString());
-		Path schemePath = new Path("file://" + schemeFile.getAbsolutePath());
+        String workingDir = new File("").getAbsolutePath();
+        String absolutePath = relativeFile.getAbsolutePath();
 
-		List<Path> pyFilesList = new ArrayList<>();
-		pyFilesList.add(zipPath);
-		pyFilesList.add(dirPath);
-		pyFilesList.add(relativePath);
-		pyFilesList.add(schemePath);
+        Path zipPath = new Path(zipFile.getAbsolutePath());
+        Path dirPath = new Path(dirFile.getAbsolutePath());
+        Path relativePath =
+                new Path(Paths.get(workingDir).relativize(Paths.get(absolutePath)).toString());
+        Path schemePath = new Path("file://" + schemeFile.getAbsolutePath());
 
-		String pyFiles = pyFilesList.stream()
-			.map(Path::toString)
-			.collect(Collectors.joining(FILE_DELIMITER));
+        List<Path> pyFilesList = new ArrayList<>();
+        pyFilesList.add(zipPath);
+        pyFilesList.add(dirPath);
+        pyFilesList.add(relativePath);
+        pyFilesList.add(schemePath);
 
-		Configuration config = new Configuration();
-		config.set(PYTHON_FILES, pyFiles);
+        String pyFiles =
+                pyFilesList.stream()
+                        .map(Path::toString)
+                        .collect(Collectors.joining(FILE_DELIMITER));
 
-		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
+        Configuration config = new Configuration();
+        config.set(PYTHON_FILES, pyFiles);
 
-		String base = replaceUUID(env.tempDirectory);
-		Set<String> expectedPythonPaths = new HashSet<>();
-		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a.zip"));
-		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
-		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
-		expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.zip"));
+        PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
 
-		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
-			.map(PythonEnvUtilsTest::replaceUUID)
-			.collect(Collectors.toSet());
-		Assert.assertEquals(expectedPythonPaths, actualPaths);
-	}
+        String base = replaceUUID(env.tempDirectory);
+        Set<String> expectedPythonPaths = new HashSet<>();
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.egg"));
 
-	@Test
-	public void testStartPythonProcess() {
-		PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
-		pythonEnv.tempDirectory = tmpDirPath;
-		pythonEnv.pythonPath = tmpDirPath;
-		List<String> commands = new ArrayList<>();
-		String pyPath = String.join(File.separator, tmpDirPath, "verifier.py");
-		try {
-			File pyFile = new File(pyPath);
-			pyFile.createNewFile();
-			pyFile.setExecutable(true);
-			String pyProgram = "#!/usr/bin/python\n" +
-				"# -*- coding: UTF-8 -*-\n" +
-				"import os\n" +
-				"import sys\n" +
-				"\n" +
-				"if __name__=='__main__':\n" +
-				"\tfilename = sys.argv[1]\n" +
-				"\tfo = open(filename, \"w\")\n" +
-				"\tfo.write(os.getcwd())\n" +
-				"\tfo.close()";
-			Files.write(pyFile.toPath(), pyProgram.getBytes(), StandardOpenOption.WRITE);
-			String result = String.join(File.separator, tmpDirPath, "python_working_directory.txt");
-			commands.add(pyPath);
-			commands.add(result);
-			Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands);
-			int exitCode = pythonProcess.waitFor();
-			if (exitCode != 0) {
-				throw new RuntimeException("Python process exits with code: " + exitCode);
-			}
-			String cmdResult = new String(Files.readAllBytes(new File(result).toPath()));
-			// Check if the working directory of python process is the same as java process.
-			Assert.assertEquals(cmdResult, System.getProperty("user.dir"));
-			pythonProcess.destroyForcibly();
-			pyFile.delete();
-			new File(result).delete();
-		} catch (IOException | InterruptedException e) {
-			throw new RuntimeException("test start Python process failed " + e.getMessage());
-		}
-	}
+        Set<String> actualPaths =
+                Arrays.stream(env.pythonPath.split(File.pathSeparator))
+                        .map(PythonEnvUtilsTest::replaceUUID)
+                        .collect(Collectors.toSet());
+        Assert.assertEquals(expectedPythonPaths, actualPaths);
+    }
 
-	@Test
-	public void testSetPythonExecutable() throws IOException {
-		Configuration config = new Configuration();
+    @Test
+    public void testStartPythonProcess() {
+        PythonEnvUtils.PythonEnvironment pythonEnv = new PythonEnvUtils.PythonEnvironment();
+        pythonEnv.tempDirectory = tmpDirPath;
+        pythonEnv.pythonPath = tmpDirPath;
+        List<String> commands = new ArrayList<>();
+        String pyPath = String.join(File.separator, tmpDirPath, "verifier.py");
+        try {
+            File pyFile = new File(pyPath);
+            pyFile.createNewFile();
+            pyFile.setExecutable(true);
+            String pyProgram =
+                    "#!/usr/bin/python\n"
+                            + "# -*- coding: UTF-8 -*-\n"
+                            + "import os\n"
+                            + "import sys\n"
+                            + "\n"
+                            + "if __name__=='__main__':\n"
+                            + "\tfilename = sys.argv[1]\n"
+                            + "\tfo = open(filename, \"w\")\n"
+                            + "\tfo.write(os.getcwd())\n"
+                            + "\tfo.close()";
+            Files.write(pyFile.toPath(), pyProgram.getBytes(), StandardOpenOption.WRITE);
+            String result = String.join(File.separator, tmpDirPath, "python_working_directory.txt");
+            commands.add(pyPath);
+            commands.add(result);
+            Process pythonProcess = PythonEnvUtils.startPythonProcess(pythonEnv, commands, false);
+            int exitCode = pythonProcess.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Python process exits with code: " + exitCode);
+            }
+            String cmdResult = new String(Files.readAllBytes(new File(result).toPath()));
+            // Check if the working directory of python process is the same as java process.
+            Assert.assertEquals(cmdResult, System.getProperty("user.dir"));
+            pythonProcess.destroyForcibly();
+            pyFile.delete();
+            new File(result).delete();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException("test start Python process failed " + e.getMessage());
+        }
+    }
 
-		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
-		Assert.assertEquals("python", env.pythonExec);
+    @Test
+    public void testSetPythonExecutable() throws IOException {
+        Configuration config = new Configuration();
 
-		Map<String, String> systemEnv = new HashMap<>(System.getenv());
-		systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
-		CommonTestUtils.setEnv(systemEnv);
-		try {
-			env = preparePythonEnvironment(config, null, tmpDirPath);
-			Assert.assertEquals("python3", env.pythonExec);
-		} finally {
-			systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
-			CommonTestUtils.setEnv(systemEnv);
-		}
+        PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
+        if (OperatingSystem.isWindows()) {
+            Assert.assertEquals("python.exe", env.pythonExec);
+        } else {
+            Assert.assertEquals("python", env.pythonExec);
+        }
 
-		config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
-		env = preparePythonEnvironment(config, null, tmpDirPath);
-		Assert.assertEquals("/usr/bin/python", env.pythonExec);
-	}
+        Map<String, String> systemEnv = new HashMap<>(System.getenv());
+        systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "python3");
+        CommonTestUtils.setEnv(systemEnv);
+        try {
+            env = preparePythonEnvironment(config, null, tmpDirPath);
+            Assert.assertEquals("python3", env.pythonExec);
+        } finally {
+            systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
+            CommonTestUtils.setEnv(systemEnv);
+        }
 
-	@Test
-	public void testPrepareEnvironmentWithEntryPointScript() throws IOException {
-		File entryFile = new File(tmpDirPath + File.separator + "test.py");
-		// The file must actually exist
-		entryFile.createNewFile();
-		String entryFilePath = entryFile.getAbsolutePath();
+        config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
+        env = preparePythonEnvironment(config, null, tmpDirPath);
+        Assert.assertEquals("/usr/bin/python", env.pythonExec);
+    }
 
-		Configuration config = new Configuration();
-		PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, entryFilePath, tmpDirPath);
+    @Test
+    public void testPrepareEnvironmentWithEntryPointScript() throws IOException {
+        File entryFile = new File(tmpDirPath + File.separator + "test.py");
+        // The file must actually exist
+        entryFile.createNewFile();
+        String entryFilePath = entryFile.getAbsolutePath();
 
-		Set<String> expectedPythonPaths = new HashSet<>();
-		expectedPythonPaths.add(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"));
+        Configuration config = new Configuration();
+        PythonEnvUtils.PythonEnvironment env =
+                preparePythonEnvironment(config, entryFilePath, tmpDirPath);
 
-		Set<String> actualPaths = Arrays.stream(env.pythonPath.split(File.pathSeparator))
-			.map(PythonEnvUtilsTest::replaceUUID)
-			.collect(Collectors.toSet());
-		Assert.assertEquals(expectedPythonPaths, actualPaths);
-	}
+        Set<String> expectedPythonPaths = new HashSet<>();
+        expectedPythonPaths.add(
+                new Path(String.join(File.separator, replaceUUID(env.tempDirectory), "{uuid}"))
+                        .toString());
 
-	@After
-	public void cleanEnvironment() {
-		FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
-	}
+        Set<String> actualPaths =
+                Arrays.stream(env.pythonPath.split(File.pathSeparator))
+                        .map(PythonEnvUtilsTest::replaceUUID)
+                        .collect(Collectors.toSet());
+        Assert.assertEquals(expectedPythonPaths, actualPaths);
+    }
 
-	private static String replaceUUID(String originPath) {
-		return originPath.replaceAll("[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "{uuid}");
-	}
+    @After
+    public void cleanEnvironment() {
+        FileUtils.deleteDirectoryQuietly(new File(tmpDirPath));
+    }
+
+    private static String replaceUUID(String originPath) {
+        return originPath.replaceAll(
+                "[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}", "{uuid}");
+    }
 }

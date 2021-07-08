@@ -27,58 +27,57 @@ import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
 
-abstract class AbstractRocksDBAppendingState <K, N, IN, SV, OUT>
-	extends AbstractRocksDBState<K, N, SV>
-	implements InternalAppendingState<K, N, IN, SV, OUT> {
+abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
+        extends AbstractRocksDBState<K, N, SV>
+        implements InternalAppendingState<K, N, IN, SV, OUT> {
 
-	/**
-	 * Creates a new RocksDB backend appending state.
-	 *
-	 * @param columnFamily        The RocksDB column family that this state is associated to.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param valueSerializer     The serializer for the state.
-	 * @param defaultValue        The default value for the state.
-	 * @param backend             The backend for which this state is bind to.
-	 */
-	protected AbstractRocksDBAppendingState(
-		ColumnFamilyHandle columnFamily,
-		TypeSerializer<N> namespaceSerializer,
-		TypeSerializer<SV> valueSerializer,
-		SV defaultValue,
-		RocksDBKeyedStateBackend<K> backend) {
-		super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
-	}
+    /**
+     * Creates a new RocksDB backend appending state.
+     *
+     * @param columnFamily The RocksDB column family that this state is associated to.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param valueSerializer The serializer for the state.
+     * @param defaultValue The default value for the state.
+     * @param backend The backend for which this state is bind to.
+     */
+    protected AbstractRocksDBAppendingState(
+            ColumnFamilyHandle columnFamily,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<SV> valueSerializer,
+            SV defaultValue,
+            RocksDBKeyedStateBackend<K> backend) {
+        super(columnFamily, namespaceSerializer, valueSerializer, defaultValue, backend);
+    }
 
-	@Override
-	public SV getInternal() {
-		return getInternal(getKeyBytes());
-	}
+    @Override
+    public SV getInternal() {
+        return getInternal(getKeyBytes());
+    }
 
-	SV getInternal(byte[] key) {
-		try {
-			byte[] valueBytes = backend.db.get(columnFamily, key);
-			if (valueBytes == null) {
-				return null;
-			}
-			dataInputView.setBuffer(valueBytes);
-			return valueSerializer.deserialize(dataInputView);
-		} catch (IOException | RocksDBException e) {
-			throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
-		}
-	}
+    SV getInternal(byte[] key) {
+        try {
+            byte[] valueBytes = backend.db.get(columnFamily, key);
+            if (valueBytes == null) {
+                return null;
+            }
+            dataInputView.setBuffer(valueBytes);
+            return valueSerializer.deserialize(dataInputView);
+        } catch (IOException | RocksDBException e) {
+            throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
+        }
+    }
 
-	@Override
-	public void updateInternal(SV valueToStore) {
-		updateInternal(getKeyBytes(), valueToStore);
-	}
+    @Override
+    public void updateInternal(SV valueToStore) {
+        updateInternal(getKeyBytes(), valueToStore);
+    }
 
-	void updateInternal(byte[] key, SV valueToStore) {
-		try {
-			// write the new value to RocksDB
-			backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
-		}
-		catch (RocksDBException e) {
-			throw new FlinkRuntimeException("Error while adding value to RocksDB", e);
-		}
-	}
+    void updateInternal(byte[] key, SV valueToStore) {
+        try {
+            // write the new value to RocksDB
+            backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
+        } catch (RocksDBException e) {
+            throw new FlinkRuntimeException("Error while adding value to RocksDB", e);
+        }
+    }
 }

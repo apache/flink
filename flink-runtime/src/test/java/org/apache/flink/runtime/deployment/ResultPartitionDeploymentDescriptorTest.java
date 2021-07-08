@@ -42,85 +42,85 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link ResultPartitionDeploymentDescriptor}.
- */
+/** Tests for the {@link ResultPartitionDeploymentDescriptor}. */
 public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
-	private static final IntermediateDataSetID resultId = new IntermediateDataSetID();
-	private static final int numberOfPartitions = 5;
+    private static final IntermediateDataSetID resultId = new IntermediateDataSetID();
+    private static final int numberOfPartitions = 5;
 
-	private static final IntermediateResultPartitionID partitionId = new IntermediateResultPartitionID();
-	private static final ExecutionAttemptID producerExecutionId = new ExecutionAttemptID();
+    private static final IntermediateResultPartitionID partitionId =
+            new IntermediateResultPartitionID();
+    private static final ExecutionAttemptID producerExecutionId = new ExecutionAttemptID();
 
-	private static final ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
-	private static final int numberOfSubpartitions = 24;
-	private static final int connectionIndex = 10;
+    private static final ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
+    private static final int numberOfSubpartitions = 24;
+    private static final int connectionIndex = 10;
 
-	private static final PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-		resultId,
-		numberOfPartitions,
-		partitionId,
-		partitionType,
-		numberOfSubpartitions,
-		connectionIndex);
+    private static final PartitionDescriptor partitionDescriptor =
+            new PartitionDescriptor(
+                    resultId,
+                    numberOfPartitions,
+                    partitionId,
+                    partitionType,
+                    numberOfSubpartitions,
+                    connectionIndex);
 
-	private static final ResultPartitionID resultPartitionID = new ResultPartitionID(partitionId, producerExecutionId);
+    private static final ResultPartitionID resultPartitionID =
+            new ResultPartitionID(partitionId, producerExecutionId);
 
-	private static final ResourceID producerLocation = new ResourceID("producerLocation");
-	private static final InetSocketAddress address = new InetSocketAddress("localhost", 10000);
-	private static final ConnectionID connectionID = new ConnectionID(address, connectionIndex);
+    private static final ResourceID producerLocation = new ResourceID("producerLocation");
+    private static final InetSocketAddress address = new InetSocketAddress("localhost", 10000);
+    private static final ConnectionID connectionID = new ConnectionID(address, connectionIndex);
 
-	/**
-	 * Tests simple de/serialization with {@link UnknownShuffleDescriptor}.
-	 */
-	@Test
-	public void testSerializationOfUnknownShuffleDescriptor() throws IOException {
-		ShuffleDescriptor shuffleDescriptor = new UnknownShuffleDescriptor(resultPartitionID);
-		ShuffleDescriptor shuffleDescriptorCopy = CommonTestUtils.createCopySerializable(shuffleDescriptor);
-		assertThat(shuffleDescriptorCopy, instanceOf(UnknownShuffleDescriptor.class));
-		assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
-		assertThat(shuffleDescriptorCopy.isUnknown(), is(true));
-	}
+    /** Tests simple de/serialization with {@link UnknownShuffleDescriptor}. */
+    @Test
+    public void testSerializationOfUnknownShuffleDescriptor() throws IOException {
+        ShuffleDescriptor shuffleDescriptor = new UnknownShuffleDescriptor(resultPartitionID);
+        ShuffleDescriptor shuffleDescriptorCopy =
+                CommonTestUtils.createCopySerializable(shuffleDescriptor);
+        assertThat(shuffleDescriptorCopy, instanceOf(UnknownShuffleDescriptor.class));
+        assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
+        assertThat(shuffleDescriptorCopy.isUnknown(), is(true));
+    }
 
-	/**
-	 * Tests simple de/serialization with {@link NettyShuffleDescriptor}.
-	 */
-	@Test
-	public void testSerializationWithNettyShuffleDescriptor() throws IOException {
-		ShuffleDescriptor shuffleDescriptor = new NettyShuffleDescriptor(
-			producerLocation,
-			new NetworkPartitionConnectionInfo(connectionID),
-			resultPartitionID);
+    /** Tests simple de/serialization with {@link NettyShuffleDescriptor}. */
+    @Test
+    public void testSerializationWithNettyShuffleDescriptor() throws IOException {
+        ShuffleDescriptor shuffleDescriptor =
+                new NettyShuffleDescriptor(
+                        producerLocation,
+                        new NetworkPartitionConnectionInfo(connectionID),
+                        resultPartitionID);
 
-		ResultPartitionDeploymentDescriptor copy =
-			createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
+        ResultPartitionDeploymentDescriptor copy =
+                createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
 
-		assertThat(copy.getShuffleDescriptor(), instanceOf(NettyShuffleDescriptor.class));
-		NettyShuffleDescriptor shuffleDescriptorCopy = (NettyShuffleDescriptor) copy.getShuffleDescriptor();
-		assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
-		assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
-		assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
-		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
-	}
+        assertThat(copy.getShuffleDescriptor(), instanceOf(NettyShuffleDescriptor.class));
+        NettyShuffleDescriptor shuffleDescriptorCopy =
+                (NettyShuffleDescriptor) copy.getShuffleDescriptor();
+        assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
+        assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
+        assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
+        assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
+    }
 
-	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(
-			ShuffleDescriptor shuffleDescriptor) throws IOException {
-		ResultPartitionDeploymentDescriptor orig = new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			shuffleDescriptor,
-			numberOfSubpartitions,
-			true);
-		ResultPartitionDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
-		verifyResultPartitionDeploymentDescriptorCopy(copy);
-		return copy;
-	}
+    private static ResultPartitionDeploymentDescriptor
+            createCopyAndVerifyResultPartitionDeploymentDescriptor(
+                    ShuffleDescriptor shuffleDescriptor) throws IOException {
+        ResultPartitionDeploymentDescriptor orig =
+                new ResultPartitionDeploymentDescriptor(
+                        partitionDescriptor, shuffleDescriptor, numberOfSubpartitions, true);
+        ResultPartitionDeploymentDescriptor copy = CommonTestUtils.createCopySerializable(orig);
+        verifyResultPartitionDeploymentDescriptorCopy(copy);
+        return copy;
+    }
 
-	private static void verifyResultPartitionDeploymentDescriptorCopy(ResultPartitionDeploymentDescriptor copy) {
-		assertThat(copy.getResultId(), is(resultId));
-		assertThat(copy.getTotalNumberOfPartitions(), is(numberOfPartitions));
-		assertThat(copy.getPartitionId(), is(partitionId));
-		assertThat(copy.getPartitionType(), is(partitionType));
-		assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));
-		assertThat(copy.sendScheduleOrUpdateConsumersMessage(), is(true));
-	}
+    private static void verifyResultPartitionDeploymentDescriptorCopy(
+            ResultPartitionDeploymentDescriptor copy) {
+        assertThat(copy.getResultId(), is(resultId));
+        assertThat(copy.getTotalNumberOfPartitions(), is(numberOfPartitions));
+        assertThat(copy.getPartitionId(), is(partitionId));
+        assertThat(copy.getPartitionType(), is(partitionType));
+        assertThat(copy.getNumberOfSubpartitions(), is(numberOfSubpartitions));
+        assertThat(copy.notifyPartitionDataAvailable(), is(true));
+    }
 }

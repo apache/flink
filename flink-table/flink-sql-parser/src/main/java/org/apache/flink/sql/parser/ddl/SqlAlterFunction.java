@@ -35,98 +35,98 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * Alter Function Sql Call.
- */
+/** Alter Function Sql Call. */
 public class SqlAlterFunction extends SqlCall {
 
-	public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL);
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL);
 
-	private final SqlIdentifier functionIdentifier;
+    private final SqlIdentifier functionIdentifier;
 
-	private final SqlCharStringLiteral functionClassName;
+    private final SqlCharStringLiteral functionClassName;
 
-	private final String functionLanguage;
+    private final String functionLanguage;
 
-	private final boolean ifExists;
+    private final boolean ifExists;
 
-	private final boolean isSystemFunction;
+    private final boolean isSystemFunction;
 
-	private final boolean isTemporary;
+    private final boolean isTemporary;
 
-	public SqlAlterFunction(
-			SqlParserPos pos,
-			SqlIdentifier functionIdentifier,
-			SqlCharStringLiteral functionClassName,
-			String functionLanguage,
-			boolean ifExists,
-			boolean isTemporary,
-			boolean isSystemFunction) {
-		super(pos);
-		this.functionIdentifier = requireNonNull(functionIdentifier, "functionIdentifier should not be null");
-		this.functionClassName = requireNonNull(functionClassName, "functionClassName should not be null");
-		this.isSystemFunction = requireNonNull(isSystemFunction);
-		this.isTemporary = isTemporary;
-		this.functionLanguage = functionLanguage;
-		this.ifExists = ifExists;
+    public SqlAlterFunction(
+            SqlParserPos pos,
+            SqlIdentifier functionIdentifier,
+            SqlCharStringLiteral functionClassName,
+            String functionLanguage,
+            boolean ifExists,
+            boolean isTemporary,
+            boolean isSystemFunction) {
+        super(pos);
+        this.functionIdentifier =
+                requireNonNull(functionIdentifier, "functionIdentifier should not be null");
+        this.functionClassName =
+                requireNonNull(functionClassName, "functionClassName should not be null");
+        this.isSystemFunction = requireNonNull(isSystemFunction);
+        this.isTemporary = isTemporary;
+        this.functionLanguage = functionLanguage;
+        this.ifExists = ifExists;
+    }
 
-	}
+    @Nonnull
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
 
-	@Nonnull
-	@Override
-	public SqlOperator getOperator() {
-		return OPERATOR;
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER");
+        if (isTemporary) {
+            writer.keyword("TEMPORARY");
+        }
+        if (isSystemFunction) {
+            writer.keyword("SYSTEM");
+        }
+        writer.keyword("FUNCTION");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
+        functionIdentifier.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("AS");
+        functionClassName.unparse(writer, leftPrec, rightPrec);
+        if (functionLanguage != null) {
+            writer.keyword("LANGUAGE");
+            writer.keyword(functionLanguage);
+        }
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER");
-		if (isTemporary) {
-			writer.keyword("TEMPORARY");
-		}
-		if (isSystemFunction) {
-			writer.keyword("SYSTEM");
-		}
-		writer.keyword("FUNCTION");
-		if (ifExists) {
-			writer.keyword("IF EXISTS");
-		}
-		functionIdentifier.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("AS");
-		functionClassName.unparse(writer, leftPrec, rightPrec);
-		if (functionLanguage != null) {
-			writer.keyword("LANGUAGE");
-			writer.keyword(functionLanguage);
-		}
-	}
+    @Nonnull
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(functionIdentifier, functionClassName);
+    }
 
-	@Nonnull
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(functionIdentifier, functionClassName);
-	}
+    public String getFunctionLanguage() {
+        return functionLanguage;
+    }
 
-	public String getFunctionLanguage() {
-		return functionLanguage;
-	}
+    public SqlCharStringLiteral getFunctionClassName() {
+        return this.functionClassName;
+    }
 
-	public SqlCharStringLiteral getFunctionClassName() {
-		return this.functionClassName;
-	}
+    public boolean isTemporary() {
+        return isTemporary;
+    }
 
-	public boolean isTemporary() {
-		return isTemporary;
-	}
+    public boolean isSystemFunction() {
+        return isSystemFunction;
+    }
 
-	public boolean isSystemFunction() {
-		return isSystemFunction;
-	}
+    public boolean isIfExists() {
+        return this.ifExists;
+    }
 
-	public boolean isIfExists() {
-		return this.ifExists;
-	}
-
-	public String[] getFunctionIdentifier() {
-		return functionIdentifier.names.toArray(new String[0]);
-	}
+    public String[] getFunctionIdentifier() {
+        return functionIdentifier.names.toArray(new String[0]);
+    }
 }

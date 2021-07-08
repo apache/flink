@@ -29,33 +29,35 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-/**
- * Tests for the partitioned state part of {@link RocksDBStateBackend}.
- */
+/** Tests for the partitioned state part of {@link RocksDBStateBackend}. */
 @RunWith(Parameterized.class)
-public class RocksDBStateBackendMigrationTest extends StateBackendMigrationTestBase<RocksDBStateBackend> {
+public class RocksDBStateBackendMigrationTest
+        extends StateBackendMigrationTestBase<RocksDBStateBackend> {
 
-	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
-	}
+    @Parameterized.Parameters(name = "Incremental checkpointing: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-	@Parameterized.Parameter
-	public boolean enableIncrementalCheckpointing;
+    @Parameterized.Parameter public boolean enableIncrementalCheckpointing;
 
-	// Store it because we need it for the cleanup test.
-	private String dbPath;
+    // Store it because we need it for the cleanup test.
+    private String dbPath;
 
-	@Override
-	protected RocksDBStateBackend getStateBackend() throws IOException {
-		dbPath = tempFolder.newFolder().getAbsolutePath();
-		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+    @Override
+    protected RocksDBStateBackend getStateBackend() throws IOException {
+        dbPath = tempFolder.newFolder().getAbsolutePath();
+        String checkpointPath = tempFolder.newFolder().toURI().toString();
+        RocksDBStateBackend backend =
+                new RocksDBStateBackend(
+                        new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 
-		Configuration configuration = new Configuration();
-		configuration.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
-		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
-		backend.setDbStoragePath(dbPath);
-		return backend;
-	}
+        Configuration configuration = new Configuration();
+        configuration.set(
+                RocksDBOptions.TIMER_SERVICE_FACTORY,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+        backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
+        backend.setDbStoragePath(dbPath);
+        return backend;
+    }
 }

@@ -31,9 +31,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * This class allows to register instances of {@link Closeable}, which are all closed if this registry is closed.
+ * This class allows to register instances of {@link Closeable}, which are all closed if this
+ * registry is closed.
  *
- * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
+ * <p>Registering to an already closed registry will throw an exception and close the provided
+ * {@link Closeable}
  *
  * <p>All methods in this class are thread-safe.
  *
@@ -42,26 +44,28 @@ import java.util.Map;
 @Internal
 public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
 
-	private static final Object DUMMY = new Object();
+    private static final Object DUMMY = new Object();
 
-	public CloseableRegistry() {
-		super(new LinkedHashMap<>());
-	}
+    public CloseableRegistry() {
+        super(new LinkedHashMap<>());
+    }
 
-	@Override
-	protected void doRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		closeableMap.put(closeable, DUMMY);
-	}
+    @Override
+    protected void doRegister(
+            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+        closeableMap.put(closeable, DUMMY);
+    }
 
-	@Override
-	protected boolean doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
-		return closeableMap.remove(closeable) != null;
-	}
+    @Override
+    protected boolean doUnRegister(
+            @Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
+        return closeableMap.remove(closeable) != null;
+    }
 
-	@Override
-	protected Collection<Closeable> getReferencesToClose() {
-		ArrayList<Closeable> closeablesToClose = new ArrayList<>(closeableToRef.keySet());
-		Collections.reverse(closeablesToClose);
-		return closeablesToClose;
-	}
+    @Override
+    protected Collection<Closeable> getReferencesToClose() {
+        ArrayList<Closeable> closeablesToClose = new ArrayList<>(closeableToRef.keySet());
+        Collections.reverse(closeablesToClose);
+        return closeablesToClose;
+    }
 }

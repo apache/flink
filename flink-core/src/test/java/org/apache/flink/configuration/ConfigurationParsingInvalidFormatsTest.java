@@ -29,59 +29,74 @@ import org.junit.runners.Parameterized;
 import java.time.Duration;
 import java.util.Collections;
 
-/**
- * Tests for reading configuration parameters with invalid formats.
- */
+/** Tests for reading configuration parameters with invalid formats. */
 @RunWith(Parameterized.class)
 public class ConfigurationParsingInvalidFormatsTest extends TestLogger {
-	@Parameterized.Parameters(name = "option: {0}, invalidString: {1}")
-	public static Object[][] getSpecs() {
-		return new Object[][]{
-			new Object[]{ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
-			new Object[]{ConfigOptions.key("long").longType().defaultValue(1L), "ABC"},
-			new Object[]{ConfigOptions.key("float").floatType().defaultValue(1F), "ABC"},
-			new Object[]{ConfigOptions.key("double").doubleType().defaultValue(1D), "ABC"},
-			new Object[]{ConfigOptions.key("boolean").booleanType().defaultValue(true), "ABC"},
-			new Object[]{ConfigOptions.key("memory").memoryType().defaultValue(MemorySize.parse("1kB")), "ABC"},
-			new Object[]{ConfigOptions.key("duration").durationType().defaultValue(Duration.ofSeconds(1)), "ABC"},
-			new Object[]{ConfigOptions.key("enum").enumType(TestEnum.class).defaultValue(TestEnum.ENUM1), "ABC"},
-			new Object[]{ConfigOptions.key("map").mapType().defaultValue(Collections.emptyMap()), "ABC"},
-			new Object[]{ConfigOptions.key("list<int>").intType().asList().defaultValues(1, 2), "A;B;C"},
-			new Object[]{ConfigOptions.key("list<string>").stringType().asList().defaultValues("A"), "'A;B;C"}
-		};
-	}
+    @Parameterized.Parameters(name = "option: {0}, invalidString: {1}")
+    public static Object[][] getSpecs() {
+        return new Object[][] {
+            new Object[] {ConfigOptions.key("int").intType().defaultValue(1), "ABC"},
+            new Object[] {ConfigOptions.key("long").longType().defaultValue(1L), "ABC"},
+            new Object[] {ConfigOptions.key("float").floatType().defaultValue(1F), "ABC"},
+            new Object[] {ConfigOptions.key("double").doubleType().defaultValue(1D), "ABC"},
+            new Object[] {ConfigOptions.key("boolean").booleanType().defaultValue(true), "ABC"},
+            new Object[] {
+                ConfigOptions.key("memory").memoryType().defaultValue(MemorySize.parse("1kB")),
+                "ABC"
+            },
+            new Object[] {
+                ConfigOptions.key("duration").durationType().defaultValue(Duration.ofSeconds(1)),
+                "ABC"
+            },
+            new Object[] {
+                ConfigOptions.key("enum").enumType(TestEnum.class).defaultValue(TestEnum.ENUM1),
+                "ABC"
+            },
+            new Object[] {
+                ConfigOptions.key("map").mapType().defaultValue(Collections.emptyMap()), "ABC"
+            },
+            new Object[] {
+                ConfigOptions.key("list<int>").intType().asList().defaultValues(1, 2), "A;B;C"
+            },
+            new Object[] {
+                ConfigOptions.key("list<string>").stringType().asList().defaultValues("A"), "'A;B;C"
+            }
+        };
+    }
 
-	@Parameterized.Parameter
-	public ConfigOption<?> option;
+    @Parameterized.Parameter public ConfigOption<?> option;
 
-	@Parameterized.Parameter(value = 1)
-	public String invalidString;
+    @Parameterized.Parameter(value = 1)
+    public String invalidString;
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testInvalidStringParsingWithGetOptional() {
-		Configuration configuration = new Configuration();
-		configuration.setString(option.key(), invalidString);
+    @Test
+    public void testInvalidStringParsingWithGetOptional() {
+        Configuration configuration = new Configuration();
+        configuration.setString(option.key(), invalidString);
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(String.format("Could not parse value '%s' for key '%s'", invalidString, option.key()));
-		configuration.getOptional(option);
-	}
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(
+                String.format(
+                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
+        configuration.getOptional(option);
+    }
 
-	@Test
-	public void testInvalidStringParsingWithGet() {
-		Configuration configuration = new Configuration();
-		configuration.setString(option.key(), invalidString);
+    @Test
+    public void testInvalidStringParsingWithGet() {
+        Configuration configuration = new Configuration();
+        configuration.setString(option.key(), invalidString);
 
-		thrown.expect(IllegalArgumentException.class);
-		thrown.expectMessage(String.format("Could not parse value '%s' for key '%s'", invalidString, option.key()));
-		configuration.get(option);
-	}
+        thrown.expect(IllegalArgumentException.class);
+        thrown.expectMessage(
+                String.format(
+                        "Could not parse value '%s' for key '%s'", invalidString, option.key()));
+        configuration.get(option);
+    }
 
-	private enum TestEnum {
-		ENUM1,
-		ENUM2
-	}
+    private enum TestEnum {
+        ENUM1,
+        ENUM2
+    }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.iterative.task;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.aggregators.Aggregator;
@@ -32,6 +33,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannel;
 import org.apache.flink.runtime.iterative.concurrent.BlockingBackChannelBroker;
@@ -52,6 +54,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,349 +62,394 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
-/**
- * The abstract base class for all tasks able to participate in an iteration.
- */
+/** The abstract base class for all tasks able to participate in an iteration. */
 public abstract class AbstractIterativeTask<S extends Function, OT> extends BatchTask<S, OT>
-		implements Terminable {
+        implements Terminable {
 
-	private static final Logger log = LoggerFactory.getLogger(AbstractIterativeTask.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractIterativeTask.class);
 
-	protected LongSumAggregator worksetAggregator;
+    protected LongSumAggregator worksetAggregator;
 
-	protected BlockingBackChannel worksetBackChannel;
+    protected BlockingBackChannel worksetBackChannel;
 
-	protected boolean isWorksetIteration;
+    protected boolean isWorksetIteration;
 
-	protected boolean isWorksetUpdate;
+    protected boolean isWorksetUpdate;
 
-	protected boolean isSolutionSetUpdate;
+    protected boolean isSolutionSetUpdate;
 
-	private RuntimeAggregatorRegistry iterationAggregators;
+    private RuntimeAggregatorRegistry iterationAggregators;
 
-	private String brokerKey;
+    private String brokerKey;
 
-	private int superstepNum = 1;
+    private int superstepNum = 1;
 
-	private volatile boolean terminationRequested;
+    private volatile boolean terminationRequested;
 
-	// --------------------------------------------------------------------------------------------
+    private final CompletableFuture<Void> terminationCompletionFuture = new CompletableFuture<>();
 
-	/**
-	 * Create an Invokable task and set its environment.
-	 *
-	 * @param environment The environment assigned to this invokable.
-	 */
-	public AbstractIterativeTask(Environment environment) {
-		super(environment);
-	}
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	// Main life cycle methods that implement the iterative behavior
-	// --------------------------------------------------------------------------------------------
+    /**
+     * Create an Invokable task and set its environment.
+     *
+     * @param environment The environment assigned to this invokable.
+     */
+    public AbstractIterativeTask(Environment environment) {
+        super(environment);
+    }
 
-	@Override
-	protected void initialize() throws Exception {
-		super.initialize();
+    // --------------------------------------------------------------------------------------------
+    // Main life cycle methods that implement the iterative behavior
+    // --------------------------------------------------------------------------------------------
 
-		// check if the driver is resettable
-		if (this.driver instanceof ResettableDriver) {
-			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-			// make sure that the according inputs are not reset
-			for (int i = 0; i < resDriver.getNumberOfInputs(); i++) {
-				if (resDriver.isInputResettable(i)) {
-					excludeFromReset(i);
-				}
-			}
-		}
+    @Override
+    protected void initialize() throws Exception {
+        super.initialize();
 
-		TaskConfig config = getLastTasksConfig();
-		isWorksetIteration = config.getIsWorksetIteration();
-		isWorksetUpdate = config.getIsWorksetUpdate();
-		isSolutionSetUpdate = config.getIsSolutionSetUpdate();
+        // check if the driver is resettable
+        if (this.driver instanceof ResettableDriver) {
+            final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+            // make sure that the according inputs are not reset
+            for (int i = 0; i < resDriver.getNumberOfInputs(); i++) {
+                if (resDriver.isInputResettable(i)) {
+                    excludeFromReset(i);
+                }
+            }
+        }
 
-		if (isWorksetUpdate) {
-			worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
+        TaskConfig config = getLastTasksConfig();
+        isWorksetIteration = config.getIsWorksetIteration();
+        isWorksetUpdate = config.getIsWorksetUpdate();
+        isSolutionSetUpdate = config.getIsSolutionSetUpdate();
 
-			if (isWorksetIteration) {
-				worksetAggregator = getIterationAggregators().getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
+        if (isWorksetUpdate) {
+            worksetBackChannel = BlockingBackChannelBroker.instance().getAndRemove(brokerKey());
 
-				if (worksetAggregator == null) {
-					throw new RuntimeException("Missing workset elements count aggregator.");
-				}
-			}
-		}
-	}
+            if (isWorksetIteration) {
+                worksetAggregator =
+                        getIterationAggregators()
+                                .getAggregator(WorksetEmptyConvergenceCriterion.AGGREGATOR_NAME);
 
-	@Override
-	public void run() throws Exception {
-		if (inFirstIteration()) {
-			if (this.driver instanceof ResettableDriver) {
-				// initialize the repeatable driver
-				((ResettableDriver<?, ?>) this.driver).initialize();
-			}
-		} else {
-			reinstantiateDriver();
-			resetAllInputs();
+                if (worksetAggregator == null) {
+                    throw new RuntimeException("Missing workset elements count aggregator.");
+                }
+            }
+        }
+    }
 
-			// re-read the iterative broadcast variables
-			for (int i : this.iterativeBroadcastInputs) {
-				final String name = getTaskConfig().getBroadcastInputName(i);
-				readAndSetBroadcastInput(i, name, this.runtimeUdfContext, superstepNum);
-			}
-		}
+    @Override
+    public void run() throws Exception {
+        if (inFirstIteration()) {
+            if (this.driver instanceof ResettableDriver) {
+                // initialize the repeatable driver
+                ((ResettableDriver<?, ?>) this.driver).initialize();
+            }
+        } else {
+            reinstantiateDriver();
+            resetAllInputs();
 
-		// call the parent to execute the superstep
-		super.run();
+            // re-read the iterative broadcast variables
+            for (int i : this.iterativeBroadcastInputs) {
+                final String name = getTaskConfig().getBroadcastInputName(i);
+                readAndSetBroadcastInput(i, name, this.runtimeUdfContext, superstepNum);
+            }
+        }
 
-		// release the iterative broadcast variables
-		for (int i : this.iterativeBroadcastInputs) {
-			final String name = getTaskConfig().getBroadcastInputName(i);
-			releaseBroadcastVariables(name, superstepNum, this.runtimeUdfContext);
-		}
-	}
+        // call the parent to execute the superstep
+        super.run();
 
-	@Override
-	protected void closeLocalStrategiesAndCaches() {
-		try {
-			super.closeLocalStrategiesAndCaches();
-		}
-		finally {
-			if (this.driver instanceof ResettableDriver) {
-				final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-				try {
-					resDriver.teardown();
-				} catch (Throwable t) {
-					log.error("Error while shutting down an iterative operator.", t);
-				}
-			}
-		}
-	}
+        // release the iterative broadcast variables
+        for (int i : this.iterativeBroadcastInputs) {
+            final String name = getTaskConfig().getBroadcastInputName(i);
+            releaseBroadcastVariables(name, superstepNum, this.runtimeUdfContext);
+        }
+    }
 
-	@Override
-	public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
-		Environment env = getEnvironment();
-		return new IterativeRuntimeUdfContext(env.getTaskInfo(), getUserCodeClassLoader(),
-				getExecutionConfig(), env.getDistributedCacheEntries(), this.accumulatorMap, metrics);
-	}
+    @Override
+    protected void closeLocalStrategiesAndCaches() {
+        try {
+            super.closeLocalStrategiesAndCaches();
+        } finally {
+            if (this.driver instanceof ResettableDriver) {
+                final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+                try {
+                    resDriver.teardown();
+                } catch (Throwable t) {
+                    log.error("Error while shutting down an iterative operator.", t);
+                }
+            }
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Utility Methods for Iteration Handling
-	// --------------------------------------------------------------------------------------------
+    @Override
+    public DistributedRuntimeUDFContext createRuntimeContext(MetricGroup metrics) {
+        Environment env = getEnvironment();
 
-	protected boolean inFirstIteration() {
-		return this.superstepNum == 1;
-	}
+        return new IterativeRuntimeUdfContext(
+                env.getTaskInfo(),
+                env.getUserCodeClassLoader(),
+                getExecutionConfig(),
+                env.getDistributedCacheEntries(),
+                this.accumulatorMap,
+                metrics,
+                env.getExternalResourceInfoProvider(),
+                env.getJobID());
+    }
 
-	protected int currentIteration() {
-		return this.superstepNum;
-	}
+    // --------------------------------------------------------------------------------------------
+    // Utility Methods for Iteration Handling
+    // --------------------------------------------------------------------------------------------
 
-	protected void incrementIterationCounter() {
-		this.superstepNum++;
-	}
+    protected boolean inFirstIteration() {
+        return this.superstepNum == 1;
+    }
 
-	public String brokerKey() {
-		if (brokerKey == null) {
-			int iterationId = config.getIterationId();
-			brokerKey = getEnvironment().getJobID().toString() + '#' + iterationId + '#' +
-					getEnvironment().getTaskInfo().getIndexOfThisSubtask();
-		}
-		return brokerKey;
-	}
+    protected int currentIteration() {
+        return this.superstepNum;
+    }
 
-	private void reinstantiateDriver() throws Exception {
-		if (this.driver instanceof ResettableDriver) {
-			final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
-			resDriver.reset();
-		} else {
-			Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
-			this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
+    protected void incrementIterationCounter() {
+        this.superstepNum++;
+    }
 
-			try {
-				this.driver.setup(this);
-			}
-			catch (Throwable t) {
-				throw new Exception("The pact driver setup for '" + this.getEnvironment().getTaskInfo().getTaskName() +
-						"' , caused an error: " + t.getMessage(), t);
-			}
-		}
-	}
+    public String brokerKey() {
+        if (brokerKey == null) {
+            int iterationId = config.getIterationId();
+            brokerKey =
+                    getEnvironment().getJobID().toString()
+                            + '#'
+                            + iterationId
+                            + '#'
+                            + getEnvironment().getTaskInfo().getIndexOfThisSubtask();
+        }
+        return brokerKey;
+    }
 
-	public RuntimeAggregatorRegistry getIterationAggregators() {
-		if (this.iterationAggregators == null) {
-			this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
-		}
-		return this.iterationAggregators;
-	}
+    private void reinstantiateDriver() throws Exception {
+        if (this.driver instanceof ResettableDriver) {
+            final ResettableDriver<?, ?> resDriver = (ResettableDriver<?, ?>) this.driver;
+            resDriver.reset();
+        } else {
+            Class<? extends Driver<S, OT>> driverClass = this.config.getDriver();
+            this.driver = InstantiationUtil.instantiate(driverClass, Driver.class);
 
-	protected void verifyEndOfSuperstepState() throws IOException {
-		// sanity check that there is at least one iterative input reader
-		if (this.iterativeInputs.length == 0 && this.iterativeBroadcastInputs.length == 0) {
-			throw new IllegalStateException("Error: Iterative task without a single iterative input.");
-		}
+            try {
+                this.driver.setup(this);
+            } catch (Throwable t) {
+                throw new Exception(
+                        "The pact driver setup for '"
+                                + this.getEnvironment().getTaskInfo().getTaskName()
+                                + "' , caused an error: "
+                                + t.getMessage(),
+                        t);
+            }
+        }
+    }
 
-		for (int inputNum : this.iterativeInputs) {
-			MutableReader<?> reader = this.inputReaders[inputNum];
+    public RuntimeAggregatorRegistry getIterationAggregators() {
+        if (this.iterationAggregators == null) {
+            this.iterationAggregators = IterationAggregatorBroker.instance().get(brokerKey());
+        }
+        return this.iterationAggregators;
+    }
 
-			if (!reader.isFinished()) {
-				if (reader.hasReachedEndOfSuperstep()) {
-					reader.startNextSuperstep();
-				}
-				else {
-					// need to read and drop all non-consumed data until we reach the end-of-superstep
-					@SuppressWarnings("unchecked")
-					MutableObjectIterator<Object> inIter = (MutableObjectIterator<Object>) this.inputIterators[inputNum];
-					Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
-					while ((o = inIter.next(o)) != null) {
-					}
+    protected void verifyEndOfSuperstepState() throws IOException {
+        // sanity check that there is at least one iterative input reader
+        if (this.iterativeInputs.length == 0 && this.iterativeBroadcastInputs.length == 0) {
+            throw new IllegalStateException(
+                    "Error: Iterative task without a single iterative input.");
+        }
 
-					if (!reader.isFinished()) {
-						// also reset the end-of-superstep state
-						reader.startNextSuperstep();
-					}
-				}
-			}
-		}
+        for (int inputNum : this.iterativeInputs) {
+            MutableReader<?> reader = this.inputReaders[inputNum];
 
-		for (int inputNum : this.iterativeBroadcastInputs) {
-			MutableReader<?> reader = this.broadcastInputReaders[inputNum];
+            if (!reader.isFinished()) {
+                if (reader.hasReachedEndOfSuperstep()) {
+                    reader.startNextSuperstep();
+                } else {
+                    // need to read and drop all non-consumed data until we reach the
+                    // end-of-superstep
+                    @SuppressWarnings("unchecked")
+                    MutableObjectIterator<Object> inIter =
+                            (MutableObjectIterator<Object>) this.inputIterators[inputNum];
+                    Object o = this.inputSerializers[inputNum].getSerializer().createInstance();
+                    while ((o = inIter.next(o)) != null) {}
 
-			if (!reader.isFinished()) {
+                    if (!reader.isFinished()) {
+                        // also reset the end-of-superstep state
+                        reader.startNextSuperstep();
+                    }
+                }
+            }
+        }
 
-				// sanity check that the BC input is at the end of the superstep
-				if (!reader.hasReachedEndOfSuperstep()) {
-					throw new IllegalStateException("An iterative broadcast input has not been fully consumed.");
-				}
+        for (int inputNum : this.iterativeBroadcastInputs) {
+            MutableReader<?> reader = this.broadcastInputReaders[inputNum];
 
-				reader.startNextSuperstep();
-			}
-		}
-	}
+            if (!reader.isFinished()) {
 
-	@Override
-	public boolean terminationRequested() {
-		return this.terminationRequested;
-	}
+                // sanity check that the BC input is at the end of the superstep
+                if (!reader.hasReachedEndOfSuperstep()) {
+                    throw new IllegalStateException(
+                            "An iterative broadcast input has not been fully consumed.");
+                }
 
-	@Override
-	public void requestTermination() {
-		this.terminationRequested = true;
-	}
+                reader.startNextSuperstep();
+            }
+        }
+    }
 
-	@Override
-	public void cancel() throws Exception {
-		requestTermination();
-		super.cancel();
-	}
+    @Override
+    public boolean terminationRequested() {
+        return this.terminationRequested;
+    }
 
-	// -----------------------------------------------------------------------------------------------------------------
-	// Iteration State Update Handling
-	// -----------------------------------------------------------------------------------------------------------------
+    @Override
+    public void requestTermination() {
+        this.terminationRequested = true;
+    }
 
-	/**
-	 * Creates a new {@link WorksetUpdateOutputCollector}.
-	 *
-	 * <p>This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask} to update the
-	 * workset.
-	 *
-	 * <p>If a non-null delegate is given, the new {@link Collector} will write to the solution set and also call
-	 * collect(T) of the delegate.
-	 *
-	 * @param delegate null -OR- the delegate on which to call collect() by the newly created collector
-	 * @return a new {@link WorksetUpdateOutputCollector}
-	 */
-	protected Collector<OT> createWorksetUpdateOutputCollector(Collector<OT> delegate) {
-		DataOutputView outputView = worksetBackChannel.getWriteEnd();
-		TypeSerializer<OT> serializer = getOutputSerializer();
-		return new WorksetUpdateOutputCollector<OT>(outputView, serializer, delegate);
-	}
+    @Override
+    public void terminationCompleted() {
+        this.terminationCompletionFuture.complete(null);
+    }
 
-	protected Collector<OT> createWorksetUpdateOutputCollector() {
-		return createWorksetUpdateOutputCollector(null);
-	}
+    @Override
+    public Future<Void> cancel() throws Exception {
+        requestTermination();
+        return this.terminationCompletionFuture;
+    }
 
-	/**
-	 * Creates a new solution set update output collector.
-	 *
-	 * <p>This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask} to update the
-	 * solution set of workset iterations. Depending on the task configuration, either a fast (non-probing)
-	 * {@link org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or normal (re-probing)
-	 * {@link SolutionSetUpdateOutputCollector} is created.
-	 *
-	 * <p>If a non-null delegate is given, the new {@link Collector} will write back to the solution set and also call
-	 * collect(T) of the delegate.
-	 *
-	 * @param delegate null -OR- a delegate collector to be called by the newly created collector
-	 * @return a new {@link org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or
-	 * {@link SolutionSetUpdateOutputCollector}
-	 */
-	protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
-		Broker<Object> solutionSetBroker = SolutionSetBroker.instance();
+    // -----------------------------------------------------------------------------------------------------------------
+    // Iteration State Update Handling
+    // -----------------------------------------------------------------------------------------------------------------
 
-		Object ss = solutionSetBroker.get(brokerKey());
-		if (ss instanceof CompactingHashTable) {
-			@SuppressWarnings("unchecked")
-			CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) ss;
-			return new SolutionSetUpdateOutputCollector<OT>(solutionSet, delegate);
-		}
-		else if (ss instanceof JoinHashMap) {
-			@SuppressWarnings("unchecked")
-			JoinHashMap<OT> map = (JoinHashMap<OT>) ss;
-			return new SolutionSetObjectsUpdateOutputCollector<OT>(map, delegate);
-		} else {
-			throw new RuntimeException("Unrecognized solution set handle: " + ss);
-		}
-	}
+    /**
+     * Creates a new {@link WorksetUpdateOutputCollector}.
+     *
+     * <p>This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask}
+     * to update the workset.
+     *
+     * <p>If a non-null delegate is given, the new {@link Collector} will write to the solution set
+     * and also call collect(T) of the delegate.
+     *
+     * @param delegate null -OR- the delegate on which to call collect() by the newly created
+     *     collector
+     * @return a new {@link WorksetUpdateOutputCollector}
+     */
+    protected Collector<OT> createWorksetUpdateOutputCollector(Collector<OT> delegate) {
+        DataOutputView outputView = worksetBackChannel.getWriteEnd();
+        TypeSerializer<OT> serializer = getOutputSerializer();
+        return new WorksetUpdateOutputCollector<OT>(outputView, serializer, delegate);
+    }
 
-	/**
-	 * @return output serializer of this task
-	 */
-	private TypeSerializer<OT> getOutputSerializer() {
-		TypeSerializerFactory<OT> serializerFactory;
+    protected Collector<OT> createWorksetUpdateOutputCollector() {
+        return createWorksetUpdateOutputCollector(null);
+    }
 
-		if ((serializerFactory = getLastTasksConfig().getOutputSerializer(getUserCodeClassLoader())) ==
-				null) {
-			throw new RuntimeException("Missing output serializer for workset update.");
-		}
+    /**
+     * Creates a new solution set update output collector.
+     *
+     * <p>This collector is used by {@link IterationIntermediateTask} or {@link IterationTailTask}
+     * to update the solution set of workset iterations. Depending on the task configuration, either
+     * a fast (non-probing) {@link
+     * org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or normal
+     * (re-probing) {@link SolutionSetUpdateOutputCollector} is created.
+     *
+     * <p>If a non-null delegate is given, the new {@link Collector} will write back to the solution
+     * set and also call collect(T) of the delegate.
+     *
+     * @param delegate null -OR- a delegate collector to be called by the newly created collector
+     * @return a new {@link
+     *     org.apache.flink.runtime.iterative.io.SolutionSetFastUpdateOutputCollector} or {@link
+     *     SolutionSetUpdateOutputCollector}
+     */
+    protected Collector<OT> createSolutionSetUpdateOutputCollector(Collector<OT> delegate) {
+        Broker<Object> solutionSetBroker = SolutionSetBroker.instance();
 
-		return serializerFactory.getSerializer();
-	}
+        Object ss = solutionSetBroker.get(brokerKey());
+        if (ss instanceof CompactingHashTable) {
+            @SuppressWarnings("unchecked")
+            CompactingHashTable<OT> solutionSet = (CompactingHashTable<OT>) ss;
+            return new SolutionSetUpdateOutputCollector<OT>(solutionSet, delegate);
+        } else if (ss instanceof JoinHashMap) {
+            @SuppressWarnings("unchecked")
+            JoinHashMap<OT> map = (JoinHashMap<OT>) ss;
+            return new SolutionSetObjectsUpdateOutputCollector<OT>(map, delegate);
+        } else {
+            throw new RuntimeException("Unrecognized solution set handle: " + ss);
+        }
+    }
 
-	// -----------------------------------------------------------------------------------------------------------------
+    /** @return output serializer of this task */
+    private TypeSerializer<OT> getOutputSerializer() {
+        TypeSerializerFactory<OT> serializerFactory;
 
-	private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext implements IterationRuntimeContext {
+        if ((serializerFactory = getLastTasksConfig().getOutputSerializer(getUserCodeClassLoader()))
+                == null) {
+            throw new RuntimeException("Missing output serializer for workset update.");
+        }
 
-		public IterativeRuntimeUdfContext(TaskInfo taskInfo, ClassLoader userCodeClassLoader, ExecutionConfig executionConfig,
-											Map<String, Future<Path>> cpTasks, Map<String, Accumulator<?, ?>> accumulatorMap, MetricGroup metrics) {
-			super(taskInfo, userCodeClassLoader, executionConfig, cpTasks, accumulatorMap, metrics);
-		}
+        return serializerFactory.getSerializer();
+    }
 
-		@Override
-		public int getSuperstepNumber() {
-			return AbstractIterativeTask.this.superstepNum;
-		}
+    // -----------------------------------------------------------------------------------------------------------------
 
-		@Override
-		public <T extends Aggregator<?>> T getIterationAggregator(String name) {
-			return getIterationAggregators().<T>getAggregator(name);
-		}
+    private class IterativeRuntimeUdfContext extends DistributedRuntimeUDFContext
+            implements IterationRuntimeContext {
 
-		@Override
-		@SuppressWarnings("unchecked")
-		public <T extends Value> T getPreviousIterationAggregate(String name) {
-			return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
-		}
+        public IterativeRuntimeUdfContext(
+                TaskInfo taskInfo,
+                UserCodeClassLoader userCodeClassLoader,
+                ExecutionConfig executionConfig,
+                Map<String, Future<Path>> cpTasks,
+                Map<String, Accumulator<?, ?>> accumulatorMap,
+                MetricGroup metrics,
+                ExternalResourceInfoProvider externalResourceInfoProvider,
+                JobID jobID) {
+            super(
+                    taskInfo,
+                    userCodeClassLoader,
+                    executionConfig,
+                    cpTasks,
+                    accumulatorMap,
+                    metrics,
+                    externalResourceInfoProvider,
+                    jobID);
+        }
 
-		@Override
-		public <V, A extends Serializable> void addAccumulator(String name, Accumulator<V, A> newAccumulator) {
-			// only add accumulator on first iteration
-			if (inFirstIteration()) {
-				super.addAccumulator(name, newAccumulator);
-			}
-		}
-	}
+        @Override
+        public int getSuperstepNumber() {
+            return AbstractIterativeTask.this.superstepNum;
+        }
 
+        @Override
+        public <T extends Aggregator<?>> T getIterationAggregator(String name) {
+            return getIterationAggregators().<T>getAggregator(name);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T extends Value> T getPreviousIterationAggregate(String name) {
+            return (T) getIterationAggregators().getPreviousGlobalAggregate(name);
+        }
+
+        @Override
+        public JobID getJobId() {
+            return runtimeUdfContext.getJobId();
+        }
+
+        @Override
+        public <V, A extends Serializable> void addAccumulator(
+                String name, Accumulator<V, A> newAccumulator) {
+            // only add accumulator on first iteration
+            if (inFirstIteration()) {
+                super.addAccumulator(name, newAccumulator);
+            }
+        }
+    }
 }

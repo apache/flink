@@ -28,21 +28,24 @@ import java.util.Map;
 
 public class EitherTypeInfoFactory<L, R> extends TypeInfoFactory<Either<L, R>> {
 
-	@Override
-	public TypeInformation<Either<L, R>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		TypeInformation<?> leftType = genericParameters.get("L");
-		TypeInformation<?> rightType = genericParameters.get("R");
+    @Override
+    public TypeInformation<Either<L, R>> createTypeInfo(
+            Type t, Map<String, TypeInformation<?>> genericParameters) {
+        TypeInformation<?> leftType = genericParameters.get("L");
+        TypeInformation<?> rightType = genericParameters.get("R");
 
-		if (leftType == null) {
-			throw new InvalidTypesException("Type extraction is not possible on Either" +
-				" type as it does not contain information about the 'left' type.");
-		}
+        if (leftType == null) {
+            throw new InvalidTypesException(
+                    "Type extraction is not possible on Either"
+                            + " type as it does not contain information about the 'left' type.");
+        }
 
-		if (rightType == null) {
-			throw new InvalidTypesException("Type extraction is not possible on Either" +
-				" type as it does not contain information about the 'right' type.");
-		}
+        if (rightType == null) {
+            throw new InvalidTypesException(
+                    "Type extraction is not possible on Either"
+                            + " type as it does not contain information about the 'right' type.");
+        }
 
-		return new EitherTypeInfo(leftType, rightType);
-	}
+        return new EitherTypeInfo(leftType, rightType);
+    }
 }

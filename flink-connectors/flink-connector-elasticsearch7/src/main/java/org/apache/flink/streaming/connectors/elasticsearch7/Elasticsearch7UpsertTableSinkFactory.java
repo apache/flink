@@ -36,41 +36,39 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTOR_VERSION_VALUE_7;
 
-/**
- * Table factory for creating an {@link UpsertStreamTableSink} for Elasticsearch 7.
- */
+/** Table factory for creating an {@link UpsertStreamTableSink} for Elasticsearch 7. */
 @Internal
 public class Elasticsearch7UpsertTableSinkFactory extends ElasticsearchUpsertTableSinkFactoryBase {
 
-	@Override
-	protected String elasticsearchVersion() {
-		return CONNECTOR_VERSION_VALUE_7;
-	}
+    @Override
+    protected String elasticsearchVersion() {
+        return CONNECTOR_VERSION_VALUE_7;
+    }
 
-	@Override
-	protected ElasticsearchUpsertTableSinkBase createElasticsearchUpsertTableSink(
-			boolean isAppendOnly,
-			TableSchema schema,
-			List<Host> hosts,
-			String index,
-			String docType,
-			String keyDelimiter,
-			String keyNullLiteral,
-			SerializationSchema<Row> serializationSchema,
-			XContentType contentType,
-			ActionRequestFailureHandler failureHandler,
-			Map<SinkOption, String> sinkOptions) {
+    @Override
+    protected ElasticsearchUpsertTableSinkBase createElasticsearchUpsertTableSink(
+            boolean isAppendOnly,
+            TableSchema schema,
+            List<Host> hosts,
+            String index,
+            String docType,
+            String keyDelimiter,
+            String keyNullLiteral,
+            SerializationSchema<Row> serializationSchema,
+            XContentType contentType,
+            ActionRequestFailureHandler failureHandler,
+            Map<SinkOption, String> sinkOptions) {
 
-		return new Elasticsearch7UpsertTableSink(
-			isAppendOnly,
-			schema,
-			hosts,
-			index,
-			keyDelimiter,
-			keyNullLiteral,
-			serializationSchema,
-			contentType,
-			failureHandler,
-			sinkOptions);
-	}
+        return new Elasticsearch7UpsertTableSink(
+                isAppendOnly,
+                schema,
+                hosts,
+                index,
+                keyDelimiter,
+                keyNullLiteral,
+                serializationSchema,
+                contentType,
+                failureHandler,
+                sinkOptions);
+    }
 }

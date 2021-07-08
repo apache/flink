@@ -1,0 +1,138 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>taskmanager.data.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The task manager's bind port used for data exchange operations. If not configured, 'taskmanager.data.port' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.port</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The task manager’s external port used for data exchange operations.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.ssl.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Enable SSL support for the taskmanager data transport. This is applicable only when the global flag for internal SSL (security.ssl.internal.enabled) is set to true</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.blocking-shuffle.compression.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Boolean flag indicating whether the shuffle data will be compressed for blocking shuffle mode. Note that data is compressed per buffer and compression can incur extra CPU overhead, so it is more effective for IO bounded scenario when compression ratio is high.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.blocking-shuffle.type</h5></td>
+            <td style="word-wrap: break-word;">"file"</td>
+            <td>String</td>
+            <td>The blocking shuffle type, either "mmap" or "file". The "auto" means selecting the property type automatically based on system memory architecture (64 bit for mmap and 32 bit for file). Note that the memory usage of mmap is not accounted by configured memory limits, but some resource frameworks like yarn would track this memory usage and kill the container once memory exceeding some threshold. Also note that this option is experimental and might be changed future.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.detailed-metrics</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Boolean flag to enable/disable more detailed metrics about inbound/outbound network queue lengths.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">2</td>
+            <td>Integer</td>
+            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Integer</td>
+            <td>Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels. The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.max-buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>Number of max buffers that can be used for each channel. If a channel exceeds the number of max buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed, and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer producing large amount of data.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>
+            <td style="word-wrap: break-word;">120</td>
+            <td>Integer</td>
+            <td>The Netty client connection timeout.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.client.numThreads</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty client threads.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.num-arenas</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty arenas.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.sendReceiveBufferSize</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The Netty send and receive buffer size. This defaults to the system buffer size (cat /proc/sys/net/ipv4/tcp_[rw]mem) and is 4 MiB in modern Linux.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.server.backlog</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The netty server connection backlog.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.server.numThreads</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The number of Netty server threads.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.netty.transport</h5></td>
+            <td style="word-wrap: break-word;">"auto"</td>
+            <td>String</td>
+            <td>The Netty transport type, either "nio" or "epoll". The "auto" means selecting the property mode automatically based on the platform. Note that the "epoll" mode can get better performance, less GC and have more advanced features which are only available on modern Linux.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.initial</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.request-backoff.max</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Integer</td>
+            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.retries</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The number of retry attempts for network communication. Currently it's only used for establishing input/output channel connections</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-buffers</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>Integer</td>
+            <td>Minimum number of network buffers required per sort-merge blocking result partition. For production usage, it is suggested to increase this config value to at least 2048 (64M memory if the default 32K memory segment size is used) to improve the data compression ratio and reduce the small network packets. Usually, several hundreds of megabytes memory is enough for large scale batch jobs. Note: you may also need to increase the size of total network memory to avoid the 'insufficient number of network buffers' error if you are increasing this config value.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>Parallelism threshold to switch between sort-merge blocking shuffle and the default hash-based blocking shuffle, which means for batch jobs of small parallelism, the hash-based blocking shuffle will be used and for batch jobs of large parallelism, the sort-merge one will be used. Note: For production usage, if sort-merge blocking shuffle is enabled, you may also need to enable data compression by setting 'taskmanager.network.blocking-shuffle.compression.enabled' to true and tune 'taskmanager.network.sort-shuffle.min-buffers' and 'taskmanager.memory.framework.off-heap.batch-shuffle.size' for better performance.</td>
+        </tr>
+    </tbody>
+</table>

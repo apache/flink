@@ -35,69 +35,75 @@ import javax.annotation.Nonnull;
 @Internal
 public class NestedMapsStateTable<K, N, S> extends StateTable<K, N, S> {
 
-	/**
-	 * Creates a new {@link NestedMapsStateTable} for the given key context and meta info.
-	 * @param keyContext the key context.
-	 * @param metaInfo the meta information for this state table.
-	 * @param keySerializer the serializer of the key.
-	 */
-	public NestedMapsStateTable(
-		InternalKeyContext<K> keyContext,
-		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
-		TypeSerializer<K> keySerializer) {
-		super(keyContext, metaInfo, keySerializer);
-	}
+    /**
+     * Creates a new {@link NestedMapsStateTable} for the given key context and meta info.
+     *
+     * @param keyContext the key context.
+     * @param metaInfo the meta information for this state table.
+     * @param keySerializer the serializer of the key.
+     */
+    public NestedMapsStateTable(
+            InternalKeyContext<K> keyContext,
+            RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+            TypeSerializer<K> keySerializer) {
+        super(keyContext, metaInfo, keySerializer);
+    }
 
-	@Override
-	protected NestedStateMap<K, N, S> createStateMap() {
-		return new NestedStateMap<>();
-	}
+    @Override
+    protected NestedStateMap<K, N, S> createStateMap() {
+        return new NestedStateMap<>();
+    }
 
-	// Snapshotting ----------------------------------------------------------------------------------------------------
+    // Snapshotting
+    // ----------------------------------------------------------------------------------------------------
 
-	@Nonnull
-	@Override
-	public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new NestedMapsStateTableSnapshot<>(
-			this,
-			getKeySerializer(),
-			getNamespaceSerializer(),
-			getStateSerializer(),
-			getMetaInfo().getStateSnapshotTransformFactory().createForDeserializedState().orElse(null));
-	}
+    @Nonnull
+    @Override
+    public NestedMapsStateTableSnapshot<K, N, S> stateSnapshot() {
+        return new NestedMapsStateTableSnapshot<>(
+                this,
+                getKeySerializer(),
+                getNamespaceSerializer(),
+                getStateSerializer(),
+                getMetaInfo()
+                        .getStateSnapshotTransformFactory()
+                        .createForDeserializedState()
+                        .orElse(null));
+    }
 
-	/**
-	 * This class encapsulates the snapshot logic.
-	 *
-	 * @param <K> type of key.
-	 * @param <N> type of namespace.
-	 * @param <S> type of state.
-	 */
-	static class NestedMapsStateTableSnapshot<K, N, S>
-			extends AbstractStateTableSnapshot<K, N, S> {
+    /**
+     * This class encapsulates the snapshot logic.
+     *
+     * @param <K> type of key.
+     * @param <N> type of namespace.
+     * @param <S> type of state.
+     */
+    static class NestedMapsStateTableSnapshot<K, N, S> extends AbstractStateTableSnapshot<K, N, S> {
 
-		NestedMapsStateTableSnapshot(
-			NestedMapsStateTable<K, N, S> owningTable,
-			TypeSerializer<K> localKeySerializer,
-			TypeSerializer<N> localNamespaceSerializer,
-			TypeSerializer<S> localStateSerializer,
-			StateSnapshotTransformer<S> stateSnapshotTransformer) {
-			super(owningTable,
-				localKeySerializer,
-				localNamespaceSerializer,
-				localStateSerializer,
-				stateSnapshotTransformer);
-		}
+        NestedMapsStateTableSnapshot(
+                NestedMapsStateTable<K, N, S> owningTable,
+                TypeSerializer<K> localKeySerializer,
+                TypeSerializer<N> localNamespaceSerializer,
+                TypeSerializer<S> localStateSerializer,
+                StateSnapshotTransformer<S> stateSnapshotTransformer) {
+            super(
+                    owningTable,
+                    localKeySerializer,
+                    localNamespaceSerializer,
+                    localStateSerializer,
+                    stateSnapshotTransformer);
+        }
 
-		@Override
-		protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> getStateMapSnapshotForKeyGroup(int keyGroup) {
-			NestedStateMap<K, N, S> stateMap = (NestedStateMap<K, N, S>) owningStateTable.getMapForKeyGroup(keyGroup);
+        @Override
+        protected StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>>
+                getStateMapSnapshotForKeyGroup(int keyGroup) {
+            NestedStateMap<K, N, S> stateMap =
+                    (NestedStateMap<K, N, S>) owningStateTable.getMapForKeyGroup(keyGroup);
 
-			return stateMap.stateSnapshot();
-		}
+            return stateMap.stateSnapshot();
+        }
 
-		@Override
-		public void release() {
-		}
-	}
+        @Override
+        public void release() {}
+    }
 }

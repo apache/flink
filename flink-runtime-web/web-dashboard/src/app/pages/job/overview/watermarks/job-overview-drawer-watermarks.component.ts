@@ -50,7 +50,7 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           for (const key in data.watermarks) {
             list.push({
-              subTaskIndex: +key + 1,
+              subTaskIndex: +key,
               watermark: data.watermarks[key]
             });
           }

@@ -32,59 +32,68 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-/**
- * Test iteration with union.
- */
+/** Test iteration with union. */
 public class IterationWithUnionITCase extends JavaProgramTestBase {
 
-	private static final String DATAPOINTS = "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
+    private static final String DATAPOINTS =
+            "0|50.90|16.20|72.08|\n" + "1|73.65|61.76|62.89|\n" + "2|61.73|49.95|92.74|\n";
 
-	protected String dataPath;
-	protected String resultPath;
+    protected String dataPath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		dataPath = createTempFile("datapoints.txt", DATAPOINTS);
-		resultPath = getTempDirPath("union_iter_result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        dataPath = createTempFile("datapoints.txt", DATAPOINTS);
+        resultPath = getTempDirPath("union_iter_result");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(DATAPOINTS + DATAPOINTS + DATAPOINTS + DATAPOINTS, resultPath);
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        compareResultsByLinesInMemory(
+                DATAPOINTS + DATAPOINTS + DATAPOINTS + DATAPOINTS, resultPath);
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Tuple2<Integer, CoordVector>> initialInput = env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
+        DataSet<Tuple2<Integer, CoordVector>> initialInput =
+                env.readFile(new PointInFormat(), this.dataPath).setParallelism(1);
 
-		IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2);
+        IterativeDataSet<Tuple2<Integer, CoordVector>> iteration = initialInput.iterate(2);
 
-		DataSet<Tuple2<Integer, CoordVector>> result = iteration.union(iteration).map(new IdentityMapper());
+        DataSet<Tuple2<Integer, CoordVector>> result =
+                iteration.union(iteration).map(new IdentityMapper());
 
-		iteration.closeWith(result).writeAsFormattedText(this.resultPath, new PointFormatter());
+        iteration.closeWith(result).writeAsFormattedText(this.resultPath, new PointFormatter());
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	static final class IdentityMapper implements MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
-		private static final long serialVersionUID = 1L;
+    static final class IdentityMapper
+            implements MapFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>,
+                    Serializable {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Tuple2<Integer, CoordVector> map(Tuple2<Integer, CoordVector> rec) {
-			return rec;
-		}
-	}
+        @Override
+        public Tuple2<Integer, CoordVector> map(Tuple2<Integer, CoordVector> rec) {
+            return rec;
+        }
+    }
 
-	static class DummyReducer implements GroupReduceFunction<Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>, Serializable {
-		private static final long serialVersionUID = 1L;
+    static class DummyReducer
+            implements GroupReduceFunction<
+                            Tuple2<Integer, CoordVector>, Tuple2<Integer, CoordVector>>,
+                    Serializable {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void reduce(Iterable<Tuple2<Integer, CoordVector>> it, Collector<Tuple2<Integer, CoordVector>> out) {
-			for (Tuple2<Integer, CoordVector> r : it) {
-				out.collect(r);
-			}
-		}
-	}
+        @Override
+        public void reduce(
+                Iterable<Tuple2<Integer, CoordVector>> it,
+                Collector<Tuple2<Integer, CoordVector>> out) {
+            for (Tuple2<Integer, CoordVector> r : it) {
+                out.collect(r);
+            }
+        }
+    }
 }

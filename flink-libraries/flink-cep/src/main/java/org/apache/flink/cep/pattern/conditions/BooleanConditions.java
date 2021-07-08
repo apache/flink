@@ -21,37 +21,33 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Utility class containing an {@link IterativeCondition} that always returns
- * {@code true} and one that always returns {@code false}.
+ * Utility class containing an {@link IterativeCondition} that always returns {@code true} and one
+ * that always returns {@code false}.
  */
 @Internal
 public class BooleanConditions {
 
-	/**
-	 * @return An {@link IterativeCondition} that always returns {@code true}.
-	 */
-	public static <T> IterativeCondition<T> trueFunction()  {
-		return new SimpleCondition<T>() {
-			private static final long serialVersionUID = 8379409657655181451L;
+    /** @return An {@link IterativeCondition} that always returns {@code true}. */
+    public static <T> IterativeCondition<T> trueFunction() {
+        return new SimpleCondition<T>() {
+            private static final long serialVersionUID = 8379409657655181451L;
 
-			@Override
-			public boolean filter(T value) throws Exception {
-				return true;
-			}
-		};
-	}
+            @Override
+            public boolean filter(T value) throws Exception {
+                return true;
+            }
+        };
+    }
 
-	/**
-	 * @return An {@link IterativeCondition} that always returns {@code false}.
-	 */
-	public static <T> IterativeCondition<T> falseFunction()  {
-		return new SimpleCondition<T>() {
-			private static final long serialVersionUID = -823981593720949910L;
+    /** @return An {@link IterativeCondition} that always returns {@code false}. */
+    public static <T> IterativeCondition<T> falseFunction() {
+        return new SimpleCondition<T>() {
+            private static final long serialVersionUID = -823981593720949910L;
 
-			@Override
-			public boolean filter(T value) throws Exception {
-				return false;
-			}
-		};
-	}
+            @Override
+            public boolean filter(T value) throws Exception {
+                return false;
+            }
+        };
+    }
 }

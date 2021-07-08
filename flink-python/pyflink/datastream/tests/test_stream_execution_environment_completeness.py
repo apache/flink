@@ -15,14 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import unittest
 
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 
 
 class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
-                                                  unittest.TestCase):
+                                                  PyFlinkTestCase):
 
     @classmethod
     def python_class(cls):
@@ -35,8 +34,8 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
     @classmethod
     def excluded_methods(cls):
         # Exclude these methods for the time being, because current
-        # ExecutionEnvironment/StreamExecutionEnvironment do not apply to the
-        # DataSet/DataStream API, but to the Table API configuration.
+        # StreamExecutionEnvironment do not apply to the
+        # DataStream API, but to the Table API configuration.
         # Currently only the methods for configuration is added.
         # 'isForceCheckpointing', 'getNumberOfExecutionRetries', 'setNumberOfExecutionRetries'
         # is deprecated, exclude them.
@@ -47,9 +46,9 @@ class StreamExecutionEnvironmentCompletenessTests(PythonAPICompletenessTestCase,
                 'getNumberOfExecutionRetries', 'getStreamGraph', 'fromParallelCollection',
                 'readFileStream', 'isForceCheckpointing', 'readFile', 'clean',
                 'createInput', 'createLocalEnvironmentWithWebUI', 'fromCollection',
-                'socketTextStream', 'initializeContextEnvironment', 'readTextFile', 'addSource',
+                'socketTextStream', 'initializeContextEnvironment', 'readTextFile',
                 'setNumberOfExecutionRetries', 'configure', 'executeAsync', 'registerJobListener',
-                'clearJobListeners', 'getJobListeners'}
+                'clearJobListeners', 'getJobListeners', "fromSequence"}
 
 
 if __name__ == '__main__':

@@ -46,225 +46,252 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @PublicEvolving
 public class SocketClientSink<IN> extends RichSinkFunction<IN> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SocketClientSink.class);
 
-	private static final int CONNECTION_RETRY_DELAY = 500;
+    private static final int CONNECTION_RETRY_DELAY = 500;
 
+    private final SerializableObject lock = new SerializableObject();
+    private final SerializationSchema<IN> schema;
+    private final String hostName;
+    private final int port;
+    private final int maxNumRetries;
+    private final boolean autoFlush;
 
-	private final SerializableObject lock = new SerializableObject();
-	private final SerializationSchema<IN> schema;
-	private final String hostName;
-	private final int port;
-	private final int maxNumRetries;
-	private final boolean autoFlush;
+    private transient Socket client;
+    private transient OutputStream outputStream;
 
-	private transient Socket client;
-	private transient OutputStream outputStream;
+    private int retries;
 
-	private int retries;
+    private volatile boolean isRunning = true;
 
-	private volatile boolean isRunning = true;
+    /**
+     * Creates a new SocketClientSink. The sink will not attempt to retry connections upon failure
+     * and will not auto-flush the stream.
+     *
+     * @param hostName Hostname of the server to connect to.
+     * @param port Port of the server.
+     * @param schema Schema used to serialize the data into bytes.
+     */
+    public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema) {
+        this(hostName, port, schema, 0);
+    }
 
-	/**
-	 * Creates a new SocketClientSink. The sink will not attempt to retry connections upon failure
-	 * and will not auto-flush the stream.
-	 *
-	 * @param hostName Hostname of the server to connect to.
-	 * @param port Port of the server.
-	 * @param schema Schema used to serialize the data into bytes.
-	 */
-	public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema) {
-		this(hostName, port, schema, 0);
-	}
+    /**
+     * Creates a new SocketClientSink that retries connections upon failure up to a given number of
+     * times. A value of -1 for the number of retries will cause the system to retry an infinite
+     * number of times. The sink will not auto-flush the stream.
+     *
+     * @param hostName Hostname of the server to connect to.
+     * @param port Port of the server.
+     * @param schema Schema used to serialize the data into bytes.
+     * @param maxNumRetries The maximum number of retries after a message send failed.
+     */
+    public SocketClientSink(
+            String hostName, int port, SerializationSchema<IN> schema, int maxNumRetries) {
+        this(hostName, port, schema, maxNumRetries, false);
+    }
 
-	/**
-	 * Creates a new SocketClientSink that retries connections upon failure up to a given number of times.
-	 * A value of -1 for the number of retries will cause the system to retry an infinite number of times.
-	 * The sink will not auto-flush the stream.
-	 *
-	 * @param hostName Hostname of the server to connect to.
-	 * @param port Port of the server.
-	 * @param schema Schema used to serialize the data into bytes.
-	 * @param maxNumRetries The maximum number of retries after a message send failed.
-	 */
-	public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema, int maxNumRetries) {
-		this(hostName, port, schema, maxNumRetries, false);
-	}
+    /**
+     * Creates a new SocketClientSink that retries connections upon failure up to a given number of
+     * times. A value of -1 for the number of retries will cause the system to retry an infinite
+     * number of times.
+     *
+     * @param hostName Hostname of the server to connect to.
+     * @param port Port of the server.
+     * @param schema Schema used to serialize the data into bytes.
+     * @param maxNumRetries The maximum number of retries after a message send failed.
+     * @param autoflush Flag to indicate whether the socket stream should be flushed after each
+     *     message.
+     */
+    public SocketClientSink(
+            String hostName,
+            int port,
+            SerializationSchema<IN> schema,
+            int maxNumRetries,
+            boolean autoflush) {
+        checkArgument(isValidClientPort(port), "port is out of range");
+        checkArgument(
+                maxNumRetries >= -1,
+                "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
 
-	/**
-	 * Creates a new SocketClientSink that retries connections upon failure up to a given number of times.
-	 * A value of -1 for the number of retries will cause the system to retry an infinite number of times.
-	 *
-	 * @param hostName Hostname of the server to connect to.
-	 * @param port Port of the server.
-	 * @param schema Schema used to serialize the data into bytes.
-	 * @param maxNumRetries The maximum number of retries after a message send failed.
-	 * @param autoflush Flag to indicate whether the socket stream should be flushed after each message.
-	 */
-	public SocketClientSink(String hostName, int port, SerializationSchema<IN> schema,
-							int maxNumRetries, boolean autoflush) {
-		checkArgument(isValidClientPort(port), "port is out of range");
-		checkArgument(maxNumRetries >= -1, "maxNumRetries must be zero or larger (num retries), or -1 (infinite retries)");
+        this.hostName = checkNotNull(hostName, "hostname must not be null");
+        this.port = port;
+        this.schema = checkNotNull(schema);
+        this.maxNumRetries = maxNumRetries;
+        this.autoFlush = autoflush;
+    }
 
-		this.hostName = checkNotNull(hostName, "hostname must not be null");
-		this.port = port;
-		this.schema = checkNotNull(schema);
-		this.maxNumRetries = maxNumRetries;
-		this.autoFlush = autoflush;
-	}
+    // ------------------------------------------------------------------------
+    //  Life cycle
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Life cycle
-	// ------------------------------------------------------------------------
+    /**
+     * Initialize the connection with the Socket in the server.
+     *
+     * @param parameters Configuration.
+     */
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        try {
+            synchronized (lock) {
+                createConnection();
+            }
+        } catch (IOException e) {
+            throw new IOException("Cannot connect to socket server at " + hostName + ":" + port, e);
+        }
+    }
 
-	/**
-	 * Initialize the connection with the Socket in the server.
-	 * @param parameters Configuration.
-	 */
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		try {
-			synchronized (lock) {
-				createConnection();
-			}
-		}
-		catch (IOException e) {
-			throw new IOException("Cannot connect to socket server at " + hostName + ":" + port, e);
-		}
-	}
+    /**
+     * Called when new data arrives to the sink, and forwards it to Socket.
+     *
+     * @param value The value to write to the socket.
+     */
+    @Override
+    public void invoke(IN value) throws Exception {
+        byte[] msg = schema.serialize(value);
 
+        try {
+            outputStream.write(msg);
+            if (autoFlush) {
+                outputStream.flush();
+            }
+        } catch (IOException e) {
+            // if no re-tries are enable, fail immediately
+            if (maxNumRetries == 0) {
+                throw new IOException(
+                        "Failed to send message '"
+                                + value
+                                + "' to socket server at "
+                                + hostName
+                                + ":"
+                                + port
+                                + ". Connection re-tries are not enabled.",
+                        e);
+            }
 
-	/**
-	 * Called when new data arrives to the sink, and forwards it to Socket.
-	 *
-	 * @param value The value to write to the socket.
-	 */
-	@Override
-	public void invoke(IN value) throws Exception {
-		byte[] msg = schema.serialize(value);
+            LOG.error(
+                    "Failed to send message '"
+                            + value
+                            + "' to socket server at "
+                            + hostName
+                            + ":"
+                            + port
+                            + ". Trying to reconnect...",
+                    e);
 
-		try {
-			outputStream.write(msg);
-			if (autoFlush) {
-				outputStream.flush();
-			}
-		}
-		catch (IOException e) {
-			// if no re-tries are enable, fail immediately
-			if (maxNumRetries == 0) {
-				throw new IOException("Failed to send message '" + value + "' to socket server at "
-						+ hostName + ":" + port + ". Connection re-tries are not enabled.", e);
-			}
+            // do the retries in locked scope, to guard against concurrent close() calls
+            // note that the first re-try comes immediately, without a wait!
 
-			LOG.error("Failed to send message '" + value + "' to socket server at " + hostName + ":" + port +
-					". Trying to reconnect..." , e);
+            synchronized (lock) {
+                IOException lastException = null;
+                retries = 0;
 
-			// do the retries in locked scope, to guard against concurrent close() calls
-			// note that the first re-try comes immediately, without a wait!
+                while (isRunning && (maxNumRetries < 0 || retries < maxNumRetries)) {
 
-			synchronized (lock) {
-				IOException lastException = null;
-				retries = 0;
+                    // first, clean up the old resources
+                    try {
+                        if (outputStream != null) {
+                            outputStream.close();
+                        }
+                    } catch (IOException ee) {
+                        LOG.error("Could not close output stream from failed write attempt", ee);
+                    }
+                    try {
+                        if (client != null) {
+                            client.close();
+                        }
+                    } catch (IOException ee) {
+                        LOG.error("Could not close socket from failed write attempt", ee);
+                    }
 
-				while (isRunning && (maxNumRetries < 0 || retries < maxNumRetries)) {
+                    // try again
+                    retries++;
 
-					// first, clean up the old resources
-					try {
-						if (outputStream != null) {
-							outputStream.close();
-						}
-					}
-					catch (IOException ee) {
-						LOG.error("Could not close output stream from failed write attempt", ee);
-					}
-					try {
-						if (client != null) {
-							client.close();
-						}
-					}
-					catch (IOException ee) {
-						LOG.error("Could not close socket from failed write attempt", ee);
-					}
+                    try {
+                        // initialize a new connection
+                        createConnection();
 
-					// try again
-					retries++;
+                        // re-try the write
+                        outputStream.write(msg);
 
-					try {
-						// initialize a new connection
-						createConnection();
+                        // success!
+                        return;
+                    } catch (IOException ee) {
+                        lastException = ee;
+                        LOG.error(
+                                "Re-connect to socket server and send message failed. Retry time(s): "
+                                        + retries,
+                                ee);
+                    }
 
-						// re-try the write
-						outputStream.write(msg);
+                    // wait before re-attempting to connect
+                    lock.wait(CONNECTION_RETRY_DELAY);
+                }
 
-						// success!
-						return;
-					}
-					catch (IOException ee) {
-						lastException = ee;
-						LOG.error("Re-connect to socket server and send message failed. Retry time(s): " + retries, ee);
-					}
+                // throw an exception if the task is still running, otherwise simply leave the
+                // method
+                if (isRunning) {
+                    throw new IOException(
+                            "Failed to send message '"
+                                    + value
+                                    + "' to socket server at "
+                                    + hostName
+                                    + ":"
+                                    + port
+                                    + ". Failed after "
+                                    + retries
+                                    + " retries.",
+                            lastException);
+                }
+            }
+        }
+    }
 
-					// wait before re-attempting to connect
-					lock.wait(CONNECTION_RETRY_DELAY);
-				}
+    /** Closes the connection with the Socket server. */
+    @Override
+    public void close() throws Exception {
+        // flag this as not running any more
+        isRunning = false;
 
-				// throw an exception if the task is still running, otherwise simply leave the method
-				if (isRunning) {
-					throw new IOException("Failed to send message '" + value + "' to socket server at "
-							+ hostName + ":" + port + ". Failed after " + retries + " retries.", lastException);
-				}
-			}
-		}
-	}
+        // clean up in locked scope, so there is no concurrent change to the stream and client
+        synchronized (lock) {
+            // we notify first (this statement cannot fail). The notified thread will not continue
+            // anyways before it can re-acquire the lock
+            lock.notifyAll();
 
-	/**
-	 * Closes the connection with the Socket server.
-	 */
-	@Override
-	public void close() throws Exception {
-		// flag this as not running any more
-		isRunning = false;
+            try {
+                if (outputStream != null) {
+                    outputStream.close();
+                }
+            } finally {
+                if (client != null) {
+                    client.close();
+                }
+            }
+        }
+    }
 
-		// clean up in locked scope, so there is no concurrent change to the stream and client
-		synchronized (lock) {
-			// we notify first (this statement cannot fail). The notified thread will not continue
-			// anyways before it can re-acquire the lock
-			lock.notifyAll();
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-			try {
-				if (outputStream != null) {
-					outputStream.close();
-				}
-			}
-			finally {
-				if (client != null) {
-					client.close();
-				}
-			}
-		}
-	}
+    private void createConnection() throws IOException {
+        client = new Socket(hostName, port);
+        client.setKeepAlive(true);
+        client.setTcpNoDelay(true);
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+        outputStream = client.getOutputStream();
+    }
 
-	private void createConnection() throws IOException {
-		client = new Socket(hostName, port);
-		client.setKeepAlive(true);
-		client.setTcpNoDelay(true);
+    // ------------------------------------------------------------------------
+    //  For testing
+    // ------------------------------------------------------------------------
 
-		outputStream = client.getOutputStream();
-	}
-
-	// ------------------------------------------------------------------------
-	//  For testing
-	// ------------------------------------------------------------------------
-
-	int getCurrentNumberOfRetries() {
-		synchronized (lock) {
-			return retries;
-		}
-	}
+    int getCurrentNumberOfRetries() {
+        synchronized (lock) {
+            return retries;
+        }
+    }
 }

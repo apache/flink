@@ -24,11 +24,11 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
-	<name>flink-sql-parser</name>
+	<name>Flink : Table : SQL Parser </name>
 
 	<packaging>jar</packaging>
 
@@ -56,10 +56,10 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.22.0:
+				"mvn dependency:tree" as of Calcite 1.26.0:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.22.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
 
 				Dependencies that are not needed for how we use Calcite right now.
@@ -152,6 +152,10 @@ under the License.
 					<groupId>commons-codec</groupId>
 					<artifactId>commons-codec</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 		<dependency>
@@ -175,6 +179,10 @@ under the License.
 					<groupId>com.fasterxml.jackson.core</groupId>
 					<artifactId>jackson-annotations</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.uzaygezen</groupId>
+					<artifactId>uzaygezen-core</artifactId>
+				</exclusion>
 			</exclusions>
 			<scope>test</scope>
 			<type>test-jar</type>
@@ -184,7 +192,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- As we switched to JUnit5 runner to use the Calcite tests infrastructure we need
@@ -193,7 +201,7 @@ under the License.
 		<dependency>
 			<groupId>org.junit.vintage</groupId>
 			<artifactId>junit-vintage-engine</artifactId>
-			<version>5.5.2</version>
+			<version>5.7.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

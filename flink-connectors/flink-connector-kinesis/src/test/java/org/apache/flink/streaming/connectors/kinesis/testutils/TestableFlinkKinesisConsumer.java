@@ -27,38 +27,43 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Properties;
 
-/**
- * Extension of the {@link FlinkKinesisConsumer} for testing.
- */
+/** Extension of the {@link FlinkKinesisConsumer} for testing. */
 public class TestableFlinkKinesisConsumer extends FlinkKinesisConsumer<String> {
 
-	private final RuntimeContext mockedRuntimeCtx;
+    private final RuntimeContext mockedRuntimeCtx;
 
-	public TestableFlinkKinesisConsumer(String fakeStream,
-										Properties fakeConfiguration,
-										final int totalNumOfConsumerSubtasks,
-										final int indexOfThisConsumerSubtask) {
-		super(fakeStream, new SimpleStringSchema(), fakeConfiguration);
+    public TestableFlinkKinesisConsumer(
+            String fakeStream,
+            Properties fakeConfiguration,
+            final int totalNumOfConsumerSubtasks,
+            final int indexOfThisConsumerSubtask) {
+        super(fakeStream, new SimpleStringSchema(), fakeConfiguration);
 
-		this.mockedRuntimeCtx = Mockito.mock(RuntimeContext.class);
+        this.mockedRuntimeCtx = Mockito.mock(RuntimeContext.class);
 
-		Mockito.when(mockedRuntimeCtx.getNumberOfParallelSubtasks()).thenAnswer(new Answer<Integer>() {
-			@Override
-			public Integer answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return totalNumOfConsumerSubtasks;
-			}
-		});
+        Mockito.when(mockedRuntimeCtx.getNumberOfParallelSubtasks())
+                .thenAnswer(
+                        new Answer<Integer>() {
+                            @Override
+                            public Integer answer(InvocationOnMock invocationOnMock)
+                                    throws Throwable {
+                                return totalNumOfConsumerSubtasks;
+                            }
+                        });
 
-		Mockito.when(mockedRuntimeCtx.getIndexOfThisSubtask()).thenAnswer(new Answer<Integer>() {
-			@Override
-			public Integer answer(InvocationOnMock invocationOnMock) throws Throwable {
-				return indexOfThisConsumerSubtask;
-			}
-		});
-	}
+        Mockito.when(mockedRuntimeCtx.getIndexOfThisSubtask())
+                .thenAnswer(
+                        new Answer<Integer>() {
+                            @Override
+                            public Integer answer(InvocationOnMock invocationOnMock)
+                                    throws Throwable {
+                                return indexOfThisConsumerSubtask;
+                            }
+                        });
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		return this.mockedRuntimeCtx;
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        return this.mockedRuntimeCtx;
+    }
 }

@@ -1,0 +1,58 @@
+== Abstract Syntax Tree ==
+LogicalSink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
++- LogicalProject(EXPR$0=[1], EXPR$1=[1])
+   +- LogicalValues(tuples=[[{ 0 }]])
+
+== Optimized Physical Plan ==
+Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
++- Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])
+   +- Values(type=[RecordType(INTEGER ZERO)], tuples=[[{ 0 }]])
+
+== Optimized Execution Plan ==
+Sink(table=[test-catalog.db1.test_table], fields=[EXPR$0, EXPR$1])
++- Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])
+   +- Values(tuples=[[{ 0 }]])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "Source: Values(tuples=[[{ 0 }]])",
+    "pact" : "Data Source",
+    "contents" : "Source: Values(tuples=[[{ 0 }]])",
+    "parallelism" : 1
+  }, {
+    "id" : 2,
+    "type" : "Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[1 AS EXPR$0, 1 AS EXPR$1])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 1,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 3,
+    "type" : "StreamingFileWriter",
+    "pact" : "Operator",
+    "contents" : "StreamingFileWriter",
+    "parallelism" : 8,
+    "predecessors" : [ {
+      "id" : 2,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : 4,
+    "type" : "Sink: end",
+    "pact" : "Data Sink",
+    "contents" : "Sink: end",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : 3,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}

@@ -24,46 +24,39 @@ import org.apache.flink.configuration.JobManagerOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A utility class to load NG failover strategy factories from the configuration.
- */
+/** A utility class to load NG failover strategy factories from the configuration. */
 public final class FailoverStrategyFactoryLoader {
 
-	/** Config name for the {@link RestartAllFailoverStrategy}. */
-	public static final String FULL_RESTART_STRATEGY_NAME = "full";
+    /** Config name for the {@link RestartAllFailoverStrategy}. */
+    public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartPipelinedRegionFailoverStrategy}. */
-	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
+    /** Config name for the {@link RestartPipelinedRegionFailoverStrategy}. */
+    public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
 
-	private FailoverStrategyFactoryLoader() {
-	}
+    private FailoverStrategyFactoryLoader() {}
 
-	/**
-	 * Loads a {@link FailoverStrategy.Factory} from the given configuration.
-	 *
-	 * @param config which specifies the failover strategy factory to load
-	 * @return failover strategy factory loaded
-	 */
-	public static FailoverStrategy.Factory loadFailoverStrategyFactory(final Configuration config) {
-		checkNotNull(config);
+    /**
+     * Loads a {@link FailoverStrategy.Factory} from the given configuration.
+     *
+     * @param config which specifies the failover strategy factory to load
+     * @return failover strategy factory loaded
+     */
+    public static FailoverStrategy.Factory loadFailoverStrategyFactory(final Configuration config) {
+        checkNotNull(config);
 
-		// the default NG failover strategy is the region failover strategy.
-		// TODO: Remove the overridden default value when removing legacy scheduler
-		//  and change the default value of JobManagerOptions.EXECUTION_FAILOVER_STRATEGY
-		//  to be "region"
-		final String strategyParam = config.getString(
-			JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-			PIPELINED_REGION_RESTART_STRATEGY_NAME);
+        final String strategyParam =
+                config.getString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY);
 
-		switch (strategyParam.toLowerCase()) {
-			case FULL_RESTART_STRATEGY_NAME:
-				return new RestartAllFailoverStrategy.Factory();
+        switch (strategyParam.toLowerCase()) {
+            case FULL_RESTART_STRATEGY_NAME:
+                return new RestartAllFailoverStrategy.Factory();
 
-			case PIPELINED_REGION_RESTART_STRATEGY_NAME:
-				return new RestartPipelinedRegionFailoverStrategy.Factory();
+            case PIPELINED_REGION_RESTART_STRATEGY_NAME:
+                return new RestartPipelinedRegionFailoverStrategy.Factory();
 
-			default:
-				throw new IllegalConfigurationException("Unknown failover strategy: " + strategyParam);
-		}
-	}
+            default:
+                throw new IllegalConfigurationException(
+                        "Unknown failover strategy: " + strategyParam);
+        }
+    }
 }

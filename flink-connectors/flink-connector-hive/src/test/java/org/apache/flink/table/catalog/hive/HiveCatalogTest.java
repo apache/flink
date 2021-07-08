@@ -18,63 +18,141 @@
 
 package org.apache.flink.table.catalog.hive;
 
+import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogPropertiesUtil;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.descriptors.FileSystem;
+import org.apache.flink.table.factories.FactoryUtil;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Test for HiveCatalog.
- */
+/** Test for HiveCatalog. */
 public class HiveCatalogTest {
 
-	TableSchema schema = TableSchema.builder()
-		.field("name", DataTypes.STRING())
-		.field("age", DataTypes.INT())
-		.build();
+    TableSchema schema =
+            TableSchema.builder()
+                    .field("name", DataTypes.STRING())
+                    .field("age", DataTypes.INT())
+                    .build();
+    private static HiveCatalog hiveCatalog;
 
-	@Test
-	public void testCreateGenericTable() {
-		Table hiveTable = HiveCatalog.instantiateHiveTable(
-			new ObjectPath("test", "test"),
-			new CatalogTableImpl(
-				schema,
-				new FileSystem().path("/test_path").toProperties(),
-				null
-			));
+    @BeforeClass
+    public static void createCatalog() {
+        hiveCatalog = HiveTestUtils.createHiveCatalog();
+        hiveCatalog.open();
+    }
 
-		Map<String, String> prop = hiveTable.getParameters();
-		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf("true"));
-		assertTrue(prop.keySet().stream().allMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
-	}
+    @AfterClass
+    public static void closeCatalog() {
+        if (hiveCatalog != null) {
+            hiveCatalog.close();
+        }
+    }
 
-	@Test
-	public void testCreateHiveTable() {
-		Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
+    @Test
+    public void testCreateGenericTable() {
+        Table hiveTable =
+                HiveTableUtil.instantiateHiveTable(
+                        new ObjectPath("test", "test"),
+                        new CatalogTableImpl(
+                                schema, new FileSystem().path("/test_path").toProperties(), null),
+                        HiveTestUtils.createHiveConf());
 
-		map.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+        Map<String, String> prop = hiveTable.getParameters();
+        assertFalse(HiveCatalog.isHiveTable(prop));
+        assertTrue(
+                prop.keySet().stream()
+                        .allMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
+    }
 
-		Table hiveTable = HiveCatalog.instantiateHiveTable(
-			new ObjectPath("test", "test"),
-			new CatalogTableImpl(
-				schema,
-				map,
-				null
-			));
+    @Test
+    public void testCreateHiveTable() {
+        Map<String, String> map = new HashMap<>(new FileSystem().path("/test_path").toProperties());
 
-		Map<String, String> prop = hiveTable.getParameters();
-		assertEquals(prop.remove(CatalogConfig.IS_GENERIC), String.valueOf(false));
-		assertTrue(prop.keySet().stream().noneMatch(k -> k.startsWith(CatalogConfig.FLINK_PROPERTY_PREFIX)));
-	}
+        map.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+
+        Table hiveTable =
+                HiveTableUtil.instantiateHiveTable(
+                        new ObjectPath("test", "test"),
+                        new CatalogTableImpl(schema, map, null),
+                        HiveTestUtils.createHiveConf());
+
+        Map<String, String> prop = hiveTable.getParameters();
+        assertTrue(HiveCatalog.isHiveTable(prop));
+        assertTrue(
+                prop.keySet().stream()
+                        .noneMatch(k -> k.startsWith(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX)));
+    }
+
+    @Test
+    public void testRetrieveFlinkProperties() throws Exception {
+        ObjectPath hiveObjectPath =
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "testRetrieveProperties");
+
+        Map<String, String> properties =
+                new HashMap<>(new FileSystem().path("/test_path").toProperties());
+
+        properties.put(CONNECTOR.key(), "jdbc");
+        properties.put("url", "jdbc:clickhouse://host:port/testUrl1");
+        properties.put("flink.url", "jdbc:clickhouse://host:port/testUrl2");
+
+        hiveCatalog.createTable(
+                hiveObjectPath, new CatalogTableImpl(schema, properties, null), false);
+
+        CatalogBaseTable hiveTable = hiveCatalog.getTable(hiveObjectPath);
+        assertEquals(hiveTable.getOptions().get("url"), "jdbc:clickhouse://host:port/testUrl1");
+        assertEquals(
+                hiveTable.getOptions().get("flink.url"), "jdbc:clickhouse://host:port/testUrl2");
+    }
+
+    @Test
+    public void testCreateHiveConf() {
+        // hive-conf-dir not specified, should read hive-site from classpath
+        HiveConf hiveConf = HiveCatalog.createHiveConf(null, null);
+        assertEquals("common-val", hiveConf.get("common-key"));
+        // hive-conf-dir specified, shouldn't read hive-site from classpath
+        String hiveConfDir =
+                Thread.currentThread()
+                        .getContextClassLoader()
+                        .getResource("test-catalog-factory-conf")
+                        .getPath();
+        hiveConf = HiveCatalog.createHiveConf(hiveConfDir, null);
+        assertNull(hiveConf.get("common-key", null));
+    }
+
+    @Test
+    public void testGetNoSchemaGenericTable() throws Exception {
+        ObjectPath hiveObjectPath =
+                new ObjectPath(HiveCatalog.DEFAULT_DB, "testGetNoSchemaGenericTable");
+
+        Map<String, String> properties = new HashMap<>();
+
+        properties.put(CONNECTOR.key(), "jdbc");
+
+        hiveCatalog.createTable(
+                hiveObjectPath,
+                new CatalogTableImpl(TableSchema.builder().build(), properties, null),
+                false);
+
+        CatalogBaseTable catalogTable = hiveCatalog.getTable(hiveObjectPath);
+        assertEquals(TableSchema.builder().build(), catalogTable.getSchema());
+    }
 }

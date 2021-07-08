@@ -29,55 +29,55 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link GlobalClusteringCoefficient}.
- */
+/** Tests for {@link GlobalClusteringCoefficient}. */
 public class GlobalClusteringCoefficientTest extends AsmTestBase {
 
-	/**
-	 * Validate a test result.
-	 *
-	 * @param graph input graph
-	 * @param tripletCount result triplet count
-	 * @param triangleCount result triangle count
-	 * @param <T> graph ID type
-	 * @throws Exception on error
-	 */
-	private static <T extends Comparable<T> & CopyableValue<T>> void validate(
-			Graph<T, NullValue, NullValue> graph, long tripletCount, long triangleCount) throws Exception {
-		Result result = new GlobalClusteringCoefficient<T, NullValue, NullValue>()
-			.run(graph)
-			.execute();
+    /**
+     * Validate a test result.
+     *
+     * @param graph input graph
+     * @param tripletCount result triplet count
+     * @param triangleCount result triangle count
+     * @param <T> graph ID type
+     * @throws Exception on error
+     */
+    private static <T extends Comparable<T> & CopyableValue<T>> void validate(
+            Graph<T, NullValue, NullValue> graph, long tripletCount, long triangleCount)
+            throws Exception {
+        Result result =
+                new GlobalClusteringCoefficient<T, NullValue, NullValue>().run(graph).execute();
 
-		assertEquals(tripletCount, result.getNumberOfTriplets());
-		assertEquals(triangleCount, result.getNumberOfTriangles());
-	}
+        assertEquals(tripletCount, result.getNumberOfTriplets());
+        assertEquals(triangleCount, result.getNumberOfTriangles());
+    }
 
-	@Test
-	public void testWithSimpleGraph() throws Exception {
-		validate(directedSimpleGraph, 13, 6);
-	}
+    @Test
+    public void testWithSimpleGraph() throws Exception {
+        validate(directedSimpleGraph, 13, 6);
+    }
 
-	@Test
-	public void testWithCompleteGraph() throws Exception {
-		long expectedDegree = completeGraphVertexCount - 1;
-		long expectedCount = completeGraphVertexCount * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
+    @Test
+    public void testWithCompleteGraph() throws Exception {
+        long expectedDegree = completeGraphVertexCount - 1;
+        long expectedCount =
+                completeGraphVertexCount
+                        * CombinatoricsUtils.binomialCoefficient((int) expectedDegree, 2);
 
-		validate(completeGraph, expectedCount, expectedCount);
-	}
+        validate(completeGraph, expectedCount, expectedCount);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		validate(emptyGraphWithVertices, 0, 0);
-	}
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        validate(emptyGraphWithVertices, 0, 0);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		validate(emptyGraphWithoutVertices, 0, 0);
-	}
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        validate(emptyGraphWithoutVertices, 0, 0);
+    }
 
-	@Test
-	public void testWithRMatGraph() throws Exception {
-		validate(directedRMatGraph(10, 16), 1003442, 225147);
-	}
+    @Test
+    public void testWithRMatGraph() throws Exception {
+        validate(directedRMatGraph(10, 16), 1003442, 225147);
+    }
 }

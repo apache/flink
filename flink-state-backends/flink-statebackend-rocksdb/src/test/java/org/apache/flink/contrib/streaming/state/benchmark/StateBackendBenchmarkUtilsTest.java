@@ -26,6 +26,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -43,91 +44,93 @@ import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBen
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getListState;
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getMapState;
 import static org.apache.flink.contrib.streaming.state.benchmark.StateBackendBenchmarkUtils.getValueState;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 
-/**
- * Test for {@link StateBackendBenchmarkUtils}.
- */
+/** Test for {@link StateBackendBenchmarkUtils}. */
 @RunWith(Parameterized.class)
 public class StateBackendBenchmarkUtilsTest {
-	@Rule
-	public TemporaryFolder temp = new TemporaryFolder();
+    @Rule public TemporaryFolder temp = new TemporaryFolder();
 
-	private final ValueStateDescriptor<Long> valueStateDescriptor =
-		new ValueStateDescriptor<>("valueState", Long.class);
-	private final ListStateDescriptor<Long> listStateDescriptor =
-		new ListStateDescriptor<>("listState", Long.class);
-	private final MapStateDescriptor<Long, Double> mapStateDescriptor =
-		new MapStateDescriptor<>("mapState", Long.class, Double.class);
+    private final ValueStateDescriptor<Long> valueStateDescriptor =
+            new ValueStateDescriptor<>("valueState", Long.class);
+    private final ListStateDescriptor<Long> listStateDescriptor =
+            new ListStateDescriptor<>("listState", Long.class);
+    private final MapStateDescriptor<Long, Double> mapStateDescriptor =
+            new MapStateDescriptor<>("mapState", Long.class, Double.class);
 
-	@Parameterized.Parameters(name = "{0}")
-	public static Collection<Object> data() {
-		return Arrays.asList(StateBackendBenchmarkUtils.StateBackendType.values());
-	}
+    @Parameterized.Parameters(name = "{0}")
+    public static Collection<Object> data() {
+        return Arrays.asList(StateBackendBenchmarkUtils.StateBackendType.values());
+    }
 
-	@Parameterized.Parameter
-	public StateBackendBenchmarkUtils.StateBackendType backendType;
+    @Parameterized.Parameter public StateBackendBenchmarkUtils.StateBackendType backendType;
 
-	@Test
-	public void testCreateKeyedStateBackend() throws IOException {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		cleanUp(backend);
-	}
+    @Test
+    public void testCreateKeyedStateBackend() throws IOException {
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        cleanUp(backend);
+    }
 
-	@Test
-	public void testGetValueState() throws Exception {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		getValueState(backend, valueStateDescriptor);
-		cleanUp(backend);
-	}
+    @Test
+    public void testGetValueState() throws Exception {
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        getValueState(backend, valueStateDescriptor);
+        cleanUp(backend);
+    }
 
-	@Test
-	public void testGetListState() throws Exception {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		getListState(backend, listStateDescriptor);
-		cleanUp(backend);
-	}
+    @Test
+    public void testGetListState() throws Exception {
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        getListState(backend, listStateDescriptor);
+        cleanUp(backend);
+    }
 
-	@Test
-	public void testGetMapState() throws Exception {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		getMapState(backend, mapStateDescriptor);
-		cleanUp(backend);
-	}
+    @Test
+    public void testGetMapState() throws Exception {
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        getMapState(backend, mapStateDescriptor);
+        cleanUp(backend);
+    }
 
-	@Test
-	public void testApplyToAllKeys() throws Exception {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		ListState<Long> listState = getListState(backend, listStateDescriptor);
-		for (long i = 0; i < 10; i++) {
-			backend.setCurrentKey(i);
-			listState.add(i);
-		}
-		applyToAllKeys(
-			backend,
-			listStateDescriptor,
-			(k, state) -> {
-				backend.setCurrentKey(k);
-				state.clear();
-			});
-		for (long i = 0; i < 10; i++) {
-			backend.setCurrentKey(i);
-			Assert.assertNull(listState.get());
-		}
-		cleanUp(backend);
-	}
+    @Test
+    public void testApplyToAllKeys() throws Exception {
+        Assume.assumeThat(
+                backendType,
+                not(equalTo(StateBackendBenchmarkUtils.StateBackendType.BATCH_EXECUTION)));
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        ListState<Long> listState = getListState(backend, listStateDescriptor);
+        for (long i = 0; i < 10; i++) {
+            backend.setCurrentKey(i);
+            listState.add(i);
+        }
+        applyToAllKeys(
+                backend,
+                listStateDescriptor,
+                (k, state) -> {
+                    backend.setCurrentKey(k);
+                    state.clear();
+                });
+        for (long i = 0; i < 10; i++) {
+            backend.setCurrentKey(i);
+            Assert.assertNull(listState.get());
+        }
+        cleanUp(backend);
+    }
 
-	@Test
-	public void testCompactState() throws Exception {
-		KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
-		ListState<Long> listState = getListState(backend, listStateDescriptor);
-		for (long i = 0; i < 10; i++) {
-			backend.setCurrentKey(i);
-			listState.add(i);
-		}
-		if (backend instanceof RocksDBKeyedStateBackend) {
-			RocksDBKeyedStateBackend<Long> rocksDBKeyedStateBackend = (RocksDBKeyedStateBackend<Long>) backend;
-			compactState(rocksDBKeyedStateBackend, listStateDescriptor);
-		}
-		cleanUp(backend);
-	}
+    @Test
+    public void testCompactState() throws Exception {
+        KeyedStateBackend<Long> backend = createKeyedStateBackend(backendType);
+        ListState<Long> listState = getListState(backend, listStateDescriptor);
+        for (long i = 0; i < 10; i++) {
+            backend.setCurrentKey(i);
+            listState.add(i);
+        }
+        if (backend instanceof RocksDBKeyedStateBackend) {
+            RocksDBKeyedStateBackend<Long> rocksDBKeyedStateBackend =
+                    (RocksDBKeyedStateBackend<Long>) backend;
+            compactState(rocksDBKeyedStateBackend, listStateDescriptor);
+        }
+        cleanUp(backend);
+    }
 }

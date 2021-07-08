@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
-	<name>flink-s3-fs-presto</name>
+	<name>Flink : FileSystems : S3 FS Presto</name>
 
 	<packaging>jar</packaging>
 
@@ -213,6 +213,63 @@ under the License.
 		</dependency>
 	</dependencies>
 
+	<dependencyManagement>
+		<dependencies>
+			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>4.5.9</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${fs.hadoopshaded.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>jdk.tools</groupId>
+						<artifactId>jdk.tools</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>log4j</groupId>
+						<artifactId>log4j</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.slf4j</groupId>
+						<artifactId>slf4j-log4j12</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+
+			<dependency>
+				<!-- Bumped for security purposes -->
+				<groupId>commons-beanutils</groupId>
+				<artifactId>commons-beanutils</artifactId>
+				<version>1.9.4</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+
 	<build>
 		<plugins>
 			<plugin>
@@ -344,19 +401,12 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>
 								<filter>
 									<artifact>*</artifact>
 									<excludes>
-										<exclude>META-INF/maven/org.weakref/**</exclude>
-										<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
-										<exclude>META-INF/maven/joda-time/**</exclude>
-										<exclude>META-INF/maven/io.airlift/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
 									</excludes>
 								</filter>

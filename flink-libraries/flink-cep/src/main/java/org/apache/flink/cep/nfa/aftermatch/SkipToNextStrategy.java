@@ -24,32 +24,29 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Discards every partial match that started with the same event, emitted match was started.
- */
+/** Discards every partial match that started with the same event, emitted match was started. */
 public final class SkipToNextStrategy extends SkipRelativeToWholeMatchStrategy {
 
-	public static final SkipToNextStrategy INSTANCE = new SkipToNextStrategy();
+    public static final SkipToNextStrategy INSTANCE = new SkipToNextStrategy();
 
-	private static final long serialVersionUID = -6490314998588752621L;
+    private static final long serialVersionUID = -6490314998588752621L;
 
-	private SkipToNextStrategy() {
-	}
+    private SkipToNextStrategy() {}
 
-	@Override
-	protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
-		EventId pruningId = null;
-		for (Map<String, List<EventId>> resultMap : match) {
-			for (List<EventId> eventList : resultMap.values()) {
-				pruningId = min(pruningId, eventList.get(0));
-			}
-		}
+    @Override
+    protected EventId getPruningId(final Collection<Map<String, List<EventId>>> match) {
+        EventId pruningId = null;
+        for (Map<String, List<EventId>> resultMap : match) {
+            for (List<EventId> eventList : resultMap.values()) {
+                pruningId = min(pruningId, eventList.get(0));
+            }
+        }
 
-		return pruningId;
-	}
+        return pruningId;
+    }
 
-	@Override
-	public String toString() {
-		return "SkipToNextStrategy{}";
-	}
+    @Override
+    public String toString() {
+        return "SkipToNextStrategy{}";
+    }
 }

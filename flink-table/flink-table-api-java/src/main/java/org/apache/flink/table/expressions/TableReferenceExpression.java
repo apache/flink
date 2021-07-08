@@ -35,67 +35,67 @@ import java.util.Objects;
 @PublicEvolving
 public final class TableReferenceExpression implements ResolvedExpression {
 
-	private final String name;
-	private final QueryOperation queryOperation;
+    private final String name;
+    private final QueryOperation queryOperation;
 
-	TableReferenceExpression(String name, QueryOperation queryOperation) {
-		this.name = Preconditions.checkNotNull(name);
-		this.queryOperation = Preconditions.checkNotNull(queryOperation);
-	}
+    TableReferenceExpression(String name, QueryOperation queryOperation) {
+        this.name = Preconditions.checkNotNull(name);
+        this.queryOperation = Preconditions.checkNotNull(queryOperation);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public QueryOperation getQueryOperation() {
-		return queryOperation;
-	}
+    public QueryOperation getQueryOperation() {
+        return queryOperation;
+    }
 
-	@Override
-	public DataType getOutputDataType() {
-		return queryOperation.getTableSchema().toRowDataType();
-	}
+    @Override
+    public DataType getOutputDataType() {
+        return queryOperation.getResolvedSchema().toSourceRowDataType();
+    }
 
-	@Override
-	public List<ResolvedExpression> getResolvedChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<ResolvedExpression> getResolvedChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public String asSummaryString() {
-		return name;
-	}
+    @Override
+    public String asSummaryString() {
+        return name;
+    }
 
-	@Override
-	public List<Expression> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<Expression> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(ExpressionVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TableReferenceExpression that = (TableReferenceExpression) o;
-		return Objects.equals(name, that.name) &&
-			Objects.equals(queryOperation, that.queryOperation);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TableReferenceExpression that = (TableReferenceExpression) o;
+        return Objects.equals(name, that.name)
+                && Objects.equals(queryOperation, that.queryOperation);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name, queryOperation);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, queryOperation);
+    }
 
-	@Override
-	public String toString() {
-		return asSummaryString();
-	}
+    @Override
+    public String toString() {
+        return asSummaryString();
+    }
 }

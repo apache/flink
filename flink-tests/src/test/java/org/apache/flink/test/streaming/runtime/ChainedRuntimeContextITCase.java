@@ -29,55 +29,47 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertNotEquals;
 
-/**
- * Test creation of context for chained streaming operators.
- */
+/** Test creation of context for chained streaming operators. */
 @SuppressWarnings("serial")
 public class ChainedRuntimeContextITCase extends AbstractTestBase {
-	private static RuntimeContext srcContext;
-	private static RuntimeContext mapContext;
+    private static RuntimeContext srcContext;
+    private static RuntimeContext mapContext;
 
-	@Test
-	public void test() throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+    @Test
+    public void test() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		env.addSource(new TestSource()).map(new TestMap()).addSink(new DiscardingSink<Integer>());
-		env.execute();
+        env.addSource(new TestSource()).map(new TestMap()).addSink(new DiscardingSink<Integer>());
+        env.execute();
 
-		assertNotEquals(srcContext, mapContext);
+        assertNotEquals(srcContext, mapContext);
+    }
 
-	}
+    private static class TestSource extends RichParallelSourceFunction<Integer> {
 
-	private static class TestSource extends RichParallelSourceFunction<Integer> {
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {}
 
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-		}
+        @Override
+        public void cancel() {}
 
-		@Override
-		public void cancel() {
-		}
+        @Override
+        public void open(Configuration c) {
+            srcContext = getRuntimeContext();
+        }
+    }
 
-		@Override
-		public void open(Configuration c) {
-			srcContext = getRuntimeContext();
-		}
+    private static class TestMap extends RichMapFunction<Integer, Integer> {
 
-	}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
 
-	private static class TestMap extends RichMapFunction<Integer, Integer> {
-
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
-
-		@Override
-		public void open(Configuration c) {
-			mapContext = getRuntimeContext();
-		}
-
-	}
-
+        @Override
+        public void open(Configuration c) {
+            mapContext = getRuntimeContext();
+        }
+    }
 }

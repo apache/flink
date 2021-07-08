@@ -21,31 +21,29 @@ import org.apache.flink.annotation.PublicEvolving;
 
 import java.util.Iterator;
 
-/**
- * A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them.
- */
+/** A {@link SourceFunction} that reads elements from an {@link Iterator} and emits them. */
 @PublicEvolving
 public class FromIteratorFunction<T> implements SourceFunction<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Iterator<T> iterator;
+    private final Iterator<T> iterator;
 
-	private volatile boolean isRunning = true;
+    private volatile boolean isRunning = true;
 
-	public FromIteratorFunction(Iterator<T> iterator) {
-		this.iterator = iterator;
-	}
+    public FromIteratorFunction(Iterator<T> iterator) {
+        this.iterator = iterator;
+    }
 
-	@Override
-	public void run(SourceContext<T> ctx) throws Exception {
-		while (isRunning && iterator.hasNext()) {
-			ctx.collect(iterator.next());
-		}
-	}
+    @Override
+    public void run(SourceContext<T> ctx) throws Exception {
+        while (isRunning && iterator.hasNext()) {
+            ctx.collect(iterator.next());
+        }
+    }
 
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,41 +33,41 @@ import org.apache.flink.util.OutputTag;
  */
 @Internal
 public class InternalProcessApplyWindowContext<IN, OUT, KEY, W extends Window>
-	extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
+        extends ProcessWindowFunction<IN, OUT, KEY, W>.Context {
 
-	W window;
-	ProcessWindowFunction.Context context;
+    W window;
+    ProcessWindowFunction.Context context;
 
-	InternalProcessApplyWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
-		function.super();
-	}
+    InternalProcessApplyWindowContext(ProcessWindowFunction<IN, OUT, KEY, W> function) {
+        function.super();
+    }
 
-	@Override
-	public W window() {
-		return window;
-	}
+    @Override
+    public W window() {
+        return window;
+    }
 
-	@Override
-	public long currentProcessingTime() {
-		return context.currentProcessingTime();
-	}
+    @Override
+    public long currentProcessingTime() {
+        return context.currentProcessingTime();
+    }
 
-	@Override
-	public long currentWatermark() {
-		return context.currentWatermark();
-	}
+    @Override
+    public long currentWatermark() {
+        return context.currentWatermark();
+    }
 
-	public KeyedStateStore windowState() {
-		return context.windowState();
-	}
+    public KeyedStateStore windowState() {
+        return context.windowState();
+    }
 
-	@Override
-	public KeyedStateStore globalState() {
-		return context.globalState();
-	}
+    @Override
+    public KeyedStateStore globalState() {
+        return context.globalState();
+    }
 
-	@Override
-	public <X> void output(OutputTag<X> outputTag, X value) {
-		context.output(outputTag, value);
-	}
+    @Override
+    public <X> void output(OutputTag<X> outputTag, X value) {
+        context.output(outputTag, value);
+    }
 }

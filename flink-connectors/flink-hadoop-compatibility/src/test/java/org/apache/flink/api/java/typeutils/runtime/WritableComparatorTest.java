@@ -22,35 +22,34 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
-/**
- * Tests for the {@link WritableComparator}.
- */
+/** Tests for the {@link WritableComparator}. */
 public class WritableComparatorTest extends ComparatorTestBase<StringArrayWritable> {
 
-	StringArrayWritable[] data = new StringArrayWritable[]{
-			new StringArrayWritable(new String[]{}),
-			new StringArrayWritable(new String[]{""}),
-			new StringArrayWritable(new String[]{"a", "a"}),
-			new StringArrayWritable(new String[]{"a", "b"}),
-			new StringArrayWritable(new String[]{"c", "c"}),
-			new StringArrayWritable(new String[]{"d", "f"}),
-			new StringArrayWritable(new String[]{"d", "m"}),
-			new StringArrayWritable(new String[]{"z", "x"}),
-			new StringArrayWritable(new String[]{"a", "a", "a"})
-	};
+    StringArrayWritable[] data =
+            new StringArrayWritable[] {
+                new StringArrayWritable(new String[] {}),
+                new StringArrayWritable(new String[] {""}),
+                new StringArrayWritable(new String[] {"a", "a"}),
+                new StringArrayWritable(new String[] {"a", "b"}),
+                new StringArrayWritable(new String[] {"c", "c"}),
+                new StringArrayWritable(new String[] {"d", "f"}),
+                new StringArrayWritable(new String[] {"d", "m"}),
+                new StringArrayWritable(new String[] {"z", "x"}),
+                new StringArrayWritable(new String[] {"a", "a", "a"})
+            };
 
-	@Override
-	protected TypeComparator<StringArrayWritable> createComparator(boolean ascending) {
-		return new WritableComparator<StringArrayWritable>(ascending, StringArrayWritable.class);
-	}
+    @Override
+    protected TypeComparator<StringArrayWritable> createComparator(boolean ascending) {
+        return new WritableComparator<StringArrayWritable>(ascending, StringArrayWritable.class);
+    }
 
-	@Override
-	protected TypeSerializer<StringArrayWritable> createSerializer() {
-		return new WritableSerializer<StringArrayWritable>(StringArrayWritable.class);
-	}
+    @Override
+    protected TypeSerializer<StringArrayWritable> createSerializer() {
+        return new WritableSerializer<StringArrayWritable>(StringArrayWritable.class);
+    }
 
-	@Override
-	protected StringArrayWritable[] getSortedTestData() {
-		return data;
-	}
+    @Override
+    protected StringArrayWritable[] getSortedTestData() {
+        return data;
+    }
 }

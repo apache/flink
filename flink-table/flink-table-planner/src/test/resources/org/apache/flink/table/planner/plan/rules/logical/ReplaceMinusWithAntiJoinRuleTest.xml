@@ -1,0 +1,123 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testExcept">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
+   :- LogicalProject(c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(f=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExceptLeftIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalFilter(condition=[=(1, 0)])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
+   :- LogicalProject(c=[$2])
+   :  +- LogicalFilter(condition=[=(1, 0)])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(f=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExceptRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalMinus(all=[false])
+:- LogicalProject(c=[$2])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
++- LogicalProject(f=[$2])
+   +- LogicalFilter(condition=[=(1, 0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalJoin(condition=[IS NOT DISTINCT FROM($0, $1)], joinType=[anti])
+   :- LogicalProject(c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+   +- LogicalProject(f=[$2])
+      +- LogicalFilter(condition=[=(1, 0)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExceptWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT c FROM (SELECT * FROM T1 EXCEPT (SELECT * FROM T2)) WHERE b < 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[<($1, 2)])
+   +- LogicalMinus(all=[false])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(d=[$0], e=[$1], f=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(c=[$2])
++- LogicalFilter(condition=[<($1, 2)])
+   +- LogicalAggregate(group=[{0, 1, 2}])
+      +- LogicalJoin(condition=[AND(OR(=($0, $3), AND(IS NULL($0), IS NULL($3))), OR(=($1, $4), AND(IS NULL($1), IS NULL($4))), OR(=($2, $5), AND(IS NULL($2), IS NULL($5))))], joinType=[anti])
+         :- LogicalProject(a=[$0], b=[$1], c=[$2])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]])
+         +- LogicalProject(d=[$0], e=[$1], f=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

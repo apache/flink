@@ -19,15 +19,13 @@
 
 package org.apache.flink.table.client.gateway.utils;
 
-/**
- * Dummy table sink factory.
- */
+/** Dummy table sink factory. */
 public class DummyTableSinkFactory extends TestTableSinkFactoryBase {
 
-	public static final String CONNECTOR_TYPE_VALUE = "dummy-sink";
-	public static final String TEST_PROPERTY = "test-property";
+    public static final String CONNECTOR_TYPE_VALUE = "dummy-sink";
+    public static final String TEST_PROPERTY = "test-property";
 
-	public DummyTableSinkFactory() {
-		super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
-	}
+    public DummyTableSinkFactory() {
+        super(CONNECTOR_TYPE_VALUE, TEST_PROPERTY);
+    }
 }

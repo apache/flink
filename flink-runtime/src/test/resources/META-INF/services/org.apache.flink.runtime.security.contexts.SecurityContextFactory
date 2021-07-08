@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.runtime.security.contexts.TestSecurityContextFactory
-org.apache.flink.runtime.security.contexts.IncompatibleTestSecurityContextFactory
 org.apache.flink.runtime.security.contexts.AnotherCompatibleTestSecurityContextFactory
+org.apache.flink.runtime.security.contexts.LinkageErrorSecurityContextFactory
+org.apache.flink.runtime.security.contexts.IncompatibleTestSecurityContextFactory
+org.apache.flink.runtime.security.contexts.TestSecurityContextFactory

@@ -20,71 +20,101 @@ package org.apache.flink.table.runtime.operators.python.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.calcite.rel.core.JoinRelType;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * @param <IN>     Type of the input elements.
- * @param <OUT>    Type of the output elements.
+ * @param <IN> Type of the input elements.
+ * @param <OUT> Type of the output elements.
  * @param <UDTFIN> Type of the UDTF input type.
  */
 @Internal
 public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
-	extends AbstractStatelessFunctionOperator<IN, OUT, UDTFIN> {
+        extends AbstractStatelessFunctionOperator<IN, OUT, UDTFIN> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The Python {@link TableFunction} to be executed.
-	 */
-	protected final PythonFunctionInfo tableFunction;
+    private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
-	/**
-	 * The correlate join type.
-	 */
-	protected final JoinRelType joinType;
+    /** The Python {@link TableFunction} to be executed. */
+    private final PythonFunctionInfo tableFunction;
 
-	public AbstractPythonTableFunctionOperator(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udtfInputOffsets,
-		JoinRelType joinType) {
-		super(config, inputType, outputType, udtfInputOffsets);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		Preconditions.checkArgument(
-			joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
-			"The join type should be inner join or left join");
-		this.joinType = joinType;
-	}
+    /** The correlate join type. */
+    protected final FlinkJoinType joinType;
 
-	@Override
-	public void open() throws Exception {
-		List<RowType.RowField> udtfOutputDataFields = new ArrayList<>(
-			outputType.getFields().subList(inputType.getFieldCount(), outputType.getFieldCount()));
-		userDefinedFunctionOutputType = new RowType(udtfOutputDataFields);
-		super.open();
-	}
+    public AbstractPythonTableFunctionOperator(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udtfInputOffsets,
+            FlinkJoinType joinType) {
+        super(
+                config,
+                inputType,
+                outputType,
+                udtfInputOffsets,
+                toCoderParam(tableFunction),
+                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
+                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+        this.tableFunction = Preconditions.checkNotNull(tableFunction);
+        Preconditions.checkArgument(
+                joinType == FlinkJoinType.INNER || joinType == FlinkJoinType.LEFT,
+                "The join type should be inner join or left join");
+        this.joinType = joinType;
+    }
 
-	@Override
-	public PythonEnv getPythonEnv() {
-		return tableFunction.getPythonFunction().getPythonEnv();
-	}
+    @Override
+    public void open() throws Exception {
+        List<RowType.RowField> udtfOutputDataFields =
+                new ArrayList<>(
+                        outputType
+                                .getFields()
+                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+        userDefinedFunctionOutputType = new RowType(udtfOutputDataFields);
+        super.open();
+    }
 
-	/**
-	 * The received udtf execution result is a finish message when it is a byte with value 0x00.
-	 */
-	protected boolean isFinishResult(byte[] rawUdtfResult) {
-		return rawUdtfResult.length == 1 && rawUdtfResult[0] == 0x00;
-	}
+    @Override
+    public PythonEnv getPythonEnv() {
+        return tableFunction.getPythonFunction().getPythonEnv();
+    }
+
+    @Override
+    public String getFunctionUrn() {
+        return TABLE_FUNCTION_URN;
+    }
+
+    @Override
+    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
+        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        return builder.build();
+    }
+
+    private static FlinkFnApi.CoderParam.DataType toCoderParam(
+            PythonFunctionInfo pythonFunctionInfo) {
+        if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
+            return FlinkFnApi.CoderParam.DataType.ROW;
+        } else {
+            return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
+        }
+    }
+
+    /** The received udtf execution result is a finish message when it is a byte with value 0x00. */
+    boolean isFinishResult(byte[] rawUdtfResult, int length) {
+        return length == 1 && rawUdtfResult[0] == 0x00;
+    }
 }

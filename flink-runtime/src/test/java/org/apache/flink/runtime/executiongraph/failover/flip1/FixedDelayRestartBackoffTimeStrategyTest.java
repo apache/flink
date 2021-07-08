@@ -26,38 +26,36 @@ import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Unit tests for {@link FixedDelayRestartBackoffTimeStrategy}.
- */
+/** Unit tests for {@link FixedDelayRestartBackoffTimeStrategy}. */
 public class FixedDelayRestartBackoffTimeStrategyTest extends TestLogger {
 
-	private final Exception failure = new Exception();
+    private final Exception failure = new Exception();
 
-	@Test
-	public void testNumberOfRestarts() {
-		final int numberOfRestarts = 3;
+    @Test
+    public void testNumberOfRestarts() {
+        final int numberOfRestarts = 3;
 
-		final FixedDelayRestartBackoffTimeStrategy strategy =
-				new FixedDelayRestartBackoffTimeStrategy(numberOfRestarts, 0L);
+        final FixedDelayRestartBackoffTimeStrategy strategy =
+                new FixedDelayRestartBackoffTimeStrategy(numberOfRestarts, 0L);
 
-		for (int restartsLeft = numberOfRestarts; restartsLeft > 0; --restartsLeft) {
-			strategy.notifyFailure(failure);
-			// two calls to 'canRestart()' to make sure this is not used to maintain the counter
-			assertTrue(strategy.canRestart());
-			assertTrue(strategy.canRestart());
-		}
+        for (int restartsLeft = numberOfRestarts; restartsLeft > 0; --restartsLeft) {
+            strategy.notifyFailure(failure);
+            // two calls to 'canRestart()' to make sure this is not used to maintain the counter
+            assertTrue(strategy.canRestart());
+            assertTrue(strategy.canRestart());
+        }
 
-		strategy.notifyFailure(failure);
-		assertFalse(strategy.canRestart());
-	}
+        strategy.notifyFailure(failure);
+        assertFalse(strategy.canRestart());
+    }
 
-	@Test
-	public void testBackoffTime() {
-		final long backoffTimeMS = 10_000L;
+    @Test
+    public void testBackoffTime() {
+        final long backoffTimeMS = 10_000L;
 
-		final FixedDelayRestartBackoffTimeStrategy restartStrategy =
-				new FixedDelayRestartBackoffTimeStrategy(1, backoffTimeMS);
+        final FixedDelayRestartBackoffTimeStrategy restartStrategy =
+                new FixedDelayRestartBackoffTimeStrategy(1, backoffTimeMS);
 
-		assertEquals(backoffTimeMS, restartStrategy.getBackoffTime());
-	}
+        assertEquals(backoffTimeMS, restartStrategy.getBackoffTime());
+    }
 }

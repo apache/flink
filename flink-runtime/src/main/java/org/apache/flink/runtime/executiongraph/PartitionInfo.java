@@ -24,30 +24,29 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import java.io.Serializable;
 
 /**
- * Contains information where to find a partition. The partition is defined by the
- * {@link IntermediateDataSetID} and the partition is specified by
- * {@link ShuffleDescriptor}.
+ * Contains information where to find a partition. The partition is defined by the {@link
+ * IntermediateDataSetID} and the partition is specified by {@link ShuffleDescriptor}.
  */
 public class PartitionInfo implements Serializable {
 
-	private static final long serialVersionUID = 1724490660830968430L;
+    private static final long serialVersionUID = 1724490660830968430L;
 
-	private final IntermediateDataSetID intermediateDataSetID;
+    private final IntermediateDataSetID intermediateDataSetID;
 
-	private final ShuffleDescriptor shuffleDescriptor;
+    private final ShuffleDescriptor shuffleDescriptor;
 
-	public PartitionInfo(
-			IntermediateDataSetID intermediateResultPartitionID,
-			ShuffleDescriptor shuffleDescriptor) {
-		this.intermediateDataSetID = intermediateResultPartitionID;
-		this.shuffleDescriptor = shuffleDescriptor;
-	}
+    public PartitionInfo(
+            IntermediateDataSetID intermediateResultPartitionID,
+            ShuffleDescriptor shuffleDescriptor) {
+        this.intermediateDataSetID = intermediateResultPartitionID;
+        this.shuffleDescriptor = shuffleDescriptor;
+    }
 
-	public IntermediateDataSetID getIntermediateDataSetID() {
-		return intermediateDataSetID;
-	}
+    public IntermediateDataSetID getIntermediateDataSetID() {
+        return intermediateDataSetID;
+    }
 
-	public ShuffleDescriptor getShuffleDescriptor() {
-		return shuffleDescriptor;
-	}
+    public ShuffleDescriptor getShuffleDescriptor() {
+        return shuffleDescriptor;
+    }
 }

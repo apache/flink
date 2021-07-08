@@ -27,74 +27,76 @@ import java.net.URI;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A wrapping factory that adds a {@link LimitedConnectionsFileSystem} to a file system.
- */
+/** A wrapping factory that adds a {@link LimitedConnectionsFileSystem} to a file system. */
 @Internal
 public class ConnectionLimitingFactory implements FileSystemFactory {
 
-	private final FileSystemFactory factory;
+    private final FileSystemFactory factory;
 
-	private final ConnectionLimitingSettings settings;
+    private final ConnectionLimitingSettings settings;
 
-	private ConnectionLimitingFactory(
-			FileSystemFactory factory,
-			ConnectionLimitingSettings settings) {
+    private ConnectionLimitingFactory(
+            FileSystemFactory factory, ConnectionLimitingSettings settings) {
 
-		this.factory = checkNotNull(factory);
-		this.settings = checkNotNull(settings);
-	}
+        this.factory = checkNotNull(factory);
+        this.settings = checkNotNull(settings);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public ClassLoader getClassLoader() {
-		return factory.getClassLoader();
-	}
+    @Override
+    public ClassLoader getClassLoader() {
+        return factory.getClassLoader();
+    }
 
-	@Override
-	public String getScheme() {
-		return factory.getScheme();
-	}
+    @Override
+    public String getScheme() {
+        return factory.getScheme();
+    }
 
-	@Override
-	public void configure(Configuration config) {
-		factory.configure(config);
-	}
+    @Override
+    public void configure(Configuration config) {
+        factory.configure(config);
+    }
 
-	@Override
-	public FileSystem create(URI fsUri) throws IOException {
-		FileSystem original = factory.create(fsUri);
-		return new LimitedConnectionsFileSystem(original,
-				settings.limitTotal, settings.limitOutput, settings.limitInput,
-				settings.streamOpenTimeout, settings.streamInactivityTimeout);
-	}
+    @Override
+    public FileSystem create(URI fsUri) throws IOException {
+        FileSystem original = factory.create(fsUri);
+        return new LimitedConnectionsFileSystem(
+                original,
+                settings.limitTotal,
+                settings.limitOutput,
+                settings.limitInput,
+                settings.streamOpenTimeout,
+                settings.streamInactivityTimeout);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Decorates the given factory for a {@code ConnectionLimitingFactory}, if the given
-	 * configuration configured connection limiting for the given file system scheme.
-	 * Otherwise, it returns the given factory as is.
-	 *
-	 * @param factory The factory to potentially decorate.
-	 * @param scheme The file scheme for which to check the configuration.
-	 * @param config The configuration
-	 *
-	 * @return The decorated factors, if connection limiting is configured, the original factory otherwise.
-	 */
-	public static FileSystemFactory decorateIfLimited(FileSystemFactory factory, String scheme, Configuration config) {
-		checkNotNull(factory, "factory");
+    /**
+     * Decorates the given factory for a {@code ConnectionLimitingFactory}, if the given
+     * configuration configured connection limiting for the given file system scheme. Otherwise, it
+     * returns the given factory as is.
+     *
+     * @param factory The factory to potentially decorate.
+     * @param scheme The file scheme for which to check the configuration.
+     * @param config The configuration
+     * @return The decorated factors, if connection limiting is configured, the original factory
+     *     otherwise.
+     */
+    public static FileSystemFactory decorateIfLimited(
+            FileSystemFactory factory, String scheme, Configuration config) {
+        checkNotNull(factory, "factory");
 
-		final ConnectionLimitingSettings settings = ConnectionLimitingSettings.fromConfig(config, scheme);
+        final ConnectionLimitingSettings settings =
+                ConnectionLimitingSettings.fromConfig(config, scheme);
 
-		// decorate only if any limit is configured
-		if (settings == null) {
-			// no limit configured
-			return factory;
-		}
-		else {
-			return new ConnectionLimitingFactory(factory, settings);
-		}
-	}
+        // decorate only if any limit is configured
+        if (settings == null) {
+            // no limit configured
+            return factory;
+        } else {
+            return new ConnectionLimitingFactory(factory, settings);
+        }
+    }
 }

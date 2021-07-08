@@ -23,21 +23,15 @@ import org.apache.flink.types.Row;
 
 import java.util.List;
 
-/**
- * A result that is materialized and can be viewed by navigating through a snapshot.
- *
- * @param <C> cluster id to which this result belongs to
- */
-public interface MaterializedResult<C> extends DynamicResult<C> {
+/** A result that is materialized and can be viewed by navigating through a snapshot. */
+public interface MaterializedResult extends DynamicResult {
 
-	/**
-	 * Takes a snapshot of the current table and returns the number of pages for navigating
-	 * through the snapshot.
-	 */
-	TypedResult<Integer> snapshot(int pageSize);
+    /**
+     * Takes a snapshot of the current table and returns the number of pages for navigating through
+     * the snapshot.
+     */
+    TypedResult<Integer> snapshot(int pageSize);
 
-	/**
-	 * Retrieves a page of a snapshotted result.
-	 */
-	List<Row> retrievePage(int page);
+    /** Retrieves a page of a snapshotted result. */
+    List<Row> retrievePage(int page);
 }

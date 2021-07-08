@@ -27,34 +27,31 @@ import java.util.Random;
 
 public class DateComparatorTest extends ComparatorTestBase<Date> {
 
-	@Override
-	protected TypeComparator<Date> createComparator(boolean ascending) {
-		return new DateComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Date> createComparator(boolean ascending) {
+        return new DateComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Date> createSerializer() {
-		return new DateSerializer();
-	}
+    @Override
+    protected TypeSerializer<Date> createSerializer() {
+        return new DateSerializer();
+    }
 
-	@Override
-	protected Date[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		long rndLong = rnd.nextLong();
-		if (rndLong < 0) {
-			rndLong = -rndLong;
-		}
-		if (rndLong == Long.MAX_VALUE) {
-			rndLong -= 3;
-		}
-		if (rndLong <= 2) {
-			rndLong += 3;
-		}
-		return new Date[]{
-			new Date(0L),
-			new Date(1L),
-			new Date(2L),
-			new Date(rndLong),
-			new Date(Long.MAX_VALUE)};
-	}
+    @Override
+    protected Date[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        long rndLong = rnd.nextLong();
+        if (rndLong < 0) {
+            rndLong = -rndLong;
+        }
+        if (rndLong == Long.MAX_VALUE) {
+            rndLong -= 3;
+        }
+        if (rndLong <= 2) {
+            rndLong += 3;
+        }
+        return new Date[] {
+            new Date(0L), new Date(1L), new Date(2L), new Date(rndLong), new Date(Long.MAX_VALUE)
+        };
+    }
 }

@@ -18,11 +18,11 @@
 package org.apache.flink.table.api.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.Func0
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.expressions.utils.Func0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
+import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 class UserDefinedFunctionValidationTest extends TableTestBase {
@@ -34,27 +34,27 @@ class UserDefinedFunctionValidationTest extends TableTestBase {
       "Given parameters of function 'func' do not match any signature. \n" +
         "Actual: (java.lang.String) \n" +
         "Expected: (int)")
-    val util = streamTestUtil()
-    util.addTable[(Int, String)]("t", 'a, 'b)
+    val util = scalaStreamTestUtil()
+    util.addTableSource[(Int, String)]("t", 'a, 'b)
     util.tableEnv.registerFunction("func", Func0)
-    util.verifySql("select func(b) from t", "n/a")
+    util.verifyExplain("select func(b) from t")
   }
 
   @Test
   def testAggregateFunctionOperandTypeCheck(): Unit = {
     thrown.expect(classOf[ValidationException])
     thrown.expectMessage(
-      "Given parameters of function do not match any signature. \n" +
-        "Actual: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
+      "Given parameters of function 'agg' do not match any signature. \n" +
+        "Actual: (org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions" +
         ".Accumulator0, java.lang.String, java.lang.Integer) \n" +
-        "Expected: (org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions" +
+        "Expected: (org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions" +
         ".Accumulator0, long, int)")
 
-    val util = streamTestUtil()
+    val util = scalaStreamTestUtil()
     val agg = new OverAgg0
-    util.addTable[(Int, String)]("t", 'a, 'b)
+    util.addTableSource[(Int, String)]("t", 'a, 'b)
     util.tableEnv.registerFunction("agg", agg)
-    util.verifySql("select agg(b, a) from t", "n/a")
+    util.verifyExplain("select agg(b, a) from t")
   }
 
 }

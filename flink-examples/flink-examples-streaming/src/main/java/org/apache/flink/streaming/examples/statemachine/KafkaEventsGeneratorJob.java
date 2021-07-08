@@ -29,27 +29,27 @@ import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializer;
  */
 public class KafkaEventsGeneratorJob {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		final ParameterTool params = ParameterTool.fromArgs(args);
+        final ParameterTool params = ParameterTool.fromArgs(args);
 
-		double errorRate = params.getDouble("error-rate", 0.0);
-		int sleep = params.getInt("sleep", 1);
+        double errorRate = params.getDouble("error-rate", 0.0);
+        int sleep = params.getInt("sleep", 1);
 
-		String kafkaTopic = params.get("kafka-topic");
-		String brokers = params.get("brokers", "localhost:9092");
+        String kafkaTopic = params.get("kafka-topic");
+        String brokers = params.get("brokers", "localhost:9092");
 
-		System.out.printf("Generating events to Kafka with standalone source with error rate %f and sleep delay %s millis\n", errorRate, sleep);
-		System.out.println();
+        System.out.printf(
+                "Generating events to Kafka with standalone source with error rate %f and sleep delay %s millis\n",
+                errorRate, sleep);
+        System.out.println();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env
-			.addSource(new EventsGeneratorSource(errorRate, sleep))
-			.addSink(new FlinkKafkaProducer<>(brokers, kafkaTopic, new EventDeSerializer()));
+        env.addSource(new EventsGeneratorSource(errorRate, sleep))
+                .addSink(new FlinkKafkaProducer<>(brokers, kafkaTopic, new EventDeSerializer()));
 
-		// trigger program execution
-		env.execute("State machine example Kafka events generator job");
-	}
-
+        // trigger program execution
+        env.execute("State machine example Kafka events generator job");
+    }
 }

@@ -74,7 +74,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                 raise RuntimeError(
                     'Cannot generate protos for Windows since grpcio-tools package is '
                     'not installed. Please install this package manually '
-                    'using \'pip install grpcio-tools\'.')
+                    'using \'pip install "grpcio-tools>=1.3.5,<=1.14.2"\'.')
 
             # Use a subprocess to avoid messing with this process' path and imports.
             # Note that this requires a separate module from setup.py for Windows:
@@ -179,7 +179,9 @@ def _add_license_header(dir, file_name):
                 '################################################################################\n'
             )
             tmp_file.write(original_data)
-            os.rename(os.path.join(dir, tmp_file_name), os.path.join(dir, file_name))
+    if os.path.exists(os.path.join(dir, file_name)):
+        os.remove(os.path.join(dir, file_name))
+    os.rename(os.path.join(dir, tmp_file_name), os.path.join(dir, file_name))
 
 
 def _check_grpcio_tools_version():

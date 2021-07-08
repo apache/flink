@@ -30,75 +30,72 @@ import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Class representing a pending slot request in the {@link SlotManager}.
- */
+/** Class representing a pending slot request in the {@link SlotManager}. */
 public class PendingSlotRequest {
 
-	private final SlotRequest slotRequest;
+    private final SlotRequest slotRequest;
 
-	@Nullable
-	private CompletableFuture<Acknowledge> requestFuture;
+    @Nullable private CompletableFuture<Acknowledge> requestFuture;
 
-	@Nullable
-	private PendingTaskManagerSlot pendingTaskManagerSlot;
+    @Nullable private PendingTaskManagerSlot pendingTaskManagerSlot;
 
-	/** Timestamp when this pending slot request has been created. */
-	private final long creationTimestamp;
+    /** Timestamp when this pending slot request has been created. */
+    private final long creationTimestamp;
 
-	public PendingSlotRequest(SlotRequest slotRequest) {
-		this.slotRequest = Preconditions.checkNotNull(slotRequest);
-		this.requestFuture = null;
-		this.pendingTaskManagerSlot = null;
-		creationTimestamp = System.currentTimeMillis();
-	}
+    public PendingSlotRequest(SlotRequest slotRequest) {
+        this.slotRequest = Preconditions.checkNotNull(slotRequest);
+        this.requestFuture = null;
+        this.pendingTaskManagerSlot = null;
+        creationTimestamp = System.currentTimeMillis();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public AllocationID getAllocationId() {
-		return slotRequest.getAllocationId();
-	}
+    public AllocationID getAllocationId() {
+        return slotRequest.getAllocationId();
+    }
 
-	public ResourceProfile getResourceProfile() {
-		return slotRequest.getResourceProfile();
-	}
+    public ResourceProfile getResourceProfile() {
+        return slotRequest.getResourceProfile();
+    }
 
-	public JobID getJobId() {
-		return slotRequest.getJobId();
-	}
+    public JobID getJobId() {
+        return slotRequest.getJobId();
+    }
 
-	public String getTargetAddress() {
-		return slotRequest.getTargetAddress();
-	}
+    public String getTargetAddress() {
+        return slotRequest.getTargetAddress();
+    }
 
-	public long getCreationTimestamp() {
-		return creationTimestamp;
-	}
+    public long getCreationTimestamp() {
+        return creationTimestamp;
+    }
 
-	public boolean isAssigned() {
-		return null != requestFuture;
-	}
+    public boolean isAssigned() {
+        return null != requestFuture;
+    }
 
-	public void setRequestFuture(@Nullable CompletableFuture<Acknowledge> requestFuture) {
-		this.requestFuture = requestFuture;
-	}
+    public void setRequestFuture(@Nullable CompletableFuture<Acknowledge> requestFuture) {
+        this.requestFuture = requestFuture;
+    }
 
-	@Nullable
-	public CompletableFuture<Acknowledge> getRequestFuture() {
-		return requestFuture;
-	}
+    @Nullable
+    public CompletableFuture<Acknowledge> getRequestFuture() {
+        return requestFuture;
+    }
 
-	@Nullable
-	public PendingTaskManagerSlot getAssignedPendingTaskManagerSlot() {
-		return pendingTaskManagerSlot;
-	}
+    @Nullable
+    public PendingTaskManagerSlot getAssignedPendingTaskManagerSlot() {
+        return pendingTaskManagerSlot;
+    }
 
-	public void assignPendingTaskManagerSlot(@Nonnull PendingTaskManagerSlot pendingTaskManagerSlotToAssign) {
-		Preconditions.checkState(pendingTaskManagerSlot == null);
-		this.pendingTaskManagerSlot = pendingTaskManagerSlotToAssign;
-	}
+    public void assignPendingTaskManagerSlot(
+            @Nonnull PendingTaskManagerSlot pendingTaskManagerSlotToAssign) {
+        Preconditions.checkState(pendingTaskManagerSlot == null);
+        this.pendingTaskManagerSlot = pendingTaskManagerSlotToAssign;
+    }
 
-	public void unassignPendingTaskManagerSlot() {
-		this.pendingTaskManagerSlot = null;
-	}
+    public void unassignPendingTaskManagerSlot() {
+        this.pendingTaskManagerSlot = null;
+    }
 }

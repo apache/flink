@@ -30,20 +30,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CheckpointCoordinatorDeActivator implements JobStatusListener {
 
-	private final CheckpointCoordinator coordinator;
+    private final CheckpointCoordinator coordinator;
 
-	public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
-		this.coordinator = checkNotNull(coordinator);
-	}
+    public CheckpointCoordinatorDeActivator(CheckpointCoordinator coordinator) {
+        this.coordinator = checkNotNull(coordinator);
+    }
 
-	@Override
-	public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
-		if (newJobStatus == JobStatus.RUNNING) {
-			// start the checkpoint scheduler
-			coordinator.startCheckpointScheduler();
-		} else {
-			// anything else should stop the trigger for now
-			coordinator.stopCheckpointScheduler();
-		}
-	}
+    @Override
+    public void jobStatusChanges(
+            JobID jobId, JobStatus newJobStatus, long timestamp, Throwable error) {
+        if (newJobStatus == JobStatus.RUNNING) {
+            // start the checkpoint scheduler
+            coordinator.startCheckpointScheduler();
+        } else {
+            // anything else should stop the trigger for now
+            coordinator.stopCheckpointScheduler();
+        }
+    }
 }

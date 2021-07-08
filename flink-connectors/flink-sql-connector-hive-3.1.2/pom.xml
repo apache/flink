@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-sql-connector-hive-3.1.2_${scala.binary.version}</artifactId>
-	<name>flink-sql-connector-hive-3.1.2</name>
+	<name>Flink : Connectors : SQL : Hive 3.1.2</name>
 
 	<packaging>jar</packaging>
 
@@ -63,6 +63,12 @@ under the License.
 			<artifactId>libfb303</artifactId>
 			<version>0.9.3</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>3.5.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -83,8 +89,15 @@ under the License.
 									<include>org.apache.flink:flink-connector-hive_${scala.binary.version}</include>
 									<include>org.apache.hive:hive-exec</include>
 									<include>org.apache.thrift:libfb303</include>
+									<include>org.antlr:antlr-runtime</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>org.apache.parquet</pattern>
+									<shadedPattern>org.apache.hive.shaded.parquet</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

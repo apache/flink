@@ -19,10 +19,10 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
@@ -35,65 +35,85 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
- * DispatcherGatewayServiceFactory} used when executing a job in Application Mode, i.e. the user's main is executed on
- * the same machine as the {@link Dispatcher} and the lifecycle of the cluster is the same as the one of the application.
+ * A {@link
+ * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
+ * DispatcherGatewayServiceFactory} used when executing a job in Application Mode, i.e. the user's
+ * main is executed on the same machine as the {@link Dispatcher} and the lifecycle of the cluster
+ * is the same as the one of the application.
  *
- * <p>It instantiates a {@link org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayService
- * DispatcherGatewayService} with an {@link ApplicationDispatcherBootstrap} containing the user's program.
+ * <p>It instantiates a {@link
+ * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayService
+ * DispatcherGatewayService} with an {@link ApplicationDispatcherBootstrap} containing the user's
+ * program.
  */
 @Internal
-public class ApplicationDispatcherGatewayServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
+public class ApplicationDispatcherGatewayServiceFactory
+        implements AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory {
 
-	private final Configuration configuration;
+    private final Configuration configuration;
 
-	private final DispatcherFactory dispatcherFactory;
+    private final DispatcherFactory dispatcherFactory;
 
-	private final PackagedProgram application;
+    private final PackagedProgram application;
 
-	private final RpcService rpcService;
+    private final RpcService rpcService;
 
-	private final PartialDispatcherServices partialDispatcherServices;
+    private final PartialDispatcherServices partialDispatcherServices;
 
-	public ApplicationDispatcherGatewayServiceFactory(
-			Configuration configuration,
-			DispatcherFactory dispatcherFactory,
-			PackagedProgram application,
-			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices) {
-		this.configuration = configuration;
-		this.dispatcherFactory = dispatcherFactory;
-		this.application = checkNotNull(application);
-		this.rpcService = rpcService;
-		this.partialDispatcherServices = partialDispatcherServices;
-	}
+    public ApplicationDispatcherGatewayServiceFactory(
+            Configuration configuration,
+            DispatcherFactory dispatcherFactory,
+            PackagedProgram application,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices) {
+        this.configuration = configuration;
+        this.dispatcherFactory = dispatcherFactory;
+        this.application = checkNotNull(application);
+        this.rpcService = rpcService;
+        this.partialDispatcherServices = partialDispatcherServices;
+    }
 
-	@Override
-	public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter) {
+    @Override
+    public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
+            DispatcherId fencingToken,
+            Collection<JobGraph> recoveredJobs,
+            JobGraphWriter jobGraphWriter) {
 
-		final DispatcherBootstrap bootstrap =
-				new ApplicationDispatcherBootstrap(application, recoveredJobs, configuration);
+        final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
 
-		final Dispatcher dispatcher;
-		try {
-			dispatcher = dispatcherFactory.createDispatcher(
-					rpcService,
-					fencingToken,
-					bootstrap,
-					PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
-		}
+        final Dispatcher dispatcher;
+        try {
+            dispatcher =
+                    dispatcherFactory.createDispatcher(
+                            rpcService,
+                            fencingToken,
+                            recoveredJobs,
+                            (dispatcherGateway, scheduledExecutor, errorHandler) ->
+                                    new ApplicationDispatcherBootstrap(
+                                            application,
+                                            recoveredJobIds,
+                                            configuration,
+                                            dispatcherGateway,
+                                            scheduledExecutor,
+                                            errorHandler),
+                            PartialDispatcherServicesWithJobGraphStore.from(
+                                    partialDispatcherServices, jobGraphWriter));
+        } catch (Exception e) {
+            throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
+        }
 
-		dispatcher.start();
+        dispatcher.start();
 
-		return DefaultDispatcherGatewayService.from(dispatcher);
-	}
+        return DefaultDispatcherGatewayService.from(dispatcher);
+    }
+
+    private List<JobID> getRecoveredJobIds(final Collection<JobGraph> recoveredJobs) {
+        return recoveredJobs.stream().map(JobGraph::getJobID).collect(Collectors.toList());
+    }
 }

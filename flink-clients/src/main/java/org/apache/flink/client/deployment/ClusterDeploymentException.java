@@ -20,22 +20,20 @@ package org.apache.flink.client.deployment;
 
 import org.apache.flink.util.FlinkException;
 
-/**
- * Class which indicates a problem when deploying a Flink cluster.
- */
+/** Class which indicates a problem when deploying a Flink cluster. */
 public class ClusterDeploymentException extends FlinkException {
 
-	private static final long serialVersionUID = -4327724979766139208L;
+    private static final long serialVersionUID = -4327724979766139208L;
 
-	public ClusterDeploymentException(String message) {
-		super(message);
-	}
+    public ClusterDeploymentException(String message) {
+        super(message);
+    }
 
-	public ClusterDeploymentException(Throwable cause) {
-		super(cause);
-	}
+    public ClusterDeploymentException(Throwable cause) {
+        super(cause);
+    }
 
-	public ClusterDeploymentException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ClusterDeploymentException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

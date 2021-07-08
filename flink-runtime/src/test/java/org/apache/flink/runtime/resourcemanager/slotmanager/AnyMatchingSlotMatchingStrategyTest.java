@@ -35,57 +35,65 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link AnyMatchingSlotMatchingStrategy}.
- */
+/** Tests for the {@link AnyMatchingSlotMatchingStrategy}. */
 public class AnyMatchingSlotMatchingStrategyTest extends TestLogger {
 
-	private final InstanceID instanceId = new InstanceID();
+    private final InstanceID instanceId = new InstanceID();
 
-	private TestingTaskManagerSlotInformation largeTaskManagerSlotInformation = null;
-	private Collection<TestingTaskManagerSlotInformation> freeSlots = null;
+    private TestingTaskManagerSlotInformation largeTaskManagerSlotInformation = null;
+    private Collection<TestingTaskManagerSlotInformation> freeSlots = null;
 
-	@Before
-	public void setup() {
-		final ResourceProfile largeResourceProfile = ResourceProfile.fromResources(10.2 , 42);
-		final ResourceProfile smallResourceProfile = ResourceProfile.fromResources(1 , 1);
+    @Before
+    public void setup() {
+        final ResourceProfile largeResourceProfile = ResourceProfile.fromResources(10.2, 42);
+        final ResourceProfile smallResourceProfile = ResourceProfile.fromResources(1, 1);
 
-		largeTaskManagerSlotInformation = TestingTaskManagerSlotInformation.newBuilder()
-			.setInstanceId(instanceId)
-			.setResourceProfile(largeResourceProfile)
-			.build();
+        largeTaskManagerSlotInformation =
+                TestingTaskManagerSlotInformation.newBuilder()
+                        .setInstanceId(instanceId)
+                        .setResourceProfile(largeResourceProfile)
+                        .build();
 
-		freeSlots = Arrays.asList(
-			TestingTaskManagerSlotInformation.newBuilder()
-				.setInstanceId(instanceId)
-				.setResourceProfile(smallResourceProfile)
-				.build(),
-			largeTaskManagerSlotInformation);
-	}
+        freeSlots =
+                Arrays.asList(
+                        TestingTaskManagerSlotInformation.newBuilder()
+                                .setInstanceId(instanceId)
+                                .setResourceProfile(smallResourceProfile)
+                                .build(),
+                        largeTaskManagerSlotInformation);
+    }
 
-	@Test
-	public void findMatchingSlot_withFulfillableRequest_returnsFulfillingSlot() {
-		final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot = AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
-			largeTaskManagerSlotInformation.getResourceProfile(),
-			freeSlots,
-			countSlotsPerInstance(freeSlots));
+    @Test
+    public void findMatchingSlot_withFulfillableRequest_returnsFulfillingSlot() {
+        final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot =
+                AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
+                        largeTaskManagerSlotInformation.getResourceProfile(),
+                        freeSlots,
+                        countSlotsPerInstance(freeSlots));
 
-		assertTrue(optionalMatchingSlot.isPresent());
-		assertThat(optionalMatchingSlot.get().getSlotId(), is(largeTaskManagerSlotInformation.getSlotId()));
-	}
+        assertTrue(optionalMatchingSlot.isPresent());
+        assertThat(
+                optionalMatchingSlot.get().getSlotId(),
+                is(largeTaskManagerSlotInformation.getSlotId()));
+    }
 
-	@Test
-	public void findMatchingSlot_withUnfulfillableRequest_returnsEmptyResult() {
-		final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot = AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
-			ResourceProfile.fromResources(Double.MAX_VALUE, Integer.MAX_VALUE),
-			freeSlots,
-			countSlotsPerInstance(freeSlots));
+    @Test
+    public void findMatchingSlot_withUnfulfillableRequest_returnsEmptyResult() {
+        final Optional<TestingTaskManagerSlotInformation> optionalMatchingSlot =
+                AnyMatchingSlotMatchingStrategy.INSTANCE.findMatchingSlot(
+                        ResourceProfile.fromResources(Double.MAX_VALUE, Integer.MAX_VALUE),
+                        freeSlots,
+                        countSlotsPerInstance(freeSlots));
 
-		assertFalse(optionalMatchingSlot.isPresent());
-	}
+        assertFalse(optionalMatchingSlot.isPresent());
+    }
 
-	private Function<InstanceID, Integer> countSlotsPerInstance(Collection<? extends TestingTaskManagerSlotInformation> freeSlots) {
-		return currentInstanceId -> (int) freeSlots.stream().filter(slot -> slot.getInstanceId().equals(currentInstanceId)).count();
-	}
-
+    private Function<InstanceID, Integer> countSlotsPerInstance(
+            Collection<? extends TestingTaskManagerSlotInformation> freeSlots) {
+        return currentInstanceId ->
+                (int)
+                        freeSlots.stream()
+                                .filter(slot -> slot.getInstanceId().equals(currentInstanceId))
+                                .count();
+    }
 }

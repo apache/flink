@@ -24,47 +24,43 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 
-/**
- * Utilities for testing types.
- */
+/** Utilities for testing types. */
 public class TypeTestingUtils {
 
-	public static Matcher<DataType> hasLogicalType(LogicalType logicalType) {
-		return new FeatureMatcher<DataType, LogicalType>(
-				CoreMatchers.equalTo(logicalType),
-				"logical type of the data type",
-				"logical type") {
+    public static Matcher<DataType> hasLogicalType(LogicalType logicalType) {
+        return new FeatureMatcher<DataType, LogicalType>(
+                CoreMatchers.equalTo(logicalType),
+                "logical type of the data type",
+                "logical type") {
 
-			@Override
-			protected LogicalType featureValueOf(DataType actual) {
-				return actual.getLogicalType();
-			}
-		};
-	}
+            @Override
+            protected LogicalType featureValueOf(DataType actual) {
+                return actual.getLogicalType();
+            }
+        };
+    }
 
-	public static Matcher<DataType> hasConversionClass(Class<?> clazz) {
-		return new FeatureMatcher<DataType, Class<?>>(
-				CoreMatchers.equalTo(clazz),
-				"conversion class of the data type",
-				"conversion class") {
+    public static Matcher<DataType> hasConversionClass(Class<?> clazz) {
+        return new FeatureMatcher<DataType, Class<?>>(
+                CoreMatchers.equalTo(clazz),
+                "conversion class of the data type",
+                "conversion class") {
 
-			@Override
-			protected Class<?> featureValueOf(DataType actual) {
-				return actual.getConversionClass();
-			}
-		};
-	}
+            @Override
+            protected Class<?> featureValueOf(DataType actual) {
+                return actual.getConversionClass();
+            }
+        };
+    }
 
-	public static Matcher<DataType> hasNullability(boolean isNullable) {
-		return new FeatureMatcher<DataType, Boolean>(
-				CoreMatchers.equalTo(isNullable),
-				"nullability of the data type",
-				"nullability") {
+    public static Matcher<DataType> hasNullability(boolean isNullable) {
+        return new FeatureMatcher<DataType, Boolean>(
+                CoreMatchers.equalTo(isNullable), "nullability of the data type", "nullability") {
 
-			@Override
-			protected Boolean featureValueOf(DataType actual) {
-				return actual.getLogicalType().isNullable();
-			}
-		};
-	}
+            @Override
+            protected Boolean featureValueOf(DataType actual) {
+                return actual.getLogicalType().isNullable();
+            }
+        };
+    }
 }

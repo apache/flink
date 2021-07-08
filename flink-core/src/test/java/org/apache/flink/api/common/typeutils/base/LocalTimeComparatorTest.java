@@ -26,23 +26,23 @@ import java.time.LocalTime;
 
 public class LocalTimeComparatorTest extends ComparatorTestBase<LocalTime> {
 
-	@Override
-	protected TypeComparator<LocalTime> createComparator(boolean ascending) {
-		return new LocalTimeComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<LocalTime> createComparator(boolean ascending) {
+        return new LocalTimeComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<LocalTime> createSerializer() {
-		return new LocalTimeSerializer();
-	}
+    @Override
+    protected TypeSerializer<LocalTime> createSerializer() {
+        return new LocalTimeSerializer();
+    }
 
-	@Override
-	protected LocalTime[] getSortedTestData() {
-		return new LocalTime[] {
-				LocalTime.of(0, 0, 0),
-				LocalTime.of(2, 42, 25),
-				LocalTime.of(14, 15, 59),
-				LocalTime.of(18, 0, 45)
-		};
-	}
+    @Override
+    protected LocalTime[] getSortedTestData() {
+        return new LocalTime[] {
+            LocalTime.of(0, 0, 0),
+            LocalTime.of(2, 42, 25),
+            LocalTime.of(14, 15, 59),
+            LocalTime.of(18, 0, 45)
+        };
+    }
 }

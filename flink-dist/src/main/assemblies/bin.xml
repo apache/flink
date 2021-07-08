@@ -77,10 +77,18 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- Built-in formats -->
 		<file>
-			<source>../flink-table/flink-table-uber-blink/target/flink-table-uber-blink_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-formats/flink-csv/target/flink-csv-${project.version}.jar</source>
 			<outputDirectory>lib/</outputDirectory>
-			<destName>flink-table-blink_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-csv-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-formats/flink-json/target/flink-json-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-json-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -113,13 +121,6 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
-		<!-- flink scala shell-->
-		<fileSet>
-			<directory>../flink-scala-shell/start-script/</directory>
-			<outputDirectory>bin</outputDirectory>
-			<fileMode>755</fileMode>
-		</fileSet>
-
 		<!-- copy python scripts -->
 		<fileSet>
 			<directory>../flink-python/bin/</directory>
@@ -134,23 +135,9 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
-		<!-- copy SQL client configuration files -->
-		<fileSet>
-			<directory>../flink-table/flink-sql-client/conf/</directory>
-			<outputDirectory>conf</outputDirectory>
-			<fileMode>0644</fileMode>
-		</fileSet>
-
 		<!-- copy yarn start scripts -->
 		<fileSet>
 			<directory>src/main/flink-bin/yarn-bin</directory>
-			<outputDirectory>bin</outputDirectory>
-			<fileMode>0755</fileMode>
-		</fileSet>
-
-		<!-- copy Mesos start scripts -->
-		<fileSet>
-			<directory>src/main/flink-bin/mesos-bin</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
@@ -161,7 +148,7 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
-		
+
 		<!-- copy default configuration -->
 		<fileSet>
 			<directory>src/main/flink-bin/conf</directory>
@@ -232,6 +219,7 @@ under the License.
 			<excludes>
 				<exclude>flink-examples-streaming*.jar</exclude>
 				<exclude>original-*.jar</exclude>
+				<exclude>MatrixVectorMul.jar</exclude>
 			</excludes>
 		</fileSet>
 

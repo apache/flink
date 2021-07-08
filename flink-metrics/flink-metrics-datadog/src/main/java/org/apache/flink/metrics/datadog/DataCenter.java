@@ -17,20 +17,18 @@
 
 package org.apache.flink.metrics.datadog;
 
-/**
- * The data center to connect to.
- */
+/** The data center to connect to. */
 enum DataCenter {
-	US("com"),
-	EU("eu");
+    US("com"),
+    EU("eu");
 
-	private final String domain;
+    private final String domain;
 
-	DataCenter(String domain) {
-		this.domain = domain;
-	}
+    DataCenter(String domain) {
+        this.domain = domain;
+    }
 
-	public String getDomain() {
-		return domain;
-	}
+    public String getDomain() {
+        return domain;
+    }
 }

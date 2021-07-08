@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
@@ -30,69 +30,69 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Table operation that computes new table using given {@link Expression}s
- * from its input relational operation.
+ * Table operation that computes new table using given {@link Expression}s from its input relational
+ * operation.
  */
 @Internal
 public class ValuesQueryOperation implements QueryOperation {
 
-	private final List<List<ResolvedExpression>> values;
-	private final TableSchema tableSchema;
+    private final List<List<ResolvedExpression>> values;
+    private final ResolvedSchema resolvedSchema;
 
-	public ValuesQueryOperation(
-			List<List<ResolvedExpression>> values,
-			TableSchema tableSchema) {
-		this.values = values;
-		this.tableSchema = tableSchema;
-	}
+    public ValuesQueryOperation(
+            List<List<ResolvedExpression>> values, ResolvedSchema resolvedSchema) {
+        this.values = values;
+        this.resolvedSchema = resolvedSchema;
+    }
 
-	public List<List<ResolvedExpression>> getValues() {
-		return values;
-	}
+    public List<List<ResolvedExpression>> getValues() {
+        return values;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("values", values);
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("values", values);
 
-		return OperationUtils.formatWithChildren("Values", args, getChildren(), Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "Values", args, getChildren(), Operation::asSummaryString);
+    }
 
-	@Override
-	public List<QueryOperation> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <T> T accept(QueryOperationVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ValuesQueryOperation that = (ValuesQueryOperation) o;
-		return Objects.equals(values, that.values) &&
-			Objects.equals(tableSchema, that.tableSchema);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ValuesQueryOperation that = (ValuesQueryOperation) o;
+        return Objects.equals(values, that.values)
+                && Objects.equals(resolvedSchema, that.resolvedSchema);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(values, tableSchema);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(values, resolvedSchema);
+    }
 
-	@Override
-	public String toString() {
-		return asSummaryString();
-	}
+    @Override
+    public String toString() {
+        return asSummaryString();
+    }
 }

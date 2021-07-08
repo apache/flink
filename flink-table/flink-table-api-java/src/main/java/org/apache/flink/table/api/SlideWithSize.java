@@ -29,44 +29,46 @@ import org.apache.flink.table.expressions.ExpressionParser;
 @PublicEvolving
 public final class SlideWithSize {
 
-	/** The size of the window either as time or row-count interval. */
-	private final Expression size;
+    /** The size of the window either as time or row-count interval. */
+    private final Expression size;
 
-	SlideWithSize(Expression size) {
-		this.size = ApiExpressionUtils.unwrapFromApi(size);
-	}
+    SlideWithSize(Expression size) {
+        this.size = ApiExpressionUtils.unwrapFromApi(size);
+    }
 
-	/**
-	 * Specifies the window's slide as time or row-count interval.
-	 *
-	 * <p>The slide determines the interval in which windows are started. Hence, sliding windows can
-	 * overlap if the slide is smaller than the size of the window.
-	 *
-	 * <p>For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
-	 * 15 minutes worth of elements are grouped every 3 minutes and each row contributes to 5
-	 * windows.
-	 *
-	 * @param slide the slide of the window either as time or row-count interval.
-	 * @return a sliding window
-	 */
-	public SlideWithSizeAndSlide every(String slide) {
-		return every(ExpressionParser.parseExpression(slide));
-	}
+    /**
+     * Specifies the window's slide as time or row-count interval.
+     *
+     * <p>The slide determines the interval in which windows are started. Hence, sliding windows can
+     * overlap if the slide is smaller than the size of the window.
+     *
+     * <p>For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+     * 15 minutes worth of elements are grouped every 3 minutes and each row contributes to 5
+     * windows.
+     *
+     * @param slide the slide of the window either as time or row-count interval.
+     * @return a sliding window
+     * @deprecated use {@link #every(Expression)}
+     */
+    @Deprecated
+    public SlideWithSizeAndSlide every(String slide) {
+        return every(ExpressionParser.parseExpression(slide));
+    }
 
-	/**
-	 * Specifies the window's slide as time or row-count interval.
-	 *
-	 * <p>The slide determines the interval in which windows are started. Hence, sliding windows can
-	 * overlap if the slide is smaller than the size of the window.
-	 *
-	 * <p>For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
-	 * 15 minutes worth of elements are grouped every 3 minutes and each row contributes to 5
-	 * windows.
-	 *
-	 * @param slide the slide of the window either as time or row-count interval.
-	 * @return a sliding window
-	 */
-	public SlideWithSizeAndSlide every(Expression slide) {
-		return new SlideWithSizeAndSlide(size, slide);
-	}
+    /**
+     * Specifies the window's slide as time or row-count interval.
+     *
+     * <p>The slide determines the interval in which windows are started. Hence, sliding windows can
+     * overlap if the slide is smaller than the size of the window.
+     *
+     * <p>For example, you could have windows of size 15 minutes that slide by 3 minutes. With this
+     * 15 minutes worth of elements are grouped every 3 minutes and each row contributes to 5
+     * windows.
+     *
+     * @param slide the slide of the window either as time or row-count interval.
+     * @return a sliding window
+     */
+    public SlideWithSizeAndSlide every(Expression slide) {
+        return new SlideWithSizeAndSlide(size, slide);
+    }
 }

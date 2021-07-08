@@ -26,87 +26,106 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.List;
 
-/**
- * Generic interface for interacting with Kafka.
- */
+/** Generic interface for interacting with Kafka. */
 public interface KafkaResource extends ExternalResource {
 
-	/**
-	 * Creates a topic with the given name, replication factor and number of partitions.
-	 *
-	 * @param replicationFactor replication factor
-	 * @param numPartitions number of partitions
-	 * @param topic desired topic name
-	 * @throws IOException
-	 */
-	void createTopic(int replicationFactor, int numPartitions, String topic) throws IOException;
+    /**
+     * Creates a topic with the given name, replication factor and number of partitions.
+     *
+     * @param replicationFactor replication factor
+     * @param numPartitions number of partitions
+     * @param topic desired topic name
+     * @throws IOException
+     */
+    void createTopic(int replicationFactor, int numPartitions, String topic) throws IOException;
 
-	/**
-	 * Sends the given messages to the given topic.
-	 *
-	 * @param topic topic name
-	 * @param messages messages to send
-	 * @throws IOException
-	 */
-	void sendMessages(String topic, String ... messages) throws IOException;
+    /**
+     * Sends the given messages to the given topic.
+     *
+     * @param topic topic name
+     * @param messages messages to send
+     * @throws IOException
+     */
+    void sendMessages(String topic, String... messages) throws IOException;
 
-	/**
-	 * Returns the kafka bootstrap server addresses.
-	 * @return kafka bootstrap server addresses
-	 */
-	Collection<InetSocketAddress> getBootstrapServerAddresses();
+    /**
+     * Sends the given keyed messages to the given topic. The messages themselves should contain the
+     * specified {@code keySeparator}.
+     *
+     * @param topic topic name
+     * @param keySeparator the separator used to parse key from value in the messages
+     * @param messages messages to send
+     * @throws IOException
+     */
+    void sendKeyedMessages(String topic, String keySeparator, String... messages)
+            throws IOException;
 
-	/**
-	 * Returns the address of Zookeeper.
-	 * @return zookeeper address
-	 */
-	InetSocketAddress getZookeeperAddress();
+    /**
+     * Returns the kafka bootstrap server addresses.
+     *
+     * @return kafka bootstrap server addresses
+     */
+    Collection<InetSocketAddress> getBootstrapServerAddresses();
 
-	/**
-	 * Reads up to {@code maxNumMessages} from the given topic.
-	 *
-	 * @param maxNumMessages maximum number of messages that should be read
-	 * @param groupId group id to identify consumer
-	 * @param topic topic name
-	 * @return read messages
-	 * @throws IOException
-	 */
-	List<String> readMessage(int maxNumMessages, String groupId, String topic) throws IOException;
+    /**
+     * Returns the address of Zookeeper.
+     *
+     * @return zookeeper address
+     */
+    InetSocketAddress getZookeeperAddress();
 
-	/**
-	 * Modifies the number of partitions for the given topic.
-	 * @param numPartitions desired number of partitions
-	 * @param topic topic to modify
-	 * @throws IOException
-	 */
-	void setNumPartitions(int numPartitions, String topic) throws IOException;
+    /**
+     * Reads {@code expectedNumMessages} from the given topic. If we can't read the expected number
+     * of messages we throw an exception.
+     *
+     * @param expectedNumMessages expected number of messages that should be read
+     * @param groupId group id to identify consumer
+     * @param topic topic name
+     * @return read messages
+     * @throws IOException
+     */
+    List<String> readMessage(int expectedNumMessages, String groupId, String topic)
+            throws IOException;
 
-	/**
-	 * Returns the current number of partitions for the given topic.
-	 * @param topic topic name
-	 * @return number of partitions for the given topic
-	 * @throws IOException
-	 */
-	int getNumPartitions(String topic) throws IOException;
+    /**
+     * Modifies the number of partitions for the given topic.
+     *
+     * @param numPartitions desired number of partitions
+     * @param topic topic to modify
+     * @throws IOException
+     */
+    void setNumPartitions(int numPartitions, String topic) throws IOException;
 
-	/**
-	 * Returns the current partition offset for the given partition of the given topic.
-	 * @param topic topic name
-	 * @param partition topic partition
-	 * @return partition offset for the given partition
-	 * @throws IOException
-	 */
-	long getPartitionOffset(String topic, int partition) throws IOException;
+    /**
+     * Returns the current number of partitions for the given topic.
+     *
+     * @param topic topic name
+     * @return number of partitions for the given topic
+     * @throws IOException
+     */
+    int getNumPartitions(String topic) throws IOException;
 
-	/**
-	 * Returns the configured KafkaResource implementation, or a {@link LocalStandaloneKafkaResource} if none is configured.
-	 *
-	 * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} is none is configured
-	 */
-	static KafkaResource get(final String version) {
-		return FactoryUtils.loadAndInvokeFactory(
-			KafkaResourceFactory.class,
-			factory -> factory.create(version),
-			LocalStandaloneKafkaResourceFactory::new);
-	}
+    /**
+     * Returns the current partition offset for the given partition of the given topic.
+     *
+     * @param topic topic name
+     * @param partition topic partition
+     * @return partition offset for the given partition
+     * @throws IOException
+     */
+    long getPartitionOffset(String topic, int partition) throws IOException;
+
+    /**
+     * Returns the configured KafkaResource implementation, or a {@link
+     * LocalStandaloneKafkaResource} if none is configured.
+     *
+     * @return configured KafkaResource, or {@link LocalStandaloneKafkaResource} if none is
+     *     configured
+     */
+    static KafkaResource get(final String version) {
+        return FactoryUtils.loadAndInvokeFactory(
+                KafkaResourceFactory.class,
+                factory -> factory.create(version),
+                LocalStandaloneKafkaResourceFactory::new);
+    }
 }

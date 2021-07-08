@@ -27,32 +27,33 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
  * @param <O> ignored
  */
 public class NoOpHeartbeatManager<I, O> implements HeartbeatManager<I, O> {
-	private static final NoOpHeartbeatManager<Object, Object> INSTANCE = new NoOpHeartbeatManager<>();
+    private static final NoOpHeartbeatManager<Object, Object> INSTANCE =
+            new NoOpHeartbeatManager<>();
 
-	private NoOpHeartbeatManager() {}
+    private NoOpHeartbeatManager() {}
 
-	@Override
-	public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {}
+    @Override
+    public void monitorTarget(ResourceID resourceID, HeartbeatTarget<O> heartbeatTarget) {}
 
-	@Override
-	public void unmonitorTarget(ResourceID resourceID) {}
+    @Override
+    public void unmonitorTarget(ResourceID resourceID) {}
 
-	@Override
-	public void stop() {}
+    @Override
+    public void stop() {}
 
-	@Override
-	public long getLastHeartbeatFrom(ResourceID resourceId) {
-		return 0;
-	}
+    @Override
+    public long getLastHeartbeatFrom(ResourceID resourceId) {
+        return 0;
+    }
 
-	@Override
-	public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {}
+    @Override
+    public void receiveHeartbeat(ResourceID heartbeatOrigin, I heartbeatPayload) {}
 
-	@Override
-	public void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {}
+    @Override
+    public void requestHeartbeat(ResourceID requestOrigin, I heartbeatPayload) {}
 
-	@SuppressWarnings("unchecked")
-	public static <A, B> NoOpHeartbeatManager<A, B> getInstance() {
-		return (NoOpHeartbeatManager<A, B>) INSTANCE;
-	}
+    @SuppressWarnings("unchecked")
+    public static <A, B> NoOpHeartbeatManager<A, B> getInstance() {
+        return (NoOpHeartbeatManager<A, B>) INSTANCE;
+    }
 }

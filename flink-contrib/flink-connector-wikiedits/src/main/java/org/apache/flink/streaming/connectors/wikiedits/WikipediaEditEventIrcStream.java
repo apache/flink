@@ -33,164 +33,160 @@ import java.util.concurrent.BlockingQueue;
 
 class WikipediaEditEventIrcStream implements AutoCloseable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(WikipediaEditEventIrcStream.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WikipediaEditEventIrcStream.class);
 
-	/** Bounded queue of edit events from the channel. */
-	private final BlockingQueue<WikipediaEditEvent> edits =
-			new ArrayBlockingQueue<>(128);
+    /** Bounded queue of edit events from the channel. */
+    private final BlockingQueue<WikipediaEditEvent> edits = new ArrayBlockingQueue<>(128);
 
-	/** IRC connection (NOTE: this is a separate Thread). */
-	private IRCConnection conn;
+    /** IRC connection (NOTE: this is a separate Thread). */
+    private IRCConnection conn;
 
-	WikipediaEditEventIrcStream(String host, int port) {
-		final String nick = "flink-bot-" + UUID.randomUUID().toString();
-		this.conn = new IRCConnection(host, new int[] { port}, "", nick, nick, nick);
-		conn.addIRCEventListener(new WikipediaIrcChannelListener(edits));
-		conn.setEncoding("UTF-8");
-		conn.setPong(true);
-		conn.setColors(false);
-		conn.setDaemon(true);
-		conn.setName("WikipediaEditEventIrcStreamThread");
-	}
+    WikipediaEditEventIrcStream(String host, int port) {
+        final String nick = "flink-bot-" + UUID.randomUUID().toString();
+        this.conn = new IRCConnection(host, new int[] {port}, "", nick, nick, nick);
+        conn.addIRCEventListener(new WikipediaIrcChannelListener(edits));
+        conn.setEncoding("UTF-8");
+        conn.setPong(true);
+        conn.setColors(false);
+        conn.setDaemon(true);
+        conn.setName("WikipediaEditEventIrcStreamThread");
+    }
 
-	BlockingQueue<WikipediaEditEvent> getEdits() {
-		return edits;
-	}
+    BlockingQueue<WikipediaEditEvent> getEdits() {
+        return edits;
+    }
 
-	void connect() throws IOException {
-		if (!conn.isConnected()) {
-			conn.connect();
-		}
-	}
+    void connect() throws IOException {
+        if (!conn.isConnected()) {
+            conn.connect();
+        }
+    }
 
-	void join(String channel) {
-		Objects.requireNonNull(channel, "channel");
-		conn.send("JOIN " + channel);
-	}
+    void join(String channel) {
+        Objects.requireNonNull(channel, "channel");
+        conn.send("JOIN " + channel);
+    }
 
-	void leave(String channel) {
-		conn.send("PART " + channel);
-	}
+    void leave(String channel) {
+        conn.send("PART " + channel);
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (conn != null && conn.isConnected()) {
-			conn.doQuit();
-			conn.close();
-			conn.join(5 * 1000);
-		}
-	}
+    @Override
+    public void close() throws Exception {
+        if (conn != null && conn.isConnected()) {
+            conn.doQuit();
+            conn.close();
+            conn.join(5 * 1000);
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	// IRC channel listener
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    // IRC channel listener
+    // ------------------------------------------------------------------------
 
-	private static class WikipediaIrcChannelListener implements IRCEventListener {
+    private static class WikipediaIrcChannelListener implements IRCEventListener {
 
-		private final BlockingQueue<WikipediaEditEvent> edits;
+        private final BlockingQueue<WikipediaEditEvent> edits;
 
-		WikipediaIrcChannelListener(BlockingQueue<WikipediaEditEvent> edits) {
-			this.edits = Objects.requireNonNull(edits, "edits");
-		}
+        WikipediaIrcChannelListener(BlockingQueue<WikipediaEditEvent> edits) {
+            this.edits = Objects.requireNonNull(edits, "edits");
+        }
 
-		@Override
-		public void onPrivmsg(String target, IRCUser user, String msg) {
-			LOG.debug("[{}] {}: {}.", target, user.getNick(), msg);
+        @Override
+        public void onPrivmsg(String target, IRCUser user, String msg) {
+            LOG.debug("[{}] {}: {}.", target, user.getNick(), msg);
 
-			WikipediaEditEvent event = WikipediaEditEvent.fromRawEvent(
-					System.currentTimeMillis(),
-					target,
-					msg);
+            WikipediaEditEvent event =
+                    WikipediaEditEvent.fromRawEvent(System.currentTimeMillis(), target, msg);
 
-			if (event != null) {
-				if (!edits.offer(event)) {
-					LOG.debug("Dropping message, because of full queue.");
-				}
-			}
-		}
+            if (event != null) {
+                if (!edits.offer(event)) {
+                    LOG.debug("Dropping message, because of full queue.");
+                }
+            }
+        }
 
-		@Override
-		public void onRegistered() {
-			LOG.debug("Connected.");
-		}
+        @Override
+        public void onRegistered() {
+            LOG.debug("Connected.");
+        }
 
-		@Override
-		public void onDisconnected() {
-			LOG.debug("Disconnected.");
-		}
+        @Override
+        public void onDisconnected() {
+            LOG.debug("Disconnected.");
+        }
 
-		@Override
-		public void onError(String msg) {
-			LOG.error("Error: '{}'.", msg);
-		}
+        @Override
+        public void onError(String msg) {
+            LOG.error("Error: '{}'.", msg);
+        }
 
-		@Override
-		public void onError(int num, String msg) {
-			LOG.error("Error #{}: '{}'.", num, msg);
-		}
+        @Override
+        public void onError(int num, String msg) {
+            LOG.error("Error #{}: '{}'.", num, msg);
+        }
 
-		@Override
-		public void onInvite(String chan, IRCUser user, String passiveNick) {
-			LOG.debug("[{}]: {} invites {}.", chan, user.getNick(), passiveNick);
-		}
+        @Override
+        public void onInvite(String chan, IRCUser user, String passiveNick) {
+            LOG.debug("[{}]: {} invites {}.", chan, user.getNick(), passiveNick);
+        }
 
-		@Override
-		public void onJoin(String chan, IRCUser user) {
-			LOG.debug("[{}]: {} joins.", chan, user.getNick());
-		}
+        @Override
+        public void onJoin(String chan, IRCUser user) {
+            LOG.debug("[{}]: {} joins.", chan, user.getNick());
+        }
 
-		@Override
-		public void onKick(String chan, IRCUser user, String passiveNick, String msg) {
-			LOG.debug("[{}]: {} kicks {}.", chan, user.getNick(), passiveNick);
-		}
+        @Override
+        public void onKick(String chan, IRCUser user, String passiveNick, String msg) {
+            LOG.debug("[{}]: {} kicks {}.", chan, user.getNick(), passiveNick);
+        }
 
-		@Override
-		public void onMode(String chan, IRCUser user, IRCModeParser modeParser) {
-			LOG.debug("[{}]: mode '{}'.", chan, modeParser.getLine());
-		}
+        @Override
+        public void onMode(String chan, IRCUser user, IRCModeParser modeParser) {
+            LOG.debug("[{}]: mode '{}'.", chan, modeParser.getLine());
+        }
 
-		@Override
-		public void onMode(IRCUser user, String passiveNick, String mode) {
-			LOG.debug("{} sets modes {} ({}).", user.getNick(), mode, passiveNick);
-		}
+        @Override
+        public void onMode(IRCUser user, String passiveNick, String mode) {
+            LOG.debug("{} sets modes {} ({}).", user.getNick(), mode, passiveNick);
+        }
 
-		@Override
-		public void onNick(IRCUser user, String newNick) {
-			LOG.debug("{} is now known as {}.", user.getNick(), newNick);
-		}
+        @Override
+        public void onNick(IRCUser user, String newNick) {
+            LOG.debug("{} is now known as {}.", user.getNick(), newNick);
+        }
 
-		@Override
-		public void onNotice(String target, IRCUser user, String msg) {
-			LOG.debug("[{}] {} (notice): {}.", target, user.getNick(), msg);
-		}
+        @Override
+        public void onNotice(String target, IRCUser user, String msg) {
+            LOG.debug("[{}] {} (notice): {}.", target, user.getNick(), msg);
+        }
 
-		@Override
-		public void onPart(String chan, IRCUser user, String msg) {
-			LOG.debug("[{}] {} parts {}.", chan, user.getNick(), msg);
-		}
+        @Override
+        public void onPart(String chan, IRCUser user, String msg) {
+            LOG.debug("[{}] {} parts {}.", chan, user.getNick(), msg);
+        }
 
-		@Override
-		public void onPing(String ping) {
-		}
+        @Override
+        public void onPing(String ping) {}
 
-		@Override
-		public void onQuit(IRCUser user, String msg) {
-			LOG.debug("Quit: {}.", user.getNick());
-		}
+        @Override
+        public void onQuit(IRCUser user, String msg) {
+            LOG.debug("Quit: {}.", user.getNick());
+        }
 
-		@Override
-		public void onReply(int num, String value, String msg) {
-			LOG.debug("Reply #{}: {} {}.", num, value, msg);
-		}
+        @Override
+        public void onReply(int num, String value, String msg) {
+            LOG.debug("Reply #{}: {} {}.", num, value, msg);
+        }
 
-		@Override
-		public void onTopic(String chan, IRCUser user, String topic) {
-			LOG.debug("[{}] {} changes topic into {}.", chan, user.getNick(), topic);
-		}
+        @Override
+        public void onTopic(String chan, IRCUser user, String topic) {
+            LOG.debug("[{}] {} changes topic into {}.", chan, user.getNick(), topic);
+        }
 
-		@Override
-		public void unknown(String prefix, String command, String middle, String trailing) {
-			LOG.warn("UNKNOWN: " + prefix + " " + command + " " + middle + " " + trailing);
-		}
-	}
+        @Override
+        public void unknown(String prefix, String command, String middle, String trailing) {
+            LOG.warn("UNKNOWN: " + prefix + " " + command + " " + middle + " " + trailing);
+        }
+    }
 }

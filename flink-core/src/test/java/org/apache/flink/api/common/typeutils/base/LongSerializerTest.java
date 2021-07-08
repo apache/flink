@@ -23,31 +23,29 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.util.Random;
 
-/**
- * A test for the {@link LongSerializer}.
- */
+/** A test for the {@link LongSerializer}. */
 public class LongSerializerTest extends SerializerTestBase<Long> {
 
-	@Override
-	protected TypeSerializer<Long> createSerializer() {
-		return new LongSerializer();
-	}
+    @Override
+    protected TypeSerializer<Long> createSerializer() {
+        return new LongSerializer();
+    }
 
-	@Override
-	protected int getLength() {
-		return 8;
-	}
+    @Override
+    protected int getLength() {
+        return 8;
+    }
 
-	@Override
-	protected Class<Long> getTypeClass() {
-		return Long.class;
-	}
+    @Override
+    protected Class<Long> getTypeClass() {
+        return Long.class;
+    }
 
-	@Override
-	protected Long[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		long rndLong = rnd.nextLong();
+    @Override
+    protected Long[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        long rndLong = rnd.nextLong();
 
-		return new Long[] {0L, 1L, -1L, Long.MAX_VALUE, Long.MIN_VALUE, rndLong, -rndLong};
-	}
+        return new Long[] {0L, 1L, -1L, Long.MAX_VALUE, Long.MIN_VALUE, rndLong, -rndLong};
+    }
 }

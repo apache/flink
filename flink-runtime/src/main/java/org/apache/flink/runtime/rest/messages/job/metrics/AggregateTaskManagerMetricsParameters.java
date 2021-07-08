@@ -23,16 +23,15 @@ import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Parameters for aggregating task manager metrics.
- */
-public class AggregateTaskManagerMetricsParameters extends AbstractAggregatedMetricsParameters<TaskManagersFilterQueryParameter> {
-	public AggregateTaskManagerMetricsParameters() {
-		super(new TaskManagersFilterQueryParameter());
-	}
+/** Parameters for aggregating task manager metrics. */
+public class AggregateTaskManagerMetricsParameters
+        extends AbstractAggregatedMetricsParameters<TaskManagersFilterQueryParameter> {
+    public AggregateTaskManagerMetricsParameters() {
+        super(new TaskManagersFilterQueryParameter());
+    }
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.emptyList();
+    }
 }

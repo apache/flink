@@ -38,54 +38,55 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Test for duplicate elimination in the solution set.
- */
+/** Test for duplicate elimination in the solution set. */
 @SuppressWarnings("serial")
 @RunWith(Parameterized.class)
 public class SolutionSetDuplicatesITCase extends MultipleProgramsTestBase {
 
-	public SolutionSetDuplicatesITCase(TestExecutionMode mode) {
-		super(mode);
-	}
+    public SolutionSetDuplicatesITCase(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	@Test
-	public void testProgram() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Test
+    public void testProgram() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-			DataSet<Tuple2<Long, Long>> data = env
-				.generateSequence(0, 10)
-				.flatMap(new FlatMapFunction<Long, Tuple2<Long, Long>>() {
-					@Override
-					public void flatMap(Long value, Collector<Tuple2<Long, Long>> out) {
-						out.collect(new Tuple2<Long, Long>(value, value));
-						out.collect(new Tuple2<Long, Long>(value, value));
-						out.collect(new Tuple2<Long, Long>(value, value));
-					}
-				})
-				.rebalance();
+            DataSet<Tuple2<Long, Long>> data =
+                    env.generateSequence(0, 10)
+                            .flatMap(
+                                    new FlatMapFunction<Long, Tuple2<Long, Long>>() {
+                                        @Override
+                                        public void flatMap(
+                                                Long value, Collector<Tuple2<Long, Long>> out) {
+                                            out.collect(new Tuple2<Long, Long>(value, value));
+                                            out.collect(new Tuple2<Long, Long>(value, value));
+                                            out.collect(new Tuple2<Long, Long>(value, value));
+                                        }
+                                    })
+                            .rebalance();
 
-			DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter = data.iterateDelta(data, 10, 0);
+            DeltaIteration<Tuple2<Long, Long>, Tuple2<Long, Long>> iter =
+                    data.iterateDelta(data, 10, 0);
 
-			List<Integer> result = iter
-					.closeWith(iter.getWorkset(), iter.getWorkset())
-					.map(new MapFunction<Tuple2<Long, Long>, Integer>() {
-						@Override
-						public Integer map(Tuple2<Long, Long> value) {
-							return value.f0.intValue();
-						}
-					})
-					.collect();
+            List<Integer> result =
+                    iter.closeWith(iter.getWorkset(), iter.getWorkset())
+                            .map(
+                                    new MapFunction<Tuple2<Long, Long>, Integer>() {
+                                        @Override
+                                        public Integer map(Tuple2<Long, Long> value) {
+                                            return value.f0.intValue();
+                                        }
+                                    })
+                            .collect();
 
-			assertEquals(11, result.size());
+            assertEquals(11, result.size());
 
-			Collections.sort(result);
-			assertEquals(Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), result);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            Collections.sort(result);
+            assertEquals(Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

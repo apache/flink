@@ -24,50 +24,49 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Specification for retrieving an overview over all available cluster partitions.
- */
-public class ClusterDataSetListHeaders implements MessageHeaders<EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
+/** Specification for retrieving an overview over all available cluster partitions. */
+public class ClusterDataSetListHeaders
+        implements MessageHeaders<
+                EmptyRequestBody, ClusterDataSetListResponseBody, EmptyMessageParameters> {
 
-	public static final ClusterDataSetListHeaders INSTANCE = new ClusterDataSetListHeaders();
+    public static final ClusterDataSetListHeaders INSTANCE = new ClusterDataSetListHeaders();
 
-	static final String URL = "/datasets";
+    static final String URL = "/datasets";
 
-	private ClusterDataSetListHeaders() {
-	}
+    private ClusterDataSetListHeaders() {}
 
-	@Override
-	public Class<ClusterDataSetListResponseBody> getResponseClass() {
-		return ClusterDataSetListResponseBody.class;
-	}
+    @Override
+    public Class<ClusterDataSetListResponseBody> getResponseClass() {
+        return ClusterDataSetListResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Returns all cluster data sets.";
-	}
+    @Override
+    public String getDescription() {
+        return "Returns all cluster data sets.";
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public EmptyMessageParameters getUnresolvedMessageParameters() {
-		return EmptyMessageParameters.getInstance();
-	}
+    @Override
+    public EmptyMessageParameters getUnresolvedMessageParameters() {
+        return EmptyMessageParameters.getInstance();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return URL;
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return URL;
+    }
 }

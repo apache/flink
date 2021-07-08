@@ -25,35 +25,33 @@ import org.apache.flink.formats.avro.utils.TestDataGenerator;
 
 import java.util.Random;
 
-/**
- * Tests for the {@link AvroSerializer} that test specific avro types.
- */
+/** Tests for the {@link AvroSerializer} that test specific avro types. */
 public class AvroSerializerTest extends SerializerTestBase<User> {
 
-	@Override
-	protected TypeSerializer<User> createSerializer() {
-		return new AvroSerializer<>(User.class);
-	}
+    @Override
+    protected TypeSerializer<User> createSerializer() {
+        return new AvroSerializer<>(User.class);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<User> getTypeClass() {
-		return User.class;
-	}
+    @Override
+    protected Class<User> getTypeClass() {
+        return User.class;
+    }
 
-	@Override
-	protected User[] getTestData() {
-		final Random rnd = new Random();
-		final User[] users = new User[20];
+    @Override
+    protected User[] getTestData() {
+        final Random rnd = new Random();
+        final User[] users = new User[20];
 
-		for (int i = 0; i < users.length; i++) {
-			users[i] = TestDataGenerator.generateRandomUser(rnd);
-		}
+        for (int i = 0; i < users.length; i++) {
+            users[i] = TestDataGenerator.generateRandomUser(rnd);
+        }
 
-		return users;
-	}
+        return users;
+    }
 }

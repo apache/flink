@@ -22,27 +22,27 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.util.FlinkRuntimeException;
 
 /**
- * {@link JobGraphStoreFactory} implementation which creates a {@link JobGraphStore}
- * using the provided {@link HighAvailabilityServices}.
+ * {@link JobGraphStoreFactory} implementation which creates a {@link JobGraphStore} using the
+ * provided {@link HighAvailabilityServices}.
  */
 public class HaServicesJobGraphStoreFactory implements JobGraphStoreFactory {
-	private final HighAvailabilityServices highAvailabilityServices;
+    private final HighAvailabilityServices highAvailabilityServices;
 
-	public HaServicesJobGraphStoreFactory(HighAvailabilityServices highAvailabilityServices) {
-		this.highAvailabilityServices = highAvailabilityServices;
-	}
+    public HaServicesJobGraphStoreFactory(HighAvailabilityServices highAvailabilityServices) {
+        this.highAvailabilityServices = highAvailabilityServices;
+    }
 
-	@Override
-	public JobGraphStore create() {
-		try {
-			return highAvailabilityServices.getJobGraphStore();
-		} catch (Exception e) {
-			throw new FlinkRuntimeException(
-				String.format(
-					"Could not create %s from %s.",
-					JobGraphStore.class.getSimpleName(),
-					highAvailabilityServices.getClass().getSimpleName()),
-				e);
-		}
-	}
+    @Override
+    public JobGraphStore create() {
+        try {
+            return highAvailabilityServices.getJobGraphStore();
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Could not create %s from %s.",
+                            JobGraphStore.class.getSimpleName(),
+                            highAvailabilityServices.getClass().getSimpleName()),
+                    e);
+        }
+    }
 }

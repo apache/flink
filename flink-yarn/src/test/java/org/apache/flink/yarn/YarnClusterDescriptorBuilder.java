@@ -25,58 +25,58 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import javax.annotation.Nullable;
 
-/**
- * Builder for the {@link YarnClusterDescriptor}.
- */
+/** Builder for the {@link YarnClusterDescriptor}. */
 public final class YarnClusterDescriptorBuilder {
 
-	private final YarnClient yarnClient;
-	private final boolean sharedYarnClient;
+    private final YarnClient yarnClient;
+    private final boolean sharedYarnClient;
 
-	private Configuration flinkConfiguration = new Configuration();
-	private YarnConfiguration yarnConfiguration = new YarnConfiguration();
+    private Configuration flinkConfiguration = new Configuration();
+    private YarnConfiguration yarnConfiguration = new YarnConfiguration();
 
-	@Nullable
-	private YarnClusterInformationRetriever yarnClusterInformationRetriever = null;
+    @Nullable private YarnClusterInformationRetriever yarnClusterInformationRetriever = null;
 
-	private YarnClusterDescriptorBuilder(YarnClient yarnClient, boolean sharedYarnClient) {
-		this.yarnClient = yarnClient;
-		this.sharedYarnClient = sharedYarnClient;
-	}
+    private YarnClusterDescriptorBuilder(YarnClient yarnClient, boolean sharedYarnClient) {
+        this.yarnClient = yarnClient;
+        this.sharedYarnClient = sharedYarnClient;
+    }
 
-	public YarnClusterDescriptorBuilder setFlinkConfiguration(Configuration flinkConfiguration) {
-		this.flinkConfiguration = flinkConfiguration;
-		return this;
-	}
+    public YarnClusterDescriptorBuilder setFlinkConfiguration(Configuration flinkConfiguration) {
+        this.flinkConfiguration = flinkConfiguration;
+        return this;
+    }
 
-	public YarnClusterDescriptorBuilder setYarnConfiguration(YarnConfiguration yarnConfiguration) {
-		this.yarnConfiguration = yarnConfiguration;
-		return this;
-	}
+    public YarnClusterDescriptorBuilder setYarnConfiguration(YarnConfiguration yarnConfiguration) {
+        this.yarnConfiguration = yarnConfiguration;
+        return this;
+    }
 
-	public YarnClusterDescriptorBuilder setYarnClusterInformationRetriever(YarnClusterInformationRetriever yarnClusterInformationRetriever) {
-		this.yarnClusterInformationRetriever = yarnClusterInformationRetriever;
-		return this;
-	}
+    public YarnClusterDescriptorBuilder setYarnClusterInformationRetriever(
+            YarnClusterInformationRetriever yarnClusterInformationRetriever) {
+        this.yarnClusterInformationRetriever = yarnClusterInformationRetriever;
+        return this;
+    }
 
-	public YarnClusterDescriptor build() {
-		final YarnClusterInformationRetriever clusterInformationRetriever;
+    public YarnClusterDescriptor build() {
+        final YarnClusterInformationRetriever clusterInformationRetriever;
 
-		if (yarnClusterInformationRetriever == null) {
-			clusterInformationRetriever = YarnClientYarnClusterInformationRetriever.create(yarnClient);
-		} else {
-			clusterInformationRetriever = yarnClusterInformationRetriever;
-		}
+        if (yarnClusterInformationRetriever == null) {
+            clusterInformationRetriever =
+                    YarnClientYarnClusterInformationRetriever.create(yarnClient);
+        } else {
+            clusterInformationRetriever = yarnClusterInformationRetriever;
+        }
 
-		return new YarnClusterDescriptor(
-			flinkConfiguration,
-			yarnConfiguration,
-			yarnClient,
-			clusterInformationRetriever,
-			sharedYarnClient);
-	}
+        return new YarnClusterDescriptor(
+                flinkConfiguration,
+                yarnConfiguration,
+                yarnClient,
+                clusterInformationRetriever,
+                sharedYarnClient);
+    }
 
-	public static YarnClusterDescriptorBuilder newBuilder(YarnClient yarnClient, boolean sharedYarnClient) {
-		return new YarnClusterDescriptorBuilder(yarnClient, sharedYarnClient);
-	}
+    public static YarnClusterDescriptorBuilder newBuilder(
+            YarnClient yarnClient, boolean sharedYarnClient) {
+        return new YarnClusterDescriptorBuilder(yarnClient, sharedYarnClient);
+    }
 }

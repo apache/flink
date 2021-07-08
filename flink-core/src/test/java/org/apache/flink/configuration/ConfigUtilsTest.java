@@ -31,91 +31,100 @@ import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests the {@link ConfigUtils} methods.
- */
+/** Tests the {@link ConfigUtils} methods. */
 public class ConfigUtilsTest {
 
-	private static final ConfigOption<List<String>> TEST_OPTION =
-			key("test.option.key")
-					.stringType()
-					.asList()
-					.noDefaultValue();
+    private static final ConfigOption<List<String>> TEST_OPTION =
+            key("test.option.key").stringType().asList().noDefaultValue();
 
-	private static final Integer[] intArray = {1, 3, 2, 4};
-	private static final List<Integer> intList = Arrays.asList(intArray);
+    private static final Integer[] intArray = {1, 3, 2, 4};
+    private static final List<Integer> intList = Arrays.asList(intArray);
 
-	@Test
-	public void collectionIsCorrectlyPutAndFetched() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeCollectionToConfig(configurationUnderTest, TEST_OPTION, intList, Object::toString);
+    @Test
+    public void collectionIsCorrectlyPutAndFetched() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeCollectionToConfig(
+                configurationUnderTest, TEST_OPTION, intList, Object::toString);
 
-		final List<Integer> recovered = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recovered, equalTo(intList));
-	}
+        final List<Integer> recovered =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recovered, equalTo(intList));
+    }
 
-	@Test
-	public void arrayIsCorrectlyPutAndFetched() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeArrayToConfig(configurationUnderTest, TEST_OPTION, intArray, Object::toString);
+    @Test
+    public void arrayIsCorrectlyPutAndFetched() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeArrayToConfig(
+                configurationUnderTest, TEST_OPTION, intArray, Object::toString);
 
-		final List<Integer> recovered = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recovered, equalTo(intList));
-	}
+        final List<Integer> recovered =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recovered, equalTo(intList));
+    }
 
-	@Test
-	public void nullCollectionPutsNothingInConfig() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeCollectionToConfig(configurationUnderTest, TEST_OPTION, null, Object::toString);
+    @Test
+    public void nullCollectionPutsNothingInConfig() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeCollectionToConfig(
+                configurationUnderTest, TEST_OPTION, null, Object::toString);
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
+        assertThat(configurationUnderTest.keySet(), is(empty()));
 
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
+        final Object recovered = configurationUnderTest.get(TEST_OPTION);
+        assertThat(recovered, is(nullValue()));
 
-		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recoveredList, is(empty()));
-	}
+        final List<Integer> recoveredList =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recoveredList, is(empty()));
+    }
 
-	@Test
-	public void nullArrayPutsNothingInConfig() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeArrayToConfig(configurationUnderTest, TEST_OPTION, null, Object::toString);
+    @Test
+    public void nullArrayPutsNothingInConfig() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeArrayToConfig(
+                configurationUnderTest, TEST_OPTION, null, Object::toString);
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
+        assertThat(configurationUnderTest.keySet(), is(empty()));
 
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
+        final Object recovered = configurationUnderTest.get(TEST_OPTION);
+        assertThat(recovered, is(nullValue()));
 
-		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recoveredList, is(empty()));
-	}
+        final List<Integer> recoveredList =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recoveredList, is(empty()));
+    }
 
-	@Test
-	public void emptyCollectionPutsNothingInConfig() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeCollectionToConfig(configurationUnderTest, TEST_OPTION, Collections.emptyList(), Object::toString);
+    @Test
+    public void emptyCollectionPutsEmptyValueInConfig() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeCollectionToConfig(
+                configurationUnderTest, TEST_OPTION, Collections.emptyList(), Object::toString);
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
+        final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
+        assertThat(recovered, is(empty()));
 
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
+        final List<Integer> recoveredList =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recoveredList, is(empty()));
+    }
 
-		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recoveredList, is(empty()));
-	}
+    @Test
+    public void emptyArrayPutsEmptyValueInConfig() {
+        final Configuration configurationUnderTest = new Configuration();
+        ConfigUtils.encodeArrayToConfig(
+                configurationUnderTest, TEST_OPTION, new Integer[5], Object::toString);
 
-	@Test
-	public void emptyArrayPutsNothingInConfig() {
-		final Configuration configurationUnderTest = new Configuration();
-		ConfigUtils.encodeArrayToConfig(configurationUnderTest, TEST_OPTION, new Integer[5], Object::toString);
+        final List<String> recovered = configurationUnderTest.get(TEST_OPTION);
+        assertThat(recovered, is(empty()));
 
-		assertThat(configurationUnderTest.keySet(), is(empty()));
-
-		final Object recovered = configurationUnderTest.get(TEST_OPTION);
-		assertThat(recovered, is(nullValue()));
-
-		final List<Integer> recoveredList = ConfigUtils.decodeListFromConfig(configurationUnderTest, TEST_OPTION, Integer::valueOf);
-		assertThat(recoveredList, is(empty()));
-	}
+        final List<Integer> recoveredList =
+                ConfigUtils.decodeListFromConfig(
+                        configurationUnderTest, TEST_OPTION, Integer::valueOf);
+        assertThat(recoveredList, is(empty()));
+    }
 }

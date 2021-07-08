@@ -18,9 +18,7 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util.concurrent.TimeUnit
-
-import org.apache.flink.api.common.state.{FoldingStateDescriptor, ListStateDescriptor, ReducingStateDescriptor}
+import org.apache.flink.api.common.state.{ListStateDescriptor, ReducingStateDescriptor}
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.function.WindowFunction
@@ -32,8 +30,11 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
+
 import org.junit.Assert._
 import org.junit.Test
+
+import java.util.concurrent.TimeUnit
 
 /**
   * These tests verify that the api calls on [[WindowedStream]] that use the "time" shortcut
@@ -109,32 +110,6 @@ class TimeWindowTranslationTest extends AbstractTestBase {
     assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
-  }
-
-  @Test
-  def testFoldEventTimeWindows(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.IngestionTime)
-
-    val source = env.fromElements(("hello", 1), ("hello", 2))
-
-    val window1 = source
-      .keyBy(0)
-      .timeWindow(Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS))
-      .fold(("", "", 1), new DummyFolder())
-
-    val transform1 = window1.javaStream.getTransformation
-      .asInstanceOf[OneInputTransformation[(String, Int), (String, Int)]]
-
-    val operator1 = transform1.getOperator
-
-    assertTrue(operator1.isInstanceOf[WindowOperator[_, _, _, _, _]])
-
-    val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
-
-    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
-    assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
-    assertTrue(winOperator1.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
   }
 
   @Test

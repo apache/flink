@@ -23,22 +23,20 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.TinyIntVector;
 
-/**
- * {@link ArrowFieldWriter} for TinyInt.
- */
+/** {@link ArrowFieldWriter} for TinyInt. */
 @Internal
 public final class RowTinyIntWriter extends ArrowFieldWriter<Row> {
 
-	public RowTinyIntWriter(TinyIntVector tinyIntVector) {
-		super(tinyIntVector);
-	}
+    public RowTinyIntWriter(TinyIntVector tinyIntVector) {
+        super(tinyIntVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((TinyIntVector) getValueVector()).setNull(getCount());
-		} else {
-			((TinyIntVector) getValueVector()).setSafe(getCount(), (byte) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((TinyIntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((TinyIntVector) getValueVector()).setSafe(getCount(), (byte) value.getField(ordinal));
+        }
+    }
 }

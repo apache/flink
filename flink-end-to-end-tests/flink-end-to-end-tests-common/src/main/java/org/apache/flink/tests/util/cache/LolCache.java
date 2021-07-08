@@ -30,41 +30,41 @@ import java.util.regex.Pattern;
  */
 public final class LolCache extends AbstractDownloadCache {
 
-	private static final Pattern CACHE_FILE_NAME_PATTERN = Pattern.compile(".*");
-	private final TemporaryFolder folder;
+    private static final Pattern CACHE_FILE_NAME_PATTERN = Pattern.compile(".*");
+    private final TemporaryFolder folder;
 
-	public LolCache(TemporaryFolder folder) {
-		super(folder.getRoot().toPath());
-		this.folder = folder;
-	}
+    public LolCache(TemporaryFolder folder) {
+        super(folder.getRoot().toPath());
+        this.folder = folder;
+    }
 
-	@Override
-	public void afterTestSuccess() {
-		folder.delete();
-	}
+    @Override
+    public void afterTestSuccess() {
+        folder.delete();
+    }
 
-	@Override
-	Matcher createCacheFileMatcher(String cacheFileName) {
-		return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
-	}
+    @Override
+    Matcher createCacheFileMatcher(String cacheFileName) {
+        return CACHE_FILE_NAME_PATTERN.matcher(cacheFileName);
+    }
 
-	@Override
-	String generateCacheFileName(String url, String fileName) {
-		return fileName;
-	}
+    @Override
+    String generateCacheFileName(String url, String fileName) {
+        return fileName;
+    }
 
-	@Override
-	String regenerateOriginalFileName(Matcher matcher) {
-		return matcher.group(0);
-	}
+    @Override
+    String regenerateOriginalFileName(Matcher matcher) {
+        return matcher.group(0);
+    }
 
-	@Override
-	boolean exceedsTimeToLive(Matcher matcher) {
-		return true;
-	}
+    @Override
+    boolean exceedsTimeToLive(Matcher matcher) {
+        return true;
+    }
 
-	@Override
-	boolean matchesCachedFile(Matcher matcher, String url) {
-		return false;
-	}
+    @Override
+    boolean matchesCachedFile(Matcher matcher, String url) {
+        return false;
+    }
 }

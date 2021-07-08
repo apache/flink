@@ -18,42 +18,38 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Termination mode query parameter.
- */
-public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
+/** Termination mode query parameter. */
+public class TerminationModeQueryParameter
+        extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
-	private static final String key = "mode";
+    private static final String key = "mode";
 
-	public TerminationModeQueryParameter() {
-		super(key, MessageParameterRequisiteness.OPTIONAL);
-	}
+    public TerminationModeQueryParameter() {
+        super(key, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public TerminationMode convertStringToValue(String value) {
-		return TerminationMode.valueOf(value.toUpperCase());
-	}
+    @Override
+    public TerminationMode convertStringToValue(String value) {
+        return TerminationMode.valueOf(value.toUpperCase());
+    }
 
-	@Override
-	public String convertValueToString(TerminationMode value) {
-		return value.name().toLowerCase();
-	}
+    @Override
+    public String convertValueToString(TerminationMode value) {
+        return value.name().toLowerCase();
+    }
 
-	@Override
-	public String getDescription() {
-		return "String value that specifies the termination mode. The only supported value is: \"" +
-			TerminationMode.CANCEL.name().toLowerCase() + "\".";
-	}
+    @Override
+    public String getDescription() {
+        return "String value that specifies the termination mode. The only supported value is: \""
+                + TerminationMode.CANCEL.name().toLowerCase()
+                + "\".";
+    }
 
-	/**
-	 * Termination mode.
-	 */
-	public enum TerminationMode {
-		CANCEL,
+    /** Termination mode. */
+    public enum TerminationMode {
+        CANCEL,
 
-		/**
-		 * @deprecated Please use the "stop" command instead.
-		 */
-		STOP
-	}
+        /** @deprecated Please use the "stop" command instead. */
+        STOP
+    }
 }

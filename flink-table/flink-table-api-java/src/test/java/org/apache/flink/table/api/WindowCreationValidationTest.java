@@ -22,39 +22,36 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-/**
- * Test failures for the creation of window.
- */
+/** Test failures for the creation of window. */
 public class WindowCreationValidationTest {
 
-	@Rule
-	public final ExpectedException exception = ExpectedException.none();
+    @Rule public final ExpectedException exception = ExpectedException.none();
 
-	@Test
-	public void testTumbleOverForString() {
-		exception.expect(TableException.class);
-		exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
-		Tumble.over("4.hours");
-	}
+    @Test
+    public void testTumbleOverForString() {
+        exception.expect(TableException.class);
+        exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
+        Tumble.over("4.hours");
+    }
 
-	@Test
-	public void testSlideOverForString() {
-		exception.expect(TableException.class);
-		exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
-		Slide.over("4.hours");
-	}
+    @Test
+    public void testSlideOverForString() {
+        exception.expect(TableException.class);
+        exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
+        Slide.over("4.hours");
+    }
 
-	@Test
-	public void testSessionWithGapForString() {
-		exception.expect(TableException.class);
-		exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
-		Session.withGap("4.hours");
-	}
+    @Test
+    public void testSessionWithGapForString() {
+        exception.expect(TableException.class);
+        exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
+        Session.withGap("4.hours");
+    }
 
-	@Test
-	public void testOverWithPartitionByForString() {
-		exception.expect(TableException.class);
-		exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
-		Over.partitionBy("a");
-	}
+    @Test
+    public void testOverWithPartitionByForString() {
+        exception.expect(TableException.class);
+        exception.expectMessage("Construction of PlannerExpressionParserImpl class failed.");
+        Over.partitionBy("a");
+    }
 }

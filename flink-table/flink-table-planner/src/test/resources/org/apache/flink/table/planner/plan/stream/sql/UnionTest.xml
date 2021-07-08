@@ -1,0 +1,122 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testUnionAll">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, c FROM (
+ SELECT a, c FROM MyTable1
+ UNION ALL
+ SELECT a, c FROM MyTable2
+ UNION ALL
+ SELECT a, c FROM MyTable3
+) WHERE a > 2
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1])
++- LogicalFilter(condition=[>($0, 2)])
+   +- LogicalUnion(all=[true])
+      :- LogicalUnion(all=[true])
+      :  :- LogicalProject(a=[$0], c=[$2])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
+      :  +- LogicalProject(a=[$0], c=[$2])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(a=[$0], c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a, c])
+:- Union(all=[true], union=[a, c])
+:  :- Calc(select=[a, c], where=[(a > 2)])
+:  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- Calc(select=[a, c], where=[(a > 2)])
+:     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[a, c], where=[(a > 2)])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionAllDiffType">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b FROM MyTable1
+ UNION ALL
+ SELECT a, CAST(0 aS DECIMAL(2, 1)) FROM MyTable2)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
++- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
+   :- LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, BIGINT b)]
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+   +- LogicalProject(a=[$0], EXPR$1=[0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER a, DECIMAL(2, 1) EXPR$1)]
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[a, b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
+:- Calc(select=[a, CAST(b) AS b]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
++- Calc(select=[a, CAST(0.0:DECIMAL(20, 1)) AS EXPR$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) EXPR$1)]
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionSameRowTime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT id, ts, name, timestamp_col, timestamp_ltz_col FROM t2
+ UNION ALL
+ SELECT  id, ts, name, timestamp_col, timestamp_ltz_col FROM t3)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
++- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :  +- LogicalWatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   :     +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[TO_TIMESTAMP_LTZ($1, 3)]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+   :        +- LogicalTableScan(table=[[default_catalog, default_database, t2]]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+   +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+      +- LogicalWatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[$4]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+         +- LogicalProject(id=[$0], ts=[$1], name=[$2], timestamp_col=[$3], timestamp_ltz_col=[TO_TIMESTAMP_LTZ($1, 3)]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+            +- LogicalTableScan(table=[[default_catalog, default_database, t3]]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[id, ts, name, timestamp_col, timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+:- WatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+:  +- Calc(select=[id, ts, name, timestamp_col, TO_TIMESTAMP_LTZ(ts, 3) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+:     +- TableSourceScan(table=[[default_catalog, default_database, t2]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
++- WatermarkAssigner(rowtime=[timestamp_ltz_col], watermark=[timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_LTZ(3) *ROWTIME* timestamp_ltz_col)]
+   +- Calc(select=[id, ts, name, timestamp_col, TO_TIMESTAMP_LTZ(ts, 3) AS timestamp_ltz_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) timestamp_ltz_col)]
+      +- TableSourceScan(table=[[default_catalog, default_database, t3]], fields=[id, ts, name, timestamp_col]), rowType=[RecordType(INTEGER id, BIGINT ts, VARCHAR(2147483647) name, TIMESTAMP(3) timestamp_col)]
+]]>
+    </Resource>
+  </TestCase>
+</Root>

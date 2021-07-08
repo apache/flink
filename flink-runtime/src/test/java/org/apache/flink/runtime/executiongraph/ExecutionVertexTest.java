@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -36,54 +40,60 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests for the {@link ExecutionVertex}.
- */
+/** Tests for the {@link ExecutionVertex}. */
 public class ExecutionVertexTest extends TestLogger {
 
-	@Test
-	public void testResetForNewExecutionReleasesPartitions() throws Exception {
-		final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
-		final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+    @Test
+    public void testResetForNewExecutionReleasesPartitions() throws Exception {
+        final JobVertex producerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
+        final JobVertex consumerJobVertex = ExecutionGraphTestUtils.createNoOpVertex(1);
 
-		consumerJobVertex.connectNewDataSetAsInput(producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+        consumerJobVertex.connectNewDataSetAsInput(
+                producerJobVertex, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
 
-		final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
-		final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
-		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(releasePartitionsFuture::complete);
+        final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture =
+                new CompletableFuture<>();
+        final TestingJobMasterPartitionTracker partitionTracker =
+                new TestingJobMasterPartitionTracker();
+        partitionTracker.setStopTrackingAndReleasePartitionsConsumer(
+                releasePartitionsFuture::complete);
 
-		final ExecutionGraph executionGraph = TestingExecutionGraphBuilder
-			.newBuilder()
-			.setJobGraph(new JobGraph(producerJobVertex, consumerJobVertex))
-			.setPartitionTracker(partitionTracker)
-			.build();
+        final JobGraph jobGraph =
+                JobGraphTestUtils.streamingJobGraph(producerJobVertex, consumerJobVertex);
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .setPartitionTracker(partitionTracker)
+                        .build();
 
-		executionGraph.scheduleForExecution();
+        scheduler.startScheduling();
 
-		final ExecutionJobVertex producerExecutionJobVertex = executionGraph.getJobVertex(producerJobVertex.getID());
+        final ExecutionJobVertex producerExecutionJobVertex =
+                scheduler.getExecutionJobVertex(producerJobVertex.getID());
 
-		Execution execution = producerExecutionJobVertex
-			.getTaskVertices()[0]
-			.getCurrentExecutionAttempt();
+        Execution execution =
+                producerExecutionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		assertFalse(releasePartitionsFuture.isDone());
+        assertFalse(releasePartitionsFuture.isDone());
 
-		execution.markFinished();
+        execution.markFinished();
 
-		assertFalse(releasePartitionsFuture.isDone());
+        assertFalse(releasePartitionsFuture.isDone());
 
-		producerExecutionJobVertex.resetForNewExecution(1L, 1L);
+        for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
+            executionVertex.resetForNewExecution();
+        }
 
-		final IntermediateResultPartitionID intermediateResultPartitionID = producerExecutionJobVertex
-			.getProducedDataSets()[0]
-			.getPartitions()[0]
-			.getPartitionId();
-		final ResultPartitionID resultPartitionID = execution
-			.getResultPartitionDeploymentDescriptor(intermediateResultPartitionID)
-			.get()
-			.getShuffleDescriptor()
-			.getResultPartitionID();
+        final IntermediateResultPartitionID intermediateResultPartitionID =
+                producerExecutionJobVertex.getProducedDataSets()[0].getPartitions()[0]
+                        .getPartitionId();
+        final ResultPartitionID resultPartitionID =
+                execution
+                        .getResultPartitionDeploymentDescriptor(intermediateResultPartitionID)
+                        .get()
+                        .getShuffleDescriptor()
+                        .getResultPartitionID();
 
-		assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
-	}
+        assertThat(releasePartitionsFuture.get(), contains(resultPartitionID));
+    }
 }

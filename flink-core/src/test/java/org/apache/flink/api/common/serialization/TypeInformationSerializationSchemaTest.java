@@ -33,89 +33,86 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link TypeInformationSerializationSchema}.
- */
+/** Tests for {@link TypeInformationSerializationSchema}. */
 public class TypeInformationSerializationSchemaTest {
 
-	@Test
-	public void testDeSerialization() {
-		try {
-			TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
+    @Test
+    public void testDeSerialization() {
+        try {
+            TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
 
-			TypeInformationSerializationSchema<MyPOJO> schema =
-					new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
+            TypeInformationSerializationSchema<MyPOJO> schema =
+                    new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
 
-			MyPOJO[] types = {
-					new MyPOJO(72, new Date(763784523L), new Date(88234L)),
-					new MyPOJO(-1, new Date(11111111111111L)),
-					new MyPOJO(42),
-					new MyPOJO(17, new Date(222763784523L))
-			};
+            MyPOJO[] types = {
+                new MyPOJO(72, new Date(763784523L), new Date(88234L)),
+                new MyPOJO(-1, new Date(11111111111111L)),
+                new MyPOJO(42),
+                new MyPOJO(17, new Date(222763784523L))
+            };
 
-			for (MyPOJO val : types) {
-				byte[] serialized = schema.serialize(val);
-				MyPOJO deser = schema.deserialize(serialized);
-				assertEquals(val, deser);
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            for (MyPOJO val : types) {
+                byte[] serialized = schema.serialize(val);
+                MyPOJO deser = schema.deserialize(serialized);
+                assertEquals(val, deser);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void testSerializability() {
-		try {
-			TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
-			TypeInformationSerializationSchema<MyPOJO> schema =
-					new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
+    @Test
+    public void testSerializability() {
+        try {
+            TypeInformation<MyPOJO> info = TypeExtractor.getForClass(MyPOJO.class);
+            TypeInformationSerializationSchema<MyPOJO> schema =
+                    new TypeInformationSerializationSchema<MyPOJO>(info, new ExecutionConfig());
 
-			// this needs to succeed
-			CommonTestUtils.createCopySerializable(schema);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            // this needs to succeed
+            CommonTestUtils.createCopySerializable(schema);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Test data types
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Test data types
+    // ------------------------------------------------------------------------
 
-	private static class MyPOJO {
+    private static class MyPOJO {
 
-		public int aField;
-		public List<Date> aList;
+        public int aField;
+        public List<Date> aList;
 
-		public MyPOJO() {}
+        public MyPOJO() {}
 
-		public MyPOJO(int iVal, Date... dates) {
-			this.aField = iVal;
-			this.aList = new ArrayList<>(Arrays.asList(dates));
-		}
+        public MyPOJO(int iVal, Date... dates) {
+            this.aField = iVal;
+            this.aList = new ArrayList<>(Arrays.asList(dates));
+        }
 
-		@Override
-		public int hashCode() {
-			return aField;
-		}
+        @Override
+        public int hashCode() {
+            return aField;
+        }
 
-		@Override
-		public boolean equals(Object obj) {
-			if (obj instanceof MyPOJO) {
-				MyPOJO that = (MyPOJO) obj;
-				return this.aField == that.aField && (this.aList == null ?
-						that.aList == null :
-						that.aList != null && this.aList.equals(that.aList));
-			}
-			return super.equals(obj);
-		}
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof MyPOJO) {
+                MyPOJO that = (MyPOJO) obj;
+                return this.aField == that.aField
+                        && (this.aList == null
+                                ? that.aList == null
+                                : that.aList != null && this.aList.equals(that.aList));
+            }
+            return super.equals(obj);
+        }
 
-		@Override
-		public String toString() {
-			return "MyPOJO " + aField + " " + aList;
-		}
-	}
+        @Override
+        public String toString() {
+            return "MyPOJO " + aField + " " + aList;
+        }
+    }
 }

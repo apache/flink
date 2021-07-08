@@ -29,38 +29,39 @@ import org.junit.Test;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link KubernetesWorkerResourceSpecFactory}.
- */
+/** Tests for {@link KubernetesWorkerResourceSpecFactory}. */
 public class KubernetesWorkerResourceSpecFactoryTest extends TestLogger {
 
-	@Test
-	public void testGetCpuCoresCommonOption() {
-		final Configuration configuration = new Configuration();
-		configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
-		configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+    @Test
+    public void testGetCpuCoresCommonOption() {
+        final Configuration configuration = new Configuration();
+        configuration.setDouble(TaskManagerOptions.CPU_CORES, 1.0);
+        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
-		assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
-			is(new CPUResource(1.0)));
-	}
+        assertThat(
+                KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
+                is(new CPUResource(1.0)));
+    }
 
-	@Test
-	public void testGetCpuCoresKubernetesOption() {
-		final Configuration configuration = new Configuration();
-		configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+    @Test
+    public void testGetCpuCoresKubernetesOption() {
+        final Configuration configuration = new Configuration();
+        configuration.setDouble(KubernetesConfigOptions.TASK_MANAGER_CPU, 2.0);
+        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
-		assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
-			is(new CPUResource(2.0)));
-	}
+        assertThat(
+                KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
+                is(new CPUResource(2.0)));
+    }
 
-	@Test
-	public void testGetCpuCoresNumSlots() {
-		final Configuration configuration = new Configuration();
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
+    @Test
+    public void testGetCpuCoresNumSlots() {
+        final Configuration configuration = new Configuration();
+        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 3);
 
-		assertThat(KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
-			is(new CPUResource(3.0)));
-	}
+        assertThat(
+                KubernetesWorkerResourceSpecFactory.getDefaultCpus(configuration),
+                is(new CPUResource(3.0)));
+    }
 }

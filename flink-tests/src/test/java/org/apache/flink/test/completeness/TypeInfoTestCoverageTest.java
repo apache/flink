@@ -31,37 +31,44 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.fail;
 
-/**
- * Scans the class path for type information and checks if there is a test for it.
- */
+/** Scans the class path for type information and checks if there is a test for it. */
 public class TypeInfoTestCoverageTest extends TestLogger {
 
-	@Test
-	public void testTypeInfoTestCoverage() {
-		Reflections reflections = new Reflections("org.apache.flink");
+    @Test
+    public void testTypeInfoTestCoverage() {
+        Reflections reflections = new Reflections("org.apache.flink");
 
-		Set<Class<? extends TypeInformation>> typeInfos = reflections.getSubTypesOf(TypeInformation.class);
+        Set<Class<? extends TypeInformation>> typeInfos =
+                reflections.getSubTypesOf(TypeInformation.class);
 
-		Set<String> typeInfoTestNames = reflections.getSubTypesOf(TypeInformationTestBase.class)
-				.stream().map(Class::getName).collect(Collectors.toSet());
+        Set<String> typeInfoTestNames =
+                reflections.getSubTypesOf(TypeInformationTestBase.class).stream()
+                        .map(Class::getName)
+                        .collect(Collectors.toSet());
 
-		// check if a test exists for each type information
-		for (Class<? extends TypeInformation> typeInfo : typeInfos) {
-			// we skip abstract classes and inner classes to skip type information defined in test classes
-			if (Modifier.isAbstract(typeInfo.getModifiers()) ||
-					Modifier.isPrivate(typeInfo.getModifiers()) ||
-					typeInfo.getName().contains("Test$") ||
-					typeInfo.getName().contains("TestBase$") ||
-					typeInfo.getName().contains("ITCase$") ||
-					typeInfo.getName().contains("$$anon") ||
-					typeInfo.getName().contains("queryablestate")) {
-				continue;
-			}
+        // check if a test exists for each type information
+        for (Class<? extends TypeInformation> typeInfo : typeInfos) {
+            // we skip abstract classes and inner classes to skip type information defined in test
+            // classes
+            if (Modifier.isAbstract(typeInfo.getModifiers())
+                    || Modifier.isPrivate(typeInfo.getModifiers())
+                    || typeInfo.getName().contains("Test$")
+                    || typeInfo.getName().contains("TestBase$")
+                    || typeInfo.getName().contains("ITCase$")
+                    || typeInfo.getName().contains("$$anon")
+                    || typeInfo.getName().contains("queryablestate")) {
+                continue;
+            }
 
-			final String testToFind = typeInfo.getName() + "Test";
-			if (!typeInfoTestNames.contains(testToFind)) {
-				fail("Could not find test '" + testToFind + "' that covers '" + typeInfo.getName() + "'.");
-			}
-		}
-	}
+            final String testToFind = typeInfo.getName() + "Test";
+            if (!typeInfoTestNames.contains(testToFind)) {
+                fail(
+                        "Could not find test '"
+                                + testToFind
+                                + "' that covers '"
+                                + typeInfo.getName()
+                                + "'.");
+            }
+        }
+    }
 }

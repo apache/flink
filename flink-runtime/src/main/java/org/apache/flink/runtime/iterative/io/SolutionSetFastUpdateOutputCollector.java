@@ -28,41 +28,43 @@ import java.io.IOException;
  *
  * <p>The records are written to a hash table to allow in-memory point updates.
  *
- * <p>Assumption for fast updates: the build side iterator of the hash table is already positioned for the update. This
- * is for example the case when a solution set update happens directly after a solution set join. If this assumption
- * doesn't hold, use {@link SolutionSetUpdateOutputCollector}, which probes the hash table before updating.
+ * <p>Assumption for fast updates: the build side iterator of the hash table is already positioned
+ * for the update. This is for example the case when a solution set update happens directly after a
+ * solution set join. If this assumption doesn't hold, use {@link SolutionSetUpdateOutputCollector},
+ * which probes the hash table before updating.
  */
 public class SolutionSetFastUpdateOutputCollector<T> implements Collector<T> {
 
-	private final Collector<T> delegate;
+    private final Collector<T> delegate;
 
-	private final CompactingHashTable<T> solutionSet;
+    private final CompactingHashTable<T> solutionSet;
 
-	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
-		this(solutionSet, null);
-	}
+    public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet) {
+        this(solutionSet, null);
+    }
 
-	public SolutionSetFastUpdateOutputCollector(CompactingHashTable<T> solutionSet, Collector<T> delegate) {
-		this.solutionSet = solutionSet;
-		this.delegate = delegate;
-	}
+    public SolutionSetFastUpdateOutputCollector(
+            CompactingHashTable<T> solutionSet, Collector<T> delegate) {
+        this.solutionSet = solutionSet;
+        this.delegate = delegate;
+    }
 
-	@Override
-	public void collect(T record) {
-		try {
-			solutionSet.insertOrReplaceRecord(record);
-			if (delegate != null) {
-				delegate.collect(record);
-			}
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+    @Override
+    public void collect(T record) {
+        try {
+            solutionSet.insertOrReplaceRecord(record);
+            if (delegate != null) {
+                delegate.collect(record);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
-	@Override
-	public void close() {
-		if (delegate != null) {
-			delegate.close();
-		}
-	}
+    @Override
+    public void close() {
+        if (delegate != null) {
+            delegate.close();
+        }
+    }
 }

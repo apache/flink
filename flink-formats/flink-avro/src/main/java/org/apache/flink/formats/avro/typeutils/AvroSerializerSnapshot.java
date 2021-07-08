@@ -40,6 +40,8 @@ import java.util.Objects;
 
 import static org.apache.flink.formats.avro.typeutils.AvroSerializer.isGenericRecord;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.readString;
+import static org.apache.flink.util.StringUtils.writeString;
 
 /**
  * An {@code Avro} specific implementation of a {@link TypeSerializerSnapshot}.
@@ -47,179 +49,212 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The data type that the originating serializer of this configuration serializes.
  */
 public class AvroSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
-	private Class<T> runtimeType;
-	private Schema schema;
-	private Schema runtimeSchema;
+    private Class<T> runtimeType;
+    private Schema schema;
+    private Schema runtimeSchema;
 
-	@SuppressWarnings("WeakerAccess")
-	public AvroSerializerSnapshot() {
-		// this constructor is used when restoring from a checkpoint.
-	}
+    @SuppressWarnings("WeakerAccess")
+    public AvroSerializerSnapshot() {
+        // this constructor is used when restoring from a checkpoint.
+    }
 
-	AvroSerializerSnapshot(Schema schema, Class<T> runtimeType) {
-		this.schema = schema;
-		this.runtimeType = runtimeType;
-	}
+    AvroSerializerSnapshot(Schema schema, Class<T> runtimeType) {
+        this.schema = schema;
+        this.runtimeType = runtimeType;
+    }
 
-	@Override
-	public int getCurrentVersion() {
-		return 2;
-	}
+    @Override
+    public int getCurrentVersion() {
+        return 3;
+    }
 
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		checkNotNull(runtimeType);
-		checkNotNull(schema);
+    @Override
+    public void writeSnapshot(DataOutputView out) throws IOException {
+        checkNotNull(runtimeType);
+        checkNotNull(schema);
 
-		out.writeUTF(runtimeType.getName());
-		out.writeUTF(schema.toString(false));
-	}
+        writeString(runtimeType.getName(), out);
+        writeString(schema.toString(false), out);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		switch (readVersion) {
-			case 1: {
-				readV1(in, userCodeClassLoader);
-				return;
-			}
-			case 2: {
-				readV2(in, userCodeClassLoader);
-				return;
-			}
-			default:
-				throw new IllegalArgumentException("unknown snapshot version for AvroSerializerSnapshot " + readVersion);
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        switch (readVersion) {
+            case 1:
+                {
+                    readV1(in, userCodeClassLoader);
+                    return;
+                }
+            case 2:
+                {
+                    readV2(in, userCodeClassLoader);
+                    return;
+                }
+            case 3:
+                {
+                    readV3(in, userCodeClassLoader);
+                    return;
+                }
+            default:
+                throw new IllegalArgumentException(
+                        "unknown snapshot version for AvroSerializerSnapshot " + readVersion);
+        }
+    }
 
-	private void readV1(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String previousSchemaDefinition = in.readUTF();
-		this.schema = parseAvroSchema(previousSchemaDefinition);
-		this.runtimeType = findClassOrFallbackToGeneric(userCodeClassLoader, schema.getFullName());
-		this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
-	}
+    private void readV1(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        final String previousSchemaDefinition = in.readUTF();
+        this.schema = parseAvroSchema(previousSchemaDefinition);
+        this.runtimeType = findClassOrFallbackToGeneric(userCodeClassLoader, schema.getFullName());
+        this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+    }
 
-	private void readV2(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		final String previousRuntimeTypeName = in.readUTF();
-		final String previousSchemaDefinition = in.readUTF();
+    private void readV2(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        final String previousRuntimeTypeName = in.readUTF();
+        final String previousSchemaDefinition = in.readUTF();
 
-		this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
-		this.schema = parseAvroSchema(previousSchemaDefinition);
-		this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
-	}
+        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.schema = parseAvroSchema(previousSchemaDefinition);
+        this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+    }
 
-	@Override
-	public TypeSerializerSchemaCompatibility<T>
-	resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-		if (!(newSerializer instanceof AvroSerializer)) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-		AvroSerializer<?> newAvroSerializer = (AvroSerializer<?>) newSerializer;
-		return resolveSchemaCompatibility(schema, newAvroSerializer.getAvroSchema());
-	}
+    private void readV3(DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+        final String previousRuntimeTypeName = readString(in);
+        final String previousSchemaDefinition = readString(in);
 
-	@Override
-	public TypeSerializer<T> restoreSerializer() {
-		checkNotNull(runtimeType);
-		checkNotNull(schema);
+        this.runtimeType = findClassOrThrow(userCodeClassLoader, previousRuntimeTypeName);
+        this.schema = parseAvroSchema(previousSchemaDefinition);
+        this.runtimeSchema = tryExtractAvroSchema(userCodeClassLoader, runtimeType);
+    }
 
-		if (runtimeSchema != null) {
-			return new AvroSerializer<>(runtimeType, new SerializableAvroSchema(runtimeSchema), new SerializableAvroSchema(schema));
-		}
-		else {
-			return new AvroSerializer<>(runtimeType, new SerializableAvroSchema(schema), new SerializableAvroSchema(schema));
-		}
-	}
+    @Override
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        if (!(newSerializer instanceof AvroSerializer)) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+        AvroSerializer<?> newAvroSerializer = (AvroSerializer<?>) newSerializer;
+        return resolveSchemaCompatibility(schema, newAvroSerializer.getAvroSchema());
+    }
 
-	// ------------------------------------------------------------------------------------------------------------
-	// Helpers
-	// ------------------------------------------------------------------------------------------------------------
+    @Override
+    public TypeSerializer<T> restoreSerializer() {
+        checkNotNull(runtimeType);
+        checkNotNull(schema);
 
-	/**
-	 * Resolves writer/reader schema compatibly.
-	 *
-	 * <p>Checks whenever a new version of a schema (reader) can read values serialized with the old schema (writer).
-	 * If the schemas are compatible according to {@code Avro} schema resolution rules
-	 * (@see <a href="https://avro.apache.org/docs/current/spec.html#Schema+Resolution">Schema Resolution</a>).
-	 */
-	@VisibleForTesting
-	static <T> TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-		Schema writerSchema,
-		Schema readerSchema) {
+        if (runtimeSchema != null) {
+            return new AvroSerializer<>(
+                    runtimeType,
+                    new SerializableAvroSchema(runtimeSchema),
+                    new SerializableAvroSchema(schema));
+        } else {
+            return new AvroSerializer<>(
+                    runtimeType,
+                    new SerializableAvroSchema(schema),
+                    new SerializableAvroSchema(schema));
+        }
+    }
 
-		if (Objects.equals(writerSchema, readerSchema)) {
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		}
+    // ------------------------------------------------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------------------------------------------------
 
-		final SchemaPairCompatibility compatibility =
-			SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema);
+    /**
+     * Resolves writer/reader schema compatibly.
+     *
+     * <p>Checks whenever a new version of a schema (reader) can read values serialized with the old
+     * schema (writer). If the schemas are compatible according to {@code Avro} schema resolution
+     * rules (@see <a href="https://avro.apache.org/docs/current/spec.html#Schema+Resolution">Schema
+     * Resolution</a>).
+     */
+    @VisibleForTesting
+    static <T> TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            Schema writerSchema, Schema readerSchema) {
 
-		return avroCompatibilityToFlinkCompatibility(compatibility);
-	}
+        if (Objects.equals(writerSchema, readerSchema)) {
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        }
 
-	private static <T> TypeSerializerSchemaCompatibility<T>
-	avroCompatibilityToFlinkCompatibility(SchemaPairCompatibility compatibility) {
+        final SchemaPairCompatibility compatibility =
+                SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema);
 
-		switch (compatibility.getType()) {
-			case COMPATIBLE: {
-				// The new serializer would be able to read data persisted with *this* serializer, therefore no migration
-				// is required.
-				return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-			}
-			case INCOMPATIBLE: {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
-			case RECURSION_IN_PROGRESS:
-			default:
-				return TypeSerializerSchemaCompatibility.incompatible();
-		}
-	}
+        return avroCompatibilityToFlinkCompatibility(compatibility);
+    }
 
-	private static Schema parseAvroSchema(String previousSchemaDefinition) {
-		Schema.Parser parser = new Schema.Parser();
-		return parser.parse(previousSchemaDefinition);
-	}
+    private static <T> TypeSerializerSchemaCompatibility<T> avroCompatibilityToFlinkCompatibility(
+            SchemaPairCompatibility compatibility) {
 
-	private static Schema tryExtractAvroSchema(ClassLoader cl, Class<?> runtimeType) {
-		if (isGenericRecord(runtimeType)) {
-			return null;
-		}
-		if (isSpecificRecord(runtimeType)) {
-			SpecificData d = new SpecificData(cl);
-			return AvroFactory.extractAvroSpecificSchema(runtimeType, d);
-		}
-		ReflectData d = new ReflectData(cl);
-		return d.getSchema(runtimeType);
-	}
+        switch (compatibility.getType()) {
+            case COMPATIBLE:
+                {
+                    // The new serializer would be able to read data persisted with *this*
+                    // serializer, therefore no migration
+                    // is required.
+                    return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+                }
+            case INCOMPATIBLE:
+                {
+                    return TypeSerializerSchemaCompatibility.incompatible();
+                }
+            case RECURSION_IN_PROGRESS:
+            default:
+                return TypeSerializerSchemaCompatibility.incompatible();
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	@Nonnull
-	private static <T> Class<T> findClassOrThrow(ClassLoader userCodeClassLoader, String className) {
-		try {
-			Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-			return (Class<T>) runtimeTarget;
-		}
-		catch (ClassNotFoundException e) {
-			throw new IllegalStateException(""
-				+ "Unable to find the class '" + className + "' which is used to deserialize "
-				+ "the elements of this serializer. "
-				+ "Were the class was moved or renamed?", e);
-		}
-	}
+    private static Schema parseAvroSchema(String previousSchemaDefinition) {
+        Schema.Parser parser = new Schema.Parser();
+        return parser.parse(previousSchemaDefinition);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Nonnull
-	private static <T> Class<T> findClassOrFallbackToGeneric(ClassLoader userCodeClassLoader, String className) {
-		try {
-			Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
-			return (Class<T>) runtimeTarget;
-		}
-		catch (ClassNotFoundException e) {
-			return (Class<T>) GenericRecord.class;
-		}
-	}
+    private static Schema tryExtractAvroSchema(ClassLoader cl, Class<?> runtimeType) {
+        if (isGenericRecord(runtimeType)) {
+            return null;
+        }
+        if (isSpecificRecord(runtimeType)) {
+            @SuppressWarnings("unchecked")
+            SpecificData d =
+                    AvroFactory.getSpecificDataForClass(
+                            (Class<? extends SpecificData>) runtimeType, cl);
+            return AvroFactory.extractAvroSpecificSchema(runtimeType, d);
+        }
+        ReflectData d = new ReflectData(cl);
+        return d.getSchema(runtimeType);
+    }
 
-	private static boolean isSpecificRecord(Class<?> runtimeType) {
-		return SpecificRecord.class.isAssignableFrom(runtimeType);
-	}
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    private static <T> Class<T> findClassOrThrow(
+            ClassLoader userCodeClassLoader, String className) {
+        try {
+            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
+            return (Class<T>) runtimeTarget;
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException(
+                    ""
+                            + "Unable to find the class '"
+                            + className
+                            + "' which is used to deserialize "
+                            + "the elements of this serializer. "
+                            + "Were the class was moved or renamed?",
+                    e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    private static <T> Class<T> findClassOrFallbackToGeneric(
+            ClassLoader userCodeClassLoader, String className) {
+        try {
+            Class<?> runtimeTarget = Class.forName(className, false, userCodeClassLoader);
+            return (Class<T>) runtimeTarget;
+        } catch (ClassNotFoundException e) {
+            return (Class<T>) GenericRecord.class;
+        }
+    }
+
+    private static boolean isSpecificRecord(Class<?> runtimeType) {
+        return SpecificRecord.class.isAssignableFrom(runtimeType);
+    }
 }

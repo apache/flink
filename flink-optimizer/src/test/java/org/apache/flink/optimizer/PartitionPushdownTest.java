@@ -18,8 +18,6 @@
 
 package org.apache.flink.optimizer;
 
-import static org.junit.Assert.*;
-
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.api.java.DataSet;
@@ -29,78 +27,86 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SingleInputPlanNode;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.optimizer.util.CompilerTestBase;
+import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 @SuppressWarnings("serial")
 public class PartitionPushdownTest extends CompilerTestBase {
 
-	@Test
-	public void testPartitioningNotPushedDown() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
-			
-			input
-				.groupBy(0, 1).sum(2)
-				.groupBy(0).sum(1)
-				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			
-			SingleInputPlanNode agg2Reducer = (SingleInputPlanNode) sink.getInput().getSource();
-			SingleInputPlanNode agg2Combiner = (SingleInputPlanNode) agg2Reducer.getInput().getSource();
-			SingleInputPlanNode agg1Reducer = (SingleInputPlanNode) agg2Combiner.getInput().getSource();
-			
-			assertEquals(ShipStrategyType.PARTITION_HASH, agg2Reducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(0), agg2Reducer.getInput().getShipStrategyKeys());
-			
-			assertEquals(ShipStrategyType.FORWARD, agg2Combiner.getInput().getShipStrategy());
-			
-			assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(0, 1), agg1Reducer.getInput().getShipStrategyKeys());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testPartitioningReused() {
-		try {
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			
-			@SuppressWarnings("unchecked")
-			DataSet<Tuple3<Long, Long, Long>> input = env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
-			
-			input
-				.groupBy(0).sum(1)
-				.groupBy(0, 1).sum(2)
-				.output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
-			
-			Plan p = env.createProgramPlan();
-			OptimizedPlan op = compileNoStats(p);
-			
-			SinkPlanNode sink = op.getDataSinks().iterator().next();
-			
-			SingleInputPlanNode agg2Reducer = (SingleInputPlanNode) sink.getInput().getSource();
-			SingleInputPlanNode agg1Reducer = (SingleInputPlanNode) agg2Reducer.getInput().getSource();
-			
-			assertEquals(ShipStrategyType.FORWARD, agg2Reducer.getInput().getShipStrategy());
-			
-			assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
-			assertEquals(new FieldList(0), agg1Reducer.getInput().getShipStrategyKeys());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+    @Test
+    public void testPartitioningNotPushedDown() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple3<Long, Long, Long>> input =
+                    env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+
+            input.groupBy(0, 1)
+                    .sum(2)
+                    .groupBy(0)
+                    .sum(1)
+                    .output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            SinkPlanNode sink = op.getDataSinks().iterator().next();
+
+            SingleInputPlanNode agg2Reducer = (SingleInputPlanNode) sink.getInput().getSource();
+            SingleInputPlanNode agg2Combiner =
+                    (SingleInputPlanNode) agg2Reducer.getInput().getSource();
+            SingleInputPlanNode agg1Reducer =
+                    (SingleInputPlanNode) agg2Combiner.getInput().getSource();
+
+            assertEquals(ShipStrategyType.PARTITION_HASH, agg2Reducer.getInput().getShipStrategy());
+            assertEquals(new FieldList(0), agg2Reducer.getInput().getShipStrategyKeys());
+
+            assertEquals(ShipStrategyType.FORWARD, agg2Combiner.getInput().getShipStrategy());
+
+            assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
+            assertEquals(new FieldList(0, 1), agg1Reducer.getInput().getShipStrategyKeys());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testPartitioningReused() {
+        try {
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+
+            @SuppressWarnings("unchecked")
+            DataSet<Tuple3<Long, Long, Long>> input =
+                    env.fromElements(new Tuple3<Long, Long, Long>(0L, 0L, 0L));
+
+            input.groupBy(0)
+                    .sum(1)
+                    .groupBy(0, 1)
+                    .sum(2)
+                    .output(new DiscardingOutputFormat<Tuple3<Long, Long, Long>>());
+
+            Plan p = env.createProgramPlan();
+            OptimizedPlan op = compileNoStats(p);
+
+            SinkPlanNode sink = op.getDataSinks().iterator().next();
+
+            SingleInputPlanNode agg2Reducer = (SingleInputPlanNode) sink.getInput().getSource();
+            SingleInputPlanNode agg1Reducer =
+                    (SingleInputPlanNode) agg2Reducer.getInput().getSource();
+
+            assertEquals(ShipStrategyType.FORWARD, agg2Reducer.getInput().getShipStrategy());
+
+            assertEquals(ShipStrategyType.PARTITION_HASH, agg1Reducer.getInput().getShipStrategy());
+            assertEquals(new FieldList(0), agg1Reducer.getInput().getShipStrategyKeys());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

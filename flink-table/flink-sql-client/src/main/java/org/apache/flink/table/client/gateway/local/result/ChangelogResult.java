@@ -18,21 +18,14 @@
 
 package org.apache.flink.table.client.gateway.local.result;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
 
 import java.util.List;
 
-/**
- * A result that is represented as a changelog consisting of insert and delete records.
- *
- * @param <C> cluster id to which this result belongs to
- */
-public interface ChangelogResult<C> extends DynamicResult<C> {
+/** A result that is represented as a changelog consisting of insert and delete records. */
+public interface ChangelogResult extends DynamicResult {
 
-	/**
-	 * Retrieves the available result records.
-	 */
-	TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges();
+    /** Retrieves the available result records. */
+    TypedResult<List<Row>> retrieveChanges();
 }

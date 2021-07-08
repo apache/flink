@@ -37,121 +37,116 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Builder for {@link TaskDeploymentDescriptor}.
- */
+/** Builder for {@link TaskDeploymentDescriptor}. */
 public class TaskDeploymentDescriptorBuilder {
-	private JobID jobId;
-	private MaybeOffloaded<JobInformation> serializedJobInformation;
-	private MaybeOffloaded<TaskInformation> serializedTaskInformation;
-	private ExecutionAttemptID executionId;
-	private AllocationID allocationId;
-	private int subtaskIndex;
-	private int attemptNumber;
-	private List<ResultPartitionDeploymentDescriptor> producedPartitions;
-	private List<InputGateDeploymentDescriptor> inputGates;
-	private int targetSlotNumber;
+    private JobID jobId;
+    private MaybeOffloaded<JobInformation> serializedJobInformation;
+    private MaybeOffloaded<TaskInformation> serializedTaskInformation;
+    private ExecutionAttemptID executionId;
+    private AllocationID allocationId;
+    private int subtaskIndex;
+    private int attemptNumber;
+    private List<ResultPartitionDeploymentDescriptor> producedPartitions;
+    private List<InputGateDeploymentDescriptor> inputGates;
 
-	@Nullable
-	private JobManagerTaskRestore taskRestore;
+    @Nullable private JobManagerTaskRestore taskRestore;
 
-	private TaskDeploymentDescriptorBuilder(JobID jobId, String invokableClassName) throws IOException {
-		TaskInformation taskInformation = new TaskInformation(
-			new JobVertexID(),
-			"test task",
-			1,
-			1,
-			invokableClassName,
-			new Configuration());
+    private TaskDeploymentDescriptorBuilder(JobID jobId, String invokableClassName)
+            throws IOException {
+        TaskInformation taskInformation =
+                new TaskInformation(
+                        new JobVertexID(),
+                        "test task",
+                        1,
+                        1,
+                        invokableClassName,
+                        new Configuration());
 
-		this.jobId = jobId;
-		this.serializedJobInformation =
-			new NonOffloaded<>(new SerializedValue<>(new DummyJobInformation(jobId, "DummyJob")));
-		this.serializedTaskInformation = new NonOffloaded<>(new SerializedValue<>(taskInformation));
-		this.executionId = new ExecutionAttemptID();
-		this.allocationId = new AllocationID();
-		this.subtaskIndex = 0;
-		this.attemptNumber = 0;
-		this.producedPartitions = Collections.emptyList();
-		this.inputGates = Collections.emptyList();
-		this.targetSlotNumber = 0;
-		this.taskRestore = null;
-	}
+        this.jobId = jobId;
+        this.serializedJobInformation =
+                new NonOffloaded<>(
+                        new SerializedValue<>(new DummyJobInformation(jobId, "DummyJob")));
+        this.serializedTaskInformation = new NonOffloaded<>(new SerializedValue<>(taskInformation));
+        this.executionId = new ExecutionAttemptID();
+        this.allocationId = new AllocationID();
+        this.subtaskIndex = 0;
+        this.attemptNumber = 0;
+        this.producedPartitions = Collections.emptyList();
+        this.inputGates = Collections.emptyList();
+        this.taskRestore = null;
+    }
 
-	public TaskDeploymentDescriptorBuilder setSerializedJobInformation(
-			MaybeOffloaded<JobInformation> serializedJobInformation) {
-		this.serializedJobInformation = serializedJobInformation;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setSerializedJobInformation(
+            MaybeOffloaded<JobInformation> serializedJobInformation) {
+        this.serializedJobInformation = serializedJobInformation;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setSerializedTaskInformation(
-			MaybeOffloaded<TaskInformation> serializedTaskInformation) {
-		this.serializedTaskInformation = serializedTaskInformation;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setSerializedTaskInformation(
+            MaybeOffloaded<TaskInformation> serializedTaskInformation) {
+        this.serializedTaskInformation = serializedTaskInformation;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setJobId(JobID jobId) {
-		this.jobId = jobId;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setJobId(JobID jobId) {
+        this.jobId = jobId;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setExecutionId(ExecutionAttemptID executionId) {
-		this.executionId = executionId;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setExecutionId(ExecutionAttemptID executionId) {
+        this.executionId = executionId;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setAllocationId(AllocationID allocationId) {
-		this.allocationId = allocationId;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setAllocationId(AllocationID allocationId) {
+        this.allocationId = allocationId;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setSubtaskIndex(int subtaskIndex) {
-		this.subtaskIndex = subtaskIndex;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setSubtaskIndex(int subtaskIndex) {
+        this.subtaskIndex = subtaskIndex;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setAttemptNumber(int attemptNumber) {
-		this.attemptNumber = attemptNumber;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setAttemptNumber(int attemptNumber) {
+        this.attemptNumber = attemptNumber;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setProducedPartitions(
-			List<ResultPartitionDeploymentDescriptor> producedPartitions) {
-		this.producedPartitions = producedPartitions;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setProducedPartitions(
+            List<ResultPartitionDeploymentDescriptor> producedPartitions) {
+        this.producedPartitions = producedPartitions;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setInputGates(List<InputGateDeploymentDescriptor> inputGates) {
-		this.inputGates = inputGates;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setInputGates(
+            List<InputGateDeploymentDescriptor> inputGates) {
+        this.inputGates = inputGates;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setTargetSlotNumber(int targetSlotNumber) {
-		this.targetSlotNumber = targetSlotNumber;
-		return this;
-	}
+    public TaskDeploymentDescriptorBuilder setTaskRestore(
+            @Nullable JobManagerTaskRestore taskRestore) {
+        this.taskRestore = taskRestore;
+        return this;
+    }
 
-	public TaskDeploymentDescriptorBuilder setTaskRestore(@Nullable JobManagerTaskRestore taskRestore) {
-		this.taskRestore = taskRestore;
-		return this;
-	}
+    public TaskDeploymentDescriptor build() {
+        return new TaskDeploymentDescriptor(
+                jobId,
+                serializedJobInformation,
+                serializedTaskInformation,
+                executionId,
+                allocationId,
+                subtaskIndex,
+                attemptNumber,
+                taskRestore,
+                producedPartitions,
+                inputGates);
+    }
 
-	public TaskDeploymentDescriptor build() {
-		return new TaskDeploymentDescriptor(
-			jobId,
-			serializedJobInformation,
-			serializedTaskInformation,
-			executionId,
-			allocationId,
-			subtaskIndex,
-			attemptNumber,
-			targetSlotNumber,
-			taskRestore,
-			producedPartitions,
-			inputGates);
-	}
-
-	public static TaskDeploymentDescriptorBuilder newBuilder(JobID jobId, Class<?> invokableClass) throws IOException {
-		return new TaskDeploymentDescriptorBuilder(jobId, invokableClass.getName());
-	}
+    public static TaskDeploymentDescriptorBuilder newBuilder(JobID jobId, Class<?> invokableClass)
+            throws IOException {
+        return new TaskDeploymentDescriptorBuilder(jobId, invokableClass.getName());
+    }
 }

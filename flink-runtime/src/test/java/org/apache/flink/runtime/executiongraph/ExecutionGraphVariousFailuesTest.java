@@ -20,104 +20,57 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.runtime.scheduler.SchedulerBase;
+import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-
 
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
-	/**
-	 * Test that failing in state restarting will retrigger the restarting logic. This means that
-	 * it only goes into the state FAILED after the restart strategy says the job is no longer
-	 * restartable.
-	 */
-	@Test
-	public void testFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(2));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
+    /**
+     * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
+     * id, will not fail the execution graph.
+     */
+    @Test
+    public void testFailingNotifyPartitionDataAvailable() throws Exception {
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                JobGraphTestUtils.emptyJobGraph(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .build();
+        scheduler.startScheduling();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		eg.failGlobal(new Exception("Test 1"));
-		assertEquals(JobStatus.FAILING, eg.getState());
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		// we should restart since we have two restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        IntermediateResultPartitionID intermediateResultPartitionId =
+                new IntermediateResultPartitionID();
+        ExecutionAttemptID producerId = new ExecutionAttemptID();
+        ResultPartitionID resultPartitionId =
+                new ResultPartitionID(intermediateResultPartitionId, producerId);
 
-		eg.failGlobal(new Exception("Test 2"));
+        // The execution attempt id does not exist and thus the notifyPartitionDataAvailable call
+        // should fail
 
-		// we should restart since we have one restart attempts left
-		assertEquals(JobStatus.RESTARTING, eg.getState());
+        try {
+            scheduler.notifyPartitionDataAvailable(resultPartitionId);
+            fail("Error expected.");
+        } catch (IllegalStateException e) {
+            // we've expected this exception to occur
+            assertThat(e.getMessage(), containsString("Cannot find execution for execution Id"));
+        }
 
-		eg.failGlobal(new Exception("Test 3"));
-
-		// after depleting all our restart attempts we should go into Failed
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
-
-	/**
-	 * Tests that a {@link SuppressRestartsException} in state RESTARTING stops the restarting
-	 * immediately and sets the execution graph's state to FAILED.
-	 */
-	@Test
-	public void testSuppressRestartFailureWhileRestarting() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
-
-		eg.failGlobal(new Exception("test"));
-		assertEquals(JobStatus.FAILING, eg.getState());
-
-		ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-		assertEquals(JobStatus.RESTARTING, eg.getState());
-
-		// suppress a possible restart
-		eg.failGlobal(new SuppressRestartsException(new Exception("Test")));
-
-		assertEquals(JobStatus.FAILED, eg.getState());
-	}
-
-	/**
-	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
-	 * id, will not fail the execution graph.
-	 */
-	@Test
-	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.scheduleForExecution();
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
-
-		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
-		ExecutionAttemptID producerId = new ExecutionAttemptID();
-		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
-
-		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
-		// should fail
-
-		try {
-			eg.scheduleOrUpdateConsumers(resultPartitionId);
-			fail("Expected ExecutionGraphException.");
-		} catch (ExecutionGraphException e) {
-			// we've expected this exception to occur
-		}
-
-		assertEquals(JobStatus.RUNNING, eg.getState());
-	}
+        assertEquals(JobStatus.RUNNING, eg.getState());
+    }
 }

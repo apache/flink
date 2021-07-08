@@ -20,28 +20,26 @@ package org.apache.flink.docs.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
 
-/**
- * Simple descriptor for the location of a class containing {@link ConfigOption ConfigOptions}.
- */
+/** Simple descriptor for the location of a class containing {@link ConfigOption ConfigOptions}. */
 class OptionsClassLocation {
-	private final String module;
-	private final String pckg;
+    private final String module;
+    private final String pckg;
 
-	OptionsClassLocation(String module, String pckg) {
-		this.module = module;
-		this.pckg = pckg;
-	}
+    OptionsClassLocation(String module, String pckg) {
+        this.module = module;
+        this.pckg = pckg;
+    }
 
-	public String getModule() {
-		return module;
-	}
+    public String getModule() {
+        return module;
+    }
 
-	public String getPackage() {
-		return pckg;
-	}
+    public String getPackage() {
+        return pckg;
+    }
 
-	@Override
-	public String toString() {
-		return module + "#" + pckg;
-	}
+    @Override
+    public String toString() {
+        return module + "#" + pckg;
+    }
 }

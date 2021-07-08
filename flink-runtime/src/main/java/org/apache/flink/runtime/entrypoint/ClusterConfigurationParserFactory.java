@@ -31,30 +31,32 @@ import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.CONF
 import static org.apache.flink.runtime.entrypoint.parser.CommandLineOptions.DYNAMIC_PROPERTY_OPTION;
 
 /**
- * Parser factory which generates a {@link ClusterConfiguration} from the given
- * list of command line arguments.
+ * Parser factory which generates a {@link ClusterConfiguration} from the given list of command line
+ * arguments.
  */
-public class ClusterConfigurationParserFactory implements ParserResultFactory<ClusterConfiguration> {
+public class ClusterConfigurationParserFactory
+        implements ParserResultFactory<ClusterConfiguration> {
 
-	public static Options options() {
-		final Options options = new Options();
-		options.addOption(CONFIG_DIR_OPTION);
-		options.addOption(DYNAMIC_PROPERTY_OPTION);
+    public static Options options() {
+        final Options options = new Options();
+        options.addOption(CONFIG_DIR_OPTION);
+        options.addOption(DYNAMIC_PROPERTY_OPTION);
 
-		return options;
-	}
+        return options;
+    }
 
-	@Override
-	public Options getOptions() {
-		return options();
-	}
+    @Override
+    public Options getOptions() {
+        return options();
+    }
 
-	@Override
-	public ClusterConfiguration createResult(@Nonnull CommandLine commandLine) {
-		final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
+    @Override
+    public ClusterConfiguration createResult(@Nonnull CommandLine commandLine) {
+        final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
 
-		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
+        final Properties dynamicProperties =
+                commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 
-		return new ClusterConfiguration(configDir, dynamicProperties, commandLine.getArgs());
-	}
+        return new ClusterConfiguration(configDir, dynamicProperties, commandLine.getArgs());
+    }
 }

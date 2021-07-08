@@ -23,42 +23,6 @@ class ShellExampleTests(PyFlinkTestCase):
     If these tests failed, please fix these examples code and copy them to shell.py
     """
 
-    def test_batch_case(self):
-        from pyflink.shell import b_env, bt_env, FileSystem, OldCsv, DataTypes, Schema
-        # example begin
-
-        import tempfile
-        import os
-        import shutil
-        sink_path = tempfile.gettempdir() + '/batch.csv'
-        if os.path.exists(sink_path):
-            if os.path.isfile(sink_path):
-                os.remove(sink_path)
-            else:
-                shutil.rmtree(sink_path)
-        b_env.set_parallelism(1)
-        t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-        bt_env.connect(FileSystem().path(sink_path))\
-            .with_format(OldCsv()
-                         .field_delimiter(',')
-                         .field("a", DataTypes.BIGINT())
-                         .field("b", DataTypes.STRING())
-                         .field("c", DataTypes.STRING()))\
-            .with_schema(Schema()
-                         .field("a", DataTypes.BIGINT())
-                         .field("b", DataTypes.STRING())
-                         .field("c", DataTypes.STRING()))\
-            .create_temporary_table("batch_sink")
-
-        t.select("a + 1, b, c").insert_into("batch_sink")
-
-        bt_env.execute("batch_job")
-
-        # verify code, do not copy these code to shell.py
-        with open(sink_path, 'r') as f:
-            lines = f.read()
-            self.assertEqual(lines, '2,hi,hello\n' + '3,hi,hello\n')
-
     def test_stream_case(self):
         from pyflink.shell import s_env, st_env, FileSystem, OldCsv, DataTypes, Schema
         # example begin
@@ -86,9 +50,7 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("c", DataTypes.STRING()))\
             .create_temporary_table("stream_sink")
 
-        t.select("a + 1, b, c").insert_into("stream_sink")
-
-        st_env.execute("stream_job")
+        t.select("a + 1, b, c").execute_insert("stream_sink").wait()
 
         # verify code, do not copy these code to shell.py
         with open(sink_path, 'r') as f:

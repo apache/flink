@@ -1,0 +1,493 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllEventTimeSessionGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SessionGroupWindow('w, rowtime, 7)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeSlidingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeTumblingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 50, 50)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 50, 50)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeTumblingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 2)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeTumblingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 50)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 50)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDecomposableAggFunctions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3], EXPR$4=[$4], EXPR$5=[$5])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[VAR_POP($3)], EXPR$1=[VAR_SAMP($3)], EXPR$2=[STDDEV_POP($3)], EXPR$3=[STDDEV_SAMP($3)], window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[EXPR$4, EXPR$5])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(($f0 - (($f1 * $f1) / $f2)) / $f2) AS EXPR$0, (($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, EXPR$4, EXPR$5])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[EXPR$4, EXPR$5], select=[SUM($f4) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w) AS EXPR$4, end('w) AS EXPR$5])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[rowtime, a, b, c, (c * c) AS $f4])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSessionGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSessionGroupWindowWithUdAgg">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeSlidingGroupWindowWithUdAgg">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[SlidingGroupWindow('w, rowtime, 8, 10)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEventTimeTumblingGroupWindowWithUdAgg">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3($0, $4)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], rowtime=[$3], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvgWithMerge$89c523cc7d9b293d037af4b0651ea4d3(long, int0) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- Calc(select=[long, int, string, rowtime, CAST(int) AS int0])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSlideWindowStartEnd">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiWindow">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w2, proctime, 20, 10)], properties=[])
+   +- LogicalProject(proctime=[AS($2, _UTF-16LE'proctime')], string=[$0], EXPR$1=[$1])
+      +- LogicalWindowAggregate(group=[{2}], EXPR$1=[COUNT($1)], window=[TumblingGroupWindow('w1, proctime, 50)], properties=[EXPR$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w2, proctime, 20, 10)], select=[COUNT(string) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w1, proctime, 50)], properties=[EXPR$0], select=[string, COUNT(int) AS EXPR$1, proctime('w1) AS EXPR$0])
+      +- Exchange(distribution=[hash[string]])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeSlidingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 50, 50)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, proctime, 50, 50)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeTumblingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 2)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeTumblingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 50)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 50)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSessionWindowStartWithTwoEnd">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(we1=[AS($2, _UTF-16LE'we1')], string=[$0], cnt=[AS($1, _UTF-16LE'cnt')], ws=[AS($3, _UTF-16LE'ws')], we2=[AS($2, _UTF-16LE'we2')])
++- LogicalWindowAggregate(group=[{2}], EXPR$1=[COUNT($1)], window=[SessionGroupWindow('w, rowtime, 3)], properties=[EXPR$0, EXPR$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0 AS we1, string, EXPR$1 AS cnt, EXPR$2 AS ws, EXPR$0 AS we2])
++- GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 3)], properties=[EXPR$0, EXPR$2], select=[string, COUNT(int) AS EXPR$1, end('w) AS EXPR$0, start('w) AS EXPR$2])
+   +- Exchange(distribution=[hash[string]])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSlidingWindowWithUDAF">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$3])
++- LogicalWindowAggregate(group=[{2, 3, 4}], EXPR$0=[org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6($0, $6)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalProject(long=[$0], int=[$1], string=[$2], int2=[$3], int3=[$4], proctime=[$5], int0=[CAST($1):BIGINT])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupWindowAggregate(groupBy=[string, int2, int3], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, int2, int3, org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$de09eb7d8970fd21dea873ed9e3277e6(long, int0) AS EXPR$0])
+   +- Exchange(distribution=[hash[string, int2, int3]])
+      +- Calc(select=[long, int, string, int2, int3, proctime, CAST(int) AS int0])
+         +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, int2, int3, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowStartEnd">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleWindowWithDuplicateAggsAndProps">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], s1=[AS(+($1, 1), _UTF-16LE's1')], s2=[AS(+($1, 3), _UTF-16LE's2')], x=[AS($2, _UTF-16LE'x')], x2=[AS($2, _UTF-16LE'x2')], x3=[AS($3, _UTF-16LE'x3')], EXPR$2=[$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[SUM($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[string, (EXPR$0 + 1) AS s1, (EXPR$0 + 3) AS s2, EXPR$1 AS x, EXPR$1 AS x2, EXPR$2 AS x3, EXPR$2])
++- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, SUM(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
+   +- Exchange(distribution=[hash[string]])
+      +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowAggregateWithDifferentWindows">
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
+:  +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], properties=[])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
++- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
+   +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], properties=[])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[_c0])
+:- Calc(select=[1 AS _c0])
+:  +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+:     +- Exchange(distribution=[single])(reuse_id=[1])
+:        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]], fields=[ts, a, b])
++- Calc(select=[1 AS _c0])
+   +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

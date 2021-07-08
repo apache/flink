@@ -103,7 +103,7 @@ object TopSpeedWindowing {
 
     val topSpeeds = cars
       .assignAscendingTimestamps( _.time )
-      .keyBy("carId")
+      .keyBy(_.carId)
       .window(GlobalWindows.create)
       .evictor(TimeEvictor.of(Time.of(evictionSec * 1000, TimeUnit.MILLISECONDS)))
       .trigger(DeltaTrigger.of(triggerMeters, new DeltaFunction[CarEvent] {

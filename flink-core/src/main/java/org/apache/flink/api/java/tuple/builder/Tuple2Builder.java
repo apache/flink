@@ -38,15 +38,15 @@ import java.util.List;
 @Public
 public class Tuple2Builder<T0, T1> {
 
-	private List<Tuple2<T0, T1>> tuples = new ArrayList<>();
+    private List<Tuple2<T0, T1>> tuples = new ArrayList<>();
 
-	public Tuple2Builder<T0, T1> add(T0 value0, T1 value1){
-		tuples.add(new Tuple2<>(value0, value1));
-		return this;
-	}
+    public Tuple2Builder<T0, T1> add(T0 f0, T1 f1) {
+        tuples.add(new Tuple2<>(f0, f1));
+        return this;
+    }
 
-	@SuppressWarnings("unchecked")
-	public Tuple2<T0, T1>[] build(){
-		return tuples.toArray(new Tuple2[tuples.size()]);
-	}
+    @SuppressWarnings("unchecked")
+    public Tuple2<T0, T1>[] build() {
+        return tuples.toArray(new Tuple2[tuples.size()]);
+    }
 }

@@ -33,82 +33,80 @@ import java.util.List;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link ListCheckpointed}.
- */
+/** Tests for {@link ListCheckpointed}. */
 public class ListCheckpointedTest {
 
-	@Test
-	public void testUDFReturningNull() throws Exception {
-		testUDF(new TestUserFunction(null));
-	}
+    @Test
+    public void testUDFReturningNull() throws Exception {
+        testUDF(new TestUserFunction(null));
+    }
 
-	@Test
-	public void testUDFReturningEmpty() throws Exception {
-		testUDF(new TestUserFunction(Collections.<Integer>emptyList()));
-	}
+    @Test
+    public void testUDFReturningEmpty() throws Exception {
+        testUDF(new TestUserFunction(Collections.<Integer>emptyList()));
+    }
 
-	@Test
-	public void testUDFReturningData() throws Exception {
-		testUDF(new TestUserFunction(Arrays.asList(1, 2, 3)));
-	}
+    @Test
+    public void testUDFReturningData() throws Exception {
+        testUDF(new TestUserFunction(Arrays.asList(1, 2, 3)));
+    }
 
-	private static void testUDF(TestUserFunction userFunction) throws Exception {
-		OperatorSubtaskState snapshot;
-		try (AbstractStreamOperatorTestHarness<Integer> testHarness = createTestHarness(userFunction)) {
-			testHarness.open();
-			snapshot = testHarness.snapshot(0L, 0L);
-			assertFalse(userFunction.isRestored());
-		}
-		try (AbstractStreamOperatorTestHarness<Integer> testHarness = createTestHarness(userFunction)) {
-			testHarness.initializeState(snapshot);
-			testHarness.open();
-			assertTrue(userFunction.isRestored());
-		}
-	}
+    private static void testUDF(TestUserFunction userFunction) throws Exception {
+        OperatorSubtaskState snapshot;
+        try (AbstractStreamOperatorTestHarness<Integer> testHarness =
+                createTestHarness(userFunction)) {
+            testHarness.open();
+            snapshot = testHarness.snapshot(0L, 0L);
+            assertFalse(userFunction.isRestored());
+        }
+        try (AbstractStreamOperatorTestHarness<Integer> testHarness =
+                createTestHarness(userFunction)) {
+            testHarness.initializeState(snapshot);
+            testHarness.open();
+            assertTrue(userFunction.isRestored());
+        }
+    }
 
-	private static AbstractStreamOperatorTestHarness<Integer> createTestHarness(TestUserFunction userFunction) throws Exception {
-		return new AbstractStreamOperatorTestHarness<>(
-			new StreamMap<>(userFunction),
-			1,
-			1,
-			0);
-	}
+    private static AbstractStreamOperatorTestHarness<Integer> createTestHarness(
+            TestUserFunction userFunction) throws Exception {
+        return new AbstractStreamOperatorTestHarness<>(new StreamMap<>(userFunction), 1, 1, 0);
+    }
 
-	private static class TestUserFunction extends RichMapFunction<Integer, Integer> implements ListCheckpointed<Integer> {
+    private static class TestUserFunction extends RichMapFunction<Integer, Integer>
+            implements ListCheckpointed<Integer> {
 
-		private static final long serialVersionUID = -8981369286399531925L;
+        private static final long serialVersionUID = -8981369286399531925L;
 
-		private final List<Integer> expected;
-		private boolean restored;
+        private final List<Integer> expected;
+        private boolean restored;
 
-		public TestUserFunction(List<Integer> expected) {
-			this.expected = expected;
-			this.restored = false;
-		}
+        public TestUserFunction(List<Integer> expected) {
+            this.expected = expected;
+            this.restored = false;
+        }
 
-		@Override
-		public Integer map(Integer value) throws Exception {
-			return value;
-		}
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
 
-		@Override
-		public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-			return expected;
-		}
+        @Override
+        public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
+            return expected;
+        }
 
-		@Override
-		public void restoreState(List<Integer> state) throws Exception {
-			if (null != expected) {
-				Assert.assertEquals(expected, state);
-			} else {
-				assertTrue(state.isEmpty());
-			}
-			restored = true;
-		}
+        @Override
+        public void restoreState(List<Integer> state) throws Exception {
+            if (null != expected) {
+                Assert.assertEquals(expected, state);
+            } else {
+                assertTrue(state.isEmpty());
+            }
+            restored = true;
+        }
 
-		public boolean isRestored() {
-			return restored;
-		}
-	}
+        public boolean isRestored() {
+            return restored;
+        }
+    }
 }

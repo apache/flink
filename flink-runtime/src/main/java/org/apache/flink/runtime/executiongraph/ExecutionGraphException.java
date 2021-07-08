@@ -18,22 +18,20 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-/**
- * Base class for exceptions occurring in the {@link ExecutionGraph}.
- */
+/** Base class for exceptions occurring in the {@link ExecutionGraph}. */
 public class ExecutionGraphException extends Exception {
 
-	private static final long serialVersionUID = -8253451032797220657L;
+    private static final long serialVersionUID = -8253451032797220657L;
 
-	public ExecutionGraphException(String message) {
-		super(message);
-	}
+    public ExecutionGraphException(String message) {
+        super(message);
+    }
 
-	public ExecutionGraphException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public ExecutionGraphException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
-	public ExecutionGraphException(Throwable cause) {
-		super(cause);
-	}
+    public ExecutionGraphException(Throwable cause) {
+        super(cause);
+    }
 }

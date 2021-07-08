@@ -23,29 +23,24 @@ import org.apache.flink.api.common.JobID;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests that the {@link JobConfigInfo} can be marshalled and unmarshalled.
- */
+/** Tests that the {@link JobConfigInfo} can be marshalled and unmarshalled. */
 public class JobConfigInfoTest extends RestResponseMarshallingTestBase<JobConfigInfo> {
 
-	@Override
-	protected Class<JobConfigInfo> getTestResponseClass() {
-		return JobConfigInfo.class;
-	}
+    @Override
+    protected Class<JobConfigInfo> getTestResponseClass() {
+        return JobConfigInfo.class;
+    }
 
-	@Override
-	protected JobConfigInfo getTestResponseInstance() {
-		final Map<String, String> globalJobParameters = new HashMap<>(3);
-		globalJobParameters.put("foo", "bar");
-		globalJobParameters.put("bar", "foo");
-		globalJobParameters.put("hi", "ho");
+    @Override
+    protected JobConfigInfo getTestResponseInstance() {
+        final Map<String, String> globalJobParameters = new HashMap<>(3);
+        globalJobParameters.put("foo", "bar");
+        globalJobParameters.put("bar", "foo");
+        globalJobParameters.put("hi", "ho");
 
-		final JobConfigInfo.ExecutionConfigInfo executionConfigInfo = new JobConfigInfo.ExecutionConfigInfo(
-			"foobar",
-			"always",
-			42,
-			false,
-			globalJobParameters);
-		return new JobConfigInfo(new JobID(), "testJob", executionConfigInfo);
-	}
+        final JobConfigInfo.ExecutionConfigInfo executionConfigInfo =
+                new JobConfigInfo.ExecutionConfigInfo(
+                        "foobar", "always", 42, false, globalJobParameters);
+        return new JobConfigInfo(new JobID(), "testJob", executionConfigInfo);
+    }
 }

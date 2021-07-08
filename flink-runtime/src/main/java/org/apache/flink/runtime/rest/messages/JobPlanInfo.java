@@ -37,132 +37,121 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 import java.util.Objects;
 
-/**
- * Response type of the {@link JobPlanHandler}.
- */
+/** Response type of the {@link JobPlanHandler}. */
 public class JobPlanInfo implements ResponseBody {
 
-	private static final String FIELD_NAME_PLAN = "plan";
+    private static final String FIELD_NAME_PLAN = "plan";
 
-	@JsonProperty(FIELD_NAME_PLAN)
-	private final RawJson jsonPlan;
+    @JsonProperty(FIELD_NAME_PLAN)
+    private final RawJson jsonPlan;
 
-	public JobPlanInfo(String jsonPlan) {
-		this(new RawJson(Preconditions.checkNotNull(jsonPlan)));
-	}
+    public JobPlanInfo(String jsonPlan) {
+        this(new RawJson(Preconditions.checkNotNull(jsonPlan)));
+    }
 
-	@JsonCreator
-	public JobPlanInfo(@JsonProperty(FIELD_NAME_PLAN) RawJson jsonPlan) {
-		this.jsonPlan = jsonPlan;
-	}
+    @JsonCreator
+    public JobPlanInfo(@JsonProperty(FIELD_NAME_PLAN) RawJson jsonPlan) {
+        this.jsonPlan = jsonPlan;
+    }
 
-	@JsonIgnore
-	public String getJsonPlan() {
-		return jsonPlan.json;
-	}
+    @JsonIgnore
+    public String getJsonPlan() {
+        return jsonPlan.json;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		JobPlanInfo that = (JobPlanInfo) o;
-		return Objects.equals(jsonPlan, that.jsonPlan);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        JobPlanInfo that = (JobPlanInfo) o;
+        return Objects.equals(jsonPlan, that.jsonPlan);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(jsonPlan);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(jsonPlan);
+    }
 
-	@Override
-	public String toString() {
-		return "JobPlanInfo{" +
-			"jsonPlan=" + jsonPlan +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "JobPlanInfo{" + "jsonPlan=" + jsonPlan + '}';
+    }
 
-	/**
-	 * Simple wrapper around a raw JSON string.
-	 */
-	@JsonSerialize(using = RawJson.Serializer.class)
-	@JsonDeserialize(using = RawJson.Deserializer.class)
-	public static final class RawJson {
-		private final String json;
+    /** Simple wrapper around a raw JSON string. */
+    @JsonSerialize(using = RawJson.Serializer.class)
+    @JsonDeserialize(using = RawJson.Deserializer.class)
+    public static final class RawJson {
+        private final String json;
 
-		private RawJson(String json) {
-			this.json = json;
-		}
+        private RawJson(String json) {
+            this.json = json;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			RawJson rawJson = (RawJson) o;
-			return Objects.equals(json, rawJson.json);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            RawJson rawJson = (RawJson) o;
+            return Objects.equals(json, rawJson.json);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(json);
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(json);
+        }
 
-		@Override
-		public String toString() {
-			return "RawJson{" +
-				"json='" + json + '\'' +
-				'}';
-		}
+        @Override
+        public String toString() {
+            return "RawJson{" + "json='" + json + '\'' + '}';
+        }
 
-		//---------------------------------------------------------------------------------
-		// Static helper classes
-		//---------------------------------------------------------------------------------
+        // ---------------------------------------------------------------------------------
+        // Static helper classes
+        // ---------------------------------------------------------------------------------
 
-		/**
-		 * Json serializer for the {@link RawJson}.
-		 */
-		public static final class Serializer extends StdSerializer<RawJson> {
+        /** Json serializer for the {@link RawJson}. */
+        public static final class Serializer extends StdSerializer<RawJson> {
 
-			private static final long serialVersionUID = -1551666039618928811L;
+            private static final long serialVersionUID = -1551666039618928811L;
 
-			public Serializer() {
-				super(RawJson.class);
-			}
+            public Serializer() {
+                super(RawJson.class);
+            }
 
-			@Override
-			public void serialize(
-					RawJson jobPlanInfo,
-					JsonGenerator jsonGenerator,
-					SerializerProvider serializerProvider) throws IOException {
-				jsonGenerator.writeRawValue(jobPlanInfo.json);
-			}
-		}
+            @Override
+            public void serialize(
+                    RawJson jobPlanInfo,
+                    JsonGenerator jsonGenerator,
+                    SerializerProvider serializerProvider)
+                    throws IOException {
+                jsonGenerator.writeRawValue(jobPlanInfo.json);
+            }
+        }
 
-		/**
-		 * Json deserializer for the {@link RawJson}.
-		 */
-		public static final class Deserializer extends StdDeserializer<RawJson> {
+        /** Json deserializer for the {@link RawJson}. */
+        public static final class Deserializer extends StdDeserializer<RawJson> {
 
-			private static final long serialVersionUID = -3580088509877177213L;
+            private static final long serialVersionUID = -3580088509877177213L;
 
-			public Deserializer() {
-				super(RawJson.class);
-			}
+            public Deserializer() {
+                super(RawJson.class);
+            }
 
-			@Override
-			public RawJson deserialize(
-					JsonParser jsonParser,
-					DeserializationContext deserializationContext) throws IOException {
-				final JsonNode rootNode = jsonParser.readValueAsTree();
-				return new RawJson(rootNode.toString());
-			}
-		}
-	}
+            @Override
+            public RawJson deserialize(
+                    JsonParser jsonParser, DeserializationContext deserializationContext)
+                    throws IOException {
+                final JsonNode rootNode = jsonParser.readValueAsTree();
+                return new RawJson(rootNode.toString());
+            }
+        }
+    }
 }

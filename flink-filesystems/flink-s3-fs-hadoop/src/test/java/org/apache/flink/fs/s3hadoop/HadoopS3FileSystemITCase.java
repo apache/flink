@@ -32,31 +32,32 @@ import java.util.UUID;
 import static org.junit.Assert.assertFalse;
 
 /**
- * Unit tests for the S3 file system support via Hadoop's {@link org.apache.hadoop.fs.s3a.S3AFileSystem}.
+ * Unit tests for the S3 file system support via Hadoop's {@link
+ * org.apache.hadoop.fs.s3a.S3AFileSystem}.
  *
- * <p><strong>BEWARE</strong>: tests must take special care of S3's
- * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
- * and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
+ * <p><strong>BEWARE</strong>: tests must take special care of S3's <a
+ * href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency
+ * guarantees</a> and what the {@link org.apache.hadoop.fs.s3a.S3AFileSystem} offers.
  */
 public class HadoopS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
-	@BeforeClass
-	public static void setup() throws IOException {
-		// check whether credentials exist
-		S3TestCredentials.assumeCredentialsAvailable();
+    @BeforeClass
+    public static void setup() throws IOException {
+        // check whether credentials exist
+        S3TestCredentials.assumeCredentialsAvailable();
 
-		// initialize configuration with valid credentials
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
-		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
-		FileSystem.initialize(conf);
+        // initialize configuration with valid credentials
+        final Configuration conf = new Configuration();
+        conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+        conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+        FileSystem.initialize(conf);
 
-		basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
-		fs = basePath.getFileSystem();
-		deadline = System.nanoTime() + 30_000_000_000L;
+        basePath = new Path(S3TestCredentials.getTestBucketUri() + "tests-" + UUID.randomUUID());
+        fs = basePath.getFileSystem();
+        consistencyToleranceNS = 30_000_000_000L; // 30 seconds
 
-		// check for uniqueness of the test directory
-		// directory must not yet exist
-		assertFalse(fs.exists(basePath));
-	}
+        // check for uniqueness of the test directory
+        // directory must not yet exist
+        assertFalse(fs.exists(basePath));
+    }
 }

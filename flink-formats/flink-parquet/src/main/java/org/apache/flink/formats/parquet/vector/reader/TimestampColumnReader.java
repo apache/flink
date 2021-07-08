@@ -17,9 +17,9 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.SqlTimestamp;
-import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableTimestampVector;
+import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.vector.writable.WritableTimestampVector;
 
 import org.apache.parquet.Preconditions;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -40,81 +40,76 @@ import java.util.concurrent.TimeUnit;
  */
 public class TimestampColumnReader extends AbstractColumnReader<WritableTimestampVector> {
 
-	public static final int JULIAN_EPOCH_OFFSET_DAYS = 2_440_588;
-	public static final long MILLIS_IN_DAY = TimeUnit.DAYS.toMillis(1);
-	public static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
-	public static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
+    public static final int JULIAN_EPOCH_OFFSET_DAYS = 2_440_588;
+    public static final long MILLIS_IN_DAY = TimeUnit.DAYS.toMillis(1);
+    public static final long NANOS_PER_MILLISECOND = TimeUnit.MILLISECONDS.toNanos(1);
+    public static final long NANOS_PER_SECOND = TimeUnit.SECONDS.toNanos(1);
 
-	private final boolean utcTimestamp;
+    private final boolean utcTimestamp;
 
-	public TimestampColumnReader(
-			boolean utcTimestamp,
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		this.utcTimestamp = utcTimestamp;
-		checkTypeName(PrimitiveType.PrimitiveTypeName.INT96);
-	}
+    public TimestampColumnReader(
+            boolean utcTimestamp, ColumnDescriptor descriptor, PageReader pageReader)
+            throws IOException {
+        super(descriptor, pageReader);
+        this.utcTimestamp = utcTimestamp;
+        checkTypeName(PrimitiveType.PrimitiveTypeName.INT96);
+    }
 
-	@Override
-	protected boolean supportLazyDecode() {
-		return utcTimestamp;
-	}
+    @Override
+    protected boolean supportLazyDecode() {
+        return utcTimestamp;
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableTimestampVector column) {
-		for (int i = 0; i < num; i++) {
-			if (runLenDecoder.readInteger() == maxDefLevel) {
-				ByteBuffer buffer = readDataBuffer(12);
-				column.setTimestamp(rowId + i, int96ToTimestamp(
-						utcTimestamp, buffer.getLong(), buffer.getInt()));
-			} else {
-				column.setNullAt(rowId + i);
-			}
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableTimestampVector column) {
+        for (int i = 0; i < num; i++) {
+            if (runLenDecoder.readInteger() == maxDefLevel) {
+                ByteBuffer buffer = readDataBuffer(12);
+                column.setTimestamp(
+                        rowId + i,
+                        int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt()));
+            } else {
+                column.setNullAt(rowId + i);
+            }
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(
-			int rowId,
-			int num,
-			WritableTimestampVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setTimestamp(i, decodeInt96ToTimestamp(
-						utcTimestamp, dictionary, dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableTimestampVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setTimestamp(
+                        i,
+                        decodeInt96ToTimestamp(utcTimestamp, dictionary, dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	public static SqlTimestamp decodeInt96ToTimestamp(
-			boolean utcTimestamp,
-			org.apache.parquet.column.Dictionary dictionary,
-			int id) {
-		Binary binary = dictionary.decodeToBinary(id);
-		Preconditions.checkArgument(
-				binary.length() == 12,
-				"Timestamp with int96 should be 12 bytes.");
-		ByteBuffer buffer = binary.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
-		return int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt());
-	}
+    public static TimestampData decodeInt96ToTimestamp(
+            boolean utcTimestamp, org.apache.parquet.column.Dictionary dictionary, int id) {
+        Binary binary = dictionary.decodeToBinary(id);
+        Preconditions.checkArgument(
+                binary.length() == 12, "Timestamp with int96 should be 12 bytes.");
+        ByteBuffer buffer = binary.toByteBuffer().order(ByteOrder.LITTLE_ENDIAN);
+        return int96ToTimestamp(utcTimestamp, buffer.getLong(), buffer.getInt());
+    }
 
-	private static SqlTimestamp int96ToTimestamp(
-			boolean utcTimestamp, long nanosOfDay, int julianDay) {
-		long millisecond = julianDayToMillis(julianDay) + (nanosOfDay / NANOS_PER_MILLISECOND);
+    private static TimestampData int96ToTimestamp(
+            boolean utcTimestamp, long nanosOfDay, int julianDay) {
+        long millisecond = julianDayToMillis(julianDay) + (nanosOfDay / NANOS_PER_MILLISECOND);
 
-		if (utcTimestamp) {
-			int nanoOfMillisecond = (int) (nanosOfDay % NANOS_PER_MILLISECOND);
-			return SqlTimestamp.fromEpochMillis(millisecond, nanoOfMillisecond);
-		} else {
-			Timestamp timestamp = new Timestamp(millisecond);
-			timestamp.setNanos((int) (nanosOfDay % NANOS_PER_SECOND));
-			return SqlTimestamp.fromTimestamp(timestamp);
-		}
-	}
+        if (utcTimestamp) {
+            int nanoOfMillisecond = (int) (nanosOfDay % NANOS_PER_MILLISECOND);
+            return TimestampData.fromEpochMillis(millisecond, nanoOfMillisecond);
+        } else {
+            Timestamp timestamp = new Timestamp(millisecond);
+            timestamp.setNanos((int) (nanosOfDay % NANOS_PER_SECOND));
+            return TimestampData.fromTimestamp(timestamp);
+        }
+    }
 
-	private static long julianDayToMillis(int julianDay) {
-		return (julianDay - JULIAN_EPOCH_OFFSET_DAYS) * MILLIS_IN_DAY;
-	}
+    private static long julianDayToMillis(int julianDay) {
+        return (julianDay - JULIAN_EPOCH_OFFSET_DAYS) * MILLIS_IN_DAY;
+    }
 }

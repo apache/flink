@@ -27,55 +27,56 @@ import org.apache.flink.util.Collector;
  *
  * @param <K> graph ID type
  */
-public abstract class UnaryResultBase<K>
-extends ResultBase
-implements UnaryResult<K>, TranslatableResult<K> {
+public abstract class UnaryResultBase<K> extends ResultBase
+        implements UnaryResult<K>, TranslatableResult<K> {
 
-	private K vertexId0;
+    private K vertexId0;
 
-	@Override
-	public K getVertexId0() {
-		return vertexId0;
-	}
+    @Override
+    public K getVertexId0() {
+        return vertexId0;
+    }
 
-	@Override
-	public void setVertexId0(K vertexId0) {
-		this.vertexId0 = vertexId0;
-	}
+    @Override
+    public void setVertexId0(K vertexId0) {
+        this.vertexId0 = vertexId0;
+    }
 
-	@Override
-	public <T> TranslatableResult<T> translate(TranslateFunction<K, T> translator, TranslatableResult<T> reuse, Collector<TranslatableResult<T>> out)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new BasicUnaryResult<>();
-		}
+    @Override
+    public <T> TranslatableResult<T> translate(
+            TranslateFunction<K, T> translator,
+            TranslatableResult<T> reuse,
+            Collector<TranslatableResult<T>> out)
+            throws Exception {
+        if (reuse == null) {
+            reuse = new BasicUnaryResult<>();
+        }
 
-		K vertexId0 = this.getVertexId0();
+        K vertexId0 = this.getVertexId0();
 
-		UnaryResult<T> translatable = (UnaryResult<T>) reuse;
-		UnaryResult<T> translated = (UnaryResult<T>) this;
+        UnaryResult<T> translatable = (UnaryResult<T>) reuse;
+        UnaryResult<T> translated = (UnaryResult<T>) this;
 
-		translated.setVertexId0(translator.translate(this.getVertexId0(), translatable.getVertexId0()));
+        translated.setVertexId0(
+                translator.translate(this.getVertexId0(), translatable.getVertexId0()));
 
-		out.collect((TranslatableResult<T>) translated);
+        out.collect((TranslatableResult<T>) translated);
 
-		this.setVertexId0(vertexId0);
+        this.setVertexId0(vertexId0);
 
-		return reuse;
-	}
+        return reuse;
+    }
 
-	/**
-	 * Simple override of {@code UnaryResultBase}. This holds no additional
-	 * values but is used by {@link UnaryResultBase#translate} as the reuse
-	 * object for translating vertex IDs.
-	 *
-	 * @param <U> result ID type
-	 */
-	private static class BasicUnaryResult<U>
-	extends UnaryResultBase<U> {
-		@Override
-		public String toString() {
-			return "(" + getVertexId0() + ")";
-		}
-	}
+    /**
+     * Simple override of {@code UnaryResultBase}. This holds no additional values but is used by
+     * {@link UnaryResultBase#translate} as the reuse object for translating vertex IDs.
+     *
+     * @param <U> result ID type
+     */
+    private static class BasicUnaryResult<U> extends UnaryResultBase<U> {
+        @Override
+        public String toString() {
+            return "(" + getVertexId0() + ")";
+        }
+    }
 }

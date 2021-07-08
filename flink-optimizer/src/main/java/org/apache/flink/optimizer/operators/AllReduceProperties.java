@@ -18,9 +18,6 @@
 
 package org.apache.flink.optimizer.operators;
 
-import java.util.Collections;
-import java.util.List;
-
 import org.apache.flink.optimizer.costs.Costs;
 import org.apache.flink.optimizer.dag.ReduceNode;
 import org.apache.flink.optimizer.dag.SingleInputNode;
@@ -34,61 +31,80 @@ import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 
+import java.util.Collections;
+import java.util.List;
+
 public final class AllReduceProperties extends OperatorDescriptorSingle {
 
-	@Override
-	public DriverStrategy getStrategy() {
-		return DriverStrategy.ALL_REDUCE;
-	}
+    @Override
+    public DriverStrategy getStrategy() {
+        return DriverStrategy.ALL_REDUCE;
+    }
 
-	@Override
-	public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
-		if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
-			// locally connected, directly instantiate
-			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")",
-											in, DriverStrategy.ALL_REDUCE);
-		} else {
-			// non forward case.plug in a combiner
-			Channel toCombiner = new Channel(in.getSource());
-			toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
-			
-			// create an input node for combine with same parallelism as input node
-			ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
-			combinerNode.setParallelism(in.getSource().getParallelism());
+    @Override
+    public SingleInputPlanNode instantiate(Channel in, SingleInputNode node) {
+        if (in.getShipStrategy() == ShipStrategyType.FORWARD) {
+            // locally connected, directly instantiate
+            return new SingleInputPlanNode(
+                    node,
+                    "Reduce (" + node.getOperator().getName() + ")",
+                    in,
+                    DriverStrategy.ALL_REDUCE);
+        } else {
+            // non forward case.plug in a combiner
+            Channel toCombiner = new Channel(in.getSource());
+            toCombiner.setShipStrategy(ShipStrategyType.FORWARD, DataExchangeMode.PIPELINED);
 
-			SingleInputPlanNode combiner = new SingleInputPlanNode(combinerNode,
-					"Combine ("+node.getOperator().getName()+")", toCombiner, DriverStrategy.ALL_REDUCE);
-			combiner.setCosts(new Costs(0, 0));
-			combiner.initProperties(toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
-			
-			Channel toReducer = new Channel(combiner);
-			toReducer.setShipStrategy(in.getShipStrategy(), in.getShipStrategyKeys(),
-										in.getShipStrategySortOrder(), in.getDataExchangeMode());
-			toReducer.setLocalStrategy(in.getLocalStrategy(), in.getLocalStrategyKeys(),
-										in.getLocalStrategySortOrder());
+            // create an input node for combine with same parallelism as input node
+            ReduceNode combinerNode = ((ReduceNode) node).getCombinerUtilityNode();
+            combinerNode.setParallelism(in.getSource().getParallelism());
 
-			return new SingleInputPlanNode(node, "Reduce ("+node.getOperator().getName()+")",
-											toReducer, DriverStrategy.ALL_REDUCE);
-		}
-	}
-	
-	@Override
-	protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
-		return Collections.singletonList(new RequestedGlobalProperties());
-	}
+            SingleInputPlanNode combiner =
+                    new SingleInputPlanNode(
+                            combinerNode,
+                            "Combine (" + node.getOperator().getName() + ")",
+                            toCombiner,
+                            DriverStrategy.ALL_REDUCE);
+            combiner.setCosts(new Costs(0, 0));
+            combiner.initProperties(
+                    toCombiner.getGlobalProperties(), toCombiner.getLocalProperties());
 
-	@Override
-	protected List<RequestedLocalProperties> createPossibleLocalProperties() {
-		return Collections.singletonList(new RequestedLocalProperties());
-	}
-	
-	@Override
-	public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
-		return new GlobalProperties();
-	}
-	
-	@Override
-	public LocalProperties computeLocalProperties(LocalProperties lProps) {
-		return new LocalProperties();
-	}
+            Channel toReducer = new Channel(combiner);
+            toReducer.setShipStrategy(
+                    in.getShipStrategy(),
+                    in.getShipStrategyKeys(),
+                    in.getShipStrategySortOrder(),
+                    in.getDataExchangeMode());
+            toReducer.setLocalStrategy(
+                    in.getLocalStrategy(),
+                    in.getLocalStrategyKeys(),
+                    in.getLocalStrategySortOrder());
+
+            return new SingleInputPlanNode(
+                    node,
+                    "Reduce (" + node.getOperator().getName() + ")",
+                    toReducer,
+                    DriverStrategy.ALL_REDUCE);
+        }
+    }
+
+    @Override
+    protected List<RequestedGlobalProperties> createPossibleGlobalProperties() {
+        return Collections.singletonList(new RequestedGlobalProperties());
+    }
+
+    @Override
+    protected List<RequestedLocalProperties> createPossibleLocalProperties() {
+        return Collections.singletonList(new RequestedLocalProperties());
+    }
+
+    @Override
+    public GlobalProperties computeGlobalProperties(GlobalProperties gProps) {
+        return new GlobalProperties();
+    }
+
+    @Override
+    public LocalProperties computeLocalProperties(LocalProperties lProps) {
+        return new LocalProperties();
+    }
 }

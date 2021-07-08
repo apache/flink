@@ -24,28 +24,26 @@ import org.junit.Test;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link ShufflePartitioner}.
- */
+/** Tests for {@link ShufflePartitioner}. */
 public class ShufflePartitionerTest extends StreamPartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		StreamPartitioner<Tuple> partitioner = new ShufflePartitioner<>();
-		assertFalse(partitioner.isBroadcast());
-		return partitioner;
-	}
+    @Override
+    public StreamPartitioner<Tuple> createPartitioner() {
+        StreamPartitioner<Tuple> partitioner = new ShufflePartitioner<>();
+        assertFalse(partitioner.isBroadcast());
+        return partitioner;
+    }
 
-	@Test
-	public void testSelectChannelsInterval() {
-		assertSelectedChannelWithSetup(0, 1);
+    @Test
+    public void testSelectChannelsInterval() {
+        assertSelectedChannelWithSetup(0, 1);
 
-		streamPartitioner.setup(2);
-		assertTrue(0 <= streamPartitioner.selectChannel(serializationDelegate));
-		assertTrue(2 > streamPartitioner.selectChannel(serializationDelegate));
+        streamPartitioner.setup(2);
+        assertTrue(0 <= streamPartitioner.selectChannel(serializationDelegate));
+        assertTrue(2 > streamPartitioner.selectChannel(serializationDelegate));
 
-		streamPartitioner.setup(1024);
-		assertTrue(0 <= streamPartitioner.selectChannel(serializationDelegate));
-		assertTrue(1024 > streamPartitioner.selectChannel(serializationDelegate));
-	}
+        streamPartitioner.setup(1024);
+        assertTrue(0 <= streamPartitioner.selectChannel(serializationDelegate));
+        assertTrue(1024 > streamPartitioner.selectChannel(serializationDelegate));
+    }
 }

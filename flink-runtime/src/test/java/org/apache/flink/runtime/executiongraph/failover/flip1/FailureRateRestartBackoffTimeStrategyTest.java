@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.runtime.util.clock.ManualClock;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.Test;
 
@@ -29,55 +29,55 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Unit tests for {@link FailureRateRestartBackoffTimeStrategy}.
- */
+/** Unit tests for {@link FailureRateRestartBackoffTimeStrategy}. */
 public class FailureRateRestartBackoffTimeStrategyTest extends TestLogger {
 
-	private final Exception failure = new Exception();
+    private final Exception failure = new Exception();
 
-	@Test
-	public void testManyFailuresWithinRate() {
-		final int numFailures = 3;
-		final long intervalMS = 1L;
+    @Test
+    public void testManyFailuresWithinRate() {
+        final int numFailures = 3;
+        final long intervalMS = 1L;
 
-		ManualClock clock = new ManualClock();
+        ManualClock clock = new ManualClock();
 
-		final FailureRateRestartBackoffTimeStrategy restartStrategy =
-			new FailureRateRestartBackoffTimeStrategy(clock, 1, intervalMS, 0);
+        final FailureRateRestartBackoffTimeStrategy restartStrategy =
+                new FailureRateRestartBackoffTimeStrategy(clock, 1, intervalMS, 0);
 
-		for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
-			assertTrue(restartStrategy.canRestart());
-			restartStrategy.notifyFailure(failure);
-			clock.advanceTime(intervalMS + 1, TimeUnit.MILLISECONDS);
-		}
+        for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
+            restartStrategy.notifyFailure(failure);
+            assertTrue(restartStrategy.canRestart());
+            clock.advanceTime(intervalMS + 1, TimeUnit.MILLISECONDS);
+        }
 
-		assertTrue(restartStrategy.canRestart());
-	}
+        assertTrue(restartStrategy.canRestart());
+    }
 
-	@Test
-	public void testFailuresExceedingRate() {
-		final int numFailures = 3;
-		final long intervalMS = 10_000L;
+    @Test
+    public void testFailuresExceedingRate() {
+        final int numFailures = 3;
+        final long intervalMS = 10_000L;
 
-		final FailureRateRestartBackoffTimeStrategy restartStrategy =
-			new FailureRateRestartBackoffTimeStrategy(new ManualClock(), numFailures, intervalMS, 0);
+        final FailureRateRestartBackoffTimeStrategy restartStrategy =
+                new FailureRateRestartBackoffTimeStrategy(
+                        new ManualClock(), numFailures, intervalMS, 0);
 
-		for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
-			assertTrue(restartStrategy.canRestart());
-			restartStrategy.notifyFailure(failure);
-		}
+        for (int failuresLeft = numFailures; failuresLeft > 0; failuresLeft--) {
+            restartStrategy.notifyFailure(failure);
+            assertTrue(restartStrategy.canRestart());
+        }
 
-		assertFalse(restartStrategy.canRestart());
-	}
+        restartStrategy.notifyFailure(failure);
+        assertFalse(restartStrategy.canRestart());
+    }
 
-	@Test
-	public void testBackoffTime() {
-		final long backoffTimeMS = 10_000L;
+    @Test
+    public void testBackoffTime() {
+        final long backoffTimeMS = 10_000L;
 
-		final FailureRateRestartBackoffTimeStrategy restartStrategy =
-			new FailureRateRestartBackoffTimeStrategy(new ManualClock(), 1, 1, backoffTimeMS);
+        final FailureRateRestartBackoffTimeStrategy restartStrategy =
+                new FailureRateRestartBackoffTimeStrategy(new ManualClock(), 1, 1, backoffTimeMS);
 
-		assertEquals(backoffTimeMS, restartStrategy.getBackoffTime());
-	}
+        assertEquals(backoffTimeMS, restartStrategy.getBackoffTime());
+    }
 }

@@ -31,22 +31,22 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 @Internal
 public class GenericKeyMetricGroup extends GenericMetricGroup {
 
-	GenericKeyMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
-		super(registry, parent, name);
-	}
+    GenericKeyMetricGroup(MetricRegistry registry, AbstractMetricGroup parent, String name) {
+        super(registry, parent, name);
+    }
 
-	@Override
-	public MetricGroup addGroup(String key, String value) {
-		return addGroup(key).addGroup(value);
-	}
+    @Override
+    public MetricGroup addGroup(String key, String value) {
+        return addGroup(key).addGroup(value);
+    }
 
-	@Override
-	protected GenericMetricGroup createChildGroup(String name, ChildType childType) {
-		switch (childType) {
-			case VALUE:
-				return new GenericValueMetricGroup(registry, this, name);
-			default:
-				return new GenericMetricGroup(registry, this, name);
-		}
-	}
+    @Override
+    protected GenericMetricGroup createChildGroup(String name, ChildType childType) {
+        switch (childType) {
+            case VALUE:
+                return new GenericValueMetricGroup(registry, this, name);
+            default:
+                return new GenericMetricGroup(registry, this, name);
+        }
+    }
 }

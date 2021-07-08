@@ -79,6 +79,44 @@ export class MetricsService {
   }
 
   /**
+   * Get aggregated metric data from all subtasks of the given vertexId
+   * @param jobId
+   * @param vertexId
+   * @param listOfMetricName
+   */
+  getAggregatedMetrics(jobId: string, vertexId: string, listOfMetricName: string[], aggregate: string = "max") {
+    const metricName = listOfMetricName.join(',');
+    return this.httpClient
+      .get<Array<{ id: string; min: number; max: number; avg: number; sum: number }>>(
+        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/metrics?get=${metricName}`
+      )
+      .pipe(
+        map(arr => {
+          const result: { [id: string]: number } = {};
+          arr.forEach(item => {
+            switch (aggregate) {
+              case "min":
+                result[item.id] = +item.min;
+                break;
+              case "max":
+                result[item.id] = +item.max;
+                break;
+              case "avg":
+                result[item.id] = +item.avg;
+                break;
+              case "sum":
+                result[item.id] = +item.sum;
+                break;
+              default:
+                throw new Error("Unsupported aggregate: " + aggregate);
+            }
+          });
+          return result;
+        })
+      );
+  }
+
+  /**
    * Gets the watermarks for a given vertex id.
    * @param jobId
    * @param vertexId

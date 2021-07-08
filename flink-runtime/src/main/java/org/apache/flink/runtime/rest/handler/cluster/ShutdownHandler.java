@@ -34,24 +34,25 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * REST handler which allows to shut down the cluster.
- */
-public class ShutdownHandler extends
-		AbstractRestHandler<RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
+/** REST handler which allows to shut down the cluster. */
+public class ShutdownHandler
+        extends AbstractRestHandler<
+                RestfulGateway, EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> {
 
-	public ShutdownHandler(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout,
-			final Map<String, String> responseHeaders,
-			final MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters> messageHeaders) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders);
-	}
+    public ShutdownHandler(
+            final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            final Time timeout,
+            final Map<String, String> responseHeaders,
+            final MessageHeaders<EmptyRequestBody, EmptyResponseBody, EmptyMessageParameters>
+                    messageHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+    }
 
-	@Override
-	protected CompletableFuture<EmptyResponseBody> handleRequest(
-			@Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
-			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
-		return gateway.shutDownCluster().thenApply(ignored -> EmptyResponseBody.getInstance());
-	}
+    @Override
+    protected CompletableFuture<EmptyResponseBody> handleRequest(
+            @Nonnull final HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull final RestfulGateway gateway)
+            throws RestHandlerException {
+        return gateway.shutDownCluster().thenApply(ignored -> EmptyResponseBody.getInstance());
+    }
 }

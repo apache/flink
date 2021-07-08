@@ -26,18 +26,19 @@ import org.junit.Test;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link JarDeleteHeaders}.
- */
+/** Tests for {@link JarDeleteHeaders}. */
 public class JarDeleteHeadersTest extends TestLogger {
 
-	@Test
-	public void testUrl() {
-		assertThat(JarDeleteHeaders.getInstance().getTargetRestEndpointURL(), equalTo("/jars/:" + JarIdPathParameter.KEY));
-	}
+    @Test
+    public void testUrl() {
+        assertThat(
+                JarDeleteHeaders.getInstance().getTargetRestEndpointURL(),
+                equalTo("/jars/:" + JarIdPathParameter.KEY));
+    }
 
-	@Test
-	public void testHttpMethod() {
-		assertThat(JarDeleteHeaders.getInstance().getHttpMethod(), equalTo(HttpMethodWrapper.DELETE));
-	}
+    @Test
+    public void testHttpMethod() {
+        assertThat(
+                JarDeleteHeaders.getInstance().getHttpMethod(), equalTo(HttpMethodWrapper.DELETE));
+    }
 }

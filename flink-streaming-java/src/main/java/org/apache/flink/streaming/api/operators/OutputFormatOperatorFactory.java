@@ -21,15 +21,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.io.OutputFormat;
 
 /**
- * Interface for operator factories which create the sink operator containing an {@link OutputFormat}.
+ * Interface for operator factories which create the sink operator containing an {@link
+ * OutputFormat}.
  *
  * @param <IN> The input type of the operator.
  */
 @Internal
 public interface OutputFormatOperatorFactory<IN> extends StreamOperatorFactory<Object> {
 
-	/**
-	 * @return output format of the operator created by this factory.
-	 */
-	OutputFormat<IN> getOutputFormat();
+    /** @return output format of the operator created by this factory. */
+    OutputFormat<IN> getOutputFormat();
 }

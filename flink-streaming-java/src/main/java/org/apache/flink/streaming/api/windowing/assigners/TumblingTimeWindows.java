@@ -30,23 +30,22 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 @PublicEvolving
 @Deprecated
 public class TumblingTimeWindows extends TumblingEventTimeWindows {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private TumblingTimeWindows(long size) {
-		super(size, 0);
-	}
+    private TumblingTimeWindows(long size) {
+        super(size, 0, WindowStagger.ALIGNED);
+    }
 
-	/**
-	 * Creates a new {@code TumblingTimeWindows} {@link WindowAssigner} that assigns
-	 * elements to time windows based on the element timestamp.
-	 *
-	 * @deprecated Please use {@link TumblingEventTimeWindows#of(Time)}.
-	 *
-	 * @param size The size of the generated windows.
-	 * @return The time policy.
-	 */
-	@Deprecated()
-	public static TumblingTimeWindows of(Time size) {
-		return new TumblingTimeWindows(size.toMilliseconds());
-	}
+    /**
+     * Creates a new {@code TumblingTimeWindows} {@link WindowAssigner} that assigns elements to
+     * time windows based on the element timestamp.
+     *
+     * @deprecated Please use {@link TumblingEventTimeWindows#of(Time)}.
+     * @param size The size of the generated windows.
+     * @return The time policy.
+     */
+    @Deprecated()
+    public static TumblingTimeWindows of(Time size) {
+        return new TumblingTimeWindows(size.toMilliseconds());
+    }
 }

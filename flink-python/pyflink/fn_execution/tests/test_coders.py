@@ -17,33 +17,29 @@
 ################################################################################
 
 """Tests common to all coder implementations."""
+import decimal
 import logging
 import unittest
 
 from pyflink.fn_execution.coders import BigIntCoder, TinyIntCoder, BooleanCoder, \
     SmallIntCoder, IntCoder, FloatCoder, DoubleCoder, BinaryCoder, CharCoder, DateCoder, \
-    TimeCoder, TimestampCoder, ArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder, RowCoder, \
-    LocalZonedTimestampCoder
-
-try:
-    from pyflink.fn_execution import fast_coder_impl  # noqa # pylint: disable=unused-import
-
-    have_cython = True
-except ImportError:
-    have_cython = False
+    TimeCoder, TimestampCoder, GenericArrayCoder, MapCoder, DecimalCoder, FlattenRowCoder,\
+    RowCoder, LocalZonedTimestampCoder, BigDecimalCoder, TupleCoder, PrimitiveArrayCoder,\
+    TimeWindowCoder, CountWindowCoder
+from pyflink.datastream.window import TimeWindow, CountWindow
+from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
-@unittest.skipIf(have_cython,
-                 "Found cython implementation, we don't need to test non-compiled implementation")
-class CodersTest(unittest.TestCase):
+class CodersTest(PyFlinkTestCase):
 
     def check_coder(self, coder, *values):
+        coder_impl = coder.get_impl()
         for v in values:
             if isinstance(v, float):
                 from pyflink.table.tests.test_udf import float_equal
-                assert float_equal(v, coder.decode(coder.encode(v)), 1e-6)
+                assert float_equal(v, coder_impl.decode(coder_impl.encode(v)), 1e-6)
             else:
-                self.assertEqual(v, coder.decode(coder.encode(v)))
+                self.assertEqual(v, coder_impl.decode(coder_impl.encode(v)))
 
     # decide whether two floats are equal
     @staticmethod
@@ -116,8 +112,13 @@ class CodersTest(unittest.TestCase):
 
     def test_array_coder(self):
         element_coder = BigIntCoder()
-        coder = ArrayCoder(element_coder)
+        coder = GenericArrayCoder(element_coder)
         self.check_coder(coder, [1, 2, 3, None])
+
+    def test_primitive_array_coder(self):
+        element_coder = CharCoder()
+        coder = PrimitiveArrayCoder(element_coder)
+        self.check_coder(coder, ['hi', 'hello', 'flink'])
 
     def test_map_coder(self):
         key_coder = CharCoder()
@@ -137,8 +138,8 @@ class CodersTest(unittest.TestCase):
     def test_flatten_row_coder(self):
         field_coder = BigIntCoder()
         field_count = 10
-        coder = FlattenRowCoder([field_coder for _ in range(field_count)])
-        v = [[None if i % 2 == 0 else i for i in range(field_count)]]
+        coder = FlattenRowCoder([field_coder for _ in range(field_count)]).get_impl()
+        v = [None if i % 2 == 0 else i for i in range(field_count)]
         generator_result = coder.decode(coder.encode(v))
         result = []
         for item in generator_result:
@@ -146,12 +147,37 @@ class CodersTest(unittest.TestCase):
         self.assertEqual(v, result)
 
     def test_row_coder(self):
-        from pyflink.table import Row
+        from pyflink.common import Row, RowKind
         field_coder = BigIntCoder()
         field_count = 10
-        coder = RowCoder([field_coder for _ in range(field_count)])
-        v = Row(*[None if i % 2 == 0 else i for i in range(field_count)])
+        field_names = ['f{}'.format(i) for i in range(field_count)]
+        coder = RowCoder([field_coder for _ in range(field_count)], field_names)
+        v = Row(**{field_names[i]: None if i % 2 == 0 else i for i in range(field_count)})
+        v.set_row_kind(RowKind.INSERT)
         self.check_coder(coder, v)
+        v.set_row_kind(RowKind.UPDATE_BEFORE)
+        self.check_coder(coder, v)
+        v.set_row_kind(RowKind.UPDATE_AFTER)
+        self.check_coder(coder, v)
+        v.set_row_kind(RowKind.DELETE)
+        self.check_coder(coder, v)
+
+    def test_basic_decimal_coder(self):
+        basic_dec_coder = BigDecimalCoder()
+        value = decimal.Decimal(1.200)
+        self.check_coder(basic_dec_coder, value)
+
+    def test_tuple_coder(self):
+        field_coders = [IntCoder(), CharCoder(), CharCoder()]
+        tuple_coder = TupleCoder(field_coders=field_coders)
+        data = (1, "Hello", "Hi")
+        self.check_coder(tuple_coder, data)
+
+    def test_window_coder(self):
+        coder = TimeWindowCoder()
+        self.check_coder(coder, TimeWindow(100, 1000))
+        coder = CountWindowCoder()
+        self.check_coder(coder, CountWindow(100))
 
 
 if __name__ == '__main__':

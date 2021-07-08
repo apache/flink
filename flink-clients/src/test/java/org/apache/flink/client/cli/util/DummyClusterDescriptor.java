@@ -20,52 +20,57 @@ package org.apache.flink.client.cli.util;
 
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
+import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Dummy {@link ClusterDescriptor} implementation for testing purposes.
- */
+/** Dummy {@link ClusterDescriptor} implementation for testing purposes. */
 public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 
-	private final ClusterClient<T> clusterClient;
+    private final ClusterClient<T> clusterClient;
 
-	public DummyClusterDescriptor(ClusterClient<T> clusterClient) {
-		this.clusterClient = Preconditions.checkNotNull(clusterClient);
-	}
+    public DummyClusterDescriptor(ClusterClient<T> clusterClient) {
+        this.clusterClient = Preconditions.checkNotNull(clusterClient);
+    }
 
-	@Override
-	public String getClusterDescription() {
-		return "DummyClusterDescriptor";
-	}
+    @Override
+    public String getClusterDescription() {
+        return "DummyClusterDescriptor";
+    }
 
-	@Override
-	public ClusterClientProvider<T> retrieve(T clusterId) {
-		return () -> clusterClient;
-	}
+    @Override
+    public ClusterClientProvider<T> retrieve(T clusterId) {
+        return () -> clusterClient;
+    }
 
-	@Override
-	public ClusterClientProvider<T> deploySessionCluster(ClusterSpecification clusterSpecification) {
-		return () -> clusterClient;
-	}
+    @Override
+    public ClusterClientProvider<T> deploySessionCluster(
+            ClusterSpecification clusterSpecification) {
+        return () -> clusterClient;
+    }
 
-	@Override
-	public ClusterClientProvider<T> deployJobCluster(
-			ClusterSpecification clusterSpecification,
-			JobGraph jobGraph,
-			boolean detached) {
-		return () -> clusterClient;
-	}
+    @Override
+    public ClusterClientProvider<T> deployApplicationCluster(
+            final ClusterSpecification clusterSpecification,
+            final ApplicationConfiguration applicationConfiguration) {
+        throw new UnsupportedOperationException("Application Mode not supported.");
+    }
 
-	@Override
-	public void killCluster(T clusterId) {
-		throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
-	}
+    @Override
+    public ClusterClientProvider<T> deployJobCluster(
+            ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) {
+        return () -> clusterClient;
+    }
 
-	@Override
-	public void close() {
-		// nothing to do
-	}
+    @Override
+    public void killCluster(T clusterId) {
+        throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
+    }
+
+    @Override
+    public void close() {
+        // nothing to do
+    }
 }

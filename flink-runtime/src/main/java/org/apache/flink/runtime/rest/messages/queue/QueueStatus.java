@@ -30,34 +30,31 @@ import static java.util.Objects.requireNonNull;
  */
 public class QueueStatus {
 
-	private static final String FIELD_NAME_ID = "id";
+    private static final String FIELD_NAME_ID = "id";
 
-	@JsonProperty(value = FIELD_NAME_ID, required = true)
-	private final Id id;
+    @JsonProperty(value = FIELD_NAME_ID, required = true)
+    private final Id id;
 
-	@JsonCreator
-	public QueueStatus(
-		@JsonProperty(value = FIELD_NAME_ID, required = true) final Id id) {
-		this.id = requireNonNull(id, "statusId must not be null");
-	}
+    @JsonCreator
+    public QueueStatus(@JsonProperty(value = FIELD_NAME_ID, required = true) final Id id) {
+        this.id = requireNonNull(id, "statusId must not be null");
+    }
 
-	public static QueueStatus inProgress() {
-		return new QueueStatus(Id.IN_PROGRESS);
-	}
+    public static QueueStatus inProgress() {
+        return new QueueStatus(Id.IN_PROGRESS);
+    }
 
-	public static QueueStatus completed() {
-		return new QueueStatus(Id.COMPLETED);
-	}
+    public static QueueStatus completed() {
+        return new QueueStatus(Id.COMPLETED);
+    }
 
-	public Id getId() {
-		return id;
-	}
+    public Id getId() {
+        return id;
+    }
 
-	/**
-	 * Defines queue statuses.
-	 */
-	public enum Id {
-		IN_PROGRESS,
-		COMPLETED
-	}
+    /** Defines queue statuses. */
+    public enum Id {
+        IN_PROGRESS,
+        COMPLETED
+    }
 }

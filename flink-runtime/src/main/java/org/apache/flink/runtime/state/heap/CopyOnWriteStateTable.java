@@ -27,7 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This implementation of {@link StateTable} uses {@link CopyOnWriteStateMap}. This implementation supports asynchronous snapshots.
+ * This implementation of {@link StateTable} uses {@link CopyOnWriteStateMap}. This implementation
+ * supports asynchronous snapshots.
  *
  * @param <K> type of key.
  * @param <N> type of namespace.
@@ -35,50 +36,56 @@ import java.util.List;
  */
 public class CopyOnWriteStateTable<K, N, S> extends StateTable<K, N, S> {
 
-	/**
-	 * Constructs a new {@code CopyOnWriteStateTable}.
-	 *
-	 * @param keyContext    the key context.
-	 * @param metaInfo      the meta information, including the type serializer for state copy-on-write.
-	 * @param keySerializer the serializer of the key.
-	 */
-	CopyOnWriteStateTable(
-		InternalKeyContext<K> keyContext,
-		RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
-		TypeSerializer<K> keySerializer) {
-		super(keyContext, metaInfo, keySerializer);
-	}
+    /**
+     * Constructs a new {@code CopyOnWriteStateTable}.
+     *
+     * @param keyContext the key context.
+     * @param metaInfo the meta information, including the type serializer for state copy-on-write.
+     * @param keySerializer the serializer of the key.
+     */
+    CopyOnWriteStateTable(
+            InternalKeyContext<K> keyContext,
+            RegisteredKeyValueStateBackendMetaInfo<N, S> metaInfo,
+            TypeSerializer<K> keySerializer) {
+        super(keyContext, metaInfo, keySerializer);
+    }
 
-	@Override
-	protected CopyOnWriteStateMap<K, N, S> createStateMap() {
-		return new CopyOnWriteStateMap<>(getStateSerializer());
-	}
+    @Override
+    protected CopyOnWriteStateMap<K, N, S> createStateMap() {
+        return new CopyOnWriteStateMap<>(getStateSerializer());
+    }
 
-	// Snapshotting ----------------------------------------------------------------------------------------------------
+    // Snapshotting
+    // ----------------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a snapshot of this {@link CopyOnWriteStateTable}, to be written in checkpointing.
-	 *
-	 * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
-	 */
-	@Nonnull
-	@Override
-	public CopyOnWriteStateTableSnapshot<K, N, S> stateSnapshot() {
-		return new CopyOnWriteStateTableSnapshot<>(
-			this,
-			getKeySerializer().duplicate(),
-			getNamespaceSerializer().duplicate(),
-			getStateSerializer().duplicate(),
-			getMetaInfo().getStateSnapshotTransformFactory().createForDeserializedState().orElse(null));
-	}
+    /**
+     * Creates a snapshot of this {@link CopyOnWriteStateTable}, to be written in checkpointing.
+     *
+     * @return a snapshot from this {@link CopyOnWriteStateTable}, for checkpointing.
+     */
+    @Nonnull
+    @Override
+    public CopyOnWriteStateTableSnapshot<K, N, S> stateSnapshot() {
+        return new CopyOnWriteStateTableSnapshot<>(
+                this,
+                getKeySerializer().duplicate(),
+                getNamespaceSerializer().duplicate(),
+                getStateSerializer().duplicate(),
+                getMetaInfo()
+                        .getStateSnapshotTransformFactory()
+                        .createForDeserializedState()
+                        .orElse(null));
+    }
 
-	@SuppressWarnings("unchecked")
-	List<CopyOnWriteStateMapSnapshot<K, N, S>> getStateMapSnapshotList() {
-		List<CopyOnWriteStateMapSnapshot<K, N, S>> snapshotList = new ArrayList<>(keyGroupedStateMaps.length);
-		for (int i = 0; i < keyGroupedStateMaps.length; i++) {
-			CopyOnWriteStateMap<K, N, S> stateMap = (CopyOnWriteStateMap<K, N, S>) keyGroupedStateMaps[i];
-			snapshotList.add(stateMap.stateSnapshot());
-		}
-		return snapshotList;
-	}
+    @SuppressWarnings("unchecked")
+    List<CopyOnWriteStateMapSnapshot<K, N, S>> getStateMapSnapshotList() {
+        List<CopyOnWriteStateMapSnapshot<K, N, S>> snapshotList =
+                new ArrayList<>(keyGroupedStateMaps.length);
+        for (int i = 0; i < keyGroupedStateMaps.length; i++) {
+            CopyOnWriteStateMap<K, N, S> stateMap =
+                    (CopyOnWriteStateMap<K, N, S>) keyGroupedStateMaps[i];
+            snapshotList.add(stateMap.stateSnapshot());
+        }
+        return snapshotList;
+    }
 }

@@ -21,33 +21,29 @@ package org.apache.flink.graph.asm.translate.translators;
 import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.LongValue;
 
-/**
- * Translate {@link LongValue} by adding a constant offset value.
- */
-public class LongValueAddOffset
-implements TranslateFunction<LongValue, LongValue> {
+/** Translate {@link LongValue} by adding a constant offset value. */
+public class LongValueAddOffset implements TranslateFunction<LongValue, LongValue> {
 
-	private final long offset;
+    private final long offset;
 
-	/**
-	 * Translate {@link LongValue} by adding a constant offset value.
-	 *
-	 * <p>The summation is *not* checked for overflow or underflow.
-	 *
-	 * @param offset value to be added to each element
-	 */
-	public LongValueAddOffset(long offset) {
-		this.offset = offset;
-	}
+    /**
+     * Translate {@link LongValue} by adding a constant offset value.
+     *
+     * <p>The summation is *not* checked for overflow or underflow.
+     *
+     * @param offset value to be added to each element
+     */
+    public LongValueAddOffset(long offset) {
+        this.offset = offset;
+    }
 
-	@Override
-	public LongValue translate(LongValue value, LongValue reuse)
-			throws Exception {
-		if (reuse == null) {
-			reuse = new LongValue();
-		}
+    @Override
+    public LongValue translate(LongValue value, LongValue reuse) throws Exception {
+        if (reuse == null) {
+            reuse = new LongValue();
+        }
 
-		reuse.setValue(offset + value.getValue());
-		return reuse;
-	}
+        reuse.setValue(offset + value.getValue());
+        return reuse;
+    }
 }

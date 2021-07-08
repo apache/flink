@@ -20,45 +20,37 @@ package org.apache.flink.runtime.io.compression;
 
 import java.nio.ByteBuffer;
 
-/**
- * A decompressor which decompresses a block each time.
- */
+/** A decompressor which decompresses a block each time. */
 public interface BlockDecompressor {
 
-	/**
-	 * Decompress source data read from ({@link ByteBuffer#position()} + {@code srcOff}),
-	 * and write the decompressed data to dst.
-	 *
-	 * @param src    Compressed data to read from
-	 * @param srcOff The start offset of compressed data
-	 * @param srcLen The length of data which want to be decompressed
-	 * @param dst    The target to write decompressed data
-	 * @param dstOff The start offset to write the decompressed data
-	 *
-	 * @return Length of decompressed data
-	 *
-	 * @throws DataCorruptionException     if data corruption found when decompressing
-	 * @throws InsufficientBufferException if the target does not have sufficient space
-	 */
-	int decompress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
-			throws DataCorruptionException, InsufficientBufferException;
+    /**
+     * Decompress source data read from ({@link ByteBuffer#position()} + {@code srcOff}), and write
+     * the decompressed data to dst.
+     *
+     * @param src Compressed data to read from
+     * @param srcOff The start offset of compressed data
+     * @param srcLen The length of data which want to be decompressed
+     * @param dst The target to write decompressed data
+     * @param dstOff The start offset to write the decompressed data
+     * @return Length of decompressed data
+     * @throws DataCorruptionException if data corruption found when decompressing
+     * @throws InsufficientBufferException if the target does not have sufficient space
+     */
+    int decompress(ByteBuffer src, int srcOff, int srcLen, ByteBuffer dst, int dstOff)
+            throws DataCorruptionException, InsufficientBufferException;
 
-
-	/**
-	 * Decompress source data read from src and write the decompressed data to dst.
-	 *
-	 * @param src    Compressed data to read from
-	 * @param srcOff The start offset of compressed data
-	 * @param srcLen The length of data which want to be decompressed
-	 * @param dst    The target to write decompressed data
-	 * @param dstOff The start offset to write the decompressed data
-	 *
-	 * @return Length of decompressed data
-	 *
-	 * @throws DataCorruptionException     if data corruption found when decompressing
-	 * @throws InsufficientBufferException if the target does not have sufficient space
-	 */
-	int decompress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
-			throws DataCorruptionException, InsufficientBufferException;
-
+    /**
+     * Decompress source data read from src and write the decompressed data to dst.
+     *
+     * @param src Compressed data to read from
+     * @param srcOff The start offset of compressed data
+     * @param srcLen The length of data which want to be decompressed
+     * @param dst The target to write decompressed data
+     * @param dstOff The start offset to write the decompressed data
+     * @return Length of decompressed data
+     * @throws DataCorruptionException if data corruption found when decompressing
+     * @throws InsufficientBufferException if the target does not have sufficient space
+     */
+    int decompress(byte[] src, int srcOff, int srcLen, byte[] dst, int dstOff)
+            throws DataCorruptionException, InsufficientBufferException;
 }

@@ -29,82 +29,78 @@ import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
 
-/**
- * WordCount with simple POJO example.
- */
+/** WordCount with simple POJO example. */
 public class WordCountSimplePOJOITCase extends JavaProgramTestBase implements Serializable {
-	private static final long serialVersionUID = 1L;
-	protected String textPath;
-	protected String resultPath;
+    private static final long serialVersionUID = 1L;
+    protected String textPath;
+    protected String resultPath;
 
-	@Override
-	protected void preSubmit() throws Exception {
-		textPath = createTempFile("text.txt", WordCountData.TEXT);
-		resultPath = getTempDirPath("result");
-	}
+    @Override
+    protected void preSubmit() throws Exception {
+        textPath = createTempFile("text.txt", WordCountData.TEXT);
+        resultPath = getTempDirPath("result");
+    }
 
-	@Override
-	protected void postSubmit() throws Exception {
-		compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
-	}
+    @Override
+    protected void postSubmit() throws Exception {
+        compareResultsByLinesInMemory(WordCountData.COUNTS, resultPath);
+    }
 
-	@Override
-	protected void testProgram() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<String> text = env.readTextFile(textPath);
+        DataSet<String> text = env.readTextFile(textPath);
 
-		DataSet<WC> counts = text
-				.flatMap(new Tokenizer())
-				.groupBy("word")
-				.reduce(new ReduceFunction<WC>() {
-					private static final long serialVersionUID = 1L;
+        DataSet<WC> counts =
+                text.flatMap(new Tokenizer())
+                        .groupBy("word")
+                        .reduce(
+                                new ReduceFunction<WC>() {
+                                    private static final long serialVersionUID = 1L;
 
-					public WC reduce(WC value1, WC value2) {
-						return new WC(value1.word, value1.count + value2.count);
-					}
-				});
+                                    public WC reduce(WC value1, WC value2) {
+                                        return new WC(value1.word, value1.count + value2.count);
+                                    }
+                                });
 
-		counts.writeAsText(resultPath);
+        counts.writeAsText(resultPath);
 
-		env.execute("WordCount with custom data types example");
-	}
+        env.execute("WordCount with custom data types example");
+    }
 
-	private static final class Tokenizer implements FlatMapFunction<String, WC> {
-		private static final long serialVersionUID = 1L;
+    private static final class Tokenizer implements FlatMapFunction<String, WC> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void flatMap(String value, Collector<WC> out) {
-			// normalize and split the line
-			String[] tokens = value.toLowerCase().split("\\W+");
+        @Override
+        public void flatMap(String value, Collector<WC> out) {
+            // normalize and split the line
+            String[] tokens = value.toLowerCase().split("\\W+");
 
-			// emit the pairs
-			for (String token : tokens) {
-				if (token.length() > 0) {
-					out.collect(new WC(token, 1));
-				}
-			}
-		}
-	}
+            // emit the pairs
+            for (String token : tokens) {
+                if (token.length() > 0) {
+                    out.collect(new WC(token, 1));
+                }
+            }
+        }
+    }
 
-	/**
-	 * POJO with word and count.
-	 */
-	public static class WC {
-		public WC() {}
+    /** POJO with word and count. */
+    public static class WC {
+        public WC() {}
 
-		public WC(String w, int c) {
-			word = w;
-			count = c;
-		}
+        public WC(String w, int c) {
+            word = w;
+            count = c;
+        }
 
-		public String word;
-		public int count;
+        public String word;
+        public int count;
 
-		@Override
-		public String toString() {
-			return word + " " + count;
-		}
-	}
-
+        @Override
+        public String toString() {
+            return word + " " + count;
+        }
+    }
 }

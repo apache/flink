@@ -47,217 +47,253 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Tests for the {@link AvroInputFormat} reading Pojos.
- */
+/** Tests for the {@link AvroInputFormat} reading Pojos. */
 @RunWith(Parameterized.class)
 public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 
-	public AvroTypeExtractionTest(TestExecutionMode mode) {
-		super(mode);
-	}
+    public AvroTypeExtractionTest(TestExecutionMode mode) {
+        super(mode);
+    }
 
-	private File inFile;
-	private String resultPath;
-	private String expected;
+    private File inFile;
+    private String resultPath;
+    private String expected;
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Before
-	public void before() throws Exception{
-		resultPath = tempFolder.newFile().toURI().toString();
-		inFile = tempFolder.newFile();
-		AvroRecordInputFormatTest.writeTestFile(inFile);
-	}
+    @Before
+    public void before() throws Exception {
+        resultPath = tempFolder.newFile().toURI().toString();
+        inFile = tempFolder.newFile();
+        AvroRecordInputFormatTest.writeTestFile(inFile);
+    }
 
-	@After
-	public void after() throws Exception{
-		compareResultsByLinesInMemory(expected, resultPath);
-	}
+    @After
+    public void after() throws Exception {
+        compareResultsByLinesInMemory(expected, resultPath);
+    }
 
-	@Test
-	public void testSimpleAvroRead() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+    @Test
+    public void testSimpleAvroRead() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users)
-				.map((value) -> value);
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS = env.createInput(users).map((value) -> value);
 
-		usersDS.writeAsText(resultPath);
+        usersDS.writeAsText(resultPath);
 
-		env.execute("Simple Avro read job");
+        env.execute("Simple Avro read job");
 
-		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, " +
-			"\"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], " +
-			"\"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, " +
-			"\"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, " +
-			"\"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, \"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, " +
-			"\"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, " +
-			"\"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n" +
-			"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, " +
-			"\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, " +
-			"\"type_enum\": \"RED\", \"type_map\": {}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", " +
-			"\"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, \"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, " +
-			"\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, \"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, " +
-			"\"type_timestamp_micros\": 123456, \"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n";
-	}
+        expected =
+                "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, "
+                        + "\"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, "
+                        + "\"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], "
+                        + "\"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", "
+                        + "\"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, \"type_fixed\": null, \"type_union\": null, "
+                        + "\"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", "
+                        + "\"state\": \"London\", \"zip\": \"NW1 6XE\"}, "
+                        + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12, \"type_time_micros\": 00:00:00.123456, "
+                        + "\"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, "
+                        + "\"type_timestamp_micros\": 1970-01-01T00:00:00.123456Z, \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "{\"name\": \"Charlie\", \"favorite_number\": null, "
+                        + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
+                        + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
+                        + "\"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {}, "
+                        + "\"type_fixed\": null, \"type_union\": null, "
+                        + "\"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", "
+                        + "\"zip\": \"NW1 6XE\"}, "
+                        + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12, \"type_time_micros\": 00:00:00.123456, "
+                        + "\"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, "
+                        + "\"type_timestamp_micros\": 1970-01-01T00:00:00.123456Z, \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n";
+    }
 
-	@Test
-	public void testSerializeWithAvro() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableForceAvro();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+    @Test
+    public void testSerializeWithAvro() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableForceAvro();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users)
-				.map((MapFunction<User, User>) value -> {
-					Map<CharSequence, Long> ab = new HashMap<>(1);
-					ab.put("hehe", 12L);
-					value.setTypeMap(ab);
-					return value;
-				});
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS =
+                env.createInput(users)
+                        .map(
+                                (MapFunction<User, User>)
+                                        value -> {
+                                            Map<CharSequence, Long> ab = new HashMap<>(1);
+                                            ab.put("hehe", 12L);
+                                            value.setTypeMap(ab);
+                                            return value;
+                                        });
 
-		usersDS.writeAsText(resultPath);
+        usersDS.writeAsText(resultPath);
 
-		env.execute("Simple Avro read job");
+        env.execute("Simple Avro read job");
 
-		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, " +
-			"\"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, " +
-			"\"type_enum\": \"GREEN\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", " +
-			"\"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, \"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, " +
-			"\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, \"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, " +
-			"\"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n" +
-			"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, " +
-			"\"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {\"hehe\": 12}, " +
-			"\"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, " +
-			"\"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, \"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, " +
-			"\"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, \"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, " +
-			"\"type_decimal_fixed\": [7, -48]}\n";
+        expected =
+                "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null,"
+                        + " \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null,"
+                        + " \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"],"
+                        + " \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\","
+                        + " \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null,"
+                        + " \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\","
+                        + " \"state\": \"London\", \"zip\": \"NW1 6XE\"},"
+                        + " \"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12, \"type_time_micros\": 00:00:00.123456, "
+                        + "\"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, "
+                        + "\"type_timestamp_micros\": 1970-01-01T00:00:00.123456Z, \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n"
+                        + "{\"name\": \"Charlie\", \"favorite_number\": null, "
+                        + "\"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, "
+                        + "\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], "
+                        + "\"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", "
+                        + "\"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null, "
+                        + "\"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", "
+                        + "\"zip\": \"NW1 6XE\"}, "
+                        + "\"type_bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\", "
+                        + "\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12, \"type_time_micros\": 00:00:00.123456, "
+                        + "\"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, "
+                        + "\"type_timestamp_micros\": 1970-01-01T00:00:00.123456Z, \"type_decimal_bytes\": \"\\u0007Ð\", "
+                        + "\"type_decimal_fixed\": [7, -48]}\n";
+    }
 
-	}
+    @Test
+    public void testKeySelection() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableObjectReuse();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-	@Test
-	public void testKeySelection() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableObjectReuse();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS = env.createInput(users);
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users);
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy("name")
+                        .reduceGroup(
+                                (GroupReduceFunction<User, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (User u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(u.getName().toString(), 1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
 
-		DataSet<Tuple2<String, Integer>> res = usersDS
-			.groupBy("name")
-			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
-				for (User u : values) {
-					out.collect(new Tuple2<>(u.getName().toString(), 1));
-				}
-			})
-			.returns(Types.TUPLE(Types.STRING, Types.INT));
-		res.writeAsText(resultPath);
-		env.execute("Avro Key selection");
+        expected = "(Alyssa,1)\n(Charlie,1)\n";
+    }
 
-		expected = "(Alyssa,1)\n(Charlie,1)\n";
-	}
+    @Test
+    public void testWithAvroGenericSer() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableForceAvro();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-	@Test
-	public void testWithAvroGenericSer() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableForceAvro();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS = env.createInput(users);
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users);
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy(
+                                (KeySelector<User, String>)
+                                        value -> String.valueOf(value.getName()))
+                        .reduceGroup(
+                                (GroupReduceFunction<User, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (User u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(u.getName().toString(), 1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
 
-		DataSet<Tuple2<String, Integer>> res = usersDS
-			.groupBy((KeySelector<User, String>) value -> String.valueOf(value.getName()))
-			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
-				for (User u : values) {
-					out.collect(new Tuple2<>(u.getName().toString(), 1));
-				}
-			})
-			.returns(Types.TUPLE(Types.STRING, Types.INT));
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
 
-		res.writeAsText(resultPath);
-		env.execute("Avro Key selection");
+        expected = "(Charlie,1)\n(Alyssa,1)\n";
+    }
 
-		expected = "(Charlie,1)\n(Alyssa,1)\n";
-	}
+    @Test
+    public void testWithKryoGenericSer() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().enableForceKryo();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-	@Test
-	public void testWithKryoGenericSer() throws Exception {
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().enableForceKryo();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS = env.createInput(users);
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users);
+        DataSet<Tuple2<String, Integer>> res =
+                usersDS.groupBy(
+                                (KeySelector<User, String>)
+                                        value -> String.valueOf(value.getName()))
+                        .reduceGroup(
+                                (GroupReduceFunction<User, Tuple2<String, Integer>>)
+                                        (values, out) -> {
+                                            for (User u : values) {
+                                                out.collect(
+                                                        new Tuple2<>(u.getName().toString(), 1));
+                                            }
+                                        })
+                        .returns(Types.TUPLE(Types.STRING, Types.INT));
 
-		DataSet<Tuple2<String, Integer>> res = usersDS
-			.groupBy((KeySelector<User, String>) value -> String.valueOf(value.getName()))
-			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
-				for (User u : values) {
-					out.collect(new Tuple2<>(u.getName().toString(), 1));
-				}
-			})
-			.returns(Types.TUPLE(Types.STRING, Types.INT));
+        res.writeAsText(resultPath);
+        env.execute("Avro Key selection");
 
-		res.writeAsText(resultPath);
-		env.execute("Avro Key selection");
+        expected = "(Charlie,1)\n(Alyssa,1)\n";
+    }
 
-		expected = "(Charlie,1)\n(Alyssa,1)\n";
-	}
+    /** Test some know fields for grouping on. */
+    @Test
+    public void testAllFields() throws Exception {
+        for (String fieldName : Arrays.asList("name", "type_enum", "type_double_test")) {
+            testField(fieldName);
+        }
+    }
 
-	/**
-	 * Test some know fields for grouping on.
-	 */
-	@Test
-	public void testAllFields() throws Exception {
-		for (String fieldName : Arrays.asList("name", "type_enum", "type_double_test")) {
-			testField(fieldName);
-		}
-	}
+    private void testField(final String fieldName) throws Exception {
+        before();
 
-	private void testField(final String fieldName) throws Exception {
-		before();
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		Path in = new Path(inFile.getAbsoluteFile().toURI());
+        AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
+        DataSet<User> usersDS = env.createInput(users);
 
-		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
-		DataSet<User> usersDS = env.createInput(users);
+        DataSet<Object> res =
+                usersDS.groupBy(fieldName)
+                        .reduceGroup(
+                                (GroupReduceFunction<User, Object>)
+                                        (values, out) -> {
+                                            for (User u : values) {
+                                                out.collect(u.get(fieldName));
+                                            }
+                                        })
+                        .returns(Object.class);
+        res.writeAsText(resultPath);
+        env.execute("Simple Avro read job");
 
-		DataSet<Object> res = usersDS
-			.groupBy(fieldName)
-			.reduceGroup((GroupReduceFunction<User, Object>) (values, out) -> {
-				for (User u : values) {
-					out.collect(u.get(fieldName));
-				}
-			})
-			.returns(Object.class);
-		res.writeAsText(resultPath);
-		env.execute("Simple Avro read job");
+        // test if automatic registration of the Types worked
+        ExecutionConfig ec = env.getConfig();
+        Assert.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
 
-		// test if automatic registration of the Types worked
-		ExecutionConfig ec = env.getConfig();
-		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
+        switch (fieldName) {
+            case "name":
+                expected = "Alyssa\nCharlie";
+                break;
+            case "type_enum":
+                expected = "GREEN\nRED\n";
+                break;
+            case "type_double_test":
+                expected = "123.45\n1.337\n";
+                break;
+            default:
+                Assert.fail("Unknown field");
+                break;
+        }
 
-		switch (fieldName) {
-			case "name":
-				expected = "Alyssa\nCharlie";
-				break;
-			case "type_enum":
-				expected = "GREEN\nRED\n";
-				break;
-			case "type_double_test":
-				expected = "123.45\n1.337\n";
-				break;
-			default:
-				Assert.fail("Unknown field");
-				break;
-		}
-
-		after();
-	}
+        after();
+    }
 }

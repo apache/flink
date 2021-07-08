@@ -26,42 +26,41 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * Snapshot class for {@link TestType.V1TestTypeSerializer}.
- */
+/** Snapshot class for {@link TestType.V1TestTypeSerializer}. */
 public class V1TestTypeSerializerSnapshot implements TypeSerializerSnapshot<TestType> {
 
-	@Override
-	public int getCurrentVersion() {
-		return 1;
-	}
-
-	@Override
-	public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(TypeSerializer<TestType> newSerializer) {
-		if (newSerializer instanceof TestType.V1TestTypeSerializer) {
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		} else if (newSerializer instanceof TestType.V2TestTypeSerializer) {
-			return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
-		} else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {
-			// we mimic the reconfiguration by just re-instantiating the correct serializer
-			return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(new TestType.V1TestTypeSerializer());
-		} else if (newSerializer instanceof TestType.IncompatibleTestTypeSerializer) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		} else {
-			throw new IllegalStateException("Unknown serializer class for TestType.");
-		}
-	}
-
-	@Override
-	public TypeSerializer<TestType> restoreSerializer() {
-		return new TestType.V1TestTypeSerializer();
-	}
-
-	@Override
-    public void writeSnapshot(DataOutputView out) throws IOException {
-	}
+    @Override
+    public int getCurrentVersion() {
+        return 1;
+    }
 
     @Override
-    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-	}
+    public TypeSerializerSchemaCompatibility<TestType> resolveSchemaCompatibility(
+            TypeSerializer<TestType> newSerializer) {
+        if (newSerializer instanceof TestType.V1TestTypeSerializer) {
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        } else if (newSerializer instanceof TestType.V2TestTypeSerializer) {
+            return TypeSerializerSchemaCompatibility.compatibleAfterMigration();
+        } else if (newSerializer instanceof TestType.ReconfigurationRequiringTestTypeSerializer) {
+            // we mimic the reconfiguration by just re-instantiating the correct serializer
+            return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                    new TestType.V1TestTypeSerializer());
+        } else if (newSerializer instanceof TestType.IncompatibleTestTypeSerializer) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        } else {
+            throw new IllegalStateException("Unknown serializer class for TestType.");
+        }
+    }
+
+    @Override
+    public TypeSerializer<TestType> restoreSerializer() {
+        return new TestType.V1TestTypeSerializer();
+    }
+
+    @Override
+    public void writeSnapshot(DataOutputView out) throws IOException {}
+
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {}
 }

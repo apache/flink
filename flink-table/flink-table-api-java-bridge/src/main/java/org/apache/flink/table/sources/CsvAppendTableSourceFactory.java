@@ -28,22 +28,20 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
-/**
- * Factory for creating configured instances of {@link CsvTableSource} in a stream environment.
- */
+/** Factory for creating configured instances of {@link CsvTableSource} in a stream environment. */
 @PublicEvolving
-public class CsvAppendTableSourceFactory extends CsvTableSourceFactoryBase implements StreamTableSourceFactory<Row> {
+public class CsvAppendTableSourceFactory extends CsvTableSourceFactoryBase
+        implements StreamTableSourceFactory<Row> {
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>(super.requiredContext());
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>(super.requiredContext());
+        context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
+        return context;
+    }
 
-	@Override
-	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-		return createTableSource(true, properties);
-	}
-
+    @Override
+    public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
+        return createTableSource(true, properties);
+    }
 }

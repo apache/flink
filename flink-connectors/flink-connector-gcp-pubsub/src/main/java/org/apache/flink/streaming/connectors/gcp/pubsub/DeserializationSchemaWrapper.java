@@ -21,31 +21,43 @@ package org.apache.flink.streaming.connectors.gcp.pubsub;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
+import org.apache.flink.util.Collector;
 
 import com.google.pubsub.v1.PubsubMessage;
 
 /**
- * This class wraps a {@link DeserializationSchema} so it can be used in a {@link PubSubSource} as a {@link PubSubDeserializationSchema}.
+ * This class wraps a {@link DeserializationSchema} so it can be used in a {@link PubSubSource} as a
+ * {@link PubSubDeserializationSchema}.
  */
 class DeserializationSchemaWrapper<T> implements PubSubDeserializationSchema<T> {
-	private final DeserializationSchema<T> deserializationSchema;
+    private final DeserializationSchema<T> deserializationSchema;
 
-	DeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
-		this.deserializationSchema = deserializationSchema;
-	}
+    DeserializationSchemaWrapper(DeserializationSchema<T> deserializationSchema) {
+        this.deserializationSchema = deserializationSchema;
+    }
 
-	@Override
-	public boolean isEndOfStream(T t) {
-		return deserializationSchema.isEndOfStream(t);
-	}
+    @Override
+    public void open(DeserializationSchema.InitializationContext context) throws Exception {
+        this.deserializationSchema.open(context);
+    }
 
-	@Override
-	public T deserialize(PubsubMessage pubsubMessage) throws Exception {
-		return deserializationSchema.deserialize(pubsubMessage.getData().toByteArray());
-	}
+    @Override
+    public boolean isEndOfStream(T t) {
+        return deserializationSchema.isEndOfStream(t);
+    }
 
-	@Override
-	public TypeInformation<T> getProducedType() {
-		return deserializationSchema.getProducedType();
-	}
+    @Override
+    public T deserialize(PubsubMessage pubsubMessage) throws Exception {
+        throw new UnsupportedOperationException("Should never be called");
+    }
+
+    @Override
+    public void deserialize(PubsubMessage message, Collector<T> out) throws Exception {
+        deserializationSchema.deserialize(message.getData().toByteArray(), out);
+    }
+
+    @Override
+    public TypeInformation<T> getProducedType() {
+        return deserializationSchema.getProducedType();
+    }
 }

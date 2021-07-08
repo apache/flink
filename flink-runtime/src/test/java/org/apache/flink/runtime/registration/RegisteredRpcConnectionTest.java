@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.registration;
 
+import org.apache.flink.runtime.registration.RetryingRegistrationTest.TestRegistrationRejection;
 import org.apache.flink.runtime.registration.RetryingRegistrationTest.TestRegistrationSuccess;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -33,199 +35,301 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-/**
- * Tests for RegisteredRpcConnection, validating the successful, failure and close behavior.
- */
+/** Tests for RegisteredRpcConnection, validating the successful, failure and close behavior. */
 public class RegisteredRpcConnectionTest extends TestLogger {
 
-	private TestingRpcService rpcService;
+    private TestingRpcService rpcService;
 
-	@Before
-	public void setup() {
-		rpcService = new TestingRpcService();
-	}
+    @Before
+    public void setup() {
+        rpcService = new TestingRpcService();
+    }
 
-	@After
-	public void tearDown() throws ExecutionException, InterruptedException {
-		if (rpcService != null) {
-			rpcService.stopService().get();
-		}
-	}
+    @After
+    public void tearDown() throws ExecutionException, InterruptedException {
+        if (rpcService != null) {
+            rpcService.stopService().get();
+        }
+    }
 
-	@Test
-	public void testSuccessfulRpcConnection() throws Exception {
-		final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
-		final UUID leaderId = UUID.randomUUID();
-		final String connectionID = "Test RPC Connection ID";
+    @Test
+    public void testSuccessfulRpcConnection() throws Exception {
+        final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
+        final UUID leaderId = UUID.randomUUID();
+        final String connectionID = "Test RPC Connection ID";
 
-		// an endpoint that immediately returns success
-		TestRegistrationGateway testGateway = new TestRegistrationGateway(new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
+        // an endpoint that immediately returns success
+        ManualResponseTestRegistrationGateway testGateway =
+                new ManualResponseTestRegistrationGateway(
+                        new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
 
-		try {
-			rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
+        try {
+            rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
 
-			TestRpcConnection connection = new TestRpcConnection(testRpcConnectionEndpointAddress, leaderId, rpcService.getExecutor(), rpcService);
-			connection.start();
+            TestRpcConnection connection =
+                    new TestRpcConnection(
+                            testRpcConnectionEndpointAddress,
+                            leaderId,
+                            rpcService.getExecutor(),
+                            rpcService);
+            connection.start();
 
-			//wait for connection established
-			final String actualConnectionId = connection.getConnectionFuture().get();
+            // wait for connection established
+            final Either<TestRegistrationSuccess, TestRegistrationRejection> connectionResult =
+                    connection.getConnectionFuture().get();
 
-			// validate correct invocation and result
-			assertTrue(connection.isConnected());
-			assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
-			assertEquals(leaderId, connection.getTargetLeaderId());
-			assertEquals(testGateway, connection.getTargetGateway());
-			assertEquals(connectionID, actualConnectionId);
-		}
-		finally {
-			testGateway.stop();
-		}
-	}
+            assertTrue(connectionResult.isLeft());
 
-	@Test
-	public void testRpcConnectionFailures() throws Exception {
-		final String connectionFailureMessage = "Test RPC Connection failure";
-		final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
-		final UUID leaderId = UUID.randomUUID();
+            final String actualConnectionId = connectionResult.left().getCorrelationId();
 
-		// gateway that upon calls Throw an exception
-		TestRegistrationGateway testGateway = mock(TestRegistrationGateway.class);
-		final RuntimeException registrationException = new RuntimeException(connectionFailureMessage);
-		when(testGateway.registrationCall(any(UUID.class), anyLong())).thenThrow(
-			registrationException);
+            // validate correct invocation and result
+            assertTrue(connection.isConnected());
+            assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
+            assertEquals(leaderId, connection.getTargetLeaderId());
+            assertEquals(testGateway, connection.getTargetGateway());
+            assertEquals(connectionID, actualConnectionId);
+        } finally {
+            testGateway.stop();
+        }
+    }
 
-		rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
+    @Test
+    public void testRpcConnectionFailures() throws Exception {
+        final String connectionFailureMessage = "Test RPC Connection failure";
+        final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
+        final UUID leaderId = UUID.randomUUID();
 
-		TestRpcConnection connection = new TestRpcConnection(testRpcConnectionEndpointAddress, leaderId, rpcService.getExecutor(), rpcService);
-		connection.start();
+        final RuntimeException registrationException =
+                new RuntimeException(connectionFailureMessage);
 
-		//wait for connection failure
-		try {
-			connection.getConnectionFuture().get();
-			fail("expected failure.");
-		} catch (ExecutionException ee) {
-			assertEquals(registrationException, ee.getCause());
-		}
+        // gateway that upon registration calls throws an exception
+        TestRegistrationGateway testGateway =
+                DefaultTestRegistrationGateway.newBuilder()
+                        .setRegistrationFunction(
+                                (uuid, aLong) -> {
+                                    throw registrationException;
+                                })
+                        .build();
 
-		// validate correct invocation and result
-		assertFalse(connection.isConnected());
-		assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
-		assertEquals(leaderId, connection.getTargetLeaderId());
-		assertNull(connection.getTargetGateway());
-	}
+        rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
 
-	@Test
-	public void testRpcConnectionClose() throws Exception {
-		final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
-		final UUID leaderId = UUID.randomUUID();
-		final String connectionID = "Test RPC Connection ID";
+        TestRpcConnection connection =
+                new TestRpcConnection(
+                        testRpcConnectionEndpointAddress,
+                        leaderId,
+                        rpcService.getExecutor(),
+                        rpcService);
+        connection.start();
 
-		TestRegistrationGateway testGateway = new TestRegistrationGateway(new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
+        // wait for connection failure
+        try {
+            connection.getConnectionFuture().get();
+            fail("expected failure.");
+        } catch (ExecutionException ee) {
+            assertEquals(registrationException, ee.getCause());
+        }
 
-		try {
-			rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
+        // validate correct invocation and result
+        assertFalse(connection.isConnected());
+        assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
+        assertEquals(leaderId, connection.getTargetLeaderId());
+        assertNull(connection.getTargetGateway());
+    }
 
-			TestRpcConnection connection = new TestRpcConnection(testRpcConnectionEndpointAddress, leaderId, rpcService.getExecutor(), rpcService);
-			connection.start();
-			//close the connection
-			connection.close();
+    @Test
+    public void testRpcConnectionRejectionCallsOnRegistrationRejection() {
+        TestRegistrationGateway testRegistrationGateway =
+                DefaultTestRegistrationGateway.newBuilder()
+                        .setRegistrationFunction(
+                                (uuid, aLong) ->
+                                        CompletableFuture.completedFuture(
+                                                new TestRegistrationRejection(
+                                                        TestRegistrationRejection.RejectionReason
+                                                                .REJECTED)))
+                        .build();
 
-			// validate connection is closed
-			assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
-			assertEquals(leaderId, connection.getTargetLeaderId());
-			assertTrue(connection.isClosed());
-		}
-		finally {
-			testGateway.stop();
-		}
-	}
+        rpcService.registerGateway(testRegistrationGateway.getAddress(), testRegistrationGateway);
 
-	@Test
-	public void testReconnect() throws Exception {
-		final String connectionId1 = "Test RPC Connection ID 1";
-		final String connectionId2 = "Test RPC Connection ID 2";
-		final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
-		final UUID leaderId = UUID.randomUUID();
-		final TestRegistrationGateway testGateway = new TestRegistrationGateway(
-			new RetryingRegistrationTest.TestRegistrationSuccess(connectionId1),
-			new RetryingRegistrationTest.TestRegistrationSuccess(connectionId2));
+        TestRpcConnection connection =
+                new TestRpcConnection(
+                        testRegistrationGateway.getAddress(),
+                        UUID.randomUUID(),
+                        rpcService.getExecutor(),
+                        rpcService);
+        connection.start();
 
-		rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
+        final Either<TestRegistrationSuccess, TestRegistrationRejection> connectionResult =
+                connection.getConnectionFuture().join();
 
-		TestRpcConnection connection = new TestRpcConnection(testRpcConnectionEndpointAddress, leaderId, rpcService.getExecutor(), rpcService);
-		connection.start();
+        assertTrue(connectionResult.isRight());
+        final TestRegistrationRejection registrationRejection = connectionResult.right();
 
-		final String actualConnectionId1 = connection.getConnectionFuture().get();
+        assertThat(
+                registrationRejection.getRejectionReason(),
+                is(TestRegistrationRejection.RejectionReason.REJECTED));
+    }
 
-		assertEquals(actualConnectionId1, connectionId1);
+    @Test
+    public void testRpcConnectionClose() throws Exception {
+        final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
+        final UUID leaderId = UUID.randomUUID();
+        final String connectionID = "Test RPC Connection ID";
 
-		assertTrue(connection.tryReconnect());
+        ManualResponseTestRegistrationGateway testGateway =
+                new ManualResponseTestRegistrationGateway(
+                        new RetryingRegistrationTest.TestRegistrationSuccess(connectionID));
 
-		final String actualConnectionId2 = connection.getConnectionFuture().get();
+        try {
+            rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
 
-		assertEquals(actualConnectionId2, connectionId2);
-	}
+            TestRpcConnection connection =
+                    new TestRpcConnection(
+                            testRpcConnectionEndpointAddress,
+                            leaderId,
+                            rpcService.getExecutor(),
+                            rpcService);
+            connection.start();
+            // close the connection
+            connection.close();
 
-	// ------------------------------------------------------------------------
-	//  test RegisteredRpcConnection
-	// ------------------------------------------------------------------------
+            // validate connection is closed
+            assertEquals(testRpcConnectionEndpointAddress, connection.getTargetAddress());
+            assertEquals(leaderId, connection.getTargetLeaderId());
+            assertTrue(connection.isClosed());
+        } finally {
+            testGateway.stop();
+        }
+    }
 
-	private static class TestRpcConnection extends RegisteredRpcConnection<UUID, TestRegistrationGateway, TestRegistrationSuccess> {
+    @Test
+    public void testReconnect() throws Exception {
+        final String connectionId1 = "Test RPC Connection ID 1";
+        final String connectionId2 = "Test RPC Connection ID 2";
+        final String testRpcConnectionEndpointAddress = "<TestRpcConnectionEndpointAddress>";
+        final UUID leaderId = UUID.randomUUID();
+        final TestRegistrationGateway testGateway =
+                new ManualResponseTestRegistrationGateway(
+                        new RetryingRegistrationTest.TestRegistrationSuccess(connectionId1),
+                        new RetryingRegistrationTest.TestRegistrationSuccess(connectionId2));
 
-		private final Object lock = new Object();
+        rpcService.registerGateway(testRpcConnectionEndpointAddress, testGateway);
 
-		private final RpcService rpcService;
+        TestRpcConnection connection =
+                new TestRpcConnection(
+                        testRpcConnectionEndpointAddress,
+                        leaderId,
+                        rpcService.getExecutor(),
+                        rpcService);
+        connection.start();
 
-		private CompletableFuture<String> connectionFuture;
+        final Either<TestRegistrationSuccess, TestRegistrationRejection> firstConnectionResult =
+                connection.getConnectionFuture().get();
 
-		public TestRpcConnection(String targetAddress, UUID targetLeaderId, Executor executor,  RpcService rpcService) {
-			super(LoggerFactory.getLogger(RegisteredRpcConnectionTest.class), targetAddress, targetLeaderId, executor);
-			this.rpcService = rpcService;
-			this.connectionFuture = new CompletableFuture<>();
-		}
+        assertTrue(firstConnectionResult.isLeft());
 
-		@Override
-		protected RetryingRegistration<UUID, TestRegistrationGateway, RetryingRegistrationTest.TestRegistrationSuccess> generateRegistration() {
-			return new RetryingRegistrationTest.TestRetryingRegistration(rpcService, getTargetAddress(), getTargetLeaderId());
-		}
+        final String actualConnectionId1 = firstConnectionResult.left().getCorrelationId();
 
-		@Override
-		protected void onRegistrationSuccess(RetryingRegistrationTest.TestRegistrationSuccess success) {
-			synchronized (lock) {
-				connectionFuture.complete(success.getCorrelationId());
-			}
-		}
+        assertEquals(actualConnectionId1, connectionId1);
 
-		@Override
-		protected void onRegistrationFailure(Throwable failure) {
-			synchronized (lock) {
-				connectionFuture.completeExceptionally(failure);
-			}
-		}
+        assertTrue(connection.tryReconnect());
 
-		@Override
-		public boolean tryReconnect() {
-			synchronized (lock) {
-				connectionFuture.cancel(false);
-				connectionFuture = new CompletableFuture<>();
-			}
-			return super.tryReconnect();
-		}
+        final Either<TestRegistrationSuccess, TestRegistrationRejection> secondConnectionResult =
+                connection.getConnectionFuture().get();
 
-		public CompletableFuture<String> getConnectionFuture() {
-			synchronized (lock) {
-				return connectionFuture;
-			}
-		}
-	}
+        assertTrue(secondConnectionResult.isLeft());
+
+        final String actualConnectionId2 = secondConnectionResult.left().getCorrelationId();
+
+        assertEquals(actualConnectionId2, connectionId2);
+    }
+
+    // ------------------------------------------------------------------------
+    //  test RegisteredRpcConnection
+    // ------------------------------------------------------------------------
+
+    private static class TestRpcConnection
+            extends RegisteredRpcConnection<
+                    UUID,
+                    TestRegistrationGateway,
+                    TestRegistrationSuccess,
+                    TestRegistrationRejection> {
+
+        private final Object lock = new Object();
+
+        private final RpcService rpcService;
+
+        private CompletableFuture<Either<TestRegistrationSuccess, TestRegistrationRejection>>
+                connectionFuture;
+
+        public TestRpcConnection(
+                String targetAddress,
+                UUID targetLeaderId,
+                Executor executor,
+                RpcService rpcService) {
+            super(
+                    LoggerFactory.getLogger(RegisteredRpcConnectionTest.class),
+                    targetAddress,
+                    targetLeaderId,
+                    executor);
+            this.rpcService = rpcService;
+            this.connectionFuture = new CompletableFuture<>();
+        }
+
+        @Override
+        protected RetryingRegistration<
+                        UUID,
+                        TestRegistrationGateway,
+                        RetryingRegistrationTest.TestRegistrationSuccess,
+                        RetryingRegistrationTest.TestRegistrationRejection>
+                generateRegistration() {
+            return new RetryingRegistrationTest.TestRetryingRegistration(
+                    rpcService, getTargetAddress(), getTargetLeaderId());
+        }
+
+        @Override
+        protected void onRegistrationSuccess(
+                RetryingRegistrationTest.TestRegistrationSuccess success) {
+            synchronized (lock) {
+                connectionFuture.complete(Either.Left(success));
+            }
+        }
+
+        @Override
+        protected void onRegistrationRejection(TestRegistrationRejection rejection) {
+            synchronized (lock) {
+                connectionFuture.complete(Either.Right(rejection));
+            }
+        }
+
+        @Override
+        protected void onRegistrationFailure(Throwable failure) {
+            synchronized (lock) {
+                connectionFuture.completeExceptionally(failure);
+            }
+        }
+
+        @Override
+        public boolean tryReconnect() {
+            synchronized (lock) {
+                connectionFuture.cancel(false);
+                connectionFuture = new CompletableFuture<>();
+            }
+            return super.tryReconnect();
+        }
+
+        public CompletableFuture<Either<TestRegistrationSuccess, TestRegistrationRejection>>
+                getConnectionFuture() {
+            synchronized (lock) {
+                return connectionFuture;
+            }
+        }
+    }
 }

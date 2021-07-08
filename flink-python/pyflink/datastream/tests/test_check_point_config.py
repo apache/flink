@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from pyflink.common import Duration
 from pyflink.datastream import (CheckpointConfig, CheckpointingMode, ExternalizedCheckpointCleanup,
                                 StreamExecutionEnvironment)
 from pyflink.java_gateway import get_gateway
@@ -135,3 +136,35 @@ class CheckpointConfigTests(PyFlinkTestCase):
         self.checkpoint_config.set_prefer_checkpoint_for_recovery(True)
 
         self.assertTrue(self.checkpoint_config.is_prefer_checkpoint_for_recovery())
+
+    def test_is_unaligned_checkpointing_enabled(self):
+
+        self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+        self.assertFalse(self.checkpoint_config.is_force_unaligned_checkpoints())
+        self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_millis(0))
+
+        self.checkpoint_config.enable_unaligned_checkpoints()
+        self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.disable_unaligned_checkpoints()
+        self.assertFalse(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.enable_unaligned_checkpoints(True)
+        self.assertTrue(self.checkpoint_config.is_unaligned_checkpoints_enabled())
+
+        self.checkpoint_config.set_force_unaligned_checkpoints(True)
+        self.assertTrue(self.checkpoint_config.is_force_unaligned_checkpoints())
+
+        self.checkpoint_config.set_alignment_timeout(Duration.of_minutes(1))
+        self.assertEqual(self.checkpoint_config.get_alignment_timeout(), Duration.of_minutes(1))
+
+    def test_get_set_checkpoint_storage(self):
+
+        self.assertIsNone(self.checkpoint_config.get_checkpoint_storage(),
+                          "Default checkpoint storage should be None")
+
+        self.checkpoint_config.set_checkpoint_storage_dir("file://var/checkpoints/")
+
+        self.assertEqual(self.checkpoint_config.get_checkpoint_storage().get_checkpoint_path(),
+                         "file://var/checkpoints",
+                         "Wrong checkpoints directory")

@@ -23,15 +23,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.elasticsearch.testutils.SourceSinkDataTestKit;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.util.InstantiationUtil;
 
 import org.elasticsearch.client.Client;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,195 +35,171 @@ import java.util.function.Function;
 import static org.junit.Assert.fail;
 
 /**
- * Environment preparation and suite of tests for version-specific {@link ElasticsearchSinkBase} implementations.
+ * Environment preparation and suite of tests for version-specific {@link ElasticsearchSinkBase}
+ * implementations.
  *
  * @param <C> Elasticsearch client type
  * @param <A> The address type to use
  */
-public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A> extends AbstractTestBase {
+public abstract class ElasticsearchSinkTestBase<C extends AutoCloseable, A>
+        extends AbstractTestBase {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkTestBase.class);
+    // It's not good that we're using a Client here instead of a Rest Client but we need this
+    // for compatibility with ES 5.3.x. As soon as we drop that we can use RestClient here.
+    protected abstract Client getClient();
 
-	protected static final String CLUSTER_NAME = "test-cluster";
+    protected abstract String getClusterName();
 
-	protected static EmbeddedElasticsearchNodeEnvironment embeddedNodeEnv;
+    /** Tests that the Elasticsearch sink works properly with json. */
+    public void runElasticsearchSinkTest() throws Exception {
+        runElasticSearchSinkTest(
+                "elasticsearch-sink-test-json-index", SourceSinkDataTestKit::getJsonSinkFunction);
+    }
 
-	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
+    /** Tests that the Elasticsearch sink works properly with cbor. */
+    public void runElasticsearchSinkCborTest() throws Exception {
+        runElasticSearchSinkTest(
+                "elasticsearch-sink-test-cbor-index", SourceSinkDataTestKit::getCborSinkFunction);
+    }
 
-	@BeforeClass
-	public static void prepare() throws Exception {
+    /** Tests that the Elasticsearch sink works properly with smile. */
+    public void runElasticsearchSinkSmileTest() throws Exception {
+        runElasticSearchSinkTest(
+                "elasticsearch-sink-test-smile-index", SourceSinkDataTestKit::getSmileSinkFunction);
+    }
 
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting embedded Elasticsearch node ");
-		LOG.info("-------------------------------------------------------------------------");
+    /** Tests that the Elasticsearch sink works properly with yaml. */
+    public void runElasticsearchSinkYamlTest() throws Exception {
+        runElasticSearchSinkTest(
+                "elasticsearch-sink-test-yaml-index", SourceSinkDataTestKit::getYamlSinkFunction);
+    }
 
-		// dynamically load version-specific implementation of the Elasticsearch embedded node environment
-		Class<?> clazz = Class.forName(
-			"org.apache.flink.streaming.connectors.elasticsearch.EmbeddedElasticsearchNodeEnvironmentImpl");
-		embeddedNodeEnv = (EmbeddedElasticsearchNodeEnvironment) InstantiationUtil.instantiate(clazz);
+    private void runElasticSearchSinkTest(
+            String index,
+            Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory)
+            throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		embeddedNodeEnv.start(tempFolder.newFolder(), CLUSTER_NAME);
+        DataStreamSource<Tuple2<Integer, String>> source =
+                env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
-	}
+        source.addSink(
+                createElasticsearchSinkForEmbeddedNode(
+                        1, getClusterName(), functionFactory.apply(index)));
 
-	@AfterClass
-	public static void shutdown() throws Exception {
+        env.execute("Elasticsearch Sink Test");
 
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Shutting down embedded Elasticsearch node ");
-		LOG.info("-------------------------------------------------------------------------");
+        // verify the results
+        Client client = getClient();
 
-		embeddedNodeEnv.close();
+        SourceSinkDataTestKit.verifyProducedSinkData(client, index);
 
-	}
+        client.close();
+    }
 
-	/**
-	 * Tests that the Elasticsearch sink works properly with json.
-	 */
-	public void runElasticsearchSinkTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getJsonSinkFunction);
-	}
+    /**
+     * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code
+     * null}.
+     */
+    public void runNullAddressesTest() {
+        try {
+            createElasticsearchSink(
+                    1, getClusterName(), null, SourceSinkDataTestKit.getJsonSinkFunction("test"));
+        } catch (IllegalArgumentException | NullPointerException expectedException) {
+            // test passes
+            return;
+        }
 
-	/**
-	 * Tests that the Elasticsearch sink works properly with cbor.
-	 */
-	public void runElasticsearchSinkCborTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getCborSinkFunction);
-	}
+        fail();
+    }
 
-	/**
-	 * Tests that the Elasticsearch sink works properly with smile.
-	 */
-	public void runElasticsearchSinkSmileTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getSmileSinkFunction);
-	}
+    /**
+     * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is empty.
+     */
+    public void runEmptyAddressesTest() {
+        try {
+            createElasticsearchSink(
+                    1,
+                    getClusterName(),
+                    Collections.emptyList(),
+                    SourceSinkDataTestKit.getJsonSinkFunction("test"));
+        } catch (IllegalArgumentException expectedException) {
+            // test passes
+            return;
+        }
 
-	/**
-	 * Tests that the Elasticsearch sink works properly with yaml.
-	 */
-	public void runElasticsearchSinkYamlTest() throws Exception {
-		runElasticSearchSinkTest(SourceSinkDataTestKit::getYamlSinkFunction);
-	}
+        fail();
+    }
 
-	private void runElasticSearchSinkTest(Function<String, ElasticsearchSinkFunction<Tuple2<Integer, String>>> functionFactory) throws Exception {
-		final String index = "elasticsearch-sink-test-index";
+    /** Tests whether the Elasticsearch sink fails when there is no cluster to connect to. */
+    public void runInvalidElasticsearchClusterTest() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        DataStreamSource<Tuple2<Integer, String>> source =
+                env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
 
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
+        source.addSink(
+                createElasticsearchSinkForNode(
+                        1,
+                        "invalid-cluster-name",
+                        SourceSinkDataTestKit.getJsonSinkFunction("test"),
+                        "123.123.123.123")); // incorrect ip address
 
-		source.addSink(createElasticsearchSinkForEmbeddedNode(
-				1,
-				CLUSTER_NAME,
-				functionFactory.apply(index)));
+        try {
+            env.execute("Elasticsearch Sink Test");
+        } catch (JobExecutionException expectedException) {
+            // every ES version throws a different exception in case of timeouts, so don't bother
+            // asserting on the exception
+            // test passes
+            return;
+        }
 
-		env.execute("Elasticsearch Sink Test");
+        fail();
+    }
 
-		// verify the results
-		Client client = embeddedNodeEnv.getClient();
-		SourceSinkDataTestKit.verifyProducedSinkData(client, index);
+    /** Utility method to create a user config map. */
+    protected Map<String, String> createUserConfig(int bulkFlushMaxActions, String clusterName) {
+        Map<String, String> userConfig = new HashMap<>();
+        userConfig.put("cluster.name", clusterName);
+        userConfig.put(
+                ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS,
+                String.valueOf(bulkFlushMaxActions));
+        userConfig.put("transport.tcp.connect_timeout", "5s");
 
-		client.close();
-	}
+        return userConfig;
+    }
 
-	/**
-	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is {@code null}.
-	 */
-	public void runNullAddressesTest() throws Exception {
-		try {
-			createElasticsearchSink(
-					1,
-					CLUSTER_NAME,
-					null,
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
-		} catch (IllegalArgumentException | NullPointerException expectedException) {
-			// test passes
-			return;
-		}
+    /** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses. */
+    protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSink(
+            int bulkFlushMaxActions,
+            String clusterName,
+            List<A> addresses,
+            ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction);
 
-		fail();
-	}
+    /**
+     * Creates a version-specific Elasticsearch sink to connect to a local embedded Elasticsearch
+     * node.
+     *
+     * <p>This case is singled out from {@link
+     * ElasticsearchSinkTestBase#createElasticsearchSink(int, String, List,
+     * ElasticsearchSinkFunction)} because the Elasticsearch Java API to do so is incompatible
+     * across different versions.
+     */
+    protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C>
+            createElasticsearchSinkForEmbeddedNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction)
+                    throws Exception;
 
-	/**
-	 * Tests that the Elasticsearch sink fails eagerly if the provided list of addresses is empty.
-	 */
-	public void runEmptyAddressesTest() throws Exception {
-		try {
-			createElasticsearchSink(
-					1,
-					CLUSTER_NAME,
-					Collections.emptyList(),
-					SourceSinkDataTestKit.getJsonSinkFunction("test"));
-		} catch (IllegalArgumentException expectedException) {
-			// test passes
-			return;
-		}
-
-		fail();
-	}
-
-	/**
-	 * Tests whether the Elasticsearch sink fails when there is no cluster to connect to.
-	 */
-	public void runInvalidElasticsearchClusterTest() throws Exception {
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
-		DataStreamSource<Tuple2<Integer, String>> source = env.addSource(new SourceSinkDataTestKit.TestDataSourceFunction());
-
-		source.addSink(createElasticsearchSinkForNode(
-				1,
-				"invalid-cluster-name",
-				SourceSinkDataTestKit.getJsonSinkFunction("test"),
-				"123.123.123.123")); // incorrect ip address
-
-		try {
-			env.execute("Elasticsearch Sink Test");
-		} catch (JobExecutionException expectedException) {
-			// every ES version throws a different exception in case of timeouts, so don't bother asserting on the exception
-			// test passes
-			return;
-		}
-
-		fail();
-	}
-
-	/**
-	 * Utility method to create a user config map.
-	 */
-	protected Map<String, String> createUserConfig(int bulkFlushMaxActions, String clusterName) {
-		Map<String, String> userConfig = new HashMap<>();
-		userConfig.put("cluster.name", clusterName);
-		userConfig.put(ElasticsearchSinkBase.CONFIG_KEY_BULK_FLUSH_MAX_ACTIONS, String.valueOf(bulkFlushMaxActions));
-		userConfig.put("transport.tcp.connect_timeout", "5s");
-
-		return userConfig;
-	}
-
-	/** Creates a version-specific Elasticsearch sink, using arbitrary transport addresses. */
-	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSink(
-			int bulkFlushMaxActions,
-			String clusterName,
-			List<A> addresses,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction);
-
-	/**
-	 * Creates a version-specific Elasticsearch sink to connect to a local embedded Elasticsearch node.
-	 *
-	 * <p>This case is singled out from {@link ElasticsearchSinkTestBase#createElasticsearchSink(int, String, List, ElasticsearchSinkFunction)}
-	 * because the Elasticsearch Java API to do so is incompatible across different versions.
-	 */
-	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForEmbeddedNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction) throws Exception;
-
-	/**
-	 * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
-	 */
-	protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C> createElasticsearchSinkForNode(
-			int bulkFlushMaxActions,
-			String clusterName,
-			ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
-			String ipAddress) throws Exception;
+    /**
+     * Creates a version-specific Elasticsearch sink to connect to a specific Elasticsearch node.
+     */
+    protected abstract ElasticsearchSinkBase<Tuple2<Integer, String>, C>
+            createElasticsearchSinkForNode(
+                    int bulkFlushMaxActions,
+                    String clusterName,
+                    ElasticsearchSinkFunction<Tuple2<Integer, String>> elasticsearchSinkFunction,
+                    String ipAddress)
+                    throws Exception;
 }

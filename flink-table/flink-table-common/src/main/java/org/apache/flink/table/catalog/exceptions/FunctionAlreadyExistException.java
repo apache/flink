@@ -20,19 +20,17 @@ package org.apache.flink.table.catalog.exceptions;
 
 import org.apache.flink.table.catalog.ObjectPath;
 
-/**
- * Exception for trying to create a function that already exists.
- */
+/** Exception for trying to create a function that already exists. */
 public class FunctionAlreadyExistException extends Exception {
 
-	private static final String MSG = "Function %s already exists in Catalog %s.";
+    private static final String MSG = "Function %s already exists in Catalog %s.";
 
-	public FunctionAlreadyExistException(String catalogName, ObjectPath functionPath) {
-		this(catalogName, functionPath, null);
-	}
+    public FunctionAlreadyExistException(String catalogName, ObjectPath functionPath) {
+        this(catalogName, functionPath, null);
+    }
 
-	public FunctionAlreadyExistException(String catalogName, ObjectPath functionPath, Throwable cause) {
-		super(String.format(MSG, functionPath.getFullName(), catalogName), cause);
-	}
-
+    public FunctionAlreadyExistException(
+            String catalogName, ObjectPath functionPath, Throwable cause) {
+        super(String.format(MSG, functionPath.getFullName(), catalogName), cause);
+    }
 }

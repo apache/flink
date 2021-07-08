@@ -17,9 +17,8 @@
  */
 
 /**
- * This package contains the actor messages that are sent between the
- * JobManager and components that are interested in the status of
- * the JobManager. An example for such a component is the web
+ * This package contains the actor messages that are sent between the JobManager and components that
+ * are interested in the status of the JobManager. An example for such a component is the web
  * runtime monitor, which sends messages to request the status.
  */
 package org.apache.flink.runtime.messages.webmonitor;

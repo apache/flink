@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -33,39 +34,40 @@ import static org.junit.Assert.assertEquals;
 
 public class KeytabOverlayTest extends ContainerOverlayTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigure() throws Exception {
+    @Test
+    public void testConfigure() throws Exception {
 
-		File keytab = tempFolder.newFile();
+        File keytab = tempFolder.newFile();
 
-		KeytabOverlay overlay = new KeytabOverlay(keytab);
+        KeytabOverlay overlay = new KeytabOverlay(keytab);
 
-		ContainerSpecification spec = new ContainerSpecification();
-		overlay.configure(spec);
+        ContainerSpecification spec = new ContainerSpecification();
+        overlay.configure(spec);
 
-		assertEquals(TARGET_PATH.getPath(), spec.getFlinkConfiguration().getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
-		checkArtifact(spec, TARGET_PATH);
-	}
+        assertEquals(
+                TARGET_PATH.getPath(),
+                spec.getFlinkConfiguration().getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
+        checkArtifact(spec, TARGET_PATH);
+    }
 
-	@Test
-	public void testNoConf() throws Exception {
-		KeytabOverlay overlay = new KeytabOverlay((Path) null);
+    @Test
+    public void testNoConf() throws Exception {
+        KeytabOverlay overlay = new KeytabOverlay((Path) null);
 
-		ContainerSpecification containerSpecification = new ContainerSpecification();
-		overlay.configure(containerSpecification);
-	}
+        ContainerSpecification containerSpecification = new ContainerSpecification();
+        overlay.configure(containerSpecification);
+    }
 
-	@Test
-	public void testBuilderFromEnvironment() throws Exception {
+    @Test
+    public void testBuilderFromEnvironment() throws Exception {
 
-		final Configuration conf = new Configuration();
-		File keytab = tempFolder.newFile();
+        final Configuration conf = new Configuration();
+        File keytab = tempFolder.newFile();
 
-		conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytab.getAbsolutePath());
-		KeytabOverlay.Builder builder = KeytabOverlay.newBuilder().fromEnvironment(conf);
-		assertEquals(builder.keytabPath, keytab);
-	}
+        conf.setString(SecurityOptions.KERBEROS_LOGIN_KEYTAB, keytab.getAbsolutePath());
+        KeytabOverlay.Builder builder = KeytabOverlay.newBuilder().fromEnvironment(conf);
+        assertEquals(builder.keytabPath, keytab);
+    }
 }

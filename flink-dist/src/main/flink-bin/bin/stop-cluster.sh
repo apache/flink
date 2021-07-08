@@ -23,7 +23,7 @@ bin=`cd "$bin"; pwd`
 . "$bin"/config.sh
 
 # Stop TaskManager instance(s)
-TMSlaves stop
+TMWorkers stop
 
 # Stop JobManager instance(s)
 shopt -s nocasematch

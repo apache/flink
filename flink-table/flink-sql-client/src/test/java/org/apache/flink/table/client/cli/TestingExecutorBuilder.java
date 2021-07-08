@@ -17,62 +17,39 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Builder for {@link TestingExecutor}.
- */
+/** Builder for {@link TestingExecutor}. */
 class TestingExecutorBuilder {
 
-	private List<SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException>> resultChangesSupplier = Collections.emptyList();
-	private List<SupplierWithException<TypedResult<Integer>, SqlExecutionException>> snapshotResultsSupplier = Collections.emptyList();
-	private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier = Collections.emptyList();
-	private BiConsumerWithException<String, String, SqlExecutionException> setUseCatalogConsumer = (ignoredA, ignoredB) -> {};
-	private BiConsumerWithException<String, String, SqlExecutionException> setUseDatabaseConsumer = (ignoredA, ignoredB) -> {};
+    private List<SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>>
+            resultChangesSupplier = Collections.emptyList();
+    private List<SupplierWithException<List<Row>, SqlExecutionException>> resultPagesSupplier =
+            Collections.emptyList();
 
-	@SafeVarargs
-	public final TestingExecutorBuilder setResultChangesSupplier(SupplierWithException<TypedResult<List<Tuple2<Boolean, Row>>>, SqlExecutionException> ... resultChangesSupplier) {
-		this.resultChangesSupplier = Arrays.asList(resultChangesSupplier);
-		return this;
-	}
+    @SafeVarargs
+    public final TestingExecutorBuilder setResultChangesSupplier(
+            SupplierWithException<TypedResult<List<Row>>, SqlExecutionException>...
+                    resultChangesSupplier) {
+        this.resultChangesSupplier = Arrays.asList(resultChangesSupplier);
+        return this;
+    }
 
-	@SafeVarargs
-	public final TestingExecutorBuilder setSnapshotResultSupplier(SupplierWithException<TypedResult<Integer>, SqlExecutionException> ... snapshotResultsSupplier) {
-		this.snapshotResultsSupplier = Arrays.asList(snapshotResultsSupplier);
-		return this;
-	}
+    @SafeVarargs
+    public final TestingExecutorBuilder setResultPageSupplier(
+            SupplierWithException<List<Row>, SqlExecutionException>... resultPageSupplier) {
+        resultPagesSupplier = Arrays.asList(resultPageSupplier);
+        return this;
+    }
 
-	@SafeVarargs
-	public final TestingExecutorBuilder setResultPageSupplier(SupplierWithException<List<Row>, SqlExecutionException> ... resultPageSupplier) {
-		resultPagesSupplier = Arrays.asList(resultPageSupplier);
-		return this;
-	}
-
-	public final TestingExecutorBuilder setUseCatalogConsumer(BiConsumerWithException<String, String, SqlExecutionException> useCatalogConsumer) {
-		this.setUseCatalogConsumer = useCatalogConsumer;
-		return this;
-	}
-
-	public final TestingExecutorBuilder setUseDatabaseConsumer(BiConsumerWithException<String, String, SqlExecutionException> useDatabaseConsumer) {
-		this.setUseDatabaseConsumer = useDatabaseConsumer;
-		return this;
-	}
-
-	public TestingExecutor build() {
-		return new TestingExecutor(
-			resultChangesSupplier,
-			snapshotResultsSupplier,
-			resultPagesSupplier,
-			setUseCatalogConsumer,
-			setUseDatabaseConsumer);
-	}
+    public TestingExecutor build() {
+        return new TestingExecutor(resultChangesSupplier, resultPagesSupplier);
+    }
 }

@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch5_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch5</name>
+	<name>Flink : Connectors : Elasticsearch 5</name>
 
 	<packaging>jar</packaging>
 
@@ -40,20 +40,9 @@ under the License.
 		<elasticsearch.version>5.3.3</elasticsearch.version>
 	</properties>
 
-	<dependencyManagement>
-		<dependencies>
-			<!-- Bump version to 1.25 to make it work with Jackson dependencies (2.10.1) -->
-			<dependency>
-				<groupId>org.yaml</groupId>
-				<artifactId>snakeyaml</artifactId>
-				<version>1.25</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
-		<!-- core dependencies -->
+		<!-- Core -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -61,6 +50,8 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Flink Elasticsearch -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -75,6 +66,8 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Elasticsearch -->
+
 		<!-- Dependency for Elasticsearch 5.x Java Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
@@ -86,56 +79,63 @@ under the License.
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-buffer</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-codec</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-codec-http</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-common</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-handler</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-resolver</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
 		<dependency>
 			<!-- Bump elasticsearch netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-transport</artifactId>
-			<version>4.1.44.Final</version>
+			<version>4.1.46.Final</version>
 		</dependency>
 
-		<!-- test dependencies -->
+		<!-- Tests -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-statebackend-changelog_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -256,19 +256,6 @@ under the License.
 										<exclude>log4j.properties</exclude>
 										<exclude>config/favicon.ico</exclude>
 										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/com*/**</exclude>
-										<exclude>META-INF/maven/io*/**</exclude>
-										<exclude>META-INF/maven/joda*/**</exclude>
-										<exclude>META-INF/maven/net*/**</exclude>
-										<exclude>META-INF/maven/org.an*/**</exclude>
-										<exclude>META-INF/maven/org.apache.h*/**</exclude>
-										<exclude>META-INF/maven/org.apache.commons/**</exclude>
-										<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
-										<exclude>META-INF/maven/org.apache.logging*/**</exclude>
-										<exclude>META-INF/maven/org.e*/**</exclude>
-										<exclude>META-INF/maven/org.h*/**</exclude>
-										<exclude>META-INF/maven/org.j*/**</exclude>
-										<exclude>META-INF/maven/org.y*/**</exclude>
 									</excludes>
 								</filter>
 								<filter>

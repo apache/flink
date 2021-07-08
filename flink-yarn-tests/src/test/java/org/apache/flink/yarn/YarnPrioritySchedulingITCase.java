@@ -30,56 +30,63 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
-/**
- * Tests to Yarn's priority scheduling.
- */
+/** Tests to Yarn's priority scheduling. */
 public class YarnPrioritySchedulingITCase extends YarnTestBase {
 
-	@BeforeClass
-	public static void setup() {
-		assumeTrue(
-			"Priority scheduling is not supported by Hadoop: " + VersionInfo.getVersion(),
-			isHadoopVersionGreaterThanOrEquals(2, 8));
+    @BeforeClass
+    public static void setup() {
+        assumeTrue(
+                "Priority scheduling is not supported by Hadoop: " + VersionInfo.getVersion(),
+                isHadoopVersionGreaterThanOrEquals(2, 8));
 
-		YARN_CONFIGURATION.setStrings("yarn.cluster.max-application-priority", "10");
-		startYARNWithConfig(YARN_CONFIGURATION);
-	}
+        YARN_CONFIGURATION.setStrings("yarn.cluster.max-application-priority", "10");
+        startYARNWithConfig(YARN_CONFIGURATION);
+    }
 
-	@Test
-	public void yarnApplication_submissionWithPriority_shouldRespectPriority() throws Exception {
-		runTest(() -> {
-			final int priority = 5;
-			final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
-					"-j", flinkUberjar.getAbsolutePath(),
-					"-t", flinkLibFolder.getAbsolutePath(),
-					"-t", flinkShadedHadoopDir.getAbsolutePath(),
-					"-jm", "768m",
-					"-tm", "1024m",
-					"-Dyarn.application.priority=" + priority},
-				"JobManager Web Interface:",
-				RunTypes.YARN_SESSION);
+    @Test
+    public void yarnApplication_submissionWithPriority_shouldRespectPriority() throws Exception {
+        runTest(
+                () -> {
+                    final int priority = 5;
+                    final Runner yarnSessionClusterRunner =
+                            startWithArgs(
+                                    new String[] {
+                                        "-j",
+                                        flinkUberjar.getAbsolutePath(),
+                                        "-t",
+                                        flinkLibFolder.getAbsolutePath(),
+                                        "-jm",
+                                        "768m",
+                                        "-tm",
+                                        "1024m",
+                                        "-Dyarn.application.priority=" + priority
+                                    },
+                                    "JobManager Web Interface:",
+                                    RunTypes.YARN_SESSION);
 
-			try {
-				final ApplicationReport applicationReport = getOnlyApplicationReport();
+                    try {
+                        final ApplicationReport applicationReport = getOnlyApplicationReport();
 
-				assertApplicationIsStartedWithPriority(applicationReport, priority);
-			} finally {
-				yarnSessionClusterRunner.sendStop();
-				yarnSessionClusterRunner.join();
-			}
-		});
-	}
+                        assertApplicationIsStartedWithPriority(applicationReport, priority);
+                    } finally {
+                        yarnSessionClusterRunner.sendStop();
+                        yarnSessionClusterRunner.join();
+                    }
+                });
+    }
 
-	private void assertApplicationIsStartedWithPriority(ApplicationReport applicationReport, int priority) throws Exception {
-		final String getPriorityMethodName = "getPriority";
+    private void assertApplicationIsStartedWithPriority(
+            ApplicationReport applicationReport, int priority) throws Exception {
+        final String getPriorityMethodName = "getPriority";
 
-		final Class<? extends ApplicationReport> applicationReportClass = applicationReport.getClass();
-		final Method getPriorityMethod = applicationReportClass.getMethod(getPriorityMethodName);
-		final Object priorityResult = getPriorityMethod.invoke(applicationReport);
+        final Class<? extends ApplicationReport> applicationReportClass =
+                applicationReport.getClass();
+        final Method getPriorityMethod = applicationReportClass.getMethod(getPriorityMethodName);
+        final Object priorityResult = getPriorityMethod.invoke(applicationReport);
 
-		final Class<?> priorityClass = priorityResult.getClass();
-		final Method getPriorityPriorityMethod = priorityClass.getMethod(getPriorityMethodName);
+        final Class<?> priorityClass = priorityResult.getClass();
+        final Method getPriorityPriorityMethod = priorityClass.getMethod(getPriorityMethodName);
 
-		assertThat(getPriorityPriorityMethod.invoke(priorityResult), is(priority));
-	}
+        assertThat(getPriorityPriorityMethod.invoke(priorityResult), is(priority));
+    }
 }

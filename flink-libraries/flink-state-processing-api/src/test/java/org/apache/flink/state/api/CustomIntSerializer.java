@@ -27,78 +27,77 @@ import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
 
-/**
- * A custom int serializer.
- */
+/** A custom int serializer. */
 public class CustomIntSerializer extends TypeSerializerSingleton<Integer> {
 
-	static final TypeSerializer<Integer> INSTANCE = new CustomIntSerializer();
+    static final TypeSerializer<Integer> INSTANCE = new CustomIntSerializer();
 
-	private static final int MAGIC_VALUE = 0xabc;
+    private static final int MAGIC_VALUE = 0xabc;
 
-	@Override
-	public boolean isImmutableType() {
-		return true;
-	}
+    @Override
+    public boolean isImmutableType() {
+        return true;
+    }
 
-	@Override
-	public Integer createInstance() {
-		return 0;
-	}
+    @Override
+    public Integer createInstance() {
+        return 0;
+    }
 
-	@Override
-	public Integer copy(Integer from) {
-		return from;
-	}
+    @Override
+    public Integer copy(Integer from) {
+        return from;
+    }
 
-	@Override
-	public Integer copy(Integer from, Integer reuse) {
-		return from;
-	}
+    @Override
+    public Integer copy(Integer from, Integer reuse) {
+        return from;
+    }
 
-	@Override
-	public int getLength() {
-		return 8;
-	}
+    @Override
+    public int getLength() {
+        return 8;
+    }
 
-	@Override
-	public void serialize(Integer record, DataOutputView target) throws IOException {
-		target.writeInt(MAGIC_VALUE);
-		target.writeInt(record);
-	}
+    @Override
+    public void serialize(Integer record, DataOutputView target) throws IOException {
+        target.writeInt(MAGIC_VALUE);
+        target.writeInt(record);
+    }
 
-	@Override
-	public Integer deserialize(DataInputView source) throws IOException {
-		int header = source.readInt();
-		if (header != MAGIC_VALUE) {
-			throw new RuntimeException(String.format("Invalid magic value, expected %d found %d", MAGIC_VALUE, header));
-		}
-		return source.readInt();
-	}
+    @Override
+    public Integer deserialize(DataInputView source) throws IOException {
+        int header = source.readInt();
+        if (header != MAGIC_VALUE) {
+            throw new RuntimeException(
+                    String.format(
+                            "Invalid magic value, expected %d found %d", MAGIC_VALUE, header));
+        }
+        return source.readInt();
+    }
 
-	@Override
-	public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+    @Override
+    public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
-		return new CustomSerializerSnapshot();
-	}
+    @Override
+    public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+        return new CustomSerializerSnapshot();
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	public static final class CustomSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    public static final class CustomSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<Integer> {
 
-		@SuppressWarnings("WeakerAccess")
-		public CustomSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+        @SuppressWarnings("WeakerAccess")
+        public CustomSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

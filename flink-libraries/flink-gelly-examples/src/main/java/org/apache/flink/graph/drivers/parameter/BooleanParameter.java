@@ -20,35 +20,31 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 
-/**
- * A {@link Parameter} storing a {@link Boolean}.
- */
-public class BooleanParameter
-extends SimpleParameter<Boolean> {
+/** A {@link Parameter} storing a {@link Boolean}. */
+public class BooleanParameter extends SimpleParameter<Boolean> {
 
-	/**
-	 * Set the parameter name and add this parameter to the list of parameters
-	 * stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 * @param name the parameter name
-	 */
-	public BooleanParameter(ParameterizedBase owner, String name) {
-		super(owner, name);
-	}
+    /**
+     * Set the parameter name and add this parameter to the list of parameters stored by owner.
+     *
+     * @param owner the {@link Parameterized} using this {@link Parameter}
+     * @param name the parameter name
+     */
+    public BooleanParameter(ParameterizedBase owner, String name) {
+        super(owner, name);
+    }
 
-	@Override
-	public String getUsage() {
-		return "[--" + name + "]";
-	}
+    @Override
+    public String getUsage() {
+        return "[--" + name + "]";
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) {
-		value = parameterTool.has(name);
-	}
+    @Override
+    public void configure(ParameterTool parameterTool) {
+        value = parameterTool.has(name);
+    }
 
-	@Override
-	public String toString() {
-		return Boolean.toString(value);
-	}
+    @Override
+    public String toString() {
+        return Boolean.toString(value);
+    }
 }

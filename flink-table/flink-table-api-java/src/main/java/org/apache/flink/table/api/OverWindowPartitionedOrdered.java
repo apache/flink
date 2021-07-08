@@ -28,62 +28,62 @@ import java.util.Optional;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
-/**
- * Partially defined over window with (optional) partitioning and order.
- */
+/** Partially defined over window with (optional) partitioning and order. */
 @PublicEvolving
 public final class OverWindowPartitionedOrdered {
 
-	private final List<Expression> partitionBy;
-	private final Expression orderBy;
+    private final List<Expression> partitionBy;
+    private final Expression orderBy;
 
-	OverWindowPartitionedOrdered(List<Expression> partitionBy, Expression orderBy) {
-		this.partitionBy = partitionBy;
-		this.orderBy = orderBy;
-	}
+    OverWindowPartitionedOrdered(List<Expression> partitionBy, Expression orderBy) {
+        this.partitionBy = partitionBy;
+        this.orderBy = orderBy;
+    }
 
-	/**
-	 * Set the preceding offset (based on time or row-count intervals) for over window.
-	 *
-	 * @param preceding preceding offset relative to the current row.
-	 * @return an over window with defined preceding
-	 */
-	public OverWindowPartitionedOrderedPreceding preceding(String preceding) {
-		return this.preceding(ExpressionParser.parseExpression(preceding));
-	}
+    /**
+     * Set the preceding offset (based on time or row-count intervals) for over window.
+     *
+     * @param preceding preceding offset relative to the current row.
+     * @return an over window with defined preceding
+     * @deprecated use {@link #preceding(Expression)}
+     */
+    @Deprecated
+    public OverWindowPartitionedOrderedPreceding preceding(String preceding) {
+        return this.preceding(ExpressionParser.parseExpression(preceding));
+    }
 
-	/**
-	 * Set the preceding offset (based on time or row-count intervals) for over window.
-	 *
-	 * @param preceding preceding offset relative to the current row.
-	 * @return an over window with defined preceding
-	 */
-	public OverWindowPartitionedOrderedPreceding preceding(Expression preceding) {
-		return new OverWindowPartitionedOrderedPreceding(partitionBy, orderBy, preceding);
-	}
+    /**
+     * Set the preceding offset (based on time or row-count intervals) for over window.
+     *
+     * @param preceding preceding offset relative to the current row.
+     * @return an over window with defined preceding
+     */
+    public OverWindowPartitionedOrderedPreceding preceding(Expression preceding) {
+        return new OverWindowPartitionedOrderedPreceding(partitionBy, orderBy, preceding);
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code select()} clause can refer to.
-	 *
-	 * @param alias alias for this over window
-	 * @return the fully defined over window
-	 */
-	public OverWindow as(String alias) {
-		return as(ExpressionParser.parseExpression(alias));
-	}
+    /**
+     * Assigns an alias for this window that the following {@code select()} clause can refer to.
+     *
+     * @param alias alias for this over window
+     * @return the fully defined over window
+     */
+    public OverWindow as(String alias) {
+        return as(ExpressionParser.parseExpression(alias));
+    }
 
-	/**
-	 * Assigns an alias for this window that the following {@code select()} clause can refer to.
-	 *
-	 * @param alias alias for this over window
-	 * @return the fully defined over window
-	 */
-	public OverWindow as(Expression alias) {
-		return new OverWindow(
-			alias,
-			partitionBy,
-			orderBy,
-			unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
-			Optional.empty());
-	}
+    /**
+     * Assigns an alias for this window that the following {@code select()} clause can refer to.
+     *
+     * @param alias alias for this over window
+     * @return the fully defined over window
+     */
+    public OverWindow as(Expression alias) {
+        return new OverWindow(
+                alias,
+                partitionBy,
+                orderBy,
+                unresolvedCall(BuiltInFunctionDefinitions.UNBOUNDED_RANGE),
+                Optional.empty());
+    }
 }

@@ -33,68 +33,67 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests for the {@link PartitionTable}.
- */
+/** Tests for the {@link PartitionTable}. */
 public class PartitionTableTest extends TestLogger {
 
-	private static final JobID JOB_ID = new JobID();
-	private static final ResultPartitionID PARTITION_ID = new ResultPartitionID();
+    private static final JobID JOB_ID = new JobID();
+    private static final ResultPartitionID PARTITION_ID = new ResultPartitionID();
 
-	@Test
-	public void testEmptyTable() {
-		final PartitionTable<JobID> table = new PartitionTable<>();
+    @Test
+    public void testEmptyTable() {
+        final PartitionTable<JobID> table = new PartitionTable<>();
 
-		// an empty table should always return an empty collection
-		Collection<ResultPartitionID> partitionsForNonExistingJob = table.stopTrackingPartitions(JOB_ID);
-		assertNotNull(partitionsForNonExistingJob);
-		assertThat(partitionsForNonExistingJob, empty());
+        // an empty table should always return an empty collection
+        Collection<ResultPartitionID> partitionsForNonExistingJob =
+                table.stopTrackingPartitions(JOB_ID);
+        assertNotNull(partitionsForNonExistingJob);
+        assertThat(partitionsForNonExistingJob, empty());
 
-		assertFalse(table.hasTrackedPartitions(JOB_ID));
-	}
+        assertFalse(table.hasTrackedPartitions(JOB_ID));
+    }
 
-	@Test
-	public void testStartTrackingPartition() {
-		final PartitionTable<JobID> table = new PartitionTable<>();
+    @Test
+    public void testStartTrackingPartition() {
+        final PartitionTable<JobID> table = new PartitionTable<>();
 
-		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
+        table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
 
-		assertTrue(table.hasTrackedPartitions(JOB_ID));
-	}
+        assertTrue(table.hasTrackedPartitions(JOB_ID));
+    }
 
-	@Test
-	public void testStartTrackingZeroPartitionDoesNotMutateState() {
-		final PartitionTable<JobID> table = new PartitionTable<>();
+    @Test
+    public void testStartTrackingZeroPartitionDoesNotMutateState() {
+        final PartitionTable<JobID> table = new PartitionTable<>();
 
-		table.startTrackingPartitions(JOB_ID, Collections.emptyList());
+        table.startTrackingPartitions(JOB_ID, Collections.emptyList());
 
-		assertFalse(table.hasTrackedPartitions(JOB_ID));
-	}
+        assertFalse(table.hasTrackedPartitions(JOB_ID));
+    }
 
-	@Test
-	public void testStopTrackingAllPartitions() {
-		final PartitionTable<JobID> table = new PartitionTable<>();
+    @Test
+    public void testStopTrackingAllPartitions() {
+        final PartitionTable<JobID> table = new PartitionTable<>();
 
-		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
+        table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
 
-		Collection<ResultPartitionID> storedPartitions = table.stopTrackingPartitions(JOB_ID);
-		assertThat(storedPartitions, contains(PARTITION_ID));
-		assertFalse(table.hasTrackedPartitions(JOB_ID));
-	}
+        Collection<ResultPartitionID> storedPartitions = table.stopTrackingPartitions(JOB_ID);
+        assertThat(storedPartitions, contains(PARTITION_ID));
+        assertFalse(table.hasTrackedPartitions(JOB_ID));
+    }
 
-	@Test
-	public void testStopTrackingPartitions() {
-		final ResultPartitionID partitionId2 = new ResultPartitionID();
-		final PartitionTable<JobID> table = new PartitionTable<>();
+    @Test
+    public void testStopTrackingPartitions() {
+        final ResultPartitionID partitionId2 = new ResultPartitionID();
+        final PartitionTable<JobID> table = new PartitionTable<>();
 
-		table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
-		table.startTrackingPartitions(JOB_ID, Collections.singletonList(partitionId2));
+        table.startTrackingPartitions(JOB_ID, Collections.singletonList(PARTITION_ID));
+        table.startTrackingPartitions(JOB_ID, Collections.singletonList(partitionId2));
 
-		table.stopTrackingPartitions(JOB_ID, Collections.singletonList(partitionId2));
-		assertTrue(table.hasTrackedPartitions(JOB_ID));
+        table.stopTrackingPartitions(JOB_ID, Collections.singletonList(partitionId2));
+        assertTrue(table.hasTrackedPartitions(JOB_ID));
 
-		Collection<ResultPartitionID> storedPartitions = table.stopTrackingPartitions(JOB_ID);
-		assertThat(storedPartitions, contains(PARTITION_ID));
-		assertFalse(table.hasTrackedPartitions(JOB_ID));
-	}
+        Collection<ResultPartitionID> storedPartitions = table.stopTrackingPartitions(JOB_ID);
+        assertThat(storedPartitions, contains(PARTITION_ID));
+        assertFalse(table.hasTrackedPartitions(JOB_ID));
+    }
 }

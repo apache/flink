@@ -24,56 +24,57 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
-import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
-/**
- * Test for {@link TupleTypeInfo}.
- */
+import static org.junit.Assert.assertTrue;
+
+/** Test for {@link TupleTypeInfo}. */
 public class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>> {
 
-	@Override
-	protected TupleTypeInfo<?>[] getTestData() {
-		return new TupleTypeInfo<?>[] {
-			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
-			new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO)
-		};
-	}
+    @Override
+    protected TupleTypeInfo<?>[] getTestData() {
+        return new TupleTypeInfo<?>[] {
+            new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
+            new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO)
+        };
+    }
 
-	@Test
-	public void testTupleTypeInfoSymmetricEqualityRelation() {
-		TupleTypeInfo<Tuple1<Integer>> tupleTypeInfo = new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO);
+    @Test
+    public void testTupleTypeInfoSymmetricEqualityRelation() {
+        TupleTypeInfo<Tuple1<Integer>> tupleTypeInfo =
+                new TupleTypeInfo<>(BasicTypeInfo.INT_TYPE_INFO);
 
-		TupleTypeInfoBase<Tuple1> anonymousTupleTypeInfo = new TupleTypeInfoBase<Tuple1>(
-			Tuple1.class,
-			(TypeInformation<?>)BasicTypeInfo.INT_TYPE_INFO) {
+        TupleTypeInfoBase<Tuple1> anonymousTupleTypeInfo =
+                new TupleTypeInfoBase<Tuple1>(
+                        Tuple1.class, (TypeInformation<?>) BasicTypeInfo.INT_TYPE_INFO) {
 
-			private static final long serialVersionUID = -7985593598027660836L;
+                    private static final long serialVersionUID = -7985593598027660836L;
 
-			@Override
-			public TypeSerializer<Tuple1> createSerializer(ExecutionConfig config) {
-				return null;
-			}
+                    @Override
+                    public TypeSerializer<Tuple1> createSerializer(ExecutionConfig config) {
+                        return null;
+                    }
 
-			@Override
-			protected TypeComparatorBuilder<Tuple1> createTypeComparatorBuilder() {
-				return null;
-			}
+                    @Override
+                    protected TypeComparatorBuilder<Tuple1> createTypeComparatorBuilder() {
+                        return null;
+                    }
 
-			@Override
-			public String[] getFieldNames() {
-				return new String[0];
-			}
+                    @Override
+                    public String[] getFieldNames() {
+                        return new String[0];
+                    }
 
-			@Override
-			public int getFieldIndex(String fieldName) {
-				return 0;
-			}
-		};
+                    @Override
+                    public int getFieldIndex(String fieldName) {
+                        return 0;
+                    }
+                };
 
-		boolean tupleVsAnonymous = tupleTypeInfo.equals(anonymousTupleTypeInfo);
-		boolean anonymousVsTuple = anonymousTupleTypeInfo.equals(tupleTypeInfo);
+        boolean tupleVsAnonymous = tupleTypeInfo.equals(anonymousTupleTypeInfo);
+        boolean anonymousVsTuple = anonymousTupleTypeInfo.equals(tupleTypeInfo);
 
-		assertTrue("Equality relation should be symmetric", tupleVsAnonymous == anonymousVsTuple);
-	}
+        assertTrue("Equality relation should be symmetric", tupleVsAnonymous == anonymousVsTuple);
+    }
 }

@@ -20,8 +20,9 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicSink;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaDynamicTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
@@ -30,30 +31,29 @@ import java.util.Properties;
 
 /**
  * Kafka table sink for writing data into Kafka.
+ *
+ * @deprecated Use {@link KafkaDynamicSink} via {@link KafkaDynamicTableFactory}.
  */
+@Deprecated
 @Internal
 public class KafkaTableSink extends KafkaTableSinkBase {
 
-	public KafkaTableSink(
-		TableSchema schema,
-		String topic,
-		Properties properties,
-		Optional<FlinkKafkaPartitioner<Row>> partitioner,
-		SerializationSchema<Row> serializationSchema) {
+    public KafkaTableSink(
+            TableSchema schema,
+            String topic,
+            Properties properties,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner,
+            SerializationSchema<Row> serializationSchema) {
 
-		super(schema, topic, properties, partitioner, serializationSchema);
-	}
+        super(schema, topic, properties, partitioner, serializationSchema);
+    }
 
-	@Override
-	protected SinkFunction<Row> createKafkaProducer(
-		String topic,
-		Properties properties,
-		SerializationSchema<Row> serializationSchema,
-		Optional<FlinkKafkaPartitioner<Row>> partitioner) {
-		return new FlinkKafkaProducer<>(
-			topic,
-			new KeyedSerializationSchemaWrapper<>(serializationSchema),
-			properties,
-			partitioner);
-	}
+    @Override
+    protected SinkFunction<Row> createKafkaProducer(
+            String topic,
+            Properties properties,
+            SerializationSchema<Row> serializationSchema,
+            Optional<FlinkKafkaPartitioner<Row>> partitioner) {
+        return new FlinkKafkaProducer<>(topic, serializationSchema, properties, partitioner);
+    }
 }

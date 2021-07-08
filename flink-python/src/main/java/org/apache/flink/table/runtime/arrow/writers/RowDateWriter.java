@@ -26,23 +26,23 @@ import org.apache.arrow.vector.DateDayVector;
 
 import java.sql.Date;
 
-/**
- * {@link ArrowFieldWriter} for Date.
- */
+/** {@link ArrowFieldWriter} for Date. */
 @Internal
 public final class RowDateWriter extends ArrowFieldWriter<Row> {
 
-	public RowDateWriter(DateDayVector dateDayVector) {
-		super(dateDayVector);
-	}
+    public RowDateWriter(DateDayVector dateDayVector) {
+        super(dateDayVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((DateDayVector) getValueVector()).setNull(getCount());
-		} else {
-			((DateDayVector) getValueVector()).setSafe(
-				getCount(), PythonTypeUtils.dateToInternal(((Date) value.getField(ordinal))));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((DateDayVector) getValueVector()).setNull(getCount());
+        } else {
+            ((DateDayVector) getValueVector())
+                    .setSafe(
+                            getCount(),
+                            PythonTypeUtils.dateToInternal(((Date) value.getField(ordinal))));
+        }
+    }
 }

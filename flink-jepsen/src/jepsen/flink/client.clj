@@ -81,7 +81,7 @@
         zk-client (connect-zk-client! (fz/zookeeper-quorum test))
         init-future (future
                       (let [application-id (find-application-id zk-client)
-                            path (str "/flink/" application-id "/leader/rest_server_lock")
+                            path (str "/flink/" application-id "/leader/rest_server/connection_info")
                             _ (->
                                 (wait-for-path-to-exist zk-client path)
                                 (deref))]

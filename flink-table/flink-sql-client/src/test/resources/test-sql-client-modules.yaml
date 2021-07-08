@@ -24,7 +24,6 @@
 # this file has variables that can be filled with content by replacing $VAR_XXX
 
 execution:
-  planner: "$VAR_PLANNER"
   type: "$VAR_EXECUTION_TYPE"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
@@ -39,9 +38,6 @@ execution:
     max-failures-per-interval: 10
     failure-rate-interval: 99000
     delay: 1000
-
-deployment:
-  response-timeout: 5000
 
 modules:
   - name: core

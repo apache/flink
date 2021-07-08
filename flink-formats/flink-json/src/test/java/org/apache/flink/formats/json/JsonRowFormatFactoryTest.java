@@ -38,129 +38,144 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for the {@link JsonRowFormatFactory}.
- */
+/** Tests for the {@link JsonRowFormatFactory}. */
 public class JsonRowFormatFactoryTest extends TestLogger {
 
-	private static final String JSON_SCHEMA =
-		"{" +
-		"  'title': 'Fruit'," +
-		"  'type': 'object'," +
-		"  'properties': {" +
-		"    'name': {" +
-		"      'type': 'string'" +
-		"    }," +
-		"    'count': {" +
-		"      'type': 'integer'" +
-		"    }," +
-		"    'time': {" +
-		"      'description': 'row time'," +
-		"      'type': 'string'," +
-		"      'format': 'date-time'" +
-		"    }" +
-		"  }," +
-		"  'required': ['name', 'count', 'time']" +
-		"}";
+    private static final String JSON_SCHEMA =
+            "{"
+                    + "  'title': 'Fruit',"
+                    + "  'type': 'object',"
+                    + "  'properties': {"
+                    + "    'name': {"
+                    + "      'type': 'string'"
+                    + "    },"
+                    + "    'count': {"
+                    + "      'type': 'integer'"
+                    + "    },"
+                    + "    'time': {"
+                    + "      'description': 'row time',"
+                    + "      'type': 'string',"
+                    + "      'format': 'date-time'"
+                    + "    }"
+                    + "  },"
+                    + "  'required': ['name', 'count', 'time']"
+                    + "}";
 
-	private static final TypeInformation<Row> SCHEMA = Types.ROW(
-		new String[]{"field1", "field2"},
-		new TypeInformation[]{Types.BOOLEAN(), Types.INT()});
+    private static final TypeInformation<Row> SCHEMA =
+            Types.ROW(
+                    new String[] {"field1", "field2"},
+                    new TypeInformation[] {Types.BOOLEAN(), Types.INT()});
 
-	@Test
-	public void testSchema() {
-		final Map<String, String> properties = toMap(
-			new Json()
-				.schema(SCHEMA)
-				.failOnMissingField(false));
+    @Test
+    public void testSchema() {
+        final Map<String, String> properties =
+                toMap(new Json().schema(SCHEMA).failOnMissingField(false));
 
-		testSchemaSerializationSchema(properties);
+        testSchemaSerializationSchema(properties);
 
-		testSchemaDeserializationSchema(properties);
-	}
+        testSchemaDeserializationSchema(properties);
+    }
 
-	@Test
-	public void testJsonSchema() {
-		final Map<String, String> properties = toMap(
-			new Json()
-				.jsonSchema(JSON_SCHEMA)
-				.failOnMissingField(true));
+    @Test
+    public void testSchemaIgnoreParseErrors() {
+        final Map<String, String> properties =
+                toMap(new Json().schema(SCHEMA).ignoreParseErrors(true));
 
-		testJsonSchemaSerializationSchema(properties);
+        testSchemaSerializationSchema(properties);
 
-		testJsonSchemaDeserializationSchema(properties);
-	}
+        final DeserializationSchema<?> actual2 =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
+        final JsonRowDeserializationSchema expected2 =
+                new JsonRowDeserializationSchema.Builder(SCHEMA).ignoreParseErrors().build();
+        assertEquals(expected2, actual2);
+    }
 
-	@Test
-	public void testSchemaDerivation() {
-		final Map<String, String> properties = toMap(
-			new Schema()
-				.field("field1", Types.BOOLEAN())
-				.field("field2", Types.INT())
-				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
-			new Json()
-				.deriveSchema());
+    @Test
+    public void testJsonSchema() {
+        final Map<String, String> properties =
+                toMap(new Json().jsonSchema(JSON_SCHEMA).failOnMissingField(true));
 
-		testSchemaSerializationSchema(properties);
+        testJsonSchemaSerializationSchema(properties);
 
-		testSchemaDeserializationSchema(properties);
-	}
+        testJsonSchemaDeserializationSchema(properties);
+    }
 
-	@Test
-	public void testSchemaDerivationByDefault() {
-		final Map<String, String> properties = toMap(
-			new Schema()
-				.field("field1", Types.BOOLEAN())
-				.field("field2", Types.INT())
-				.field("proctime", Types.SQL_TIMESTAMP()).proctime(),
-			new Json());
+    @Test
+    public void testSchemaDerivation() {
+        final Map<String, String> properties =
+                toMap(
+                        new Schema()
+                                .field("field1", Types.BOOLEAN())
+                                .field("field2", Types.INT())
+                                .field("proctime", Types.SQL_TIMESTAMP())
+                                .proctime(),
+                        new Json().deriveSchema());
 
-		testSchemaSerializationSchema(properties);
+        testSchemaSerializationSchema(properties);
 
-		testSchemaDeserializationSchema(properties);
-	}
+        testSchemaDeserializationSchema(properties);
+    }
 
-	private void testSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFactoryService
-			.find(DeserializationSchemaFactory.class, properties)
-			.createDeserializationSchema(properties);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema.Builder(SCHEMA).build();
-		assertEquals(expected2, actual2);
-	}
+    @Test
+    public void testSchemaDerivationByDefault() {
+        final Map<String, String> properties =
+                toMap(
+                        new Schema()
+                                .field("field1", Types.BOOLEAN())
+                                .field("field2", Types.INT())
+                                .field("proctime", Types.SQL_TIMESTAMP())
+                                .proctime(),
+                        new Json());
 
-	private void testSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = new JsonRowSerializationSchema.Builder(SCHEMA).build();
-		assertEquals(expected1, actual1);
-	}
+        testSchemaSerializationSchema(properties);
 
-	private void testJsonSchemaDeserializationSchema(Map<String, String> properties) {
-		final DeserializationSchema<?> actual2 = TableFactoryService
-			.find(DeserializationSchemaFactory.class, properties)
-			.createDeserializationSchema(properties);
-		final JsonRowDeserializationSchema expected2 = new JsonRowDeserializationSchema.Builder(JSON_SCHEMA)
-			.failOnMissingField()
-			.build();
-		assertEquals(expected2, actual2);
-	}
+        testSchemaDeserializationSchema(properties);
+    }
 
-	private void testJsonSchemaSerializationSchema(Map<String, String> properties) {
-		final SerializationSchema<?> actual1 = TableFactoryService
-			.find(SerializationSchemaFactory.class, properties)
-			.createSerializationSchema(properties);
-		final SerializationSchema<?> expected1 = JsonRowSerializationSchema.builder()
-			.withTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA))
-			.build();
-		assertEquals(expected1, actual1);
-	}
+    private void testSchemaDeserializationSchema(Map<String, String> properties) {
+        final DeserializationSchema<?> actual2 =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
+        final JsonRowDeserializationSchema expected2 =
+                new JsonRowDeserializationSchema.Builder(SCHEMA).build();
+        assertEquals(expected2, actual2);
+    }
 
-	private static Map<String, String> toMap(Descriptor... desc) {
-		final DescriptorProperties descriptorProperties = new DescriptorProperties();
-		for (Descriptor d : desc) {
-			descriptorProperties.putProperties(d.toProperties());
-		}
-		return descriptorProperties.asMap();
-	}
+    private void testSchemaSerializationSchema(Map<String, String> properties) {
+        final SerializationSchema<?> actual1 =
+                TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                        .createSerializationSchema(properties);
+        final SerializationSchema<?> expected1 =
+                new JsonRowSerializationSchema.Builder(SCHEMA).build();
+        assertEquals(expected1, actual1);
+    }
+
+    private void testJsonSchemaDeserializationSchema(Map<String, String> properties) {
+        final DeserializationSchema<?> actual2 =
+                TableFactoryService.find(DeserializationSchemaFactory.class, properties)
+                        .createDeserializationSchema(properties);
+        final JsonRowDeserializationSchema expected2 =
+                new JsonRowDeserializationSchema.Builder(JSON_SCHEMA).failOnMissingField().build();
+        assertEquals(expected2, actual2);
+    }
+
+    private void testJsonSchemaSerializationSchema(Map<String, String> properties) {
+        final SerializationSchema<?> actual1 =
+                TableFactoryService.find(SerializationSchemaFactory.class, properties)
+                        .createSerializationSchema(properties);
+        final SerializationSchema<?> expected1 =
+                JsonRowSerializationSchema.builder()
+                        .withTypeInfo(JsonRowSchemaConverter.convert(JSON_SCHEMA))
+                        .build();
+        assertEquals(expected1, actual1);
+    }
+
+    private static Map<String, String> toMap(Descriptor... desc) {
+        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        for (Descriptor d : desc) {
+            descriptorProperties.putProperties(d.toProperties());
+        }
+        return descriptorProperties.asMap();
+    }
 }

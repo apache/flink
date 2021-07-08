@@ -18,32 +18,42 @@
 
 package org.apache.flink.connectors.hive.read;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
- * Split reader to read record from files. The reader is only responsible for reading the data
- * of a single split.
+ * Split reader to read record from files. The reader is only responsible for reading the data of a
+ * single split.
  */
 public interface SplitReader extends Closeable {
 
-	/**
-	 * Method used to check if the end of the input is reached.
-	 *
-	 * @return True if the end is reached, otherwise false.
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	boolean reachedEnd() throws IOException;
+    /**
+     * Method used to check if the end of the input is reached.
+     *
+     * @return True if the end is reached, otherwise false.
+     * @throws IOException Thrown, if an I/O error occurred.
+     */
+    boolean reachedEnd() throws IOException;
 
-	/**
-	 * Reads the next record from the input.
-	 *
-	 * @param reuse Object that may be reused.
-	 * @return Read record.
-	 *
-	 * @throws IOException Thrown, if an I/O error occurred.
-	 */
-	BaseRow nextRecord(BaseRow reuse) throws IOException;
+    /**
+     * Reads the next record from the input.
+     *
+     * @param reuse Object that may be reused.
+     * @return Read record.
+     * @throws IOException Thrown, if an I/O error occurred.
+     */
+    RowData nextRecord(RowData reuse) throws IOException;
+
+    /** Seek to a particular row number. */
+    default void seekToRow(long rowCount, RowData reuse) throws IOException {
+        for (int i = 0; i < rowCount; i++) {
+            boolean end = reachedEnd();
+            if (end) {
+                throw new RuntimeException("Seek too many rows.");
+            }
+            nextRecord(reuse);
+        }
+    }
 }

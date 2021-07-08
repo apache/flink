@@ -26,63 +26,62 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.util.function.Supplier;
 
-/**
- * A timer service that initializes its internal
- * timer service lazily.
- */
+/** A timer service that initializes its internal timer service lazily. */
 @Internal
 public class LazyTimerService implements TimerService {
 
-	private final Supplier<InternalTimerService<VoidNamespace>> supplier;
+    private final Supplier<InternalTimerService<VoidNamespace>> supplier;
 
-	private final ProcessingTimeService processingTimeService;
+    private final ProcessingTimeService processingTimeService;
 
-	private InternalTimerService<VoidNamespace> internalTimerService;
+    private InternalTimerService<VoidNamespace> internalTimerService;
 
-	LazyTimerService(Supplier<InternalTimerService<VoidNamespace>> supplier, ProcessingTimeService processingTimeService) {
-		this.supplier = supplier;
-		this.processingTimeService = processingTimeService;
-	}
+    LazyTimerService(
+            Supplier<InternalTimerService<VoidNamespace>> supplier,
+            ProcessingTimeService processingTimeService) {
+        this.supplier = supplier;
+        this.processingTimeService = processingTimeService;
+    }
 
-	@Override
-	public long currentProcessingTime() {
-		return processingTimeService.getCurrentProcessingTime();
-	}
+    @Override
+    public long currentProcessingTime() {
+        return processingTimeService.getCurrentProcessingTime();
+    }
 
-	@Override
-	public long currentWatermark() {
-		// The watermark does not advance
-		// when bootstrapping state.
-		return Long.MIN_VALUE;
-	}
+    @Override
+    public long currentWatermark() {
+        // The watermark does not advance
+        // when bootstrapping state.
+        return Long.MIN_VALUE;
+    }
 
-	@Override
-	public void registerProcessingTimeTimer(long time) {
-		ensureInitialized();
-		internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, time);
-	}
+    @Override
+    public void registerProcessingTimeTimer(long time) {
+        ensureInitialized();
+        internalTimerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, time);
+    }
 
-	@Override
-	public void registerEventTimeTimer(long time) {
-		ensureInitialized();
-		internalTimerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, time);
-	}
+    @Override
+    public void registerEventTimeTimer(long time) {
+        ensureInitialized();
+        internalTimerService.registerEventTimeTimer(VoidNamespace.INSTANCE, time);
+    }
 
-	@Override
-	public void deleteProcessingTimeTimer(long time) {
-		ensureInitialized();
-		internalTimerService.deleteProcessingTimeTimer(VoidNamespace.INSTANCE, time);
-	}
+    @Override
+    public void deleteProcessingTimeTimer(long time) {
+        ensureInitialized();
+        internalTimerService.deleteProcessingTimeTimer(VoidNamespace.INSTANCE, time);
+    }
 
-	@Override
-	public void deleteEventTimeTimer(long time) {
-		ensureInitialized();
-		internalTimerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, time);
-	}
+    @Override
+    public void deleteEventTimeTimer(long time) {
+        ensureInitialized();
+        internalTimerService.deleteEventTimeTimer(VoidNamespace.INSTANCE, time);
+    }
 
-	private void ensureInitialized() {
-		if (internalTimerService == null) {
-			internalTimerService = supplier.get();
-		}
-	}
+    private void ensureInitialized() {
+        if (internalTimerService == null) {
+            internalTimerService = supplier.get();
+        }
+    }
 }

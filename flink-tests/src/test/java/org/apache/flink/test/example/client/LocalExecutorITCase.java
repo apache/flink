@@ -44,92 +44,97 @@ import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-/**
- * Integration tests for {@link LocalExecutor}.
- */
+/** Integration tests for {@link LocalExecutor}. */
 public class LocalExecutorITCase extends TestLogger {
 
-	private static final int parallelism = 4;
+    private static final int parallelism = 4;
 
-	private MiniCluster miniCluster;
-	private LocalExecutor executor;
+    private MiniCluster miniCluster;
+    private LocalExecutor executor;
 
-	@Before
-	public void before() {
-		executor = LocalExecutor.createWithFactory(new Configuration(), config -> {
-			miniCluster = new MiniCluster(config);
-			return miniCluster;
-		});
-	}
+    @Before
+    public void before() {
+        executor =
+                LocalExecutor.createWithFactory(
+                        new Configuration(),
+                        config -> {
+                            miniCluster = new MiniCluster(config);
+                            return miniCluster;
+                        });
+    }
 
-	@Test(timeout = 60_000)
-	public void testLocalExecutorWithWordCount() throws InterruptedException {
-		try {
-			// set up the files
-			File inFile = File.createTempFile("wctext", ".in");
-			File outFile = File.createTempFile("wctext", ".out");
-			inFile.deleteOnExit();
-			outFile.deleteOnExit();
+    @Test(timeout = 60_000)
+    public void testLocalExecutorWithWordCount() throws InterruptedException {
+        try {
+            // set up the files
+            File inFile = File.createTempFile("wctext", ".in");
+            File outFile = File.createTempFile("wctext", ".out");
+            inFile.deleteOnExit();
+            outFile.deleteOnExit();
 
-			try (FileWriter fw = new FileWriter(inFile)) {
-				fw.write(WordCountData.TEXT);
-			}
+            try (FileWriter fw = new FileWriter(inFile)) {
+                fw.write(WordCountData.TEXT);
+            }
 
-			final Configuration config = new Configuration();
-			config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-			config.setBoolean(DeploymentOptions.ATTACHED, true);
+            final Configuration config = new Configuration();
+            config.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+            config.setBoolean(DeploymentOptions.ATTACHED, true);
 
-			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
-			wcPlan.setExecutionConfig(new ExecutionConfig());
-			JobClient jobClient = executor.execute(wcPlan, config).get();
-			jobClient.getJobExecutionResult(getClass().getClassLoader()).get();
-		} catch (Exception e) {
-			e.printStackTrace();
-			Assert.fail(e.getMessage());
-		}
+            Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
+            wcPlan.setExecutionConfig(new ExecutionConfig());
+            JobClient jobClient =
+                    executor.execute(wcPlan, config, ClassLoader.getSystemClassLoader()).get();
+            jobClient.getJobExecutionResult().get();
+        } catch (Exception e) {
+            e.printStackTrace();
+            Assert.fail(e.getMessage());
+        }
 
-		assertThat(miniCluster.isRunning(), is(false));
-	}
+        assertThat(miniCluster.isRunning(), is(false));
+    }
 
-	@Test(timeout = 60_000)
-	public void testMiniClusterShutdownOnErrors() throws Exception {
-		Plan runtimeExceptionPlan = getRuntimeExceptionPlan();
-		runtimeExceptionPlan.setExecutionConfig(new ExecutionConfig());
+    @Test(timeout = 60_000)
+    public void testMiniClusterShutdownOnErrors() throws Exception {
+        Plan runtimeExceptionPlan = getRuntimeExceptionPlan();
+        runtimeExceptionPlan.setExecutionConfig(new ExecutionConfig());
 
-		Configuration config = new Configuration();
-		config.setBoolean(DeploymentOptions.ATTACHED, true);
+        Configuration config = new Configuration();
+        config.setBoolean(DeploymentOptions.ATTACHED, true);
 
-		JobClient jobClient = executor.execute(runtimeExceptionPlan, config).get();
+        JobClient jobClient =
+                executor.execute(runtimeExceptionPlan, config, ClassLoader.getSystemClassLoader())
+                        .get();
 
-		assertThrows(
-			"Job execution failed.",
-			Exception.class,
-			() -> jobClient.getJobExecutionResult(getClass().getClassLoader()).get());
+        assertThrows(
+                "Job execution failed.",
+                Exception.class,
+                () -> jobClient.getJobExecutionResult().get());
 
-		assertThat(miniCluster.isRunning(), is(false));
-	}
+        assertThat(miniCluster.isRunning(), is(false));
+    }
 
-	private Plan getWordCountPlan(File inFile, File outFile, int parallelism) {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(parallelism);
-		env.readTextFile(inFile.getAbsolutePath())
-			.flatMap(new Tokenizer())
-			.groupBy(0)
-			.sum(1)
-			.writeAsCsv(outFile.getAbsolutePath());
-		return env.createProgramPlan();
-	}
+    private Plan getWordCountPlan(File inFile, File outFile, int parallelism) {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(parallelism);
+        env.readTextFile(inFile.getAbsolutePath())
+                .flatMap(new Tokenizer())
+                .groupBy(0)
+                .sum(1)
+                .writeAsCsv(outFile.getAbsolutePath());
+        return env.createProgramPlan();
+    }
 
-	private Plan getRuntimeExceptionPlan() {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(1)
-			.map(element -> {
-				if (element == 1) {
-					throw new RuntimeException("oups");
-				}
-				return element;
-			})
-			.output(new DiscardingOutputFormat<>());
-		return env.createProgramPlan();
-	}
+    private Plan getRuntimeExceptionPlan() {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.fromElements(1)
+                .map(
+                        element -> {
+                            if (element == 1) {
+                                throw new RuntimeException("oups");
+                            }
+                            return element;
+                        })
+                .output(new DiscardingOutputFormat<>());
+        return env.createProgramPlan();
+    }
 }

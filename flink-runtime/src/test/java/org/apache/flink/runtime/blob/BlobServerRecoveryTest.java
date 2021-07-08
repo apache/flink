@@ -46,113 +46,113 @@ import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the recovery of files of a {@link BlobServer} from a HA store.
- */
+/** Tests for the recovery of files of a {@link BlobServer} from a HA store. */
 public class BlobServerRecoveryTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	/**
-	 * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from any
-	 * participating BlobServer.
-	 */
-	@Test
-	public void testBlobServerRecovery() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
-		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+    /**
+     * Tests that with {@link HighAvailabilityMode#ZOOKEEPER} distributed JARs are recoverable from
+     * any participating BlobServer.
+     */
+    @Test
+    public void testBlobServerRecovery() throws Exception {
+        Configuration config = new Configuration();
+        config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
+        config.setString(
+                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
 
-		BlobStoreService blobStoreService = null;
+        BlobStoreService blobStoreService = null;
 
-		try {
-			blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
+        try {
+            blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
-			testBlobServerRecovery(config, blobStoreService);
-		} finally {
-			if (blobStoreService != null) {
-				blobStoreService.closeAndCleanupAllData();
-			}
-		}
-	}
+            testBlobServerRecovery(config, blobStoreService);
+        } finally {
+            if (blobStoreService != null) {
+                blobStoreService.closeAndCleanupAllData();
+            }
+        }
+    }
 
-	/**
-	 * Helper to test that the {@link BlobServer} recovery from its HA store works.
-	 *
-	 * <p>Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to retrieve
-	 * them via a shared HA store upon request of a {@link BlobCacheService}.
-	 *
-	 * @param config
-	 * 		blob server configuration (including HA settings like {@link HighAvailabilityOptions#HA_STORAGE_PATH}
-	 * 		and {@link HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
-	 * @param blobStore
-	 * 		shared HA blob store to use
-	 *
-	 * @throws IOException
-	 * 		in case of failures
-	 */
-	public static void testBlobServerRecovery(final Configuration config, final BlobStore blobStore) throws IOException {
-		final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
-		String storagePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
-		Random rand = new Random();
+    /**
+     * Helper to test that the {@link BlobServer} recovery from its HA store works.
+     *
+     * <p>Uploads two BLOBs to one {@link BlobServer} and expects a second one to be able to
+     * retrieve them via a shared HA store upon request of a {@link BlobCacheService}.
+     *
+     * @param config blob server configuration (including HA settings like {@link
+     *     HighAvailabilityOptions#HA_STORAGE_PATH} and {@link
+     *     HighAvailabilityOptions#HA_CLUSTER_ID}) used to set up <tt>blobStore</tt>
+     * @param blobStore shared HA blob store to use
+     * @throws IOException in case of failures
+     */
+    public static void testBlobServerRecovery(final Configuration config, final BlobStore blobStore)
+            throws IOException {
+        final String clusterId = config.getString(HighAvailabilityOptions.HA_CLUSTER_ID);
+        String storagePath =
+                config.getString(HighAvailabilityOptions.HA_STORAGE_PATH) + "/" + clusterId;
+        Random rand = new Random();
 
-		try (
-			BlobServer server0 = new BlobServer(config, blobStore);
-			BlobServer server1 = new BlobServer(config, blobStore);
-			// use VoidBlobStore as the HA store to force download from server[1]'s HA store
-			BlobCacheService cache1 = new BlobCacheService(
-				config, new VoidBlobStore(), new InetSocketAddress("localhost", server1.getPort())
-			)) {
+        try (BlobServer server0 = new BlobServer(config, blobStore);
+                BlobServer server1 = new BlobServer(config, blobStore);
+                // use VoidBlobStore as the HA store to force download from server[1]'s HA store
+                BlobCacheService cache1 =
+                        new BlobCacheService(
+                                config,
+                                new VoidBlobStore(),
+                                new InetSocketAddress("localhost", server1.getPort()))) {
 
-			server0.start();
-			server1.start();
+            server0.start();
+            server1.start();
 
-			// Random data
-			byte[] expected = new byte[1024];
-			rand.nextBytes(expected);
-			byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
+            // Random data
+            byte[] expected = new byte[1024];
+            rand.nextBytes(expected);
+            byte[] expected2 = Arrays.copyOfRange(expected, 32, 288);
 
-			BlobKey[] keys = new BlobKey[2];
-			BlobKey nonHAKey;
+            BlobKey[] keys = new BlobKey[2];
+            BlobKey nonHAKey;
 
-			// Put job-related HA data
-			JobID[] jobId = new JobID[] { new JobID(), new JobID() };
-			keys[0] = put(server0, jobId[0], expected, PERMANENT_BLOB); // Request 1
-			keys[1] = put(server0, jobId[1], expected2, PERMANENT_BLOB); // Request 2
+            // Put job-related HA data
+            JobID[] jobId = new JobID[] {new JobID(), new JobID()};
+            keys[0] = put(server0, jobId[0], expected, PERMANENT_BLOB); // Request 1
+            keys[1] = put(server0, jobId[1], expected2, PERMANENT_BLOB); // Request 2
 
-			// put non-HA data
-			nonHAKey = put(server0, jobId[0], expected2, TRANSIENT_BLOB);
-			verifyKeyDifferentHashEquals(keys[1], nonHAKey);
+            // put non-HA data
+            nonHAKey = put(server0, jobId[0], expected2, TRANSIENT_BLOB);
+            verifyKeyDifferentHashEquals(keys[1], nonHAKey);
 
-			// check that the storage directory exists
-			final Path blobServerPath = new Path(storagePath, "blob");
-			FileSystem fs = blobServerPath.getFileSystem();
-			assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
+            // check that the storage directory exists
+            final Path blobServerPath = new Path(storagePath, "blob");
+            FileSystem fs = blobServerPath.getFileSystem();
+            assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
 
-			// Verify HA requests from cache1 (connected to server1) with no immediate access to the file
-			verifyContents(cache1, jobId[0], keys[0], expected);
-			verifyContents(cache1, jobId[1], keys[1], expected2);
+            // Verify HA requests from cache1 (connected to server1) with no immediate access to the
+            // file
+            verifyContents(cache1, jobId[0], keys[0], expected);
+            verifyContents(cache1, jobId[1], keys[1], expected2);
 
-			// Verify non-HA file is not accessible from server1
-			verifyDeleted(cache1, jobId[0], nonHAKey);
+            // Verify non-HA file is not accessible from server1
+            verifyDeleted(cache1, jobId[0], nonHAKey);
 
-			// Remove again
-			server1.cleanupJob(jobId[0], true);
-			server1.cleanupJob(jobId[1], true);
+            // Remove again
+            server1.cleanupJob(jobId[0], true);
+            server1.cleanupJob(jobId[1], true);
 
-			// Verify everything is clean
-			assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
-			if (fs.exists(blobServerPath)) {
-				final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
-					fs.listStatus(blobServerPath);
-				ArrayList<String> filenames = new ArrayList<>(recoveryFiles.length);
-				for (org.apache.flink.core.fs.FileStatus file: recoveryFiles) {
-					filenames.add(file.toString());
-				}
-				fail("Unclean state backend: " + filenames);
-			}
-		}
-	}
+            // Verify everything is clean
+            assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
+            if (fs.exists(blobServerPath)) {
+                final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
+                        fs.listStatus(blobServerPath);
+                ArrayList<String> filenames = new ArrayList<>(recoveryFiles.length);
+                for (org.apache.flink.core.fs.FileStatus file : recoveryFiles) {
+                    filenames.add(file.toString());
+                }
+                fail("Unclean state backend: " + filenames);
+            }
+        }
+    }
 }

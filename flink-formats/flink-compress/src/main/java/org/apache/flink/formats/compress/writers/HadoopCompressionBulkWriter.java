@@ -28,33 +28,33 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link BulkWriter} implementation that writes data that have been
- * compressed using Hadoop {@link org.apache.hadoop.io.compress.CompressionCodec}.
+ * A {@link BulkWriter} implementation that writes data that have been compressed using Hadoop
+ * {@link org.apache.hadoop.io.compress.CompressionCodec}.
  *
  * @param <T> The type of element to write.
  */
 public class HadoopCompressionBulkWriter<T> implements BulkWriter<T> {
 
-	private final Extractor<T> extractor;
-	private final CompressionOutputStream out;
+    private final Extractor<T> extractor;
+    private final CompressionOutputStream out;
 
-	public HadoopCompressionBulkWriter(CompressionOutputStream out, Extractor<T> extractor) {
-		this.out = checkNotNull(out);
-		this.extractor = checkNotNull(extractor);
-	}
+    public HadoopCompressionBulkWriter(CompressionOutputStream out, Extractor<T> extractor) {
+        this.out = checkNotNull(out);
+        this.extractor = checkNotNull(extractor);
+    }
 
-	@Override
-	public void addElement(T element) throws IOException {
-		out.write(extractor.extract(element));
-	}
+    @Override
+    public void addElement(T element) throws IOException {
+        out.write(extractor.extract(element));
+    }
 
-	@Override
-	public void flush() throws IOException {
-		out.flush();
-	}
+    @Override
+    public void flush() throws IOException {
+        out.flush();
+    }
 
-	@Override
-	public void finish() throws IOException {
-		out.finish();
-	}
+    @Override
+    public void finish() throws IOException {
+        out.finish();
+    }
 }

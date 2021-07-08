@@ -19,21 +19,19 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * Exception used by  flink's hive data connector.
- */
+/** Exception used by flink's hive data connector. */
 @PublicEvolving
 public class FlinkHiveException extends RuntimeException {
 
-	public FlinkHiveException(String message) {
-		super(message);
-	}
+    public FlinkHiveException(String message) {
+        super(message);
+    }
 
-	public FlinkHiveException(Throwable cause) {
-		super(cause);
-	}
+    public FlinkHiveException(Throwable cause) {
+        super(cause);
+    }
 
-	public FlinkHiveException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    public FlinkHiveException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

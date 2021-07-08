@@ -22,43 +22,43 @@
   </div>
   <div class="status">
     <div class="field">
-      <span>Last Heartbeat:</span>
-      <span>{{ taskManagerDetail.timeSinceLastHeartbeat | date:'yy-MM-dd HH:mm:ss' }}</span>
+      <div>Last Heartbeat:</div>
+      <div>{{ taskManagerDetail.timeSinceLastHeartbeat | date:'yyyy-MM-dd HH:mm:ss' }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>ID:</span>
-      <span>{{ taskManagerDetail.id }}</span>
+      <div>ID:</div>
+      <div>{{ taskManagerDetail.id }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>Data Port:</span>
-      <span>{{ taskManagerDetail.dataPort }}</span>
+      <div>Data Port:</div>
+      <div>{{ taskManagerDetail.dataPort }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>Free Slots / All Slots:</span>
-      <span>{{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}</span>
+      <div>Free Slots / All Slots:</div>
+      <div>{{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>CPU Cores:</span>
-      <span>{{ taskManagerDetail.hardware.cpuCores }}</span>
+      <div>CPU Cores:</div>
+      <div>{{ taskManagerDetail.hardware.cpuCores }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>Physical Memory:</span>
-      <span>{{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}</span>
+      <div>Physical Memory:</div>
+      <div>{{ taskManagerDetail.hardware.physicalMemory | humanizeBytes }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>JVM Heap Size:</span>
-      <span>{{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}</span>
+      <div>JVM Heap Size:</div>
+      <div>{{ taskManagerDetail.hardware.freeMemory | humanizeBytes }}</div>
     </div>
     <nz-divider [nzType]="'vertical'"></nz-divider>
     <div class="field">
-      <span>Flink Managed Memory:</span>
-      <span>{{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}</span>
+      <div>Flink Managed Memory:</div>
+      <div>{{ taskManagerDetail.hardware.managedMemory | humanizeBytes }}</div>
     </div>
   </div>
   <flink-navigation [listOfNavigation]="listOfNavigation"></flink-navigation>

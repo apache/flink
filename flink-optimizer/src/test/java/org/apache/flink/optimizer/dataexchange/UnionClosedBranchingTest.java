@@ -38,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -55,9 +56,9 @@ import static org.junit.Assert.assertTrue;
 /**
  * This tests a fix for FLINK-2540.
  *
- * <p> This test is necessary, because {@link NAryUnionPlanNode}s are not directly translated
- * to runtime tasks by the {@link JobGraphGenerator}. Instead, the network stack unions the
- * inputs by directly reading from multiple inputs (via {@link UnionInputGate}).
+ * <p>This test is necessary, because {@link NAryUnionPlanNode}s are not directly translated to
+ * runtime tasks by the {@link JobGraphGenerator}. Instead, the network stack unions the inputs by
+ * directly reading from multiple inputs (via {@link UnionInputGate}).
  *
  * <pre>
  *   (source)-\        /-\
@@ -68,135 +69,147 @@ import static org.junit.Assert.assertTrue;
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-2540">FLINK-2540</a>
  */
 @RunWith(Parameterized.class)
-@SuppressWarnings({"serial","unchecked"})
+@SuppressWarnings({"serial", "unchecked"})
 public class UnionClosedBranchingTest extends CompilerTestBase {
 
-	@Parameterized.Parameters
-	public static Collection<Object[]> params() {
-		Collection<Object[]> params = Arrays.asList(new Object[][]{
-				{ExecutionMode.PIPELINED, BATCH, PIPELINED},
-				{ExecutionMode.PIPELINED_FORCED, PIPELINED, PIPELINED},
-				{ExecutionMode.BATCH, BATCH, PIPELINED},
-				{ExecutionMode.BATCH_FORCED, BATCH, BATCH},
-		});
+    @Parameterized.Parameters
+    public static Collection<Object[]> params() {
+        Collection<Object[]> params =
+                Arrays.asList(
+                        new Object[][] {
+                            {ExecutionMode.PIPELINED, BATCH, PIPELINED},
+                            {ExecutionMode.PIPELINED_FORCED, PIPELINED, PIPELINED},
+                            {ExecutionMode.BATCH, BATCH, PIPELINED},
+                            {ExecutionMode.BATCH_FORCED, BATCH, BATCH},
+                        });
 
-		// Make sure that changes to ExecutionMode are reflected in this test.
-		assertEquals(ExecutionMode.values().length, params.size());
+        // Make sure that changes to ExecutionMode are reflected in this test.
+        assertEquals(ExecutionMode.values().length, params.size());
 
-		return params;
-	}
+        return params;
+    }
 
-	private final ExecutionMode executionMode;
+    private final ExecutionMode executionMode;
 
-	/** Expected {@link DataExchangeMode} from sources to union. */
-	private final DataExchangeMode sourceToUnion;
+    /** Expected {@link DataExchangeMode} from sources to union. */
+    private final DataExchangeMode sourceToUnion;
 
-	/** Expected {@link DataExchangeMode} from union to join. */
-	private final DataExchangeMode unionToJoin;
+    /** Expected {@link DataExchangeMode} from union to join. */
+    private final DataExchangeMode unionToJoin;
 
-	/** Expected {@link ShipStrategyType} from source to union. */
-	private final ShipStrategyType sourceToUnionStrategy = ShipStrategyType.PARTITION_HASH;
+    /** Expected {@link ShipStrategyType} from source to union. */
+    private final ShipStrategyType sourceToUnionStrategy = ShipStrategyType.PARTITION_HASH;
 
-	/** Expected {@link ShipStrategyType} from union to join. */
-	private final ShipStrategyType unionToJoinStrategy = ShipStrategyType.FORWARD;
+    /** Expected {@link ShipStrategyType} from union to join. */
+    private final ShipStrategyType unionToJoinStrategy = ShipStrategyType.FORWARD;
 
-	public UnionClosedBranchingTest(
-		ExecutionMode executionMode,
-		DataExchangeMode sourceToUnion,
-		DataExchangeMode unionToJoin) {
+    public UnionClosedBranchingTest(
+            ExecutionMode executionMode,
+            DataExchangeMode sourceToUnion,
+            DataExchangeMode unionToJoin) {
 
-		this.executionMode = executionMode;
-		this.sourceToUnion = sourceToUnion;
-		this.unionToJoin = unionToJoin;
-	}
+        this.executionMode = executionMode;
+        this.sourceToUnion = sourceToUnion;
+        this.unionToJoin = unionToJoin;
+    }
 
-	@Test
-	public void testUnionClosedBranchingTest() throws Exception {
+    @Test
+    public void testUnionClosedBranchingTest() throws Exception {
 
-		// -----------------------------------------------------------------------------------------
-		// Build test program
-		// -----------------------------------------------------------------------------------------
+        // -----------------------------------------------------------------------------------------
+        // Build test program
+        // -----------------------------------------------------------------------------------------
 
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().setExecutionMode(executionMode);
-		env.setParallelism(4);
-		
-		DataSet<Tuple1<Integer>> src1 = env.fromElements(new Tuple1<>(0), new Tuple1<>(1));
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setExecutionMode(executionMode);
+        env.setParallelism(4);
 
-		DataSet<Tuple1<Integer>> src2 = env.fromElements(new Tuple1<>(0), new Tuple1<>(1));
+        DataSet<Tuple1<Integer>> src1 = env.fromElements(new Tuple1<>(0), new Tuple1<>(1));
 
-		DataSet<Tuple1<Integer>> union = src1.union(src2);
+        DataSet<Tuple1<Integer>> src2 = env.fromElements(new Tuple1<>(0), new Tuple1<>(1));
 
-		DataSet<Tuple2<Integer, Integer>> join = union
-				.join(union).where(0).equalTo(0)
-				.projectFirst(0).projectSecond(0);
+        DataSet<Tuple1<Integer>> union = src1.union(src2);
 
-		join.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
+        DataSet<Tuple2<Integer, Integer>> join =
+                union.join(union).where(0).equalTo(0).projectFirst(0).projectSecond(0);
 
-		// -----------------------------------------------------------------------------------------
-		// Verify optimized plan
-		// -----------------------------------------------------------------------------------------
+        join.output(new DiscardingOutputFormat<Tuple2<Integer, Integer>>());
 
-		OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
+        // -----------------------------------------------------------------------------------------
+        // Verify optimized plan
+        // -----------------------------------------------------------------------------------------
 
-		SinkPlanNode sinkNode = optimizedPlan.getDataSinks().iterator().next();
+        OptimizedPlan optimizedPlan = compileNoStats(env.createProgramPlan());
 
-		DualInputPlanNode joinNode = (DualInputPlanNode) sinkNode.getPredecessor();
+        SinkPlanNode sinkNode = optimizedPlan.getDataSinks().iterator().next();
 
-		// Verify that the compiler correctly sets the expected data exchange modes.
-		for (Channel channel : joinNode.getInputs()) {
-			assertEquals("Unexpected data exchange mode between union and join node.",
-					unionToJoin, channel.getDataExchangeMode());
-			assertEquals("Unexpected ship strategy between union and join node.",
-					unionToJoinStrategy, channel.getShipStrategy());
-		}
+        DualInputPlanNode joinNode = (DualInputPlanNode) sinkNode.getPredecessor();
 
-		for (SourcePlanNode src : optimizedPlan.getDataSources()) {
-			for (Channel channel : src.getOutgoingChannels()) {
-				assertEquals("Unexpected data exchange mode between source and union node.",
-						sourceToUnion, channel.getDataExchangeMode());
-				assertEquals("Unexpected ship strategy between source and union node.",
-					sourceToUnionStrategy, channel.getShipStrategy());
-			}
-		}
+        // Verify that the compiler correctly sets the expected data exchange modes.
+        for (Channel channel : joinNode.getInputs()) {
+            assertEquals(
+                    "Unexpected data exchange mode between union and join node.",
+                    unionToJoin,
+                    channel.getDataExchangeMode());
+            assertEquals(
+                    "Unexpected ship strategy between union and join node.",
+                    unionToJoinStrategy,
+                    channel.getShipStrategy());
+        }
 
-		// -----------------------------------------------------------------------------------------
-		// Verify generated JobGraph
-		// -----------------------------------------------------------------------------------------
+        for (SourcePlanNode src : optimizedPlan.getDataSources()) {
+            for (Channel channel : src.getOutgoingChannels()) {
+                assertEquals(
+                        "Unexpected data exchange mode between source and union node.",
+                        sourceToUnion,
+                        channel.getDataExchangeMode());
+                assertEquals(
+                        "Unexpected ship strategy between source and union node.",
+                        sourceToUnionStrategy,
+                        channel.getShipStrategy());
+            }
+        }
 
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		JobGraph jobGraph = jgg.compileJobGraph(optimizedPlan);
+        // -----------------------------------------------------------------------------------------
+        // Verify generated JobGraph
+        // -----------------------------------------------------------------------------------------
 
-		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        JobGraphGenerator jgg = new JobGraphGenerator();
+        JobGraph jobGraph = jgg.compileJobGraph(optimizedPlan);
 
-		// Sanity check for the test setup
-		assertEquals("Unexpected number of vertices created.", 4, vertices.size());
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
-		// Verify all sources
-		JobVertex[] sources = new JobVertex[]{vertices.get(0), vertices.get(1)};
+        // Sanity check for the test setup
+        assertEquals("Unexpected number of vertices created.", 4, vertices.size());
 
-		for (JobVertex src : sources) {
-			// Sanity check
-			assertTrue("Unexpected vertex type. Test setup is broken.", src.isInputVertex());
+        // Verify all sources
+        JobVertex[] sources = new JobVertex[] {vertices.get(0), vertices.get(1)};
 
-			// The union is not translated to an extra union task, but the join uses a union
-			// input gate to read multiple inputs. The source create a single result per consumer.
-			assertEquals("Unexpected number of created results.", 2,
-					src.getNumberOfProducedIntermediateDataSets());
+        for (JobVertex src : sources) {
+            // Sanity check
+            assertTrue("Unexpected vertex type. Test setup is broken.", src.isInputVertex());
 
-			for (IntermediateDataSet dataSet : src.getProducedDataSets()) {
-				ResultPartitionType dsType = dataSet.getResultType();
+            // The union is not translated to an extra union task, but the join uses a union
+            // input gate to read multiple inputs. The source create a single result per consumer.
+            assertEquals(
+                    "Unexpected number of created results.",
+                    2,
+                    src.getNumberOfProducedIntermediateDataSets());
 
-				// Ensure batch exchange unless PIPELINED_FORCE is enabled.
-				if (!executionMode.equals(ExecutionMode.PIPELINED_FORCED)) {
-					assertTrue("Expected batch exchange, but result type is " + dsType + ".",
-							dsType.isBlocking());
-				} else {
-					assertFalse("Expected non-batch exchange, but result type is " + dsType + ".",
-							dsType.isBlocking());
-				}
-			}
-		}
-	}
+            for (IntermediateDataSet dataSet : src.getProducedDataSets()) {
+                ResultPartitionType dsType = dataSet.getResultType();
 
+                // Ensure batch exchange unless PIPELINED_FORCE is enabled.
+                if (!executionMode.equals(ExecutionMode.PIPELINED_FORCED)) {
+                    assertTrue(
+                            "Expected batch exchange, but result type is " + dsType + ".",
+                            dsType.isBlocking());
+                } else {
+                    assertFalse(
+                            "Expected non-batch exchange, but result type is " + dsType + ".",
+                            dsType.isBlocking());
+                }
+            }
+        }
+    }
 }

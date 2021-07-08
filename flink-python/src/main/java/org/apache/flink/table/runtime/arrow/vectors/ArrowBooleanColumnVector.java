@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,33 +19,29 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.vector.BooleanColumnVector;
+import org.apache.flink.table.data.vector.BooleanColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.BitVector;
 
-/**
- * Arrow column vector for Boolean.
- */
+/** Arrow column vector for Boolean. */
 @Internal
 public final class ArrowBooleanColumnVector implements BooleanColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of boolean values of a column to read.
-	 */
-	private final BitVector bitVector;
+    /** Container which is used to store the sequence of boolean values of a column to read. */
+    private final BitVector bitVector;
 
-	public ArrowBooleanColumnVector(BitVector bitVector) {
-		this.bitVector = Preconditions.checkNotNull(bitVector);
-	}
+    public ArrowBooleanColumnVector(BitVector bitVector) {
+        this.bitVector = Preconditions.checkNotNull(bitVector);
+    }
 
-	@Override
-	public boolean getBoolean(int i) {
-		return bitVector.get(i) != 0;
-	}
+    @Override
+    public boolean getBoolean(int i) {
+        return bitVector.get(i) != 0;
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return bitVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return bitVector.isNull(i);
+    }
 }

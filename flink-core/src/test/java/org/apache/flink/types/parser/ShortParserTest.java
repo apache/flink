@@ -16,46 +16,66 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.types.parser;
-
 
 public class ShortParserTest extends ParserTestBase<Short> {
 
-	@Override
-	public String[] getValidTestValues() {
-		return new String[] {
-			"0", "1", "576", "-8778", String.valueOf(Short.MAX_VALUE), String.valueOf(Short.MIN_VALUE), "119"
-		};
-	}
-	
-	@Override
-	public Short[] getValidTestResults() {
-		return new Short[] {
-			(short) 0, (short)1, (short)576, (short) -8778, Short.MAX_VALUE, Short.MIN_VALUE, (short) 119
-		};
-	}
+    @Override
+    public String[] getValidTestValues() {
+        return new String[] {
+            "0",
+            "1",
+            "576",
+            "-8778",
+            String.valueOf(Short.MAX_VALUE),
+            String.valueOf(Short.MIN_VALUE),
+            "119"
+        };
+    }
 
-	@Override
-	public String[] getInvalidTestValues() {
-		return new String[] {
-			"a", "1569a86", "-57-6", "7-877678", String.valueOf(Short.MAX_VALUE) + "0", String.valueOf(Integer.MIN_VALUE),
-			String.valueOf(Short.MAX_VALUE + 1), String.valueOf(Short.MIN_VALUE - 1), " 1", "2 ", " ", "\t"
-		};
-	}
+    @Override
+    public Short[] getValidTestResults() {
+        return new Short[] {
+            (short) 0,
+            (short) 1,
+            (short) 576,
+            (short) -8778,
+            Short.MAX_VALUE,
+            Short.MIN_VALUE,
+            (short) 119
+        };
+    }
 
-	@Override
-	public boolean allowsEmptyField() {
-		return false;
-	}
+    @Override
+    public String[] getInvalidTestValues() {
+        return new String[] {
+            "a",
+            "1569a86",
+            "-57-6",
+            "7-877678",
+            String.valueOf(Short.MAX_VALUE) + "0",
+            String.valueOf(Integer.MIN_VALUE),
+            String.valueOf(Short.MAX_VALUE + 1),
+            String.valueOf(Short.MIN_VALUE - 1),
+            " 1",
+            "2 ",
+            " ",
+            "\t"
+        };
+    }
 
-	@Override
-	public FieldParser<Short> getParser() {
-		return new ShortParser();
-	}
+    @Override
+    public boolean allowsEmptyField() {
+        return false;
+    }
 
-	@Override
-	public Class<Short> getTypeClass() {
-		return Short.class;
-	}
+    @Override
+    public FieldParser<Short> getParser() {
+        return new ShortParser();
+    }
+
+    @Override
+    public Class<Short> getTypeClass() {
+        return Short.class;
+    }
 }

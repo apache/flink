@@ -28,8 +28,6 @@ import org.apache.flink.annotation.Internal;
 @Internal
 public interface ArrowReader<OUT> {
 
-	/**
-	 * Read the specified row from underlying Arrow format data.
-	 */
-	OUT read(int rowId);
+    /** Read the specified row from underlying Arrow format data. */
+    OUT read(int rowId);
 }

@@ -15,11 +15,19 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<flink-job-status [isLoading]="isLoading"></flink-job-status>
-<div class="content">
-  <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
-  <div class="router" *ngIf="!isLoading">
-    <router-outlet></router-outlet>
+<ng-container *ngIf="!isError">
+  <flink-job-status [isLoading]="isLoading"></flink-job-status>
+  <div class="content">
+    <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
+    <div class="router" *ngIf="!isLoading">
+      <router-outlet></router-outlet>
+    </div>
   </div>
-</div>
+</ng-container>
+
+
+<nz-alert *ngIf="isError" nzShowIcon nzType="warning" nzMessage="Job failed during initialization of JobManager" [nzDescription]=descriptionTemplateRef></nz-alert>
+<ng-template #descriptionTemplateRef>
+  <pre>{{errorDetails}}</pre>
+</ng-template>
 

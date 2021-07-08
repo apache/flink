@@ -23,26 +23,27 @@ import org.apache.flink.configuration.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Test all native metrics can be set using configuration.
- */
+/** Test all native metrics can be set using configuration. */
 public class RocksDBNativeMetricOptionsTest {
-	@Test
-	public void testNativeMetricsConfigurable() {
-		for (RocksDBProperty property : RocksDBProperty.values()) {
-			Configuration config = new Configuration();
-			config.setBoolean(property.getConfigKey(), true);
+    @Test
+    public void testNativeMetricsConfigurable() {
+        for (RocksDBProperty property : RocksDBProperty.values()) {
+            Configuration config = new Configuration();
+            config.setBoolean(property.getConfigKey(), true);
 
-			RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);
+            RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);
 
-			Assert.assertTrue(
-				String.format("Failed to enable native metrics with property %s", property.getConfigKey()),
-				options.isEnabled());
+            Assert.assertTrue(
+                    String.format(
+                            "Failed to enable native metrics with property %s",
+                            property.getConfigKey()),
+                    options.isEnabled());
 
-			Assert.assertTrue(
-				String.format("Failed to enable native metric %s using config", property.getConfigKey()),
-				options.getProperties().contains(property.getRocksDBProperty())
-			);
-		}
-	}
+            Assert.assertTrue(
+                    String.format(
+                            "Failed to enable native metric %s using config",
+                            property.getConfigKey()),
+                    options.getProperties().contains(property.getRocksDBProperty()));
+        }
+    }
 }

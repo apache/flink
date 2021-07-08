@@ -42,76 +42,81 @@ import java.util.function.Supplier;
  */
 @Internal
 public class KeyedStateBootstrapOperator<K, IN>
-	extends AbstractUdfStreamOperator<TaggedOperatorSubtaskState, KeyedStateBootstrapFunction<K, IN>>
-	implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>,
-	BoundedOneInput {
+        extends AbstractUdfStreamOperator<
+                TaggedOperatorSubtaskState, KeyedStateBootstrapFunction<K, IN>>
+        implements OneInputStreamOperator<IN, TaggedOperatorSubtaskState>, BoundedOneInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final long timestamp;
+    private final long timestamp;
 
-	private final Path savepointPath;
+    private final Path savepointPath;
 
-	private transient KeyedStateBootstrapOperator<K, IN>.ContextImpl context;
+    private transient KeyedStateBootstrapOperator<K, IN>.ContextImpl context;
 
-	public KeyedStateBootstrapOperator(long timestamp, Path savepointPath, KeyedStateBootstrapFunction<K, IN> function) {
-		super(function);
+    public KeyedStateBootstrapOperator(
+            long timestamp, Path savepointPath, KeyedStateBootstrapFunction<K, IN> function) {
+        super(function);
 
-		this.timestamp = timestamp;
-		this.savepointPath = savepointPath;
-	}
+        this.timestamp = timestamp;
+        this.savepointPath = savepointPath;
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
+    @Override
+    public void open() throws Exception {
+        super.open();
 
-		Supplier<InternalTimerService<VoidNamespace>> internalTimerService = () -> getInternalTimerService(
-			"user-timers",
-			VoidNamespaceSerializer.INSTANCE,
-			VoidTriggerable.instance());
+        Supplier<InternalTimerService<VoidNamespace>> internalTimerService =
+                () ->
+                        getInternalTimerService(
+                                "user-timers",
+                                VoidNamespaceSerializer.INSTANCE,
+                                VoidTriggerable.instance());
 
-		TimerService timerService = new LazyTimerService(internalTimerService, getProcessingTimeService());
+        TimerService timerService =
+                new LazyTimerService(internalTimerService, getProcessingTimeService());
 
-		context = new KeyedStateBootstrapOperator<K, IN>.ContextImpl(userFunction, timerService);
-	}
+        context = new KeyedStateBootstrapOperator<K, IN>.ContextImpl(userFunction, timerService);
+    }
 
-	@Override
-	public void processElement(StreamRecord<IN> element) throws Exception {
-		userFunction.processElement(element.getValue(), context);
-	}
+    @Override
+    public void processElement(StreamRecord<IN> element) throws Exception {
+        userFunction.processElement(element.getValue(), context);
+    }
 
-	@Override
-	public void endInput() throws Exception {
-		TaggedOperatorSubtaskState state = SnapshotUtils.snapshot(
-			this,
-			getRuntimeContext().getIndexOfThisSubtask(),
-			timestamp,
-			getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
-			getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
-			getContainingTask().getCheckpointStorage(),
-			savepointPath);
+    @Override
+    public void endInput() throws Exception {
+        TaggedOperatorSubtaskState state =
+                SnapshotUtils.snapshot(
+                        this,
+                        getRuntimeContext().getIndexOfThisSubtask(),
+                        timestamp,
+                        getContainingTask().getConfiguration().isExactlyOnceCheckpointMode(),
+                        getContainingTask().getConfiguration().isUnalignedCheckpointsEnabled(),
+                        getContainingTask().getCheckpointStorage(),
+                        savepointPath);
 
-		output.collect(new StreamRecord<>(state));
-	}
+        output.collect(new StreamRecord<>(state));
+    }
 
-	private class ContextImpl extends KeyedStateBootstrapFunction<K, IN>.Context {
+    private class ContextImpl extends KeyedStateBootstrapFunction<K, IN>.Context {
 
-		private final TimerService timerService;
+        private final TimerService timerService;
 
-		ContextImpl(KeyedStateBootstrapFunction<K, IN> function, TimerService timerService) {
-			function.super();
-			this.timerService = Preconditions.checkNotNull(timerService);
-		}
+        ContextImpl(KeyedStateBootstrapFunction<K, IN> function, TimerService timerService) {
+            function.super();
+            this.timerService = Preconditions.checkNotNull(timerService);
+        }
 
-		@Override
-		public TimerService timerService() {
-			return timerService;
-		}
+        @Override
+        public TimerService timerService() {
+            return timerService;
+        }
 
-		@Override
-		@SuppressWarnings("unchecked")
-		public K getCurrentKey() {
-			return (K) KeyedStateBootstrapOperator.this.getCurrentKey();
-		}
-	}
+        @Override
+        @SuppressWarnings("unchecked")
+        public K getCurrentKey() {
+            return (K) KeyedStateBootstrapOperator.this.getCurrentKey();
+        }
+    }
 }

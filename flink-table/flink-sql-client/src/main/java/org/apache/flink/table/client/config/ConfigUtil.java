@@ -35,69 +35,78 @@ import java.util.Map;
 
 /**
  * Auxiliary functions for configuration file handling.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
  */
+@Deprecated
 public class ConfigUtil {
 
-	private ConfigUtil() {
-		// private
-	}
+    private ConfigUtil() {
+        // private
+    }
 
-	/**
-	 * Normalizes key-value properties from Yaml in the normalized format of the Table API.
-	 */
-	public static DescriptorProperties normalizeYaml(Map<String, Object> yamlMap) {
-		final Map<String, String> normalized = new HashMap<>();
-		yamlMap.forEach((k, v) -> normalizeYamlObject(normalized, k, v));
-		final DescriptorProperties properties = new DescriptorProperties(true);
-		properties.putProperties(normalized);
-		return properties;
-	}
+    /** Normalizes key-value properties from Yaml in the normalized format of the Table API. */
+    public static DescriptorProperties normalizeYaml(Map<String, Object> yamlMap) {
+        final Map<String, String> normalized = new HashMap<>();
+        yamlMap.forEach((k, v) -> normalizeYamlObject(normalized, k, v));
+        final DescriptorProperties properties = new DescriptorProperties(true);
+        properties.putProperties(normalized);
+        return properties;
+    }
 
-	private static void normalizeYamlObject(Map<String, String> normalized, String key, Object value) {
-		if (value instanceof Map) {
-			final Map<?, ?> map = (Map<?, ?>) value;
-			map.forEach((k, v) -> normalizeYamlObject(normalized, key + "." + k, v));
-		} else if (value instanceof List) {
-			final List<?> list = (List<?>) value;
-			for (int i = 0; i < list.size(); i++) {
-				normalizeYamlObject(normalized, key + "." + i, list.get(i));
-			}
-		} else {
-			normalized.put(key, value.toString());
-		}
-	}
+    private static void normalizeYamlObject(
+            Map<String, String> normalized, String key, Object value) {
+        if (value instanceof Map) {
+            final Map<?, ?> map = (Map<?, ?>) value;
+            map.forEach((k, v) -> normalizeYamlObject(normalized, key + "." + k, v));
+        } else if (value instanceof List) {
+            final List<?> list = (List<?>) value;
+            for (int i = 0; i < list.size(); i++) {
+                normalizeYamlObject(normalized, key + "." + i, list.get(i));
+            }
+        } else {
+            normalized.put(key, value.toString());
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Modified object mapper that converts to lower-case keys.
-	 */
-	public static class LowerCaseYamlMapper extends ObjectMapper {
-		public LowerCaseYamlMapper() {
-			super(new YAMLFactory() {
-				@Override
-				protected YAMLParser _createParser(InputStream in, IOContext ctxt) throws IOException {
-					final Reader r = _createReader(in, null, ctxt);
-					// normalize all key to lower case keys
-					return new YAMLParser(ctxt, _getBufferRecycler(), _parserFeatures, _yamlParserFeatures, _objectCodec, r) {
-						@Override
-						public String getCurrentName() throws IOException {
-							if (_currToken == JsonToken.FIELD_NAME) {
-								return _currentFieldName.toLowerCase();
-							}
-							return super.getCurrentName();
-						}
+    /** Modified object mapper that converts to lower-case keys. */
+    public static class LowerCaseYamlMapper extends ObjectMapper {
+        public LowerCaseYamlMapper() {
+            super(
+                    new YAMLFactory() {
+                        @Override
+                        protected YAMLParser _createParser(InputStream in, IOContext ctxt)
+                                throws IOException {
+                            final Reader r = _createReader(in, null, ctxt);
+                            // normalize all key to lower case keys
+                            return new YAMLParser(
+                                    ctxt,
+                                    _getBufferRecycler(),
+                                    _parserFeatures,
+                                    _yamlParserFeatures,
+                                    _objectCodec,
+                                    r) {
+                                @Override
+                                public String getCurrentName() throws IOException {
+                                    if (_currToken == JsonToken.FIELD_NAME) {
+                                        return _currentFieldName.toLowerCase();
+                                    }
+                                    return super.getCurrentName();
+                                }
 
-						@Override
-						public String getText() throws IOException {
-							if (_currToken == JsonToken.FIELD_NAME) {
-								return _currentFieldName.toLowerCase();
-							}
-							return super.getText();
-						}
-					};
-				}
-			});
-		}
-	}
+                                @Override
+                                public String getText() throws IOException {
+                                    if (_currToken == JsonToken.FIELD_NAME) {
+                                        return _currentFieldName.toLowerCase();
+                                    }
+                                    return super.getText();
+                                }
+                            };
+                        }
+                    });
+        }
+    }
 }

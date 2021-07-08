@@ -21,61 +21,60 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.OperatorStateStore;
 
-/**
- * Default implementation of {@link StateInitializationContext}.
- */
+/** Default implementation of {@link StateInitializationContext}. */
 public class StateInitializationContextImpl implements StateInitializationContext {
 
-	/** Signal whether any state to restore was found */
-	private final boolean restored;
+    /** Signal whether any state to restore was found */
+    private final boolean restored;
 
-	private final OperatorStateStore operatorStateStore;
+    private final OperatorStateStore operatorStateStore;
 
-	private final KeyedStateStore keyedStateStore;
+    private final KeyedStateStore keyedStateStore;
 
-	private final Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
-	private final Iterable<StatePartitionStreamProvider> rawOperatorStateInputs;
+    private final Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
+    private final Iterable<StatePartitionStreamProvider> rawOperatorStateInputs;
 
-	public StateInitializationContextImpl(
-			boolean restored,
-			OperatorStateStore operatorStateStore,
-			KeyedStateStore keyedStateStore,
-			Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs,
-			Iterable<StatePartitionStreamProvider> rawOperatorStateInputs) {
+    public StateInitializationContextImpl(
+            boolean restored,
+            OperatorStateStore operatorStateStore,
+            KeyedStateStore keyedStateStore,
+            Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs,
+            Iterable<StatePartitionStreamProvider> rawOperatorStateInputs) {
 
-		this.restored = restored;
-		this.operatorStateStore = operatorStateStore;
-		this.keyedStateStore = keyedStateStore;
-		this.rawOperatorStateInputs = rawOperatorStateInputs;
-		this.rawKeyedStateInputs = rawKeyedStateInputs;
-	}
+        this.restored = restored;
+        this.operatorStateStore = operatorStateStore;
+        this.keyedStateStore = keyedStateStore;
+        this.rawOperatorStateInputs = rawOperatorStateInputs;
+        this.rawKeyedStateInputs = rawKeyedStateInputs;
+    }
 
-	@Override
-	public boolean isRestored() {
-		return restored;
-	}
+    @Override
+    public boolean isRestored() {
+        return restored;
+    }
 
-	@Override
-	public Iterable<StatePartitionStreamProvider> getRawOperatorStateInputs() {
-		return rawOperatorStateInputs;
-	}
+    @Override
+    public Iterable<StatePartitionStreamProvider> getRawOperatorStateInputs() {
+        return rawOperatorStateInputs;
+    }
 
-	@Override
-	public Iterable<KeyGroupStatePartitionStreamProvider> getRawKeyedStateInputs() {
-		if(null == keyedStateStore) {
-			throw new IllegalStateException("Attempt to access keyed state from non-keyed operator.");
-		}
+    @Override
+    public Iterable<KeyGroupStatePartitionStreamProvider> getRawKeyedStateInputs() {
+        if (null == keyedStateStore) {
+            throw new IllegalStateException(
+                    "Attempt to access keyed state from non-keyed operator.");
+        }
 
-		return rawKeyedStateInputs;
-	}
+        return rawKeyedStateInputs;
+    }
 
-	@Override
-	public OperatorStateStore getOperatorStateStore() {
-		return operatorStateStore;
-	}
+    @Override
+    public OperatorStateStore getOperatorStateStore() {
+        return operatorStateStore;
+    }
 
-	@Override
-	public KeyedStateStore getKeyedStateStore() {
-		return keyedStateStore;
-	}
+    @Override
+    public KeyedStateStore getKeyedStateStore() {
+        return keyedStateStore;
+    }
 }

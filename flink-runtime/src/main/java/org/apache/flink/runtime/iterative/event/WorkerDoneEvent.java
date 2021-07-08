@@ -27,40 +27,40 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * Completion event sent from each {@code IterationHead} to the
- * {@code IterationSynchronizationSinkTask}.
+ * Completion event sent from each {@code IterationHead} to the {@code
+ * IterationSynchronizationSinkTask}.
  */
 public class WorkerDoneEvent extends IterationEventWithAggregators {
 
-	private int workerIndex;
+    private int workerIndex;
 
-	public WorkerDoneEvent() {
-		super();
-	}
+    public WorkerDoneEvent() {
+        super();
+    }
 
-	public WorkerDoneEvent(int workerIndex, String aggregatorName, Value aggregate) {
-		super(aggregatorName, aggregate);
-		this.workerIndex = workerIndex;
-	}
+    public WorkerDoneEvent(int workerIndex, String aggregatorName, Value aggregate) {
+        super(aggregatorName, aggregate);
+        this.workerIndex = workerIndex;
+    }
 
-	public WorkerDoneEvent(int workerIndex, Map<String, Aggregator<?>> aggregators) {
-		super(aggregators);
-		this.workerIndex = workerIndex;
-	}
+    public WorkerDoneEvent(int workerIndex, Map<String, Aggregator<?>> aggregators) {
+        super(aggregators);
+        this.workerIndex = workerIndex;
+    }
 
-	public int getWorkerIndex() {
-		return workerIndex;
-	}
+    public int getWorkerIndex() {
+        return workerIndex;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeInt(this.workerIndex);
-		super.write(out);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeInt(this.workerIndex);
+        super.write(out);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.workerIndex = in.readInt();
-		super.read(in);
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.workerIndex = in.readInt();
+        super.read(in);
+    }
 }

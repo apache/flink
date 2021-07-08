@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,31 +18,30 @@
 
 package org.apache.flink.runtime.jobmaster.factories;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
-import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.jobmaster.JobMasterService;
 import org.apache.flink.runtime.jobmaster.TestingJobMasterService;
 
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-/**
- * Testing implementation of the {@link JobMasterServiceFactory} which returns a {@link JobMaster} mock.
- */
+/** Testing implementation of the {@link JobMasterServiceFactory}. */
 public class TestingJobMasterServiceFactory implements JobMasterServiceFactory {
+    private final Supplier<CompletableFuture<JobMasterService>> jobMasterServiceSupplier;
 
-	private final Supplier<JobMasterService> jobMasterServiceSupplier;
+    public TestingJobMasterServiceFactory(
+            Supplier<CompletableFuture<JobMasterService>> jobMasterServiceSupplier) {
+        this.jobMasterServiceSupplier = jobMasterServiceSupplier;
+    }
 
-	public TestingJobMasterServiceFactory(Supplier<JobMasterService> jobMasterServiceSupplier) {
-		this.jobMasterServiceSupplier = jobMasterServiceSupplier;
-	}
+    public TestingJobMasterServiceFactory() {
+        this(() -> CompletableFuture.completedFuture(new TestingJobMasterService()));
+    }
 
-	public TestingJobMasterServiceFactory() {
-		this(TestingJobMasterService::new);
-	}
-
-	@Override
-	public JobMasterService createJobMasterService(JobGraph jobGraph, OnCompletionActions jobCompletionActions, ClassLoader userCodeClassloader) {
-		return jobMasterServiceSupplier.get();
-	}
+    @Override
+    public CompletableFuture<JobMasterService> createJobMasterService(
+            UUID leaderSessionId, OnCompletionActions onCompletionActions) {
+        return jobMasterServiceSupplier.get();
+    }
 }

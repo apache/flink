@@ -35,34 +35,33 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * REST endpoint for the {@link JobClusterEntrypoint}.
- */
+/** REST endpoint for the {@link JobClusterEntrypoint}. */
 public class MiniDispatcherRestEndpoint extends WebMonitorEndpoint<RestfulGateway> {
 
-	public MiniDispatcherRestEndpoint(
-			RestServerEndpointConfiguration endpointConfiguration,
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Configuration clusterConfiguration,
-			RestHandlerConfiguration restConfiguration,
-			GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
-			TransientBlobService transientBlobService,
-			ScheduledExecutorService executor,
-			MetricFetcher metricFetcher,
-			LeaderElectionService leaderElectionService,
-			ExecutionGraphCache executionGraphCache,
-			FatalErrorHandler fatalErrorHandler) throws IOException {
-		super(
-			endpointConfiguration,
-			leaderRetriever,
-			clusterConfiguration,
-			restConfiguration,
-			resourceManagerRetriever,
-			transientBlobService,
-			executor,
-			metricFetcher,
-			leaderElectionService,
-			executionGraphCache,
-			fatalErrorHandler);
-	}
+    public MiniDispatcherRestEndpoint(
+            RestServerEndpointConfiguration endpointConfiguration,
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Configuration clusterConfiguration,
+            RestHandlerConfiguration restConfiguration,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerRetriever,
+            TransientBlobService transientBlobService,
+            ScheduledExecutorService executor,
+            MetricFetcher metricFetcher,
+            LeaderElectionService leaderElectionService,
+            ExecutionGraphCache executionGraphCache,
+            FatalErrorHandler fatalErrorHandler)
+            throws IOException {
+        super(
+                endpointConfiguration,
+                leaderRetriever,
+                clusterConfiguration,
+                restConfiguration,
+                resourceManagerRetriever,
+                transientBlobService,
+                executor,
+                metricFetcher,
+                leaderElectionService,
+                executionGraphCache,
+                fatalErrorHandler);
+    }
 }

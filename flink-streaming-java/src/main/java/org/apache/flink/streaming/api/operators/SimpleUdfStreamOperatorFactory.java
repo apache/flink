@@ -26,23 +26,23 @@ import org.apache.flink.api.common.functions.Function;
  * @param <OUT> The output type of the operator
  */
 @Internal
-public class SimpleUdfStreamOperatorFactory<OUT> extends SimpleOperatorFactory<OUT> implements UdfStreamOperatorFactory<OUT> {
+public class SimpleUdfStreamOperatorFactory<OUT> extends SimpleOperatorFactory<OUT>
+        implements UdfStreamOperatorFactory<OUT> {
 
-	private final AbstractUdfStreamOperator<OUT, ?> operator;
+    private final AbstractUdfStreamOperator<OUT, ?> operator;
 
-	public SimpleUdfStreamOperatorFactory(AbstractUdfStreamOperator<OUT, ?> operator) {
-		super(operator);
-		this.operator = operator;
-	}
+    public SimpleUdfStreamOperatorFactory(AbstractUdfStreamOperator<OUT, ?> operator) {
+        super(operator);
+        this.operator = operator;
+    }
 
-	@Override
-	public Function getUserFunction() {
-		return operator.getUserFunction();
-	}
+    @Override
+    public Function getUserFunction() {
+        return operator.getUserFunction();
+    }
 
-	@Override
-	public String getUserFunctionClassName() {
-		return operator.getUserFunction().getClass().getName();
-	}
-
+    @Override
+    public String getUserFunctionClassName() {
+        return operator.getUserFunction().getClass().getName();
+    }
 }

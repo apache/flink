@@ -20,35 +20,34 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
 /**
- * A test for the {@link LongPrimitiveArraySerializer}.
+ * A test for the {@link
+ * org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer}.
  */
 public class IntPrimitiveArraySerializerTest extends SerializerTestBase<int[]> {
 
-	@Override
-	protected TypeSerializer<int[]> createSerializer() {
-		return new IntPrimitiveArraySerializer();
-	}
+    @Override
+    protected TypeSerializer<int[]> createSerializer() {
+        return new IntPrimitiveArraySerializer();
+    }
 
-	@Override
-	protected Class<int[]> getTypeClass() {
-		return int[].class;
-	}
-	
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected Class<int[]> getTypeClass() {
+        return int[].class;
+    }
 
-	@Override
-	protected int[][] getTestData() {
-		return new int[][] {
-			new int[] {0, 1, 2, 3, -1, -2, -3, Integer.MAX_VALUE, Integer.MIN_VALUE},
-			new int[] {},
-			new int[] {-1, -2, 96769243, 26782, 0, 0, 0}
-		};
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
+
+    @Override
+    protected int[][] getTestData() {
+        return new int[][] {
+            new int[] {0, 1, 2, 3, -1, -2, -3, Integer.MAX_VALUE, Integer.MIN_VALUE},
+            new int[] {},
+            new int[] {-1, -2, 96769243, 26782, 0, 0, 0}
+        };
+    }
 }

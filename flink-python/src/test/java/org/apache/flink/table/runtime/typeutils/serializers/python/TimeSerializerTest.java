@@ -23,27 +23,25 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.sql.Time;
 
-/**
- * Test for {@link TimeSerializer}.
- */
+/** Test for {@link TimeSerializer}. */
 public class TimeSerializerTest extends SerializerTestBase<Time> {
-	@Override
-	protected TypeSerializer<Time> createSerializer() {
-		return TimeSerializer.INSTANCE;
-	}
+    @Override
+    protected TypeSerializer<Time> createSerializer() {
+        return TimeSerializer.INSTANCE;
+    }
 
-	@Override
-	protected int getLength() {
-		return 4;
-	}
+    @Override
+    protected int getLength() {
+        return 4;
+    }
 
-	@Override
-	protected Class<Time> getTypeClass() {
-		return Time.class;
-	}
+    @Override
+    protected Class<Time> getTypeClass() {
+        return Time.class;
+    }
 
-	@Override
-	protected Time[] getTestData() {
-		return new Time[]{Time.valueOf("11:11:11")};
-	}
+    @Override
+    protected Time[] getTestData() {
+        return new Time[] {Time.valueOf("11:11:11")};
+    }
 }

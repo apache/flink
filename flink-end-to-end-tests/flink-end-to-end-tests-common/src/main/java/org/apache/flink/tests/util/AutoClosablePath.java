@@ -24,21 +24,19 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.nio.file.Path;
 
-/**
- * Utility class to delete a given {@link Path} when exiting a try-with-resources statement.
- */
+/** Utility class to delete a given {@link Path} when exiting a try-with-resources statement. */
 public final class AutoClosablePath implements AutoCloseable {
 
-	private final Path path;
+    private final Path path;
 
-	public AutoClosablePath(final Path path) {
-		Preconditions.checkNotNull(path, "Path must not be null.");
-		Preconditions.checkArgument(path.isAbsolute(), "Path must be absolute.");
-		this.path = path;
-	}
+    public AutoClosablePath(final Path path) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkArgument(path.isAbsolute(), "Path must be absolute.");
+        this.path = path;
+    }
 
-	@Override
-	public void close() throws IOException {
-		FileUtils.deleteFileOrDirectory(path.toFile());
-	}
+    @Override
+    public void close() throws IOException {
+        FileUtils.deleteFileOrDirectory(path.toFile());
+    }
 }

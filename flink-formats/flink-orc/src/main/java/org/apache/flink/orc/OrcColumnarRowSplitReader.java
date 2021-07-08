@@ -20,9 +20,9 @@ package org.apache.flink.orc;
 
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.orc.shim.OrcShim;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.ColumnarRow;
-import org.apache.flink.table.dataformat.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.ColumnarRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.orc.TypeDescription;
@@ -30,60 +30,57 @@ import org.apache.orc.TypeDescription;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * {@link OrcSplitReader} to read ORC files into {@link BaseRow}.
- */
-public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<BaseRow, BATCH> {
+/** {@link OrcSplitReader} to read ORC files into {@link RowData}. */
+public class OrcColumnarRowSplitReader<BATCH> extends OrcSplitReader<RowData, BATCH> {
 
-	// the vector of rows that is read in a batch
-	private final VectorizedColumnBatch columnarBatch;
+    // the vector of rows that is read in a batch
+    private final VectorizedColumnBatch columnarBatch;
 
-	private final ColumnarRow row;
+    private final ColumnarRowData row;
 
-	public OrcColumnarRowSplitReader(
-			OrcShim<BATCH> shim,
-			Configuration conf,
-			TypeDescription schema,
-			int[] selectedFields,
-			ColumnBatchGenerator<BATCH> batchGenerator,
-			List<Predicate> conjunctPredicates,
-			int batchSize,
-			Path path,
-			long splitStart,
-			long splitLength) throws IOException {
-		super(
-				shim,
-				conf,
-				schema,
-				selectedFields,
-				conjunctPredicates,
-				batchSize,
-				path,
-				splitStart,
-				splitLength);
+    public OrcColumnarRowSplitReader(
+            OrcShim<BATCH> shim,
+            Configuration conf,
+            TypeDescription schema,
+            int[] selectedFields,
+            ColumnBatchGenerator<BATCH> batchGenerator,
+            List<OrcFilters.Predicate> conjunctPredicates,
+            int batchSize,
+            Path path,
+            long splitStart,
+            long splitLength)
+            throws IOException {
+        super(
+                shim,
+                conf,
+                schema,
+                selectedFields,
+                conjunctPredicates,
+                batchSize,
+                path,
+                splitStart,
+                splitLength);
 
-		this.columnarBatch = batchGenerator.generate(rowBatchWrapper.getBatch());
-		this.row = new ColumnarRow(columnarBatch);
-	}
+        this.columnarBatch = batchGenerator.generate(rowBatchWrapper.getBatch());
+        this.row = new ColumnarRowData(columnarBatch);
+    }
 
-	@Override
-	protected int fillRows() {
-		int size = rowBatchWrapper.size();
-		columnarBatch.setNumRows(size);
-		return size;
-	}
+    @Override
+    protected int fillRows() {
+        int size = rowBatchWrapper.size();
+        columnarBatch.setNumRows(size);
+        return size;
+    }
 
-	@Override
-	public BaseRow nextRecord(BaseRow reuse) {
-		// return the next row
-		row.setRowId(this.nextRow++);
-		return row;
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) {
+        // return the next row
+        row.setRowId(this.nextRow++);
+        return row;
+    }
 
-	/**
-	 * Interface to gen {@link VectorizedColumnBatch}.
-	 */
-	public interface ColumnBatchGenerator<BATCH> {
-		VectorizedColumnBatch generate(BATCH rowBatch);
-	}
+    /** Interface to gen {@link VectorizedColumnBatch}. */
+    public interface ColumnBatchGenerator<BATCH> {
+        VectorizedColumnBatch generate(BATCH rowBatch);
+    }
 }

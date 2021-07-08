@@ -21,18 +21,15 @@ import org.apache.flink.annotation.Internal;
 
 import java.io.IOException;
 
-/**
- * A {@link CassandraFailureHandler} that simply fails the sink on any failures.
- */
+/** A {@link CassandraFailureHandler} that simply fails the sink on any failures. */
 @Internal
 public class NoOpCassandraFailureHandler implements CassandraFailureHandler {
 
-	private static final long serialVersionUID = 737941343410827885L;
+    private static final long serialVersionUID = 737941343410827885L;
 
-	@Override
-	public void onFailure(Throwable failure) throws IOException {
-		// simply fail the sink
-		throw new IOException("Error while sending value.", failure);
-	}
-
+    @Override
+    public void onFailure(Throwable failure) throws IOException {
+        // simply fail the sink
+        throw new IOException("Error while sending value.", failure);
+    }
 }

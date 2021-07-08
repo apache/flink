@@ -48,329 +48,362 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Test selective reading.
- */
+/** Test selective reading. */
 public class StreamTaskMultipleInputSelectiveReadingTest {
 
-	private static final StreamRecord<String>[] INPUT1 = new StreamRecord[] {
-		new StreamRecord<>("Hello-1"),
-		new StreamRecord<>("Hello-2"),
-		new StreamRecord<>("Hello-3")
-	};
+    private static final StreamRecord<String>[] INPUT1 =
+            new StreamRecord[] {
+                new StreamRecord<>("Hello-1"),
+                new StreamRecord<>("Hello-2"),
+                new StreamRecord<>("Hello-3")
+            };
 
-	private static final StreamRecord<Integer>[] INPUT2 = new StreamRecord[] {
-		new StreamRecord<>(1),
-		new StreamRecord<>(2),
-		new StreamRecord<>(3),
-		new StreamRecord<>(4)
-	};
+    private static final StreamRecord<Integer>[] INPUT2 =
+            new StreamRecord[] {
+                new StreamRecord<>(1),
+                new StreamRecord<>(2),
+                new StreamRecord<>(3),
+                new StreamRecord<>(4)
+            };
 
-	@Test
-	public void testAnyOrderedReading() throws Exception {
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 4"));
+    @Test
+    public void testAnyOrderedReading() throws Exception {
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 4"));
 
-		testInputSelection(new TestAnyModeMultipleInputStreamOperator.Factory(), false, expectedOutput, true);
-	}
+        testInputSelection(
+                new TestAnyModeMultipleInputStreamOperator.Factory(), false, expectedOutput, true);
+    }
 
-	@Test
-	public void testAnyUnorderedReading() throws Exception {
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 4"));
+    @Test
+    public void testAnyUnorderedReading() throws Exception {
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 4"));
 
-		testInputSelection(new TestAnyModeMultipleInputStreamOperator.Factory(), true, expectedOutput, false);
-	}
+        testInputSelection(
+                new TestAnyModeMultipleInputStreamOperator.Factory(), true, expectedOutput, false);
+    }
 
-	@Test
-	public void testSequentialReading() throws Exception {
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 4"));
+    @Test
+    public void testSequentialReading() throws Exception {
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 4"));
 
-		testInputSelection(new TestSequentialMultipleInputStreamOperator.Factory(), true, expectedOutput, true);
-	}
+        testInputSelection(
+                new TestSequentialMultipleInputStreamOperator.Factory(),
+                true,
+                expectedOutput,
+                true);
+    }
 
-	@Test
-	public void testSpecialRuleReading() throws Exception {
-		ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
-		expectedOutput.add(new StreamRecord<>("[2]: 1"));
-		expectedOutput.add(new StreamRecord<>("[2]: 2"));
-		expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 3"));
-		expectedOutput.add(new StreamRecord<>("[2]: 4"));
+    @Test
+    public void testSpecialRuleReading() throws Exception {
+        ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-1"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-2"));
+        expectedOutput.add(new StreamRecord<>("[2]: 1"));
+        expectedOutput.add(new StreamRecord<>("[2]: 2"));
+        expectedOutput.add(new StreamRecord<>("[1]: Hello-3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 3"));
+        expectedOutput.add(new StreamRecord<>("[2]: 4"));
 
-		testInputSelection(new SpecialRuleReadingStreamOperatorFactory(3, 4, 2), true, expectedOutput, true);
-	}
+        testInputSelection(
+                new SpecialRuleReadingStreamOperatorFactory(3, 4, 2), true, expectedOutput, true);
+    }
 
-	@Test
-	public void testReadFinishedInput() throws Exception {
-		try {
-			testInputSelection(new TestReadFinishedInputStreamOperatorFactory(), true, new ArrayDeque<>(), true);
-			fail("should throw an IOException");
-		} catch (Exception t) {
-			if (!ExceptionUtils.findThrowableWithMessage(t, "Can not make a progress: all selected inputs are already finished").isPresent()) {
-				throw t;
-			}
-		}
-	}
+    @Test
+    public void testReadFinishedInput() throws Exception {
+        try {
+            testInputSelection(
+                    new TestReadFinishedInputStreamOperatorFactory(),
+                    true,
+                    new ArrayDeque<>(),
+                    true);
+            fail("should throw an IOException");
+        } catch (Exception t) {
+            if (!ExceptionUtils.findThrowableWithMessage(
+                            t, "Can not make a progress: all selected inputs are already finished")
+                    .isPresent()) {
+                throw t;
+            }
+        }
+    }
 
-	private void testInputSelection(
-			StreamOperatorFactory<String> streamOperatorFactory,
-			boolean autoProcess,
-			ArrayDeque<Object> expectedOutput,
-			boolean orderedCheck) throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness =
-			new MultipleInputStreamTaskTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-				.addInput(BasicTypeInfo.INT_TYPE_INFO)
-				.setupOutputForSingletonOperatorChain(streamOperatorFactory)
-				.build()) {
+    private void testInputSelection(
+            StreamOperatorFactory<String> streamOperatorFactory,
+            boolean autoProcess,
+            ArrayDeque<Object> expectedOutput,
+            boolean orderedCheck)
+            throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(streamOperatorFactory)
+                        .build()) {
 
-			testHarness.setAutoProcess(autoProcess);
-			for (StreamRecord<String> record : INPUT1) {
-				testHarness.processElement(record, 0);
-			}
-			for (StreamRecord<Integer> record : INPUT2) {
-				testHarness.processElement(record, 1);
-			}
+            testHarness.setAutoProcess(autoProcess);
+            for (StreamRecord<String> record : INPUT1) {
+                testHarness.processElement(record, 0);
+            }
+            for (StreamRecord<Integer> record : INPUT2) {
+                testHarness.processElement(record, 1);
+            }
 
-			testHarness.endInput();
+            testHarness.endInput();
 
-			if (!autoProcess) {
-				testHarness.process();
-			}
-			testHarness.waitForTaskCompletion();
+            if (!autoProcess) {
+                testHarness.processAll();
+            }
+            testHarness.waitForTaskCompletion();
 
-			if (orderedCheck) {
-				assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
-			} else {
-				assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
-			}
-		}
-	}
+            if (orderedCheck) {
+                assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+            } else {
+                assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+            }
+        }
+    }
 
-	/**
-	 * Setup three inputs only two selected and make sure that neither of the two inputs is starved,
-	 * when one has some data all the time, but the other only rarely.
-	 */
-	@Test
-	public void testInputStarvation() throws Exception {
-		try (StreamTaskMailboxTestHarness<String> testHarness =
-				new MultipleInputStreamTaskTestHarnessBuilder<>(MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.addInput(BasicTypeInfo.STRING_TYPE_INFO)
-					.setupOutputForSingletonOperatorChain(new TestInputStarvationMultipleInputOperatorFactory())
-					.build()) {
+    /**
+     * Setup three inputs only two selected and make sure that neither of the two inputs is starved,
+     * when one has some data all the time, but the other only rarely.
+     */
+    @Test
+    public void testInputStarvation() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new TestInputStarvationMultipleInputOperatorFactory())
+                        .build()) {
 
-			Queue<StreamRecord> expectedOutput = new ArrayDeque<>();
+            testHarness.processAll(); // request partitions
 
-			testHarness.setAutoProcess(false);
-			// StreamMultipleInputProcessor starts with all inputs available. Let it rotate and refresh properly.
-			testHarness.processSingleStep();
-			assertTrue(testHarness.getOutput().isEmpty());
+            Queue<StreamRecord> expectedOutput = new ArrayDeque<>();
 
-			testHarness.processElement(new StreamRecord<>("NOT_SELECTED"), 0);
+            testHarness.setAutoProcess(false);
+            // StreamMultipleInputProcessor starts with all inputs available. Let it rotate and
+            // refresh properly.
+            testHarness.processSingleStep();
+            assertTrue(testHarness.getOutput().isEmpty());
 
-			testHarness.processElement(new StreamRecord<>("1"), 1);
-			testHarness.processElement(new StreamRecord<>("2"), 1);
-			testHarness.processElement(new StreamRecord<>("3"), 1);
-			testHarness.processElement(new StreamRecord<>("4"), 1);
+            testHarness.processElement(new StreamRecord<>("NOT_SELECTED"), 0);
 
-			testHarness.processSingleStep();
-			expectedOutput.add(new StreamRecord<>("[2]: 1"));
-			testHarness.processSingleStep();
-			expectedOutput.add(new StreamRecord<>("[2]: 2"));
-			assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
+            testHarness.processElement(new StreamRecord<>("1"), 1);
+            testHarness.processElement(new StreamRecord<>("2"), 1);
+            testHarness.processElement(new StreamRecord<>("3"), 1);
+            testHarness.processElement(new StreamRecord<>("4"), 1);
 
-			// InputGate 2 was not available in previous steps, so let's check if we are not starving it
-			testHarness.processElement(new StreamRecord<>("1"), 2);
-			testHarness.processSingleStep();
-			testHarness.processSingleStep();
+            testHarness.processSingleStep();
+            expectedOutput.add(new StreamRecord<>("[2]: 1"));
+            testHarness.processSingleStep();
+            expectedOutput.add(new StreamRecord<>("[2]: 2"));
+            assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
-			// One of those processing single step should pick up InputGate 2, however it's not
-			// important which one. We just must avoid starvation.
-			expectedOutput.add(new StreamRecord<>("[3]: 1"));
-			expectedOutput.add(new StreamRecord<>("[2]: 3"));
+            // InputGate 2 was not available in previous steps, so let's check if we are not
+            // starving it
+            testHarness.processElement(new StreamRecord<>("1"), 2);
+            testHarness.processSingleStep();
+            testHarness.processSingleStep();
 
-			assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
-		}
-	}
+            // One of those processing single step should pick up InputGate 2, however it's not
+            // important which one. We just must avoid starvation.
+            expectedOutput.add(new StreamRecord<>("[3]: 1"));
+            expectedOutput.add(new StreamRecord<>("[2]: 3"));
 
-	// ------------------------------------------------------------------------
-	// Utilities
-	// ------------------------------------------------------------------------
+            assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+        }
+    }
 
-	private static class SpecialRuleReadingStreamOperator extends AbstractStreamOperatorV2<String>
-		implements MultipleInputStreamOperator<String>, InputSelectable, BoundedMultiInput {
+    // ------------------------------------------------------------------------
+    // Utilities
+    // ------------------------------------------------------------------------
 
-		private final int input1Records;
-		private final int input2Records;
-		private final int maxContinuousReadingRecords;
+    private static class SpecialRuleReadingStreamOperator extends AbstractStreamOperatorV2<String>
+            implements MultipleInputStreamOperator<String>, InputSelectable, BoundedMultiInput {
 
-		private int input1ReadingRecords;
-		private int input2ReadingRecords;
+        private final int input1Records;
+        private final int input2Records;
+        private final int maxContinuousReadingRecords;
 
-		private int continuousReadingRecords;
-		private InputSelection inputSelection = InputSelection.FIRST;
+        private int input1ReadingRecords;
+        private int input2ReadingRecords;
 
-		SpecialRuleReadingStreamOperator(StreamOperatorParameters<String> parameters, int input1Records, int input2Records, int maxContinuousReadingRecords) {
-			super(parameters, 2);
+        private int continuousReadingRecords;
+        private InputSelection inputSelection = InputSelection.FIRST;
 
-			this.input1Records = input1Records;
-			this.input2Records = input2Records;
-			this.maxContinuousReadingRecords = maxContinuousReadingRecords;
-		}
+        SpecialRuleReadingStreamOperator(
+                StreamOperatorParameters<String> parameters,
+                int input1Records,
+                int input2Records,
+                int maxContinuousReadingRecords) {
+            super(parameters, 2);
 
-		@Override
-		public InputSelection nextSelection() {
-			return inputSelection;
-		}
+            this.input1Records = input1Records;
+            this.input2Records = input2Records;
+            this.maxContinuousReadingRecords = maxContinuousReadingRecords;
+        }
 
-		@Override
-		public void endInput(int inputId) {
-			inputSelection = (inputId == 1) ? InputSelection.SECOND : InputSelection.FIRST;
-		}
+        @Override
+        public InputSelection nextSelection() {
+            return inputSelection;
+        }
 
-		@Override
-		public List<Input> getInputs() {
-			return Arrays.asList(
-				new ToStringInput(this, 1) {
-					@Override
-					public void processElement(StreamRecord element) {
-						super.processElement(element);
-						input1ReadingRecords++;
-						continuousReadingRecords++;
-						if (continuousReadingRecords == maxContinuousReadingRecords) {
-							continuousReadingRecords = 0;
-							if (input2ReadingRecords < input2Records) {
-								inputSelection = InputSelection.SECOND;
-								return;
-							}
-						}
+        @Override
+        public void endInput(int inputId) {
+            inputSelection = (inputId == 1) ? InputSelection.SECOND : InputSelection.FIRST;
+        }
 
-						inputSelection = InputSelection.FIRST;
-					}
-				},
-				new ToStringInput(this, 2) {
-					@Override
-					public void processElement(StreamRecord element) {
-						super.processElement(element);
-						input2ReadingRecords++;
-						continuousReadingRecords++;
-						if (continuousReadingRecords == maxContinuousReadingRecords) {
-							continuousReadingRecords = 0;
-							if (input1ReadingRecords < input1Records) {
-								inputSelection = InputSelection.FIRST;
-								return;
-							}
-						}
+        @Override
+        public List<Input> getInputs() {
+            return Arrays.asList(
+                    new ToStringInput(this, 1) {
+                        @Override
+                        public void processElement(StreamRecord element) {
+                            super.processElement(element);
+                            input1ReadingRecords++;
+                            continuousReadingRecords++;
+                            if (continuousReadingRecords == maxContinuousReadingRecords) {
+                                continuousReadingRecords = 0;
+                                if (input2ReadingRecords < input2Records) {
+                                    inputSelection = InputSelection.SECOND;
+                                    return;
+                                }
+                            }
 
-						inputSelection = InputSelection.SECOND;
-					}
-				}
-			);
-		}
-	}
+                            inputSelection = InputSelection.FIRST;
+                        }
+                    },
+                    new ToStringInput(this, 2) {
+                        @Override
+                        public void processElement(StreamRecord element) {
+                            super.processElement(element);
+                            input2ReadingRecords++;
+                            continuousReadingRecords++;
+                            if (continuousReadingRecords == maxContinuousReadingRecords) {
+                                continuousReadingRecords = 0;
+                                if (input1ReadingRecords < input1Records) {
+                                    inputSelection = InputSelection.FIRST;
+                                    return;
+                                }
+                            }
 
-	private static class SpecialRuleReadingStreamOperatorFactory extends AbstractStreamOperatorFactory<String> {
-		private final int input1Records;
-		private final int input2Records;
-		private final int maxContinuousReadingRecords;
+                            inputSelection = InputSelection.SECOND;
+                        }
+                    });
+        }
+    }
 
-		public SpecialRuleReadingStreamOperatorFactory(
-				int input1Records,
-				int input2Records,
-				int maxContinuousReadingRecords) {
-			this.input1Records = input1Records;
-			this.input2Records = input2Records;
-			this.maxContinuousReadingRecords = maxContinuousReadingRecords;
-		}
+    private static class SpecialRuleReadingStreamOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+        private final int input1Records;
+        private final int input2Records;
+        private final int maxContinuousReadingRecords;
 
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new SpecialRuleReadingStreamOperator(parameters, input1Records, input2Records, maxContinuousReadingRecords);
-		}
+        public SpecialRuleReadingStreamOperatorFactory(
+                int input1Records, int input2Records, int maxContinuousReadingRecords) {
+            this.input1Records = input1Records;
+            this.input2Records = input2Records;
+            this.maxContinuousReadingRecords = maxContinuousReadingRecords;
+        }
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return SpecialRuleReadingStreamOperator.class;
-		}
-	}
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T)
+                    new SpecialRuleReadingStreamOperator(
+                            parameters, input1Records, input2Records, maxContinuousReadingRecords);
+        }
 
-	private static class TestReadFinishedInputStreamOperator extends TestAnyModeMultipleInputStreamOperator {
-		TestReadFinishedInputStreamOperator(StreamOperatorParameters<String> parameters) {
-			super(parameters);
-		}
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return SpecialRuleReadingStreamOperator.class;
+        }
+    }
 
-		@Override
-		public InputSelection nextSelection() {
-			return InputSelection.FIRST;
-		}
-	}
+    private static class TestReadFinishedInputStreamOperator
+            extends TestAnyModeMultipleInputStreamOperator {
+        TestReadFinishedInputStreamOperator(StreamOperatorParameters<String> parameters) {
+            super(parameters);
+        }
 
-	private static class TestReadFinishedInputStreamOperatorFactory extends AbstractStreamOperatorFactory<String> {
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new TestReadFinishedInputStreamOperator(parameters);
-		}
+        @Override
+        public InputSelection nextSelection() {
+            return InputSelection.FIRST;
+        }
+    }
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return TestReadFinishedInputStreamOperator.class;
-		}
-	}
+    private static class TestReadFinishedInputStreamOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new TestReadFinishedInputStreamOperator(parameters);
+        }
 
-	private static class TestInputStarvationMultipleInputOperator extends AbstractStreamOperatorV2<String>
-		implements MultipleInputStreamOperator<String>, InputSelectable {
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return TestReadFinishedInputStreamOperator.class;
+        }
+    }
 
-		public TestInputStarvationMultipleInputOperator(StreamOperatorParameters<String> parameters) {
-			super(parameters, 3);
-		}
+    private static class TestInputStarvationMultipleInputOperator
+            extends AbstractStreamOperatorV2<String>
+            implements MultipleInputStreamOperator<String>, InputSelectable {
 
-		@Override
-		public InputSelection nextSelection() {
-			return new InputSelection.Builder().select(2).select(3).build();
-		}
+        public TestInputStarvationMultipleInputOperator(
+                StreamOperatorParameters<String> parameters) {
+            super(parameters, 3);
+        }
 
-		@Override
-		public List<Input> getInputs() {
-			return Arrays.asList(
-				new ToStringInput(this, 1),
-				new ToStringInput(this, 2),
-				new ToStringInput(this, 3));
-		}
-	}
+        @Override
+        public InputSelection nextSelection() {
+            return new InputSelection.Builder().select(2).select(3).build();
+        }
 
-	private static class TestInputStarvationMultipleInputOperatorFactory extends AbstractStreamOperatorFactory<String> {
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new TestInputStarvationMultipleInputOperator(parameters);
-		}
+        @Override
+        public List<Input> getInputs() {
+            return Arrays.asList(
+                    new ToStringInput(this, 1),
+                    new ToStringInput(this, 2),
+                    new ToStringInput(this, 3));
+        }
+    }
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return TestInputStarvationMultipleInputOperator.class;
-		}
-	}
+    private static class TestInputStarvationMultipleInputOperatorFactory
+            extends AbstractStreamOperatorFactory<String> {
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new TestInputStarvationMultipleInputOperator(parameters);
+        }
+
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return TestInputStarvationMultipleInputOperator.class;
+        }
+    }
 }

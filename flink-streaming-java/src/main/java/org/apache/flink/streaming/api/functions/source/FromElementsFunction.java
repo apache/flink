@@ -18,8 +18,11 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataInputView;
@@ -28,205 +31,273 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A stream source function that returns a sequence of elements.
  *
- * <p>Upon construction, this source function serializes the elements using Flink's type information.
- * That way, any object transport using Java serialization will not be affected by the serializability
- * of the elements.</p>
+ * <p>This source function serializes the elements using Flink's type information. That way, any
+ * object transport using Java serialization will not be affected by the serializability of the
+ * elements.
  *
  * <p><b>NOTE:</b> This source has a parallelism of 1.
  *
  * @param <T> The type of elements returned by this function.
  */
 @PublicEvolving
-public class FromElementsFunction<T> implements SourceFunction<T>, CheckpointedFunction {
+public class FromElementsFunction<T>
+        implements SourceFunction<T>, CheckpointedFunction, OutputTypeConfigurable<T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The (de)serializer to be used for the data elements. */
-	private final TypeSerializer<T> serializer;
+    /** The (de)serializer to be used for the data elements. */
+    private @Nullable TypeSerializer<T> serializer;
 
-	/** The actual data elements, in serialized form. */
-	private final byte[] elementsSerialized;
+    /** The actual data elements, in serialized form. */
+    private byte[] elementsSerialized;
 
-	/** The number of serialized elements. */
-	private final int numElements;
+    /** The number of serialized elements. */
+    private final int numElements;
 
-	/** The number of elements emitted already. */
-	private volatile int numElementsEmitted;
+    /** The number of elements emitted already. */
+    private volatile int numElementsEmitted;
 
-	/** The number of elements to skip initially. */
-	private volatile int numElementsToSkip;
+    /** The number of elements to skip initially. */
+    private volatile int numElementsToSkip;
 
-	/** Flag to make the source cancelable. */
-	private volatile boolean isRunning = true;
+    /** Flag to make the source cancelable. */
+    private volatile boolean isRunning = true;
 
-	private transient ListState<Integer> checkpointedState;
+    private final transient Iterable<T> elements;
 
-	public FromElementsFunction(TypeSerializer<T> serializer, T... elements) throws IOException {
-		this(serializer, Arrays.asList(elements));
-	}
+    private transient ListState<Integer> checkpointedState;
 
-	public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
+    @SafeVarargs
+    public FromElementsFunction(TypeSerializer<T> serializer, T... elements) throws IOException {
+        this(serializer, Arrays.asList(elements));
+    }
 
-		int count = 0;
-		try {
-			for (T element : elements) {
-				serializer.serialize(element, wrapper);
-				count++;
-			}
-		}
-		catch (Exception e) {
-			throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
-		}
+    public FromElementsFunction(TypeSerializer<T> serializer, Iterable<T> elements)
+            throws IOException {
+        this.serializer = Preconditions.checkNotNull(serializer);
+        this.elements = elements;
+        this.numElements =
+                elements instanceof Collection
+                        ? ((Collection<T>) elements).size()
+                        : (int) IterableUtils.toStream(elements).count();
+        serializeElements();
+    }
 
-		this.serializer = serializer;
-		this.elementsSerialized = baos.toByteArray();
-		this.numElements = count;
-	}
+    @SafeVarargs
+    public FromElementsFunction(T... elements) {
+        this(Arrays.asList(elements));
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		Preconditions.checkState(this.checkpointedState == null,
-			"The " + getClass().getSimpleName() + " has already been initialized.");
+    public FromElementsFunction(Iterable<T> elements) {
+        this.serializer = null;
+        this.elements = elements;
+        this.numElements =
+                elements instanceof Collection
+                        ? ((Collection<T>) elements).size()
+                        : (int) IterableUtils.toStream(elements).count();
+        checkIterable(elements, Object.class);
+    }
 
-		this.checkpointedState = context.getOperatorStateStore().getListState(
-			new ListStateDescriptor<>(
-				"from-elements-state",
-				IntSerializer.INSTANCE
-			)
-		);
+    @VisibleForTesting
+    @Nullable
+    public TypeSerializer<T> getSerializer() {
+        return serializer;
+    }
 
-		if (context.isRestored()) {
-			List<Integer> retrievedStates = new ArrayList<>();
-			for (Integer entry : this.checkpointedState.get()) {
-				retrievedStates.add(entry);
-			}
+    private void serializeElements() throws IOException {
+        Preconditions.checkState(serializer != null, "serializer not set");
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
+        try {
+            for (T element : elements) {
+                serializer.serialize(element, wrapper);
+            }
+        } catch (Exception e) {
+            throw new IOException("Serializing the source elements failed: " + e.getMessage(), e);
+        }
+        this.elementsSerialized = baos.toByteArray();
+    }
 
-			// given that the parallelism of the function is 1, we can only have 1 state
-			Preconditions.checkArgument(retrievedStates.size() == 1,
-				getClass().getSimpleName() + " retrieved invalid state.");
+    /**
+     * Set element type and re-serialize element if required. Should only be called before
+     * serialization/deserialization of this function.
+     */
+    @Override
+    public void setOutputType(TypeInformation<T> outTypeInfo, ExecutionConfig executionConfig) {
+        Preconditions.checkState(
+                elements != null,
+                "The output type should've been specified before shipping the graph to the cluster");
+        checkIterable(elements, outTypeInfo.getTypeClass());
+        TypeSerializer<T> newSerializer = outTypeInfo.createSerializer(executionConfig);
+        if (Objects.equals(serializer, newSerializer)) {
+            return;
+        }
+        serializer = newSerializer;
+        try {
+            serializeElements();
+        } catch (IOException ex) {
+            throw new UncheckedIOException(ex);
+        }
+    }
 
-			this.numElementsToSkip = retrievedStates.get(0);
-		}
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        Preconditions.checkState(
+                this.checkpointedState == null,
+                "The " + getClass().getSimpleName() + " has already been initialized.");
 
-	@Override
-	public void run(SourceContext<T> ctx) throws Exception {
-		ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
-		final DataInputView input = new DataInputViewStreamWrapper(bais);
+        this.checkpointedState =
+                context.getOperatorStateStore()
+                        .getListState(
+                                new ListStateDescriptor<>(
+                                        "from-elements-state", IntSerializer.INSTANCE));
 
-		// if we are restored from a checkpoint and need to skip elements, skip them now.
-		int toSkip = numElementsToSkip;
-		if (toSkip > 0) {
-			try {
-				while (toSkip > 0) {
-					serializer.deserialize(input);
-					toSkip--;
-				}
-			}
-			catch (Exception e) {
-				throw new IOException("Failed to deserialize an element from the source. " +
-						"If you are using user-defined serialization (Value and Writable types), check the " +
-						"serialization functions.\nSerializer is " + serializer, e);
-			}
+        if (context.isRestored()) {
+            List<Integer> retrievedStates = new ArrayList<>();
+            for (Integer entry : this.checkpointedState.get()) {
+                retrievedStates.add(entry);
+            }
 
-			this.numElementsEmitted = this.numElementsToSkip;
-		}
+            // given that the parallelism of the function is 1, we can only have 1 state
+            Preconditions.checkArgument(
+                    retrievedStates.size() == 1,
+                    getClass().getSimpleName() + " retrieved invalid state.");
 
-		final Object lock = ctx.getCheckpointLock();
+            this.numElementsToSkip = retrievedStates.get(0);
+        }
+    }
 
-		while (isRunning && numElementsEmitted < numElements) {
-			T next;
-			try {
-				next = serializer.deserialize(input);
-			}
-			catch (Exception e) {
-				throw new IOException("Failed to deserialize an element from the source. " +
-						"If you are using user-defined serialization (Value and Writable types), check the " +
-						"serialization functions.\nSerializer is " + serializer, e);
-			}
+    @Override
+    public void run(SourceContext<T> ctx) throws Exception {
+        Preconditions.checkState(serializer != null, "serializer not configured");
+        ByteArrayInputStream bais = new ByteArrayInputStream(elementsSerialized);
+        final DataInputView input = new DataInputViewStreamWrapper(bais);
 
-			synchronized (lock) {
-				ctx.collect(next);
-				numElementsEmitted++;
-			}
-		}
-	}
+        // if we are restored from a checkpoint and need to skip elements, skip them now.
+        int toSkip = numElementsToSkip;
+        if (toSkip > 0) {
+            try {
+                while (toSkip > 0) {
+                    serializer.deserialize(input);
+                    toSkip--;
+                }
+            } catch (Exception e) {
+                throw new IOException(
+                        "Failed to deserialize an element from the source. "
+                                + "If you are using user-defined serialization (Value and Writable types), check the "
+                                + "serialization functions.\nSerializer is "
+                                + serializer,
+                        e);
+            }
 
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
+            this.numElementsEmitted = this.numElementsToSkip;
+        }
 
+        final Object lock = ctx.getCheckpointLock();
 
-	/**
-	 * Gets the number of elements produced in total by this function.
-	 *
-	 * @return The number of elements produced in total.
-	 */
-	public int getNumElements() {
-		return numElements;
-	}
+        while (isRunning && numElementsEmitted < numElements) {
+            T next;
+            try {
+                next = serializer.deserialize(input);
+            } catch (Exception e) {
+                throw new IOException(
+                        "Failed to deserialize an element from the source. "
+                                + "If you are using user-defined serialization (Value and Writable types), check the "
+                                + "serialization functions.\nSerializer is "
+                                + serializer,
+                        e);
+            }
 
-	/**
-	 * Gets the number of elements emitted so far.
-	 *
-	 * @return The number of elements emitted so far.
-	 */
-	public int getNumElementsEmitted() {
-		return numElementsEmitted;
-	}
+            synchronized (lock) {
+                ctx.collect(next);
+                numElementsEmitted++;
+            }
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Checkpointing
-	// ------------------------------------------------------------------------
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		Preconditions.checkState(this.checkpointedState != null,
-			"The " + getClass().getSimpleName() + " has not been properly initialized.");
+    /**
+     * Gets the number of elements produced in total by this function.
+     *
+     * @return The number of elements produced in total.
+     */
+    public int getNumElements() {
+        return numElements;
+    }
 
-		this.checkpointedState.clear();
-		this.checkpointedState.add(this.numElementsEmitted);
-	}
+    /**
+     * Gets the number of elements emitted so far.
+     *
+     * @return The number of elements emitted so far.
+     */
+    public int getNumElementsEmitted() {
+        return numElementsEmitted;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Checkpointing
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Verifies that all elements in the collection are non-null, and are of the given class, or
-	 * a subclass thereof.
-	 *
-	 * @param elements The collection to check.
-	 * @param viewedAs The class to which the elements must be assignable to.
-	 *
-	 * @param <OUT> The generic type of the collection to be checked.
-	 */
-	public static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
-		for (OUT elem : elements) {
-			if (elem == null) {
-				throw new IllegalArgumentException("The collection contains a null element");
-			}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        Preconditions.checkState(
+                this.checkpointedState != null,
+                "The " + getClass().getSimpleName() + " has not been properly initialized.");
 
-			if (!viewedAs.isAssignableFrom(elem.getClass())) {
-				throw new IllegalArgumentException("The elements in the collection are not all subclasses of " +
-						viewedAs.getCanonicalName());
-			}
-		}
-	}
+        this.checkpointedState.clear();
+        this.checkpointedState.add(this.numElementsEmitted);
+    }
+
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
+
+    /**
+     * Verifies that all elements in the collection are non-null, and are of the given class, or a
+     * subclass thereof.
+     *
+     * @param elements The collection to check.
+     * @param viewedAs The class to which the elements must be assignable to.
+     * @param <OUT> The generic type of the collection to be checked.
+     */
+    public static <OUT> void checkCollection(Collection<OUT> elements, Class<OUT> viewedAs) {
+        checkIterable(elements, viewedAs);
+    }
+
+    private static <OUT> void checkIterable(Iterable<OUT> elements, Class<?> viewedAs) {
+        for (OUT elem : elements) {
+            if (elem == null) {
+                throw new IllegalArgumentException("The collection contains a null element");
+            }
+
+            if (!viewedAs.isAssignableFrom(elem.getClass())) {
+                throw new IllegalArgumentException(
+                        "The elements in the collection are not all subclasses of "
+                                + viewedAs.getCanonicalName());
+            }
+        }
+    }
 }

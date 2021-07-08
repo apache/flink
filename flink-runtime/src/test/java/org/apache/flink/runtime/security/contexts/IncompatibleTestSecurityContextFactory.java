@@ -29,24 +29,23 @@ import java.util.concurrent.Callable;
  */
 public class IncompatibleTestSecurityContextFactory implements SecurityContextFactory {
 
-	@Override
-	public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
-		return false;
-	}
+    @Override
+    public boolean isCompatibleWith(SecurityConfiguration securityConfig) {
+        return false;
+    }
 
-	@Override
-	public SecurityContext createContext(SecurityConfiguration securityConfig) throws SecurityContextInitializeException {
-		return new TestSecurityContext();
-	}
+    @Override
+    public SecurityContext createContext(SecurityConfiguration securityConfig)
+            throws SecurityContextInitializeException {
+        return new TestSecurityContext();
+    }
 
-	/**
-	 * Test security context class.
-	 */
-	public static class TestSecurityContext implements SecurityContext {
+    /** Test security context class. */
+    public static class TestSecurityContext implements SecurityContext {
 
-		@Override
-		public <T> T runSecured(Callable<T> securedCallable) {
-			return null;
-		}
-	}
+        @Override
+        public <T> T runSecured(Callable<T> securedCallable) {
+            return null;
+        }
+    }
 }

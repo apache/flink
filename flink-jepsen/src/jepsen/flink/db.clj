@@ -24,7 +24,6 @@
              [util :refer [meh]]]
             [jepsen.control.util :as cu]
             [jepsen.flink.hadoop :as hadoop]
-            [jepsen.flink.mesos :as mesos]
             [jepsen.flink.utils :as fu]
             [jepsen.flink.zookeeper :refer :all]))
 
@@ -38,21 +37,21 @@
 
 (defn- default-flink-configuration
   [test node]
-  {:high-availability                     "zookeeper"
-   :high-availability.zookeeper.quorum    (zookeeper-quorum test)
-   :high-availability.storageDir          "hdfs:///flink/ha"
-   :jobmanager.memory.process.size        "2048m"
-   :jobmanager.rpc.address                node
-   :state.savepoints.dir                  "hdfs:///flink/savepoints"
-   :rest.address                          node
-   :rest.port                             8081
-   :rest.bind-address                     "0.0.0.0"
-   :taskmanager.numberOfTaskSlots         taskmanager-slots
-   :yarn.application-attempts             99999
-   :slotmanager.taskmanager-timeout       10000
-   :state.backend.local-recovery          "true"
-   :taskmanager.memory.process.size "2048m"
-   :taskmanager.registration.timeout      "30 s"})
+  {:high-availability                  "zookeeper"
+   :high-availability.zookeeper.quorum (zookeeper-quorum test)
+   :high-availability.storageDir       "hdfs:///flink/ha"
+   :jobmanager.memory.process.size     "2048m"
+   :jobmanager.rpc.address             node
+   :state.savepoints.dir               "hdfs:///flink/savepoints"
+   :rest.address                       node
+   :rest.port                          8081
+   :rest.bind-address                  "0.0.0.0"
+   :taskmanager.numberOfTaskSlots      taskmanager-slots
+   :yarn.application-attempts          99999
+   :slotmanager.taskmanager-timeout    10000
+   :state.backend.local-recovery       "true"
+   :taskmanager.memory.process.size    "2048m"
+   :taskmanager.registration.timeout   "30 s"})
 
 (defn flink-configuration
   [test node]
@@ -109,7 +108,7 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db dbs] (db/teardown! db test node))
+          (doseq [db (reverse dbs)] (db/teardown! db test node))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
@@ -290,51 +289,3 @@
                 (when (= node (first-node test))
                   (start-yarn-job! test)))
               (teardown! [_ _ _]))))
-
-;;; Mesos
-
-(defn- mesos-appmaster-cmd
-  "Returns the command used by Marathon to start Flink's Mesos application master."
-  [test]
-  (fu/join-space
-    (hadoop-env-vars)
-    (str install-dir "/bin/mesos-appmaster.sh")
-    (str "-Dmesos.master=" (zookeeper-uri test mesos/zk-namespace))
-    "-Djobmanager.rpc.address=$(hostname -f)"
-    "-Djobmanager.rpc.port=6123"
-    "-Dmesos.resourcemanager.tasks.cpus=1"
-    "-Dtaskmanager.memory.process.size=2048m"
-    "-Drest.bind-address=$(hostname -f)"))
-
-(defn- start-mesos-session!
-  [test]
-  (c/su
-    (let [log-submission-failure! (fn [exception _]
-                                    (info "Submitting Flink Application via Marathon failed due to"
-                                          (.getMessage exception)
-                                          "Retrying..."))
-          submit-flink! (fn []
-                          (http/post
-                            (str (mesos/marathon-base-url test) "/v2/apps")
-                            {:form-params  {:id                    "flink"
-                                            :cmd                   (mesos-appmaster-cmd test)
-                                            :cpus                  1.0
-                                            :mem                   2048
-                                            :maxLaunchDelaySeconds 3}
-                             :content-type :json}))
-          marathon-response (fu/retry submit-flink!
-                                      :on-retry log-submission-failure!
-                                      :delay 4000)]
-      (info "Submitted Flink Application via Marathon" marathon-response))))
-
-(defn flink-mesos-app-master
-  []
-  (flink-db
-    (reify
-      db/DB
-      (setup! [_ test node]
-        (when (= (first-node test) node)
-          (start-mesos-session! test)
-          (submit-job-with-retry! test)))
-
-      (teardown! [_ _ _]))))

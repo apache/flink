@@ -28,71 +28,69 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Reference to entity local to a certain {@link QueryOperation}.
- * That entity does not come from any of the Operations input. It might be for example a group
- * window in window aggregation.
+ * Reference to entity local to a certain {@link QueryOperation}. That entity does not come from any
+ * of the Operations input. It might be for example a group window in window aggregation.
  */
 @Internal
 public class LocalReferenceExpression implements ResolvedExpression {
 
-	private final String name;
+    private final String name;
 
-	private final DataType dataType;
+    private final DataType dataType;
 
-	LocalReferenceExpression(String name, DataType dataType) {
-		this.name = Preconditions.checkNotNull(name);
-		this.dataType = Preconditions.checkNotNull(dataType);
-	}
+    LocalReferenceExpression(String name, DataType dataType) {
+        this.name = Preconditions.checkNotNull(name);
+        this.dataType = Preconditions.checkNotNull(dataType);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	@Override
-	public DataType getOutputDataType() {
-		return dataType;
-	}
+    @Override
+    public DataType getOutputDataType() {
+        return dataType;
+    }
 
-	@Override
-	public List<ResolvedExpression> getResolvedChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<ResolvedExpression> getResolvedChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public String asSummaryString() {
-		return name;
-	}
+    @Override
+    public String asSummaryString() {
+        return name;
+    }
 
-	@Override
-	public List<Expression> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<Expression> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(ExpressionVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		LocalReferenceExpression that = (LocalReferenceExpression) o;
-		return name.equals(that.name) &&
-			dataType.equals(that.dataType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        LocalReferenceExpression that = (LocalReferenceExpression) o;
+        return name.equals(that.name) && dataType.equals(that.dataType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(name, dataType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, dataType);
+    }
 
-	@Override
-	public String toString() {
-		return asSummaryString();
-	}
+    @Override
+    public String toString() {
+        return asSummaryString();
+    }
 }

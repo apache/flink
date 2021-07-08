@@ -32,132 +32,137 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Simple registry, which maps {@link InternalKvState} registration notifications to
- * {@link KvStateLocation} instances.
+ * Simple registry, which maps {@link InternalKvState} registration notifications to {@link
+ * KvStateLocation} instances.
  */
 public class KvStateLocationRegistry {
 
-	/** JobID this coordinator belongs to. */
-	private final JobID jobId;
+    /** JobID this coordinator belongs to. */
+    private final JobID jobId;
 
-	/** Job vertices for determining parallelism per key. */
-	private final Map<JobVertexID, ExecutionJobVertex> jobVertices;
+    /** Job vertices for determining parallelism per key. */
+    private final Map<JobVertexID, ExecutionJobVertex> jobVertices;
 
-	/**
-	 * Location info keyed by registration name. The name needs to be unique
-	 * per JobID, i.e. two operators cannot register KvState with the same
-	 * name.
-	 */
-	private final Map<String, KvStateLocation> lookupTable = new HashMap<>();
+    /**
+     * Location info keyed by registration name. The name needs to be unique per JobID, i.e. two
+     * operators cannot register KvState with the same name.
+     */
+    private final Map<String, KvStateLocation> lookupTable = new HashMap<>();
 
-	/**
-	 * Creates the registry for the job.
-	 *
-	 * @param jobId       JobID this coordinator belongs to.
-	 * @param jobVertices Job vertices map of all vertices of this job.
-	 */
-	public KvStateLocationRegistry(JobID jobId, Map<JobVertexID, ExecutionJobVertex> jobVertices) {
-		this.jobId = Preconditions.checkNotNull(jobId, "JobID");
-		this.jobVertices = Preconditions.checkNotNull(jobVertices, "Job vertices");
-	}
+    /**
+     * Creates the registry for the job.
+     *
+     * @param jobId JobID this coordinator belongs to.
+     * @param jobVertices Job vertices map of all vertices of this job.
+     */
+    public KvStateLocationRegistry(JobID jobId, Map<JobVertexID, ExecutionJobVertex> jobVertices) {
+        this.jobId = Preconditions.checkNotNull(jobId, "JobID");
+        this.jobVertices = Preconditions.checkNotNull(jobVertices, "Job vertices");
+    }
 
-	/**
-	 * Returns the {@link KvStateLocation} for the registered KvState instance
-	 * or <code>null</code> if no location information is available.
-	 *
-	 * @param registrationName Name under which the KvState instance is registered.
-	 * @return Location information or <code>null</code>.
-	 */
-	public KvStateLocation getKvStateLocation(String registrationName) {
-		return lookupTable.get(registrationName);
-	}
+    /**
+     * Returns the {@link KvStateLocation} for the registered KvState instance or <code>null</code>
+     * if no location information is available.
+     *
+     * @param registrationName Name under which the KvState instance is registered.
+     * @return Location information or <code>null</code>.
+     */
+    public KvStateLocation getKvStateLocation(String registrationName) {
+        return lookupTable.get(registrationName);
+    }
 
-	/**
-	 * Notifies the registry about a registered KvState instance.
-	 *
-	 * @param jobVertexId JobVertexID the KvState instance belongs to
-	 * @param keyGroupRange Key group range the KvState instance belongs to
-	 * @param registrationName Name under which the KvState has been registered
-	 * @param kvStateId ID of the registered KvState instance
-	 * @param kvStateServerAddress Server address where to find the KvState instance
-	 *
-	 * @throws IllegalArgumentException If JobVertexID does not belong to job
-	 * @throws IllegalArgumentException If state has been registered with same
-	 * name by another operator.
-	 * @throws IndexOutOfBoundsException If key group index is out of bounds.
-	 */
-	public void notifyKvStateRegistered(
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName,
-			KvStateID kvStateId,
-			InetSocketAddress kvStateServerAddress) {
+    /**
+     * Notifies the registry about a registered KvState instance.
+     *
+     * @param jobVertexId JobVertexID the KvState instance belongs to
+     * @param keyGroupRange Key group range the KvState instance belongs to
+     * @param registrationName Name under which the KvState has been registered
+     * @param kvStateId ID of the registered KvState instance
+     * @param kvStateServerAddress Server address where to find the KvState instance
+     * @throws IllegalArgumentException If JobVertexID does not belong to job
+     * @throws IllegalArgumentException If state has been registered with same name by another
+     *     operator.
+     * @throws IndexOutOfBoundsException If key group index is out of bounds.
+     */
+    public void notifyKvStateRegistered(
+            JobVertexID jobVertexId,
+            KeyGroupRange keyGroupRange,
+            String registrationName,
+            KvStateID kvStateId,
+            InetSocketAddress kvStateServerAddress) {
 
-		KvStateLocation location = lookupTable.get(registrationName);
+        KvStateLocation location = lookupTable.get(registrationName);
 
-		if (location == null) {
-			// First registration for this operator, create the location info
-			ExecutionJobVertex vertex = jobVertices.get(jobVertexId);
+        if (location == null) {
+            // First registration for this operator, create the location info
+            ExecutionJobVertex vertex = jobVertices.get(jobVertexId);
 
-			if (vertex != null) {
-				int parallelism = vertex.getMaxParallelism();
-				location = new KvStateLocation(jobId, jobVertexId, parallelism, registrationName);
-				lookupTable.put(registrationName, location);
-			} else {
-				throw new IllegalArgumentException("Unknown JobVertexID " + jobVertexId);
-			}
-		}
+            if (vertex != null) {
+                int parallelism = vertex.getMaxParallelism();
+                location = new KvStateLocation(jobId, jobVertexId, parallelism, registrationName);
+                lookupTable.put(registrationName, location);
+            } else {
+                throw new IllegalArgumentException("Unknown JobVertexID " + jobVertexId);
+            }
+        }
 
-		// Duplicated name if vertex IDs don't match
-		if (!location.getJobVertexId().equals(jobVertexId)) {
-			IllegalStateException duplicate = new IllegalStateException(
-					"Registration name clash. KvState with name '" + registrationName +
-							"' has already been registered by another operator (" +
-							location.getJobVertexId() + ").");
+        // Duplicated name if vertex IDs don't match
+        if (!location.getJobVertexId().equals(jobVertexId)) {
+            IllegalStateException duplicate =
+                    new IllegalStateException(
+                            "Registration name clash. KvState with name '"
+                                    + registrationName
+                                    + "' has already been registered by another operator ("
+                                    + location.getJobVertexId()
+                                    + ").");
 
-			ExecutionJobVertex vertex = jobVertices.get(jobVertexId);
-			if (vertex != null) {
-				vertex.fail(new SuppressRestartsException(duplicate));
-			}
+            ExecutionJobVertex vertex = jobVertices.get(jobVertexId);
+            if (vertex != null) {
+                vertex.fail(new SuppressRestartsException(duplicate));
+            }
 
-			throw duplicate;
-		}
-		location.registerKvState(keyGroupRange, kvStateId, kvStateServerAddress);
-	}
+            throw duplicate;
+        }
+        location.registerKvState(keyGroupRange, kvStateId, kvStateServerAddress);
+    }
 
-	/**
-	 * Notifies the registry about an unregistered KvState instance.
-	 *
-	 * @param jobVertexId JobVertexID the KvState instance belongs to
-	 * @param keyGroupRange Key group index the KvState instance belongs to
-	 * @param registrationName Name under which the KvState has been registered
-	 * @throws IllegalArgumentException If another operator registered the state instance
-	 * @throws IllegalArgumentException If the registration name is not known
-	 */
-	public void notifyKvStateUnregistered(
-			JobVertexID jobVertexId,
-			KeyGroupRange keyGroupRange,
-			String registrationName) {
+    /**
+     * Notifies the registry about an unregistered KvState instance.
+     *
+     * @param jobVertexId JobVertexID the KvState instance belongs to
+     * @param keyGroupRange Key group index the KvState instance belongs to
+     * @param registrationName Name under which the KvState has been registered
+     * @throws IllegalArgumentException If another operator registered the state instance
+     * @throws IllegalArgumentException If the registration name is not known
+     */
+    public void notifyKvStateUnregistered(
+            JobVertexID jobVertexId, KeyGroupRange keyGroupRange, String registrationName) {
 
-		KvStateLocation location = lookupTable.get(registrationName);
+        KvStateLocation location = lookupTable.get(registrationName);
 
-		if (location != null) {
-			// Duplicate name if vertex IDs don't match
-			if (!location.getJobVertexId().equals(jobVertexId)) {
-				throw new IllegalArgumentException("Another operator (" +
-						location.getJobVertexId() + ") registered the KvState " +
-						"under '" + registrationName + "'.");
-			}
+        if (location != null) {
+            // Duplicate name if vertex IDs don't match
+            if (!location.getJobVertexId().equals(jobVertexId)) {
+                throw new IllegalArgumentException(
+                        "Another operator ("
+                                + location.getJobVertexId()
+                                + ") registered the KvState "
+                                + "under '"
+                                + registrationName
+                                + "'.");
+            }
 
-			location.unregisterKvState(keyGroupRange);
+            location.unregisterKvState(keyGroupRange);
 
-			if (location.getNumRegisteredKeyGroups() == 0) {
-				lookupTable.remove(registrationName);
-			}
-		} else {
-			throw new IllegalArgumentException("Unknown registration name '" +
-					registrationName + "'. " + "Probably registration/unregistration race.");
-		}
-	}
-
+            if (location.getNumRegisteredKeyGroups() == 0) {
+                lookupTable.remove(registrationName);
+            }
+        } else {
+            throw new IllegalArgumentException(
+                    "Unknown registration name '"
+                            + registrationName
+                            + "'. "
+                            + "Probably registration/unregistration race.");
+        }
+    }
 }

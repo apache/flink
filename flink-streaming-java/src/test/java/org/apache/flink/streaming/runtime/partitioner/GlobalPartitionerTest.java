@@ -23,22 +23,20 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 
-/**
- * Tests for {@link GlobalPartitioner}.
- */
+/** Tests for {@link GlobalPartitioner}. */
 public class GlobalPartitionerTest extends StreamPartitionerTest {
 
-	@Override
-	public StreamPartitioner<Tuple> createPartitioner() {
-		StreamPartitioner<Tuple> partitioner = new GlobalPartitioner<>();
-		assertFalse(partitioner.isBroadcast());
-		return partitioner;
-	}
+    @Override
+    public StreamPartitioner<Tuple> createPartitioner() {
+        StreamPartitioner<Tuple> partitioner = new GlobalPartitioner<>();
+        assertFalse(partitioner.isBroadcast());
+        return partitioner;
+    }
 
-	@Test
-	public void testSelectChannels() {
-		assertSelectedChannelWithSetup(0, 1);
-		assertSelectedChannelWithSetup(0, 2);
-		assertSelectedChannelWithSetup(0, 1024);
-	}
+    @Test
+    public void testSelectChannels() {
+        assertSelectedChannelWithSetup(0, 1);
+        assertSelectedChannelWithSetup(0, 2);
+        assertSelectedChannelWithSetup(0, 1024);
+    }
 }

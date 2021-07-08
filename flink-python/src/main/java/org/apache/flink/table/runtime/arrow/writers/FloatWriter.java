@@ -19,26 +19,77 @@
 package org.apache.flink.table.runtime.arrow.writers;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.Float4Vector;
 
-/**
- * {@link ArrowFieldWriter} for Float.
- */
+/** {@link ArrowFieldWriter} for Float. */
 @Internal
-public final class FloatWriter<T extends TypeGetterSetters> extends ArrowFieldWriter<T> {
+public abstract class FloatWriter<T> extends ArrowFieldWriter<T> {
 
-	public FloatWriter(Float4Vector floatVector) {
-		super(floatVector);
-	}
+    public static FloatWriter<RowData> forRow(Float4Vector floatVector) {
+        return new FloatWriterForRow(floatVector);
+    }
 
-	@Override
-	public void doWrite(T row, int ordinal) {
-		if (row.isNullAt(ordinal)) {
-			((Float4Vector) getValueVector()).setNull(getCount());
-		} else {
-			((Float4Vector) getValueVector()).setSafe(getCount(), row.getFloat(ordinal));
-		}
-	}
+    public static FloatWriter<ArrayData> forArray(Float4Vector floatVector) {
+        return new FloatWriterForArray(floatVector);
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    private FloatWriter(Float4Vector floatVector) {
+        super(floatVector);
+    }
+
+    abstract boolean isNullAt(T in, int ordinal);
+
+    abstract float readFloat(T in, int ordinal);
+
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((Float4Vector) getValueVector()).setNull(getCount());
+        } else {
+            ((Float4Vector) getValueVector()).setSafe(getCount(), readFloat(in, ordinal));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+
+    /** {@link FloatWriter} for {@link RowData} input. */
+    public static final class FloatWriterForRow extends FloatWriter<RowData> {
+
+        private FloatWriterForRow(Float4Vector floatVector) {
+            super(floatVector);
+        }
+
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        float readFloat(RowData in, int ordinal) {
+            return in.getFloat(ordinal);
+        }
+    }
+
+    /** {@link FloatWriter} for {@link ArrayData} input. */
+    public static final class FloatWriterForArray extends FloatWriter<ArrayData> {
+
+        private FloatWriterForArray(Float4Vector floatVector) {
+            super(floatVector);
+        }
+
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
+
+        @Override
+        float readFloat(ArrayData in, int ordinal) {
+            return in.getFloat(ordinal);
+        }
+    }
 }

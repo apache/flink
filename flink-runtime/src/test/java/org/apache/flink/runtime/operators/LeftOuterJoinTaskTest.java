@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
@@ -40,220 +39,244 @@ import static org.junit.Assert.fail;
 
 public class LeftOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
-	private static final long HASH_MEM = 6*1024*1024;
+    private static final long HASH_MEM = 6 * 1024 * 1024;
 
-	private final double hash_frac;
+    private final double hash_frac;
 
-	public LeftOuterJoinTaskTest(ExecutionConfig config) {
-		super(config);
-		hash_frac = (double)HASH_MEM/this.getMemoryManager().getMemorySize();
-	}
-	
-	@Override
-	protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
-		return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2) + (keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : 0);
-	}
+    public LeftOuterJoinTaskTest(ExecutionConfig config) {
+        super(config);
+        hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
+    }
 
-	@Override
-	protected DriverStrategy getSortDriverStrategy() {
-		return DriverStrategy.LEFT_OUTER_MERGE;
-	}
+    @Override
+    protected int calculateExpectedCount(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) {
+        return valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2)
+                + (keyCnt1 > keyCnt2 ? (keyCnt1 - keyCnt2) * valCnt1 : 0);
+    }
 
-	@Override
-	protected AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> getOuterJoinDriver() {
-		return new LeftOuterJoinDriver<>();
-	}
+    @Override
+    protected DriverStrategy getSortDriverStrategy() {
+        return DriverStrategy.LEFT_OUTER_MERGE;
+    }
 
-	@Test
-	public void testHash1LeftOuterJoinTask() throws Exception {
-		final int keyCnt1 = 20;
-		final int valCnt1 = 1;
+    @Override
+    protected AbstractOuterJoinDriver<
+                    Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
+            getOuterJoinDriver() {
+        return new LeftOuterJoinDriver<>();
+    }
 
-		final int keyCnt2 = 10;
-		final int valCnt2 = 2;
+    @Test
+    public void testHash1LeftOuterJoinTask() throws Exception {
+        final int keyCnt1 = 20;
+        final int valCnt1 = 1;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        final int keyCnt2 = 10;
+        final int valCnt2 = 2;
 
-	@Test
-	public void testHash2LeftOuterJoinTask() throws Exception {
-		final int keyCnt1 = 20;
-		final int valCnt1 = 1;
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		final int keyCnt2 = 20;
-		final int valCnt2 = 1;
+    @Test
+    public void testHash2LeftOuterJoinTask() throws Exception {
+        final int keyCnt1 = 20;
+        final int valCnt1 = 1;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        final int keyCnt2 = 20;
+        final int valCnt2 = 1;
 
-	@Test
-	public void testHash3LeftOuterJoinTask() throws Exception {
-		int keyCnt1 = 20;
-		int valCnt1 = 1;
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		int keyCnt2 = 20;
-		int valCnt2 = 20;
+    @Test
+    public void testHash3LeftOuterJoinTask() throws Exception {
+        int keyCnt1 = 20;
+        int valCnt1 = 1;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        int keyCnt2 = 20;
+        int valCnt2 = 20;
 
-	@Test
-	public void testHash4LeftOuterJoinTask() throws Exception {
-		int keyCnt1 = 20;
-		int valCnt1 = 20;
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		int keyCnt2 = 20;
-		int valCnt2 = 1;
+    @Test
+    public void testHash4LeftOuterJoinTask() throws Exception {
+        int keyCnt1 = 20;
+        int valCnt1 = 20;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        int keyCnt2 = 20;
+        int valCnt2 = 1;
 
-	@Test
-	public void testHash5LeftOuterJoinTask() throws Exception {
-		int keyCnt1 = 20;
-		int valCnt1 = 20;
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		int keyCnt2 = 20;
-		int valCnt2 = 20;
+    @Test
+    public void testHash5LeftOuterJoinTask() throws Exception {
+        int keyCnt1 = 20;
+        int valCnt1 = 20;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        int keyCnt2 = 20;
+        int valCnt2 = 20;
 
-	@Test
-	public void testHash6LeftOuterJoinTask() throws Exception {
-		int keyCnt1 = 10;
-		int valCnt1 = 1;
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		int keyCnt2 = 20;
-		int valCnt2 = 2;
+    @Test
+    public void testHash6LeftOuterJoinTask() throws Exception {
+        int keyCnt1 = 10;
+        int valCnt1 = 1;
 
-		testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
-	}
+        int keyCnt2 = 20;
+        int valCnt2 = 2;
 
-	private void testHashLeftOuterJoinTask(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2) throws Exception {
+        testHashLeftOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
+    }
 
-		setOutput(this.outList, this.serializer);
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setRelativeMemoryDriver(hash_frac);
+    private void testHashLeftOuterJoinTask(int keyCnt1, int valCnt1, int keyCnt2, int valCnt2)
+            throws Exception {
 
-		final AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = getOuterJoinDriver();
+        setOutput(this.outList, this.serializer);
+        addDriverComparator(this.comparator1);
+        addDriverComparator(this.comparator2);
+        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+        getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
+        getTaskConfig().setRelativeMemoryDriver(hash_frac);
 
-		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), this.serializer);
-		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), this.serializer);
-		testDriver(testTask, MockJoinStub.class);
+        final AbstractOuterJoinDriver<
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>>
+                testTask = getOuterJoinDriver();
 
-		final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
+        addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, false), this.serializer);
+        addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, false), this.serializer);
+        testDriver(testTask, MockJoinStub.class);
 
-		Assert.assertTrue("Result set size was " + this.outList.size() + ". Expected was " + expCnt, this.outList.size() == expCnt);
+        final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-		this.outList.clear();
-	}
+        Assert.assertTrue(
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
+                this.outList.size() == expCnt);
 
-	@Test(expected = ExpectedTestException.class)
-	public void testFailingHashLeftOuterJoinTask() throws Exception {
-		int keyCnt1 = 20;
-		int valCnt1 = 20;
+        this.outList.clear();
+    }
 
-		int keyCnt2 = 20;
-		int valCnt2 = 20;
+    @Test(expected = ExpectedTestException.class)
+    public void testFailingHashLeftOuterJoinTask() throws Exception {
+        int keyCnt1 = 20;
+        int valCnt1 = 20;
 
-		setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
+        int keyCnt2 = 20;
+        int valCnt2 = 20;
 
-		final AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = getOuterJoinDriver();
+        setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+        addDriverComparator(this.comparator1);
+        addDriverComparator(this.comparator2);
+        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+        getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
+        getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
 
-		addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
-		addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
+        final AbstractOuterJoinDriver<
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>>
+                testTask = getOuterJoinDriver();
 
-		testDriver(testTask, MockFailingJoinStub.class);
-	}
+        addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
+        addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
-	@Test
-	public void testCancelLeftOuterJoinTaskWhileBuilding() throws Exception {
-		setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
+        testDriver(testTask, MockFailingJoinStub.class);
+    }
 
-		final AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = getOuterJoinDriver();
+    @Test
+    public void testCancelLeftOuterJoinTaskWhileBuilding() throws Exception {
+        setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+        addDriverComparator(this.comparator1);
+        addDriverComparator(this.comparator2);
+        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+        getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
+        getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
 
-		addInput(new UniformIntTupleGenerator(100, 100, true), this.serializer);
-		addInput(new DelayingIterator<>(new InfiniteIntTupleIterator(), 100), this.serializer);
+        final AbstractOuterJoinDriver<
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>>
+                testTask = getOuterJoinDriver();
 
-		final AtomicReference<Throwable> error = new AtomicReference<>();
+        addInput(new UniformIntTupleGenerator(100, 100, true), this.serializer);
+        addInput(new DelayingIterator<>(new InfiniteIntTupleIterator(), 100), this.serializer);
 
-		final Thread taskRunner = new Thread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockJoinStub.class);
-				} catch (Throwable t) {
-					error.set(t);
-				}
-			}
-		};
-		taskRunner.start();
+        final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		Thread.sleep(1000);
+        final Thread taskRunner =
+                new Thread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
+                    @Override
+                    public void run() {
+                        try {
+                            testDriver(testTask, MockJoinStub.class);
+                        } catch (Throwable t) {
+                            error.set(t);
+                        }
+                    }
+                };
+        taskRunner.start();
 
-		cancel();
-		taskRunner.join(60000);
+        Thread.sleep(1000);
 
-		assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        cancel();
+        taskRunner.join(60000);
 
-		final Throwable taskError = error.get();
-		if (taskError != null) {
-			fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-		}
-	}
+        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
 
-	@Test
-	public void testCancelLeftOuterJoinTaskWhileProbing() throws Exception {
-		setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
-		addDriverComparator(this.comparator1);
-		addDriverComparator(this.comparator2);
-		getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-		getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
-		getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
+        final Throwable taskError = error.get();
+        if (taskError != null) {
+            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
+        }
+    }
 
-		final AbstractOuterJoinDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> testTask = getOuterJoinDriver();
+    @Test
+    public void testCancelLeftOuterJoinTaskWhileProbing() throws Exception {
+        setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+        addDriverComparator(this.comparator1);
+        addDriverComparator(this.comparator2);
+        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+        getTaskConfig().setDriverStrategy(DriverStrategy.LEFT_HYBRIDHASH_BUILD_SECOND);
+        getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
 
-		addInput(new DelayingIterator<>(new InfiniteIntTupleIterator(), 100), this.serializer);
-		addInput(new UniformIntTupleGenerator(1, 1, true), this.serializer);
+        final AbstractOuterJoinDriver<
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>,
+                        Tuple2<Integer, Integer>>
+                testTask = getOuterJoinDriver();
 
-		final AtomicReference<Throwable> error = new AtomicReference<>();
+        addInput(new DelayingIterator<>(new InfiniteIntTupleIterator(), 100), this.serializer);
+        addInput(new UniformIntTupleGenerator(1, 1, true), this.serializer);
 
-		final Thread taskRunner = new Thread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
-			@Override
-			public void run() {
-				try {
-					testDriver(testTask, MockJoinStub.class);
-				} catch (Throwable t) {
-					error.set(t);
-				}
-			}
-		};
-		taskRunner.start();
+        final AtomicReference<Throwable> error = new AtomicReference<>();
 
-		Thread.sleep(1000);
+        final Thread taskRunner =
+                new Thread("Task runner for testCancelOuterJoinTaskWhileSort1()") {
+                    @Override
+                    public void run() {
+                        try {
+                            testDriver(testTask, MockJoinStub.class);
+                        } catch (Throwable t) {
+                            error.set(t);
+                        }
+                    }
+                };
+        taskRunner.start();
 
-		cancel();
-		taskRunner.join(60000);
+        Thread.sleep(1000);
 
-		assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        cancel();
+        taskRunner.join(60000);
 
-		final Throwable taskError = error.get();
-		if (taskError != null) {
-			fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-		}
-	}
+        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+
+        final Throwable taskError = error.get();
+        if (taskError != null) {
+            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
+        }
+    }
 }

@@ -22,34 +22,32 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-/**
- * Test for (un)marshalling of the {@link ResourceProfileInfo}.
- */
+/** Test for (un)marshalling of the {@link ResourceProfileInfo}. */
 public class ResourceProfileInfoTest extends RestResponseMarshallingTestBase<ResourceProfileInfo> {
 
-	private static final Random random = new Random();
+    private static final Random random = new Random();
 
-	@Override
-	protected Class<ResourceProfileInfo> getTestResponseClass() {
-		return ResourceProfileInfo.class;
-	}
+    @Override
+    protected Class<ResourceProfileInfo> getTestResponseClass() {
+        return ResourceProfileInfo.class;
+    }
 
-	@Override
-	protected ResourceProfileInfo getTestResponseInstance() throws Exception {
-		return createRandomResourceProfileInfo();
-	}
+    @Override
+    protected ResourceProfileInfo getTestResponseInstance() throws Exception {
+        return createRandomResourceProfileInfo();
+    }
 
-	private static ResourceProfileInfo createRandomResourceProfileInfo() {
-		final Map<String, Double> extendedResources = new HashMap<>();
-		extendedResources.put("randome-key-1", random.nextDouble());
-		extendedResources.put("randome-key-2", random.nextDouble());
+    private static ResourceProfileInfo createRandomResourceProfileInfo() {
+        final Map<String, Double> extendedResources = new HashMap<>();
+        extendedResources.put("randome-key-1", random.nextDouble());
+        extendedResources.put("randome-key-2", random.nextDouble());
 
-		return new ResourceProfileInfo(
-			random.nextDouble(),
-			random.nextInt(),
-			random.nextInt(),
-			random.nextInt(),
-			random.nextInt(),
-			extendedResources);
-	}
+        return new ResourceProfileInfo(
+                random.nextDouble(),
+                random.nextInt(),
+                random.nextInt(),
+                random.nextInt(),
+                random.nextInt(),
+                extendedResources);
+    }
 }

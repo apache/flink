@@ -25,49 +25,45 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 
 /**
- * {@link LeaderRetrievalService} implementation which directly forwards calls of
- * notifyListener to the listener.
+ * {@link LeaderRetrievalService} implementation which directly forwards calls of notifyListener to
+ * the listener.
  */
 public class SettableLeaderRetrievalService implements LeaderRetrievalService {
 
-	private String leaderAddress;
-	private UUID leaderSessionID;
+    private String leaderAddress;
+    private UUID leaderSessionID;
 
-	private LeaderRetrievalListener listener;
+    private LeaderRetrievalListener listener;
 
-	public SettableLeaderRetrievalService() {
-		this(null, null);
-	}
+    public SettableLeaderRetrievalService() {
+        this(null, null);
+    }
 
-	public SettableLeaderRetrievalService(
-			@Nullable String leaderAddress,
-			@Nullable UUID leaderSessionID) {
-		this.leaderAddress = leaderAddress;
-		this.leaderSessionID = leaderSessionID;
-	}
+    public SettableLeaderRetrievalService(
+            @Nullable String leaderAddress, @Nullable UUID leaderSessionID) {
+        this.leaderAddress = leaderAddress;
+        this.leaderSessionID = leaderSessionID;
+    }
 
-	@Override
-	public synchronized void start(LeaderRetrievalListener listener) throws Exception {
-		this.listener = Preconditions.checkNotNull(listener);
+    @Override
+    public synchronized void start(LeaderRetrievalListener listener) throws Exception {
+        this.listener = Preconditions.checkNotNull(listener);
 
-		if (leaderSessionID != null && leaderAddress != null) {
-			listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
-		}
-	}
+        if (leaderSessionID != null && leaderAddress != null) {
+            listener.notifyLeaderAddress(leaderAddress, leaderSessionID);
+        }
+    }
 
-	@Override
-	public void stop() throws Exception {
+    @Override
+    public void stop() throws Exception {}
 
-	}
+    public synchronized void notifyListener(
+            @Nullable String address, @Nullable UUID leaderSessionID) {
+        this.leaderAddress = address;
+        this.leaderSessionID = leaderSessionID;
 
-	public synchronized void notifyListener(
-			@Nullable String address,
-			@Nullable UUID leaderSessionID) {
-		this.leaderAddress = address;
-		this.leaderSessionID = leaderSessionID;
-
-		if (listener != null) {
-			listener.notifyLeaderAddress(address, leaderSessionID);
-		}
-	}
+        if (listener != null) {
+            listener.notifyLeaderAddress(address, leaderSessionID);
+        }
+    }
 }

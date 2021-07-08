@@ -26,27 +26,28 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
  * @param <R> type of the request
  * @param <M> type of the message message parameters
  */
-public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters> extends RestHandlerSpecification {
-	/**
-	 * Returns the class of the request message.
-	 *
-	 * @return class of the request message
-	 */
-	Class<R> getRequestClass();
+public interface UntypedResponseMessageHeaders<R extends RequestBody, M extends MessageParameters>
+        extends RestHandlerSpecification {
+    /**
+     * Returns the class of the request message.
+     *
+     * @return class of the request message
+     */
+    Class<R> getRequestClass();
 
-	/**
-	 * Returns a new {@link MessageParameters} object.
-	 *
-	 * @return new message parameters object
-	 */
-	M getUnresolvedMessageParameters();
+    /**
+     * Returns a new {@link MessageParameters} object.
+     *
+     * @return new message parameters object
+     */
+    M getUnresolvedMessageParameters();
 
-	/**
-	 * Returns whether this header allows file uploads.
-	 *
-	 * @return whether this header allows file uploads
-	 */
-	default boolean acceptsFileUploads() {
-		return false;
-	}
+    /**
+     * Returns whether this header allows file uploads.
+     *
+     * @return whether this header allows file uploads
+     */
+    default boolean acceptsFileUploads() {
+        return false;
+    }
 }

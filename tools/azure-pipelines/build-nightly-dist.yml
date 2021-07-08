@@ -1,0 +1,117 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+jobs:
+  - job: ${{parameters.stage_name}}_binary
+    pool:
+      vmImage: 'ubuntu-20.04'
+    container: flink-build-container
+    workspace:
+      clean: all
+    steps:
+      - task: Cache@2
+        displayName: Cache Maven local repo
+        inputs:
+          key: $(CACHE_KEY)
+          restoreKeys: $(CACHE_FALLBACK_KEY)
+          path: $(MAVEN_CACHE_FOLDER)
+        continueOnError: true
+      - task: CmdLine@2
+        displayName: Build snapshot binary release
+        inputs:
+          script: |
+            source ./tools/ci/maven-utils.sh
+            setup_maven
+            run_mvn -version
+            export MVN="run_mvn"
+
+            export RELEASE_VERSION=$(MVN_RUN_VERBOSE=false run_mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+            echo "Determined RELEASE_VERSION as '$RELEASE_VERSION' "
+            cd tools
+            MVN_RUN_VERBOSE=true SKIP_GPG=true ./releasing/create_binary_release.sh
+            echo "Created files:"
+            find ./releasing/release
+            cd ..
+      - task: CmdLine@2
+        displayName: Upload artifacts to S3
+        inputs:
+          script: |
+            source ./tools/ci/deploy_nightly_to_s3.sh
+
+            upload_to_s3 ./tools/releasing/release
+        env:
+          ARTIFACTS_S3_BUCKET: $(ARTIFACTS_S3_BUCKET)
+          ARTIFACTS_AWS_ACCESS_KEY_ID: $(ARTIFACTS_AWS_ACCESS_KEY_ID)
+          ARTIFACTS_AWS_SECRET_ACCESS_KEY: $(ARTIFACTS_AWS_SECRET_ACCESS_KEY)
+      # Activate this to publish the binary release as a pipeline artifact on Azure
+      #- task: PublishPipelineArtifact@1
+      #  displayName: Upload snapshot binary release
+      #  inputs:
+      #    targetPath: ./tools/releasing/release
+      #    artifact: nightly-release
+  - job: ${{parameters.stage_name}}_maven
+    pool:
+      vmImage: 'ubuntu-20.04'
+    container: flink-build-container
+    timeoutInMinutes: 240
+    workspace:
+      clean: all
+    steps:
+      - task: Cache@2
+        displayName: Cache Maven local repo
+        inputs:
+          key: $(CACHE_KEY)
+          restoreKeys: $(CACHE_FALLBACK_KEY)
+          path: $(MAVEN_CACHE_FOLDER)
+        continueOnError: true
+      # Upload snapshot
+      - task: CmdLine@2
+        displayName: Deploy maven snapshot
+        inputs:
+          script: |
+            source ./tools/ci/maven-utils.sh
+            setup_maven
+            run_mvn -version
+
+            cd tools
+            cat << EOF > deploy-settings.xml
+            <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                      xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                          https://maven.apache.org/xsd/settings-1.0.0.xsd">
+              <servers>
+                <server>
+                  <id>apache.snapshots.https</id>
+                  <username>${MAVEN_DEPLOY_USER}</username>
+                  <password>${MAVEN_DEPLOY_PASS}</password>
+                </server>
+              </servers>
+              <mirrors>
+                <mirror>
+                  <id>google-maven-central</id>
+                  <name>GCS Maven Central mirror</name>
+                  <url>https://maven-central-eu.storage-download.googleapis.com/maven2/</url>
+                  <mirrorOf>central</mirrorOf>
+                </mirror>
+              </mirrors>
+            </settings>
+            EOF
+
+            export CUSTOM_OPTIONS="-Dgpg.skip -Drat.skip -Dcheckstyle.skip -Dmaven.wagon.http.pool=false --settings $(pwd)/deploy-settings.xml"
+            export MVN_RUN_VERBOSE=true
+            ./releasing/deploy_staging_jars.sh
+        env:
+          MAVEN_DEPLOY_USER: $(MAVEN_DEPLOY_USER)
+          MAVEN_DEPLOY_PASS: $(MAVEN_DEPLOY_PASS)

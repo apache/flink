@@ -29,63 +29,60 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link MasterTriggerRestoreHook} implementation for testing.
- */
+/** A {@link MasterTriggerRestoreHook} implementation for testing. */
 public class TestMasterHook implements MasterTriggerRestoreHook<String> {
 
-	private static final String DEFAULT_STATE = "default";
+    private static final String DEFAULT_STATE = "default";
 
-	private final String id;
+    private final String id;
 
-	private int restoreCount = 0;
+    private int restoreCount = 0;
 
-	private boolean failOnRestore = false;
+    private boolean failOnRestore = false;
 
-	private TestMasterHook(String id) {
-		this.id = checkNotNull(id);
-	}
+    private TestMasterHook(String id) {
+        this.id = checkNotNull(id);
+    }
 
-	public static TestMasterHook fromId(String id) {
-		return new TestMasterHook(id);
-	}
+    public static TestMasterHook fromId(String id) {
+        return new TestMasterHook(id);
+    }
 
-	@Override
-	public String getIdentifier() {
-		return id;
-	}
+    @Override
+    public String getIdentifier() {
+        return id;
+    }
 
-	@Override
-	public CompletableFuture<String> triggerCheckpoint(
-			final long checkpointId,
-			final long timestamp,
-			final Executor executor) {
+    @Override
+    public CompletableFuture<String> triggerCheckpoint(
+            final long checkpointId, final long timestamp, final Executor executor) {
 
-		return CompletableFuture.completedFuture(DEFAULT_STATE);
-	}
+        return CompletableFuture.completedFuture(DEFAULT_STATE);
+    }
 
-	@Override
-	public void restoreCheckpoint(final long checkpointId, @Nullable final String checkpointData) throws Exception {
-		restoreCount++;
-		if (failOnRestore) {
-			throw new Exception("Failing mast hook state restore on purpose.");
-		}
-	}
+    @Override
+    public void restoreCheckpoint(final long checkpointId, @Nullable final String checkpointData)
+            throws Exception {
+        restoreCount++;
+        if (failOnRestore) {
+            throw new Exception("Failing mast hook state restore on purpose.");
+        }
+    }
 
-	@Override
-	public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
-		return new CheckpointCoordinatorTestingUtils.StringSerializer();
-	}
+    @Override
+    public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
+        return new CheckpointCoordinatorTestingUtils.StringSerializer();
+    }
 
-	public int getRestoreCount() {
-		return restoreCount;
-	}
+    public int getRestoreCount() {
+        return restoreCount;
+    }
 
-	public void enableFailOnRestore() {
-		this.failOnRestore = true;
-	}
+    public void enableFailOnRestore() {
+        this.failOnRestore = true;
+    }
 
-	public void disableFailOnRestore() {
-		this.failOnRestore = false;
-	}
+    public void disableFailOnRestore() {
+        this.failOnRestore = false;
+    }
 }

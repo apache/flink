@@ -27,23 +27,24 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * {@link org.apache.flink.runtime.testtasks.BlockingNoOpInvokable} that sometimes fails on constructor.
+ * {@link org.apache.flink.runtime.testtasks.BlockingNoOpInvokable} that sometimes fails on
+ * constructor.
  */
 public class SometimesInstantiationErrorSender extends BlockingNoOpInvokable {
 
-	private static Set<Integer> failingSenders;
+    private static Set<Integer> failingSenders;
 
-	private static final Random RANDOM = new Random();
+    private static final Random RANDOM = new Random();
 
-	public SometimesInstantiationErrorSender(Environment environment) {
-		super(environment);
+    public SometimesInstantiationErrorSender(Environment environment) {
+        super(environment);
 
-		if (failingSenders.contains(this.getIndexInSubtaskGroup())) {
-			throw new RuntimeException("Test exception in constructor");
-		}
-	}
+        if (failingSenders.contains(this.getIndexInSubtaskGroup())) {
+            throw new RuntimeException("Test exception in constructor");
+        }
+    }
 
-	static void configFailingSenders(int numOfTasks) {
-		failingSenders = Collections.singleton(ThreadLocalRandom.current().nextInt(numOfTasks));
-	}
+    static void configFailingSenders(int numOfTasks) {
+        failingSenders = Collections.singleton(ThreadLocalRandom.current().nextInt(numOfTasks));
+    }
 }

@@ -45,78 +45,86 @@ import static java.util.Objects.requireNonNull;
 /**
  * Inbound handler that converts HttpRequest to Routed and passes Routed to the matched handler.
  *
- * <p>This class replaces the standard error response to be identical with those sent by the {@link AbstractRestHandler}.
+ * <p>This class replaces the standard error response to be identical with those sent by the {@link
+ * AbstractRestHandler}.
  *
  * <p>This class is based on:
  * https://github.com/sinetja/netty-router/blob/1.10/src/main/java/io/netty/handler/codec/http/router/AbstractHandler.java
  * https://github.com/sinetja/netty-router/blob/1.10/src/main/java/io/netty/handler/codec/http/router/Handler.java
  */
 public class RouterHandler extends SimpleChannelInboundHandler<HttpRequest> {
-	private static final String ROUTER_HANDLER_NAME = RouterHandler.class.getName() + "_ROUTER_HANDLER";
-	private static final String ROUTED_HANDLER_NAME = RouterHandler.class.getName() + "_ROUTED_HANDLER";
+    private static final String ROUTER_HANDLER_NAME =
+            RouterHandler.class.getName() + "_ROUTER_HANDLER";
+    private static final String ROUTED_HANDLER_NAME =
+            RouterHandler.class.getName() + "_ROUTED_HANDLER";
 
-	private static final Logger LOG = LoggerFactory.getLogger(RouterHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(RouterHandler.class);
 
-	private final Map<String, String> responseHeaders;
-	private final Router router;
+    private final Map<String, String> responseHeaders;
+    private final Router router;
 
-	public RouterHandler(Router router, final Map<String, String> responseHeaders) {
-		this.router = requireNonNull(router);
-		this.responseHeaders = requireNonNull(responseHeaders);
-	}
+    public RouterHandler(Router router, final Map<String, String> responseHeaders) {
+        this.router = requireNonNull(router);
+        this.responseHeaders = requireNonNull(responseHeaders);
+    }
 
-	public String getName() {
-		return ROUTER_HANDLER_NAME;
-	}
+    public String getName() {
+        return ROUTER_HANDLER_NAME;
+    }
 
-	@Override
-	protected void channelRead0(ChannelHandlerContext channelHandlerContext, HttpRequest httpRequest) {
-		if (HttpHeaders.is100ContinueExpected(httpRequest)) {
-			channelHandlerContext.writeAndFlush(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE));
-			return;
-		}
+    @Override
+    protected void channelRead0(
+            ChannelHandlerContext channelHandlerContext, HttpRequest httpRequest) {
+        if (HttpHeaders.is100ContinueExpected(httpRequest)) {
+            channelHandlerContext.writeAndFlush(
+                    new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.CONTINUE));
+            return;
+        }
 
-		// Route
-		HttpMethod method = httpRequest.getMethod();
-		QueryStringDecoder qsd = new QueryStringDecoder(httpRequest.uri());
-		RouteResult<?> routeResult = router.route(method, qsd.path(), qsd.parameters());
+        // Route
+        HttpMethod method = httpRequest.getMethod();
+        QueryStringDecoder qsd = new QueryStringDecoder(httpRequest.uri());
+        RouteResult<?> routeResult = router.route(method, qsd.path(), qsd.parameters());
 
-		if (routeResult == null) {
-			respondNotFound(channelHandlerContext, httpRequest);
-			return;
-		}
+        if (routeResult == null) {
+            respondNotFound(channelHandlerContext, httpRequest);
+            return;
+        }
 
-		routed(channelHandlerContext, routeResult, httpRequest);
-	}
+        routed(channelHandlerContext, routeResult, httpRequest);
+    }
 
-	private void routed(
-			ChannelHandlerContext channelHandlerContext,
-			RouteResult<?> routeResult,
-			HttpRequest httpRequest) {
-		ChannelInboundHandler handler = (ChannelInboundHandler) routeResult.target();
+    private void routed(
+            ChannelHandlerContext channelHandlerContext,
+            RouteResult<?> routeResult,
+            HttpRequest httpRequest) {
+        ChannelInboundHandler handler = (ChannelInboundHandler) routeResult.target();
 
-		// The handler may have been added (keep alive)
-		ChannelPipeline pipeline     = channelHandlerContext.pipeline();
-		ChannelHandler addedHandler = pipeline.get(ROUTED_HANDLER_NAME);
-		if (handler != addedHandler) {
-			if (addedHandler == null) {
-				pipeline.addAfter(ROUTER_HANDLER_NAME, ROUTED_HANDLER_NAME, handler);
-			} else {
-				pipeline.replace(addedHandler, ROUTED_HANDLER_NAME, handler);
-			}
-		}
+        // The handler may have been added (keep alive)
+        ChannelPipeline pipeline = channelHandlerContext.pipeline();
+        ChannelHandler addedHandler = pipeline.get(ROUTED_HANDLER_NAME);
+        if (handler != addedHandler) {
+            if (addedHandler == null) {
+                pipeline.addAfter(ROUTER_HANDLER_NAME, ROUTED_HANDLER_NAME, handler);
+            } else {
+                pipeline.replace(addedHandler, ROUTED_HANDLER_NAME, handler);
+            }
+        }
 
-		RoutedRequest<?> request = new RoutedRequest<>(routeResult, httpRequest);
-		channelHandlerContext.fireChannelRead(request.retain());
-	}
+        RoutedRequest<?> request = new RoutedRequest<>(routeResult, httpRequest);
+        channelHandlerContext.fireChannelRead(request.retain());
+    }
 
-	private void respondNotFound(ChannelHandlerContext channelHandlerContext, HttpRequest request) {
-		LOG.trace("Request could not be routed to any handler. Uri:{} Method:{}", request.getUri(), request.getMethod());
-		HandlerUtils.sendErrorResponse(
-			channelHandlerContext,
-			request,
-			new ErrorResponseBody("Not found."),
-			HttpResponseStatus.NOT_FOUND,
-			responseHeaders);
-	}
+    private void respondNotFound(ChannelHandlerContext channelHandlerContext, HttpRequest request) {
+        LOG.trace(
+                "Request could not be routed to any handler. Uri:{} Method:{}",
+                request.getUri(),
+                request.getMethod());
+        HandlerUtils.sendErrorResponse(
+                channelHandlerContext,
+                request,
+                new ErrorResponseBody("Not found."),
+                HttpResponseStatus.NOT_FOUND,
+                responseHeaders);
+    }
 }

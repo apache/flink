@@ -18,45 +18,44 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.util.Random;
-
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.DoubleComparator;
-import org.apache.flink.api.common.typeutils.base.DoubleSerializer;
+
+import java.util.Random;
 
 public class DoubleComparatorTest extends ComparatorTestBase<Double> {
 
-	@Override
-	protected TypeComparator<Double> createComparator(boolean ascending) {
-		return new DoubleComparator(ascending);
-	}
+    @Override
+    protected TypeComparator<Double> createComparator(boolean ascending) {
+        return new DoubleComparator(ascending);
+    }
 
-	@Override
-	protected TypeSerializer<Double> createSerializer() {
-		return new DoubleSerializer();
-	}
-	
-	@Override
-	protected Double[] getSortedTestData() {
-		Random rnd = new Random(874597969123412338L);
-		double rndDouble = rnd.nextDouble();
-		if (rndDouble < 0) {
-			rndDouble = -rndDouble;
-		}
-		if (rndDouble == Double.MAX_VALUE) {
-			rndDouble -= 3;
-		}
-		if (rndDouble <= 2) {
-			rndDouble += 3;
-		}
-		return new Double[]{
-			Double.valueOf(-rndDouble),
-			Double.valueOf(-1.0D),
-			Double.valueOf(0.0D),
-			Double.valueOf(2.0D),
-			Double.valueOf(rndDouble),
-			Double.valueOf(Double.MAX_VALUE)};
-	}
+    @Override
+    protected TypeSerializer<Double> createSerializer() {
+        return new DoubleSerializer();
+    }
+
+    @Override
+    protected Double[] getSortedTestData() {
+        Random rnd = new Random(874597969123412338L);
+        double rndDouble = rnd.nextDouble();
+        if (rndDouble < 0) {
+            rndDouble = -rndDouble;
+        }
+        if (rndDouble == Double.MAX_VALUE) {
+            rndDouble -= 3;
+        }
+        if (rndDouble <= 2) {
+            rndDouble += 3;
+        }
+        return new Double[] {
+            Double.valueOf(-rndDouble),
+            Double.valueOf(-1.0D),
+            Double.valueOf(0.0D),
+            Double.valueOf(2.0D),
+            Double.valueOf(rndDouble),
+            Double.valueOf(Double.MAX_VALUE)
+        };
+    }
 }

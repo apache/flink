@@ -20,6 +20,7 @@ package org.apache.flink.streaming.scala.examples.socket
 
 import org.apache.flink.api.java.utils.ParameterTool
 import org.apache.flink.streaming.api.scala._
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 
 /**
@@ -67,8 +68,8 @@ object SocketWindowWordCount {
     val windowCounts = text
           .flatMap { w => w.split("\\s") }
           .map { w => WordWithCount(w, 1) }
-          .keyBy("word")
-          .timeWindow(Time.seconds(5))
+          .keyBy(_.word)
+          .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
           .sum("count")
 
     // print the results with a single thread, rather than in parallel

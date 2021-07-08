@@ -1,0 +1,311 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFetch0WithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable FETCH FIRST 0 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[0])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFetchWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable FETCH FIRST 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[10]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFetchWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[10], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[20], global=[false])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFetchWithOffsetAndLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[10], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[20], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[20]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFetchWithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable FETCH FIRST 10 ROWS ONLY]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit0WithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable LIMIT 0 OFFSET 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10], fetch=[0])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit0WithOffset0">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable LIMIT 0 OFFSET 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[0], fetch=[0])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit0WithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable LIMIT 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[0])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[10]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrderByWithLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable ORDER BY c LIMIT 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[c ASC], offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable LIMIT 10 OFFSET 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[1], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[1], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[11], global=[false])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitWithOffset0">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable LIMIT 10 OFFSET 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[0], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[0], fetch=[10], global=[true])
+   +- Exchange(distribution=[single])
+      +- Limit(offset=[0], fetch=[10], global=[false])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitWithoutOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable LIMIT 5]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(fetch=[5])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[0], fetch=[5], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[5], global=[false])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM MyTable OFFSET 10 ROWS]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c])
++- Limit(offset=[10], fetch=[unlimited], global=[true])
+   +- Exchange(distribution=[single])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitWithOffsetAndLimitSource">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM LimitTable LIMIT 10 OFFSET 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(offset=[1], fetch=[10])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, LimitTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Limit(offset=[1], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[11], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, LimitTable, project=[a, c], limit=[11]]], fields=[a, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

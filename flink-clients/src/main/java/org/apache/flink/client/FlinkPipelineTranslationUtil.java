@@ -30,60 +30,59 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
  */
 public final class FlinkPipelineTranslationUtil {
 
-	/**
-	 * Transmogrifies the given {@link Pipeline} to a {@link JobGraph}.
-	 */
-	public static JobGraph getJobGraph(
-			Pipeline pipeline,
-			Configuration optimizerConfiguration,
-			int defaultParallelism) {
+    /** Transmogrifies the given {@link Pipeline} to a {@link JobGraph}. */
+    public static JobGraph getJobGraph(
+            Pipeline pipeline, Configuration optimizerConfiguration, int defaultParallelism) {
 
-		FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
+        FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
 
-		return pipelineTranslator.translateToJobGraph(pipeline,
-				optimizerConfiguration,
-				defaultParallelism);
-	}
+        return pipelineTranslator.translateToJobGraph(
+                pipeline, optimizerConfiguration, defaultParallelism);
+    }
 
-	/**
-	 * Transmogrifies the given {@link Pipeline} under the userClassloader to a {@link JobGraph}.
-	 */
-	public static JobGraph getJobGraphUnderUserClassLoader(
-		final ClassLoader userClassloader,
-		final Pipeline pipeline,
-		final Configuration configuration,
-		final int defaultParallelism) {
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-		try {
-			Thread.currentThread().setContextClassLoader(userClassloader);
-			return FlinkPipelineTranslationUtil.getJobGraph(pipeline, configuration, defaultParallelism);
-		} finally {
-			Thread.currentThread().setContextClassLoader(contextClassLoader);
-		}
-	}
+    /**
+     * Transmogrifies the given {@link Pipeline} under the userClassloader to a {@link JobGraph}.
+     */
+    public static JobGraph getJobGraphUnderUserClassLoader(
+            final ClassLoader userClassloader,
+            final Pipeline pipeline,
+            final Configuration configuration,
+            final int defaultParallelism) {
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(userClassloader);
+            return FlinkPipelineTranslationUtil.getJobGraph(
+                    pipeline, configuration, defaultParallelism);
+        } finally {
+            Thread.currentThread().setContextClassLoader(contextClassLoader);
+        }
+    }
 
-	/**
-	 * Extracts the execution plan (as JSON) from the given {@link Pipeline}.
-	 */
-	public static String translateToJSONExecutionPlan(Pipeline pipeline) {
-		FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
-		return pipelineTranslator.translateToJSONExecutionPlan(pipeline);
-	}
+    /** Extracts the execution plan (as JSON) from the given {@link Pipeline}. */
+    public static String translateToJSONExecutionPlan(Pipeline pipeline) {
+        FlinkPipelineTranslator pipelineTranslator = getPipelineTranslator(pipeline);
+        return pipelineTranslator.translateToJSONExecutionPlan(pipeline);
+    }
 
-	private static FlinkPipelineTranslator getPipelineTranslator(Pipeline pipeline) {
-		PlanTranslator planTranslator = new PlanTranslator();
+    private static FlinkPipelineTranslator getPipelineTranslator(Pipeline pipeline) {
+        PlanTranslator planTranslator = new PlanTranslator();
 
-		if (planTranslator.canTranslate(pipeline)) {
-			return planTranslator;
-		}
+        if (planTranslator.canTranslate(pipeline)) {
+            return planTranslator;
+        }
 
-		StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator();
+        StreamGraphTranslator streamGraphTranslator = new StreamGraphTranslator();
 
-		if (streamGraphTranslator.canTranslate(pipeline)) {
-			return streamGraphTranslator;
-		}
+        if (streamGraphTranslator.canTranslate(pipeline)) {
+            return streamGraphTranslator;
+        }
 
-		throw new RuntimeException("Translator " + streamGraphTranslator + " cannot translate "
-			+ "the given pipeline " + pipeline + ".");
-	}
+        throw new RuntimeException(
+                "Translator "
+                        + streamGraphTranslator
+                        + " cannot translate "
+                        + "the given pipeline "
+                        + pipeline
+                        + ".");
+    }
 }

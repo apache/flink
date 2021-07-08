@@ -26,87 +26,85 @@ import org.apache.flink.table.annotation.InputGroup;
 
 import java.lang.annotation.Annotation;
 
-/**
- * Mock for {@link DataTypeHint}. Methods can be overridden if necessary.
- */
+/** Mock for {@link DataTypeHint}. Methods can be overridden if necessary. */
 @SuppressWarnings("ClassExplicitlyAnnotation")
 public class DataTypeHintMock implements DataTypeHint {
 
-	private static final DataTypeHint DEFAULT_ANNOTATION = getDefaultAnnotation();
+    private static final DataTypeHint DEFAULT_ANNOTATION = getDefaultAnnotation();
 
-	@Override
-	public String value() {
-		return DEFAULT_ANNOTATION.value();
-	}
+    @Override
+    public String value() {
+        return DEFAULT_ANNOTATION.value();
+    }
 
-	@Override
-	public Class<?> bridgedTo() {
-		return DEFAULT_ANNOTATION.bridgedTo();
-	}
+    @Override
+    public Class<?> bridgedTo() {
+        return DEFAULT_ANNOTATION.bridgedTo();
+    }
 
-	@Override
-	public Class<? extends TypeSerializer<?>> rawSerializer() {
-		return DEFAULT_ANNOTATION.rawSerializer();
-	}
+    @Override
+    public Class<? extends TypeSerializer<?>> rawSerializer() {
+        return DEFAULT_ANNOTATION.rawSerializer();
+    }
 
-	@Override
-	public InputGroup inputGroup() {
-		return DEFAULT_ANNOTATION.inputGroup();
-	}
+    @Override
+    public InputGroup inputGroup() {
+        return DEFAULT_ANNOTATION.inputGroup();
+    }
 
-	@Override
-	public ExtractionVersion version() {
-		return DEFAULT_ANNOTATION.version();
-	}
+    @Override
+    public ExtractionVersion version() {
+        return DEFAULT_ANNOTATION.version();
+    }
 
-	@Override
-	public HintFlag allowRawGlobally() {
-		return DEFAULT_ANNOTATION.allowRawGlobally();
-	}
+    @Override
+    public HintFlag allowRawGlobally() {
+        return DEFAULT_ANNOTATION.allowRawGlobally();
+    }
 
-	@Override
-	public String[] allowRawPattern() {
-		return DEFAULT_ANNOTATION.allowRawPattern();
-	}
+    @Override
+    public String[] allowRawPattern() {
+        return DEFAULT_ANNOTATION.allowRawPattern();
+    }
 
-	@Override
-	public String[] forceRawPattern() {
-		return DEFAULT_ANNOTATION.forceRawPattern();
-	}
+    @Override
+    public String[] forceRawPattern() {
+        return DEFAULT_ANNOTATION.forceRawPattern();
+    }
 
-	@Override
-	public int defaultDecimalPrecision() {
-		return DEFAULT_ANNOTATION.defaultDecimalPrecision();
-	}
+    @Override
+    public int defaultDecimalPrecision() {
+        return DEFAULT_ANNOTATION.defaultDecimalPrecision();
+    }
 
-	@Override
-	public int defaultDecimalScale() {
-		return DEFAULT_ANNOTATION.defaultDecimalScale();
-	}
+    @Override
+    public int defaultDecimalScale() {
+        return DEFAULT_ANNOTATION.defaultDecimalScale();
+    }
 
-	@Override
-	public int defaultYearPrecision() {
-		return DEFAULT_ANNOTATION.defaultYearPrecision();
-	}
+    @Override
+    public int defaultYearPrecision() {
+        return DEFAULT_ANNOTATION.defaultYearPrecision();
+    }
 
-	@Override
-	public int defaultSecondPrecision() {
-		return DEFAULT_ANNOTATION.defaultSecondPrecision();
-	}
+    @Override
+    public int defaultSecondPrecision() {
+        return DEFAULT_ANNOTATION.defaultSecondPrecision();
+    }
 
-	@Override
-	public Class<? extends Annotation> annotationType() {
-		return DataTypeHint.class;
-	}
+    @Override
+    public Class<? extends Annotation> annotationType() {
+        return DataTypeHint.class;
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@DataTypeHint
-	private static class DefaultAnnotationHelper {
-		// no implementation
-	}
+    @DataTypeHint
+    private static class DefaultAnnotationHelper {
+        // no implementation
+    }
 
-	private static DataTypeHint getDefaultAnnotation() {
-		return DefaultAnnotationHelper.class.getAnnotation(DataTypeHint.class);
-	}
+    private static DataTypeHint getDefaultAnnotation() {
+        return DefaultAnnotationHelper.class.getAnnotation(DataTypeHint.class);
+    }
 }

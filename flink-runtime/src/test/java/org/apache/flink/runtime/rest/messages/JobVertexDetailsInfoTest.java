@@ -27,64 +27,69 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled.
- */
-public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
-	@Override
-	protected Class<JobVertexDetailsInfo> getTestResponseClass() {
-		return JobVertexDetailsInfo.class;
-	}
+/** Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled. */
+public class JobVertexDetailsInfoTest
+        extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
+    @Override
+    protected Class<JobVertexDetailsInfo> getTestResponseClass() {
+        return JobVertexDetailsInfo.class;
+    }
 
-	@Override
-	protected JobVertexDetailsInfo getTestResponseInstance() throws Exception {
-		final Random random = new Random();
-		final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean(),
-			random.nextLong(),
-			random.nextBoolean());
-		List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			0,
-			ExecutionState.CREATED,
-			random.nextInt(),
-			"local1",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId1"));
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			1,
-			ExecutionState.FAILED,
-			random.nextInt(),
-			"local2",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId2"));
-		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
-			2,
-			ExecutionState.FINISHED,
-			random.nextInt(),
-			"local3",
-			System.currentTimeMillis(),
-			System.currentTimeMillis(),
-			1L,
-			jobVertexMetrics,
-			"taskmanagerId3"));
+    @Override
+    protected JobVertexDetailsInfo getTestResponseInstance() throws Exception {
+        final Random random = new Random();
+        final IOMetricsInfo jobVertexMetrics =
+                new IOMetricsInfo(
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean(),
+                        random.nextLong(),
+                        random.nextBoolean());
+        List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        0,
+                        ExecutionState.CREATED,
+                        random.nextInt(),
+                        "local1",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId1"));
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        1,
+                        ExecutionState.FAILED,
+                        random.nextInt(),
+                        "local2",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId2"));
+        vertexTaskDetailList.add(
+                new SubtaskExecutionAttemptDetailsInfo(
+                        2,
+                        ExecutionState.FINISHED,
+                        random.nextInt(),
+                        "local3",
+                        System.currentTimeMillis(),
+                        System.currentTimeMillis(),
+                        1L,
+                        jobVertexMetrics,
+                        "taskmanagerId3"));
 
-		return new JobVertexDetailsInfo(
-			new JobVertexID(),
-			"jobVertex" + random.nextLong(),
-			random.nextInt(),
-			System.currentTimeMillis(),
-			vertexTaskDetailList);
-	}
+        int parallelism = 1 + (random.nextInt() / 3);
+        return new JobVertexDetailsInfo(
+                new JobVertexID(),
+                "jobVertex" + random.nextLong(),
+                parallelism,
+                2 * parallelism,
+                System.currentTimeMillis(),
+                vertexTaskDetailList);
+    }
 }

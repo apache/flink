@@ -21,26 +21,18 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
-/**
- * Tests the (un)marshalling of {@link TaskCheckpointStatistics}.
- */
-public class TaskCheckpointStatisticsTest extends RestResponseMarshallingTestBase<TaskCheckpointStatistics> {
+/** Tests the (un)marshalling of {@link TaskCheckpointStatistics}. */
+public class TaskCheckpointStatisticsTest
+        extends RestResponseMarshallingTestBase<TaskCheckpointStatistics> {
 
-	@Override
-	protected Class<TaskCheckpointStatistics> getTestResponseClass() {
-		return TaskCheckpointStatistics.class;
-	}
+    @Override
+    protected Class<TaskCheckpointStatistics> getTestResponseClass() {
+        return TaskCheckpointStatistics.class;
+    }
 
-	@Override
-	protected TaskCheckpointStatistics getTestResponseInstance() throws Exception {
-		return new TaskCheckpointStatistics(
-			1L,
-			CheckpointStatsStatus.FAILED,
-			42L,
-			1L,
-			23L,
-			1337L,
-			9,
-			8);
-	}
+    @Override
+    protected TaskCheckpointStatistics getTestResponseInstance() throws Exception {
+        return new TaskCheckpointStatistics(
+                1L, CheckpointStatsStatus.FAILED, 42L, 1L, 23L, 1337L, 1338, 1339, 9, 8);
+    }
 }

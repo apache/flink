@@ -22,29 +22,22 @@ import java.util.Collection;
 /**
  * Utility for tracking partitions.
  *
- * <p>This interface deliberately does not have a method to start tracking partitions, so that implementation are
- * flexible in their definitions for this method (otherwise one would end up with multiple methods, with one part likely
- * being unused).
+ * <p>This interface deliberately does not have a method to start tracking partitions, so that
+ * implementation are flexible in their definitions for this method (otherwise one would end up with
+ * multiple methods, with one part likely being unused).
  */
 public interface PartitionTracker<K, M> {
 
-	/**
-	 * Stops the tracking of all partitions for the given key.
-	 */
-	Collection<PartitionTrackerEntry<K, M>> stopTrackingPartitionsFor(K key);
+    /** Stops the tracking of all partitions for the given key. */
+    Collection<PartitionTrackerEntry<K, M>> stopTrackingPartitionsFor(K key);
 
-	/**
-	 * Stops the tracking of the given partitions.
-	 */
-	Collection<PartitionTrackerEntry<K, M>> stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds);
+    /** Stops the tracking of the given partitions. */
+    Collection<PartitionTrackerEntry<K, M>> stopTrackingPartitions(
+            Collection<ResultPartitionID> resultPartitionIds);
 
-	/**
-	 * Returns whether any partition is being tracked for the given key.
-	 */
-	boolean isTrackingPartitionsFor(K key);
+    /** Returns whether any partition is being tracked for the given key. */
+    boolean isTrackingPartitionsFor(K key);
 
-	/**
-	 * Returns whether the given partition is being tracked.
-	 */
-	boolean isPartitionTracked(ResultPartitionID resultPartitionID);
+    /** Returns whether the given partition is being tracked. */
+    boolean isPartitionTracked(ResultPartitionID resultPartitionID);
 }

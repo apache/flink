@@ -26,106 +26,96 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Table statistics.
- */
+/** Table statistics. */
 @PublicEvolving
 public final class TableStats {
 
-	/**
-	 * Unknown definition for table stats:
-	 * Unknown {@link #rowCount} is -1.
-	 * Unknown {@link #colStats} is not exist in map.
-	 */
-	public static final TableStats UNKNOWN = new TableStats(-1, new HashMap<>());
+    /**
+     * Unknown definition for table stats: Unknown {@link #rowCount} is -1. Unknown {@link
+     * #colStats} is not exist in map.
+     */
+    public static final TableStats UNKNOWN = new TableStats(-1, new HashMap<>());
 
-	/**
-	 * cardinality of table.
-	 */
-	private final long rowCount;
+    /** cardinality of table. */
+    private final long rowCount;
 
-	/**
-	 * colStats statistics of table columns.
-	 */
-	private final Map<String, ColumnStats> colStats;
+    /** colStats statistics of table columns. */
+    private final Map<String, ColumnStats> colStats;
 
-	public TableStats(long rowCount) {
-		this(rowCount, new HashMap<>());
-	}
+    public TableStats(long rowCount) {
+        this(rowCount, new HashMap<>());
+    }
 
-	public TableStats(long rowCount, Map<String, ColumnStats> colStats) {
-		this.rowCount = rowCount;
-		this.colStats = colStats;
-	}
+    public TableStats(long rowCount, Map<String, ColumnStats> colStats) {
+        this.rowCount = rowCount;
+        this.colStats = colStats;
+    }
 
-	public long getRowCount() {
-		return rowCount;
-	}
+    public long getRowCount() {
+        return rowCount;
+    }
 
-	public Map<String, ColumnStats> getColumnStats() {
-		return colStats;
-	}
+    public Map<String, ColumnStats> getColumnStats() {
+        return colStats;
+    }
 
-	/**
-	 * Create a deep copy of "this" instance.
-	 * @return a deep copy
-	 */
-	public TableStats copy() {
-		TableStats copy = new TableStats(this.rowCount);
-		for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
-			copy.colStats.put(entry.getKey(), entry.getValue().copy());
-		}
-		return copy;
-	}
+    /**
+     * Create a deep copy of "this" instance.
+     *
+     * @return a deep copy
+     */
+    public TableStats copy() {
+        TableStats copy = new TableStats(this.rowCount);
+        for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
+            copy.colStats.put(entry.getKey(), entry.getValue().copy());
+        }
+        return copy;
+    }
 
-	/**
-	 * Merges two table stats.
-	 * When the stats are unknown, whatever the other are, we need return unknown stats.
-	 * See {@link #UNKNOWN}.
-	 *
-	 * @param other The other table stats to merge.
-	 * @return The merged table stats.
-	 */
-	@Nonnull
-	public TableStats merge(TableStats other) {
-		Map<String, ColumnStats> colStats = new HashMap<>();
-		for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
-			String col = entry.getKey();
-			ColumnStats stats = entry.getValue();
-			ColumnStats otherStats = other.colStats.get(col);
-			if (otherStats != null) {
-				colStats.put(col, stats.merge(otherStats));
-			}
-		}
-		return new TableStats(
-				this.rowCount >= 0 && other.rowCount >= 0 ?
-						this.rowCount + other.rowCount : UNKNOWN.rowCount,
-				colStats);
-	}
+    /**
+     * Merges two table stats. When the stats are unknown, whatever the other are, we need return
+     * unknown stats. See {@link #UNKNOWN}.
+     *
+     * @param other The other table stats to merge.
+     * @return The merged table stats.
+     */
+    @Nonnull
+    public TableStats merge(TableStats other) {
+        Map<String, ColumnStats> colStats = new HashMap<>();
+        for (Map.Entry<String, ColumnStats> entry : this.colStats.entrySet()) {
+            String col = entry.getKey();
+            ColumnStats stats = entry.getValue();
+            ColumnStats otherStats = other.colStats.get(col);
+            if (otherStats != null) {
+                colStats.put(col, stats.merge(otherStats));
+            }
+        }
+        return new TableStats(
+                this.rowCount >= 0 && other.rowCount >= 0
+                        ? this.rowCount + other.rowCount
+                        : UNKNOWN.rowCount,
+                colStats);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		TableStats that = (TableStats) o;
-		return rowCount == that.rowCount &&
-				Objects.equals(colStats, that.colStats);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TableStats that = (TableStats) o;
+        return rowCount == that.rowCount && Objects.equals(colStats, that.colStats);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(rowCount, colStats);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(rowCount, colStats);
+    }
 
-	@Override
-	public String toString() {
-		return "TableStats{" +
-				"rowCount=" + rowCount +
-				", colStats=" + colStats +
-				'}';
-	}
+    @Override
+    public String toString() {
+        return "TableStats{" + "rowCount=" + rowCount + ", colStats=" + colStats + '}';
+    }
 }
