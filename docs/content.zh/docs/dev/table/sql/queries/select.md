@@ -44,7 +44,7 @@ SELECT * FROM Orders
 SELECT order_id, price + tax FROM Orders
 ```
 
-查询操作还可以在 `VALUES` 子句中使用内联数据。每一个元祖对应一行，另外可以通过设置别名来为每一列指定名称。
+查询操作还可以在 `VALUES` 子句中使用内联数据。每一个元组对应一行，另外可以通过设置别名来为每一列指定名称。
 
 ```sql
 SELECT order_id, price FROM (VALUES (1, 2.0), (2, 3.1))  AS t (order_id, price)
@@ -63,3 +63,4 @@ SELECT PRETTY_PRINT(order_id) FROM Orders
 ```
 
 {{< top >}}
+
