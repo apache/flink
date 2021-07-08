@@ -304,6 +304,7 @@ public abstract class NettyMessage {
             checkArgument(
                     buffer.getDataType().ordinal() <= Byte.MAX_VALUE,
                     "Too many data types defined!");
+            checkArgument(backlog >= 0, "Must be non-negative.");
             this.dataType = buffer.getDataType();
             this.isCompressed = buffer.isCompressed();
             this.sequenceNumber = sequenceNumber;
@@ -402,14 +403,18 @@ public abstract class NettyMessage {
             boolean isCompressed = messageHeader.readBoolean();
             int size = messageHeader.readInt();
 
-            Buffer dataBuffer = null;
+            Buffer dataBuffer;
+            if (dataType.isBuffer()) {
+                dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId);
+            } else {
+                dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size, dataType);
+            }
 
-            if (size != 0) {
-                if (dataType.isBuffer()) {
-                    dataBuffer = bufferAllocator.allocatePooledNetworkBuffer(receiverId);
-                } else {
-                    dataBuffer = bufferAllocator.allocateUnPooledNetworkBuffer(size, dataType);
-                }
+            if (size == 0 && dataBuffer != null) {
+                // recycle the empty buffer directly, we must allocate a buffer for
+                // the empty data to release the credit already allocated for it
+                dataBuffer.recycleBuffer();
+                dataBuffer = null;
             }
 
             if (dataBuffer != null) {

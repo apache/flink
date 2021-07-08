@@ -45,6 +45,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -71,6 +72,12 @@ public class PipelinedSubpartition extends ResultSubpartition
     private static final Logger LOG = LoggerFactory.getLogger(PipelinedSubpartition.class);
 
     // ------------------------------------------------------------------------
+
+    /**
+     * Number of exclusive credits per input channel at the downstream tasks configured by {@link
+     * org.apache.flink.configuration.NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_PER_CHANNEL}.
+     */
+    private final int receiverExclusiveBuffersPerChannel;
 
     /** All buffers of this subpartition. Access to the buffers is synchronized on this object. */
     final PrioritizedDeque<BufferConsumerWithPartialRecordLength> buffers =
@@ -112,8 +119,14 @@ public class PipelinedSubpartition extends ResultSubpartition
 
     // ------------------------------------------------------------------------
 
-    PipelinedSubpartition(int index, ResultPartition parent) {
+    PipelinedSubpartition(
+            int index, int receiverExclusiveBuffersPerChannel, ResultPartition parent) {
         super(index, parent);
+
+        checkArgument(
+                receiverExclusiveBuffersPerChannel >= 0,
+                "Buffers per channel must be non-negative.");
+        this.receiverExclusiveBuffersPerChannel = receiverExclusiveBuffersPerChannel;
     }
 
     @Override
@@ -310,6 +323,16 @@ public class PipelinedSubpartition extends ResultSubpartition
                 if (bufferConsumer.isFinished()) {
                     requireNonNull(buffers.poll()).getBufferConsumer().close();
                     decreaseBuffersInBacklogUnsafe(bufferConsumer.isBuffer());
+                }
+
+                // if we have an empty finished buffer and the exclusive credit is 0, we just return
+                // the empty buffer so that the downstream task can release the allocated credit for
+                // this empty buffer, this happens in two main scenarios currently:
+                // 1. all data of a buffer builder has been read and after that the buffer builder
+                // is finished
+                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
+                if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer.isFinished()) {
+                    break;
                 }
 
                 if (buffer.readableBytes() > 0) {
