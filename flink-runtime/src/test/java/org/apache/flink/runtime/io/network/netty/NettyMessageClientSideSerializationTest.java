@@ -182,7 +182,11 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
         }
 
         BufferResponse expected =
-                new BufferResponse(testBuffer, random.nextInt(), inputChannelId, random.nextInt());
+                new BufferResponse(
+                        testBuffer,
+                        random.nextInt(Integer.MAX_VALUE),
+                        inputChannelId,
+                        random.nextInt(Integer.MAX_VALUE));
         BufferResponse actual = encodeAndDecode(expected, channel);
 
         assertTrue(buffer.isRecycled());

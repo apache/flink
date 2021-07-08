@@ -309,6 +309,6 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
     public static PipelinedSubpartition createPipelinedSubpartition() {
         final ResultPartition parent = PartitionTestUtils.createPartition();
 
-        return new PipelinedSubpartition(0, parent);
+        return new PipelinedSubpartition(0, 2, parent);
     }
 }
