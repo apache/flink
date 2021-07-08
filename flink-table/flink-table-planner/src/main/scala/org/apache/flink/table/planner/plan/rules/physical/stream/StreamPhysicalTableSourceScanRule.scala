@@ -76,7 +76,7 @@ class StreamPhysicalTableSourceScanRule
         isSourceChangeEventsDuplicate(table.catalogTable, table.tableSource, config)) {
       // generate changelog normalize node
       // primary key has been validated in CatalogSourceTable
-      val primaryKey = table.catalogTable.getSchema.getPrimaryKey.get()
+      val primaryKey = table.catalogTable.getResolvedSchema.getPrimaryKey.get()
       val keyFields = primaryKey.getColumns
       val inputFieldNames = newScan.getRowType.getFieldNames
       val primaryKeyIndices = ScanUtil.getPrimaryKeyIndices(inputFieldNames, keyFields)
