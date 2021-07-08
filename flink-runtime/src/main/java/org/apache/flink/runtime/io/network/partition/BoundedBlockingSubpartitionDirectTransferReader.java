@@ -111,10 +111,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
         // We simply assume there are no events except EndOfPartitionEvent for bath jobs,
         // then it has no essential effect to ignore the judgement of next event buffer.
-        return (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0;
+        return new AvailabilityWithBacklog(
+                (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0,
+                numDataBuffers);
     }
 
     @Override

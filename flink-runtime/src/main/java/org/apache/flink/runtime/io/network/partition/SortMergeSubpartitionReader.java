@@ -185,6 +185,7 @@ class SortMergeSubpartitionReader
                 buffer.recycleBuffer();
             }
             buffersRead.clear();
+            dataBufferBacklog = 0;
         }
 
         releaseFuture.complete(null);
@@ -215,17 +216,17 @@ class SortMergeSubpartitionReader
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
         synchronized (lock) {
+            boolean isAvailable;
             if (isReleased) {
-                return true;
+                isAvailable = true;
+            } else if (buffersRead.isEmpty()) {
+                isAvailable = false;
+            } else {
+                isAvailable = numCreditsAvailable > 0 || !buffersRead.peek().isBuffer();
             }
-
-            if (buffersRead.isEmpty()) {
-                return false;
-            }
-
-            return numCreditsAvailable > 0 || !buffersRead.peek().isBuffer();
+            return new AvailabilityWithBacklog(isAvailable, dataBufferBacklog);
         }
     }
 
