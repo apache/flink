@@ -154,11 +154,13 @@ object ScalarOperatorGens {
         } else if (isDecimal(operand.resultType) && operator == "+") {
           s"$operandTerm"
         } else {
-          s"$operator($operandTerm)"
+          // no need to check if result type might be null,
+          // because if this line of code is called, `operatorTerm` must not be null
+          val typeTerm = primitiveTypeTermForType(resultType)
+          s"($typeTerm) $operator($operandTerm)"
         }
     }
   }
-
 
   def generateTemporalPlusMinus(
     ctx: CodeGeneratorContext,
