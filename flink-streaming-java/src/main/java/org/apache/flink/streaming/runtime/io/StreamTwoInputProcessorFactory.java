@@ -42,8 +42,8 @@ import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkValve;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.ArrayList;
@@ -84,8 +84,7 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[0],
                         typeSerializer1,
                         ioManager,
-                        new StatusWatermarkValve(
-                                checkpointedInputGates[0].getNumberOfInputChannels()),
+                        new WatermarkValve(checkpointedInputGates[0].getNumberOfInputChannels()),
                         0,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
@@ -96,8 +95,7 @@ public class StreamTwoInputProcessorFactory {
                         checkpointedInputGates[1],
                         typeSerializer2,
                         ioManager,
-                        new StatusWatermarkValve(
-                                checkpointedInputGates[1].getNumberOfInputChannels()),
+                        new WatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels()),
                         1,
                         inflightDataRescalingDescriptor,
                         gatePartitioners,
@@ -262,11 +260,11 @@ public class StreamTwoInputProcessorFactory {
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
             if (inputIndex == 0) {
-                operator.processStreamStatus1(streamStatus);
+                operator.processWatermarkStatus1(watermarkStatus);
             } else {
-                operator.processStreamStatus2(streamStatus);
+                operator.processWatermarkStatus2(watermarkStatus);
             }
         }
 

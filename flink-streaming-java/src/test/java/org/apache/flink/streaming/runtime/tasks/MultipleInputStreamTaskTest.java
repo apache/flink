@@ -71,8 +71,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.SerializedValue;
 
@@ -598,7 +598,7 @@ public class MultipleInputStreamTaskTest {
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndStreamStatusForwarding() throws Exception {
+    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 buildWatermarkTestHarness(2, true)) {
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
@@ -607,21 +607,21 @@ public class MultipleInputStreamTaskTest {
 
             // test whether idle input channels are acknowledged correctly when forwarding
             // watermarks
-            testHarness.processElement(StreamStatus.IDLE, 0, 1);
+            testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
             testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
             testHarness.processElement(new Watermark(initialTime + 5), 1, 1);
-            testHarness.processElement(StreamStatus.IDLE, 1, 0); // once this is acknowledged,
+            testHarness.processElement(WatermarkStatus.IDLE, 1, 0); // once this is acknowledged,
             expectedOutput.add(new Watermark(initialTime + 5));
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // We make the second input idle, which should forward W=6 from the first input
-            testHarness.processElement(StreamStatus.IDLE, 1, 1);
+            testHarness.processElement(WatermarkStatus.IDLE, 1, 1);
             expectedOutput.add(new Watermark(initialTime + 6));
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // Make the first input idle
-            testHarness.processElement(StreamStatus.IDLE, 0, 0);
-            expectedOutput.add(StreamStatus.IDLE);
+            testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
+            expectedOutput.add(WatermarkStatus.IDLE);
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // make source active once again, emit a watermark and go idle again.
@@ -629,15 +629,15 @@ public class MultipleInputStreamTaskTest {
 
             expectedOutput.add(
                     new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
-            expectedOutput.add(StreamStatus.ACTIVE); // activate source on new watermark
+            expectedOutput.add(WatermarkStatus.ACTIVE); // activate source on new watermark
             expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
-            expectedOutput.add(StreamStatus.IDLE); // go idle after reading all records
+            expectedOutput.add(WatermarkStatus.IDLE); // go idle after reading all records
             testHarness.processAll();
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
 
             // make some network input channel active again
-            testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
-            expectedOutput.add(StreamStatus.ACTIVE);
+            testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
+            expectedOutput.add(WatermarkStatus.ACTIVE);
             assertThat(testHarness.getOutput(), contains(expectedOutput.toArray()));
         }
     }

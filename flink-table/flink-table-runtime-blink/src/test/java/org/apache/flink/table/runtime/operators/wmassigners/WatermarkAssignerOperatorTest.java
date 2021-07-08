@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -73,10 +73,10 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         assertThat(filterOutRecords(output), equalTo(expectedOutput));
 
         testHarness.setProcessingTime(1001);
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         assertThat(filterOutRecords(output), equalTo(expectedOutput));
 
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
         testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));

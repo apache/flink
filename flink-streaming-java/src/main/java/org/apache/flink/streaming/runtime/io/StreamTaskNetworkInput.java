@@ -30,8 +30,8 @@ import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkValve;
 
 import java.io.IOException;
 import java.util.Map;
@@ -44,10 +44,10 @@ import static java.util.stream.Collectors.toMap;
  * Implementation of {@link StreamTaskInput} that wraps an input from network taken from {@link
  * CheckpointedInputGate}.
  *
- * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
- * {@link StreamStatus} events, and forwards them to event subscribers once the {@link
- * StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or that a
- * {@link StreamStatus} needs to be propagated downstream to denote a status change.
+ * <p>This internally uses a {@link WatermarkValve} to keep track of {@link Watermark} and {@link
+ * WatermarkStatus} events, and forwards them to event subscribers once the {@link WatermarkValve}
+ * determines the {@link Watermark} from all inputs has advanced, or that a {@link WatermarkStatus}
+ * needs to be propagated downstream to denote a status change.
  *
  * <p>Forwarding elements, watermarks, or status elements must be protected by synchronizing on the
  * given lock object. This ensures that we don't call methods on a {@link StreamInputProcessor}
@@ -64,12 +64,12 @@ public final class StreamTaskNetworkInput<T>
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
             IOManager ioManager,
-            StatusWatermarkValve statusWatermarkValve,
+            WatermarkValve watermarkValve,
             int inputIndex) {
         super(
                 checkpointedInputGate,
                 inputSerializer,
-                statusWatermarkValve,
+                watermarkValve,
                 inputIndex,
                 getRecordDeserializers(checkpointedInputGate, ioManager));
     }

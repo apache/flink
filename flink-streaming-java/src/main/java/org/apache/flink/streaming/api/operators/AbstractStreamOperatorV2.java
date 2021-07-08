@@ -51,9 +51,9 @@ import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.Check
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
 import org.apache.flink.util.Preconditions;
 
@@ -511,13 +511,14 @@ public abstract class AbstractStreamOperatorV2<OUT>
         }
     }
 
-    public final void processStreamStatus(StreamStatus streamStatus, int inputId) throws Exception {
+    public final void processWatermarkStatus(WatermarkStatus watermarkStatus, int inputId)
+            throws Exception {
         boolean wasIdle = combinedWatermark.isIdle();
-        if (combinedWatermark.updateStatus(inputId - 1, streamStatus.isIdle())) {
+        if (combinedWatermark.updateStatus(inputId - 1, watermarkStatus.isIdle())) {
             processWatermark(new Watermark(combinedWatermark.getCombinedWatermark()));
         }
         if (wasIdle != combinedWatermark.isIdle()) {
-            output.emitStreamStatus(streamStatus);
+            output.emitWatermarkStatus(watermarkStatus);
         }
     }
 

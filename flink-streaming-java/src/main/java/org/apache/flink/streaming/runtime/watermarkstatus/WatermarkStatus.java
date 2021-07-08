@@ -1,11 +1,10 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
  *
  *    http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -16,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.streamstatus;
+package org.apache.flink.streaming.runtime.watermarkstatus;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -28,14 +27,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 /**
  * A Stream Status element informs stream tasks whether or not they should continue to expect
  * watermarks from the input stream that sent them. There are 2 kinds of status, namely {@link
- * StreamStatus#IDLE} and {@link StreamStatus#ACTIVE}. Stream Status elements are generated at the
- * sources, and may be propagated through the tasks of the topology. They directly infer the current
- * status of the emitting task; a {@link SourceStreamTask} or {@link StreamTask} emits a {@link
- * StreamStatus#IDLE} if it will temporarily halt to emit any watermarks (i.e. is idle), and emits a
- * {@link StreamStatus#ACTIVE} once it resumes to do so (i.e. is active). Tasks are responsible for
- * propagating their status further downstream once they toggle between being idle and active. The
- * cases that source tasks and downstream tasks are considered either idle or active is explained
- * below:
+ * WatermarkStatus#IDLE} and {@link WatermarkStatus#ACTIVE}. Stream Status elements are generated at
+ * the sources, and may be propagated through the tasks of the topology. They directly infer the
+ * current status of the emitting task; a {@link SourceStreamTask} or {@link StreamTask} emits a
+ * {@link WatermarkStatus#IDLE} if it will temporarily halt to emit any watermarks (i.e. is idle),
+ * and emits a {@link WatermarkStatus#ACTIVE} once it resumes to do so (i.e. is active). Tasks are
+ * responsible for propagating their status further downstream once they toggle between being idle
+ * and active. The cases that source tasks and downstream tasks are considered either idle or active
+ * is explained below:
  *
  * <ul>
  *   <li>Source tasks: A source task is considered to be idle if its head operator, i.e. a {@link
@@ -50,15 +49,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *       implementations.
  *   <li>Downstream tasks: a downstream task is considered to be idle if all its input streams are
  *       idle, i.e. the last received Stream Status element from all input streams is a {@link
- *       StreamStatus#IDLE}. As long as one of its input streams is active, i.e. the last received
- *       Stream Status element from the input stream is {@link StreamStatus#ACTIVE}, the task is
- *       active.
+ *       WatermarkStatus#IDLE}. As long as one of its input streams is active, i.e. the last
+ *       received Stream Status element from the input stream is {@link WatermarkStatus#ACTIVE}, the
+ *       task is active.
  * </ul>
  *
  * <p>Stream Status elements received at downstream tasks also affect and control how their
  * operators process and advance their watermarks. The below describes the effects (the logic is
- * implemented as a {@link StatusWatermarkValve} which downstream tasks should use for such
- * purposes):
+ * implemented as a {@link WatermarkValve} which downstream tasks should use for such purposes):
  *
  * <ul>
  *   <li>Since there may be watermark generators that might produce watermarks anywhere in the
@@ -73,24 +71,24 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
  *
  * <p>Note that to notify downstream tasks that a source task is permanently closed and will no
  * longer send any more elements, the source should still send a {@link Watermark#MAX_WATERMARK}
- * instead of {@link StreamStatus#IDLE}. Stream Status elements only serve as markers for temporary
- * status.
+ * instead of {@link WatermarkStatus#IDLE}. Stream Status elements only serve as markers for
+ * temporary status.
  */
 @Internal
-public final class StreamStatus extends StreamElement {
+public final class WatermarkStatus extends StreamElement {
 
     public static final int IDLE_STATUS = -1;
     public static final int ACTIVE_STATUS = 0;
 
-    public static final StreamStatus IDLE = new StreamStatus(IDLE_STATUS);
-    public static final StreamStatus ACTIVE = new StreamStatus(ACTIVE_STATUS);
+    public static final WatermarkStatus IDLE = new WatermarkStatus(IDLE_STATUS);
+    public static final WatermarkStatus ACTIVE = new WatermarkStatus(ACTIVE_STATUS);
 
     public final int status;
 
-    public StreamStatus(int status) {
+    public WatermarkStatus(int status) {
         if (status != IDLE_STATUS && status != ACTIVE_STATUS) {
             throw new IllegalArgumentException(
-                    "Invalid status value for StreamStatus; "
+                    "Invalid status value for WatermarkStatus; "
                             + "allowed values are "
                             + ACTIVE_STATUS
                             + " (for ACTIVE) and "
@@ -117,8 +115,8 @@ public final class StreamStatus extends StreamElement {
     public boolean equals(Object o) {
         return this == o
                 || o != null
-                        && o.getClass() == StreamStatus.class
-                        && ((StreamStatus) o).status == this.status;
+                        && o.getClass() == WatermarkStatus.class
+                        && ((WatermarkStatus) o).status == this.status;
     }
 
     @Override
@@ -129,6 +127,6 @@ public final class StreamStatus extends StreamElement {
     @Override
     public String toString() {
         String statusStr = (status == ACTIVE_STATUS) ? "ACTIVE" : "IDLE";
-        return "StreamStatus(" + statusStr + ")";
+        return "WatermarkStatus(" + statusStr + ")";
     }
 }

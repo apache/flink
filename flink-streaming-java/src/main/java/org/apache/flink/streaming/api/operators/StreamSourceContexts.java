@@ -21,9 +21,9 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -221,12 +221,12 @@ public class StreamSourceContexts {
         }
 
         @Override
-        protected void processAndEmitStreamStatus(StreamStatus streamStatus) {
+        protected void processAndEmitWatermarkStatus(WatermarkStatus watermarkStatus) {
             checkNotClosed();
-            if (idle != streamStatus.isIdle()) {
-                output.emitStreamStatus(streamStatus);
+            if (idle != watermarkStatus.isIdle()) {
+                output.emitWatermarkStatus(watermarkStatus);
             }
-            idle = streamStatus.isIdle();
+            idle = watermarkStatus.isIdle();
         }
 
         @Override
@@ -337,12 +337,12 @@ public class StreamSourceContexts {
         }
 
         @Override
-        protected void processAndEmitStreamStatus(StreamStatus streamStatus) {
+        protected void processAndEmitWatermarkStatus(WatermarkStatus watermarkStatus) {
             checkNotClosed();
-            if (idle != streamStatus.isIdle()) {
-                output.emitStreamStatus(streamStatus);
+            if (idle != watermarkStatus.isIdle()) {
+                output.emitWatermarkStatus(watermarkStatus);
             }
-            idle = streamStatus.isIdle();
+            idle = watermarkStatus.isIdle();
         }
 
         @Override
@@ -356,8 +356,8 @@ public class StreamSourceContexts {
      * source contexts that are relevant with {@link Watermark}s.
      *
      * <p>Stream source contexts that are relevant with watermarks are responsible of manipulating
-     * the current {@link StreamStatus}, so that stream status can be correctly propagated
-     * downstream. Please refer to the class-level documentation of {@link StreamStatus} for
+     * the current {@link WatermarkStatus}, so that stream status can be correctly propagated
+     * downstream. Please refer to the class-level documentation of {@link WatermarkStatus} for
      * information on how stream status affects watermark advancement at downstream tasks.
      *
      * <p>This class implements the logic of idleness detection. It fires idleness detection tasks
@@ -414,7 +414,7 @@ public class StreamSourceContexts {
             checkNotClosed();
 
             synchronized (checkpointLock) {
-                processAndEmitStreamStatus(StreamStatus.ACTIVE);
+                processAndEmitWatermarkStatus(WatermarkStatus.ACTIVE);
 
                 if (nextCheck != null) {
                     this.failOnNextCheck = false;
@@ -437,7 +437,7 @@ public class StreamSourceContexts {
             checkNotClosed();
 
             synchronized (checkpointLock) {
-                processAndEmitStreamStatus(StreamStatus.ACTIVE);
+                processAndEmitWatermarkStatus(WatermarkStatus.ACTIVE);
 
                 if (nextCheck != null) {
                     this.failOnNextCheck = false;
@@ -455,7 +455,7 @@ public class StreamSourceContexts {
 
             if (allowWatermark(mark)) {
                 synchronized (checkpointLock) {
-                    processAndEmitStreamStatus(StreamStatus.ACTIVE);
+                    processAndEmitWatermarkStatus(WatermarkStatus.ACTIVE);
 
                     if (nextCheck != null) {
                         this.failOnNextCheck = false;
@@ -473,7 +473,7 @@ public class StreamSourceContexts {
             checkNotClosed();
 
             synchronized (checkpointLock) {
-                processAndEmitStreamStatus(StreamStatus.IDLE);
+                processAndEmitWatermarkStatus(WatermarkStatus.IDLE);
             }
         }
 
@@ -545,6 +545,6 @@ public class StreamSourceContexts {
          */
         protected abstract void processAndEmitWatermark(Watermark mark);
 
-        protected abstract void processAndEmitStreamStatus(StreamStatus streamStatus);
+        protected abstract void processAndEmitWatermarkStatus(WatermarkStatus watermarkStatus);
     }
 }

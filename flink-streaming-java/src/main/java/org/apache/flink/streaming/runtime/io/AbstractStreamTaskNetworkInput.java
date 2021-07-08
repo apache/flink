@@ -30,7 +30,7 @@ import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkValve;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,7 +56,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final Map<InputChannelInfo, R> recordDeserializers;
     protected final Map<InputChannelInfo, Integer> flattenedChannelIndices = new HashMap<>();
     /** Valve that controls how watermarks and stream statuses are forwarded. */
-    protected final StatusWatermarkValve statusWatermarkValve;
+    protected final WatermarkValve watermarkValve;
 
     protected final int inputIndex;
     private InputChannelInfo lastChannel = null;
@@ -65,7 +65,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     public AbstractStreamTaskNetworkInput(
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
-            StatusWatermarkValve statusWatermarkValve,
+            WatermarkValve watermarkValve,
             int inputIndex,
             Map<InputChannelInfo, R> recordDeserializers) {
         super();
@@ -79,7 +79,7 @@ public abstract class AbstractStreamTaskNetworkInput<
             flattenedChannelIndices.put(i, flattenedChannelIndices.size());
         }
 
-        this.statusWatermarkValve = checkNotNull(statusWatermarkValve);
+        this.watermarkValve = checkNotNull(watermarkValve);
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
     }
@@ -133,13 +133,13 @@ public abstract class AbstractStreamTaskNetworkInput<
         if (recordOrMark.isRecord()) {
             output.emitRecord(recordOrMark.asRecord());
         } else if (recordOrMark.isWatermark()) {
-            statusWatermarkValve.inputWatermark(
+            watermarkValve.inputWatermark(
                     recordOrMark.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
         } else if (recordOrMark.isLatencyMarker()) {
             output.emitLatencyMarker(recordOrMark.asLatencyMarker());
-        } else if (recordOrMark.isStreamStatus()) {
-            statusWatermarkValve.inputStreamStatus(
-                    recordOrMark.asStreamStatus(),
+        } else if (recordOrMark.isWatermarkStatus()) {
+            watermarkValve.inputWatermarkStatus(
+                    recordOrMark.asWatermarkStatus(),
                     flattenedChannelIndices.get(lastChannel),
                     output);
         } else {

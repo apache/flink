@@ -42,7 +42,7 @@ import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -210,7 +210,7 @@ public class LargeSortingDataInputITCase {
         public void emitWatermark(Watermark watermark) throws Exception {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {}

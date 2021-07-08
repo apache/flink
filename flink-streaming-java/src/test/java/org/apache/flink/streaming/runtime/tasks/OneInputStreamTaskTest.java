@@ -59,7 +59,7 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
@@ -151,7 +151,7 @@ public class OneInputStreamTaskTest extends TestLogger {
      * inputs. The forwarded watermark must be the minimum of the watermarks of all active inputs.
      */
     @Test
-    public void testWatermarkAndStreamStatusForwarding() throws Exception {
+    public void testWatermarkAndWatermarkStatusForwarding() throws Exception {
 
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
@@ -226,12 +226,12 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // test whether idle input channels are acknowledged correctly when forwarding watermarks
-        testHarness.processElement(StreamStatus.IDLE, 0, 1);
-        testHarness.processElement(StreamStatus.IDLE, 1, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 1);
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 0);
         testHarness.processElement(new Watermark(initialTime + 6), 0, 0);
         testHarness.processElement(
                 new Watermark(initialTime + 5), 1, 1); // this watermark should be advanced first
-        testHarness.processElement(StreamStatus.IDLE, 1, 1); // once this is acknowledged,
+        testHarness.processElement(WatermarkStatus.IDLE, 1, 1); // once this is acknowledged,
         // watermark (initial + 6) should be forwarded
         testHarness.waitForInputProcessing();
         expectedOutput.add(new Watermark(initialTime + 5));
@@ -240,18 +240,18 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make all input channels idle and check that the operator's idle status is forwarded
-        testHarness.processElement(StreamStatus.IDLE, 0, 0);
+        testHarness.processElement(WatermarkStatus.IDLE, 0, 0);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // make some input channels active again and check that the operator's active status is
         // forwarded only once
-        testHarness.processElement(StreamStatus.ACTIVE, 1, 0);
-        testHarness.processElement(StreamStatus.ACTIVE, 0, 1);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 1, 0);
+        testHarness.processElement(WatermarkStatus.ACTIVE, 0, 1);
         testHarness.waitForInputProcessing();
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -333,7 +333,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // now, toggle the task to be idle, and let the watermark generator produce some watermarks
-        testHarness.processElement(StreamStatus.IDLE);
+        testHarness.processElement(WatermarkStatus.IDLE);
 
         // after this, the operators will throw an exception if they are forwarded watermarks
         // anywhere in the chain
@@ -353,7 +353,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         // the 40 - 60 watermarks should not be forwarded, only the stream status toggle element and
         // records
-        expectedOutput.add(StreamStatus.IDLE);
+        expectedOutput.add(WatermarkStatus.IDLE);
         expectedOutput.add(
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.NO_FORWARDED_WATERMARKS_MARKER));
@@ -364,7 +364,7 @@ public class OneInputStreamTaskTest extends TestLogger {
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
         // re-toggle the task to be active and see if new watermarks are correctly forwarded again
-        testHarness.processElement(StreamStatus.ACTIVE);
+        testHarness.processElement(WatermarkStatus.ACTIVE);
         testHarness.processElement(
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));
@@ -374,7 +374,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>("90"), 0, 0);
         testHarness.waitForInputProcessing();
 
-        expectedOutput.add(StreamStatus.ACTIVE);
+        expectedOutput.add(WatermarkStatus.ACTIVE);
         expectedOutput.add(
                 new StreamRecord<>(
                         TriggerableFailOnWatermarkTestOperator.EXPECT_FORWARDED_WATERMARKS_MARKER));

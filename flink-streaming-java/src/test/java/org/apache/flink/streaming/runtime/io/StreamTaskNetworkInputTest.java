@@ -53,9 +53,9 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkValve;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.After;
@@ -161,7 +161,7 @@ public class StreamTaskNetworkInputTest {
                                 new SyncMailboxExecutor()),
                         inSerializer,
                         ioManager,
-                        new StatusWatermarkValve(numInputChannels),
+                        new WatermarkValve(numInputChannels),
                         0);
 
         inputGate.sendEvent(
@@ -251,7 +251,7 @@ public class StreamTaskNetworkInputTest {
                 createCheckpointedInputGate(new MockInputGate(1, buffers, false)),
                 LongSerializer.INSTANCE,
                 ioManager,
-                new StatusWatermarkValve(1),
+                new WatermarkValve(1),
                 0);
     }
 
@@ -312,7 +312,7 @@ public class StreamTaskNetworkInputTest {
         public void emitWatermark(Watermark watermark) {}
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
@@ -342,7 +342,7 @@ public class StreamTaskNetworkInputTest {
             super(
                     createCheckpointedInputGate(inputGate.getInputGate()),
                     inSerializer,
-                    new StatusWatermarkValve(numInputChannels),
+                    new WatermarkValve(numInputChannels),
                     0,
                     deserializers);
         }

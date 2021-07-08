@@ -41,7 +41,7 @@ import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitio
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkValve;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Maps;
 
@@ -90,7 +90,7 @@ public final class RescalingStreamTaskNetworkInput<T>
             CheckpointedInputGate checkpointedInputGate,
             TypeSerializer<T> inputSerializer,
             IOManager ioManager,
-            StatusWatermarkValve statusWatermarkValve,
+            WatermarkValve watermarkValve,
             int inputIndex,
             InflightDataRescalingDescriptor inflightDataRescalingDescriptor,
             Function<Integer, StreamPartitioner<?>> gatePartitioners,
@@ -98,7 +98,7 @@ public final class RescalingStreamTaskNetworkInput<T>
         super(
                 checkpointedInputGate,
                 inputSerializer,
-                statusWatermarkValve,
+                watermarkValve,
                 inputIndex,
                 getRecordDeserializers(
                         checkpointedInputGate,
@@ -155,11 +155,7 @@ public final class RescalingStreamTaskNetworkInput<T>
 
         close();
         return new StreamTaskNetworkInput<>(
-                checkpointedInputGate,
-                inputSerializer,
-                ioManager,
-                statusWatermarkValve,
-                inputIndex);
+                checkpointedInputGate, inputSerializer, ioManager, watermarkValve, inputIndex);
     }
 
     protected DemultiplexingRecordDeserializer<T> getActiveSerializer(
