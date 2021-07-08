@@ -19,7 +19,7 @@ package org.apache.flink.streaming.connectors.dynamodb.config;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-import com.amazonaws.auth.AWSCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 /** Configuration keys for AWS service usage. */
 @PublicEvolving
@@ -27,7 +27,7 @@ public class AWSConfigConstants {
 
     /**
      * Possible configuration values for the type of credential provider to use when accessing AWS
-     * DynamoDB. Internally, a corresponding implementation of {@link AWSCredentialsProvider} will
+     * DynamoDB. Internally, a corresponding implementation of {@link AwsCredentialsProvider} will
      * be used.
      */
     public enum CredentialProvider {
@@ -80,48 +80,6 @@ public class AWSConfigConstants {
      * set).
      */
     public static final String AWS_CREDENTIALS_PROVIDER = "aws.credentials.provider";
-
-    /** The AWS access key ID to use when setting credentials provider type to BASIC. */
-    public static final String AWS_ACCESS_KEY_ID = accessKeyId(AWS_CREDENTIALS_PROVIDER);
-
-    /** The AWS secret key to use when setting credentials provider type to BASIC. */
-    public static final String AWS_SECRET_ACCESS_KEY = secretKey(AWS_CREDENTIALS_PROVIDER);
-
-    /** Optional configuration for profile path if credential provider type is set to be PROFILE. */
-    public static final String AWS_PROFILE_PATH = profilePath(AWS_CREDENTIALS_PROVIDER);
-
-    /** Optional configuration for profile name if credential provider type is set to be PROFILE. */
-    public static final String AWS_PROFILE_NAME = profileName(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The role ARN to use when credential provider type is set to ASSUME_ROLE or
-     * WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_ROLE_ARN = roleArn(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The role session name to use when credential provider type is set to ASSUME_ROLE or
-     * WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_ROLE_SESSION_NAME = roleSessionName(AWS_CREDENTIALS_PROVIDER);
-
-    /** The external ID to use when credential provider type is set to ASSUME_ROLE. */
-    public static final String AWS_ROLE_EXTERNAL_ID = externalId(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The absolute path to the web identity token file that should be used if provider type is set
-     * to WEB_IDENTITY_TOKEN.
-     */
-    public static final String AWS_WEB_IDENTITY_TOKEN_FILE =
-            webIdentityTokenFile(AWS_CREDENTIALS_PROVIDER);
-
-    /**
-     * The credentials provider that provides credentials for assuming the role when credential
-     * provider type is set to ASSUME_ROLE. Roles can be nested, so AWS_ROLE_CREDENTIALS_PROVIDER
-     * can again be set to "ASSUME_ROLE"
-     */
-    public static final String AWS_ROLE_CREDENTIALS_PROVIDER =
-            roleCredentialsProvider(AWS_CREDENTIALS_PROVIDER);
 
     /** The AWS endpoint for DynamoDB (derived from the AWS region setting if not set). */
     public static final String AWS_ENDPOINT = "aws.endpoint";

@@ -32,7 +32,7 @@ under the License.
 	<artifactId>flink-connector-dynamodb_${scala.binary.version}</artifactId>
 	<name>Flink : Connectors : DynamoDB</name>
 	<properties>
-		<aws.sdk.version>1.11.1019</aws.sdk.version>
+		<aws.sdkv2.version>2.13.52</aws.sdkv2.version>
 	</properties>
 
 	<packaging>jar</packaging>
@@ -56,15 +56,16 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-dynamodb</artifactId>
-			<version>${aws.sdk.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+			<version>${aws.sdkv2.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk-sts</artifactId>
-			<version>${aws.sdk.version}</version>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${aws.sdkv2.version}</version>
 		</dependency>
 	</dependencies>
 
@@ -84,13 +85,13 @@ under the License.
 							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
 							<artifactSet combine.children="append">
 								<includes>
-									<include>com.amazonaws:*</include>
+									<include>software.amazon.awssdk:*</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
 								<relocation>
-									<pattern>com.amazonaws</pattern>
-									<shadedPattern>org.apache.flink.dynamodb.shaded.com.amazonaws</shadedPattern>
+									<pattern>software.amazon</pattern>
+									<shadedPattern>org.apache.flink.kinesis.shaded.software.amazon</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
@@ -98,6 +99,12 @@ under the License.
 									<artifact>*:*</artifact>
 									<excludes>
 										<exclude>.gitkeep</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>software.amazon.awssdk:*</artifact>
+									<excludes>
+										<exclude>META-INF/services/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
