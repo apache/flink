@@ -40,6 +40,7 @@ import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.function.FunctionUtils;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -48,7 +49,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Address;
 import akka.actor.DeadLetter;
 import akka.actor.Props;
-import akka.dispatch.Futures;
 import akka.pattern.Patterns;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +69,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
@@ -77,7 +76,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import scala.Option;
-import scala.concurrent.Future;
 import scala.reflect.ClassTag$;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -468,11 +466,6 @@ public class AkkaRpcService implements RpcService {
     }
 
     @Override
-    public Executor getExecutor() {
-        return actorSystem.dispatcher();
-    }
-
-    @Override
     public ScheduledExecutor getScheduledExecutor() {
         return internalScheduledExecutor;
     }
@@ -488,14 +481,13 @@ public class AkkaRpcService implements RpcService {
 
     @Override
     public void execute(Runnable runnable) {
-        actorSystem.dispatcher().execute(runnable);
+        getScheduledExecutor().execute(runnable);
     }
 
     @Override
     public <T> CompletableFuture<T> execute(Callable<T> callable) {
-        Future<T> scalaFuture = Futures.<T>future(callable, actorSystem.dispatcher());
-
-        return AkkaFutureUtils.toJava(scalaFuture);
+        return CompletableFuture.supplyAsync(
+                FunctionUtils.uncheckedSupplier(callable::call), getScheduledExecutor());
     }
 
     // ---------------------------------------------------------------------------------------

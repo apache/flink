@@ -166,7 +166,7 @@ public abstract class RetryingRegistration<
                                         retryingRegistrationConfiguration
                                                 .getInitialRegistrationTimeoutMillis());
                             },
-                            rpcService.getExecutor());
+                            rpcService.getScheduledExecutor());
 
             // upon failure, retry, unless this is cancelled
             rpcGatewayAcceptFuture.whenCompleteAsync(
@@ -194,7 +194,7 @@ public abstract class RetryingRegistration<
                                     retryingRegistrationConfiguration.getErrorDelayMillis());
                         }
                     },
-                    rpcService.getExecutor());
+                    rpcService.getScheduledExecutor());
         } catch (Throwable t) {
             completionFuture.completeExceptionally(t);
             cancel();
@@ -272,7 +272,7 @@ public abstract class RetryingRegistration<
                                     }
                                 }
                             },
-                            rpcService.getExecutor());
+                            rpcService.getScheduledExecutor());
 
             // upon failure, retry
             registrationAcceptFuture.whenCompleteAsync(
@@ -320,7 +320,7 @@ public abstract class RetryingRegistration<
                             }
                         }
                     },
-                    rpcService.getExecutor());
+                    rpcService.getScheduledExecutor());
         } catch (Throwable t) {
             completionFuture.completeExceptionally(t);
             cancel();

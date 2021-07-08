@@ -73,7 +73,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -509,11 +508,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         @Override
         public CompletableFuture<Void> getTerminationFuture() {
             return rpcService.getTerminationFuture();
-        }
-
-        @Override
-        public Executor getExecutor() {
-            return rpcService.getExecutor();
         }
 
         @Override
