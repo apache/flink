@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
  * A {@link StatementSet} accepts DML statements or {@link Table}s, the planner can optimize all
@@ -37,6 +38,31 @@ public interface StatementSet {
 
     /** add {@link Table} with the given sink table name to the set. */
     StatementSet addInsert(String targetPath, Table table, boolean overwrite);
+
+    /**
+     * Adds a statement that the pipeline defined by the given {@link Table} object should be
+     * written to a table (backed by a {@link DynamicTableSink}) and expressed via the given {@link
+     * TableDescriptor}.
+     *
+     * <p>The given {@link TableDescriptor descriptor} is registered as a temporary table (see
+     * {@link TableEnvironment#createTemporaryTable(String, TableDescriptor)}. Then a statement is
+     * added into the statement set to insert the {@link Table} into that temporary table.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * StatementSet stmtSet = tEnv.createStatementSet();
+     * Table sourceTable = tEnv.from("SourceTable");
+     * TableDescriptor sinkDescriptor = TableDescriptor.forConnector("blackhole")
+     *   .schema(Schema.newBuilder()
+     *     // …
+     *     .build())
+     *   .build();
+     *
+     * stmtSet.addInsert(sinkDescriptor, sourceTable);
+     * }</pre>
+     */
+    StatementSet addInsert(TableDescriptor descriptor, Table table);
 
     /**
      * returns the AST and the execution plan to compute the result of the all statements and
