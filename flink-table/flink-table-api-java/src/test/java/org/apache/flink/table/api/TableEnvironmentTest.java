@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.utils.ConnectorDescriptorMock;
 import org.apache.flink.table.utils.FormatDescriptorMock;
 import org.apache.flink.table.utils.TableEnvironmentMock;
@@ -129,6 +130,29 @@ public class TableEnvironmentTest {
         assertEquals(schema, catalogTable.getUnresolvedSchema());
         assertEquals("fake", catalogTable.getOptions().get("connector"));
         assertEquals("Test", catalogTable.getOptions().get("a"));
+    }
+
+    public void testTableFromDescriptor() {
+        final TableEnvironmentMock tEnv = TableEnvironmentMock.getStreamingInstance();
+
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.INT()).build();
+        final TableDescriptor descriptor =
+                TableDescriptor.forConnector("fake").schema(schema).build();
+
+        final Table table = tEnv.from(descriptor);
+
+        assertEquals(
+                schema, Schema.newBuilder().fromResolvedSchema(table.getResolvedSchema()).build());
+
+        assertTrue(table.getQueryOperation() instanceof CatalogQueryOperation);
+        final ObjectIdentifier tableIdentifier =
+                ((CatalogQueryOperation) table.getQueryOperation()).getTableIdentifier();
+
+        final Optional<CatalogManager.TableLookupResult> lookupResult =
+                tEnv.getCatalogManager().getTable(tableIdentifier);
+        assertTrue(lookupResult.isPresent());
+
+        assertEquals("fake", lookupResult.get().getTable().getOptions().get("connector"));
     }
 
     private static void assertCatalogTable(CatalogTable table) {

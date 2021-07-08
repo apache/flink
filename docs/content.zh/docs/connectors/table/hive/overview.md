@@ -276,15 +276,15 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 <!-- Flink Dependency -->
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-connector-hive{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-table-api-java-bridge{{< scala_version >}}</artifactId>
+  <version>{{< version >}}</version>
   <scope>provided</scope>
 </dependency>
 

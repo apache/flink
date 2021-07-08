@@ -26,7 +26,7 @@ from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream import TimeCharacteristic, RuntimeContext, WindowAssigner, Trigger, \
-    TriggerResult, CountWindow
+    TriggerResult, CountWindow, SlotSharingGroup
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import CoMapFunction, CoFlatMapFunction, AggregateFunction, \
     ReduceFunction, KeyedCoProcessFunction, WindowFunction, ProcessWindowFunction
@@ -1025,8 +1025,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         slot_sharing_group_1 = 'slot_sharing_group_1'
         slot_sharing_group_2 = 'slot_sharing_group_2'
         ds_1 = self.env.from_collection([1, 2, 3]).name(source_operator_name)
-        ds_1.slot_sharing_group(slot_sharing_group_1).map(lambda x: x + 1).set_parallelism(3)\
-            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2)\
+        ds_1.slot_sharing_group(SlotSharingGroup.builder(slot_sharing_group_1).build()) \
+            .map(lambda x: x + 1).set_parallelism(3) \
+            .name(map_operator_name).slot_sharing_group(slot_sharing_group_2) \
             .add_sink(self.test_sink)
 
         j_generated_stream_graph = self.env._j_stream_execution_environment \
