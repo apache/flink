@@ -170,6 +170,11 @@ public class NumberSequenceSourceTest {
         }
 
         @Override
+        public void markActive() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public SourceOutput<E> createOutputForSplit(String splitId) {
             return this;
         }

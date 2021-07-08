@@ -203,6 +203,9 @@ under the License.
 
 							<!-- added method to interface in 1.13 -->
 							<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
+
+							<!-- added method to interface in 1.14 through FLIP-180 -->
+							<exclude>org.apache.flink.api.common.eventtime.WatermarkOutput#markActive()</exclude>
 						</excludes>
 					</parameter>
 				</configuration>
