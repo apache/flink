@@ -88,7 +88,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.apache.flink.util.Preconditions.*;
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Flink Sink to produce data into a Kafka topic. By default producer will use {@link
@@ -649,7 +651,7 @@ public class FlinkKafkaProducer<IN>
         checkArgument(
                 !org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(defaultTopic),
                 "defaultTopic cannot be null or empty string");
-        this.defaultTopicId = checkNotNull(defaultTopic, "defaultTopic is null");
+        this.defaultTopicId = defaultTopic;
         if (kafkaSchema != null) {
             this.keyedSchema = null;
             this.kafkaSchema = kafkaSchema;
