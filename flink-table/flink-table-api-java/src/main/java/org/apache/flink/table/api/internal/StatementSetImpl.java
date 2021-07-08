@@ -23,6 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -84,6 +85,21 @@ class StatementSetImpl implements StatementSet {
                         Collections.emptyMap()));
 
         return this;
+    }
+
+    @Override
+    public StatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        tableEnvironment.createTemporaryTable(path, targetDescriptor);
+        return addInsert(path, table);
+    }
+
+    @Override
+    public StatementSet addInsert(
+            TableDescriptor targetDescriptor, Table table, boolean overwrite) {
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        tableEnvironment.createTemporaryTable(path, targetDescriptor);
+        return addInsert(path, table, overwrite);
     }
 
     @Override

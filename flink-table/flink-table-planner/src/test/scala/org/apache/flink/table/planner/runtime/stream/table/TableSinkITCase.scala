@@ -1379,4 +1379,29 @@ class TableSinkITCase extends StreamingTestBase {
     tableResult.await()
     assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
   }
+
+  @Test
+  def testStatementSetInsertUsingTableDescriptor(): Unit = {
+    val schema = Schema.newBuilder()
+      .column("f0", DataTypes.INT())
+      .build()
+
+    val tableId = TestValuesTableFactory.registerData(Seq(row(42)))
+    val sourceDescriptor = TableDescriptor.forConnector("values")
+      .schema(schema)
+      .option("data-id", tableId)
+      .option("bounded", "true")
+      .build()
+    val sinkDescriptor = TableDescriptor.forConnector("values")
+      .schema(schema)
+      .build();
+
+    tEnv.createTemporaryTable("T", sourceDescriptor)
+
+    val stmtSet = tEnv.createStatementSet()
+    stmtSet.addInsert(sinkDescriptor, tEnv.from("T"))
+
+    stmtSet.execute().await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+  }
 }

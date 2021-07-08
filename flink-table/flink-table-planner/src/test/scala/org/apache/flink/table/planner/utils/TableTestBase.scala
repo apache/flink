@@ -1494,6 +1494,17 @@ class TestingStatementSet(tEnv: TestingTableEnvironment) extends StatementSet {
     this
   }
 
+  override def addInsert(descriptor: TableDescriptor, table: Table): StatementSet = {
+    throw new TableException("Not implemented")
+  }
+
+  override def addInsert(
+      targetDescriptor: TableDescriptor,
+      table: Table,
+      overwrite: Boolean): StatementSet = {
+    throw new TableException("Not implemented")
+  }
+
   override def explain(extraDetails: ExplainDetail*): String = {
     tEnv.explainInternal(operations.map(o => o.asInstanceOf[Operation]), extraDetails: _*)
   }

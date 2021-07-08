@@ -19,28 +19,99 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
- * A {@link StatementSet} accepts DML statements or {@link Table}s, the planner can optimize all
- * added statements and Tables together and then submit as one job.
+ * A {@link StatementSet} accepts pipelines defined by DML statements or {@link Table} objects. The
+ * planner can optimize all added statements together and then submit them as one job.
  *
- * <p>The added statements and Tables will be cleared when calling the `execute` method.
+ * <p>The added statements will be cleared when calling the {@link #execute()} method.
  */
 @PublicEvolving
 public interface StatementSet {
 
-    /** add insert statement to the set. */
+    /** Adds an {@code INSERT INTO} SQL statement. */
     StatementSet addInsertSql(String statement);
 
-    /** add Table with the given sink table name to the set. */
+    /**
+     * Adds a statement that the pipeline defined by the given {@link Table} object should be
+     * written to a table (backed by a {@link DynamicTableSink}) that was registered under the
+     * specified path.
+     *
+     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
+     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     */
     StatementSet addInsert(String targetPath, Table table);
 
-    /** add {@link Table} with the given sink table name to the set. */
+    /**
+     * Adds a statement that the pipeline defined by the given {@link Table} object should be
+     * written to a table (backed by a {@link DynamicTableSink}) that was registered under the
+     * specified path.
+     *
+     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
+     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     *
+     * @param overwrite Indicates whether existing data should be overwritten.
+     */
     StatementSet addInsert(String targetPath, Table table, boolean overwrite);
 
     /**
-     * returns the AST and the execution plan to compute the result of the all statements and
-     * Tables.
+     * Adds a statement that the pipeline defined by the given {@link Table} object should be
+     * written to a table (backed by a {@link DynamicTableSink}) expressed via the given {@link
+     * TableDescriptor}.
+     *
+     * <p>The given {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}. Then a statement is added to the statement set that inserts the {@link
+     * Table} object's pipeline into that temporary table.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * StatementSet stmtSet = tEnv.createStatementSet();
+     * Table sourceTable = tEnv.from("SourceTable");
+     * TableDescriptor sinkDescriptor = TableDescriptor.forConnector("blackhole")
+     *   .schema(Schema.newBuilder()
+     *     // …
+     *     .build())
+     *   .build();
+     *
+     * stmtSet.addInsert(sinkDescriptor, sourceTable);
+     * }</pre>
+     */
+    StatementSet addInsert(TableDescriptor targetDescriptor, Table table);
+
+    /**
+     * Adds a statement that the pipeline defined by the given {@link Table} object should be
+     * written to a table (backed by a {@link DynamicTableSink}) expressed via the given {@link
+     * TableDescriptor}.
+     *
+     * <p>The given {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}. Then a statement is added to the statement set that inserts the {@link
+     * Table} object's pipeline into that temporary table.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * StatementSet stmtSet = tEnv.createStatementSet();
+     * Table sourceTable = tEnv.from("SourceTable");
+     * TableDescriptor sinkDescriptor = TableDescriptor.forConnector("blackhole")
+     *   .schema(Schema.newBuilder()
+     *     // …
+     *     .build())
+     *   .build();
+     *
+     * stmtSet.addInsert(sinkDescriptor, sourceTable, true);
+     * }</pre>
+     *
+     * @param overwrite Indicates whether existing data should be overwritten.
+     */
+    StatementSet addInsert(TableDescriptor targetDescriptor, Table table, boolean overwrite);
+
+    /**
+     * Returns the AST and the execution plan to compute the result of the all statements.
      *
      * @param extraDetails The extra explain details which the explain result should include, e.g.
      *     estimated cost, changelog mode for streaming, displaying execution plan in json format
@@ -49,9 +120,13 @@ public interface StatementSet {
     String explain(ExplainDetail... extraDetails);
 
     /**
-     * execute all statements and Tables as a batch.
+     * Executes all statements as a batch.
      *
-     * <p>The added statements and Tables will be cleared when executing this method.
+     * <p>The added statements will be cleared when executing this method.
+     *
+     * <p>By default, all DML operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      */
     TableResult execute();
 }

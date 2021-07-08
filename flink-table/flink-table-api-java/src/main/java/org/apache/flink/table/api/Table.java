@@ -1364,15 +1364,15 @@ public interface Table {
      * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @param overwrite The flag that indicates whether the insert should overwrite existing data or
-     *     not.
+     * @param overwrite Indicates whether existing data should be overwritten.
      * @return The insert operation execution result.
      */
     TableResult executeInsert(String tablePath, boolean overwrite);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
-     * table defined by a {@link TableDescriptor}. It executes the insert operation.
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     * It executes the insert operation.
      *
      * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
      * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
@@ -1408,7 +1408,8 @@ public interface Table {
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
-     * table defined by a {@link TableDescriptor}. It executes the insert operation.
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     * It executes the insert operation.
      *
      * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
      * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
