@@ -29,6 +29,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
@@ -69,6 +70,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 import static org.junit.Assert.assertEquals;
@@ -101,7 +103,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 
     private AbstractStateBackend stateBackend;
 
-    @Parameterized.Parameter public StateBackendEnum stateBackendEnum;
+    public StateBackendEnum stateBackendEnum;
+
+    private final int buffersPerChannel;
 
     enum StateBackendEnum {
         MEM,
@@ -113,9 +117,18 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         FILE_ASYNC
     }
 
-    @Parameterized.Parameters(name = "statebackend type ={0}")
-    public static Collection<StateBackendEnum> parameter() {
-        return Arrays.asList(StateBackendEnum.values());
+    @Parameterized.Parameters(name = "statebackend type ={0}, buffersPerChannel = {1}")
+    public static Collection<Object[]> parameter() {
+        return Arrays.stream(StateBackendEnum.values())
+                .map((type) -> new Object[][] {{type, 0}, {type, 2}})
+                .flatMap(Arrays::stream)
+                .collect(Collectors.toList());
+    }
+
+    public EventTimeWindowCheckpointingITCase(
+            StateBackendEnum stateBackendEnum, int buffersPerChannel) {
+        this.stateBackendEnum = stateBackendEnum;
+        this.buffersPerChannel = buffersPerChannel;
     }
 
     protected StateBackendEnum getStateBackend() {
@@ -154,6 +167,8 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
         }
 
         Configuration config = createClusterConfig();
+        config.setInteger(
+                NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_PER_CHANNEL, buffersPerChannel);
 
         switch (stateBackendEnum) {
             case MEM:

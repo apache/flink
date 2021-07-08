@@ -134,11 +134,12 @@ public class BufferManager implements BufferListener, BufferRecycler {
 
     /** Requests exclusive buffers from the provider. */
     void requestExclusiveBuffers(int numExclusiveBuffers) throws IOException {
-        Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
-        checkArgument(
-                !segments.isEmpty(),
-                "The number of exclusive buffers per channel should be larger than 0.");
+        checkArgument(numExclusiveBuffers >= 0, "Num exclusive buffers must be non-negative.");
+        if (numExclusiveBuffers == 0) {
+            return;
+        }
 
+        Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
         synchronized (bufferQueue) {
             // AvailableBufferQueue::addExclusiveBuffer may release the previously allocated
             // floating buffer, which requires the caller to recycle these released floating

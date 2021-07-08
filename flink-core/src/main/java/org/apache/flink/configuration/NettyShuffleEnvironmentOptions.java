@@ -154,7 +154,11 @@ public class NettyShuffleEnvironmentOptions {
 
     /**
      * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
-     * channel).
+     * channel). The minimum valid value that can be configured is 0. When 0 buffers-per-channel is
+     * configured, the exclusive network buffers used per downstream incoming channel will be 0, but
+     * for each upstream outgoing channel, max(1, configured value) will be used. In other words we
+     * ensure that, for performance reasons, there is at least one buffer per outgoing channel
+     * regardless of the configuration.
      *
      * <p>Reasoning: 1 buffer for in-flight data in the subpartition + 1 buffer for parallel
      * serialization.
@@ -164,9 +168,18 @@ public class NettyShuffleEnvironmentOptions {
             key("taskmanager.network.memory.buffers-per-channel")
                     .defaultValue(2)
                     .withDescription(
-                            "Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel)"
-                                    + " in the credit-based flow control model. It should be configured at least 2 for good performance."
-                                    + " 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.");
+                            "Number of exclusive network buffers to use for each outgoing/incoming "
+                                    + "channel (subpartition/input channel) in the credit-based flow"
+                                    + " control model. It should be configured at least 2 for good "
+                                    + "performance. 1 buffer is for receiving in-flight data in the"
+                                    + " subpartition and 1 buffer is for parallel serialization. The"
+                                    + " minimum valid value that can be configured is 0. When 0 "
+                                    + "buffers-per-channel is configured, the exclusive network "
+                                    + "buffers used per downstream incoming channel will be 0, but "
+                                    + "for each upstream outgoing channel, max(1, configured value)"
+                                    + " will be used. In other words we ensure that, for performance"
+                                    + " reasons, there is at least one buffer per outgoing channel "
+                                    + "regardless of the configuration.");
 
     /**
      * Number of extra network buffers to use for each outgoing/incoming gate (result
