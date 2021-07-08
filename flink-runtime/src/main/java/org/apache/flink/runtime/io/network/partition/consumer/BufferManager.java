@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -85,6 +86,9 @@ public class BufferManager implements BufferListener, BufferRecycler {
     @Nullable
     Buffer requestBuffer() {
         synchronized (bufferQueue) {
+            // decrease the number of buffers require to avoid the possibility of
+            // allocating more than required buffers after the buffer is taken
+            --numRequiredBuffers;
             return bufferQueue.takeBuffer();
         }
     }
@@ -227,9 +231,15 @@ public class BufferManager implements BufferListener, BufferRecycler {
     }
 
     void releaseFloatingBuffers() {
+        Queue<Buffer> buffers;
         synchronized (bufferQueue) {
             numRequiredBuffers = 0;
-            bufferQueue.releaseFloatingBuffers();
+            buffers = bufferQueue.clearFloatingBuffers();
+        }
+
+        // recycle all buffers out of the synchronization block to avoid dead lock
+        while (!buffers.isEmpty()) {
+            buffers.poll().recycleBuffer();
         }
     }
 
@@ -448,11 +458,10 @@ public class BufferManager implements BufferListener, BufferRecycler {
             }
         }
 
-        void releaseFloatingBuffers() {
-            Buffer buffer;
-            while ((buffer = floatingBuffers.poll()) != null) {
-                buffer.recycleBuffer();
-            }
+        Queue<Buffer> clearFloatingBuffers() {
+            Queue<Buffer> buffers = new ArrayDeque<>(floatingBuffers);
+            floatingBuffers.clear();
+            return buffers;
         }
 
         int getAvailableBufferSize() {

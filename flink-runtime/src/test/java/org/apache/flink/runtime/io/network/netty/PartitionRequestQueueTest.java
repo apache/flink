@@ -422,13 +422,11 @@ public class PartitionRequestQueueTest {
         InputChannelID receiverId = new InputChannelID();
         PartitionRequestQueue queue = new PartitionRequestQueue();
         CreditBasedSequenceNumberingViewReader reader =
-                new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+                new CreditBasedSequenceNumberingViewReader(receiverId, 2, queue);
         EmbeddedChannel channel = new EmbeddedChannel(queue);
 
         reader.requestSubpartitionView(partitionProvider, new ResultPartitionID(), 0);
         queue.notifyReaderCreated(reader);
-        // we have adequate credits
-        reader.addCredit(Integer.MAX_VALUE);
         assertTrue(reader.getAvailabilityAndBacklog().isAvailable());
 
         reader.notifyDataAvailable();

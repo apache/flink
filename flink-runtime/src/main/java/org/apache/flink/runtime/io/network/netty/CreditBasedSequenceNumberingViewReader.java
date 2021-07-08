@@ -108,6 +108,11 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void resumeConsumption() {
+        if (initialCredit == 0) {
+            // reset available credit if no exclusive buffer is available at the
+            // consumer side for all floating buffers must have been released
+            numCreditsAvailable = 0;
+        }
         subpartitionView.resumeConsumption();
     }
 

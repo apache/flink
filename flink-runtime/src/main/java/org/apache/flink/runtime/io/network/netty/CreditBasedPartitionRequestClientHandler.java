@@ -39,6 +39,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdap
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayDeque;
@@ -400,6 +402,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             // It is no need to notify credit or resume data consumption for the released channel.
             if (!outboundMessage.inputChannel.isReleased()) {
                 Object msg = outboundMessage.buildMessage();
+                if (msg == null) {
+                    continue;
+                }
 
                 // Write and flush and wait until this is done before
                 // trying to continue with the next input channel.
@@ -436,6 +441,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
             this.inputChannel = inputChannel;
         }
 
+        @Nullable
         abstract Object buildMessage();
     }
 
@@ -447,8 +453,8 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
         @Override
         public Object buildMessage() {
-            return new AddCredit(
-                    inputChannel.getAndResetUnannouncedCredit(), inputChannel.getInputChannelId());
+            int credits = inputChannel.getAndResetUnannouncedCredit();
+            return credits > 0 ? new AddCredit(credits, inputChannel.getInputChannelId()) : null;
         }
     }
 
