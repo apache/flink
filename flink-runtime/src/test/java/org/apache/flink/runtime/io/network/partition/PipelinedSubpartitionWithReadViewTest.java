@@ -501,7 +501,7 @@ public class PipelinedSubpartitionWithReadViewTest {
     }
 
     @Test
-    public void testResumeBlockedSubpartitionWithUnfinishedBuffer()
+    public void testResumeBlockedSubpartitionWithUnfinishedBufferFlushed()
             throws IOException, InterruptedException {
         blockSubpartitionByCheckpoint(1);
 
@@ -514,6 +514,20 @@ public class PipelinedSubpartitionWithReadViewTest {
         // Resumption will make the subpartition available.
         resumeConsumptionAndCheckAvailability(Integer.MAX_VALUE, true);
         assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
+    }
+
+    @Test
+    public void testResumeBlockedSubpartitionWithUnfinishedBufferNotFlushed()
+            throws IOException, InterruptedException {
+        blockSubpartitionByCheckpoint(1);
+
+        // add a buffer but not flush the subpartition.
+        subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
+        // no data available notification after adding a buffer.
+        checkNumNotificationsAndAvailability(1);
+
+        // Resumption will not make the subpartition available since the data is not flushed before.
+        resumeConsumptionAndCheckAvailability(Integer.MAX_VALUE, false);
     }
 
     @Test
@@ -534,7 +548,7 @@ public class PipelinedSubpartitionWithReadViewTest {
     }
 
     @Test
-    public void testResumeBLockedEmptySubpartition() throws IOException, InterruptedException {
+    public void testResumeBlockedEmptySubpartition() throws IOException, InterruptedException {
         blockSubpartitionByCheckpoint(1);
 
         // Resumption will not make the subpartition available since it is empty.
