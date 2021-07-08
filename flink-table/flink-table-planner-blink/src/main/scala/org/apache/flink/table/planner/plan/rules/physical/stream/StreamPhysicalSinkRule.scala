@@ -59,7 +59,7 @@ class StreamPhysicalSinkRule extends ConverterRule(
           val dynamicPartFields = sink.catalogTable.getPartitionKeys
               .filter(!sink.staticPartitions.contains(_))
           val fieldNames = sink.catalogTable
-            .getSchema
+            .getResolvedSchema
             .toPhysicalRowDataType
             .getLogicalType.asInstanceOf[RowType]
             .getFieldNames

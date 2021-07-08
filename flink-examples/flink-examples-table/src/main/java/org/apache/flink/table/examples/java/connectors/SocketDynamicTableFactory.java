@@ -95,7 +95,7 @@ public final class SocketDynamicTableFactory implements DynamicTableSourceFactor
 
         // derive the produced data type (excluding computed columns) from the catalog table
         final DataType producedDataType =
-                context.getCatalogTable().getSchema().toPhysicalRowDataType();
+                context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
         // create and return dynamic table source
         return new SocketDynamicTableSource(
