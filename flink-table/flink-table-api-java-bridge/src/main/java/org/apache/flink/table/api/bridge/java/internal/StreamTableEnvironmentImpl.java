@@ -278,6 +278,13 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
             ChangelogMode changelogMode) {
         Preconditions.checkNotNull(dataStream, "Data stream must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
+
+        if (dataStream.getExecutionEnvironment() != executionEnvironment) {
+            throw new ValidationException(
+                    "The DataStream's StreamExecutionEnvironment must be identical to the one that "
+                            + "has been passed to the StreamTableEnvironment during instantiation.");
+        }
+
         final CatalogManager catalogManager = getCatalogManager();
         final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();

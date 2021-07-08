@@ -134,6 +134,13 @@ class StreamTableEnvironmentImpl (
       @Nullable viewPath: String,
       changelogMode: ChangelogMode): Table = {
     Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
+
+    if (dataStream.getExecutionEnvironment ne scalaExecutionEnvironment.getJavaEnv) {
+      throw new ValidationException(
+        "The DataStream's StreamExecutionEnvironment must be identical to the one that " +
+          "has been passed to the StreamTableEnvironment during instantiation.")
+    }
+
     val catalogManager = getCatalogManager
     val schemaResolver = catalogManager.getSchemaResolver
     val operationTreeBuilder = getOperationTreeBuilder
