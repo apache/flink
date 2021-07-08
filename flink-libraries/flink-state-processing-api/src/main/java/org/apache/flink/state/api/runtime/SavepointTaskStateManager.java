@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
 import org.apache.flink.runtime.state.TaskStateManager;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -85,6 +86,12 @@ final class SavepointTaskStateManager implements TaskStateManager {
     @Override
     public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
         return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        throw new UnsupportedOperationException(MSG);
     }
 
     @Override

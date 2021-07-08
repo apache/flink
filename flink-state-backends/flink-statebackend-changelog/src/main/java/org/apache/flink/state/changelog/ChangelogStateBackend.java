@@ -36,7 +36,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
-import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
@@ -200,8 +200,11 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
             Collection<KeyedStateHandle> stateHandles,
             BaseBackendBuilder<K> baseBackendBuilder)
             throws Exception {
-        // todo: FLINK-21804 get from Environment.getTaskStateManager
-        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
+        StateChangelogStorage<?> changelogStorage =
+                Preconditions.checkNotNull(
+                        env.getTaskStateManager().getStateChangelogStorage(),
+                        "Changelog storage is null when creating and restoring"
+                                + " the ChangelogKeyedStateBackend.");
         return ChangelogBackendRestoreOperation.restore(
                 changelogStorage.createReader(),
                 env.getUserCodeClassLoader().asClassLoader(),

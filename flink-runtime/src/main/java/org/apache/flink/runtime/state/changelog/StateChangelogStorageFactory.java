@@ -19,20 +19,17 @@
 package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * A storage for changelog. Could produce {@link StateChangelogHandleReader} and {@link
- * StateChangelogWriter} for read and write. Please use {@link StateChangelogStorageLoader} to
- * obtain an instance.
+ * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
+ * create {@link StateChangelogStorage}.
  */
 @Internal
-public interface StateChangelogStorage<Handle extends ChangelogStateHandle> extends AutoCloseable {
+public interface StateChangelogStorageFactory {
+    /** Get the identifier for user to use this changelog storage factory. */
+    String getIdentifier();
 
-    StateChangelogWriter<Handle> createWriter(String operatorID, KeyGroupRange keyGroupRange);
-
-    StateChangelogHandleReader<Handle> createReader();
-
-    @Override
-    default void close() throws Exception {}
+    /** Create the storage based on a configuration. */
+    StateChangelogStorage<?> createStorage(Configuration configuration);
 }
