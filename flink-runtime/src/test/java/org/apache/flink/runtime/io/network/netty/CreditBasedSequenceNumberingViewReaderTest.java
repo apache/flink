@@ -26,11 +26,34 @@ import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.Test;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link CreditBasedSequenceNumberingViewReader}. */
 public class CreditBasedSequenceNumberingViewReaderTest {
+
+    @Test
+    public void testResumeConsumption() throws Exception {
+        int numCredits = 2;
+        CreditBasedSequenceNumberingViewReader reader1 =
+                createNetworkSequenceViewReader(numCredits);
+
+        reader1.resumeConsumption();
+        assertEquals(numCredits, reader1.getNumCreditsAvailable());
+
+        reader1.addCredit(numCredits);
+        reader1.resumeConsumption();
+        assertEquals(2 * numCredits, reader1.getNumCreditsAvailable());
+
+        CreditBasedSequenceNumberingViewReader reader2 = createNetworkSequenceViewReader(0);
+
+        reader2.addCredit(numCredits);
+        assertEquals(numCredits, reader2.getNumCreditsAvailable());
+
+        reader2.resumeConsumption();
+        assertEquals(0, reader2.getNumCreditsAvailable());
+    }
 
     @Test
     public void testNeedAnnounceBacklog() throws Exception {
