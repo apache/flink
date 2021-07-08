@@ -646,7 +646,9 @@ public class FlinkKafkaProducer<IN>
                 new FlinkKafkaProducer.TransactionStateSerializer(),
                 new FlinkKafkaProducer.ContextStateSerializer());
 
-        checkArgument(!"".equals(defaultTopic),"defaultTopic is empty");
+        checkArgument(
+                !org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(defaultTopic),
+                "defaultTopic cannot be null or empty string");
         this.defaultTopicId = checkNotNull(defaultTopic, "defaultTopic is null");
         if (kafkaSchema != null) {
             this.keyedSchema = null;
