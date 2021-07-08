@@ -343,7 +343,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                     subpartitionInfo);
             return new BufferAndBacklog(
                     buffer,
-                    getBuffersInBacklog(),
+                    getBuffersInBacklogUnsafe(),
                     isDataAvailableUnsafe() ? getNextBufferTypeUnsafe() : Buffer.DataType.NONE,
                     sequenceNumber++);
         }
@@ -390,14 +390,17 @@ public class PipelinedSubpartition extends ResultSubpartition
         return readView;
     }
 
-    public boolean isAvailable(int numCreditsAvailable) {
+    public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
+            int numCreditsAvailable) {
         synchronized (buffers) {
+            boolean isAvailable;
             if (numCreditsAvailable > 0) {
-                return isDataAvailableUnsafe();
+                isAvailable = isDataAvailableUnsafe();
+            } else {
+                isAvailable = getNextBufferTypeUnsafe().isEvent();
             }
-
-            final Buffer.DataType dataType = getNextBufferTypeUnsafe();
-            return dataType.isEvent();
+            return new ResultSubpartitionView.AvailabilityWithBacklog(
+                    isAvailable, getBuffersInBacklogUnsafe());
         }
     }
 
@@ -443,7 +446,7 @@ public class PipelinedSubpartition extends ResultSubpartition
                 getSubPartitionIndex(),
                 numBuffers,
                 numBytes,
-                getBuffersInBacklog(),
+                getBuffersInBacklogUnsafe(),
                 finished,
                 hasReadView);
     }
@@ -516,16 +519,16 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @SuppressWarnings("FieldAccessNotGuarded")
-    @VisibleForTesting
-    public int getBuffersInBacklog() {
-        if (flushRequested || isFinished) {
+    /** Gets the number of non-event buffers in this subpartition. */
+    @Override
+    public int getBuffersInBacklogUnsafe() {
+        if (isBlocked || buffers.isEmpty()) {
+            return 0;
+        }
+
+        if (flushRequested
+                || isFinished
+                || !checkNotNull(buffers.peekLast()).getBufferConsumer().isBuffer()) {
             return buffersInBacklog;
         } else {
             return Math.max(buffersInBacklog - 1, 0);

@@ -276,7 +276,7 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
         return data.getSize();
     }
 
-    int getBuffersInBacklog() {
+    int getBuffersInBacklogUnsafe() {
         return numDataBuffersWritten;
     }
 
