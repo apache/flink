@@ -241,6 +241,9 @@ public class FileSourceHeavyThroughputTest {
         public void markIdle() {}
 
         @Override
+        public void markActive() {}
+
+        @Override
         public SourceOutput<E> createOutputForSplit(String splitId) {
             return this;
         }

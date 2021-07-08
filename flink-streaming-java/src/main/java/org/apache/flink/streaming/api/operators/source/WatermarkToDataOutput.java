@@ -54,10 +54,7 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         maxWatermarkSoFar = newWatermark;
 
         try {
-            if (isIdle) {
-                output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
-                isIdle = false;
-            }
+            markActiveInternally();
 
             output.emitWatermark(
                     new org.apache.flink.streaming.api.watermark.Watermark(newWatermark));
@@ -82,5 +79,26 @@ public final class WatermarkToDataOutput implements WatermarkOutput {
         } catch (Exception e) {
             throw new ExceptionInChainedOperatorException(e);
         }
+    }
+
+    @Override
+    public void markActive() {
+        try {
+            markActiveInternally();
+        } catch (ExceptionInChainedOperatorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ExceptionInChainedOperatorException(e);
+        }
+    }
+
+    private boolean markActiveInternally() throws Exception {
+        if (!isIdle) {
+            return true;
+        }
+
+        output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
+        isIdle = false;
+        return false;
     }
 }

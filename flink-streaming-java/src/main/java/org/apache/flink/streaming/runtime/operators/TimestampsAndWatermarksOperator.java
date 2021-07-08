@@ -161,18 +161,25 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
 
             currentWatermark = ts;
 
-            if (idle) {
-                idle = false;
-                output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
-            }
+            markActive();
 
             output.emitWatermark(new org.apache.flink.streaming.api.watermark.Watermark(ts));
         }
 
         @Override
         public void markIdle() {
-            idle = true;
-            output.emitWatermarkStatus(WatermarkStatus.IDLE);
+            if (!idle) {
+                idle = true;
+                output.emitWatermarkStatus(WatermarkStatus.IDLE);
+            }
+        }
+
+        @Override
+        public void markActive() {
+            if (idle) {
+                idle = false;
+                output.emitWatermarkStatus(WatermarkStatus.ACTIVE);
+            }
         }
     }
 }
