@@ -116,7 +116,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
@@ -282,7 +281,6 @@ public class HiveCatalog extends AbstractCatalog {
         return hiveConf;
     }
 
-    @VisibleForTesting
     public HiveConf getHiveConf() {
         return hiveConf;
     }
@@ -743,25 +741,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         if (isHiveTable) {
             // Table schema
-            List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable);
-            Set<String> notNullColumns =
-                    client.getNotNullColumns(
-                            hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
-            Optional<UniqueConstraint> primaryKey =
-                    isView
-                            ? Optional.empty()
-                            : client.getPrimaryKey(
-                                    hiveTable.getDbName(),
-                                    hiveTable.getTableName(),
-                                    HiveTableUtil.relyConstraint((byte) 0));
-            // PK columns cannot be null
-            primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
-            tableSchema =
-                    HiveTableUtil.createTableSchema(
-                            fields,
-                            hiveTable.getPartitionKeys(),
-                            notNullColumns,
-                            primaryKey.orElse(null));
+            tableSchema = HiveTableUtil.createTableSchema(hiveConf, hiveTable, client, hiveShim);
 
             if (!hiveTable.getPartitionKeys().isEmpty()) {
                 partitionKeys = getFieldNames(hiveTable.getPartitionKeys());
@@ -797,17 +777,6 @@ public class HiveCatalog extends AbstractCatalog {
                     comment);
         } else {
             return new CatalogTableImpl(tableSchema, partitionKeys, properties, comment);
-        }
-    }
-
-    private List<FieldSchema> getNonPartitionFields(HiveConf hiveConf, Table hiveTable) {
-        if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(
-                hiveConf, hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
-            // get schema from metastore
-            return hiveTable.getSd().getCols();
-        } else {
-            // get schema from deserializer
-            return hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
         }
     }
 
@@ -975,7 +944,7 @@ public class HiveCatalog extends AbstractCatalog {
         List<String> partColNames = getFieldNames(hiveTable.getPartitionKeys());
         Optional<String> filter =
                 HiveTableUtil.makePartitionFilter(
-                        getNonPartitionFields(hiveConf, hiveTable).size(),
+                        HiveTableUtil.getNonPartitionFields(hiveConf, hiveTable, hiveShim).size(),
                         partColNames,
                         expressions,
                         hiveShim);
