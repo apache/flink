@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.internals;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
@@ -53,14 +54,13 @@ public class KafkaTopicsDescriptor implements Serializable {
             fixedTopics.forEach(
                     topic -> {
                         checkArgument(
-                                !org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(topic),
+                                !StringUtils.isNullOrWhitespaceOnly(topic),
                                 "topic in the subscribed topics list cannot be null or empty string.");
                     });
         }
         if (topicPattern != null) {
             checkArgument(
-                    !org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(
-                            topicPattern.toString()),
+                    !StringUtils.isNullOrWhitespaceOnly(topicPattern.toString()),
                     "topicPattern is an empty pattern.");
         }
         this.fixedTopics = fixedTopics;
