@@ -68,7 +68,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
           case act: CatalogTable =>
             val builder = ImmutableSet.builder[ImmutableBitSet]()
 
-            val schema = act.getSchema
+            val schema = act.getResolvedSchema
             if (schema.getPrimaryKey.isPresent) {
               // use relOptTable's type which may be projected based on original schema
               val columns = relOptTable.getRowType.getFieldNames
