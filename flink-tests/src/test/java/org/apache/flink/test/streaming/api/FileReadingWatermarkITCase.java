@@ -21,20 +21,22 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Preconditions;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
@@ -51,6 +53,8 @@ public class FileReadingWatermarkITCase {
     private static final int WATERMARK_INTERVAL_MILLIS = 10;
     private static final int MIN_EXPECTED_WATERMARKS = 5;
 
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
     @Test
     public void testWatermarkEmissionWithChaining() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1);
@@ -58,10 +62,12 @@ public class FileReadingWatermarkITCase {
 
         checkState(env.isChainingEnabled());
 
-        Tuple2<File, String> sourceFileAndLastLine = getSourceFile(FILE_SIZE_LINES);
-        env.readTextFile(sourceFileAndLastLine.f0.getAbsolutePath())
+        Tuple3<File, String, String> sourceFileAndFirstLastLines = getSourceFile(FILE_SIZE_LINES);
+        env.readTextFile(sourceFileAndFirstLastLines.f0.getAbsolutePath())
                 .assignTimestampsAndWatermarks(getExtractorAssigner())
-                .addSink(getWatermarkCounter(sourceFileAndLastLine.f1));
+                .addSink(
+                        getWatermarkCounter(
+                                sourceFileAndFirstLastLines.f1, sourceFileAndFirstLastLines.f2));
 
         JobExecutionResult result = env.execute();
 
@@ -79,17 +85,17 @@ public class FileReadingWatermarkITCase {
                 .5 * expected);
     }
 
-    private Tuple2<File, String> getSourceFile(int numLines) throws IOException {
-        File file = File.createTempFile(UUID.randomUUID().toString(), null);
-        String last = null;
+    private Tuple3<File, String, String> getSourceFile(int numLines) throws IOException {
+        Preconditions.checkArgument(numLines > 0);
+        File file = temporaryFolder.newFile();
+        String first = "0", last = null;
         try (PrintWriter printWriter = new PrintWriter(file)) {
             for (int i = 0; i < numLines; i++) {
                 printWriter.println(i);
                 last = Integer.toString(i);
             }
         }
-        file.deleteOnExit();
-        return Tuple2.of(file, last);
+        return Tuple3.of(file, first, last);
     }
 
     private static BoundedOutOfOrdernessTimestampExtractor<String> getExtractorAssigner() {
@@ -103,7 +109,8 @@ public class FileReadingWatermarkITCase {
         };
     }
 
-    private static SinkFunction<String> getWatermarkCounter(final String lastElement) {
+    private static SinkFunction<String> getWatermarkCounter(
+            final String firstElement, final String lastElement) {
         return new RichSinkFunction<String>() {
             private long start;
             private final IntCounter numWatermarks = new IntCounter();
@@ -115,11 +122,13 @@ public class FileReadingWatermarkITCase {
                 super.open(parameters);
                 getRuntimeContext().addAccumulator(NUM_WATERMARKS_ACC_NAME, numWatermarks);
                 getRuntimeContext().addAccumulator(RUNTIME_ACC_NAME, runtime);
-                start = System.nanoTime();
             }
 
             @Override
             public void invoke(String value, SinkFunction.Context context) {
+                if (value.equals(firstElement)) {
+                    start = System.nanoTime();
+                }
                 if (value.equals(lastElement)) {
                     runtime.add((System.nanoTime() - start) / 1_000_000);
                 }
