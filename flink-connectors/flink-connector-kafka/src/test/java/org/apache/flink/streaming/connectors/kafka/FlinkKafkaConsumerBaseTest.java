@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -97,6 +98,7 @@ import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -697,6 +699,18 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         assertTrue(
                 "partitionDiscoverer should be closed when consumer is closed",
                 testPartitionDiscoverer.isClosed());
+    }
+
+    @Test
+    public void testCreatePartitionDiscovererProperties(){
+        String clientKey = "client.id";
+        String expected = "client-1";
+        Properties properties = new Properties();
+        properties.setProperty(clientKey, expected);
+        Properties partitionDiscovererProperties = FlinkKafkaConsumer.createPartitionDiscovererProperties(
+                properties);
+        String actual = partitionDiscovererProperties.getProperty(clientKey);
+        assertNotEquals(actual, expected);
     }
 
     private void testNormalConsumerLifecycle(FlinkKafkaConsumerBase<String> testKafkaConsumer)
