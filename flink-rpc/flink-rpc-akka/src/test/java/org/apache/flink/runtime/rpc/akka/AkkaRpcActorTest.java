@@ -192,7 +192,7 @@ public class AkkaRpcActorTest extends TestLogger {
 
         assertFalse(terminationFuture.isDone());
 
-        CompletableFuture.runAsync(rpcEndpoint::closeAsync, akkaRpcService.getExecutor());
+        CompletableFuture.runAsync(rpcEndpoint::closeAsync, akkaRpcService.getScheduledExecutor());
 
         // wait until the rpc endpoint has terminated
         terminationFuture.get();
