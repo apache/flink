@@ -28,9 +28,9 @@ under the License.
 
 # Table API
 
-Table API 是批处理和流处理的统一的关系 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对Apache Flink 专门设计的。Table API 集成了 Scala, Java 和 Python 语言的 API。Table API 的查询是使用  Java, Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
+Table API 是批处理和流处理的统一的关系 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对 Apache Flink 专门设计的。Table API 集成了 Scala，Java 和 Python 语言的 API。Table API 的查询是使用  Java，Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
 
-Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个表对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
+Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个 `表` 对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
 下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。 `rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
 
@@ -1018,7 +1018,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。
+join 表和表函数的结果。左（外部）表的每一行都会 join 表函数的相应调用产生的所有行。
 如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
@@ -1066,7 +1066,7 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-join表和表函数的结果。左（外部）表的每一行都会join表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
+join 表和表函数的结果。左（外部）表的每一行都会 join 表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
 
 目前，表函数左外连接的谓词只能为空或字面真。
 
@@ -1347,7 +1347,7 @@ left.minusAll(right)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-和 SQL `IN` 子句类似。如果在给定表的子查询中存在包含in的表达式，则返回true。子查询表必须由一列组成。这个列必须与表达式具有相同的数据类型。
+和 SQL `IN` 子句类似。如果在给定表的子查询中存在包含 in 的表达式，则返回 true。子查询表必须由一列组成。这个列必须与表达式具有相同的数据类型。
 
 {{< tabs "in" >}}
 {{< tab "Java" >}}
@@ -1489,7 +1489,7 @@ Group window 聚合根据时间或行计数间隔将行分为有限组，并为�
 
 {{< tabs "248a1eb3-c75a-404e-957e-08a012cbed51" >}}
 {{< tab "Java" >}}
-窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在 `groupBy(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
 ```java
@@ -1500,7 +1500,7 @@ Table table = input
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`groupBy(...)` 子句中引用。
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在 `groupBy(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
 ```scala
@@ -1511,7 +1511,7 @@ val table = input
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在`group_by(...)` 子句中引用。
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `alias` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在 `group_by(...)` 子句中引用。
 以下示例展示了如何在表上定义窗口聚合。
 
 ```python
@@ -1588,7 +1588,7 @@ table = input.window([w: GroupWindow].alias("w")) \
 {{< /tab >}}
 {{< /tabs >}}
 
-`Window` 参数定义了如何将行映射到窗口。 `Window` 不是用户可以实现的接口。相反，Table API 提供了一组具有特定语义的预定义“Window”类。下面列出了支持的窗口定义。
+`Window` 参数定义了如何将行映射到窗口。 `Window` 不是用户可以实现的接口。相反，Table API 提供了一组具有特定语义的预定义 `Window` 类。下面列出了支持的窗口定义。
 
 #### Tumble (Tumbling Windows)
 
@@ -2158,7 +2158,7 @@ table = input.over_window([w: OverWindow].alias("w")) \
 {{< tabs "map" >}}
 {{< tab "Java" >}}
 
-使用用户定义的标量函数或内置标量函数执行map操作。如果输出类型是复合类型，则输出将被展平。
+使用用户定义的标量函数或内置标量函数执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```java
 public class MyMapFunction extends ScalarFunction {
@@ -2181,7 +2181,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-使用用户定义的标量函数或内置标量函数执行map操作。如果输出类型是复合类型，则输出将被展平。
+使用用户定义的标量函数或内置标量函数执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```scala
 class MyMapFunction extends ScalarFunction {
@@ -2200,7 +2200,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行map操作。如果输出类型是复合类型，则输出将被展平。
+使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2235,7 +2235,7 @@ table = input.map(pandas_func).alias('a', 'b')
 {{< tabs "flatmap" >}}
 {{< tab "Java" >}}
 
-使用表函数执行`flatMap`操作。
+使用表函数执行 `flatMap` 操作。
 
 ```java
 public class MyFlatMapFunction extends TableFunction<Row> {
@@ -2264,7 +2264,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-使用表函数执行`flatMap`操作。
+使用表函数执行 `flatMap` 操作。
 
 ```scala
 class MyFlatMapFunction extends TableFunction[Row] {
@@ -2291,7 +2291,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-通过 python [表函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions)执行`flat_map`操作。
+通过 python [表函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions)执行 `flat_map` 操作。
 
 ```python
 from pyflink.table.udf import udtf
