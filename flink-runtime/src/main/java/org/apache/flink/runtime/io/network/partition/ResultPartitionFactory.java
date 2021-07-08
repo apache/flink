@@ -57,7 +57,7 @@ public class ResultPartitionFactory {
 
     private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
-    private final int networkBuffersPerChannel;
+    private final int configuredNetworkBuffersPerChannel;
 
     private final int floatingNetworkBuffersPerGate;
 
@@ -82,7 +82,7 @@ public class ResultPartitionFactory {
             BatchShuffleReadBufferPool batchShuffleReadBufferPool,
             ExecutorService batchShuffleReadIOExecutor,
             BoundedBlockingSubpartitionType blockingSubpartitionType,
-            int networkBuffersPerChannel,
+            int configuredNetworkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             int networkBufferSize,
             boolean blockingShuffleCompressionEnabled,
@@ -94,7 +94,7 @@ public class ResultPartitionFactory {
 
         this.partitionManager = partitionManager;
         this.channelManager = channelManager;
-        this.networkBuffersPerChannel = networkBuffersPerChannel;
+        this.configuredNetworkBuffersPerChannel = configuredNetworkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.bufferPoolFactory = bufferPoolFactory;
         this.batchShuffleReadBufferPool = batchShuffleReadBufferPool;
@@ -159,11 +159,11 @@ public class ResultPartitionFactory {
                 if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
                     subpartitions[i] =
                             new PipelinedApproximateSubpartition(
-                                    i, networkBuffersPerChannel, pipelinedPartition);
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
                 } else {
                     subpartitions[i] =
                             new PipelinedSubpartition(
-                                    i, networkBuffersPerChannel, pipelinedPartition);
+                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
                 }
             }
 
@@ -269,7 +269,7 @@ public class ResultPartitionFactory {
         return () -> {
             Pair<Integer, Integer> pair =
                     NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
-                            networkBuffersPerChannel,
+                            configuredNetworkBuffersPerChannel,
                             floatingNetworkBuffersPerGate,
                             sortShuffleMinParallelism,
                             sortShuffleMinBuffers,

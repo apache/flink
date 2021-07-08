@@ -32,7 +32,6 @@ import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -87,7 +86,9 @@ public class SingleInputGateFactory {
         this.taskExecutorResourceId = taskExecutorResourceId;
         this.partitionRequestInitialBackoff = networkConfig.partitionRequestInitialBackoff();
         this.partitionRequestMaxBackoff = networkConfig.partitionRequestMaxBackoff();
-        this.networkBuffersPerChannel = networkConfig.networkBuffersPerChannel();
+        this.networkBuffersPerChannel =
+                NettyShuffleUtils.getNetworkBuffersPerInputChannel(
+                        networkConfig.networkBuffersPerChannel());
         this.floatingNetworkBuffersPerGate = networkConfig.floatingNetworkBuffersPerGate();
         this.blockingShuffleCompressionEnabled =
                 networkConfig.isBlockingShuffleCompressionEnabled();
@@ -107,12 +108,7 @@ public class SingleInputGateFactory {
             @Nonnull PartitionProducerStateProvider partitionProducerStateProvider,
             @Nonnull InputChannelMetrics metrics) {
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
-                createBufferPoolFactory(
-                        networkBufferPool,
-                        networkBuffersPerChannel,
-                        floatingNetworkBuffersPerGate,
-                        igdd.getShuffleDescriptors().length,
-                        igdd.getConsumedPartitionType());
+                createBufferPoolFactory(networkBufferPool, floatingNetworkBuffersPerGate);
 
         BufferDecompressor bufferDecompressor = null;
         if (igdd.getConsumedPartitionType().isBlocking() && blockingShuffleCompressionEnabled) {
@@ -235,11 +231,7 @@ public class SingleInputGateFactory {
 
     @VisibleForTesting
     static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
-            BufferPoolFactory bufferPoolFactory,
-            int networkBuffersPerChannel,
-            int floatingNetworkBuffersPerGate,
-            int size,
-            ResultPartitionType type) {
+            BufferPoolFactory bufferPoolFactory, int floatingNetworkBuffersPerGate) {
         Pair<Integer, Integer> pair =
                 NettyShuffleUtils.getMinMaxFloatingBuffersPerInputGate(
                         floatingNetworkBuffersPerGate);

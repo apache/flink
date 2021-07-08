@@ -34,14 +34,30 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  */
 public class NettyShuffleUtils {
 
+    /**
+     * Calculates and returns the number of required exclusive network buffers per input channel.
+     */
+    public static int getNetworkBuffersPerInputChannel(
+            final int configuredNetworkBuffersPerChannel) {
+        return configuredNetworkBuffersPerChannel;
+    }
+
+    /**
+     * Calculates and returns the floating network buffer pool size used by the input gate. The
+     * left/right value of the returned pair represent the min/max buffers require by the pool.
+     */
     public static Pair<Integer, Integer> getMinMaxFloatingBuffersPerInputGate(
             final int numFloatingBuffersPerGate) {
         // We should guarantee at-least one floating buffer for local channel state recovery.
         return Pair.of(1, numFloatingBuffersPerGate);
     }
 
+    /**
+     * Calculates and returns local network buffer pool size used by the result partition. The
+     * left/right value of the returned pair represent the min/max buffers require by the pool.
+     */
     public static Pair<Integer, Integer> getMinMaxNetworkBuffersPerResultPartition(
-            final int numBuffersPerChannel,
+            final int configuredNetworkBuffersPerChannel,
             final int numFloatingBuffersPerGate,
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
@@ -53,9 +69,15 @@ public class NettyShuffleUtils {
                         : numSubpartitions + 1;
         int max =
                 type.isBounded()
-                        ? numSubpartitions * numBuffersPerChannel + numFloatingBuffersPerGate
+                        ? numSubpartitions * configuredNetworkBuffersPerChannel
+                                + numFloatingBuffersPerGate
                         : Integer.MAX_VALUE;
-        return Pair.of(min, max);
+        // for each upstream hash-based blocking/pipelined subpartition, at least one buffer is
+        // needed even the configured network buffers per channel is 0 and this behavior is for
+        // performance. If it's not guaranteed that each subpartition can get at least one buffer,
+        // more partial buffers with little data will be outputted to network/disk and recycled to
+        // be used by other subpartitions which can not get a buffer for data caching.
+        return Pair.of(min, Math.max(min, max));
     }
 
     public static int computeNetworkBuffersForAnnouncing(
@@ -71,7 +93,7 @@ public class NettyShuffleUtils {
         // Each input channel will retain N exclusive network buffers, N = numBuffersPerChannel.
         // Each input gate is guaranteed to have a number of floating buffers.
         int requirementForInputs =
-                numBuffersPerChannel * numTotalInputChannels
+                getNetworkBuffersPerInputChannel(numBuffersPerChannel) * numTotalInputChannels
                         + getMinMaxFloatingBuffersPerInputGate(numFloatingBuffersPerGate).getRight()
                                 * numTotalInputGates;
 
@@ -96,7 +118,7 @@ public class NettyShuffleUtils {
 
     private static int getNumBuffersToAnnounceForResultPartition(
             ResultPartitionType type,
-            int numBuffersPerChannel,
+            int configuredNetworkBuffersPerChannel,
             int floatingBuffersPerGate,
             int sortShuffleMinParallelism,
             int sortShuffleMinBuffers,
@@ -104,7 +126,7 @@ public class NettyShuffleUtils {
 
         Pair<Integer, Integer> minAndMax =
                 getMinMaxNetworkBuffersPerResultPartition(
-                        numBuffersPerChannel,
+                        configuredNetworkBuffersPerChannel,
                         floatingBuffersPerGate,
                         sortShuffleMinParallelism,
                         sortShuffleMinBuffers,

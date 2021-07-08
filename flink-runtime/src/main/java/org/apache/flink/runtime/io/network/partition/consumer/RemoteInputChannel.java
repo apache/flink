@@ -132,6 +132,7 @@ public class RemoteInputChannel extends InputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
+        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
