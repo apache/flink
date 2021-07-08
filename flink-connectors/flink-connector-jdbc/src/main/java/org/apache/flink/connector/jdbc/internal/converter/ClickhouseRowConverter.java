@@ -16,29 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.connector.jdbc.dialect;
+package org.apache.flink.connector.jdbc.internal.converter;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import org.apache.flink.table.types.logical.RowType;
 
-/** Default JDBC dialects. */
-public final class JdbcDialects {
+/**
+ * Runtime converter that responsible to convert between JDBC object and Flink internal object for
+ * MySQL.
+ */
+public class ClickhouseRowConverter extends AbstractJdbcRowConverter {
 
-    private static final List<JdbcDialect> DIALECTS =
-            Arrays.asList(
-                    new DerbyDialect(),
-                    new MySQLDialect(),
-                    new PostgresDialect(),
-                    new ClickhouseDialect());
+    private static final long serialVersionUID = 1L;
 
-    /** Fetch the JdbcDialect class corresponding to a given database url. */
-    public static Optional<JdbcDialect> get(String url) {
-        for (JdbcDialect dialect : DIALECTS) {
-            if (dialect.canHandle(url)) {
-                return Optional.of(dialect);
-            }
-        }
-        return Optional.empty();
+    @Override
+    public String converterName() {
+        return "Clickhouse";
+    }
+
+    public ClickhouseRowConverter(RowType rowType) {
+        super(rowType);
     }
 }
