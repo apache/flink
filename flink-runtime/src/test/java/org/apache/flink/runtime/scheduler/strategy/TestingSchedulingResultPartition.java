@@ -129,6 +129,13 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         this.producer = checkNotNull(producer);
     }
 
+    void markFinished() {
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
+            consumedPartitionGroup.partitionFinished();
+        }
+        setState(ResultPartitionState.CONSUMABLE);
+    }
+
     void setState(ResultPartitionState state) {
         this.state = state;
     }

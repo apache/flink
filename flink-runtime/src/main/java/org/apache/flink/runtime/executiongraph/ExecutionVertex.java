@@ -491,13 +491,17 @@ public class ExecutionVertex
     }
 
     /** Returns all blocking result partitions whose receivers can be scheduled/updated. */
-    List<IntermediateResultPartition> finishAllBlockingPartitions() {
+    @VisibleForTesting
+    public List<IntermediateResultPartition> finishAllBlockingPartitions() {
         List<IntermediateResultPartition> finishedBlockingPartitions = null;
 
         for (IntermediateResultPartition partition : resultPartitions.values()) {
-            if (partition.getResultType().isBlocking() && partition.markFinished()) {
+            if (partition.getResultType().isBlocking()) {
+
+                partition.markFinished();
+
                 if (finishedBlockingPartitions == null) {
-                    finishedBlockingPartitions = new LinkedList<IntermediateResultPartition>();
+                    finishedBlockingPartitions = new LinkedList<>();
                 }
 
                 finishedBlockingPartitions.add(partition);

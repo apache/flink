@@ -969,19 +969,11 @@ public class Execution
     }
 
     private void finishPartitionsAndUpdateConsumers() {
-        final List<IntermediateResultPartition> newlyFinishedResults =
+        final List<IntermediateResultPartition> finishedPartitions =
                 getVertex().finishAllBlockingPartitions();
-        if (newlyFinishedResults.isEmpty()) {
-            return;
-        }
 
-        for (IntermediateResultPartition finishedPartition : newlyFinishedResults) {
-            final IntermediateResultPartition[] allPartitionsOfNewlyFinishedResults =
-                    finishedPartition.getIntermediateResult().getPartitions();
-
-            for (IntermediateResultPartition partition : allPartitionsOfNewlyFinishedResults) {
-                updatePartitionConsumers(partition);
-            }
+        for (IntermediateResultPartition partition : finishedPartitions) {
+            updatePartitionConsumers(partition);
         }
     }
 
