@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -47,8 +46,6 @@ public class IntermediateResult {
 
     private final int numParallelProducers;
 
-    private final AtomicInteger numberOfRunningProducers;
-
     private int partitionsAssigned;
 
     private final int connectionIndex;
@@ -68,8 +65,6 @@ public class IntermediateResult {
         this.numParallelProducers = numParallelProducers;
 
         this.partitions = new IntermediateResultPartition[numParallelProducers];
-
-        this.numberOfRunningProducers = new AtomicInteger(numParallelProducers);
 
         // we do not set the intermediate result partitions here, because we let them be initialized
         // by
@@ -152,23 +147,6 @@ public class IntermediateResult {
         for (IntermediateResultPartition partition : partitions) {
             partition.resetForNewExecution();
         }
-    }
-
-    @VisibleForTesting
-    int getNumberOfRunningProducers() {
-        return numberOfRunningProducers.get();
-    }
-
-    int incrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.incrementAndGet();
-    }
-
-    int decrementNumberOfRunningProducersAndGetRemaining() {
-        return numberOfRunningProducers.decrementAndGet();
-    }
-
-    boolean areAllPartitionsFinished() {
-        return numberOfRunningProducers.get() == 0;
     }
 
     @Override

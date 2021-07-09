@@ -82,18 +82,16 @@ public class IntermediateResultPartition {
     }
 
     public boolean isConsumable() {
-        if (getResultType().isPipelined()) {
-            return hasDataProduced;
-        } else {
-            return totalResult.areAllPartitionsFinished();
-        }
+        return hasDataProduced;
     }
 
     void resetForNewExecution() {
         if (getResultType().isBlocking() && hasDataProduced) {
             // A BLOCKING result partition with data produced means it is finished
             // Need to add the running producer count of the result on resetting it
-            totalResult.incrementNumberOfRunningProducersAndGetRemaining();
+            for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+                consumedPartitionGroup.partitionUnfinished();
+            }
         }
         hasDataProduced = false;
     }
@@ -106,7 +104,7 @@ public class IntermediateResultPartition {
         return edgeManager;
     }
 
-    boolean markFinished() {
+    void markFinished() {
         // Sanity check that this is only called on blocking partitions.
         if (!getResultType().isBlocking()) {
             throw new IllegalStateException(
@@ -121,17 +119,8 @@ public class IntermediateResultPartition {
 
         hasDataProduced = true;
 
-        final int refCnt = totalResult.decrementNumberOfRunningProducersAndGetRemaining();
-
-        if (refCnt == 0) {
-            return true;
-        } else if (refCnt < 0) {
-            throw new IllegalStateException(
-                    "Decremented number of unfinished producers below 0. "
-                            + "This is most likely a bug in the execution state/intermediate result "
-                            + "partition management.");
+        for (ConsumedPartitionGroup consumedPartitionGroup : getConsumedPartitionGroups()) {
+            consumedPartitionGroup.partitionFinished();
         }
-
-        return false;
     }
 }
