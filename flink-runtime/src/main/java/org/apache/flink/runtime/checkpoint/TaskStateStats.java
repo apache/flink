@@ -166,14 +166,14 @@ public class TaskStateStats implements Serializable {
 
         private static final long serialVersionUID = 1009476026522091909L;
 
-        private MinMaxAvgStats stateSize = new MinMaxAvgStats();
-        private MinMaxAvgStats ackTimestamp = new MinMaxAvgStats();
-        private MinMaxAvgStats syncCheckpointDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats asyncCheckpointDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats processedData = new MinMaxAvgStats();
-        private MinMaxAvgStats persistedData = new MinMaxAvgStats();
-        private MinMaxAvgStats alignmentDuration = new MinMaxAvgStats();
-        private MinMaxAvgStats checkpointStartDelay = new MinMaxAvgStats();
+        private StatsSummary stateSize = new StatsSummary();
+        private StatsSummary ackTimestamp = new StatsSummary();
+        private StatsSummary syncCheckpointDuration = new StatsSummary();
+        private StatsSummary asyncCheckpointDuration = new StatsSummary();
+        private StatsSummary processedData = new StatsSummary();
+        private StatsSummary persistedData = new StatsSummary();
+        private StatsSummary alignmentDuration = new StatsSummary();
+        private StatsSummary checkpointStartDelay = new StatsSummary();
 
         void updateSummary(SubtaskStateStats subtaskStats) {
             stateSize.add(subtaskStats.getStateSize());
@@ -188,35 +188,35 @@ public class TaskStateStats implements Serializable {
             checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
         }
 
-        public MinMaxAvgStats getStateSizeStats() {
+        public StatsSummary getStateSizeStats() {
             return stateSize;
         }
 
-        public MinMaxAvgStats getAckTimestampStats() {
+        public StatsSummary getAckTimestampStats() {
             return ackTimestamp;
         }
 
-        public MinMaxAvgStats getSyncCheckpointDurationStats() {
+        public StatsSummary getSyncCheckpointDurationStats() {
             return syncCheckpointDuration;
         }
 
-        public MinMaxAvgStats getAsyncCheckpointDurationStats() {
+        public StatsSummary getAsyncCheckpointDurationStats() {
             return asyncCheckpointDuration;
         }
 
-        public MinMaxAvgStats getProcessedDataStats() {
+        public StatsSummary getProcessedDataStats() {
             return processedData;
         }
 
-        public MinMaxAvgStats getPersistedDataStats() {
+        public StatsSummary getPersistedDataStats() {
             return persistedData;
         }
 
-        public MinMaxAvgStats getAlignmentDurationStats() {
+        public StatsSummary getAlignmentDurationStats() {
             return alignmentDuration;
         }
 
-        public MinMaxAvgStats getCheckpointStartDelayStats() {
+        public StatsSummary getCheckpointStartDelayStats() {
             return checkpointStartDelay;
         }
     }

@@ -66,20 +66,20 @@ public class CompletedCheckpointStatsSummaryTest {
             assertEquals(i + 1, summary.getPersistedDataStats().getCount());
         }
 
-        MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
+        StatsSummary stateSizeStats = summary.getStateSizeStats();
         assertEquals(stateSize, stateSizeStats.getMinimum());
         assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
 
-        MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
+        StatsSummary durationStats = summary.getEndToEndDurationStats();
         assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
         assertEquals(
                 ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
 
-        MinMaxAvgStats processedDataStats = summary.getProcessedDataStats();
+        StatsSummary processedDataStats = summary.getProcessedDataStats();
         assertEquals(processedData, processedDataStats.getMinimum());
         assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
 
-        MinMaxAvgStats persistedDataStats = summary.getPersistedDataStats();
+        StatsSummary persistedDataStats = summary.getPersistedDataStats();
         assertEquals(persistedData, persistedDataStats.getMinimum());
         assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
     }
