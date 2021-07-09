@@ -2309,7 +2309,7 @@ public class JobMasterTest extends TestLogger {
         try {
             jobMaster.start(JobMasterId.generate()).join();
 
-            jobMaster.suspend(new FlinkException("Test exception."));
+            jobMaster.suspend(new FlinkException("Test exception.")).join();
 
             jobMaster.start(JobMasterId.generate()).join();
         } finally {
