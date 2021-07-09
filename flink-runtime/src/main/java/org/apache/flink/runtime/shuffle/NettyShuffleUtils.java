@@ -70,7 +70,7 @@ public class NettyShuffleUtils {
 
         // Each input channel will retain N exclusive network buffers, N = numBuffersPerChannel.
         // Each input gate is guaranteed to have a number of floating buffers.
-        int requirmentForInputs =
+        int requirementForInputs =
                 numBuffersPerChannel * numTotalInputChannels
                         + getMinMaxFloatingBuffersPerInputGate(numFloatingBuffersPerGate).getRight()
                                 * numTotalInputGates;
@@ -91,7 +91,7 @@ public class NettyShuffleUtils {
                             numSubs);
         }
 
-        return requirmentForInputs + requirementForOutputs;
+        return requirementForInputs + requirementForOutputs;
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(
