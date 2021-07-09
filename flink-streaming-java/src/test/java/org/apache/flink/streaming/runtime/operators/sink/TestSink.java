@@ -47,6 +47,8 @@ import static org.junit.Assert.assertNotNull;
 /** A {@link Sink TestSink} for all the sink related tests. */
 public class TestSink implements Sink<Integer, String, String, String> {
 
+    public static final String END_OF_INPUT_STR = "end of input";
+
     private final DefaultSinkWriter writer;
 
     @Nullable private final SimpleVersionedSerializer<String> writerStateSerializer;
@@ -347,7 +349,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
         @Override
         public void endOfInput() {
-            commit(Collections.singletonList("end of input"));
+            commit(Collections.singletonList(END_OF_INPUT_STR));
         }
     }
 
