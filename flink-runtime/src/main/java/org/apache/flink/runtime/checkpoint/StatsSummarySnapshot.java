@@ -18,6 +18,9 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.metrics.HistogramStatistics;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
@@ -30,12 +33,19 @@ public class StatsSummarySnapshot implements Serializable {
     private final long max;
     private final long sum;
     private final long count;
+    @Nullable private final HistogramStatistics histogram;
 
-    public StatsSummarySnapshot(long min, long max, long sum, long count) {
+    public StatsSummarySnapshot(
+            long min, long max, long sum, long count, @Nullable HistogramStatistics histogram) {
         this.min = min;
         this.max = max;
         this.sum = sum;
         this.count = count;
+        this.histogram = histogram;
+    }
+
+    public static StatsSummarySnapshot empty() {
+        return new StatsSummarySnapshot(0, 0, 0, 0, null);
     }
 
     /**
@@ -85,5 +95,16 @@ public class StatsSummarySnapshot implements Serializable {
         } else {
             return sum / count;
         }
+    }
+
+    /**
+     * Returns the value for the given quantile based on the represented histogram statistics or
+     * {@link Double#NaN} if the histogram was not built.
+     *
+     * @param quantile Quantile to calculate the value for
+     * @return Value for the given quantile
+     */
+    public double getQuantile(double quantile) {
+        return histogram == null ? Double.NaN : histogram.getQuantile(quantile);
     }
 }

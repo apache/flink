@@ -166,7 +166,7 @@ public class TaskCheckpointStatisticDetailsHandler
 
         final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment checkpointAlignment =
                 new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-                        new StatsSummaryDto(0, 0, 0),
+                        new StatsSummaryDto(0, 0, 0, 0, 0, 0, 0, 0),
                         StatsSummaryDto.valueOf(taskStatisticsSummary.getProcessedDataStats()),
                         StatsSummaryDto.valueOf(taskStatisticsSummary.getPersistedDataStats()),
                         StatsSummaryDto.valueOf(taskStatisticsSummary.getAlignmentDurationStats()));
@@ -176,7 +176,12 @@ public class TaskCheckpointStatisticDetailsHandler
                 new StatsSummaryDto(
                         Math.max(0L, ackTSStats.getMinimum() - triggerTimestamp),
                         Math.max(0L, ackTSStats.getMaximum() - triggerTimestamp),
-                        Math.max(0L, ackTSStats.getAverage() - triggerTimestamp)),
+                        Math.max(0L, ackTSStats.getAverage() - triggerTimestamp),
+                        ackTSStats.createSnapshot().getQuantile(.50d),
+                        ackTSStats.createSnapshot().getQuantile(.90d),
+                        ackTSStats.createSnapshot().getQuantile(.95d),
+                        ackTSStats.createSnapshot().getQuantile(.99d),
+                        ackTSStats.createSnapshot().getQuantile(.999d)),
                 checkpointDuration,
                 checkpointAlignment,
                 StatsSummaryDto.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));

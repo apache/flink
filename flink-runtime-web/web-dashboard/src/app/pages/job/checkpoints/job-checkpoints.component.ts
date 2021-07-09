@@ -37,6 +37,8 @@ export class JobCheckpointsComponent implements OnInit {
   checkPointConfig: CheckPointConfigInterface;
   jobDetail: JobDetailCorrectInterface;
 
+  moreDetailsPanel = { active: false, disabled: false }
+
   trackHistoryBy(_: number, node: CheckPointHistoryInterface) {
     return node.id;
   }

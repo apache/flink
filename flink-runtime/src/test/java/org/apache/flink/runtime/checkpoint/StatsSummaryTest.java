@@ -86,4 +86,19 @@ public class StatsSummaryTest {
         assertEquals(count, mma.getCount());
         assertEquals(sum / count, mma.getAverage());
     }
+
+    @Test
+    public void testQuantile() {
+        StatsSummary summary = new StatsSummary(100);
+        for (int i = 0; i < 123; i++) {
+            summary.add(100000); // should be forced out by the later values
+        }
+        for (int i = 1; i <= 100; i++) {
+            summary.add(i);
+        }
+        StatsSummarySnapshot snapshot = summary.createSnapshot();
+        for (double q = 0.01; q <= 1; q++) {
+            assertEquals(q, snapshot.getQuantile(q), 1);
+        }
+    }
 }

@@ -18,6 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
+
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
 /**
@@ -40,7 +45,22 @@ public class StatsSummary implements Serializable {
     /** Count of added values. */
     private long count;
 
-    StatsSummary() {}
+    /**
+     * Histogram for the values seen. Must be serializable so that history server can display it.
+     * Not used for min/max/sum because it is a sliding window histogram.
+     */
+    @Nullable private final Histogram histogram;
+
+    StatsSummary() {
+        this(0);
+    }
+
+    StatsSummary(int histogramWindowSize) {
+        this.histogram =
+                histogramWindowSize > 0
+                        ? new DescriptiveStatisticsHistogram(histogramWindowSize)
+                        : null;
+    }
 
     /**
      * Adds the value to the stats if it is >= 0.
@@ -59,6 +79,9 @@ public class StatsSummary implements Serializable {
 
             count++;
             sum += value;
+            if (histogram != null) {
+                histogram.update(value);
+            }
         }
     }
 
@@ -68,7 +91,8 @@ public class StatsSummary implements Serializable {
      * @return A snapshot of the current state.
      */
     public StatsSummarySnapshot createSnapshot() {
-        return new StatsSummarySnapshot(min, max, sum, count);
+        return new StatsSummarySnapshot(
+                min, max, sum, count, histogram == null ? null : histogram.getStatistics());
     }
 
     /**
