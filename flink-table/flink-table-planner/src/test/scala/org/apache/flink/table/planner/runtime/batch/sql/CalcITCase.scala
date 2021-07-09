@@ -1492,4 +1492,33 @@ class CalcITCase extends BatchTestBase {
       "SELECT IF(a = '' OR a IS NULL, 'a', 'b') FROM MyTable",
       Seq(row('a'), row('b'), row('a')))
   }
+
+  @Test
+  def testFilterConditionWithCast(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(1, "true"),
+        row(2, "false"),
+        row(3, "invalid"),
+        row(4, null)))
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      "select a from MyTable where cast(b as boolean)",
+      Seq(row(1)))
+    checkResult(
+      "select cast(b as boolean) from MyTable",
+      Seq(row(true), row(false), row(null), row(null)))
+  }
 }
