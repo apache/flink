@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -36,6 +38,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import akka.actor.ActorRef;
@@ -372,7 +375,10 @@ public class AkkaRpcActorTest extends TestLogger {
             terminationFuture.get();
 
             assertThat(endpoint.getNumberAsyncOperationCalls(), is(1));
-            assertThat(secondAsyncOperationFuture.isDone(), is(false));
+            assertThat(
+                    secondAsyncOperationFuture,
+                    FlinkMatchers.futureWillCompleteExceptionally(
+                            RecipientUnreachableException.class, TimeUtils.toDuration(timeout)));
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, timeout);
         }
