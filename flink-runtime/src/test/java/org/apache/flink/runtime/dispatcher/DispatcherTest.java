@@ -651,10 +651,10 @@ public class DispatcherTest extends TestLogger {
         // INITIALIZING status
         // after the jobMasterLeaderElectionService has been started.
         CompletableFuture<JobStatus> jobStatusFuture = null;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 50; i++) {
             jobStatusFuture = dispatcherGateway.requestJobStatus(jobGraph.getJobID(), TIMEOUT);
             try {
-                JobStatus status = jobStatusFuture.get(10, TimeUnit.MILLISECONDS);
+                JobStatus status = jobStatusFuture.get(200, TimeUnit.MILLISECONDS);
                 if (status == JobStatus.INITIALIZING) {
                     jobStatusFuture = null;
                     Thread.sleep(100);
