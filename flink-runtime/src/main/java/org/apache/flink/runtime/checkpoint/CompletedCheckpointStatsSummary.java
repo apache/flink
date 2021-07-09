@@ -27,6 +27,8 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 
     private static final long serialVersionUID = 5784360461635814038L;
 
+    private static final int HISTOGRAM_WINDOW_SIZE = 10_000; // ~300Kb per job with four histograms
+
     /** State size statistics for all completed checkpoints. */
     private final StatsSummary stateSize;
 
@@ -38,7 +40,11 @@ public class CompletedCheckpointStatsSummary implements Serializable {
     private final StatsSummary persistedData;
 
     CompletedCheckpointStatsSummary() {
-        this(new StatsSummary(), new StatsSummary(), new StatsSummary(), new StatsSummary());
+        this(
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE));
     }
 
     private CompletedCheckpointStatsSummary(
