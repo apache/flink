@@ -43,7 +43,10 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
@@ -54,6 +57,10 @@ import java.util.concurrent.TimeoutException;
 /** A class containing RabbitMQ source tests against a real RabbiMQ cluster. */
 public class RMQSourceITCase {
 
+    private static final Logger LOG = LoggerFactory.getLogger(RMQSourceITCase.class);
+    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
+
+    private static final int HANDSHAKE_TIMEOUT = 30000;
     private static final int RABBITMQ_PORT = 5672;
     private static final String QUEUE_NAME = "test-queue";
     private static final JobID JOB_ID = new JobID();
@@ -75,6 +82,7 @@ public class RMQSourceITCase {
     public static final RabbitMQContainer RMQ_CONTAINER =
             new RabbitMQContainer(DockerImageName.parse(DockerImageVersions.RABBITMQ))
                     .withExposedPorts(RABBITMQ_PORT)
+                    .withLogConsumer(LOG_CONSUMER)
                     .waitingFor(Wait.forListeningPort());
 
     @Before
@@ -124,6 +132,7 @@ public class RMQSourceITCase {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setUsername(RMQ_CONTAINER.getAdminUsername());
         factory.setPassword(RMQ_CONTAINER.getAdminPassword());
+        factory.setHandshakeTimeout(HANDSHAKE_TIMEOUT);
         factory.setVirtualHost("/");
         factory.setHost(RMQ_CONTAINER.getHost());
         factory.setPort(RMQ_CONTAINER.getAmqpPort());
