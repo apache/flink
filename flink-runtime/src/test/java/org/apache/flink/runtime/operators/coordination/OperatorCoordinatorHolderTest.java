@@ -30,10 +30,13 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -370,6 +373,70 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testCheckpointFailsIfSendingEventFailedAfterTrigger() throws Exception {
+        CompletableFuture<Acknowledge> eventSendingResult = new CompletableFuture<>();
+        final EventReceivingTasks tasks =
+                EventReceivingTasks.createForRunningTasksWithRpcResult(eventSendingResult);
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new);
+
+        // Send one event without finishing it.
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0));
+
+        // Trigger one checkpoint.
+        CompletableFuture<byte[]> checkpointResult = new CompletableFuture<>();
+        holder.checkpointCoordinator(1, checkpointResult);
+        getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
+
+        // Fail the event sending.
+        eventSendingResult.completeExceptionally(new RuntimeException("Artificial"));
+
+        assertTrue(checkpointResult.isCompletedExceptionally());
+    }
+
+    @Test
+    public void testCheckpointFailsIfSendingEventFailedBeforeTrigger() throws Exception {
+        final ReorderableManualExecutorService executor = new ReorderableManualExecutorService();
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                new ComponentMainThreadExecutorServiceAdapter(
+                        (ScheduledExecutorService) executor, Thread.currentThread());
+
+        CompletableFuture<Acknowledge> eventSendingResult = new CompletableFuture<>();
+        final EventReceivingTasks tasks =
+                EventReceivingTasks.createForRunningTasksWithRpcResult(eventSendingResult);
+
+        final OperatorCoordinatorHolder holder =
+                createCoordinatorHolder(tasks, TestingOperatorCoordinator::new, mainThreadExecutor);
+
+        // Send one event without finishing it.
+        getCoordinator(holder).getSubtaskGateway(0).sendEvent(new TestOperatorEvent(0));
+        executor.triggerAll();
+
+        // Finish the event sending. This will insert one runnable that handles
+        // failed events to the executor. And we delay this runnable to
+        // simulates checkpoints triggered before the failure get processed.
+        executor.setDelayNewRunnables(true);
+        eventSendingResult.completeExceptionally(new RuntimeException("Artificial"));
+        executor.setDelayNewRunnables(false);
+
+        // Trigger one checkpoint, the checkpoint should not be confirmed
+        // before the failure get triggered.
+        CompletableFuture<byte[]> checkpointResult = new CompletableFuture<>();
+        holder.checkpointCoordinator(1, checkpointResult);
+        executor.triggerAll();
+        getCoordinator(holder).getLastTriggeredCheckpoint().complete(new byte[0]);
+        executor.triggerAll();
+        assertFalse(checkpointResult.isDone());
+
+        // Then the failure finally get processed by fail the corresponding tasks.
+        executor.executeAllDelayedRunnables();
+        executor.triggerAll();
+
+        // The checkpoint would be finally confirmed.
+        assertTrue(checkpointResult.isCompletedExceptionally());
+    }
+
     // ------------------------------------------------------------------------
     //   test actions
     // ------------------------------------------------------------------------
@@ -444,6 +511,33 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
         holder.start();
 
         return holder;
+    }
+
+    private static class ReorderableManualExecutorService
+            extends ManuallyTriggeredScheduledExecutorService {
+
+        private boolean delayNewRunnables;
+
+        private final Queue<Runnable> delayedRunnables = new ArrayDeque<>();
+
+        public void setDelayNewRunnables(boolean delayNewRunnables) {
+            this.delayNewRunnables = delayNewRunnables;
+        }
+
+        @Override
+        public void execute(@Nonnull Runnable command) {
+            if (delayNewRunnables) {
+                delayedRunnables.add(command);
+            } else {
+                super.execute(command);
+            }
+        }
+
+        public void executeAllDelayedRunnables() {
+            while (!delayedRunnables.isEmpty()) {
+                super.execute(delayedRunnables.poll());
+            }
+        }
     }
 
     // ------------------------------------------------------------------------

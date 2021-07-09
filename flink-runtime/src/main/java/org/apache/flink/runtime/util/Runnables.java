@@ -22,6 +22,16 @@ package org.apache.flink.runtime.util;
 public class Runnables {
 
     /**
+     * Asserts that the given {@link Runnable} does not throw exceptions. If the runnable throws
+     * exceptions, then it will call the {@link FatalExitExceptionHandler}.
+     *
+     * @param runnable to assert for no exceptions
+     */
+    public static void assertNoException(Runnable runnable) {
+        withUncaughtExceptionHandler(runnable, FatalExitExceptionHandler.INSTANCE).run();
+    }
+
+    /**
      * Guard {@link Runnable} with uncaughtException handler, because {@link
      * java.util.concurrent.ScheduledExecutorService} does not respect the one assigned to executing
      * {@link Thread} instance.
