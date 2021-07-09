@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.StatsSummary;
+import org.apache.flink.runtime.checkpoint.StatsSummarySnapshot;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -43,8 +44,13 @@ public final class StatsSummaryDto {
     @JsonProperty(FIELD_NAME_AVERAGE)
     private final long average;
 
-    public static StatsSummaryDto valueOf(StatsSummary stats) {
-        return new StatsSummaryDto(stats.getMinimum(), stats.getMaximum(), stats.getAverage());
+    public static StatsSummaryDto valueOf(StatsSummary s) {
+        return valueOf(s.createSnapshot());
+    }
+
+    public static StatsSummaryDto valueOf(StatsSummarySnapshot snapshot) {
+        return new StatsSummaryDto(
+                snapshot.getMinimum(), snapshot.getMaximum(), snapshot.getAverage());
     }
 
     @JsonCreator

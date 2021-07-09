@@ -70,12 +70,12 @@ public class CompletedCheckpointStatsSummary implements Serializable {
      *
      * @return A snapshot of the current state.
      */
-    CompletedCheckpointStatsSummary createSnapshot() {
-        return new CompletedCheckpointStatsSummary(
-                stateSize.createSnapshot(),
+    CompletedCheckpointStatsSummarySnapshot createSnapshot() {
+        return new CompletedCheckpointStatsSummarySnapshot(
                 duration.createSnapshot(),
                 processedData.createSnapshot(),
-                persistedData.createSnapshot());
+                persistedData.createSnapshot(),
+                stateSize.createSnapshot());
     }
 
     /**
