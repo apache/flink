@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.util.IterableUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,8 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
 
     private final List<ConsumerVertexGroup> consumerVertexGroups;
 
+    private final List<ConsumedPartitionGroup> consumedPartitionGroups;
+
     private final Map<ExecutionVertexID, TestingSchedulingExecutionVertex> executionVerticesById;
 
     private ResultPartitionState state;
@@ -58,6 +61,7 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         this.intermediateResultPartitionID =
                 new IntermediateResultPartitionID(dataSetID, partitionNum);
         this.consumerVertexGroups = new ArrayList<>();
+        this.consumedPartitionGroups = new ArrayList<>();
         this.executionVerticesById = new HashMap<>();
     }
 
@@ -96,6 +100,11 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
         return consumerVertexGroups;
     }
 
+    @Override
+    public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
+        return Collections.unmodifiableList(consumedPartitionGroups);
+    }
+
     void addConsumer(TestingSchedulingExecutionVertex consumer) {
         this.consumerVertexGroups.add(ConsumerVertexGroup.fromSingleVertex(consumer.getId()));
         this.executionVerticesById.putIfAbsent(consumer.getId(), consumer);
@@ -106,6 +115,14 @@ public class TestingSchedulingResultPartition implements SchedulingResultPartiti
             Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById) {
         this.consumerVertexGroups.add(consumerVertexGroup);
         this.executionVerticesById.putAll(consumerVertexById);
+    }
+
+    void registerConsumedPartitionGroup(ConsumedPartitionGroup consumedPartitionGroup) {
+        consumedPartitionGroups.add(consumedPartitionGroup);
+
+        if (getState() == ResultPartitionState.CONSUMABLE) {
+            consumedPartitionGroup.partitionFinished();
+        }
     }
 
     void setProducer(TestingSchedulingExecutionVertex producer) {

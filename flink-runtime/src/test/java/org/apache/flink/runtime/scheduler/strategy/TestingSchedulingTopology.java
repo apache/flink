@@ -372,6 +372,10 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 consumer.addConsumedPartitionGroup(consumedPartitionGroup, consumedPartitionById);
             }
 
+            for (TestingSchedulingResultPartition resultPartition : resultPartitions) {
+                resultPartition.registerConsumedPartitionGroup(consumedPartitionGroup);
+            }
+
             return resultPartitions;
         }
     }

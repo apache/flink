@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 
 import java.util.List;
@@ -72,6 +73,10 @@ public class IntermediateResultPartition {
         return getEdgeManager().getConsumerVertexGroupsForPartition(partitionId);
     }
 
+    public List<ConsumedPartitionGroup> getConsumedPartitionGroups() {
+        return getEdgeManager().getConsumedPartitionGroupsById(partitionId);
+    }
+
     public void markDataProduced() {
         hasDataProduced = true;
     }
@@ -106,6 +111,12 @@ public class IntermediateResultPartition {
         if (!getResultType().isBlocking()) {
             throw new IllegalStateException(
                     "Tried to mark a non-blocking result partition as finished");
+        }
+
+        // Sanity check to make sure a result partition cannot be marked as finished twice.
+        if (hasDataProduced) {
+            throw new IllegalStateException(
+                    "Tried to mark a finished result partition as finished.");
         }
 
         hasDataProduced = true;
