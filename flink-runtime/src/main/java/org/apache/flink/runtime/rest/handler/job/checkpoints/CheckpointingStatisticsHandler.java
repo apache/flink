@@ -129,7 +129,7 @@ public class CheckpointingStatisticsHandler
                             StatsSummaryDto.valueOf(checkpointStatsSummary.getStateSizeStats()),
                             StatsSummaryDto.valueOf(
                                     checkpointStatsSummary.getEndToEndDurationStats()),
-                            new StatsSummaryDto(0, 0, 0),
+                            new StatsSummaryDto(0, 0, 0, 0, 0, 0, 0, 0),
                             StatsSummaryDto.valueOf(checkpointStatsSummary.getProcessedDataStats()),
                             StatsSummaryDto.valueOf(
                                     checkpointStatsSummary.getPersistedDataStats()));

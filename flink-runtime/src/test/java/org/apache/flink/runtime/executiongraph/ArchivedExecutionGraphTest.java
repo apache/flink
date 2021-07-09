@@ -259,7 +259,12 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         StatsSummarySnapshot::getMinimum,
                         StatsSummarySnapshot::getMaximum,
                         StatsSummarySnapshot::getSum,
-                        StatsSummarySnapshot::getCount);
+                        StatsSummarySnapshot::getCount,
+                        s -> s.getQuantile(0.5d),
+                        s -> s.getQuantile(0.9d),
+                        s -> s.getQuantile(0.95d),
+                        s -> s.getQuantile(0.99d),
+                        s -> s.getQuantile(0.999d));
         for (Function<CompletedCheckpointStatsSummarySnapshot, StatsSummarySnapshot> meter :
                 meters) {
             StatsSummarySnapshot runtime = meter.apply(runtimeSnapshot.getSummaryStats());
