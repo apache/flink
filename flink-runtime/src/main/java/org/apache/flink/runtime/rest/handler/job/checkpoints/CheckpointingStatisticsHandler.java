@@ -23,7 +23,7 @@ import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsCounts;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.CompletedCheckpointStatsSummary;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStatsSummarySnapshot;
 import org.apache.flink.runtime.checkpoint.RestoredCheckpointStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -121,7 +121,7 @@ public class CheckpointingStatisticsHandler
                             checkpointStatsCounts.getNumberOfCompletedCheckpoints(),
                             checkpointStatsCounts.getNumberOfFailedCheckpoints());
 
-            final CompletedCheckpointStatsSummary checkpointStatsSummary =
+            final CompletedCheckpointStatsSummarySnapshot checkpointStatsSummary =
                     checkpointStatsSnapshot.getSummaryStats();
 
             final CheckpointingStatistics.Summary summary =

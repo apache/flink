@@ -42,13 +42,6 @@ public class StatsSummary implements Serializable {
 
     StatsSummary() {}
 
-    private StatsSummary(long min, long max, long sum, long count) {
-        this.min = min;
-        this.max = max;
-        this.sum = sum;
-        this.count = count;
-    }
-
     /**
      * Adds the value to the stats if it is >= 0.
      *
@@ -74,8 +67,8 @@ public class StatsSummary implements Serializable {
      *
      * @return A snapshot of the current state.
      */
-    StatsSummary createSnapshot() {
-        return new StatsSummary(min, max, sum, count);
+    public StatsSummarySnapshot createSnapshot() {
+        return new StatsSummarySnapshot(min, max, sum, count);
     }
 
     /**
