@@ -28,6 +28,7 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
+import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -138,7 +139,7 @@ public class SlotPoolUtils {
     }
 
     public static void failAllocation(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             AllocationID allocationId,
             Exception exception) {
@@ -148,7 +149,7 @@ public class SlotPoolUtils {
     }
 
     public static void releaseTaskManager(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             ResourceID taskManagerResourceId) {
         CompletableFuture.runAsync(
@@ -156,6 +157,16 @@ public class SlotPoolUtils {
                                 slotPool.releaseTaskManager(
                                         taskManagerResourceId,
                                         new FlinkException("Let's get rid of the offered slot.")),
+                        mainThreadExecutor)
+                .join();
+    }
+
+    public static void notifyNotEnoughResourcesAvailable(
+            SlotPoolService slotPoolService,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            Collection<ResourceRequirement> acquiredResources) {
+        CompletableFuture.runAsync(
+                        () -> slotPoolService.notifyNotEnoughResourcesAvailable(acquiredResources),
                         mainThreadExecutor)
                 .join();
     }

@@ -414,7 +414,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
     }
 
-    private void checkBatchSlotTimeout() {
+    void checkBatchSlotTimeout() {
+        assertRunningInMainThread();
+
         if (isBatchSlotRequestTimeoutCheckDisabled) {
             return;
         }
@@ -549,7 +551,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
 
         public void markUnfulfillable(long currentTimestamp) {
-            this.unfulfillableSince = currentTimestamp;
+            if (isFulfillable()) {
+                this.unfulfillableSince = currentTimestamp;
+            }
+        }
+
+        private boolean isFulfillable() {
+            return this.unfulfillableSince == Long.MAX_VALUE;
         }
 
         public long getUnfulfillableSince() {
