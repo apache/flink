@@ -75,7 +75,22 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
-  def testTopNth(): Unit = {
+  def testTop1(): Unit = {
+    val expected = List(
+      "book,2,19,1",
+      "fruit,3,44,1")
+    testTopNthBase(1, expected)
+  }
+
+  @Test
+  def testTop2(): Unit = {
+    val expected = List(
+      "book,1,12,2",
+      "fruit,4,33,2")
+    testTopNthBase(2, expected)
+  }
+
+  def testTopNthBase(rankNo: Int, expected: List[String]): Unit = {
     val data = List(
       ("book", 1, 12),
       ("book", 2, 19),
@@ -88,22 +103,19 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("T", ds)
 
     val sql =
-      """
+      s"""
         |SELECT *
         |FROM (
         |  SELECT category, shopId, num,
         |      ROW_NUMBER() OVER (PARTITION BY category ORDER BY num DESC) as rank_num
         |  FROM T)
-        |WHERE rank_num = 2
+        |WHERE rank_num = $rankNo
       """.stripMargin
 
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = List(
-      "book,1,12,2",
-      "fruit,4,33,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -550,7 +562,22 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 
   @Test
-  def testTopNthWithGroupByCount(): Unit = {
+  def testTop1WithGroupByCount(): Unit = {
+    val expected = List(
+      "book,1,5,4",
+      "fruit,1,3,5")
+    testTopNthWithGroupByCountBase(1, expected)
+  }
+
+  @Test
+  def testTop3WithGroupByCount(): Unit = {
+    val expected = List(
+      "book,3,2,2",
+      "fruit,3,1,3")
+    testTopNthWithGroupByCountBase(3, expected)
+  }
+
+  def testTopNthWithGroupByCountBase(rankNo: Int, expected: List[String]): Unit = {
     val data = List(
       ("book", 1, 1001),
       ("book", 2, 1002),
@@ -575,7 +602,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.registerTable("T", ds)
 
     val sql =
-      """
+      s"""
         |SELECT category, rank_num, sells, shopId
         |FROM (
         |  SELECT category, shopId, sells,
@@ -585,7 +612,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         |     FROM T
         |     GROUP BY category, shopId
         |  ))
-        |WHERE rank_num = 3
+        |WHERE rank_num = $rankNo
       """.stripMargin
 
     val table = tEnv.sqlQuery(sql)
@@ -596,9 +623,6 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
     table.executeInsert("MySink").await()
 
-    val expected = List(
-      "book,3,2,2",
-      "fruit,3,1,3")
     assertEquals(expected.sorted, sink.getUpsertResults.sorted)
   }
 
