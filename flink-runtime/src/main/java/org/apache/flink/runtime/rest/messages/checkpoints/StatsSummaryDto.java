@@ -18,15 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages.checkpoints;
 
-import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
+import org.apache.flink.runtime.checkpoint.StatsSummary;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
-/** Minimum, maximum and average statistics. */
-public final class MinMaxAvgStatistics {
+/** Transfer object for {@link StatsSummary statistics summary}. */
+public final class StatsSummaryDto {
 
     public static final String FIELD_NAME_MINIMUM = "min";
 
@@ -43,12 +43,12 @@ public final class MinMaxAvgStatistics {
     @JsonProperty(FIELD_NAME_AVERAGE)
     private final long average;
 
-    public static MinMaxAvgStatistics valueOf(MinMaxAvgStats stats) {
-        return new MinMaxAvgStatistics(stats.getMinimum(), stats.getMaximum(), stats.getAverage());
+    public static StatsSummaryDto valueOf(StatsSummary stats) {
+        return new StatsSummaryDto(stats.getMinimum(), stats.getMaximum(), stats.getAverage());
     }
 
     @JsonCreator
-    public MinMaxAvgStatistics(
+    public StatsSummaryDto(
             @JsonProperty(FIELD_NAME_MINIMUM) long minimum,
             @JsonProperty(FIELD_NAME_MAXIMUM) long maximum,
             @JsonProperty(FIELD_NAME_AVERAGE) long average) {
@@ -77,7 +77,7 @@ public final class MinMaxAvgStatistics {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        MinMaxAvgStatistics that = (MinMaxAvgStatistics) o;
+        StatsSummaryDto that = (StatsSummaryDto) o;
         return minimum == that.minimum && maximum == that.maximum && average == that.average;
     }
 

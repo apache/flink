@@ -20,8 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 
 import java.io.Serializable;
 
-/** Helper for keeping track of min/max/average summaries. */
-public class MinMaxAvgStats implements Serializable {
+/**
+ * Aggregated values of some measurement such as min/max/average state size. Used in reporting
+ * {@link CompletedCheckpointStatsSummary checkpoint statistics}.
+ */
+public class StatsSummary implements Serializable {
 
     private static final long serialVersionUID = 1769601903483446707L;
 
@@ -37,9 +40,9 @@ public class MinMaxAvgStats implements Serializable {
     /** Count of added values. */
     private long count;
 
-    MinMaxAvgStats() {}
+    StatsSummary() {}
 
-    private MinMaxAvgStats(long min, long max, long sum, long count) {
+    private StatsSummary(long min, long max, long sum, long count) {
         this.min = min;
         this.max = max;
         this.sum = sum;
@@ -71,8 +74,8 @@ public class MinMaxAvgStats implements Serializable {
      *
      * @return A snapshot of the current state.
      */
-    MinMaxAvgStats createSnapshot() {
-        return new MinMaxAvgStats(min, max, sum, count);
+    StatsSummary createSnapshot() {
+        return new StatsSummary(min, max, sum, count);
     }
 
     /**

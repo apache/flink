@@ -24,12 +24,12 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
 
-public class MinMaxAvgStatsTest {
+public class StatsSummaryTest {
 
     /** Test the initial/empty state. */
     @Test
     public void testInitialState() throws Exception {
-        MinMaxAvgStats mma = new MinMaxAvgStats();
+        StatsSummary mma = new StatsSummary();
 
         assertEquals(0, mma.getMinimum());
         assertEquals(0, mma.getMaximum());
@@ -41,7 +41,7 @@ public class MinMaxAvgStatsTest {
     /** Test that non-positive numbers are not counted. */
     @Test
     public void testAddNonPositiveStats() throws Exception {
-        MinMaxAvgStats mma = new MinMaxAvgStats();
+        StatsSummary mma = new StatsSummary();
         mma.add(-1);
 
         assertEquals(0, mma.getMinimum());
@@ -64,7 +64,7 @@ public class MinMaxAvgStatsTest {
     public void testAddRandomNumbers() throws Exception {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
-        MinMaxAvgStats mma = new MinMaxAvgStats();
+        StatsSummary mma = new StatsSummary();
 
         long count = 13;
         long sum = 0;
