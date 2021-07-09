@@ -486,6 +486,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         };
     }
 
+    @VisibleForTesting
+    public int getNumPendingRequests() {
+        return pendingRequests.size();
+    }
+
     private static final class PendingRequest {
 
         private final SlotRequestId slotRequestId;

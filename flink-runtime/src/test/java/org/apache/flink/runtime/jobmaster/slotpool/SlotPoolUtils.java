@@ -95,7 +95,7 @@ public class SlotPoolUtils {
     }
 
     public static ResourceID offerSlots(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles) {
         return offerSlots(
@@ -106,7 +106,7 @@ public class SlotPoolUtils {
     }
 
     public static ResourceID offerSlots(
-            SlotPoolImpl slotPool,
+            SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles,
             TaskManagerGateway taskManagerGateway) {
