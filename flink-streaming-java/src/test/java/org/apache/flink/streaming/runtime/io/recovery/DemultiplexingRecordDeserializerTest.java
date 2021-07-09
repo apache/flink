@@ -280,8 +280,8 @@ public class DemultiplexingRecordDeserializerTest {
         }
 
         @Override
-        public boolean isBroadcast() {
-            return false;
+        public SelectorType getType() {
+            return SelectorType.SELECTABLE;
         }
     }
 }

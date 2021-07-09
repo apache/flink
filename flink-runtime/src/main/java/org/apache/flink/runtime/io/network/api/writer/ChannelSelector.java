@@ -36,16 +36,6 @@ public interface ChannelSelector<T extends IOReadableWritable> {
     void setup(int numberOfChannels);
 
     /**
-     * Initializes the channel selector with the {@link ResultPartitionWriter} if possible.
-     *
-     * @param writer the total number of output channels which are attached to respective output
-     *     gate.
-     */
-    default void optionalSetup(ResultPartitionWriter writer) {
-        setup(writer.getNumberOfSubpartitions());
-    }
-
-    /**
      * Returns the logical channel index, to which the given record should be written. It is illegal
      * to call this method for broadcast channel selectors and this method can remain not
      * implemented in that case (for example by throwing {@link UnsupportedOperationException}).
@@ -56,10 +46,16 @@ public interface ChannelSelector<T extends IOReadableWritable> {
      */
     int selectChannel(T record);
 
-    /**
-     * Returns whether the channel selector always selects all the output channels.
-     *
-     * @return true if the selector is for broadcast mode.
-     */
-    boolean isBroadcast();
+    /** @return one of {@link SelectorType} corresponded to this selector. */
+    SelectorType getType();
+
+    /** Type of the selector. */
+    enum SelectorType {
+        /** The channel can be selected according to inner rules of current selector. */
+        SELECTABLE,
+        /** The channel selector always selects all the output channels. */
+        BROADCAST,
+        /** The channel always selects based on the load of the subpartition. */
+        LOAD_BASED
+    }
 }

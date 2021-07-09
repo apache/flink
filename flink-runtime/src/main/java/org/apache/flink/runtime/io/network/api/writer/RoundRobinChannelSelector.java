@@ -46,7 +46,7 @@ public class RoundRobinChannelSelector<T extends IOReadableWritable> implements 
     }
 
     @Override
-    public boolean isBroadcast() {
-        return false;
+    public SelectorType getType() {
+        return SelectorType.SELECTABLE;
     }
 }

@@ -23,14 +23,12 @@ import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.SubpartitionStatistic;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -51,12 +49,10 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
 
     int getNumberOfSubpartitions();
 
-    List<SubpartitionStatistic> getSubpartitionsStatistics();
-
     int getNumTargetKeyGroups();
 
     /** Writes the given serialized record to the target subpartition. */
-    void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
+    long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
     /**
      * Writes the given serialized record to all subpartitions. One can also achieve the same effect

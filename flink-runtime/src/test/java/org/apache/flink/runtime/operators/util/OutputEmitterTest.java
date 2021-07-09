@@ -316,7 +316,7 @@ public class OutputEmitterTest {
             ShipStrategyType shipStrategyType, TypeComparator comparator, int numberOfChannels) {
         final ChannelSelector selector = new OutputEmitter<>(shipStrategyType, comparator);
         selector.setup(numberOfChannels);
-        assertEquals(shipStrategyType == ShipStrategyType.BROADCAST, selector.isBroadcast());
+        assertEquals(shipStrategyType == ShipStrategyType.BROADCAST, selector.getType());
         return selector;
     }
 

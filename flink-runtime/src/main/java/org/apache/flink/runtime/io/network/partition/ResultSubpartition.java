@@ -52,6 +52,10 @@ public abstract class ResultSubpartition {
 
     protected abstract long getTotalNumberOfBytes();
 
+    /**
+     * The total number of bytes which were sent. The access should be only from the the writing
+     * thread.
+     */
     protected abstract long getWritingThreadTotalNumberOfSentBytes();
 
     public int getSubPartitionIndex() {

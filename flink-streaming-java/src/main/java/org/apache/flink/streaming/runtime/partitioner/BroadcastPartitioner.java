@@ -52,8 +52,8 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
     }
 
     @Override
-    public boolean isBroadcast() {
-        return true;
+    public SelectorType getType() {
+        return SelectorType.BROADCAST;
     }
 
     @Override

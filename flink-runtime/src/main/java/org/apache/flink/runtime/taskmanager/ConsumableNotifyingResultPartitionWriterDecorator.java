@@ -28,13 +28,11 @@ import org.apache.flink.runtime.io.network.partition.CheckpointedResultSubpartit
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
-import org.apache.flink.runtime.io.network.partition.SubpartitionStatistic;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -129,10 +127,12 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
             partitionWriter.emitRecord(record, targetSubpartition);
 
             notifyPipelinedConsumers();
+
+            return -1;
         }
 
         @Override
@@ -252,11 +252,6 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
                 throw new IllegalStateException(
                         "This partition is not checkpointable: " + partitionWriter);
             }
-        }
-
-        @Override
-        public List<SubpartitionStatistic> getSubpartitionsStatistics() {
-            return partitionWriter.getSubpartitionsStatistics();
         }
     }
 }

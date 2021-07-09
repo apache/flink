@@ -40,8 +40,8 @@ public abstract class StreamPartitioner<T>
     }
 
     @Override
-    public boolean isBroadcast() {
-        return false;
+    public SelectorType getType() {
+        return SelectorType.SELECTABLE;
     }
 
     public abstract StreamPartitioner<T> copy();

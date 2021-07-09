@@ -105,6 +105,10 @@ public class PipelinedSubpartition extends ResultSubpartition
     /** The total number of bytes (both data and event buffers). */
     private long totalNumberOfBytes;
 
+    /**
+     * The total number of bytes which were sent. This field should be read only from the the
+     * writing thread.
+     */
     private long writingThreadTotalNumberOfSentBytes;
 
     /** Writes in-flight data. */

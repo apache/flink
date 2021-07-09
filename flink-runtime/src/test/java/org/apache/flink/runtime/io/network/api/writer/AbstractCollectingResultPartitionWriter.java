@@ -24,15 +24,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.MockResultPartitionWriter;
-import org.apache.flink.runtime.io.network.partition.SimpleSubpartitionStatistic;
-import org.apache.flink.runtime.io.network.partition.SubpartitionStatistic;
 
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -41,9 +37,10 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public abstract class AbstractCollectingResultPartitionWriter extends MockResultPartitionWriter {
 
     @Override
-    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+    public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
         checkArgument(targetSubpartition < getNumberOfSubpartitions());
         deserializeRecord(record);
+        return -1;
     }
 
     @Override
@@ -61,14 +58,4 @@ public abstract class AbstractCollectingResultPartitionWriter extends MockResult
     }
 
     protected abstract void deserializeBuffer(Buffer buffer) throws IOException;
-
-    @Override
-    public List<SubpartitionStatistic> getSubpartitionsStatistics() {
-        ArrayList<SubpartitionStatistic> stats = new ArrayList<>(getNumberOfSubpartitions());
-        for (int i = 0; i < getNumberOfSubpartitions(); i++) {
-            stats.add(new SimpleSubpartitionStatistic());
-        }
-
-        return stats;
-    }
 }

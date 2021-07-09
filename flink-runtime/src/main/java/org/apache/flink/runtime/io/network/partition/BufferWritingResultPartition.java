@@ -33,8 +33,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkElementIndex;
@@ -54,8 +52,6 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
     /** The subpartitions of this partition. At least one. */
     protected final ResultSubpartition[] subpartitions;
-
-    protected final SimpleSubpartitionStatistic[] subpartitionStatistics;
 
     /**
      * For non-broadcast mode, each subpartition maintains a separate BufferBuilder which might be
@@ -92,10 +88,6 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
 
         this.subpartitions = checkNotNull(subpartitions);
         this.unicastBufferBuilders = new BufferBuilder[subpartitions.length];
-        this.subpartitionStatistics = new SimpleSubpartitionStatistic[subpartitions.length];
-        for (int i = 0; i < subpartitionStatistics.length; i++) {
-            subpartitionStatistics[i] = new SimpleSubpartitionStatistic();
-        }
     }
 
     @Override
@@ -125,11 +117,6 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
         return subpartitions[targetSubpartition].unsynchronizedGetNumberOfQueuedBuffers();
     }
 
-    @Override
-    public List<SubpartitionStatistic> getSubpartitionsStatistics() {
-        return Arrays.asList(subpartitionStatistics);
-    }
-
     protected void flushSubpartition(int targetSubpartition, boolean finishProducers) {
         if (finishProducers) {
             finishBroadcastBufferBuilder();
@@ -151,9 +138,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
-        updateStatistic(record, targetSubpartition);
-
+    public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
         while (record.hasRemaining()) {
@@ -167,16 +152,8 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             finishUnicastBufferBuilder(targetSubpartition);
         }
 
+        return subpartitions[targetSubpartition].getWritingThreadTotalNumberOfSentBytes();
         // partial buffer, full record
-    }
-
-    private void updateStatistic(ByteBuffer record, int targetSubpartition) {
-        SimpleSubpartitionStatistic subpartitionStatistic =
-                subpartitionStatistics[targetSubpartition];
-
-        subpartitionStatistic.incTotalNumberOfReceivedBytes(record.remaining());
-        subpartitionStatistic.setTotalNumberOfSentBytes(
-                subpartitions[targetSubpartition].getWritingThreadTotalNumberOfSentBytes());
     }
 
     @Override

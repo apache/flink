@@ -471,6 +471,12 @@ public class DataStream<T> {
         return setConnectionType(new RebalancePartitioner<T>());
     }
 
+    /**
+     * Sets the partitioning of the {@link DataStream} so that the output elements are distributed
+     * to instances based on the their load.
+     *
+     * @return The DataStream with the load rebalance partitioning set.
+     */
     public DataStream<T> loadRebalance() {
         return setConnectionType(new LoadRebalancePartitioner<>());
     }

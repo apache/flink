@@ -21,6 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 
 import org.junit.Test;
 
+import static org.apache.flink.runtime.io.network.api.writer.ChannelSelector.SelectorType.BROADCAST;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -30,7 +31,7 @@ public class ShufflePartitionerTest extends StreamPartitionerTest {
     @Override
     public StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new ShufflePartitioner<>();
-        assertFalse(partitioner.isBroadcast());
+        assertFalse(partitioner.getType() == BROADCAST);
         return partitioner;
     }
 

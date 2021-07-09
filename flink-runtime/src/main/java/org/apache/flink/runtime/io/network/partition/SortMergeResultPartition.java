@@ -215,8 +215,10 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     @Override
-    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+    public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
         emit(record, targetSubpartition, DataType.DATA_BUFFER, false);
+
+        return -1;
     }
 
     @Override
@@ -508,15 +510,5 @@ public class SortMergeResultPartition extends ResultPartition {
         synchronized (lock) {
             return resultFile;
         }
-    }
-
-    @Override
-    public List<SubpartitionStatistic> getSubpartitionsStatistics() {
-        ArrayList<SubpartitionStatistic> stats = new ArrayList<>(getNumberOfSubpartitions());
-        for (int i = 0; i < getNumberOfSubpartitions(); i++) {
-            stats.add(new SimpleSubpartitionStatistic());
-        }
-
-        return stats;
     }
 }

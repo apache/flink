@@ -46,7 +46,7 @@ public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
         super(writer, timeout, taskName);
 
         this.channelSelector = checkNotNull(channelSelector);
-        this.channelSelector.optionalSetup(writer);
+        this.channelSelector.setup(numberOfChannels);
     }
 
     @Override
