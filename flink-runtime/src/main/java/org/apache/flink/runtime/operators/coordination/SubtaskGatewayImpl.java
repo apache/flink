@@ -18,9 +18,10 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
+import org.apache.flink.runtime.util.Runnables;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedValue;
@@ -43,11 +44,17 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
     private final SubtaskAccess subtaskAccess;
     private final EventSender sender;
     private final Executor sendingExecutor;
+    private final IncompleteFuturesTracker incompleteFuturesTracker;
 
-    SubtaskGatewayImpl(SubtaskAccess subtaskAccess, EventSender sender, Executor sendingExecutor) {
+    SubtaskGatewayImpl(
+            SubtaskAccess subtaskAccess,
+            EventSender sender,
+            Executor sendingExecutor,
+            IncompleteFuturesTracker incompleteFuturesTracker) {
         this.subtaskAccess = subtaskAccess;
         this.sender = sender;
         this.sendingExecutor = sendingExecutor;
+        this.incompleteFuturesTracker = incompleteFuturesTracker;
     }
 
     @Override
@@ -68,9 +75,9 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
         final Callable<CompletableFuture<Acknowledge>> sendAction =
                 subtaskAccess.createEventSendAction(serializedEvent);
 
-        final CompletableFuture<Acknowledge> result = new CompletableFuture<>();
-        FutureUtils.assertNoException(
-                result.handleAsync(
+        final CompletableFuture<Acknowledge> sendResult = new CompletableFuture<>();
+        final CompletableFuture<Acknowledge> result =
+                sendResult.whenCompleteAsync(
                         (success, failure) -> {
                             if (failure != null && subtaskAccess.isStillRunning()) {
                                 String msg =
@@ -78,13 +85,19 @@ class SubtaskGatewayImpl implements OperatorCoordinator.SubtaskGateway {
                                                 EVENT_LOSS_ERROR_MESSAGE,
                                                 evt,
                                                 subtaskAccess.subtaskName());
-                                subtaskAccess.triggerTaskFailover(new FlinkException(msg, failure));
+                                Runnables.assertNoException(
+                                        () ->
+                                                subtaskAccess.triggerTaskFailover(
+                                                        new FlinkException(msg, failure)));
                             }
-                            return null;
                         },
-                        sendingExecutor));
+                        sendingExecutor);
 
-        sendingExecutor.execute(() -> sender.sendEvent(sendAction, result));
+        sendingExecutor.execute(
+                () -> {
+                    sender.sendEvent(sendAction, sendResult);
+                    incompleteFuturesTracker.trackFutureWhileIncomplete(result);
+                });
         return result;
     }
 

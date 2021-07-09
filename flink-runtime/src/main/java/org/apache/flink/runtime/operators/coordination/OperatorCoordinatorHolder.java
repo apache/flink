@@ -24,7 +24,6 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -37,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -124,7 +122,6 @@ public class OperatorCoordinatorHolder
     private final SubtaskAccess.SubtaskAccessFactory taskAccesses;
     private final OperatorEventValve eventValve;
     private final IncompleteFuturesTracker unconfirmedEvents;
-    private final EventSender eventSender;
 
     private final int operatorParallelism;
     private final int operatorMaxParallelism;
@@ -149,7 +146,6 @@ public class OperatorCoordinatorHolder
 
         this.unconfirmedEvents = new IncompleteFuturesTracker();
         this.eventValve = new OperatorEventValve();
-        this.eventSender = new ValveAndTrackerSender(eventValve, unconfirmedEvents);
     }
 
     public void lazyInitialize(
@@ -386,7 +382,7 @@ public class OperatorCoordinatorHolder
         final SubtaskAccess sta = taskAccesses.getAccessForSubtask(subtask);
 
         final OperatorCoordinator.SubtaskGateway gateway =
-                new SubtaskGatewayImpl(sta, eventSender, mainThreadExecutor);
+                new SubtaskGatewayImpl(sta, eventValve, mainThreadExecutor, unconfirmedEvents);
 
         // We need to do this synchronously here, otherwise we violate the contract that
         // 'subtaskFailed()' will never overtake 'subtaskReady()'.
@@ -574,27 +570,6 @@ public class OperatorCoordinatorHolder
         @Override
         public ClassLoader getUserCodeClassloader() {
             return userCodeClassLoader;
-        }
-    }
-
-    // ------------------------------------------------------------------------
-
-    private static final class ValveAndTrackerSender implements EventSender {
-
-        private final OperatorEventValve valve;
-        private final IncompleteFuturesTracker tracker;
-
-        ValveAndTrackerSender(OperatorEventValve valve, IncompleteFuturesTracker tracker) {
-            this.valve = valve;
-            this.tracker = tracker;
-        }
-
-        @Override
-        public void sendEvent(
-                Callable<CompletableFuture<Acknowledge>> sendAction,
-                CompletableFuture<Acknowledge> result) {
-            valve.sendEvent(sendAction, result);
-            tracker.trackFutureWhileIncomplete(result);
         }
     }
 }
