@@ -611,7 +611,7 @@ val stream = env.addSource(myConsumer)
 (which is commonly the case), all topics and partitions need to have a continuous stream of records.
 Otherwise, the watermarks of the whole application cannot advance and all time-based operations,
 such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior.
-Consider setting appropriate [idelness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) to mitigate this issue.
+Consider setting appropriate [idleness timeouts]({{< ref "docs/dev/datastream/event-time/generating_watermarks" >}}#dealing-with-idle-sources) to mitigate this issue.
  
 ## Kafka Producer
 
