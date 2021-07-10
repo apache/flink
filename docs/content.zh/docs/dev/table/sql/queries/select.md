@@ -38,7 +38,7 @@ SELECT select_list FROM table_expression [ WHERE boolean_expression ]
 SELECT * FROM Orders
 ```
 
-在 `select_list` 处的 `*` 表示查询操作将会解析所有列。但是，我们不鼓励在生产中使用 `*` ， 因为它会使查询操作在应对 `Catalog` 变化的时候鲁棒性降低。相反，我们可以在 `select_list` 处指定它为可用列的子集，或者使用声明过的列进行计算。例如，这里我们假设在 `Orders` 表中有名为 `order_id`、 `price`、 和 `tax` 的列，那么可以有以下查询语句：
+在 `select_list` 处的 `*` 表示查询操作将会解析所有列。但是，我们不鼓励在生产中使用 `*`，因为它会使查询操作在应对 `Catalog` 变化的时候鲁棒性降低。相反，可以在 `select_list` 处指定可用列的子集，或者使用声明的列进行计算。例如，假设 `Orders` 表中有名为 `order_id`、`price` 和 `tax` 的列，那么你可以编写如下查询：
 
 ```sql
 SELECT order_id, price + tax FROM Orders
@@ -63,4 +63,3 @@ SELECT PRETTY_PRINT(order_id) FROM Orders
 ```
 
 {{< top >}}
-
