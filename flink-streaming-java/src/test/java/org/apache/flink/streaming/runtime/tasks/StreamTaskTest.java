@@ -84,6 +84,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
@@ -119,6 +120,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -1976,6 +1978,44 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testOperatorSkipLifeCycleIfFinishedOnRestore() throws Exception {
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setupOutputForSingletonOperatorChain(new LifeCycleMonitorOperator<>())
+                        .build()) {
+            // Finish the restore, including state initialization and open.
+            harness.processAll();
+
+            // Try trigger a checkpoint.
+            harness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+            harness.streamTask.triggerCheckpointOnBarrier(
+                    new CheckpointMetaData(2, 2),
+                    new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault()),
+                    new CheckpointMetricsBuilder()
+                            .setBytesProcessedDuringAlignment(0)
+                            .setAlignmentDurationNanos(0));
+            harness.getTaskStateManager().getWaitForReportLatch().await();
+            assertEquals(2, harness.getTaskStateManager().getReportedCheckpointId());
+
+            // Checkpoint notification.
+            harness.streamTask.notifyCheckpointCompleteAsync(2);
+            harness.streamTask.notifyCheckpointAbortAsync(3);
+            harness.processAll();
+
+            // Finish & close operators.
+            harness.waitForTaskCompletion();
+            harness.finishProcessing();
+
+            LifeCycleMonitorOperator<String> operator =
+                    (LifeCycleMonitorOperator<String>) harness.getStreamTask().getMainOperator();
+            operator.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+        }
+    }
+
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
@@ -2999,6 +3039,62 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public void finish() throws Exception {
             finished = true;
+        }
+    }
+
+    /** A special one-input operator that monitors the lifecycle of the operator. */
+    static class LifeCycleMonitorOperator<T> extends AbstractStreamOperator<T>
+            implements OneInputStreamOperator<T, T> {
+
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void open() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+        }
+
+        @Override
+        public void initializeState(StateInitializationContext context) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.INITIALIZE_STATE);
+        }
+
+        @Override
+        public void processElement(StreamRecord<T> element) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+        }
+
+        @Override
+        public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PREPARE_SNAPSHOT_PRE_BARRIER);
+        }
+
+        @Override
+        public void snapshotState(StateSnapshotContext context) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.SNAPSHOT_STATE);
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_COMPLETE);
+        }
+
+        @Override
+        public void notifyCheckpointAborted(long checkpointId) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.NOTIFY_CHECKPOINT_ABORT);
+        }
+
+        @Override
+        public void finish() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.FINISH);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
         }
     }
 }
