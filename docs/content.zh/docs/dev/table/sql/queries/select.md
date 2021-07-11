@@ -32,7 +32,7 @@ under the License.
 SELECT select_list FROM table_expression [ WHERE boolean_expression ]
 ```
 
-这里的 `table_expression` 可以是任意的数据来源。它可以是一张已经存在的表、视图或者 `VALUES` 子句，也可以是多个现有表的关联结果、或一个子查询。这里我们假设 `Orders` 表在 `Catalog` 中处于可用状态，那么下面的语句会从 `Orders` 表中读出所有的行。
+这里的 `table_expression` 可以是任意的数据源。它可以是一张已经存在的表、视图或者 `VALUES` 子句，也可以是多个现有表的关联结果、或一个子查询。这里我们假设 `Orders` 表在 `Catalog` 中处于可用状态，那么下面的语句会从 `Orders` 表中读出所有的行。
 
 ```sql
 SELECT * FROM Orders
