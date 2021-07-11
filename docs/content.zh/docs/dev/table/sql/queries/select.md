@@ -26,7 +26,7 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-`SELECT` 语句的常见语法格式如下所示:
+`SELECT` 语句的常见语法格式如下所示：
 
 ```sql
 SELECT select_list FROM table_expression [ WHERE boolean_expression ]
