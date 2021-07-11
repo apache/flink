@@ -26,11 +26,13 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
+import org.apache.flink.runtime.shuffle.NettyShuffleUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ProcessorArchitecture;
 import org.apache.flink.util.function.SupplierWithException;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -265,23 +267,17 @@ public class ResultPartitionFactory {
     SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
             int numberOfSubpartitions, ResultPartitionType type) {
         return () -> {
-            int maxNumberOfMemorySegments =
-                    type.isBounded()
-                            ? numberOfSubpartitions * networkBuffersPerChannel
-                                    + floatingNetworkBuffersPerGate
-                            : Integer.MAX_VALUE;
-            int numRequiredBuffers =
-                    !type.isPipelined() && numberOfSubpartitions >= sortShuffleMinParallelism
-                            ? sortShuffleMinBuffers
-                            : numberOfSubpartitions + 1;
+            Pair<Integer, Integer> pair =
+                    NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition(
+                            networkBuffersPerChannel,
+                            floatingNetworkBuffersPerGate,
+                            sortShuffleMinParallelism,
+                            sortShuffleMinBuffers,
+                            numberOfSubpartitions,
+                            type);
 
-            // If the partition type is back pressure-free, we register with the buffer pool for
-            // callbacks to release memory.
             return bufferPoolFactory.createBufferPool(
-                    numRequiredBuffers,
-                    maxNumberOfMemorySegments,
-                    numberOfSubpartitions,
-                    maxBuffersPerChannel);
+                    pair.getLeft(), pair.getRight(), numberOfSubpartitions, maxBuffersPerChannel);
         };
     }
 

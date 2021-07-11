@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -1322,10 +1323,17 @@ public interface Table {
      * <p>Example:
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
-     * TableResult tableResult = table.executeInsert("MySink");
-     * tableResult...
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TableResult tableResult = table.executeInsert("MySinkTable");
+     * tableResult.await();
      * }</pre>
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * <p>By default, all insertion operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
      * @return The insert operation execution result.
@@ -1343,25 +1351,106 @@ public interface Table {
      * <p>Example:
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
-     * TableResult tableResult = table.executeInsert("MySink", true);
-     * tableResult...
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TableResult tableResult = table.executeInsert("MySinkTable", true);
+     * tableResult.await();
      * }</pre>
      *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * <p>By default, all insertion operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
+     *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @param overwrite The flag that indicates whether the insert should overwrite existing data or
-     *     not.
+     * @param overwrite Indicates whether existing data should be overwritten.
      * @return The insert operation execution result.
      */
     TableResult executeInsert(String tablePath, boolean overwrite);
 
     /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     * It executes the insert operation.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
+     * even with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.executeInsert(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build());
+     * }</pre>
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * <p>By default, all insertion operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     */
+    TableResult executeInsert(TableDescriptor descriptor);
+
+    /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     * It executes the insert operation.
+     *
+     * <p>The {@link TableDescriptor descriptor} is registered as an inline (i.e. anonymous)
+     * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
+     * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
+     * even with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.executeInsert(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build(), true);
+     * }</pre>
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * <p>By default, all insertion operations are executed asynchronously. Use {@link
+     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
+     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     */
+    TableResult executeInsert(TableDescriptor descriptor, boolean overwrite);
+
+    /**
      * Collects the contents of the current table local client.
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
      * TableResult tableResult = table.execute();
-     * tableResult...
+     * tableResult.print();
      * }</pre>
      */
     TableResult execute();

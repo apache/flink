@@ -23,8 +23,8 @@ import org.apache.flink.dropwizard.ScheduledDropwizardReporter;
 import org.apache.flink.metrics.AbstractHistogramTest;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 
@@ -87,7 +87,7 @@ public class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
         try {
             registry =
                     new MetricRegistryImpl(
-                            MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                            MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                             Collections.singletonList(
                                     ReporterSetup.forReporter(
                                             "test", config, new TestingReporter())));

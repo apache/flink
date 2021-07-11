@@ -210,9 +210,12 @@ public class StreamMockEnvironment implements Environment {
 
     public <T> void addOutput(
             final Collection<Object> outputList, final TypeSerializer<T> serializer) {
+        addOutput(new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+    }
+
+    public void addOutput(ResultPartitionWriter resultPartitionWriter) {
         try {
-            outputs.add(
-                    new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+            outputs.add(resultPartitionWriter);
         } catch (Throwable t) {
             t.printStackTrace();
             fail(t.getMessage());

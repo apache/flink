@@ -42,8 +42,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  *
  * @param <T> The return type of the {@link TableSource}.
  * @deprecated This interface has been replaced by {@link DynamicTableSource}. The new interface
- *     produces internal data structures and only works with the Blink planner. See FLIP-95 for more
- *     information.
+ *     produces internal data structures. See FLIP-95 for more information.
  */
 @Deprecated
 @PublicEvolving

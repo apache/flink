@@ -22,12 +22,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
@@ -70,8 +70,8 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     /**
-     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String)}
-     * respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
+     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String,
+     * RpcSystem)} respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
      */
     @Test
     public void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
@@ -81,7 +81,8 @@ public class MetricUtilsTest extends TestLogger {
                 MetricOptions.QUERY_SERVICE_THREAD_PRIORITY, expectedThreadPriority);
 
         final RpcService rpcService =
-                MetricUtils.startRemoteMetricsRpcService(configuration, "localhost");
+                MetricUtils.startRemoteMetricsRpcService(
+                        configuration, "localhost", RpcSystem.load());
         assertThat(rpcService, instanceOf(AkkaRpcService.class));
 
         final ActorSystem actorSystem = ((AkkaRpcService) rpcService).getActorSystem();
@@ -95,7 +96,7 @@ public class MetricUtilsTest extends TestLogger {
 
             assertThat(threadPriority, is(expectedThreadPriority));
         } finally {
-            AkkaUtils.terminateActorSystem(actorSystem).get();
+            rpcService.stopService().get();
         }
     }
 

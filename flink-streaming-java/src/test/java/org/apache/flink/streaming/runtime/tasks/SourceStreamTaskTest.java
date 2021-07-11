@@ -30,6 +30,12 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -74,9 +80,11 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_SUSPEND;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.apache.flink.streaming.runtime.tasks.StreamTaskTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -259,9 +267,11 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Source0]: End of input"),
-                new StreamRecord<>("[Source0]: Bye"),
+                new StreamRecord<>("[Source0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Source0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -303,6 +313,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         expectedOutput.add(new StreamRecord<>("Hello"));
+        expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -579,6 +590,69 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
     }
 
+    @Test
+    public void testTriggeringCheckpointAfterSourceThreadFinished() throws Exception {
+        ResultPartition[] partitionWriters = new ResultPartition[2];
+        try (NettyShuffleEnvironment env =
+                new NettyShuffleEnvironmentBuilder()
+                        .setNumNetworkBuffers(partitionWriters.length * 2)
+                        .build()) {
+            for (int i = 0; i < partitionWriters.length; ++i) {
+                partitionWriters[i] =
+                        PartitionTestUtils.createPartition(
+                                env, ResultPartitionType.PIPELINED_BOUNDED, 1);
+                partitionWriters[i].setup();
+            }
+
+            try (StreamTaskMailboxTestHarness<String> testHarness =
+                    new StreamTaskMailboxTestHarnessBuilder<>(
+                                    SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .addAdditionalOutput(partitionWriters)
+                            .setupOperatorChain(
+                                    new StreamSource<>(new MockSource(0, Integer.MAX_VALUE, 1)))
+                            .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
+                            .build()) {
+                testHarness
+                        .getStreamTask()
+                        .getCheckpointCoordinator()
+                        .setEnableCheckpointAfterTasksFinished(true);
+
+                testHarness.processAll();
+                testHarness.getStreamTask().getCompletionFuture().get();
+
+                Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
+                // Notifies the result partition that all records are processed after the
+                // last checkpoint is triggered.
+                checkState(
+                        checkpointFuture instanceof CompletableFuture,
+                        "The trigger future should " + " be also CompletableFuture.");
+                ((CompletableFuture<?>) checkpointFuture)
+                        .thenAccept(
+                                (ignored) -> {
+                                    for (ResultPartition resultPartition : partitionWriters) {
+                                        resultPartition.onSubpartitionAllRecordsProcessed(0);
+                                    }
+                                });
+
+                testHarness.finishProcessing();
+                assertTrue(checkpointFuture.isDone());
+
+                // Each result partition should have emitted 1 barrier, 1 max watermark and 1
+                // EndOfUserRecordEvent.
+                for (ResultPartition resultPartition : partitionWriters) {
+                    assertEquals(3, resultPartition.getNumberOfQueuedBuffers());
+                }
+            }
+        } finally {
+            for (ResultPartitionWriter writer : partitionWriters) {
+                if (writer != null) {
+                    writer.close();
+                }
+            }
+        }
+    }
+
     private static class MockSource
             implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {
         private static final long serialVersionUID = 1;
@@ -848,12 +922,18 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
             ProcessingTimeService timeService = getProcessingTimeService();
             timeService.registerTimer(
                     timeService.getCurrentProcessingTime(),
                     t -> output("[" + name + "]: Timer registered in close"));
 
+            output("[" + name + "]: Finish");
+            super.finish();
+        }
+
+        @Override
+        public void close() throws Exception {
             output("[" + name + "]: Bye");
             super.close();
         }

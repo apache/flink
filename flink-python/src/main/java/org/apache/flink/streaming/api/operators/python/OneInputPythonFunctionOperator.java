@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -54,9 +55,6 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    protected static final String DATA_STREAM_STATELESS_FUNCTION_URN =
-            "flink:transform:datastream_stateless_function:v1";
 
     /** The options used to configure the Python worker process. */
     protected final Map<String, String> jobOptions;
@@ -185,7 +183,7 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     }
 
     public String getFunctionUrn() {
-        return DATA_STREAM_STATELESS_FUNCTION_URN;
+        return STATELESS_FUNCTION_URN;
     }
 
     public Map<String, String> getInternalParameters() {

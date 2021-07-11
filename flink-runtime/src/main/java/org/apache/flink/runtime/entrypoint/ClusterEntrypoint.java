@@ -56,8 +56,9 @@ import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcSystemUtils;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.contexts.SecurityContext;
@@ -291,8 +292,11 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
+            final RpcSystem rpcSystem = RpcSystem.load();
+
             commonRpcService =
-                    AkkaRpcServiceUtils.createRemoteRpcService(
+                    RpcUtils.createRemoteRpcService(
+                            rpcSystem,
                             configuration,
                             configuration.getString(JobManagerOptions.ADDRESS),
                             getRPCPortRange(configuration),
@@ -309,15 +313,15 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     Executors.newFixedThreadPool(
                             ClusterEntrypointUtils.getPoolSize(configuration),
                             new ExecutorThreadFactory("cluster-io"));
-            haServices = createHaServices(configuration, ioExecutor);
+            haServices = createHaServices(configuration, ioExecutor, rpcSystem);
             blobServer = new BlobServer(configuration, haServices.createBlobStore());
             blobServer.start();
             heartbeatServices = createHeartbeatServices(configuration);
-            metricRegistry = createMetricRegistry(configuration, pluginManager);
+            metricRegistry = createMetricRegistry(configuration, pluginManager, rpcSystem);
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
-                            configuration, commonRpcService.getAddress());
+                            configuration, commonRpcService.getAddress(), rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
             final String hostname = RpcUtils.getHostname(commonRpcService);
@@ -350,9 +354,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     }
 
     protected HighAvailabilityServices createHaServices(
-            Configuration configuration, Executor executor) throws Exception {
+            Configuration configuration, Executor executor, RpcSystemUtils rpcSystemUtils)
+            throws Exception {
         return HighAvailabilityServicesUtils.createHighAvailabilityServices(
-                configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION);
+                configuration, executor, AddressResolution.NO_ADDRESS_RESOLUTION, rpcSystemUtils);
     }
 
     protected HeartbeatServices createHeartbeatServices(Configuration configuration) {
@@ -360,9 +365,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     }
 
     protected MetricRegistryImpl createMetricRegistry(
-            Configuration configuration, PluginManager pluginManager) {
+            Configuration configuration,
+            PluginManager pluginManager,
+            RpcSystemUtils rpcSystemUtils) {
         return new MetricRegistryImpl(
-                MetricRegistryConfiguration.fromConfiguration(configuration),
+                MetricRegistryConfiguration.fromConfiguration(
+                        configuration, rpcSystemUtils.getMaximumMessageSizeInBytes(configuration)),
                 ReporterSetup.fromConfiguration(configuration, pluginManager));
     }
 

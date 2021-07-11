@@ -23,7 +23,8 @@ from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWi
     CountWindowCoder, FlattenRowCoder
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
-import pyflink.fn_execution.operations as operations
+import pyflink.fn_execution.datastream.operations as datastream_operations
+import pyflink.fn_execution.table.operations as table_operations
 
 try:
     import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
@@ -31,105 +32,106 @@ except ImportError:
     import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
 
 
+# ----------------- UDF --------------------
+
+
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    table_operations.SCALAR_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_scalar_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatelessFunctionOperation,
-        operations.ScalarFunctionOperation)
+        table_operations.ScalarFunctionOperation)
+
+
+# ----------------- UDTF --------------------
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+    table_operations.TABLE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
 def create_table_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatelessFunctionOperation,
-        operations.TableFunctionOperation)
+        table_operations.TableFunctionOperation)
+
+
+# ----------------- UDAF --------------------
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.DATA_STREAM_STATELESS_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
-def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatelessFunctionOperation,
-        operations.DataStreamStatelessFunctionOperation)
-
-
-@bundle_processor.BeamTransformFactory.register_urn(
-    operations.PANDAS_AGGREGATE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
-def create_pandas_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatelessFunctionOperation,
-        operations.PandasAggregateFunctionOperation)
-
-
-@bundle_processor.BeamTransformFactory.register_urn(
-    operations.PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedFunctions)
-def create_pandas_over_window_aggregate_function(
-        factory, transform_id, transform_proto, parameter, consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatelessFunctionOperation,
-        operations.PandasBatchOverWindowAggregateFunctionOperation)
-
-
-@bundle_processor.BeamTransformFactory.register_urn(
-    operations.STREAM_GROUP_AGGREGATE_URN,
+    table_operations.STREAM_GROUP_AGGREGATE_URN,
     flink_fn_execution_pb2.UserDefinedAggregateFunctions)
 def create_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
-        operations.StreamGroupAggregateOperation)
+        table_operations.StreamGroupAggregateOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.PROCESS_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
-def create_data_stream_process_function(factory, transform_id, transform_proto, parameter,
-                                        consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatelessFunctionOperation,
-        operations.ProcessFunctionOperation)
-
-
-@bundle_processor.BeamTransformFactory.register_urn(
-    operations.KEYED_PROCESS_FUNCTION_URN,
-    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
-def create_data_stream_keyed_process_function(factory, transform_id, transform_proto, parameter,
-                                              consumers):
-    return _create_user_defined_function_operation(
-        factory, transform_proto, consumers, parameter,
-        beam_operations.StatefulFunctionOperation,
-        operations.DataStreamKeyedStatefulOperation)
-
-
-@bundle_processor.BeamTransformFactory.register_urn(
-    operations.STREAM_GROUP_TABLE_AGGREGATE_URN,
+    table_operations.STREAM_GROUP_TABLE_AGGREGATE_URN,
     flink_fn_execution_pb2.UserDefinedAggregateFunctions)
 def create_table_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
-        operations.StreamGroupTableAggregateOperation)
+        table_operations.StreamGroupTableAggregateOperation)
 
 
 @bundle_processor.BeamTransformFactory.register_urn(
-    operations.STREAM_GROUP_WINDOW_AGGREGATE_URN,
+    table_operations.STREAM_GROUP_WINDOW_AGGREGATE_URN,
     flink_fn_execution_pb2.UserDefinedAggregateFunctions)
 def create_group_window_aggregate_function(factory, transform_id, transform_proto, parameter,
                                            consumers):
     return _create_user_defined_function_operation(
         factory, transform_proto, consumers, parameter,
         beam_operations.StatefulFunctionOperation,
-        operations.StreamGroupWindowAggregateOperation)
+        table_operations.StreamGroupWindowAggregateOperation)
+
+
+# ----------------- Pandas UDAF --------------------
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    table_operations.PANDAS_AGGREGATE_FUNCTION_URN, flink_fn_execution_pb2.UserDefinedFunctions)
+def create_pandas_aggregate_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatelessFunctionOperation,
+        table_operations.PandasAggregateFunctionOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    table_operations.PANDAS_BATCH_OVER_WINDOW_AGGREGATE_FUNCTION_URN,
+    flink_fn_execution_pb2.UserDefinedFunctions)
+def create_pandas_over_window_aggregate_function(
+        factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatelessFunctionOperation,
+        table_operations.PandasBatchOverWindowAggregateFunctionOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    datastream_operations.DATA_STREAM_STATELESS_FUNCTION_URN,
+    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
+def create_data_stream_function(factory, transform_id, transform_proto, parameter, consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatelessFunctionOperation,
+        datastream_operations.StatelessOperation)
+
+
+@bundle_processor.BeamTransformFactory.register_urn(
+    datastream_operations.DATA_STREAM_STATEFUL_FUNCTION_URN,
+    flink_fn_execution_pb2.UserDefinedDataStreamFunction)
+def create_data_stream_keyed_process_function(factory, transform_id, transform_proto, parameter,
+                                              consumers):
+    return _create_user_defined_function_operation(
+        factory, transform_proto, consumers, parameter,
+        beam_operations.StatefulFunctionOperation,
+        datastream_operations.StatefulOperation)
 
 
 def _create_user_defined_function_operation(factory, transform_proto, consumers, udfs_proto,
@@ -170,7 +172,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             consumers,
             internal_operation_cls,
             keyed_state_backend)
-    elif internal_operation_cls == operations.DataStreamKeyedStatefulOperation:
+    elif internal_operation_cls == datastream_operations.StatefulOperation:
         key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,

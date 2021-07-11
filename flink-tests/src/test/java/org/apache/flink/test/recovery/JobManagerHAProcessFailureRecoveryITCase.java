@@ -41,8 +41,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
@@ -272,7 +272,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
         TaskExecutorResourceUtils.adjustForLocalExecution(config);
 
         final RpcService rpcService =
-                AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
+                RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
 
         try {
             final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);

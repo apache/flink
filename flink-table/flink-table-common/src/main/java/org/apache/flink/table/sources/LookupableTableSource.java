@@ -31,8 +31,7 @@ import org.apache.flink.table.functions.TableFunction;
  *
  * @param <T> type of the result
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use {@link LookupTableSource}
- *     instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use {@link LookupTableSource} instead. See FLIP-95 for more information.
  */
 @Deprecated
 @Experimental

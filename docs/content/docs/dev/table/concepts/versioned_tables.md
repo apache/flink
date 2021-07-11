@@ -130,7 +130,7 @@ The `JSON` format does not support native changelog semantics, so Flink can only
 
 Flink interprets each row as an `INSERT` to the table, meaning we cannot define a `PRIMARY KEY` over currency.
 However, it is clear to us (the query developer) that this table has all the necessary information to define a versioned table. 
-Flink can reinterpret this table as a versioned table by defining a [deduplication query]({{< ref "docs/dev/table/sql/queries" >}}#deduplication)
+Flink can reinterpret this table as a versioned table by defining a [deduplication query]({{< ref "docs/dev/table/sql/queries/deduplication" >}}#deduplication)
 which produces an ordered changelog stream with an inferred primary key (currency) and event time (update_time). 
 
 ```sql

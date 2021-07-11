@@ -137,16 +137,16 @@ class StreamingRuntimeContext(RuntimeContext):
         else:
             raise Exception("This state is only accessible by functions executed on a KeyedStream.")
 
-
-def create_runtime_context(runtime_context_proto, metric_group, keyed_state_backend=None):
-    return StreamingRuntimeContext(
-        runtime_context_proto.task_name,
-        runtime_context_proto.task_name_with_subtasks,
-        runtime_context_proto.number_of_parallel_subtasks,
-        runtime_context_proto.max_number_of_parallel_subtasks,
-        runtime_context_proto.index_of_this_subtask,
-        runtime_context_proto.attempt_number,
-        {p.key: p.value for p in runtime_context_proto.job_parameters},
-        metric_group,
-        keyed_state_backend,
-        runtime_context_proto.in_batch_execution_mode)
+    @staticmethod
+    def of(runtime_context_proto, metric_group, keyed_state_backend=None):
+        return StreamingRuntimeContext(
+            runtime_context_proto.task_name,
+            runtime_context_proto.task_name_with_subtasks,
+            runtime_context_proto.number_of_parallel_subtasks,
+            runtime_context_proto.max_number_of_parallel_subtasks,
+            runtime_context_proto.index_of_this_subtask,
+            runtime_context_proto.attempt_number,
+            {p.key: p.value for p in runtime_context_proto.job_parameters},
+            metric_group,
+            keyed_state_backend,
+            runtime_context_proto.in_batch_execution_mode)

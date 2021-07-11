@@ -36,8 +36,9 @@ public class SchedulingDownstreamTasksInBatchJobBenchmark extends SchedulingBenc
     private ExecutionVertexID executionVertexID;
     private PipelinedRegionSchedulingStrategy schedulingStrategy;
 
+    @Override
     public void setup(JobConfiguration jobConfiguration) throws Exception {
-        initSchedulingTopology(jobConfiguration);
+        super.setup(jobConfiguration);
 
         schedulingStrategy =
                 new PipelinedRegionSchedulingStrategy(schedulerOperations, schedulingTopology);

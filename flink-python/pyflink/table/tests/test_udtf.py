@@ -20,8 +20,8 @@ import unittest
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkStreamTableTestCase, \
-    PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase
 
 
 class UserDefinedTableFunctionTests(object):
@@ -71,8 +71,8 @@ class UserDefinedTableFunctionTests(object):
         return source_sink_utils.results()
 
 
-class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
-                                                 PyFlinkBlinkStreamTableTestCase):
+class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
+                                            PyFlinkStreamTableTestCase):
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -124,8 +124,8 @@ class PyFlinkBlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,
         self.assertEqual(lines, ['1,1,0', '2,2,0', '3,3,0', '3,3,1'])
 
 
-class PyFlinkBlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
-                                                PyFlinkBlinkBatchTableTestCase):
+class PyFlinkBatchUserDefinedFunctionTests(UserDefinedTableFunctionTests,
+                                           PyFlinkBatchTableTestCase):
     pass
 
 

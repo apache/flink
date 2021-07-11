@@ -50,6 +50,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.postgresql.xa.PGXADataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -86,6 +88,9 @@ import static org.junit.Assert.assertTrue;
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
 @RunWith(Parameterized.class)
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
+    private static final Random RANDOM = new Random(System.currentTimeMillis());
+
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
 
     private interface JdbcExactlyOnceSinkTestEnv {
         void start();
@@ -160,10 +165,14 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             cluster = null;
         }
         dbEnv.stop();
+        activeSources.clear();
+        inactiveMappers.clear();
     }
 
     @Test
     public void testInsert() throws Exception {
+        long started = System.currentTimeMillis();
+        LOG.info("Test insert for {}", dbEnv);
         int elementsPerSource = 50;
         int numElementsPerCheckpoint = 7;
         int minElementsPerFailure = numElementsPerCheckpoint / 3;
@@ -204,6 +213,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         assertTrue(
                 insertedIds.toString(),
                 insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
+        LOG.info(
+                "Test insert for {} finished in {}ms", dbEnv, System.currentTimeMillis() - started);
     }
 
     @Override
@@ -249,8 +260,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         private transient volatile ListState<SourceRange> ranges;
 
-        private volatile boolean allDataEmitted = false;
-        private volatile boolean snapshotTaken = false;
         private volatile long lastCheckpointId = -1L;
         private volatile boolean lastSnapshotConfirmed = false;
         private volatile boolean running = true;
@@ -267,10 +276,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 for (SourceRange range : ranges.get()) {
                     emitRange(range, ctx);
                 }
-                allDataEmitted = true;
-                if (snapshotTaken) {
-                    sleep(() -> !lastSnapshotConfirmed);
-                }
             } finally {
                 activeSources.get(getRuntimeContext().getAttemptNumber()).countDown();
             }
@@ -284,28 +289,38 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             inactiveMappers.get(getRuntimeContext().getAttemptNumber()).await();
         }
 
-        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx) {
             for (int i = range.from; i < range.to && running; ) {
                 int count = Math.min(range.to - i, numElementsPerCheckpoint);
                 emit(i, count, range, ctx);
                 i += count;
-                sleep(() -> !snapshotTaken);
             }
         }
 
-        private void emit(int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emit(
+                int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx) {
             synchronized (ctx.getCheckpointLock()) {
-                snapshotTaken = false;
+                lastCheckpointId = -1L;
+                lastSnapshotConfirmed = false;
                 for (int j = start; j < start + count && running; j++) {
-                    ctx.collect(
-                            new TestEntry(
-                                    j, Integer.toString(j), Integer.toString(j), (double) (j), j));
+                    try {
+                        ctx.collect(
+                                new TestEntry(
+                                        j,
+                                        Integer.toString(j),
+                                        Integer.toString(j),
+                                        (double) (j),
+                                        j));
+                    } catch (Exception e) {
+                        if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
+                            LOG.warn("Exception during record emission", e);
+                        }
+                        throw e;
+                    }
                     toAdvance.advance();
-                    Thread.sleep(10);
                 }
             }
+            sleep(() -> !lastSnapshotConfirmed);
         }
 
         @Override
@@ -339,21 +354,25 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                 SourceRange.forSubtask(
                                         getRuntimeContext().getIndexOfThisSubtask(), numElements)));
             }
+            LOG.debug("Source initialized with ranges: {}", ranges.get());
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) {
-            snapshotTaken = true;
-            if (allDataEmitted) {
-                lastCheckpointId = context.getCheckpointId();
-            }
+            lastCheckpointId = context.getCheckpointId();
         }
 
         private void sleep(Supplier<Boolean> condition) {
+            long start = System.currentTimeMillis();
             while (condition.get()
                     && running
                     && !Thread.currentThread().isInterrupted()
                     && haveActiveSources()) {
+                if (System.currentTimeMillis() - start > 10_000) {
+                    // debugging FLINK-22889 (TODO: remove after resolved)
+                    LOG.debug("Slept more than 10s", new Exception());
+                    start = Long.MAX_VALUE;
+                }
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -364,7 +383,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         }
 
         private void waitOtherSources() throws InterruptedException {
+            long start = System.currentTimeMillis();
             while (running && haveActiveSources()) {
+                if (System.currentTimeMillis() - start > 10_000) {
+                    // debugging FLINK-22889 (TODO: remove after resolved)
+                    LOG.debug("Slept more than 10s", new Exception());
+                    start = Long.MAX_VALUE;
+                }
                 activeSources
                         .get(getRuntimeContext().getAttemptNumber())
                         .await(100, TimeUnit.MILLISECONDS);
@@ -393,6 +418,11 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 checkState(from < to);
                 from++;
             }
+
+            @Override
+            public String toString() {
+                return String.format("%d..%d", from, to);
+            }
         }
     }
 
@@ -408,7 +438,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            remaining = minElementsPerFailure + new Random().nextInt(maxElementsPerFailure);
+            remaining = minElementsPerFailure + RANDOM.nextInt(maxElementsPerFailure);
             inactiveMappers
                     .computeIfAbsent(
                             getRuntimeContext().getAttemptNumber(),
@@ -416,11 +446,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                     new CountDownLatch(
                                             getRuntimeContext().getNumberOfParallelSubtasks()))
                     .countDown();
+            LOG.debug("Mapper will fail after {} records", remaining);
         }
 
         @Override
         public TestEntry map(TestEntry value) throws Exception {
             if (--remaining <= 0) {
+                LOG.debug("Mapper failing intentionally");
                 throw new TestException();
             }
             return value;
@@ -429,7 +461,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static final class TestException extends Exception {
         public TestException() {
-            super("expected", null, true, false);
+            // use this string to prevent error parsing scripts from failing the build
+            // and still have exception type
+            super("java.lang.Exception: Artificial failure", null, true, false);
         }
     }
 

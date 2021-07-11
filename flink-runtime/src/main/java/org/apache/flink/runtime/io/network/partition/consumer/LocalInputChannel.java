@@ -280,6 +280,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
     }
 
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased, "Channel released.");
+
+        subpartitionView.acknowledgeAllRecordsProcessed();
+    }
+
     // ------------------------------------------------------------------------
     // Task events
     // ------------------------------------------------------------------------

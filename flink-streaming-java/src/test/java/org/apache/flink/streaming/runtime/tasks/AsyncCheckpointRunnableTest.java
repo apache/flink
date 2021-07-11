@@ -54,7 +54,6 @@ public class AsyncCheckpointRunnableTest {
                         0,
                         "Task Name",
                         r -> {},
-                        r -> {},
                         env,
                         (msg, ex) -> {},
                         () -> true)
@@ -135,7 +134,6 @@ public class AsyncCheckpointRunnableTest {
                 new CheckpointMetricsBuilder(),
                 1L,
                 "Task Name",
-                r -> {},
                 r -> {},
                 environment,
                 (msg, ex) -> {},

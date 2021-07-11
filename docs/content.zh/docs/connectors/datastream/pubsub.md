@@ -60,7 +60,7 @@ SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withSubscriptionName("subscription")
                                                       .build();
 
-streamExecEnv.addSource(source);
+streamExecEnv.addSource(pubsubSource);
 ```
 {{< /tab >}}
 {{< /tabs >}}

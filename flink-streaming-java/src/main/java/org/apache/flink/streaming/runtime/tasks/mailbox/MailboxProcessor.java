@@ -312,15 +312,10 @@ public class MailboxProcessor implements Closeable {
         // Doing this check is an optimization to only have a volatile read in the expected hot
         // path, locks are only
         // acquired after this point.
-        if (!mailbox.createBatch()) {
-            // We can also directly return true because all changes to #isMailboxLoopRunning must be
-            // connected to
-            // mailbox.hasMail() == true.
-            return false;
-        }
+        boolean isBatchAvailable = mailbox.createBatch();
 
         // Take mails in a non-blockingly and execute them.
-        boolean processed = processMailsNonBlocking(singleStep);
+        boolean processed = isBatchAvailable && processMailsNonBlocking(singleStep);
         if (singleStep) {
             return processed;
         }
@@ -395,7 +390,6 @@ public class MailboxProcessor implements Closeable {
         checkState(suspendedDefaultAction == null, "Default action has already been suspended");
         if (suspendedDefaultAction == null) {
             suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
-            ensureControlFlowSignalCheck();
         }
 
         return suspendedDefaultAction;
@@ -419,18 +413,6 @@ public class MailboxProcessor implements Closeable {
     @VisibleForTesting
     public boolean hasMail() {
         return mailbox.hasMail();
-    }
-
-    /**
-     * Helper method to make sure that the mailbox loop will check the control flow flags in the
-     * next iteration.
-     */
-    private void ensureControlFlowSignalCheck() {
-        // Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is
-        // noticed.
-        if (!mailbox.hasMail()) {
-            sendControlMail(() -> {}, "signal check");
-        }
     }
 
     /**

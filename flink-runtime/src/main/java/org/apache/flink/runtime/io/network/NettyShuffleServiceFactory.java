@@ -56,7 +56,7 @@ public class NettyShuffleServiceFactory
 
     @Override
     public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
-        return NettyShuffleMaster.INSTANCE;
+        return new NettyShuffleMaster(configuration);
     }
 
     @Override

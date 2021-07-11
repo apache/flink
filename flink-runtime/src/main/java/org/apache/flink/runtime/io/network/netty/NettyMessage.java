@@ -233,6 +233,9 @@ public abstract class NettyMessage {
                     case ResumeConsumption.ID:
                         decodedMsg = ResumeConsumption.readFrom(msg);
                         break;
+                    case AckAllUserRecordsProcessed.ID:
+                        decodedMsg = AckAllUserRecordsProcessed.readFrom(msg);
+                        break;
                     default:
                         throw new ProtocolException(
                                 "Received unknown message from producer: " + msg);
@@ -750,6 +753,38 @@ public abstract class NettyMessage {
         @Override
         public String toString() {
             return String.format("ResumeConsumption(%s)", receiverId);
+        }
+    }
+
+    static class AckAllUserRecordsProcessed extends NettyMessage {
+
+        private static final byte ID = 8;
+
+        final InputChannelID receiverId;
+
+        AckAllUserRecordsProcessed(InputChannelID receiverId) {
+            this.receiverId = receiverId;
+        }
+
+        @Override
+        void write(ChannelOutboundInvoker out, ChannelPromise promise, ByteBufAllocator allocator)
+                throws IOException {
+            writeToChannel(
+                    out,
+                    promise,
+                    allocator,
+                    receiverId::writeTo,
+                    ID,
+                    InputChannelID.getByteBufLength());
+        }
+
+        static AckAllUserRecordsProcessed readFrom(ByteBuf buffer) {
+            return new AckAllUserRecordsProcessed(InputChannelID.fromByteBuf(buffer));
+        }
+
+        @Override
+        public String toString() {
+            return String.format("AckAllUserRecordsProcessed(%s)", receiverId);
         }
     }
 

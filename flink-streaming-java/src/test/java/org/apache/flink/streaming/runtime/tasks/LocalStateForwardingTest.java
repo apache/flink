@@ -45,6 +45,8 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.TestLogger;
@@ -122,7 +124,6 @@ public class LocalStateForwardingTest extends TestLogger {
                         checkpointMetrics,
                         0L,
                         testStreamTask.getName(),
-                        asyncCheckpointRunnable -> {},
                         asyncCheckpointRunnable -> {},
                         testStreamTask.getEnvironment(),
                         testStreamTask,
@@ -238,9 +239,16 @@ public class LocalStateForwardingTest extends TestLogger {
                     }
                 };
 
+        StateChangelogStorage<?> stateChangelogStorage = new InMemoryStateChangelogStorage();
+
         TaskStateManagerImpl taskStateManager =
                 new TaskStateManagerImpl(
-                        jobID, executionAttemptID, taskLocalStateStore, null, checkpointResponder);
+                        jobID,
+                        executionAttemptID,
+                        taskLocalStateStore,
+                        stateChangelogStorage,
+                        null,
+                        checkpointResponder);
 
         taskStateManager.reportTaskStateSnapshots(
                 checkpointMetaData, checkpointMetrics, jmSnapshot, tmSnapshot);

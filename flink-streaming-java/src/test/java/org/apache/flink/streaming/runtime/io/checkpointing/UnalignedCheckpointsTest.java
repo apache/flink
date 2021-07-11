@@ -63,6 +63,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -709,8 +710,8 @@ public class UnalignedCheckpointsTest {
 
     /**
      * Tests {@link
-     * SingleCheckpointBarrierHandler#processCancellationBarrier(CancelCheckpointMarker)} abort the
-     * current pending checkpoint triggered by {@link
+     * SingleCheckpointBarrierHandler#processCancellationBarrier(CancelCheckpointMarker,
+     * InputChannelInfo)} abort the current pending checkpoint triggered by {@link
      * CheckpointBarrierHandler#processBarrier(CheckpointBarrier, InputChannelInfo)}.
      */
     @Test
@@ -754,7 +755,8 @@ public class UnalignedCheckpointsTest {
                         SystemClock.getInstance(),
                         inputGate);
 
-        handler.processCancellationBarrier(new CancelCheckpointMarker(DEFAULT_CHECKPOINT_ID));
+        handler.processCancellationBarrier(
+                new CancelCheckpointMarker(DEFAULT_CHECKPOINT_ID), new InputChannelInfo(0, 0));
 
         verifyTriggeredCheckpoint(handler, invokable, DEFAULT_CHECKPOINT_ID);
 
@@ -773,13 +775,15 @@ public class UnalignedCheckpointsTest {
         final long cancelledCheckpointId =
                 new Random().nextBoolean() ? DEFAULT_CHECKPOINT_ID : DEFAULT_CHECKPOINT_ID + 1L;
         // should abort current checkpoint while processing CancelCheckpointMarker
-        handler.processCancellationBarrier(new CancelCheckpointMarker(cancelledCheckpointId));
+        handler.processCancellationBarrier(
+                new CancelCheckpointMarker(cancelledCheckpointId), new InputChannelInfo(0, 0));
         verifyTriggeredCheckpoint(handler, invokable, cancelledCheckpointId);
 
         final long nextCancelledCheckpointId = cancelledCheckpointId + 1L;
         // should update current checkpoint id and abort notification while processing
         // CancelCheckpointMarker
-        handler.processCancellationBarrier(new CancelCheckpointMarker(nextCancelledCheckpointId));
+        handler.processCancellationBarrier(
+                new CancelCheckpointMarker(nextCancelledCheckpointId), new InputChannelInfo(0, 0));
         verifyTriggeredCheckpoint(handler, invokable, nextCancelledCheckpointId);
     }
 
@@ -819,12 +823,67 @@ public class UnalignedCheckpointsTest {
         assertEquals(numberOfChannels, handler.getNumOpenChannels());
 
         // should abort current checkpoint while processing eof
-        handler.processEndOfPartition();
+        handler.processEndOfPartition(new InputChannelInfo(0, 0));
 
         assertFalse(handler.isCheckpointPending());
         assertEquals(DEFAULT_CHECKPOINT_ID, handler.getLatestCheckpointId());
         assertEquals(numberOfChannels - 1, handler.getNumOpenChannels());
         assertEquals(DEFAULT_CHECKPOINT_ID, invokable.getAbortedCheckpointId());
+    }
+
+    @Test
+    public void testTriggerCheckpointsWithEndOfPartition() throws Exception {
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createInputGate(3, validator);
+        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
+
+        BufferOrEvent[] sequence =
+                addSequence(
+                        inputGate,
+                        /* 0 */ createBarrier(1, 1),
+                        /* 1 */ createBuffer(0),
+                        /* 2 */ createBarrier(1, 0),
+                        /* 3 */ createBuffer(1),
+                        /* 4 */ createEndOfPartition(2),
+                        /* 5 */ createEndOfPartition(0),
+                        /* 6 */ createEndOfPartition(1));
+
+        assertOutput(sequence);
+        assertThat(validator.triggeredCheckpoints, contains(1L));
+        assertEquals(0, validator.getAbortedCheckpointCounter());
+        assertInflightData(sequence[1]);
+    }
+
+    @Test
+    public void testTriggerCheckpointsAfterReceivedEndOfPartition() throws Exception {
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createInputGate(3, validator);
+        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
+
+        BufferOrEvent[] sequence1 =
+                addSequence(
+                        inputGate,
+                        /* 0 */ createEndOfPartition(0),
+                        /* 1 */ createBarrier(3, 1),
+                        /* 2 */ createBuffer(1),
+                        /* 3 */ createBuffer(2),
+                        /* 4 */ createEndOfPartition(1),
+                        /* 5 */ createBarrier(3, 2));
+        assertOutput(sequence1);
+        assertInflightData(sequence1[3]);
+        assertThat(validator.triggeredCheckpoints, contains(3L));
+        assertEquals(0, validator.getAbortedCheckpointCounter());
+
+        BufferOrEvent[] sequence2 =
+                addSequence(
+                        inputGate,
+                        /* 0 */ createBuffer(2),
+                        /* 1 */ createBarrier(4, 2),
+                        /* 2 */ createEndOfPartition(2));
+        assertOutput(sequence2);
+        assertInflightData();
+        assertThat(validator.triggeredCheckpoints, contains(3L, 4L));
+        assertEquals(0, validator.getAbortedCheckpointCounter());
     }
 
     // ------------------------------------------------------------------------

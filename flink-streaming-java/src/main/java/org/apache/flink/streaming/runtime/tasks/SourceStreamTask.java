@@ -109,7 +109,7 @@ public class SourceStreamTask<
                                             CheckpointStorageLocationReference.getDefault(),
                                             configuration.isExactlyOnceCheckpointMode(),
                                             configuration.isUnalignedCheckpointsEnabled(),
-                                            configuration.getAlignmentTimeout().toMillis());
+                                            configuration.getAlignedCheckpointTimeout().toMillis());
                             final long timestamp = System.currentTimeMillis();
 
                             final CheckpointMetaData checkpointMetaData =
@@ -173,7 +173,7 @@ public class SourceStreamTask<
                             } else if (!wasStoppedExternally && sourceThreadThrowable != null) {
                                 mailboxProcessor.reportThrowable(sourceThreadThrowable);
                             } else {
-                                mailboxProcessor.allActionsCompleted();
+                                mailboxProcessor.suspend();
                             }
                         });
     }

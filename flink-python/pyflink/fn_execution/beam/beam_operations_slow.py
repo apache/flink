@@ -20,7 +20,7 @@ from abc import abstractmethod
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.utils.windowed_value import WindowedValue
 
-from pyflink.fn_execution.operations import BundleOperation
+from pyflink.fn_execution.table.operations import BundleOperation
 
 
 class FunctionOperation(Operation):

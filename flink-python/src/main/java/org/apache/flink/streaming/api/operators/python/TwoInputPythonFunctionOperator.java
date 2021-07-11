@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 import static org.apache.flink.streaming.api.utils.PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter;
@@ -54,9 +55,6 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
         extends AbstractTwoInputPythonFunctionOperator<IN1, IN2, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String DATASTREAM_STATELESS_FUNCTION_URN =
-            "flink:transform:datastream_stateless_function:v1";
 
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
@@ -144,7 +142,7 @@ public abstract class TwoInputPythonFunctionOperator<IN1, IN2, RUNNER_OUT, OUT>
                 createPythonEnvironmentManager(),
                 runnerInputTypeInfo,
                 runnerOutputTypeInfo,
-                DATASTREAM_STATELESS_FUNCTION_URN,
+                STATELESS_FUNCTION_URN,
                 getUserDefinedDataStreamFunctionProto(
                         pythonFunctionInfo,
                         getRuntimeContext(),

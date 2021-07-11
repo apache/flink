@@ -217,12 +217,8 @@ public abstract class YarnTestBase extends TestLogger {
         YARN_CONFIGURATION.setInt(
                 YarnConfiguration.NM_VCORES, 666); // memory is overwritten in the MiniYARNCluster.
         // so we have to change the number of cores for testing.
-        YARN_CONFIGURATION.setInt(
-                YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS,
-                20000); // 20 seconds expiry (to ensure we properly heartbeat with YARN).
         YARN_CONFIGURATION.setFloat(
                 YarnConfiguration.NM_MAX_PER_DISK_UTILIZATION_PERCENTAGE, 99.0F);
-
         YARN_CONFIGURATION.set(YarnConfiguration.YARN_APPLICATION_CLASSPATH, getYarnClasspath());
     }
 

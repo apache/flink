@@ -61,6 +61,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        inputGate.acknowledgeAllRecordsProcessed(channelInfo);
+    }
+
+    @Override
     public int getNumberOfInputChannels() {
         return inputGate.getNumberOfInputChannels();
     }

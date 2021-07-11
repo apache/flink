@@ -1258,7 +1258,7 @@
         "tolerable_failed_checkpoints" : {
           "type" : "integer"
         },
-        "alignment_timeout" : {
+        "aligned_checkpoint_timeout" : {
           "type" : "integer"
         }
       }

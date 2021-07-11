@@ -21,8 +21,11 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -40,9 +43,14 @@ class ChangelogReducingState<K, N, V>
         extends AbstractChangelogState<K, N, V, InternalReducingState<K, N, V>>
         implements InternalReducingState<K, N, V> {
 
+    private final InternalKeyContext<K> keyContext;
+
     ChangelogReducingState(
-            InternalReducingState<K, N, V> delegatedState, KvStateChangeLogger<V, N> changeLogger) {
+            InternalReducingState<K, N, V> delegatedState,
+            KvStateChangeLogger<V, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         super(delegatedState, changeLogger);
+        this.keyContext = keyContext;
     }
 
     @Override
@@ -94,9 +102,16 @@ class ChangelogReducingState<K, N, V>
 
     @SuppressWarnings("unchecked")
     static <K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> reducingState, KvStateChangeLogger<SV, N> changeLogger) {
+            InternalKvState<K, N, SV> reducingState,
+            KvStateChangeLogger<SV, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         return (IS)
                 new ChangelogReducingState<>(
-                        (InternalReducingState<K, N, SV>) reducingState, changeLogger);
+                        (InternalReducingState<K, N, SV>) reducingState, changeLogger, keyContext);
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forReducing(delegatedState, keyContext);
     }
 }

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
+import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 
 import java.util.List;
 
@@ -35,7 +36,7 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
  * The benchmark of building the topology of {@link ExecutionGraph} in a STREAMING/BATCH job. The
  * related method is {@link ExecutionGraph#attachJobGraph},
  */
-public class BuildExecutionGraphBenchmark {
+public class BuildExecutionGraphBenchmark extends SchedulerBenchmarkBase {
 
     private List<JobVertex> jobVertices;
     private ExecutionGraph executionGraph;
@@ -43,6 +44,8 @@ public class BuildExecutionGraphBenchmark {
     public BuildExecutionGraphBenchmark() {}
 
     public void setup(JobConfiguration jobConfiguration) throws Exception {
+        super.setup();
+
         jobVertices = createDefaultJobVertices(jobConfiguration);
         final JobGraph jobGraph = createJobGraph(jobConfiguration);
         final VertexParallelismStore parallelismStore =
@@ -51,6 +54,8 @@ public class BuildExecutionGraphBenchmark {
                 TestingDefaultExecutionGraphBuilder.newBuilder()
                         .setVertexParallelismStore(parallelismStore)
                         .setJobGraph(jobGraph)
+                        .setFutureExecutor(scheduledExecutorService)
+                        .setIoExecutor(scheduledExecutorService)
                         .build();
     }
 

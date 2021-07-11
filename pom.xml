@@ -55,6 +55,7 @@ under the License.
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-filesystems</module>
+		<module>flink-rpc</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
@@ -1470,6 +1471,9 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
 						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
 
+						<!-- antlr grammar files -->
+						<exclude>flink-table/flink-table-code-splitter/src/main/antlr4/**</exclude>
+
 						<!-- Test Data. -->
 						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
@@ -1479,7 +1483,7 @@ under the License.
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
 						<exclude>flink-table/flink-sql-client/src/test/resources/*.out</exclude>
-						<exclude>flink-table/flink-table-planner-blink/src/test/resources/**/*.out</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
@@ -1488,6 +1492,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
+						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
@@ -1582,6 +1587,8 @@ under the License.
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
 						<checkpointing.randomization>true</checkpointing.randomization>
+						<!-- on, unset, or random -->
+						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>

@@ -39,8 +39,8 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
 
 import org.slf4j.Logger;
@@ -65,7 +65,7 @@ public class TestingDefaultExecutionGraphBuilder {
     private Time rpcTimeout = Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue());
     private ClassLoader userClassLoader = DefaultExecutionGraph.class.getClassLoader();
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-    private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+    private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
     private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
     private Configuration jobMasterConfig = new Configuration();
     private JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();

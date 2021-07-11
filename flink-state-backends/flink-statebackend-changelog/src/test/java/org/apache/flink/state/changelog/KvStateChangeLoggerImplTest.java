@@ -17,18 +17,18 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
-import org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 
 import static org.apache.flink.api.common.state.StateDescriptor.Type.VALUE;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.MERGE_NS;
+import static org.apache.flink.state.changelog.StateChangeOperation.MERGE_NS;
 
 /** {@link KvStateChangeLoggerImpl} test. */
 public class KvStateChangeLoggerImplTest extends StateChangeLoggerTestBase<String> {
@@ -43,7 +43,13 @@ public class KvStateChangeLoggerImplTest extends StateChangeLoggerTestBase<Strin
                 new RegisteredKeyValueStateBackendMetaInfo<>(
                         VALUE, "test", nsSerializer, valueSerializer);
         return new KvStateChangeLoggerImpl<>(
-                keySerializer, nsSerializer, valueSerializer, keyContext, writer, metaInfo);
+                keySerializer,
+                nsSerializer,
+                valueSerializer,
+                keyContext,
+                writer,
+                metaInfo,
+                StateTtlConfig.DISABLED);
     }
 
     @Override

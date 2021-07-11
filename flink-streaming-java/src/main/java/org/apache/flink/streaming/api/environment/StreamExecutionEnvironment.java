@@ -31,6 +31,9 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -49,10 +52,13 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
@@ -64,6 +70,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -86,6 +93,7 @@ import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
@@ -110,8 +118,10 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -188,6 +198,9 @@ public class StreamExecutionEnvironment {
     private final ClassLoader userClassloader;
 
     private final List<JobListener> jobListeners = new ArrayList<>();
+
+    // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
     // Constructor and Properties
@@ -333,6 +346,30 @@ public class StreamExecutionEnvironment {
                         + maxParallelism);
 
         config.setMaxParallelism(maxParallelism);
+        return this;
+    }
+
+    /**
+     * Register a slot sharing group with its resource spec.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment registerSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        final ResourceSpec resourceSpec =
+                SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup);
+        if (!resourceSpec.equals(ResourceSpec.UNKNOWN)) {
+            this.slotSharingGroupResources.put(
+                    slotSharingGroup.getName(),
+                    ResourceProfile.fromResourceSpec(
+                            SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup),
+                            MemorySize.ZERO));
+        }
         return this;
     }
 
@@ -2065,6 +2102,24 @@ public class StreamExecutionEnvironment {
     @Internal
     public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
         StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+
+        // There might be a resource deadlock when applying fine-grained resource management in
+        // batch jobs with PIPELINE edges. Users need to trigger the
+        // fine-grained.shuffle-mode.all-blocking to convert all edges to BLOCKING before we fix
+        // that issue.
+        if (configuration.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH
+                && streamGraph.hasFineGrainedResource()) {
+            if (configuration.get(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING)) {
+                streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
+            } else {
+                throw new IllegalConfigurationException(
+                        "At the moment, fine-grained resource management requires batch workloads to "
+                                + "be executed with types of all edges being BLOCKING. To do that, you need to configure '"
+                                + ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING.key()
+                                + "' to 'true'. Notice that this may affect the performance. See FLINK-20865 for more details.");
+            }
+        }
+
         if (clearTransformations) {
             this.transformations.clear();
         }
@@ -2087,7 +2142,8 @@ public class StreamExecutionEnvironment {
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout);
+                .setDefaultBufferTimeout(bufferTimeout)
+                .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
     /**

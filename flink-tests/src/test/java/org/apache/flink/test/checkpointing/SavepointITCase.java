@@ -75,7 +75,6 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.EntropyInjectingTestFileSystem;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
@@ -433,9 +432,8 @@ public class SavepointITCase extends TestLogger {
 
         try {
             client.submitJob(graph).get();
-            // triggerSavepoint is only available after job is initialized
-            TestUtils.waitUntilJobInitializationFinished(
-                    graph.getJobID(), cluster, ClassLoader.getSystemClassLoader());
+            // triggerSavepoint is only available after all tasks are running
+            waitForAllTaskRunning(cluster.getMiniCluster(), graph.getJobID());
 
             client.triggerSavepoint(graph.getJobID(), null).get();
 
@@ -856,6 +854,7 @@ public class SavepointITCase extends TestLogger {
             JobID jobID = client.submitJob(originalJobGraph).get();
 
             // wait for the Tasks to be ready
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobID);
             assertTrue(
                     StatefulCounter.getProgressLatch()
                             .await(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
@@ -1195,6 +1194,9 @@ public class SavepointITCase extends TestLogger {
         String savepointPath = null;
         try {
             client.submitJob(jobGraph).get();
+
+            waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID());
+
             for (OneShotLatch latch : iterTestSnapshotWait) {
                 latch.await();
             }

@@ -37,7 +37,7 @@ Regular Joins
 -------------
 
 Regular joins are the most generic type of join in which any new record, or changes to either side of the join, are visible and affect the entirety of the join result. 
-For example, if there is a new record on the left side, it will be joined with all the previous and future records on the right side. 
+For example, if there is a new record on the left side, it will be joined with all the previous and future records on the right side when the product id equals. 
 
 ```sql
 SELECT * FROM Orders

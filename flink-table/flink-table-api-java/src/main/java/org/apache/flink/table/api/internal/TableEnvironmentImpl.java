@@ -486,6 +486,28 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         Preconditions.checkNotNull(path, "Path must not be null.");
         Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
 
+        createTemporaryTableInternal(getParser().parseIdentifier(path), descriptor);
+    }
+
+    private void createTemporaryTableInternal(
+            UnresolvedIdentifier path, TableDescriptor descriptor) {
+        final ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(path);
+
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        descriptor.getSchema(),
+                        descriptor.getComment().orElse(null),
+                        descriptor.getPartitionKeys(),
+                        descriptor.getOptions());
+
+        catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
+    }
+
+    @Override
+    public void createTable(String path, TableDescriptor descriptor) {
+        Preconditions.checkNotNull(path, "Path must not be null.");
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
 
@@ -496,7 +518,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         descriptor.getPartitionKeys(),
                         descriptor.getOptions());
 
-        catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
+        catalogManager.createTable(catalogTable, tableIdentifier, false);
     }
 
     @Override
@@ -549,6 +571,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 new ValidationException(
                                         String.format(
                                                 "Table %s was not found.", unresolvedIdentifier)));
+    }
+
+    @Override
+    public Table from(TableDescriptor descriptor) {
+        Preconditions.checkNotNull(descriptor, "Table descriptor must not be null.");
+
+        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
+        createTemporaryTableInternal(UnresolvedIdentifier.of(path), descriptor);
+        return from(path);
     }
 
     @Override

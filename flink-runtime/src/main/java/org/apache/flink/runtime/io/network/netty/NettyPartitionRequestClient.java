@@ -204,6 +204,11 @@ public class NettyPartitionRequestClient implements PartitionRequestClient {
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel) {
+        clientHandler.acknowledgeAllRecordsProcessed(inputChannel);
+    }
+
+    @Override
     public void close(RemoteInputChannel inputChannel) throws IOException {
 
         clientHandler.removeInputChannel(inputChannel);

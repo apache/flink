@@ -29,25 +29,29 @@ import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunn
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import com.google.protobuf.GeneratedMessageV3;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 
 import java.util.Map;
 
+import static org.apache.flink.python.Constants.FLINK_CODER_URN;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /** A {@link BeamTablePythonFunctionRunner} used to execute Python functions in Table API. */
 @Internal
-public abstract class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
+public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
 
     private final RowType inputType;
     private final RowType outputType;
+    private final GeneratedMessageV3 userDefinedFunctionProto;
 
-    BeamTablePythonFunctionRunner(
+    public BeamTablePythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
             RowType inputType,
             RowType outputType,
             String functionUrn,
+            GeneratedMessageV3 userDefinedFunctionProto,
             Map<String, String> jobOptions,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend keyedStateBackend,
@@ -74,6 +78,12 @@ public abstract class BeamTablePythonFunctionRunner extends BeamPythonFunctionRu
                 outputMode);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
+        this.userDefinedFunctionProto = Preconditions.checkNotNull(userDefinedFunctionProto);
+    }
+
+    @Override
+    protected byte[] getUserDefinedFunctionsProtoBytes() {
+        return userDefinedFunctionProto.toByteArray();
     }
 
     @Override

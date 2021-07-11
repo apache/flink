@@ -396,7 +396,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             if (suspension == null) {
                 suspension = controller.suspendDefaultAction();
             } else {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 
@@ -427,7 +428,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             if (suspension == null) {
                 suspension = controller.suspendDefaultAction();
             } else {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 

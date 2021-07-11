@@ -95,7 +95,7 @@ _JobManager_ 具有许多与协调 Flink 应用程序的分布式执行有关的
 
 ## Flink 应用程序执行
 
-_Flink 应用程序_ 是从其 ``main()`` 方法产生的一个或多个 Flink 作业的任何用户程序。这些作业的执行可以在本地 JVM（`LocalEnvironment``）中进行，或具有多台机器的集群的远程设置（``RemoteEnvironment``）中进行。对于每个程序，[``ExecutionEnvironment``]({{ site.javadocs_baseurl }}/api/java/) 提供了一些方法来控制作业执行（例如设置并行度）并与外界交互（请参考 [Flink 程序剖析]({{< ref "docs/dev/datastream/overview" >}}#anatomy-of-a-flink-program) ）。
+_Flink 应用程序_ 是从其 ``main()`` 方法产生的一个或多个 Flink 作业的任何用户程序。这些作业的执行可以在本地 JVM（`LocalEnvironment`）中进行，或具有多台机器的集群的远程设置（``RemoteEnvironment``）中进行。对于每个程序，`ExecutionEnvironment` 提供了一些方法来控制作业执行（例如设置并行度）并与外界交互（请参考 [Flink 程序剖析]({{< ref "docs/dev/datastream/overview" >}}#anatomy-of-a-flink-program) ）。
 
 Flink 应用程序的作业可以被提交到长期运行的 [Flink Session 集群]({{< ref "docs/concepts/glossary" >}}#flink-session-cluster)、专用的 [Flink Job 集群]({{< ref "docs/concepts/glossary" >}}#flink-job-cluster) 或 [Flink Application 集群]({{< ref "docs/concepts/glossary" >}}#flink-application-cluster)。这些选项之间的差异主要与集群的生命周期和资源隔离保证有关。
 

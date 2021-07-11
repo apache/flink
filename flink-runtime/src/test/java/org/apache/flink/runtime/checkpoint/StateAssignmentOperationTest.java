@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -76,9 +77,11 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ARBITRARY;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
@@ -723,6 +726,20 @@ public class StateAssignmentOperationTest extends TestLogger {
         Assert.assertEquals(
                 states.get(userDefinedOperatorId).getState(0),
                 getAssignedState(executionJobVertex, operatorId, 0));
+    }
+
+    @Test
+    public void assigningStateHandlesCanNotBeNull() {
+        OperatorState state = new OperatorState(new OperatorID(), 1, MAX_P);
+
+        List<KeyedStateHandle> managedKeyedStateHandles =
+                StateAssignmentOperation.getManagedKeyedStateHandles(state, KeyGroupRange.of(0, 1));
+
+        List<KeyedStateHandle> rawKeyedStateHandles =
+                StateAssignmentOperation.getRawKeyedStateHandles(state, KeyGroupRange.of(0, 1));
+
+        assertThat(managedKeyedStateHandles, is(empty()));
+        assertThat(rawKeyedStateHandles, is(empty()));
     }
 
     private List<OperatorID> buildOperatorIds(int numOperators) {

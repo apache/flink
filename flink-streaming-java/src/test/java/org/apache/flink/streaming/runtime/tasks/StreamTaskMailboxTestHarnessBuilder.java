@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
@@ -33,6 +34,8 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
@@ -53,6 +56,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -79,9 +83,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     protected TaskMetricGroup taskMetricGroup =
             UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
     protected Map<Long, TaskStateSnapshot> taskStateSnapshots;
+    protected CheckpointResponder checkpointResponder = new TestCheckpointResponder();
 
     protected final ArrayList<InputConfig> inputs = new ArrayList<>();
     protected final ArrayList<Integer> inputChannelsPerGate = new ArrayList<>();
+
+    protected final ArrayList<ResultPartitionWriter> additionalOutputs = new ArrayList<>();
 
     private boolean setupCalled = false;
 
@@ -102,6 +109,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> modifyStreamConfig(
             Consumer<StreamConfig> action) {
         action.accept(streamConfig);
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCheckpointResponder(
+            CheckpointResponder checkpointResponder) {
+        this.checkpointResponder = checkpointResponder;
         return this;
     }
 
@@ -132,9 +145,16 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
-    public StreamTaskMailboxTestHarness<OUT> buildUnrestored() throws Exception {
+    public StreamTaskMailboxTestHarnessBuilder<OUT> addAdditionalOutput(
+            ResultPartitionWriter... writers) {
+        checkState(!setupCalled, "Additional outputs must be added before harness was setup.");
+        additionalOutputs.addAll(Arrays.asList(writers));
+        return this;
+    }
 
+    public StreamTaskMailboxTestHarness<OUT> buildUnrestored() throws Exception {
         TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
+        taskStateManager.setCheckpointResponder(checkpointResponder);
         if (taskStateSnapshots != null) {
             taskStateManager.setReportedCheckpointId(taskStateSnapshots.keySet().iterator().next());
             taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshots);
@@ -161,6 +181,10 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         Queue<Object> outputList = new ArrayDeque<>();
         streamMockEnvironment.addOutput(outputList, outputStreamRecordSerializer);
         streamMockEnvironment.setTaskMetricGroup(taskMetricGroup);
+
+        for (ResultPartitionWriter writer : additionalOutputs) {
+            streamMockEnvironment.addOutput(writer);
+        }
 
         StreamTask<OUT, ?> task = taskFactory.apply(streamMockEnvironment);
 
@@ -327,7 +351,10 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         checkState(!setupCalled, "This harness was already setup.");
         setupCalled = true;
         streamConfig.setStreamOperatorFactory(headOperatorFactory);
-        return new StreamConfigChainer<>(headOperatorId, streamConfig, this);
+
+        // There is always 1 default output other than the additional ones.
+        return new StreamConfigChainer<>(
+                headOperatorId, streamConfig, this, 1 + additionalOutputs.size());
     }
 
     public StreamTaskMailboxTestHarnessBuilder<OUT> setTaskMetricGroup(

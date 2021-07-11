@@ -35,7 +35,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class MultipleInputSelectionHandler {
-    public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE;
+    // if we directly use Long.SIZE, calculation of allSelectedMask will overflow
+    public static final int MAX_SUPPORTED_INPUT_COUNT = Long.SIZE - 1;
 
     @Nullable private final InputSelectable inputSelectable;
 
@@ -51,7 +52,7 @@ public class MultipleInputSelectionHandler {
             @Nullable InputSelectable inputSelectable, int inputCount) {
         checkSupportedInputCount(inputCount);
         this.inputSelectable = inputSelectable;
-        this.allSelectedMask = (1 << inputCount) - 1;
+        this.allSelectedMask = (1L << inputCount) - 1;
         this.availableInputsMask = allSelectedMask;
         this.notFinishedInputsMask = allSelectedMask;
     }
@@ -59,7 +60,7 @@ public class MultipleInputSelectionHandler {
     public static void checkSupportedInputCount(int inputCount) {
         checkArgument(
                 inputCount <= MAX_SUPPORTED_INPUT_COUNT,
-                "Only up to %d inputs are supported at once, while encountered %d",
+                "Only up to %s inputs are supported at once, while encountered %s",
                 MAX_SUPPORTED_INPUT_COUNT,
                 inputCount);
     }

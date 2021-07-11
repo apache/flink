@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
@@ -172,11 +172,10 @@ public abstract class AbstractPythonStreamAggregateOperator
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
         userDefinedFunctionInputType = getUserDefinedFunctionInputType();
-        udfInputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionInputType);
+        udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         userDefinedFunctionOutputType = getUserDefinedFunctionOutputType();
         udfOutputTypeSerializer =
-                PythonTypeUtils.toBlinkTypeSerializer(userDefinedFunctionOutputType);
+                PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
         super.open();
     }
@@ -192,7 +191,7 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
-        return new BeamTableStatefulPythonFunctionRunner(
+        return new BeamTablePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
                 userDefinedFunctionInputType,
@@ -243,7 +242,7 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     @VisibleForTesting
     TypeSerializer getKeySerializer() {
-        return PythonTypeUtils.toBlinkTypeSerializer(getKeyType());
+        return PythonTypeUtils.toInternalSerializer(getKeyType());
     }
 
     protected RowType getKeyType() {

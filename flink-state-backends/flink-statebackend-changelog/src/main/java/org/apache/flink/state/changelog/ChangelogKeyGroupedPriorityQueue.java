@@ -20,6 +20,8 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
@@ -37,7 +39,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link KeyGroupedInternalPriorityQueue} that keeps state on the underlying delegated {@link
  * KeyGroupedInternalPriorityQueue} as well as on the state change log.
  */
-public class ChangelogKeyGroupedPriorityQueue<T> implements KeyGroupedInternalPriorityQueue<T> {
+public class ChangelogKeyGroupedPriorityQueue<T>
+        implements KeyGroupedInternalPriorityQueue<T>, ChangelogState {
     private final KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue;
     private final PriorityQueueStateChangeLogger<T> logger;
     private final TypeSerializer<T> serializer;
@@ -109,9 +112,6 @@ public class ChangelogKeyGroupedPriorityQueue<T> implements KeyGroupedInternalPr
     }
 
     private void logAddition(Collection<? extends T> toAdd) {
-        if (toAdd == null) {
-            return;
-        }
         try {
             logger.valueElementAdded(
                     out -> {
@@ -132,5 +132,10 @@ public class ChangelogKeyGroupedPriorityQueue<T> implements KeyGroupedInternalPr
         return CloseableIterator.adapterForIterator(
                 StateChangeLoggingIterator.create(
                         delegatedPriorityQueue.iterator(), logger, serializer::serialize, null));
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forPriorityQueue(delegatedPriorityQueue, serializer);
     }
 }

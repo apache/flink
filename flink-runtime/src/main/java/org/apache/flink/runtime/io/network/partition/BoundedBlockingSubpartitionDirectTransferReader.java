@@ -153,6 +153,11 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {
+        throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
     public String toString() {
         return String.format(
                 "Blocking Subpartition Reader: ID=%s, index=%d",

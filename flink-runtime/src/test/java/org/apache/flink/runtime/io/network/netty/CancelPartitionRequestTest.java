@@ -229,6 +229,9 @@ public class CancelPartitionRequestTest {
         public void resumeConsumption() {}
 
         @Override
+        public void acknowledgeAllRecordsProcessed() {}
+
+        @Override
         public boolean isAvailable(int numCreditsAvailable) {
             return true;
         }

@@ -28,7 +28,7 @@ under the License.
 
 # Task 生命周期
 
-Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task 里执行。举个例子，一个并行度为 5 的算子，它的每个实例都由一个单独的 task 来执行。
+Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task 里执行。例如，一个并行度为 5 的算子，它的每个实例都由一个单独的 task 来执行。
 
 在 Flink 流式计算引擎里，`StreamTask` 是所有不同 task 子类的基础。本文会深入讲解  `StreamTask` 生命周期的不同阶段，并描述每个阶段的主要方法。
 
@@ -55,11 +55,13 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
         
         // checkpointing 阶段（通过每个 checkpoint 异步调用）
         OPERATOR::snapshotState
+        
+        // 通知 operator 处理记录的过程结束
+        OPERATOR::finish
                 
         // 结束阶段
         OPERATOR::close
             UDF::close
-        OPERATOR::dispose
 
 简而言之，`setup()` 在算子初始化时被调用，比如 `RuntimeContext` 和指标收集的数据结构。在这之后，算子通过 `initializeState()` 初始化状态，算子的所有初始化工作在 `open()` 方法中执行，比如在继承 `AbstractUdfStreamOperator` 的情况下，初始化用户定义函数。
 
@@ -70,9 +72,9 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 
 当所有初始化都完成之后，算子开始处理流入的数据。流入的数据可以分为三种类型：用户数据、watermark 和 checkpoint barriers。每种类型的数据都有单独的方法来处理。用户数据通过 `processElement()` 方法来处理，watermark 通过 `processWatermark()` 来处理，checkpoint barriers 会触发异步执行的 `snapshotState()` 方法来进行 checkpoint。对于每个流入的数据，根据其类型调用上述方法之一。`processElement()`方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的  `map()` 方法。
 
-最后，在正常无失败的情况下（比如，如果流式数据是有限的，并且最后一个数据已经到达），会调用 `close()` 方法结束算子并进行必要的清理工作（比如关闭算子执行期间打开的连接或 I/O 流）。在这之后会调用 `dispose()` 方法来释放算子持有的资源（比如算子数据持有的本地内存）。
+最后，在正常无失败的情况下（比如，如果流式数据是有限的，并且最后一个数据已经到达），会调用 `finish()` 方法结束算子并进行必要的清理工作（比如刷新所有缓冲数据，或发送处理结束的标记数据）。在这之后会调用 `close()` 方法来释放算子持有的资源（比如算子数据持有的本地内存）。
 
-在作业失败或手动取消的情况下，会略过中间所有步骤，直接跳到 `dispose()` 方法结束算子。
+在作业失败或手动取消的情况下，会略过中间所有步骤，直接跳到 `close()` 方法结束算子。
 
 **Checkpoints:** 算子的 `snapshotState()` 方法是在收到 checkpoint barrier 后异步调用的。Checkpoint 在处理阶段执行，即算子打开之后，结束之前的这个阶段。这个方法的职责是存储算子的当前状态到一个特定的[状态后端]({{< ref "docs/ops/state/state_backends" >}})，当作业失败后恢复执行时会从这个后端恢复状态数据。下面我们简要描述了 Flink 的 checkpoint 机制，如果想了解更多 Flink checkpoint 相关的原理，可以读一读 [数据流容错]({{< ref "docs/learn-flink/fault_tolerance" >}})。
 
@@ -96,8 +98,8 @@ Task 在没有中断的情况下执行直到最终的步骤如下所示：
 		    initialize-operator-states
 	   	    open-operators
 		    run
+		    finish-operators
 		    close-operators
-		    dispose-operators
 		    task-specific-cleanup
 		    common-cleanup
 
@@ -122,7 +124,7 @@ task 里多个连续算子的开启时是从后往前依次执行。
 
 现在 task 可以恢复执行，算子可以开始处理新输入的数据。在这里，特定 task 的 `run()`  方法会被调用。这个方法会一直运行直到没有更多输入数据进来（有限的数据流）或者 task 被取消了（人为的或其他的原因）。这里是特定算法的 `processElement()` 方法和 `processWatermark()` 方法执行的地方。
 
-在运行到完成的情况下，即没有更多的输入数据要处理，从run()方法退出后，task 进入关闭阶段。首先定时器服务停止注册任何新的定时器（比如从正在执行的定时器里注册），清理掉所有还未启动的定时器，并等待当前执行中的定时器运行结束。然后 `closeAllOperators()` 方法通过调用每个算子的 `close()` 方法来优雅的关掉所有参与计算的算子。然后所有缓存的输出数据会刷出去以便下游 task 处理，最终 task 通过调用每个算子的 `dispose()` 方法来尝试清理掉算子持有的所有资源。之前我们提到不同算子开启时，是从后往前依次调用；关闭时刚好相反，从前往后依次调用。
+在运行到完成的情况下，即没有更多的输入数据要处理，从run()方法退出后，task 进入关闭阶段。首先定时器服务停止注册任何新的定时器（比如从正在执行的定时器里注册），清理掉所有还未启动的定时器，并等待当前执行中的定时器运行结束。然后 `finishAllOperators()` 方法通过调用每个算子的 `finish()` 方法来通知所有参与计算的算子。然后所有缓存的输出数据会刷出去以便下游 task 处理，最终 task 通过调用每个算子的 `close()` 方法来尝试清理掉算子持有的所有资源。之前我们提到不同算子开启时，是从后往前依次调用；关闭时刚好相反，从前往后依次调用。
 
 {{< hint info >}}
 
@@ -139,6 +141,6 @@ Consecutive operators in a task are closed from the first to the last.
 
 ### 中断执行
 
-在前面的章节，我们描述的是运行直到完成的 task 生命周期。在任意时间点取消 task 的话，正常的执行过程会被中断，从这个时候开始只会进行以下操作，关闭定时器服务、执行特定 task 的清理、执行所有算子的清理，执行常规 task 的清理。
+在前面的章节，我们描述的是运行直到完成的 task 生命周期。在任意时间点取消 task 的话，正常的执行过程会被中断，从这个时候开始只会进行以下操作，关闭定时器服务、执行特定 task 的清理、执行所有算子的关闭，执行常规 task 的清理。
 
 {{< top >}}

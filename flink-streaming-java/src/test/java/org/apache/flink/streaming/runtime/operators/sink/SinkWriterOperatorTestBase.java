@@ -180,6 +180,29 @@ public abstract class SinkWriterOperatorTestBase extends TestLogger {
                                 Tuple3.of(2, initialTime + 2, Long.MIN_VALUE).toString())));
     }
 
+    @Test
+    public void watermarkPropagatedToSinkWriter() throws Exception {
+        final long initialTime = 0;
+
+        final TestSink.DefaultSinkWriter writer = new TestSink.DefaultSinkWriter();
+        final OneInputStreamOperatorTestHarness<Integer, String> testHarness =
+                createTestHarness(
+                        TestSink.newBuilder().setWriter(writer).withWriterState().build());
+        testHarness.open();
+
+        testHarness.processWatermark(initialTime);
+        testHarness.processWatermark(initialTime + 1);
+
+        assertThat(
+                testHarness.getOutput(),
+                contains(new Watermark(initialTime), new Watermark(initialTime + 1)));
+        assertThat(
+                writer.watermarks,
+                contains(
+                        new org.apache.flink.api.common.eventtime.Watermark(initialTime),
+                        new org.apache.flink.api.common.eventtime.Watermark(initialTime + 1)));
+    }
+
     /**
      * A {@link SinkWriter} that only returns committables from {@link #prepareCommit(boolean)} when
      * {@code flush} is {@code true}.

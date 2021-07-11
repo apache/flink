@@ -132,18 +132,20 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     }
 
     @Override
-    public void close() throws Exception {
-        try {
-            super.close();
-            if (!isCanceledOrStopped() && ctx != null) {
-                advanceToEndOfEventTime();
-            }
-        } finally {
-            // make sure that the context is closed in any case
-            if (ctx != null) {
-                ctx.close();
-            }
+    public void finish() throws Exception {
+        super.finish();
+        if (!isCanceledOrStopped() && ctx != null) {
+            advanceToEndOfEventTime();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // make sure that the context is closed in any case
+        if (ctx != null) {
+            ctx.close();
+        }
+        super.close();
     }
 
     public void cancel() {
@@ -162,8 +164,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     /**
      * Marks this source as canceled or stopped.
      *
-     * <p>This indicates that any exit of the {@link #run(Object, StreamStatusMaintainer, Output)}
-     * method cannot be interpreted as the result of a finite source.
+     * <p>This indicates that any exit of the {@link #run(Object, Output, OperatorChain)} method
+     * cannot be interpreted as the result of a finite source.
      */
     protected void markCanceledOrStopped() {
         this.canceledOrStopped = true;

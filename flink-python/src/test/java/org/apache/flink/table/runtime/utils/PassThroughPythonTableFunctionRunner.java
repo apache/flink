@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.utils;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -32,10 +32,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link BeamTableStatelessPythonFunctionRunner} that emit each input element in inner join and
- * emit null in left join when certain test conditions are met.
+ * A {@link BeamTablePythonFunctionRunner} that emit each input element in inner join and emit null
+ * in left join when certain test conditions are met.
  */
-public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPythonFunctionRunner {
+public class PassThroughPythonTableFunctionRunner extends BeamTablePythonFunctionRunner {
 
     private int num = 0;
 
@@ -59,6 +59,9 @@ public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPyth
                 userDefinedFunctions,
                 jobOptions,
                 flinkMetricContainer,
+                null,
+                null,
+                null,
                 null,
                 0.0,
                 FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,

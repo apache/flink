@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
-/** Arrow Python {@link ScalarFunction} operator for the blink planner. */
+/** Arrow Python {@link ScalarFunction} operator. */
 @Internal
 public class RowDataArrowPythonScalarFunctionOperator
         extends AbstractRowDataPythonScalarFunctionOperator {
@@ -87,18 +87,18 @@ public class RowDataArrowPythonScalarFunctionOperator
     }
 
     @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        if (arrowSerializer != null) {
-            arrowSerializer.close();
-            arrowSerializer = null;
-        }
+    public void finish() throws Exception {
+        invokeCurrentBatch();
+        super.finish();
     }
 
     @Override
     public void close() throws Exception {
-        invokeCurrentBatch();
         super.close();
+        if (arrowSerializer != null) {
+            arrowSerializer.close();
+            arrowSerializer = null;
+        }
     }
 
     @Override

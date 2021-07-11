@@ -60,8 +60,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
@@ -407,7 +407,7 @@ public class SchedulerTestingUtils {
         private BlobWriter blobWriter = VoidBlobWriter.getInstance();
         private JobManagerJobMetricGroup jobManagerJobMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-        private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+        private ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
         private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
         private FailoverStrategy.Factory failoverStrategyFactory =
                 new RestartPipelinedRegionFailoverStrategy.Factory();
@@ -566,7 +566,8 @@ public class SchedulerTestingUtils {
                     System.currentTimeMillis(),
                     mainThreadExecutor,
                     jobStatusListener,
-                    executionGraphFactory);
+                    executionGraphFactory,
+                    shuffleMaster);
         }
     }
 }

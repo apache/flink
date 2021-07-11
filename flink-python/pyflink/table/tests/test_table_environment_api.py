@@ -34,7 +34,7 @@ from pyflink.table.expressions import col
 from pyflink.table.types import RowType, Row
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import \
-    PyFlinkBlinkBatchTableTestCase, PyFlinkBlinkStreamTableTestCase, \
+    PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase, \
     _load_specific_flink_module_jars
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -69,7 +69,8 @@ class TableEnvironmentTest(object):
         t = t_env.from_elements([], schema)
         result = t.select(t.a + 1, t.b, t.c)
 
-        actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
+        actual = result.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
+                                ExplainDetail.JSON_EXECUTION_PLAN)
 
         assert isinstance(actual, str)
 
@@ -258,7 +259,7 @@ class DataStreamConversionTestCases(object):
         self.assertEqual(result, expected)
 
 
-class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamTableTestCase):
+class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCase):
 
     def test_collect_with_retract(self):
         expected_row_kinds = [RowKind.INSERT, RowKind.UPDATE_BEFORE, RowKind.UPDATE_AFTER,
@@ -329,7 +330,7 @@ class BlinkStreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkBlinkStreamT
             self.assertEqual(expected_result, collected_result)
 
 
-class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
+class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
@@ -347,7 +348,8 @@ class BlinkBatchTableEnvironmentTests(PyFlinkBlinkBatchTableTestCase):
         stmt_set.add_insert_sql("insert into sink1 select * from %s where a > 100" % source)
         stmt_set.add_insert_sql("insert into sink2 select * from %s where a < 100" % source)
 
-        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE)
+        actual = stmt_set.explain(ExplainDetail.ESTIMATED_COST, ExplainDetail.CHANGELOG_MODE,
+                                  ExplainDetail.JSON_EXECUTION_PLAN)
         self.assertIsInstance(actual, str)
 
     def test_register_java_function(self):

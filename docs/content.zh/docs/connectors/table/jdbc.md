@@ -414,7 +414,6 @@ t_env.use_catalog("mypg")
 ```yaml
 
 execution:
-    planner: blink
     ...
     current-catalog: mypg  # 设置 JdbcCatalog 为会话的当前 catalog
     current-database: mydb

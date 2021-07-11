@@ -24,7 +24,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.runtime.operators.python.aggregate.PassThroughPythonStreamGroupWindowAggregateOperator;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -37,7 +37,7 @@ import java.util.Map;
  * Python stream group window aggregate operators.
  */
 public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
-        extends BeamTableStatefulPythonFunctionRunner {
+        extends BeamTablePythonFunctionRunner {
 
     private final PassThroughPythonStreamGroupWindowAggregateOperator operator;
 

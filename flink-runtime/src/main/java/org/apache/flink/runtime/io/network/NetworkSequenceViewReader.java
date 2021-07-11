@@ -52,6 +52,9 @@ public interface NetworkSequenceViewReader {
     /** Resumes data consumption after an exactly once checkpoint. */
     void resumeConsumption();
 
+    /** Acknowledges all the user records are processed. */
+    void acknowledgeAllRecordsProcessed();
+
     /**
      * Checks whether this reader is available or not.
      *

@@ -297,6 +297,13 @@ public class UnionInputGate extends InputGate {
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        inputGatesByGateIndex
+                .get(channelInfo.getGateIdx())
+                .acknowledgeAllRecordsProcessed(channelInfo);
+    }
+
+    @Override
     public void setup() {}
 
     @Override

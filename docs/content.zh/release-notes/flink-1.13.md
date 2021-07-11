@@ -38,6 +38,20 @@ by default before) and there is no option to configure a synchronous snapshot an
 The constructors of `FsStateBackend` and `MemoryStateBackend` that take a flag for sync/async
 snapshots are kept for API compatibility, but the flags are ignored now.
 
+##### [FLINK-19463](https://issues.apache.org/jira/browse/FLINK-19463)
+
+Flink has always separated local state storage from fault tolerance.
+Keyed state is maintained locally in state backends, either on the JVM heap or in embedded RocksDB instances.
+Fault tolerance comes from checkpoints and savepoints - periodic snapshots of a job's internal state to some durable file system - such as Amazon S3 or HDFS. 
+
+Historically, Flink's `StateBackend` interface intermixed these concepts in a way that confused many users. 
+In 1.13, checkpointing configurations have been extracted into their own interface, `CheckpointStorage`. 
+
+This change does not affect the runtime behavior and simply provides a better mental model to users. 
+Pipelines can be updated to use the new the new abstractions without losing state, consistency, or change in semantics. 
+
+Please follow the [migration guide](https://ci.apache.org/projects/flink/flink-docs-release-1.13/docs/ops/state/state_backends/#migrating-from-legacy-backends) or the JavaDoc on the deprecated state backend classes - `MemoryStateBackend`, `FsStateBackend` and `RocksDBStateBackend` for migration details. 
+
 #### Unify binary format for Keyed State savepoints
 
 ##### [FLINK-20976](https://issues.apache.org/jira/browse/FLINK-20976)
@@ -191,6 +205,18 @@ This feature is not covering all locations in Flink where user code is executed.
 infrastructure for such an interception. We are tracking this improvement in
 [FLINK-21307](https://issues.apache.org/jira/browse/FLINK-21307).
 
+#### MiniClusterJobClient#getAccumulators was infinitely blocking in local environment for a streaming job
+##### [FLINK-18685](https://issues.apache.org/jira/browse/FLINK-18685)
+
+The semantics for accumulators have now changed in `MiniClusterJobClient` to fix this bug and comply with other JobClient implementations:
+Previously `MiniClusterJobClient` assumed that `getAccumulator()` was called on a bounded pipeline and that the user wanted to acquire the final
+accumulator values after the job is finished.
+But now it returns the current value of accumulators immediately to be compatible with unbounded pipelines.
+
+If it is run on a bounded pipeline, then to get the final accumulator values after the job is finished, one needs to call
+
+`getJobExecutionResult().thenApply(JobExecutionResult::getAllAccumulatorResults)`
+
 ### Docker
 
 #### Consider removing automatic configuration fo number of slots from docker
@@ -287,4 +313,3 @@ recovered.
 
 The community decided to deprecate the Apache Mesos support for Apache Flink. It is subject to
 removal in the future. Users are encouraged to switch to a different resource manager.
-

@@ -17,10 +17,14 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -28,20 +32,19 @@ import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.io.ObjectOutputStream;
 
+import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.KEY_VALUE;
+import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE;
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_OR_UPDATE_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.CLEAR;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.METADATA;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.REMOVE_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET_INTERNAL;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD_OR_UPDATE_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.CLEAR;
+import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
+import static org.apache.flink.state.changelog.StateChangeOperation.REMOVE_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.SET;
+import static org.apache.flink.state.changelog.StateChangeOperation.SET_INTERNAL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeLogger<Value, Ns> {
@@ -49,15 +52,26 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     protected final StateChangelogWriter<?> stateChangelogWriter;
     protected final InternalKeyContext<Key> keyContext;
     protected final RegisteredStateMetaInfoBase metaInfo;
+    private final StateMetaInfoSnapshot.BackendStateType stateType;
     private boolean metaDataWritten = false;
+    private final StateTtlConfig ttlConfig;
 
     public AbstractStateChangeLogger(
             StateChangelogWriter<?> stateChangelogWriter,
             InternalKeyContext<Key> keyContext,
-            RegisteredStateMetaInfoBase metaInfo) {
+            RegisteredStateMetaInfoBase metaInfo,
+            StateTtlConfig ttlConfig) {
         this.stateChangelogWriter = checkNotNull(stateChangelogWriter);
         this.keyContext = checkNotNull(keyContext);
         this.metaInfo = checkNotNull(metaInfo);
+        this.ttlConfig = checkNotNull(ttlConfig);
+        if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+            this.stateType = KEY_VALUE;
+        } else if (metaInfo instanceof RegisteredPriorityQueueStateBackendMetaInfo) {
+            this.stateType = PRIORITY_QUEUE;
+        } else {
+            throw new IllegalArgumentException("Unsupported state type: " + metaInfo);
+        }
     }
 
     @Override
@@ -135,12 +149,22 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
                     COMMON_KEY_GROUP,
                     serializeRaw(
                             out -> {
-                                out.writeByte(METADATA.code);
+                                out.writeByte(METADATA.getCode());
                                 out.writeInt(CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
                                 StateMetaInfoSnapshotReadersWriters.getWriter()
                                         .writeStateMetaInfoSnapshot(metaInfo.snapshot(), out);
+                                writeTtl(out);
                             }));
             metaDataWritten = true;
+        }
+    }
+
+    private void writeTtl(DataOutputViewStreamWrapper out) throws IOException {
+        out.writeBoolean(ttlConfig.isEnabled());
+        if (ttlConfig.isEnabled()) {
+            try (ObjectOutputStream o = new ObjectOutputStream(out)) {
+                o.writeObject(ttlConfig);
+            }
         }
     }
 
@@ -151,10 +175,11 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
             throws IOException {
         return serializeRaw(
                 wrapper -> {
-                    wrapper.writeByte(op.code);
+                    wrapper.writeByte(op.getCode());
                     // todo: optimize in FLINK-22944 by either writing short code or grouping and
                     // writing once (same for key, ns)
                     wrapper.writeUTF(metaInfo.getName());
+                    wrapper.writeByte(stateType.getCode());
                     serializeScope(ns, wrapper);
                     if (dataWriter != null) {
                         dataWriter.accept(wrapper);
@@ -168,50 +193,11 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     private byte[] serializeRaw(
             ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter)
             throws IOException {
+        // todo: optimize performance
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out)) {
             dataWriter.accept(wrapper);
             return out.toByteArray();
-        }
-    }
-
-    enum StateChangeOperation {
-        /** Scope: key + namespace. */
-        CLEAR((byte) 0),
-        /** Scope: key + namespace. */
-        SET((byte) 1),
-        /** Scope: key + namespace. */
-        SET_INTERNAL((byte) 2),
-        /** Scope: key + namespace. */
-        ADD((byte) 3),
-        /** Scope: key + namespace, also affecting other (source) namespaces. */
-        MERGE_NS((byte) 4),
-        /** Scope: key + namespace + element (e.g. user list append). */
-        ADD_ELEMENT((byte) 5),
-        /** Scope: key + namespace + element (e.g. user map key put). */
-        ADD_OR_UPDATE_ELEMENT((byte) 6),
-        /** Scope: key + namespace + element (e.g. user map remove or iterator remove). */
-        REMOVE_ELEMENT((byte) 7),
-        /** Scope: key + namespace, first element (e.g. priority queue poll). */
-        REMOVE_FIRST_ELEMENT((byte) 8),
-        /** State metadata (name, serializers, etc.). */
-        METADATA((byte) 9);
-        private final byte code;
-
-        StateChangeOperation(byte code) {
-            this.code = code;
-        }
-
-        private static final Map<Byte, KvStateChangeLoggerImpl.StateChangeOperation> BY_CODES =
-                Arrays.stream(AbstractStateChangeLogger.StateChangeOperation.values())
-                        .collect(Collectors.toMap(o -> o.code, Function.identity()));
-
-        public static StateChangeOperation byCode(byte opCode) {
-            return checkNotNull(BY_CODES.get(opCode), Byte.toString(opCode));
-        }
-
-        public byte getCode() {
-            return code;
         }
     }
 }

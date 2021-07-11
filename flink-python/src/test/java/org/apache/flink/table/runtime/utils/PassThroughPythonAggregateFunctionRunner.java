@@ -28,7 +28,7 @@ import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -43,8 +43,7 @@ import java.util.Map;
  * A {@link PassThroughPythonAggregateFunctionRunner} runner that just return the first input
  * element with the same key as the execution results.
  */
-public class PassThroughPythonAggregateFunctionRunner
-        extends BeamTableStatelessPythonFunctionRunner {
+public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFunctionRunner {
 
     private static final IntSerializer windowBoundarySerializer = IntSerializer.INSTANCE;
 
@@ -83,6 +82,9 @@ public class PassThroughPythonAggregateFunctionRunner
                 userDefinedFunctions,
                 jobOptions,
                 flinkMetricContainer,
+                null,
+                null,
+                null,
                 null,
                 0.0,
                 FlinkFnApi.CoderParam.DataType.ARROW,

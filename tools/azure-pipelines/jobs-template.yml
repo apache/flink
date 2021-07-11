@@ -92,8 +92,8 @@ jobs:
         module: python
       libraries:
         module: libraries
-      blink_planner:
-        module: blink_planner
+      table:
+        module: table
       connectors:
         module: connectors
       kafka_gelly:

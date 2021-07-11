@@ -295,7 +295,7 @@ As described in the [plugins]({{< ref "docs/deployment/filesystems/plugins" >}})
 copied to the correct location in the Flink installation in the Docker container for them to work.
 
 If you want to enable plugins provided with Flink (in the `opt/` directory of the Flink distribution), you can pass the environment variable `ENABLE_BUILT_IN_PLUGINS` when you run the Flink image.
-The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{site.version}}.jar`
+The `ENABLE_BUILT_IN_PLUGINS` should contain a list of plugin jar file names separated by `;`. A valid plugin name is for example `flink-s3-fs-hadoop-{{< version >}}.jar`
 
 ```sh
     $ docker run \
@@ -323,7 +323,7 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # install Python Flink
 {{< stable >}}
-RUN pip3 install apache-flink[=={{site.version}}]
+RUN pip3 install apache-flink[=={{< version >}}]
 {{< /stable >}}
 {{< unstable >}}
 RUN pip3 install apache-flink

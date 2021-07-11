@@ -21,11 +21,11 @@ from pyflink.table import expressions as expr
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udaf, udf, AggregateFunction
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
-class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
+class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
 
     def test_check_result_type(self):
         def pandas_udaf():
@@ -280,7 +280,7 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
                             "+I[3, 2.0, 3, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]"])
 
 
-class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
+class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
     def test_sliding_group_window_over_time(self):
         # create source file path
         import tempfile

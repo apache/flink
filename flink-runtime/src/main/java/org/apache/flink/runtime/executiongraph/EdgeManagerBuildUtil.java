@@ -58,6 +58,28 @@ public class EdgeManagerBuildUtil {
         }
     }
 
+    /**
+     * Given parallelisms of two job vertices, compute the max number of edges connected to a target
+     * execution vertex from the source execution vertices. Note that edge is considered undirected
+     * here. It can be an edge connected from an upstream job vertex to a downstream job vertex, or
+     * in a reversed way.
+     *
+     * @param targetParallelism parallelism of the target job vertex.
+     * @param sourceParallelism parallelism of the source job vertex.
+     * @param distributionPattern the {@link DistributionPattern} of the connecting edge.
+     */
+    public static int computeMaxEdgesToTargetExecutionVertex(
+            int targetParallelism, int sourceParallelism, DistributionPattern distributionPattern) {
+        switch (distributionPattern) {
+            case POINTWISE:
+                return (sourceParallelism + targetParallelism - 1) / targetParallelism;
+            case ALL_TO_ALL:
+                return sourceParallelism;
+            default:
+                throw new IllegalArgumentException("Unrecognized distribution pattern.");
+        }
+    }
+
     private static void connectAllToAll(
             ExecutionVertex[] taskVertices, IntermediateResult intermediateResult) {
 

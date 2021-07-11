@@ -44,20 +44,40 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.TestableKeyedStateBackend;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -70,10 +90,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> The key by which state is keyed.
  */
 @Internal
-class ChangelogKeyedStateBackend<K>
+public class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
                 TestableKeyedStateBackend<K> {
+    private static final Logger LOG = LoggerFactory.getLogger(ChangelogKeyedStateBackend.class);
 
     private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
@@ -103,11 +124,22 @@ class ChangelogKeyedStateBackend<K>
      */
     private final HashMap<String, InternalKvState<K, ?, ?>> keyValueStatesByName;
 
+    /**
+     * Unwrapped changelog states used for recovery (not wrapped into e.g. TTL).
+     *
+     * <p>WARN: cleared upon recovery completion.
+     */
+    private final HashMap<String, ChangelogState> changelogStates;
+
+    private final HashMap<String, ChangelogKeyGroupedPriorityQueue<?>> priorityQueueStatesByName;
+
     private final ExecutionConfig executionConfig;
 
     private final TtlTimeProvider ttlTimeProvider;
 
-    private final StateChangelogWriter<?> stateChangelogWriter;
+    private final StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter;
+
+    private long lastCheckpointId = -1L;
 
     /** last accessed partitioned state. */
     @SuppressWarnings("rawtypes")
@@ -116,16 +148,57 @@ class ChangelogKeyedStateBackend<K>
     /** For caching the last accessed partitioned state. */
     private String lastName;
 
+    private final FunctionDelegationHelper functionDelegationHelper =
+            new FunctionDelegationHelper();
+
+    /** Updated initially on restore and later upon materialization (in FLINK-21357). */
+    @GuardedBy("materialized")
+    private final List<KeyedStateHandle> materialized = new ArrayList<>();
+
+    /** Updated initially on restore and later cleared upon materialization (in FLINK-21357). */
+    @GuardedBy("materialized")
+    private final List<ChangelogStateHandle> restoredNonMaterialized = new ArrayList<>();
+
+    /**
+     * {@link SequenceNumber} denoting last upload range <b>start</b>, inclusive. Updated to {@link
+     * #materializedTo} when {@link #snapshot(long, long, CheckpointStreamFactory,
+     * CheckpointOptions) starting snapshot}. Used to notify {@link #stateChangelogWriter} about
+     * changelog ranges that were confirmed or aborted by JM.
+     */
+    @Nullable private SequenceNumber lastUploadedFrom;
+    /**
+     * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
+     * org.apache.flink.runtime.state.changelog.StateChangelogWriter#lastAppendedSequenceNumber}
+     * when {@link #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions) starting
+     * snapshot}. Used to notify {@link #stateChangelogWriter} about changelog ranges that were
+     * confirmed or aborted by JM.
+     */
+    @Nullable private SequenceNumber lastUploadedTo;
+    /**
+     * The {@link SequenceNumber} up to which the state is materialized, exclusive. The log should
+     * be truncated accordingly.
+     *
+     * <p>WARN: currently not updated - to be changed in FLINK-21357.
+     *
+     * <p>WARN: this value needs to be updated for benchmarking, e.g. in notifyCheckpointComplete.
+     */
+    private final SequenceNumber materializedTo;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
-            StateChangelogWriter<?> stateChangelogWriter) {
+            StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
+            Collection<ChangelogStateBackendHandle> initialState) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
+        this.priorityQueueStatesByName = new HashMap<>();
         this.stateChangelogWriter = stateChangelogWriter;
+        this.materializedTo = stateChangelogWriter.initialSequenceNumber();
+        this.changelogStates = new HashMap<>();
+        this.completeRestore(initialState);
     }
 
     // -------------------- CheckpointableKeyedStateBackend --------------------------------
@@ -219,6 +292,7 @@ class ChangelogKeyedStateBackend<K>
             lastState = previous;
             lastState.setCurrentNamespace(namespace);
             lastName = stateDescriptor.getName();
+            functionDelegationHelper.addOrUpdate(stateDescriptor);
             return (S) previous;
         }
 
@@ -240,27 +314,70 @@ class ChangelogKeyedStateBackend<K>
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions)
             throws Exception {
-        return keyedStateBackend.snapshot(
-                checkpointId, timestamp, streamFactory, checkpointOptions);
+        // The range to upload may overlap with the previous one(s). To reuse them, we could store
+        // the previous results either here in the backend or in the writer. However,
+        // materialization may truncate only a part of the previous result and the backend would
+        // have to split it somehow for the former option, so the latter is used.
+        lastCheckpointId = checkpointId;
+        lastUploadedFrom = materializedTo;
+        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+
+        LOG.debug(
+                "snapshot for checkpoint {}, change range: {}..{}",
+                checkpointId,
+                lastUploadedFrom,
+                lastUploadedTo);
+        return toRunnableFuture(
+                stateChangelogWriter
+                        .persist(lastUploadedFrom)
+                        .thenApply(this::buildSnapshotResult));
+    }
+
+    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(ChangelogStateHandle delta) {
+        // Can be called by either task thread during the sync checkpoint phase (if persist future
+        // was already completed); or by the writer thread otherwise. So need to synchronize.
+        // todo: revisit after FLINK-21357 - use mailbox action?
+        synchronized (materialized) {
+            // collections don't change once started and handles are immutable
+            List<ChangelogStateHandle> prevDeltaCopy = new ArrayList<>(restoredNonMaterialized);
+            if (delta != null && delta.getStateSize() > 0) {
+                prevDeltaCopy.add(delta);
+            }
+            if (prevDeltaCopy.isEmpty() && materialized.isEmpty()) {
+                return SnapshotResult.empty();
+            } else {
+                return SnapshotResult.of(
+                        new ChangelogStateBackendHandleImpl(
+                                materialized, prevDeltaCopy, getKeyGroupRange()));
+            }
+        }
     }
 
     @Nonnull
     @Override
+    @SuppressWarnings("unchecked")
     public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
-                new PriorityQueueStateChangeLoggerImpl<>(
-                        byteOrderedElementSerializer,
-                        keyedStateBackend.getKeyContext(),
-                        stateChangelogWriter,
-                        new RegisteredPriorityQueueStateBackendMetaInfo<>(
-                                stateName, byteOrderedElementSerializer));
-        return new ChangelogKeyGroupedPriorityQueue<>(
-                keyedStateBackend.create(stateName, byteOrderedElementSerializer),
-                priorityQueueStateChangeLogger,
-                byteOrderedElementSerializer);
+        ChangelogKeyGroupedPriorityQueue<T> queue =
+                (ChangelogKeyGroupedPriorityQueue<T>) priorityQueueStatesByName.get(stateName);
+        if (queue == null) {
+            PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
+                    new PriorityQueueStateChangeLoggerImpl<>(
+                            byteOrderedElementSerializer,
+                            keyedStateBackend.getKeyContext(),
+                            stateChangelogWriter,
+                            new RegisteredPriorityQueueStateBackendMetaInfo<>(
+                                    stateName, byteOrderedElementSerializer));
+            queue =
+                    new ChangelogKeyGroupedPriorityQueue<>(
+                            keyedStateBackend.create(stateName, byteOrderedElementSerializer),
+                            priorityQueueStateChangeLogger,
+                            byteOrderedElementSerializer);
+            priorityQueueStatesByName.put(stateName, queue);
+        }
+        return queue;
     }
 
     @VisibleForTesting
@@ -283,11 +400,26 @@ class ChangelogKeyedStateBackend<K>
     // -------------------- CheckpointListener --------------------------------
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (lastCheckpointId == checkpointId) {
+            // Notify the writer so that it can re-use the previous uploads. Do NOT notify it about
+            // a range status change if it is not relevant anymore. Otherwise, it could CONFIRM a
+            // newer upload instead of the previous one. This newer upload could then be re-used
+            // while in fact JM has discarded its results.
+            // This might change if the log ownership changes (the method won't likely be needed).
+            stateChangelogWriter.confirm(lastUploadedFrom, lastUploadedTo);
+        }
         keyedStateBackend.notifyCheckpointComplete(checkpointId);
     }
 
     @Override
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        if (lastCheckpointId == checkpointId) {
+            // Notify the writer so that it can clean up. Do NOT notify it about a range status
+            // change if it is not relevant anymore. Otherwise, it could DISCARD a newer upload
+            // instead of the previous one. Rely on truncation for the cleanup in this case.
+            // This might change if the log ownership changes (the method won't likely be needed).
+            stateChangelogWriter.reset(lastUploadedFrom, lastUploadedTo);
+        }
         keyedStateBackend.notifyCheckpointAborted(checkpointId);
     }
 
@@ -304,6 +436,10 @@ class ChangelogKeyedStateBackend<K>
                         + "This operation cannot use partitioned state.");
 
         InternalKvState<K, ?, ?> kvState = keyValueStatesByName.get(stateDescriptor.getName());
+        // todo: support state migration (in FLINK-23143)
+        //     This method is currently called both on recovery and on user access.
+        //     So keyValueStatesByName may contain an entry for user-requested state which will
+        //     prevent state migration (in contrast to other backends).
         if (kvState == null) {
             if (!stateDescriptor.isSerializerInitialized()) {
                 stateDescriptor.initializeSerializerUnlessSet(executionConfig);
@@ -317,6 +453,7 @@ class ChangelogKeyedStateBackend<K>
             keyValueStatesByName.put(stateDescriptor.getName(), kvState);
             keyedStateBackend.publishQueryableStateIfEnabled(stateDescriptor, kvState);
         }
+        functionDelegationHelper.addOrUpdate(stateDescriptor);
         return (S) kvState;
     }
 
@@ -357,8 +494,29 @@ class ChangelogKeyedStateBackend<K>
                         state.getValueSerializer(),
                         keyedStateBackend.getKeyContext(),
                         stateChangelogWriter,
-                        meta);
-        return stateFactory.create(state, kvStateChangeLogger);
+                        meta,
+                        stateDesc.getTtlConfig());
+        IS is =
+                stateFactory.create(
+                        state,
+                        kvStateChangeLogger,
+                        keyedStateBackend /* pass the nested backend as key context so that it get key updates on recovery*/);
+        changelogStates.put(stateDesc.getName(), (ChangelogState) is);
+        return is;
+    }
+
+    private void completeRestore(Collection<ChangelogStateBackendHandle> stateHandles) {
+        if (!stateHandles.isEmpty()) {
+            synchronized (materialized) { // ensure visibility
+                for (ChangelogStateBackendHandle h : stateHandles) {
+                    if (h != null) {
+                        materialized.addAll(h.getMaterializedStateHandles());
+                        restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+                    }
+                }
+            }
+        }
+        changelogStates.clear();
     }
 
     @Override
@@ -369,7 +527,76 @@ class ChangelogKeyedStateBackend<K>
     // Factory function interface
     private interface StateFactory {
         <K, N, SV, S extends State, IS extends S> IS create(
-                InternalKvState<K, N, SV> kvState, KvStateChangeLogger<SV, N> changeLogger)
+                InternalKvState<K, N, SV> kvState,
+                KvStateChangeLogger<SV, N> changeLogger,
+                InternalKeyContext<K> keyContext)
                 throws Exception;
+    }
+
+    /**
+     * @param name state name
+     * @param type state type (the only supported type currently are: {@link
+     *     BackendStateType#KEY_VALUE key value}, {@link BackendStateType#PRIORITY_QUEUE priority
+     *     queue})
+     * @return an existing state, i.e. the one that was already created. The returned state will not
+     *     apply TTL to the passed values, regardless of the TTL settings. This prevents double
+     *     applying of TTL (recovered values are TTL values if TTL was enabled). The state will,
+     *     however, use TTL serializer if TTL is enabled. WARN: only valid during the recovery.
+     * @throws NoSuchElementException if the state wasn't created
+     * @throws UnsupportedOperationException if state type is not supported
+     */
+    public ChangelogState getExistingStateForRecovery(String name, BackendStateType type)
+            throws NoSuchElementException, UnsupportedOperationException {
+        ChangelogState state;
+        switch (type) {
+            case KEY_VALUE:
+                state = changelogStates.get(name);
+                break;
+            case PRIORITY_QUEUE:
+                state = priorityQueueStatesByName.get(name);
+                break;
+            default:
+                throw new UnsupportedOperationException(
+                        String.format("Unknown state type %s (%s)", type, name));
+        }
+        if (state == null) {
+            throw new NoSuchElementException(String.format("%s state %s not found", type, name));
+        }
+        return state;
+    }
+
+    private static <T> RunnableFuture<T> toRunnableFuture(CompletableFuture<T> f) {
+        return new RunnableFuture<T>() {
+            @Override
+            public void run() {
+                f.join();
+            }
+
+            @Override
+            public boolean cancel(boolean mayInterruptIfRunning) {
+                return f.cancel(mayInterruptIfRunning);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return f.isCancelled();
+            }
+
+            @Override
+            public boolean isDone() {
+                return f.isDone();
+            }
+
+            @Override
+            public T get() throws InterruptedException, ExecutionException {
+                return f.get();
+            }
+
+            @Override
+            public T get(long timeout, TimeUnit unit)
+                    throws InterruptedException, ExecutionException, TimeoutException {
+                return f.get(timeout, unit);
+            }
+        };
     }
 }

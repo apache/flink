@@ -106,6 +106,11 @@ class CreditBasedSequenceNumberingViewReader
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() {
+        subpartitionView.acknowledgeAllRecordsProcessed();
+    }
+
+    @Override
     public void setRegisteredAsAvailable(boolean isRegisteredAvailable) {
         this.isRegisteredAsAvailable = isRegisteredAvailable;
     }

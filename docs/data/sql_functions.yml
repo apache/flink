@@ -458,7 +458,7 @@ temporal:
   - sql: FLOOR(timepoint TO timeintervalunit) 
     table: TIMEPOINT.floor(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint down to the time unit timeintervalunit. E.g., FLOOR(TIME '12:44:31' TO MINUTE) returns 12:44:00.
-  - sql: CEIL(timespoint TO timeintervaluntit)
+  - sql: CEIL(timepoint TO timeintervaluntit)
     table: TIMEPOINT.ceil(TIMEINTERVALUNIT)
     description: Returns a value that rounds timepoint up to the time unit timeintervalunit. E.g., CEIL(TIME '12:44:31' TO MINUTE) returns 12:45:00.
   - sql: (timepoint1, temporal1) OVERLAPS (timepoint2, temporal2)
@@ -484,7 +484,7 @@ temporal:
     table: toTimestampLtz(NUMERIC, PRECISION)
     description: "Converts a epoch seconds or epoch milliseconds to a TIMESTAMP_LTZ, the valid precision is 0 or 3, the 0 represents TO_TIMESTAMP_LTZ(epochSeconds, 0), the 3 represents TO_TIMESTAMP_LTZ(epochMilliseconds, 3)."
   - sql: TO_TIMESTAMP(string1[, string2])
-    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp."
+    description: "Converts date time string string1 with format string2 (by default: 'yyyy-MM-dd HH:mm:ss') under the 'UTC+0' time zone to a timestamp."
   - sql: CURRENT_WATERMARK(rowtime)
     description: |
       Returns the current watermark for the given rowtime attribute, or `NULL` if no common watermark of all upstream operations is available at the current operation in the pipeline.
@@ -516,7 +516,7 @@ conditional:
   - sql: NULLIF(value1, value2)
     description: Returns NULL if value1 is equal to value2; returns value1 otherwise. E.g., NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5.
   - sql: COALESCE(value1, value2 [, value3]*)
-    description: Returns the first value that is not NULL from value1, value2, .... E.g., IF(5 > 3, 5, 3) returns 5.
+    description: Returns the first value that is not NULL from value1, value2, .... E.g., COALESCE(NULL, 5) returns 5.
   - sql: IF(condition, true_value, false_value)
     description: Returns the true_value if condition is met, otherwise false_value. E.g., IF(5 > 3, 5, 3) returns 5.
   - sql: IFNULL(input, null_replacement)

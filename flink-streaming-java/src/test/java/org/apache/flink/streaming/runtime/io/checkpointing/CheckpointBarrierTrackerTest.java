@@ -55,6 +55,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedCheckpointsTest.addSequence;
 import static org.hamcrest.Matchers.both;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
@@ -550,6 +551,186 @@ public class CheckpointBarrierTrackerTest {
 
         assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
         assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(0L));
+    }
+
+    @Test
+    public void testTriggerCheckpointsWithEndOfPartition() throws Exception {
+        BufferOrEvent[] sequence = {
+            createBarrier(1, 0),
+            createBarrier(2, 0),
+            createBarrier(2, 1),
+            createBarrier(3, 0),
+            createBarrier(4, 0),
+            createBarrier(4, 1),
+            createBarrier(5, 1),
+            createEndOfPartition(2)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(4);
+        inputGate = createCheckpointedInputGate(3, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        // Only checkpoints 4 is triggered and the previous checkpoints are ignored.
+        assertThat(validator.triggeredCheckpoints, contains(4L));
+        assertEquals(0, validator.getAbortedCheckpointCounter());
+        assertThat(checkpointBarrierTracker.getPendingCheckpointIds(), contains(5L));
+        assertEquals(2, checkpointBarrierTracker.getNumOpenChannels());
+    }
+
+    @Test
+    public void testDeduplicateChannelsWithBothBarrierAndEndOfPartition() throws Exception {
+        BufferOrEvent[] sequence = {
+            /* 0 */ createBarrier(2, 0),
+            /* 1 */ createBarrier(2, 1),
+            /* 2 */ createEndOfPartition(1),
+            /* 3 */ createBarrier(2, 2)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createCheckpointedInputGate(3, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (int i = 0; i <= 2; ++i) {
+            assertEquals(sequence[i], inputGate.pollNext().get());
+        }
+
+        // Here the checkpoint should not be triggered.
+        assertEquals(0, validator.getTriggeredCheckpointCounter());
+        assertEquals(0, validator.getAbortedCheckpointCounter());
+
+        // The last barrier aligned the pending checkpoint 2.
+        assertEquals(sequence[3], inputGate.pollNext().get());
+        assertThat(validator.triggeredCheckpoints, contains(2L));
+    }
+
+    @Test
+    public void testTriggerCheckpointsAfterReceivedEndOfPartition() throws Exception {
+        BufferOrEvent[] sequence = {
+            /* 0 */ createEndOfPartition(2),
+            /* 1 */ createBarrier(5, 0),
+            /* 2 */ createBarrier(6, 0),
+            /* 3 */ createBarrier(6, 1),
+            /* 4 */ createEndOfPartition(1),
+            /* 5 */ createBarrier(7, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createCheckpointedInputGate(3, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        assertThat(validator.triggeredCheckpoints, contains(6L, 7L));
+        assertEquals(0, validator.getAbortedCheckpointCounter());
+    }
+
+    @Test
+    public void testNoFastPathWithChannelFinishedDuringCheckpoints() throws Exception {
+        BufferOrEvent[] sequence = {
+            createBarrier(1, 0), createEndOfPartition(0), createBarrier(1, 1)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
+        inputGate = createCheckpointedInputGate(2, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        // The last barrier should finish the pending checkpoint instead of trigger a "new" one.
+        assertEquals(1, validator.getTriggeredCheckpointCounter());
+        assertFalse(inputGate.getCheckpointBarrierHandler().isCheckpointPending());
+    }
+
+    @Test
+    public void testCompleteAndRemoveAbortedCheckpointWithEndOfPartition() throws Exception {
+        BufferOrEvent[] sequence = {
+            createCancellationBarrier(4, 0),
+            createBarrier(4, 1),
+            createBarrier(5, 1),
+            createEndOfPartition(2)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createCheckpointedInputGate(3, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        assertEquals(1, validator.getAbortedCheckpointCounter());
+        assertEquals(4L, validator.getLastCanceledCheckpointId());
+        assertEquals(0, validator.getTriggeredCheckpointCounter());
+        assertThat(checkpointBarrierTracker.getPendingCheckpointIds(), contains(5L));
+        assertEquals(2, checkpointBarrierTracker.getNumOpenChannels());
+    }
+
+    @Test
+    public void testAbortCheckpointsAfterEndOfPartitionReceived() throws Exception {
+        BufferOrEvent[] sequence = {
+            /* 0 */ createEndOfPartition(2),
+            /* 1 */ createBarrier(5, 0),
+            /* 2 */ createBarrier(6, 0),
+            /* 3 */ createCancellationBarrier(6, 1),
+            /* 4 */ createEndOfPartition(1),
+            /* 5 */ createCancellationBarrier(7, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler(-1);
+        inputGate = createCheckpointedInputGate(3, sequence, validator);
+
+        CheckpointBarrierTracker checkpointBarrierTracker =
+                (CheckpointBarrierTracker) inputGate.getCheckpointBarrierHandler();
+        checkpointBarrierTracker.setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        assertThat(validator.abortedCheckpoints, contains(5L, 6L, 7L));
+        assertEquals(0, validator.getTriggeredCheckpointCounter());
+    }
+
+    @Test
+    public void testNoFastPathWithChannelFinishedDuringCheckpointsCancel() throws Exception {
+        BufferOrEvent[] sequence = {
+            createBarrier(1, 0, 0), createEndOfPartition(0), createCancellationBarrier(1, 1)
+        };
+
+        ValidatingCheckpointHandler checkpointHandler = new ValidatingCheckpointHandler();
+        inputGate = createCheckpointedInputGate(2, sequence, checkpointHandler);
+        inputGate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+        }
+
+        assertEquals(1, checkpointHandler.getLastCanceledCheckpointId());
+        // If go with the fast path, the pending checkpoint would not be removed normally.
+        assertFalse(inputGate.getCheckpointBarrierHandler().isCheckpointPending());
     }
 
     // ------------------------------------------------------------------------
