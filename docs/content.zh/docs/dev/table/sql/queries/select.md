@@ -56,7 +56,7 @@ SELECT order_id, price FROM (VALUES (1, 2.0), (2, 3.1))  AS t (order_id, price)
 SELECT price + tax FROM Orders WHERE id = 10
 ```
 
-此外，在任意一行的列上你可以调用内置函数和[用户自定义标量函数（user-defined scalar functions）]({{< ref "docs/dev/table/functions/udfs" >}})。当然，在使用前用户自定义函数（ user-defined functions）必须已经注册到 catalog 中。
+此外，在任意一行的列上你可以调用内置函数和[用户自定义标量函数（user-defined scalar functions）]({{< ref "docs/dev/table/functions/udfs" >}})。当然，在使用前用户自定义函数（ user-defined functions）必须已经注册到 `Catalog` 中。
 
 ```sql
 SELECT PRETTY_PRINT(order_id) FROM Orders
