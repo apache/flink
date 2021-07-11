@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.List;
 import java.util.regex.Pattern;
+
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
