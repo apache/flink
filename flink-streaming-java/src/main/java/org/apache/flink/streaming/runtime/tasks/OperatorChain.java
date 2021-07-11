@@ -97,6 +97,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     private final WatermarkGaugeExposingOutput<StreamRecord<OUT>> mainOperatorOutput;
 
+    private final boolean finishedOnRestore;
+
     /**
      * For iteration, {@link StreamIterationHead} and {@link StreamIterationTail} used for executing
      * feedback edges do not contain any operators, in which case, {@code mainOperatorWrapper} and
@@ -136,7 +138,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
 
     public OperatorChain(
             StreamTask<OUT, OP> containingTask,
-            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate) {
+            RecordWriterDelegate<SerializationDelegate<StreamRecord<OUT>>> recordWriterDelegate,
+            boolean finishedOnRestore) {
 
         this.operatorEventDispatcher =
                 new OperatorEventDispatcherImpl(
@@ -159,6 +162,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         Map<StreamEdge, RecordWriterOutput<?>> streamOutputMap =
                 new HashMap<>(outEdgesInOrder.size());
         this.streamOutputs = new RecordWriterOutput<?>[outEdgesInOrder.size()];
+        this.finishedOnRestore = finishedOnRestore;
 
         // from here on, we need to make sure that the output writers are shut down again on failure
         boolean success = false;
@@ -260,6 +264,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         this.chainedSources = Collections.emptyMap();
 
         firstOperatorWrapper = linkOperatorWrappers(allOperatorWrappers);
+        finishedOnRestore = false;
     }
 
     private void createChainOutputs(
@@ -360,6 +365,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
         return closer.register(new ChainingOutput(input, metricGroup, outputTag));
+    }
+
+    public boolean isFinishedOnRestore() {
+        return finishedOnRestore;
     }
 
     public OperatorEventDispatcher getOperatorEventDispatcher() {

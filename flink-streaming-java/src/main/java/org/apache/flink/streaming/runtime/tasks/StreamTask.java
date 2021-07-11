@@ -555,7 +555,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         closedOperators = false;
         LOG.debug("Initializing {}.", getName());
 
-        operatorChain = new OperatorChain<>(this, recordWriter);
+        operatorChain =
+                new OperatorChain<>(
+                        this,
+                        recordWriter,
+                        getEnvironment().getTaskStateManager().isFinishedOnRestore());
         mainOperator = operatorChain.getMainOperator();
 
         // task specific initialization

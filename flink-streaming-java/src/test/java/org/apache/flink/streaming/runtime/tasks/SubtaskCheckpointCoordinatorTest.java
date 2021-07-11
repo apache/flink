@@ -160,7 +160,8 @@ public class SubtaskCheckpointCoordinatorTest {
             final OperatorChain<?, ?> operatorChain =
                     new OperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>()) {
+                            new NonRecordWriter<>(),
+                            false) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -196,7 +197,8 @@ public class SubtaskCheckpointCoordinatorTest {
             final OperatorChain<?, ?> operatorChain =
                     new OperatorChain(
                             new MockStreamTaskBuilder(mockEnvironment).build(),
-                            new NonRecordWriter<>()) {
+                            new NonRecordWriter<>(),
+                            false) {
                         @Override
                         public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent)
                                 throws IOException {
@@ -244,7 +246,9 @@ public class SubtaskCheckpointCoordinatorTest {
                             SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     new OperatorChain<>(
-                            new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
+                            new NoOpStreamTask<>(new DummyEnvironment()),
+                            new NonRecordWriter<>(),
+                            false),
                     () -> true);
         }
     }
@@ -347,7 +351,8 @@ public class SubtaskCheckpointCoordinatorTest {
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
                     new OperatorChain<>(
                             task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment),
+                            false);
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
@@ -454,7 +459,7 @@ public class SubtaskCheckpointCoordinatorTest {
 
     private OperatorChain<?, ?> getOperatorChain(MockEnvironment mockEnvironment) throws Exception {
         return new OperatorChain<>(
-                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>());
+                new MockStreamTaskBuilder(mockEnvironment).build(), new NonRecordWriter<>(), false);
     }
 
     private <T> OperatorChain<T, AbstractStreamOperator<T>> operatorChain(
