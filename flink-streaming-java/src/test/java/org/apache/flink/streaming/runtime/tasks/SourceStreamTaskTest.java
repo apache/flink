@@ -29,6 +29,7 @@ import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
@@ -41,6 +42,7 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -48,6 +50,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -650,6 +653,57 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testClosedOnRestoreSourceSkipExecution() throws Exception {
+        LifeCycleMonitorSource testSource = new LifeCycleMonitorSource();
+        try (StreamTaskMailboxTestHarness<String> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                        .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
+                        .setupOutputForSingletonOperatorChain(new StreamSource<>(testSource))
+                        .build()) {
+            harness.getStreamTask().invoke();
+            harness.waitForTaskCompletion();
+
+            LifeCycleMonitorSource source =
+                    (LifeCycleMonitorSource)
+                            ((StreamSource<?, ?>) harness.getStreamTask().getMainOperator())
+                                    .getUserFunction();
+            source.getLifeCycleMonitor()
+                    .assertCallTimes(
+                            0,
+                            LifeCyclePhase.OPEN,
+                            LifeCyclePhase.PROCESS_ELEMENT,
+                            LifeCyclePhase.CLOSE);
+        }
+    }
+
+    private static class LifeCycleMonitorSource extends RichParallelSourceFunction<String> {
+
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+        }
+
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
+
+        @Override
+        public void cancel() {}
     }
 
     private static class MockSource
