@@ -392,6 +392,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     }
 
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         // go forward through the operator chain and tell each operator
         // to prepare the checkpoint
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
@@ -420,6 +424,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      */
     protected void initializeStateAndOpenOperators(
             StreamTaskStateInitializer streamTaskStateInitializer) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             StreamOperator<?> operator = operatorWrapper.getStreamOperator();
             operator.initializeState(streamTaskStateInitializer);
@@ -433,6 +441,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * heads</b> (see {@link #initializeStateAndOpenOperators(StreamTaskStateInitializer)}).
      */
     protected void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         if (firstOperatorWrapper != null) {
             firstOperatorWrapper.finish(actionExecutor, ignoreEndOfInput);
         }
@@ -443,6 +455,10 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
      * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
      */
     protected void closeAllOperators() throws Exception {
+        if (finishedOnRestore) {
+            return;
+        }
+
         Exception closingException = null;
         for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
             try {
