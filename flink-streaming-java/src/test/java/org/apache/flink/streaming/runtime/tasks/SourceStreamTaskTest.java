@@ -609,8 +609,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                                     SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                             .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                             .addAdditionalOutput(partitionWriters)
-                            .setupOperatorChain(
-                                    new StreamSource<>(new MockSource(0, Integer.MAX_VALUE, 1)))
+                            .setupOperatorChain(new StreamSource<>(new MockSource(0, 0, 1)))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
                 testHarness

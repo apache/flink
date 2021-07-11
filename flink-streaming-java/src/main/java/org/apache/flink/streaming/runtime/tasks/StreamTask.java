@@ -799,7 +799,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // we must! perform this cleanup
         suppressedException = runAndSuppressThrowable(this::cleanup, suppressedException);
 
-        // if the operators were not disposed before, do a hard dispose
+        // if the operators were not closed before, do a hard close
         suppressedException = runAndSuppressThrowable(this::closeAllOperators, suppressedException);
 
         // release the output resources. this method should never fail.
@@ -897,26 +897,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         return originalException;
     }
 
-    /**
-     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
-     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
-     */
+    /** Closes all the operators if not closed before. */
     private void closeAllOperators() throws Exception {
         if (operatorChain != null && !closedOperators) {
-            Exception closingException = null;
-            for (StreamOperatorWrapper<?, ?> operatorWrapper :
-                    operatorChain.getAllOperators(true)) {
-                StreamOperator<?> operator = operatorWrapper.getStreamOperator();
-                try {
-                    operator.close();
-                } catch (Exception e) {
-                    closingException = firstOrSuppressed(e, closingException);
-                }
-            }
             closedOperators = true;
-            if (closingException != null) {
-                throw closingException;
-            }
+            operatorChain.closeAllOperators();
         }
     }
 
