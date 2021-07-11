@@ -116,7 +116,7 @@ public class StreamTaskExecutionDecorationTest {
                     @Override
                     protected void processInput(MailboxDefaultAction.Controller controller) {}
                 };
-        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>());
+        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>(), false);
     }
 
     @After

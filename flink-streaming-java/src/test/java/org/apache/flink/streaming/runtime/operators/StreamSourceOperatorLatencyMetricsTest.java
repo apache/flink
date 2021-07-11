@@ -186,8 +186,8 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
                 new OperatorChain<>(
                         operator.getContainingTask(),
                         StreamTask.createRecordWriterDelegate(
-                                operator.getOperatorConfig(),
-                                new MockEnvironmentBuilder().build()));
+                                operator.getOperatorConfig(), new MockEnvironmentBuilder().build()),
+                        false);
         try {
             operator.run(new Object(), new CollectorOutput<>(output), operatorChain);
             operator.finish();
