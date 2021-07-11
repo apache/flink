@@ -72,6 +72,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -434,6 +435,24 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     protected void finishOperators(StreamTaskActionExecutor actionExecutor) throws Exception {
         if (firstOperatorWrapper != null) {
             firstOperatorWrapper.finish(actionExecutor, ignoreEndOfInput);
+        }
+    }
+
+    /**
+     * Execute {@link StreamOperator#close()} of each operator in the chain of this {@link
+     * StreamTask}. Closing happens from <b>tail to head</b> operator in the chain.
+     */
+    protected void closeAllOperators() throws Exception {
+        Exception closingException = null;
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators(true)) {
+            try {
+                operatorWrapper.close();
+            } catch (Exception e) {
+                closingException = firstOrSuppressed(e, closingException);
+            }
+        }
+        if (closingException != null) {
+            throw closingException;
         }
     }
 

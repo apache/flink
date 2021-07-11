@@ -1207,6 +1207,7 @@ public class StreamTaskTest extends TestLogger {
 
         // close operators directly, so that task is still fully running
         harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.closeAllOperators();
         harness.streamTask.notifyCheckpointCompleteAsync(2);
         harness.streamTask.runMailboxStep();
         assertEquals(1, ClosingOperator.notified.get());
@@ -1244,6 +1245,33 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testCheckpointDoneOnFinishedOperator() throws Exception {
+        FinishingOperator finishingOperator = new FinishingOperator();
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+        StreamTaskMailboxTestHarness<Integer> harness =
+                builder.setupOutputForSingletonOperatorChain(finishingOperator).build();
+        // keeps the mailbox from suspending
+        harness.setAutoProcess(false);
+        harness.processElement(new StreamRecord<>(1));
+
+        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        assertTrue(FinishingOperator.finished);
+
+        harness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+        harness.streamTask.triggerCheckpointOnBarrier(
+                new CheckpointMetaData(2, 0),
+                CheckpointOptions.forCheckpointWithDefaultLocation(),
+                new CheckpointMetricsBuilder()
+                        .setBytesProcessedDuringAlignment(0L)
+                        .setAlignmentDurationNanos(0L));
+        harness.getTaskStateManager().getWaitForReportLatch().await();
+        assertEquals(2, harness.getTaskStateManager().getReportedCheckpointId());
+    }
+
     /**
      * Tests that checkpoints are declined if operators are (partially) closed.
      *
@@ -1263,6 +1291,7 @@ public class StreamTaskTest extends TestLogger {
         harness.processElement(new StreamRecord<>(1));
 
         harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.closeAllOperators();
         assertTrue(ClosingOperator.closed.get());
 
         harness.streamTask.triggerCheckpointOnBarrier(
@@ -2756,9 +2785,9 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void finish() throws Exception {
-            super.close();
+        public void close() throws Exception {
             closed.set(true);
+            super.close();
         }
 
         @Override
@@ -2958,5 +2987,18 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public void processElement(StreamRecord<String> element) throws Exception {}
+    }
+
+    private static class FinishingOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String> {
+        static boolean finished = false;
+
+        @Override
+        public void processElement(StreamRecord<String> element) throws Exception {}
+
+        @Override
+        public void finish() throws Exception {
+            finished = true;
+        }
     }
 }
