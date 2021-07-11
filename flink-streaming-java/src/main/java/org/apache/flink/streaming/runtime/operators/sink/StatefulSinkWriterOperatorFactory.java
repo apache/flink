@@ -18,8 +18,9 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink.StatefulSink;
+import org.apache.flink.api.connector.sink.StatefulSinkWriter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
@@ -34,31 +35,32 @@ import javax.annotation.Nullable;
  * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
 public final class StatefulSinkWriterOperatorFactory<InputT, CommT, WriterStateT>
-        extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
+        extends AbstractSinkWriterOperatorFactory<
+                InputT, CommT, StatefulSinkWriter<InputT, WriterStateT>> {
 
-    private final Sink<InputT, CommT, WriterStateT, ?> sink;
+    private final StatefulSink<InputT, WriterStateT> sink;
 
     @Nullable private final String previousSinkStateName;
 
-    public StatefulSinkWriterOperatorFactory(Sink<InputT, CommT, WriterStateT, ?> sink) {
+    public StatefulSinkWriterOperatorFactory(StatefulSink<InputT, WriterStateT> sink) {
         this(sink, null);
     }
 
     public StatefulSinkWriterOperatorFactory(
-            Sink<InputT, CommT, WriterStateT, ?> sink, @Nullable String previousSinkStateName) {
+            StatefulSink<InputT, WriterStateT> sink, @Nullable String previousSinkStateName) {
         this.sink = sink;
         this.previousSinkStateName = previousSinkStateName;
     }
 
     @Override
-    AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
-            ProcessingTimeService processingTimeService) {
+    AbstractSinkWriterOperator<InputT, CommT, StatefulSinkWriter<InputT, WriterStateT>>
+            createWriterOperator(ProcessingTimeService processingTimeService) {
         return new StatefulSinkWriterOperator<>(
                 previousSinkStateName,
                 processingTimeService,
                 getMailboxExecutor(),
                 sink,
-                sink.getWriterStateSerializer().get());
+                sink.getWriterStateSerializer());
     }
 
     @Override

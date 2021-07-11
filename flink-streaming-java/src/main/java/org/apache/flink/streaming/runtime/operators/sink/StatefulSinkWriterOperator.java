@@ -23,8 +23,9 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink.StatefulSink;
+import org.apache.flink.api.connector.sink.StatefulSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -49,14 +50,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
-        extends AbstractSinkWriterOperator<InputT, CommT> {
+        extends AbstractSinkWriterOperator<
+                InputT, CommT, StatefulSinkWriter<InputT, WriterStateT>> {
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> WRITER_RAW_STATES_DESC =
             new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
 
     /** Used to create the stateful {@link SinkWriter}. */
-    private final Sink<InputT, CommT, WriterStateT, ?> sink;
+    private final StatefulSink<InputT, WriterStateT> sink;
 
     /** The writer operator's state serializer. */
     private final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer;
@@ -86,7 +88,7 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
             @Nullable final String previousSinkStateName,
             final ProcessingTimeService processingTimeService,
             MailboxExecutor mailboxExecutor,
-            final Sink<InputT, CommT, WriterStateT, ?> sink,
+            final StatefulSink<InputT, WriterStateT> sink,
             final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
         super(processingTimeService, mailboxExecutor);
         this.sink = sink;
@@ -119,14 +121,14 @@ final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
     @SuppressWarnings("unchecked")
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
-        writerState.update((List<WriterStateT>) sinkWriter.snapshotState());
+        writerState.update(sinkWriter.snapshotState());
         if (previousSinkState != null) {
             previousSinkState.clear();
         }
     }
 
     @Override
-    SinkWriter<InputT, CommT, WriterStateT> createWriter() throws Exception {
+    StatefulSinkWriter<InputT, WriterStateT> createWriter() throws Exception {
         final List<WriterStateT> writerStates = CollectionUtil.iterableToList(writerState.get());
         final List<WriterStateT> states = new ArrayList<>(writerStates);
         if (previousSinkStateName != null) {

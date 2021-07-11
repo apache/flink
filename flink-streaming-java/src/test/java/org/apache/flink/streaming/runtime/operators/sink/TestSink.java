@@ -20,7 +20,9 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -45,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertNotNull;
 
 /** A {@link Sink TestSink} for all the sink related tests. */
-public class TestSink implements Sink<Integer, String, String, String> {
+public class TestSink implements GlobalCommittingSink<Integer, String, String, String> {
 
     private final DefaultSinkWriter writer;
 
@@ -75,7 +77,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
     }
 
     @Override
-    public SinkWriter<Integer, String, String> createWriter(
+    public CommittingSinkWriter<Integer, String> createWriter(
             InitContext context, List<String> states) {
         writer.restoredFrom(states);
         writer.setProcessingTimerService(context.getProcessingTimeService());
@@ -196,7 +198,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
     // -------------------------------------- Sink Writer ------------------------------------------
 
     /** Base class for out testing {@link SinkWriter Writers}. */
-    static class DefaultSinkWriter implements SinkWriter<Integer, String, String>, Serializable {
+    static class DefaultSinkWriter implements CommittingSinkWriter<Integer, String>, Serializable {
 
         protected List<String> elements;
 

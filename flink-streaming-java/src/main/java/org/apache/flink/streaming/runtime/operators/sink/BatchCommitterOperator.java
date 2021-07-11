@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.CommittingSink;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -46,11 +47,12 @@ final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
     /** Record all the committables until the end of the input. */
     private final List<CommT> allCommittables;
 
-    private final Sink<?, CommT, ?, ?> sink;
+    private final CommittingSink<?, CommT, ?> sink;
 
     private final MailboxExecutor mailboxExecutor;
 
-    public BatchCommitterOperator(Sink<?, CommT, ?, ?> sink, MailboxExecutor mailboxExecutor) {
+    public BatchCommitterOperator(
+            CommittingSink<?, CommT, ?> sink, MailboxExecutor mailboxExecutor) {
         this.sink = checkNotNull(sink);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.allCommittables = new ArrayList<>();
@@ -66,12 +68,7 @@ final class BatchCommitterOperator<CommT> extends AbstractStreamOperator<CommT>
                         processingTimeService,
                         mailboxExecutor,
                         getMetricGroup());
-        committer =
-                sink.createCommitter(initContext)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Could not create committer from the sink"));
+        committer = sink.createCommitter(initContext);
     }
 
     @Override

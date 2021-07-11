@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -40,9 +40,10 @@ public final class BatchGlobalCommitterOperatorFactory<CommT, GlobalCommT>
         implements OneInputStreamOperatorFactory<CommT, GlobalCommT>,
                 YieldingOperatorFactory<GlobalCommT> {
 
-    private final Sink<?, CommT, ?, GlobalCommT> sink;
+    private final GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink;
 
-    public BatchGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
+    public BatchGlobalCommitterOperatorFactory(
+            GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink) {
         this.sink = checkNotNull(sink);
     }
 

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.CommittingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -37,9 +37,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOperatorFactory<CommT>
         implements OneInputStreamOperatorFactory<CommT, CommT>, YieldingOperatorFactory<CommT> {
 
-    private final Sink<?, CommT, ?, ?> sink;
+    private final CommittingSink<?, CommT, ?> sink;
 
-    public BatchCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
+    public BatchCommitterOperatorFactory(CommittingSink<?, CommT, ?> sink) {
         this.sink = checkNotNull(sink);
     }
 

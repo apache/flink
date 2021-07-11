@@ -51,7 +51,7 @@ public class DataStreamSink<T> {
     }
 
     @SuppressWarnings("unchecked")
-    protected DataStreamSink(DataStream<T> inputStream, Sink<T, ?, ?, ?> sink) {
+    protected DataStreamSink(DataStream<T> inputStream, Sink<T> sink) {
         transformation =
                 (PhysicalTransformation<T>)
                         new SinkTransformation<>(

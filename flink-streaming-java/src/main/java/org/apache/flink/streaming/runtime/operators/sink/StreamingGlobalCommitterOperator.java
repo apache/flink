@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 
@@ -56,10 +56,10 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
 
     private boolean endOfInput;
 
-    private final Sink<?, CommT, ?, GlobalCommT> sink;
+    private final GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink;
 
     StreamingGlobalCommitterOperator(
-            Sink<?, CommT, ?, GlobalCommT> sink,
+            GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink,
             MailboxExecutor mailboxExecutor,
             SimpleVersionedSerializer<GlobalCommT> committableSerializer) {
         super(committableSerializer, mailboxExecutor);
@@ -72,12 +72,7 @@ public final class StreamingGlobalCommitterOperator<CommT, GlobalCommT>
     @Override
     public void open() throws Exception {
         super.open();
-        this.globalCommitter =
-                sink.createGlobalCommitter(createInitContext())
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Could not create global committer from the sink"));
+        this.globalCommitter = sink.createGlobalCommitter(createInitContext());
     }
 
     @Override

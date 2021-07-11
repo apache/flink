@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -34,22 +34,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamingGlobalCommitterOperatorFactory<CommT, GlobalCommT>
         extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
 
-    private final Sink<?, CommT, ?, GlobalCommT> sink;
+    private final GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink;
 
-    public StreamingGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
+    public StreamingGlobalCommitterOperatorFactory(
+            GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink) {
         this.sink = checkNotNull(sink);
     }
 
     @Override
     AbstractStreamingCommitterOperator<CommT, GlobalCommT> createStreamingCommitterOperator() {
-        return new StreamingGlobalCommitterOperator<>(
-                sink,
-                getMailboxExecutor(),
-                sink.getGlobalCommittableSerializer()
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Could not create global committable serializer from the sink")));
+        return new StreamingGlobalCommitterOperator<CommT, GlobalCommT>(
+                sink, getMailboxExecutor(), sink.getGlobalCommittableSerializer());
     }
 
     @Override

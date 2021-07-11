@@ -35,13 +35,13 @@ import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat
 import org.apache.flink.core.fs.{FileSystem, Path}
 import org.apache.flink.streaming.api.datastream.{AllWindowedStream => JavaAllWindowedStream, DataStream => JavaStream, KeyedStream => JavaKeyedStream, _}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
-import org.apache.flink.streaming.api.functions.timestamps.{AscendingTimestampExtractor, BoundedOutOfOrdernessTimestampExtractor}
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
-import org.apache.flink.util.{CloseableIterator, Collector}
+import org.apache.flink.util.Collector
 
 import scala.collection.JavaConverters._
 
@@ -1131,7 +1131,7 @@ class DataStream[T](stream: JavaStream[T]) {
    * will be executed once the StreamExecutionEnvironment.execute(...)
    * method is called.
    */
-  def sinkTo(sink: Sink[T, _, _, _]): DataStreamSink[T] = stream.sinkTo(sink)
+  def sinkTo(sink: Sink[T]): DataStreamSink[T] = stream.sinkTo(sink)
 
   /**
    * Triggers the distributed execution of the streaming dataflow and returns an iterator over the

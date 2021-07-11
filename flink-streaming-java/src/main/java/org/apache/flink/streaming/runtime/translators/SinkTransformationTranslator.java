@@ -21,7 +21,10 @@ package org.apache.flink.streaming.runtime.translators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.sink.CommittingSink;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.StatefulSink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -49,9 +52,9 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.function.Function;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClass;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** A {@link TransformationTranslator} for the {@link SinkTransformation}. */
@@ -78,10 +81,10 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
                     transformation,
                     parallelism,
                     PREVIOUS_SINK_STATE_NAME,
-                    new BatchCommitterOperatorFactory<>(transformation.getSink()),
+                    BatchCommitterOperatorFactory::new,
                     1,
                     1,
-                    new BatchGlobalCommitterOperatorFactory<>(transformation.getSink()),
+                    BatchGlobalCommitterOperatorFactory::new,
                     context);
         } catch (IOException e) {
             throw new FlinkRuntimeException(
@@ -104,10 +107,10 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
                     transformation,
                     parallelism,
                     PREVIOUS_SINK_STATE_NAME,
-                    new StreamingCommitterOperatorFactory<>(transformation.getSink()),
+                    StreamingCommitterOperatorFactory::new,
                     parallelism,
                     transformation.getMaxParallelism(),
-                    new StreamingGlobalCommitterOperatorFactory<>(transformation.getSink()),
+                    StreamingGlobalCommitterOperatorFactory::new,
                     context);
         } catch (IOException e) {
             throw new FlinkRuntimeException(
@@ -133,10 +136,16 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
             SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
             int writerParallelism,
             @SuppressWarnings("SameParameterValue") @Nullable String previousSinkStateName,
-            OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
+            Function<
+                            CommittingSink<InputT, CommT, WriterStateT>,
+                            OneInputStreamOperatorFactory<CommT, CommT>>
+                    committerFactory,
             int committerParallelism,
             int committerMaxParallelism,
-            OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
+            Function<
+                            GlobalCommittingSink<InputT, CommT, WriterStateT, GlobalCommT>,
+                            OneInputStreamOperatorFactory<CommT, GlobalCommT>>
+                    globalCommitterFactory,
             Context context)
             throws IOException {
 
@@ -174,8 +183,7 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
             int parallelism,
             @Nullable String previousSinkStateName,
             Context context) {
-        final boolean hasState =
-                sinkTransformation.getSink().getWriterStateSerializer().isPresent();
+        final boolean hasState = sinkTransformation.getSink() instanceof StatefulSink;
         checkState(sinkTransformation.getInputs().size() == 1);
         @SuppressWarnings("unchecked")
         final Transformation<InputT> input =
@@ -185,7 +193,8 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
         final StreamOperatorFactory<CommT> writer =
                 hasState
                         ? new StatefulSinkWriterOperatorFactory<>(
-                                sinkTransformation.getSink(), previousSinkStateName)
+                                (StatefulSink<InputT, WriterStateT>) sinkTransformation.getSink(),
+                                previousSinkStateName)
                         : new StatelessSinkWriterOperatorFactory<>(sinkTransformation.getSink());
 
         final String prefix = "Sink Writer:";
@@ -221,20 +230,26 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
     private int addCommitter(
             int inputId,
             SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            OneInputStreamOperatorFactory<CommT, CommT> committerFactory,
+            Function<
+                            CommittingSink<InputT, CommT, WriterStateT>,
+                            OneInputStreamOperatorFactory<CommT, CommT>>
+                    committerFactory,
             int parallelism,
             int maxParallelism,
             Context context) {
 
-        final String prefix = "Sink Committer:";
-        final CommittableTypeInformation<CommT> committableTypeInfo =
-                extractCommittableTypeInformation(sinkTransformation.getSink());
-        if (committableTypeInfo == null) {
+        if (!(sinkTransformation.getSink() instanceof CommittingSink)) {
             return -1;
         }
 
+        final String prefix = "Sink Committer:";
+        CommittingSink<InputT, CommT, WriterStateT> committingSink =
+                (CommittingSink<InputT, CommT, WriterStateT>) sinkTransformation.getSink();
+        final CommittableTypeInformation<CommT> committableTypeInfo =
+                extractCommittableTypeInformation(committingSink);
+
         return addOperatorToStreamGraph(
-                committerFactory,
+                committerFactory.apply(committingSink),
                 Collections.singletonList(inputId),
                 committableTypeInfo,
                 committableTypeInfo,
@@ -258,19 +273,25 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
     private void addGlobalCommitter(
             int inputId,
             SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT> sinkTransformation,
-            OneInputStreamOperatorFactory<CommT, GlobalCommT> globalCommitterFactory,
+            Function<
+                            GlobalCommittingSink<InputT, CommT, WriterStateT, GlobalCommT>,
+                            OneInputStreamOperatorFactory<CommT, GlobalCommT>>
+                    globalCommitterFactory,
             Context context) {
 
-        if (!sinkTransformation.getSink().getGlobalCommittableSerializer().isPresent()) {
+        if (!(sinkTransformation.getSink() instanceof GlobalCommittingSink)) {
             return;
         }
 
         final String prefix = "Sink Global Committer:";
 
+        GlobalCommittingSink<InputT, CommT, WriterStateT, GlobalCommT> committingSink =
+                (GlobalCommittingSink<InputT, CommT, WriterStateT, GlobalCommT>)
+                        sinkTransformation.getSink();
         addOperatorToStreamGraph(
-                globalCommitterFactory,
+                globalCommitterFactory.apply(committingSink),
                 Collections.singletonList(inputId),
-                checkNotNull(extractCommittableTypeInformation(sinkTransformation.getSink())),
+                extractCommittableTypeInformation(committingSink),
                 null,
                 String.format("%s %s", prefix, sinkTransformation.getName()),
                 sinkTransformation.getUid() == null
@@ -347,19 +368,23 @@ public class SinkTransformationTranslator<InputT, CommT, WriterStateT, GlobalCom
         return transformationId;
     }
 
+    @Nullable
+    private CommittableTypeInformation<CommT> extractCommittableTypeInformation(Sink<InputT> sink) {
+        return sink instanceof CommittingSink
+                ? extractCommittableTypeInformation(
+                        (CommittingSink<InputT, CommT, WriterStateT>) sink)
+                : null;
+    }
+
     private CommittableTypeInformation<CommT> extractCommittableTypeInformation(
-            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink) {
-        if (sink.getCommittableSerializer().isPresent()) {
-            final Type committableType =
-                    TypeExtractor.getParameterType(Sink.class, sink.getClass(), 1);
-            LOG.debug(
-                    "Extracted committable type [{}] from sink [{}].",
-                    committableType.toString(),
-                    sink.getClass().getCanonicalName());
-            return new CommittableTypeInformation<>(
-                    typeToClass(committableType), () -> sink.getCommittableSerializer().get());
-        } else {
-            return null;
-        }
+            CommittingSink<InputT, CommT, WriterStateT> sink) {
+        final Type committableType = TypeExtractor.getParameterType(Sink.class, sink.getClass(), 1);
+        LOG.debug(
+                "Extracted committable type [{}] from sink [{}].",
+                committableType.toString(),
+                sink.getClass().getCanonicalName());
+        return new CommittableTypeInformation<>(
+                typeToClass(committableType),
+                ((CommittingSink<?, CommT, ?>) sink)::getCommittableSerializer);
     }
 }

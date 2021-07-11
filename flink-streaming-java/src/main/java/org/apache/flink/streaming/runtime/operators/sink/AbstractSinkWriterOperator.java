@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.connector.sink.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -44,7 +45,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
-abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
+abstract class AbstractSinkWriterOperator<InputT, CommT, WriteT extends SinkWriter<InputT>>
+        extends AbstractStreamOperator<CommT>
         implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
@@ -58,7 +60,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     private Long currentWatermark;
 
     /** The sink writer that does most of the work. */
-    protected SinkWriter<InputT, CommT, ?> sinkWriter;
+    protected WriteT sinkWriter;
 
     private final MailboxExecutor mailboxExecutor;
 
@@ -87,7 +89,9 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
         super.prepareSnapshotPreBarrier(checkpointId);
-        sendCommittables(sinkWriter.prepareCommit(false));
+        if (sinkWriter instanceof CommittingSinkWriter) {
+            sendCommittables(((CommittingSinkWriter<?, CommT, ?>) sinkWriter).prepareCommit(false));
+        }
     }
 
     @Override
@@ -100,7 +104,9 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     @Override
     public void endInput() throws Exception {
-        sendCommittables(sinkWriter.prepareCommit(true));
+        if (sinkWriter instanceof CommittingSinkWriter) {
+            sendCommittables(((CommittingSinkWriter<?, CommT, ?>) sinkWriter).prepareCommit(true));
+        }
     }
 
     @Override
@@ -119,7 +125,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
      *
      * @throws Exception If creating {@link SinkWriter} fail
      */
-    abstract SinkWriter<InputT, CommT, ?> createWriter() throws Exception;
+    abstract WriteT createWriter() throws Exception;
 
     private void sendCommittables(final List<CommT> committables) {
         for (CommT committable : committables) {

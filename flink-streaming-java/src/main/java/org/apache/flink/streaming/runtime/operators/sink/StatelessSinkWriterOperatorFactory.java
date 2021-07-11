@@ -31,16 +31,16 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 public final class StatelessSinkWriterOperatorFactory<InputT, CommT>
-        extends AbstractSinkWriterOperatorFactory<InputT, CommT> {
+        extends AbstractSinkWriterOperatorFactory<InputT, CommT, SinkWriter<InputT>> {
 
-    private final Sink<InputT, CommT, ?, ?> sink;
+    private final Sink<InputT> sink;
 
-    public StatelessSinkWriterOperatorFactory(Sink<InputT, CommT, ?, ?> sink) {
+    public StatelessSinkWriterOperatorFactory(Sink<InputT> sink) {
         this.sink = sink;
     }
 
     @Override
-    AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+    AbstractSinkWriterOperator<InputT, CommT, SinkWriter<InputT>> createWriterOperator(
             ProcessingTimeService processingTimeService) {
         return new StatelessSinkWriterOperator<>(processingTimeService, getMailboxExecutor(), sink);
     }

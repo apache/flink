@@ -32,14 +32,14 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
  * @param <InputT> The input type of the {@link SinkWriter}.
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
-abstract class AbstractSinkWriterOperatorFactory<InputT, CommT>
+abstract class AbstractSinkWriterOperatorFactory<InputT, CommT, WriterT extends SinkWriter<InputT>>
         extends AbstractStreamOperatorFactory<CommT>
         implements OneInputStreamOperatorFactory<InputT, CommT>, YieldingOperatorFactory<CommT> {
     @Override
     @SuppressWarnings("unchecked")
     public <T extends StreamOperator<CommT>> T createStreamOperator(
             StreamOperatorParameters<CommT> parameters) {
-        final AbstractSinkWriterOperator<InputT, CommT> writerOperator =
+        final AbstractSinkWriterOperator<InputT, CommT, WriterT> writerOperator =
                 createWriterOperator(this.processingTimeService);
         writerOperator.setup(
                 parameters.getContainingTask(),
@@ -48,6 +48,6 @@ abstract class AbstractSinkWriterOperatorFactory<InputT, CommT>
         return (T) writerOperator;
     }
 
-    abstract AbstractSinkWriterOperator<InputT, CommT> createWriterOperator(
+    abstract AbstractSinkWriterOperator<InputT, CommT, WriterT> createWriterOperator(
             ProcessingTimeService processingTimeService);
 }

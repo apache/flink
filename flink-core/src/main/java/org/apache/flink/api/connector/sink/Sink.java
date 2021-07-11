@@ -21,14 +21,11 @@ package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * This interface lets the sink developer build a simple sink topology, which could guarantee the
@@ -45,7 +42,7 @@ import java.util.Optional;
  * @param <GlobalCommT> The type of the aggregated committable
  */
 @Experimental
-public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializable {
+public interface Sink<InputT> extends Serializable {
 
     /**
      * Create a {@link SinkWriter}.
@@ -55,62 +52,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
      * @return A sink writer.
      * @throws IOException if fail to create a writer.
      */
-    SinkWriter<InputT, CommT, WriterStateT> createWriter(
-            InitContext context, List<WriterStateT> states) throws IOException;
-
-    /**
-     * Creates a {@link Committer}.
-     *
-     * @return A committer.
-     * @throws IOException if fail to create a committer.
-     */
-    @Deprecated
-    default Optional<Committer<CommT>> createCommitter() throws IOException {
-        return Optional.empty();
-    }
-
-    /**
-     * Creates a {@link Committer}.
-     *
-     * @return A committer.
-     * @throws IOException if fail to create a committer.
-     */
-    default Optional<Committer<CommT>> createCommitter(InitContext context) throws IOException {
-        return createCommitter();
-    }
-
-    /**
-     * Creates a {@link GlobalCommitter}.
-     *
-     * @return A global committer.
-     * @throws IOException if fail to create a global committer.
-     */
-    @Deprecated
-    default Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter()
-            throws IOException {
-        return Optional.empty();
-    }
-
-    /**
-     * Creates a {@link GlobalCommitter}.
-     *
-     * @return A global committer.
-     * @throws IOException if fail to create a global committer.
-     */
-    default Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter(InitContext context)
-            throws IOException {
-        return createGlobalCommitter();
-    }
-
-    /** Returns the serializer of the committable type. */
-    Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer() throws IOException;
-
-    /** Returns the serializer of the aggregated committable type. */
-    Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer()
-            throws IOException;
-
-    /** Return the serializer of the writer's state type. */
-    Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer() throws IOException;
+    SinkWriter<InputT> createWriter(InitContext context) throws IOException;
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     interface InitContext {
