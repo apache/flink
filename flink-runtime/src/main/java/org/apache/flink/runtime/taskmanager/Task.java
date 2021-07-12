@@ -1226,6 +1226,7 @@ public class Task
                         if (taskCancellationTimeout > 0) {
                             Runnable cancelWatchdog =
                                     new TaskCancelerWatchDog(
+                                            taskInfo,
                                             executingThread,
                                             taskManagerActions,
                                             taskCancellationTimeout);
@@ -1658,18 +1659,8 @@ public class Task
                 // log stack trace where the executing thread is stuck and
                 // interrupt the running thread periodically while it is still alive
                 while (task.shouldInterruptOnCancel() && executerThread.isAlive()) {
-                    // build the stack trace of where the thread is stuck, for the log
-                    StackTraceElement[] stack = executerThread.getStackTrace();
-                    StringBuilder bld = new StringBuilder();
-                    for (StackTraceElement e : stack) {
-                        bld.append(e).append('\n');
-                    }
-
-                    log.warn(
-                            "Task '{}' did not react to cancelling signal for {} seconds, but is stuck in method:\n {}",
-                            taskName,
-                            (interruptIntervalMillis / 1000),
-                            bld);
+                    logTaskThreadStackTrace(
+                            executerThread, taskName, interruptIntervalMillis, "interrupting");
 
                     executerThread.interrupt();
                     try {
@@ -1701,11 +1692,17 @@ public class Task
         /** The timeout for cancellation. */
         private final long timeoutMillis;
 
+        private final TaskInfo taskInfo;
+
         TaskCancelerWatchDog(
-                Thread executerThread, TaskManagerActions taskManager, long timeoutMillis) {
+                TaskInfo taskInfo,
+                Thread executerThread,
+                TaskManagerActions taskManager,
+                long timeoutMillis) {
 
             checkArgument(timeoutMillis > 0);
 
+            this.taskInfo = taskInfo;
             this.executerThread = executerThread;
             this.taskManager = taskManager;
             this.timeoutMillis = timeoutMillis;
@@ -1728,6 +1725,11 @@ public class Task
                 }
 
                 if (executerThread.isAlive()) {
+                    logTaskThreadStackTrace(
+                            executerThread,
+                            taskInfo.getTaskNameWithSubtasks(),
+                            timeoutMillis,
+                            "notifying TM");
                     String msg =
                             "Task did not exit gracefully within "
                                     + (timeoutMillis / 1000)
@@ -1738,5 +1740,21 @@ public class Task
                 throw new FlinkRuntimeException("Error in Task Cancellation Watch Dog", t);
             }
         }
+    }
+
+    private static void logTaskThreadStackTrace(
+            Thread thread, String taskName, long timeoutMs, String action) {
+        StackTraceElement[] stack = thread.getStackTrace();
+        StringBuilder stackTraceStr = new StringBuilder();
+        for (StackTraceElement e : stack) {
+            stackTraceStr.append(e).append('\n');
+        }
+
+        LOG.warn(
+                "Task '{}' did not react to cancelling signal - {}; it is stuck for {} seconds in method:\n {}",
+                taskName,
+                action,
+                timeoutMs / 1000,
+                stackTraceStr);
     }
 }
