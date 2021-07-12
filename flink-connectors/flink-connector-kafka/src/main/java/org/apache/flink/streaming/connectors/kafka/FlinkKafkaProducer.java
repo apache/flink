@@ -649,7 +649,7 @@ public class FlinkKafkaProducer<IN>
                 new FlinkKafkaProducer.ContextStateSerializer());
 
         checkArgument(
-                !org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(defaultTopic),
+                StringUtils.isNoneBlank(defaultTopic),
                 "defaultTopic cannot be null or empty string");
         this.defaultTopicId = defaultTopic;
         if (kafkaSchema != null) {
