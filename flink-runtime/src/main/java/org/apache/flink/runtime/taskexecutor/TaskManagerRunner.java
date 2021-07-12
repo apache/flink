@@ -128,6 +128,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
     private final CompletableFuture<Result> terminationFuture;
 
+    private final RpcSystem rpcSystem;
+
     private boolean shutdown;
 
     public TaskManagerRunner(
@@ -137,7 +139,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
-        final RpcSystem rpcSystem = RpcSystem.load();
+        rpcSystem = RpcSystem.load();
 
         timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
@@ -252,7 +254,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         FutureUtils.composeAfterwards(
                                 taskManagerTerminationFuture, this::shutDownServices);
 
-                serviceTerminationFuture.whenComplete(
+                final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
+                        FutureUtils.runAfterwards(serviceTerminationFuture, rpcSystem::close);
+
+                rpcSystemClassLoaderCloseFuture.whenComplete(
                         (Void ignored, Throwable throwable) -> {
                             if (throwable != null) {
                                 terminationFuture.completeExceptionally(throwable);

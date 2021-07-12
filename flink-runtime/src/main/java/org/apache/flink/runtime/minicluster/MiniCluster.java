@@ -197,6 +197,9 @@ public class MiniCluster implements AutoCloseableAsync {
     /** Flag marking the mini cluster as started/running. */
     private volatile boolean running;
 
+    @GuardedBy("lock")
+    private RpcSystem rpcSystem;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -273,7 +276,7 @@ public class MiniCluster implements AutoCloseableAsync {
             try {
                 initializeIOFormatClasses(configuration);
 
-                final RpcSystem rpcSystem = RpcSystem.load();
+                rpcSystem = RpcSystem.load();
 
                 LOG.info("Starting Metrics Registry");
                 metricRegistry =
@@ -1062,6 +1065,12 @@ public class MiniCluster implements AutoCloseableAsync {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }
                 haServices = null;
+            }
+
+            try {
+                rpcSystem.close();
+            } catch (Exception e) {
+                exception = ExceptionUtils.firstOrSuppressed(e, exception);
             }
 
             if (exception != null) {
