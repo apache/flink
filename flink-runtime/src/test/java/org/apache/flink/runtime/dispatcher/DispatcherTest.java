@@ -32,6 +32,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -135,7 +136,9 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -262,6 +265,49 @@ public class DispatcherTest extends TestLogger {
         assertTrue(
                 "jobManagerRunner was not started",
                 jobMasterLeaderElectionService.getStartFuture().isDone());
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionWithGloballyTerminatedJobId() throws Exception {
+        haServices.getRunningJobsRegistry().setJobFinished(jobGraph.getJobID());
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new ExpectedJobIdJobManagerRunnerFactory(
+                                jobId, createdJobManagerRunnerLatch));
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        final CompletableFuture<Acknowledge> submitFuture =
+                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+        final ExecutionException executionException =
+                assertThrows(ExecutionException.class, submitFuture::get);
+        assertTrue(executionException.getCause() instanceof DuplicateJobSubmissionException);
+        final DuplicateJobSubmissionException duplicateException =
+                (DuplicateJobSubmissionException) executionException.getCause();
+        assertTrue(duplicateException.isTerminated());
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionWithRunningJobId() throws Exception {
+        dispatcher =
+                new TestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(
+                                new ExpectedJobIdJobManagerRunnerFactory(
+                                        jobId, createdJobManagerRunnerLatch))
+                        .setInitialJobGraphs(Collections.singleton(jobGraph))
+                        .build();
+        dispatcher.start();
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        final CompletableFuture<Acknowledge> submitFuture =
+                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+        final ExecutionException executionException =
+                assertThrows(ExecutionException.class, submitFuture::get);
+        assertTrue(executionException.getCause() instanceof DuplicateJobSubmissionException);
+        final DuplicateJobSubmissionException duplicateException =
+                (DuplicateJobSubmissionException) executionException.getCause();
+        assertFalse(duplicateException.isTerminated());
     }
 
     /**

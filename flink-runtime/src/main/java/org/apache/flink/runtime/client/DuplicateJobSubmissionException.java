@@ -25,7 +25,19 @@ import org.apache.flink.api.common.JobID;
  */
 public class DuplicateJobSubmissionException extends JobSubmissionException {
 
-    public DuplicateJobSubmissionException(JobID jobID) {
+    private final boolean terminated;
+
+    public DuplicateJobSubmissionException(JobID jobID, boolean terminated) {
         super(jobID, "Job has already been submitted.");
+        this.terminated = terminated;
+    }
+
+    /**
+     * Checks whether the duplicate job has already been finished.
+     *
+     * @return true if the job has already finished, either successfully or as a failure
+     */
+    public boolean isTerminated() {
+        return terminated;
     }
 }

@@ -858,28 +858,29 @@ public class FutureUtilsTest extends TestLogger {
         final CompletableFuture<String> handled =
                 FutureUtils.handleException(
                         future, UnsupportedOperationException.class, exception -> "handled");
-        future.completeExceptionally(new IllegalArgumentException("foobar"));
+        final IllegalArgumentException futureException = new IllegalArgumentException("foobar");
+        future.completeExceptionally(futureException);
         final CompletionException completionException =
                 assertThrows(CompletionException.class, handled::join);
-        assertTrue(completionException.getCause() instanceof IllegalArgumentException);
-        assertEquals("foobar", completionException.getCause().getMessage());
+        assertEquals(futureException, completionException.getCause());
     }
 
     @Test
     public void testHandleExceptionWithThrowingExceptionHandler() {
         final CompletableFuture<String> future = new CompletableFuture<>();
+        final IllegalStateException handlerException =
+                new IllegalStateException("something went terribly wrong");
         final CompletableFuture<String> handled =
                 FutureUtils.handleException(
                         future,
                         UnsupportedOperationException.class,
                         exception -> {
-                            throw new IllegalStateException("something went terribly wrong");
+                            throw handlerException;
                         });
         future.completeExceptionally(new UnsupportedOperationException("foobar"));
         final CompletionException completionException =
                 assertThrows(CompletionException.class, handled::join);
-        assertTrue(completionException.getCause() instanceof IllegalStateException);
-        assertEquals("something went terribly wrong", completionException.getCause().getMessage());
+        assertEquals(handlerException, completionException.getCause());
     }
 
     @Test

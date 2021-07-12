@@ -30,6 +30,7 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherBootstrap;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -48,8 +50,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
@@ -144,21 +149,19 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
             final DispatcherGateway dispatcherGateway) {
         return applicationCompletionFuture
                 .handle(
-                        (r, t) -> {
+                        (ignored, t) -> {
                             if (t == null) {
                                 LOG.info("Application completed SUCCESSFULLY");
                                 return dispatcherGateway.shutDownCluster(
                                         ApplicationStatus.SUCCEEDED);
                             }
 
-                            final Optional<UnsuccessfulExecutionException> exception =
+                            final Optional<UnsuccessfulExecutionException> maybeException =
                                     ExceptionUtils.findThrowable(
                                             t, UnsuccessfulExecutionException.class);
-
-                            if (exception.isPresent()) {
+                            if (maybeException.isPresent()) {
                                 final ApplicationStatus applicationStatus =
-                                        exception.get().getStatus();
-
+                                        maybeException.get().getStatus();
                                 if (applicationStatus == ApplicationStatus.CANCELED
                                         || applicationStatus == ApplicationStatus.FAILED) {
                                     LOG.info("Application {}: ", applicationStatus, t);
@@ -203,6 +206,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
             final ScheduledExecutor scheduledExecutor,
             final boolean enforceSingleJobExecution) {
         final CompletableFuture<List<JobID>> applicationExecutionFuture = new CompletableFuture<>();
+        final Set<JobID> tolerateMissingResult = Collections.synchronizedSet(new HashSet<>());
 
         // we need to hand in a future as return value because we need to get those JobIs out
         // from the scheduled task that executes the user program
@@ -211,6 +215,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                         () ->
                                 runApplicationEntryPoint(
                                         applicationExecutionFuture,
+                                        tolerateMissingResult,
                                         dispatcherGateway,
                                         scheduledExecutor,
                                         enforceSingleJobExecution),
@@ -218,7 +223,12 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                         TimeUnit.MILLISECONDS);
 
         return applicationExecutionFuture.thenCompose(
-                jobIds -> getApplicationResult(dispatcherGateway, jobIds, scheduledExecutor));
+                jobIds ->
+                        getApplicationResult(
+                                dispatcherGateway,
+                                jobIds,
+                                tolerateMissingResult,
+                                scheduledExecutor));
     }
 
     /**
@@ -229,6 +239,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
      */
     private void runApplicationEntryPoint(
             final CompletableFuture<List<JobID>> jobIdsFuture,
+            final Set<JobID> tolerateMissingResult,
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor,
             final boolean enforceSingleJobExecution) {
@@ -254,21 +265,38 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                 jobIdsFuture.complete(applicationJobIds);
             }
         } catch (Throwable t) {
-            jobIdsFuture.completeExceptionally(
-                    new ApplicationExecutionException("Could not execute application.", t));
+            // If we're running in a single job execution mode, it's safe to consider re-submission
+            // of an already finished a success.
+            final Optional<DuplicateJobSubmissionException> maybeDuplicate =
+                    ExceptionUtils.findThrowable(t, DuplicateJobSubmissionException.class);
+            if (enforceSingleJobExecution
+                    && maybeDuplicate.isPresent()
+                    && maybeDuplicate.get().isTerminated()) {
+                final JobID jobId = maybeDuplicate.get().getJobID();
+                tolerateMissingResult.add(jobId);
+                jobIdsFuture.complete(Collections.singletonList(jobId));
+            } else {
+                jobIdsFuture.completeExceptionally(
+                        new ApplicationExecutionException("Could not execute application.", t));
+            }
         }
     }
 
     private CompletableFuture<Void> getApplicationResult(
             final DispatcherGateway dispatcherGateway,
             final Collection<JobID> applicationJobIds,
+            final Set<JobID> tolerateMissingResult,
             final ScheduledExecutor executor) {
         final List<CompletableFuture<?>> jobResultFutures =
                 applicationJobIds.stream()
                         .map(
                                 jobId ->
                                         unwrapJobResultException(
-                                                getJobResult(dispatcherGateway, jobId, executor)))
+                                                getJobResult(
+                                                        dispatcherGateway,
+                                                        jobId,
+                                                        executor,
+                                                        tolerateMissingResult.contains(jobId))))
                         .collect(Collectors.toList());
         return FutureUtils.waitForAll(jobResultFutures);
     }
@@ -276,15 +304,28 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     private CompletableFuture<JobResult> getJobResult(
             final DispatcherGateway dispatcherGateway,
             final JobID jobId,
-            final ScheduledExecutor scheduledExecutor) {
-
+            final ScheduledExecutor scheduledExecutor,
+            final boolean tolerateMissingResult) {
         final Time timeout =
                 Time.milliseconds(configuration.get(ClientOptions.CLIENT_TIMEOUT).toMillis());
         final Time retryPeriod =
                 Time.milliseconds(configuration.get(ClientOptions.CLIENT_RETRY_PERIOD).toMillis());
-
-        return JobStatusPollingUtils.getJobResult(
-                dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod);
+        final CompletableFuture<JobResult> jobResultFuture =
+                JobStatusPollingUtils.getJobResult(
+                        dispatcherGateway, jobId, scheduledExecutor, timeout, retryPeriod);
+        if (tolerateMissingResult) {
+            // Return "unknown" job result if dispatcher no longer knows the actual result.
+            return FutureUtils.handleException(
+                    jobResultFuture,
+                    FlinkJobNotFoundException.class,
+                    exception ->
+                            new JobResult.Builder()
+                                    .jobId(jobId)
+                                    .applicationStatus(ApplicationStatus.UNKNOWN)
+                                    .netRuntime(Long.MAX_VALUE)
+                                    .build());
+        }
+        return jobResultFuture;
     }
 
     /**

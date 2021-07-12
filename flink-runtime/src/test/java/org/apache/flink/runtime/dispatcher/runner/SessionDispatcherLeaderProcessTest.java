@@ -571,7 +571,7 @@ public class SessionDispatcherLeaderProcessTest extends TestLogger {
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
                                                 new DuplicateJobSubmissionException(
-                                                        jobGraph.getJobID())))
+                                                        jobGraph.getJobID(), false)))
                         .build();
 
         runOnAddedJobGraphTest(dispatcherGateway, this::verifyOnAddedJobGraphResultDidNotFail);

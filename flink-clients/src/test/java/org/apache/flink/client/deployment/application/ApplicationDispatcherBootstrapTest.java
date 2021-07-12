@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.ExceptionUtils;
@@ -43,6 +45,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -57,6 +60,7 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -64,7 +68,10 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
@@ -619,7 +626,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
     }
 
     @Test
-    public void testClusterDoesNOTShutdownWhenApplicationStatusUknown() throws Exception {
+    public void testClusterDoesNotShutdownWhenApplicationStatusUnknown() throws Exception {
         // we're "listening" on this to be completed to verify that the cluster
         // is being shut down from the ApplicationDispatcherBootstrap
         final TestingDispatcherGateway.Builder dispatcherBuilder =
@@ -648,6 +655,129 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         final UnsuccessfulExecutionException exception =
                 assertException(applicationFuture, UnsuccessfulExecutionException.class);
         assertEquals(exception.getStatus(), ApplicationStatus.UNKNOWN);
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionWithTerminatedJobId() throws Throwable {
+        final JobID testJobID = new JobID(0, 2);
+        final Configuration configurationUnderTest = getConfiguration();
+        configurationUnderTest.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobID.toHexString());
+        configurationUnderTest.set(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph ->
+                                        FutureUtils.completedExceptionally(
+                                                new DuplicateJobSubmissionException(
+                                                        testJobID, true)))
+                        .setRequestJobStatusFunction(
+                                jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        CompletableFuture.completedFuture(
+                                                createSuccessfulJobResult(jobId)));
+        final CompletableFuture<Void> applicationFuture =
+                runApplication(dispatcherBuilder, configurationUnderTest, 1);
+        applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * In this scenario, job result is no longer present in the {@link
+     * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
+     * manager failed over), but we know that job has already terminated from {@link
+     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     */
+    @Test
+    public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResult() throws Throwable {
+        final JobID testJobID = new JobID(0, 2);
+        final Configuration configurationUnderTest = getConfiguration();
+        configurationUnderTest.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobID.toHexString());
+        configurationUnderTest.set(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph ->
+                                        FutureUtils.completedExceptionally(
+                                                new DuplicateJobSubmissionException(
+                                                        testJobID, true)))
+                        .setRequestJobStatusFunction(
+                                jobId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkJobNotFoundException(jobId)))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkJobNotFoundException(jobId)));
+        final CompletableFuture<Void> applicationFuture =
+                runApplication(dispatcherBuilder, configurationUnderTest, 1);
+        applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * In this scenario, job result is no longer present in the {@link
+     * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
+     * manager failed over), but we know that job has already terminated from {@link
+     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     */
+    @Test
+    public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResultAttached()
+            throws Throwable {
+        final JobID testJobID = new JobID(0, 2);
+        final Configuration configurationUnderTest = getConfiguration();
+        configurationUnderTest.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobID.toHexString());
+        configurationUnderTest.set(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph ->
+                                        FutureUtils.completedExceptionally(
+                                                new DuplicateJobSubmissionException(
+                                                        testJobID, true)))
+                        .setRequestJobStatusFunction(
+                                jobId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkJobNotFoundException(jobId)))
+                        .setRequestJobResultFunction(
+                                jobId ->
+                                        FutureUtils.completedExceptionally(
+                                                new FlinkJobNotFoundException(jobId)));
+        final CompletableFuture<Void> applicationFuture =
+                runApplication(dispatcherBuilder, configurationUnderTest, 1);
+        applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionWithRunningJobId() throws Throwable {
+        final JobID testJobID = new JobID(0, 2);
+        final Configuration configurationUnderTest = getConfiguration();
+        configurationUnderTest.set(
+                PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID, testJobID.toHexString());
+        configurationUnderTest.set(
+                HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        final TestingDispatcherGateway.Builder dispatcherBuilder =
+                new TestingDispatcherGateway.Builder()
+                        .setSubmitFunction(
+                                jobGraph ->
+                                        FutureUtils.completedExceptionally(
+                                                new DuplicateJobSubmissionException(
+                                                        testJobID, false)));
+        final CompletableFuture<Void> applicationFuture =
+                runApplication(dispatcherBuilder, configurationUnderTest, 1);
+        final ExecutionException executionException =
+                assertThrows(
+                        ExecutionException.class,
+                        () -> applicationFuture.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        final Optional<DuplicateJobSubmissionException> maybeDuplicate =
+                ExceptionUtils.findThrowable(
+                        executionException, DuplicateJobSubmissionException.class);
+        assertTrue(maybeDuplicate.isPresent());
+        assertFalse(maybeDuplicate.get().isTerminated());
     }
 
     private CompletableFuture<Void> runApplication(
@@ -728,7 +858,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                                             .toURI()
                                             .toURL()))
                     .setEntryPointClassName(MULTI_EXECUTE_JOB_CLASS_NAME)
-                    .setArguments(String.valueOf(noOfJobs))
+                    .setArguments(String.valueOf(noOfJobs), Boolean.toString(true))
                     .build();
         } catch (ProgramInvocationException | FileNotFoundException | MalformedURLException e) {
             throw new FlinkException("Could not load the provided entrypoint class.", e);
@@ -780,11 +910,11 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
         try {
             future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (Throwable e) {
-            Optional<E> expectionException = ExceptionUtils.findThrowable(e, exceptionClass);
-            if (!expectionException.isPresent()) {
+            Optional<E> maybeException = ExceptionUtils.findThrowable(e, exceptionClass);
+            if (!maybeException.isPresent()) {
                 throw e;
             }
-            return expectionException.get();
+            return maybeException.get();
         }
         throw new Exception(
                 "Future should have completed exceptionally with "

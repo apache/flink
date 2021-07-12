@@ -72,7 +72,7 @@ public class FutureUtils {
 
     /**
      * Fakes asynchronous execution by immediately executing the operation and completing the
-     * supplied future either noramlly or exceptionally.
+     * supplied future either normally or exceptionally.
      *
      * @param operation to executed
      * @param <T> type of the result
@@ -1274,9 +1274,9 @@ public class FutureUtils {
      * @return completable future, that can recover from a specified exception
      */
     public static <T, E extends Throwable> CompletableFuture<T> handleException(
-            CompletableFuture<T> completableFuture,
+            CompletableFuture<? extends T> completableFuture,
             Class<E> exceptionClass,
-            Function<E, T> exceptionHandler) {
+            Function<? super E, ? extends T> exceptionHandler) {
         final CompletableFuture<T> handledFuture = new CompletableFuture<>();
         checkNotNull(completableFuture)
                 .whenComplete(
@@ -1284,8 +1284,7 @@ public class FutureUtils {
                             if (throwable == null) {
                                 handledFuture.complete(result);
                             } else if (exceptionClass.isAssignableFrom(throwable.getClass())) {
-                                @SuppressWarnings("unchecked")
-                                final E exception = (E) throwable;
+                                final E exception = exceptionClass.cast(throwable);
                                 try {
                                     handledFuture.complete(exceptionHandler.apply(exception));
                                 } catch (Throwable t) {
