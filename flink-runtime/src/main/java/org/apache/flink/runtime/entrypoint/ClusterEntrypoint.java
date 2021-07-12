@@ -150,6 +150,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     private ExecutionGraphInfoStore executionGraphInfoStore;
 
     private final Thread shutDownHook;
+    private RpcSystem rpcSystem;
 
     protected ClusterEntrypoint(Configuration configuration) {
         this.configuration = generateClusterConfiguration(configuration);
@@ -293,7 +294,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
         LOG.info("Initializing cluster services.");
 
         synchronized (lock) {
-            final RpcSystem rpcSystem = RpcSystem.load();
+            rpcSystem = RpcSystem.load();
 
             commonRpcService =
                     RpcUtils.createRemoteRpcService(
@@ -499,8 +500,12 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     FutureUtils.composeAfterwards(
                             shutDownApplicationFuture, () -> stopClusterServices(cleanupHaData));
 
+            final CompletableFuture<Void> rpcSystemClassLoaderCloseFuture =
+                    FutureUtils.runAfterwards(serviceShutdownFuture, rpcSystem::close);
+
             final CompletableFuture<Void> cleanupDirectoriesFuture =
-                    FutureUtils.runAfterwards(serviceShutdownFuture, this::cleanupDirectories);
+                    FutureUtils.runAfterwards(
+                            rpcSystemClassLoaderCloseFuture, this::cleanupDirectories);
 
             cleanupDirectoriesFuture.whenComplete(
                     (Void ignored2, Throwable serviceThrowable) -> {
