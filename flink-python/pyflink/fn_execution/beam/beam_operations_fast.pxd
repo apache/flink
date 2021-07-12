@@ -17,10 +17,10 @@
 ################################################################################
 # cython: language_level=3
 
-from apache_beam.coders.coder_impl cimport StreamCoderImpl
 from apache_beam.runners.worker.operations cimport Operation
 from apache_beam.utils.windowed_value cimport WindowedValue
 
+from pyflink.fn_execution.beam.beam_coder_impl_fast cimport FlinkLengthPrefixCoderBeamWrapper
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
 cdef class InputProcessor:
@@ -37,9 +37,10 @@ cdef class IntermediateInputProcessor(InputProcessor):
 cdef class OutputProcessor:
     cdef Operation _consumer
     cpdef process_outputs(self, WindowedValue windowed_value, results)
+    cpdef close(self)
 
 cdef class NetworkOutputProcessor(OutputProcessor):
-    cdef StreamCoderImpl _value_coder_impl
+    cdef FlinkLengthPrefixCoderBeamWrapper _value_coder_impl
 
 cdef class IntermediateOutputProcessor(OutputProcessor):
     pass
