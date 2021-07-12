@@ -34,18 +34,25 @@ class OutputProcessor(abc.ABC):
     def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
         pass
 
+    def close(self):
+        pass
+
 
 class NetworkOutputProcessor(OutputProcessor):
 
     def __init__(self, consumer):
         assert isinstance(consumer, DataOutputOperation)
         self._consumer = consumer
-        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()
+        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
 
     def process_outputs(self, windowed_value: WindowedValue, results: Iterable[Any]):
         output_stream = self._consumer.output_stream
         self._value_coder_impl.encode_to_stream(results, output_stream, True)
         output_stream.maybe_flush()
+
+    def close(self):
+        if self._value_coder_impl._output_stream:
+            self._value_coder_impl._output_stream.close()
 
 
 class IntermediateOutputProcessor(OutputProcessor):
@@ -104,6 +111,7 @@ class FunctionOperation(Operation):
     def teardown(self):
         with self.scoped_finish_state:
             self.operation.close()
+            self._output_processor.close()
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()

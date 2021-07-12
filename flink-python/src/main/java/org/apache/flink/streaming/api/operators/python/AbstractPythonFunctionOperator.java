@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
+import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.util.Preconditions;
@@ -43,7 +44,11 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
@@ -77,6 +82,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     /** Callback to be executed after the current bundle was finished. */
     private transient Runnable bundleFinishedCallback;
+
+    private transient ExecutorService flushThreadPool;
 
     /** The python config. */
     private PythonConfig config;
@@ -133,6 +140,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
                                     timestamp -> checkInvokeFinishBundleByTime(),
                                     bundleCheckPeriod,
                                     bundleCheckPeriod);
+            this.flushThreadPool = Executors.newSingleThreadExecutor();
         } finally {
             super.open();
         }
@@ -157,6 +165,10 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             if (pythonFunctionRunner != null) {
                 pythonFunctionRunner.close();
                 pythonFunctionRunner = null;
+            }
+            if (flushThreadPool != null) {
+                flushThreadPool.shutdown();
+                flushThreadPool = null;
             }
         } finally {
             super.close();
@@ -295,7 +307,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     protected void emitResults() throws Exception {
         Tuple2<byte[], Integer> resultTuple;
-        while ((resultTuple = pythonFunctionRunner.pollResult()) != null) {
+        while ((resultTuple = pythonFunctionRunner.pollResult()) != null && resultTuple.f1 != 0) {
             emitResult(resultTuple);
         }
     }
@@ -317,9 +329,37 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
 
     protected void invokeFinishBundle() throws Exception {
         if (elementCount > 0) {
-            pythonFunctionRunner.flush();
-            elementCount = 0;
+            AtomicBoolean flushThreadFinish = new AtomicBoolean(false);
+            AtomicReference<Throwable> exceptionReference = new AtomicReference<>();
+            flushThreadPool.submit(
+                    () -> {
+                        try {
+                            pythonFunctionRunner.flush();
+                        } catch (Throwable e) {
+                            exceptionReference.set(e);
+                        } finally {
+                            flushThreadFinish.set(true);
+                            // interrupt the progress of takeResult to avoid the main thread is
+                            // blocked forever.
+                            ((BeamPythonFunctionRunner) pythonFunctionRunner).notifyNoMoreResults();
+                        }
+                    });
+            Tuple2<byte[], Integer> resultTuple;
+            while (!flushThreadFinish.get()) {
+                resultTuple = pythonFunctionRunner.takeResult();
+                if (resultTuple.f1 != 0) {
+                    emitResult(resultTuple);
+                    emitResults();
+                }
+            }
             emitResults();
+            Throwable flushThreadThrowable = exceptionReference.get();
+            if (flushThreadThrowable != null) {
+                throw new RuntimeException(
+                        "Error while waiting for BeamPythonFunctionRunner flush",
+                        flushThreadThrowable);
+            }
+            elementCount = 0;
             lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
             // callback only after current bundle was fully finalized
             if (bundleFinishedCallback != null) {

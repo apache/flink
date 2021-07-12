@@ -20,9 +20,11 @@
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 from libc.stdint cimport *
+
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.utils cimport windowed_value
 from apache_beam.utils.windowed_value cimport WindowedValue
+
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 
 from apache_beam.runners.worker.bundle_processor import DataOutputOperation
@@ -75,19 +77,24 @@ cdef class OutputProcessor:
     cpdef process_outputs(self, WindowedValue windowed_value, results):
         pass
 
+    cpdef close(self):
+        pass
 
 cdef class NetworkOutputProcessor(OutputProcessor):
 
     def __init__(self, consumer):
         assert isinstance(consumer, DataOutputOperation)
         self._consumer = consumer
-        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()
+        self._value_coder_impl = consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
 
     cpdef process_outputs(self, WindowedValue windowed_value, results):
         output_stream = self._consumer.output_stream
         self._value_coder_impl.encode_to_stream(results, output_stream, True)
         output_stream.maybe_flush()
 
+    cpdef close(self):
+        if self._value_coder_impl._output_stream:
+            self._value_coder_impl._output_stream.close()
 
 cdef class IntermediateOutputProcessor(OutputProcessor):
 
@@ -144,6 +151,7 @@ cdef class FunctionOperation(Operation):
     cpdef teardown(self):
         with self.scoped_finish_state:
             self.operation.close()
+            self._output_processor.close()
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
