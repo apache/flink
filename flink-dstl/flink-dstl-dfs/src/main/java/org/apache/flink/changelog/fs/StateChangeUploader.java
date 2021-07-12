@@ -34,6 +34,10 @@ import java.util.function.Consumer;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.COMPRESSION_ENABLED;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.IN_FLIGHT_DATA_LIMIT;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.NUM_UPLOAD_THREADS;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_DELAY;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_SIZE_THRESHOLD;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.UPLOAD_BUFFER_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -68,8 +72,20 @@ interface StateChangeUploader extends AutoCloseable {
         long bytes = config.get(UPLOAD_BUFFER_SIZE).getBytes();
         checkArgument(bytes <= Integer.MAX_VALUE);
         int bufferSize = (int) bytes;
-        return new StateChangeFsUploader(
-                basePath, basePath.getFileSystem(), config.get(COMPRESSION_ENABLED), bufferSize);
+        StateChangeFsUploader store =
+                new StateChangeFsUploader(
+                        basePath,
+                        basePath.getFileSystem(),
+                        config.get(COMPRESSION_ENABLED),
+                        bufferSize);
+        BatchingStateChangeUploader batchingStore =
+                new BatchingStateChangeUploader(
+                        config.get(PERSIST_DELAY).toMillis(),
+                        config.get(PERSIST_SIZE_THRESHOLD).getBytes(),
+                        store,
+                        config.get(NUM_UPLOAD_THREADS),
+                        config.get(IN_FLIGHT_DATA_LIMIT).getBytes());
+        return batchingStore;
     }
 
     @ThreadSafe
