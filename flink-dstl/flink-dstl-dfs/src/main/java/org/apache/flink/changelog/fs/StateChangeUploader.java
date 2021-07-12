@@ -82,6 +82,7 @@ interface StateChangeUploader extends AutoCloseable {
                 new BatchingStateChangeUploader(
                         config.get(PERSIST_DELAY).toMillis(),
                         config.get(PERSIST_SIZE_THRESHOLD).getBytes(),
+                        RetryPolicy.fromConfig(config),
                         store,
                         config.get(NUM_UPLOAD_THREADS),
                         config.get(IN_FLIGHT_DATA_LIMIT).getBytes());

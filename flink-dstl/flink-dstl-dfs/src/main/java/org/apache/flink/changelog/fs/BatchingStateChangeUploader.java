@@ -17,8 +17,6 @@
 
 package org.apache.flink.changelog.fs;
 
-import org.apache.flink.util.ExceptionUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,8 +48,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 class BatchingStateChangeUploader implements StateChangeUploader {
     private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeUploader.class);
 
+    private final RetryingExecutor retryingExecutor;
+    private final RetryPolicy retryPolicy;
     private final StateChangeUploader delegate;
-    private final ScheduledExecutorService uploadExecutor;
+    private final ScheduledExecutorService scheduler;
     private final long scheduleDelayMs;
     private final long sizeThresholdBytes;
 
@@ -79,26 +79,33 @@ class BatchingStateChangeUploader implements StateChangeUploader {
     BatchingStateChangeUploader(
             long persistDelayMs,
             long sizeThresholdBytes,
+            RetryPolicy retryPolicy,
             StateChangeUploader delegate,
             int numUploadThreads,
             long maxBytesInFlight) {
         this(
                 persistDelayMs,
                 sizeThresholdBytes,
+                retryPolicy,
                 delegate,
-                SchedulerFactory.create(numUploadThreads, "ChangelogRetryScheduler", LOG),
+                SchedulerFactory.create(1, "ChangelogUploadScheduler", LOG),
+                new RetryingExecutor(numUploadThreads),
                 maxBytesInFlight);
     }
 
     BatchingStateChangeUploader(
             long persistDelayMs,
             long sizeThresholdBytes,
+            RetryPolicy retryPolicy,
             StateChangeUploader delegate,
-            ScheduledExecutorService uploadExecutor,
+            ScheduledExecutorService scheduler,
+            RetryingExecutor retryingExecutor,
             long maxBytesInFlight) {
         this.scheduleDelayMs = persistDelayMs;
         this.scheduled = new LinkedList<>();
-        this.uploadExecutor = uploadExecutor;
+        this.scheduler = scheduler;
+        this.retryPolicy = retryPolicy;
+        this.retryingExecutor = retryingExecutor;
         this.sizeThresholdBytes = sizeThresholdBytes;
         this.maxBytesInFlight = maxBytesInFlight;
         this.delegate = delegate;
@@ -139,10 +146,9 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 scheduledFuture.cancel(false);
                 scheduledFuture = null;
             }
-            uploadExecutor.submit(this::drainAndSave);
+            drainAndSave();
         } else if (scheduledFuture == null) {
-            scheduledFuture =
-                    uploadExecutor.schedule(this::drainAndSave, scheduleDelayMs, MILLISECONDS);
+            scheduledFuture = scheduler.schedule(this::drainAndSave, scheduleDelayMs, MILLISECONDS);
         }
     }
 
@@ -160,14 +166,14 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 tasks.forEach(task -> task.fail(error));
                 return;
             }
-            delegate.upload(tasks);
+            retryingExecutor.execute(retryPolicy, () -> delegate.upload(tasks));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
             if (findThrowable(t, IOException.class).isPresent()) {
                 LOG.warn("Caught IO exception while uploading", t);
             } else {
                 setErrorSafe(t);
-                ExceptionUtils.rethrow(t);
+                throw t;
             }
         }
     }
@@ -175,8 +181,8 @@ class BatchingStateChangeUploader implements StateChangeUploader {
     @Override
     public void close() throws Exception {
         LOG.debug("close");
-        uploadExecutor.shutdownNow();
-        if (!uploadExecutor.awaitTermination(5, SECONDS)) {
+        scheduler.shutdownNow();
+        if (!scheduler.awaitTermination(5, SECONDS)) {
             LOG.warn("Unable to cleanly shutdown scheduler in 5s");
         }
         ArrayList<UploadTask> drained;
@@ -187,6 +193,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         }
         CancellationException ce = new CancellationException();
         drained.forEach(task -> task.fail(ce));
+        retryingExecutor.close();
         delegate.close();
     }
 

@@ -24,6 +24,8 @@ import org.apache.flink.configuration.MemorySize;
 
 import java.time.Duration;
 
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
+
 /** {@link ConfigOptions} for {@link FsStateChangelogStorage}. */
 @Experimental
 public class FsStateChangelogOptions {
@@ -92,4 +94,39 @@ public class FsStateChangelogOptions {
                     .withDescription(
                             "Max amount of data allowed to be in-flight. "
                                     + "Upon reaching this limit the task will fail");
+
+    public static final ConfigOption<String> RETRY_POLICY =
+            ConfigOptions.key("dstl.dfs.upload.retry-policy")
+                    .stringType()
+                    .defaultValue("fixed")
+                    .withDescription(
+                            "Retry policy for the failed uploads (in particular, timed out). Valid values: none, fixed.");
+    public static final ConfigOption<Duration> UPLOAD_TIMEOUT =
+            ConfigOptions.key("dstl.dfs.upload.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(1))
+                    .withDescription(
+                            "Time threshold beyond which an upload is considered timed out. "
+                                    + "If a new attempt is made but this upload succeeds earlier then this upload result will be used. "
+                                    + "May improve upload times if tail latencies of upload requests are significantly high. "
+                                    + "Only takes effect if "
+                                    + RETRY_POLICY.key()
+                                    + " is fixed. "
+                                    + "Please note that timeout * max_attempts should be less than "
+                                    + CHECKPOINTING_TIMEOUT.key());
+    public static final ConfigOption<Integer> RETRY_MAX_ATTEMPTS =
+            ConfigOptions.key("dstl.dfs.upload.max-attempts")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "Maximum number of attempts (including the initial one) to peform a particular upload. "
+                                    + "Only takes effect if "
+                                    + RETRY_POLICY.key()
+                                    + " is fixed.");
+    public static final ConfigOption<Duration> RETRY_DELAY_AFTER_FAILURE =
+            ConfigOptions.key("dstl.dfs.upload.next-attempt-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(500))
+                    .withDescription(
+                            "Delay before the next attempt (if the failure was not caused by a timeout).");
 }
