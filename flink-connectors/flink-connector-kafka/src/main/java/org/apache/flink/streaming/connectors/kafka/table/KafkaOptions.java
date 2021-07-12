@@ -143,8 +143,8 @@ public class KafkaOptions {
                     .asList()
                     .noDefaultValue()
                     .withDescription(
-                            "Topic names from which the table is read. Either 'topic' or 'topic-pattern' must be set for source. "
-                                    + "Option 'topic' is required for sink.");
+                            "Topic name(s) to read data from when the table is used as source. It also supports topic list for source by separating topic by semicolon like 'topic-1;topic-2'. Note, only one of 'topic-pattern' and 'topic' can be specified for sources. "
+                                    + "When the table is used as sink, the topic name is the topic to write data. If the 'topic' option isn't specified for sink table, 'topic' metadata column must be specified. If the 'topic' option is specified for sink table, 'topic' metadata column can only be readable. Note topic list is not supported for sinks.");
 
     public static final ConfigOption<String> TOPIC_PATTERN =
             ConfigOptions.key("topic-pattern")
@@ -330,6 +330,7 @@ public class KafkaOptions {
     protected static final String DEBEZIUM_AVRO_CONFLUENT = "debezium-avro-confluent";
     private static final List<String> SCHEMA_REGISTRY_FORMATS =
             Arrays.asList(AVRO_CONFLUENT, DEBEZIUM_AVRO_CONFLUENT);
+    public static final String TOPIC_UNSPECIFIED = "unspecified!";
 
     // --------------------------------------------------------------------------------------------
     // Validation
@@ -361,18 +362,22 @@ public class KafkaOptions {
     }
 
     public static void validateSinkTopic(ReadableConfig tableOptions) {
-        String errorMessageTemp =
-                "Flink Kafka sink currently only supports single topic, but got %s: %s.";
-        if (!isSingleTopic(tableOptions)) {
-            if (tableOptions.getOptional(TOPIC_PATTERN).isPresent()) {
-                throw new ValidationException(
-                        String.format(
-                                errorMessageTemp,
-                                "'topic-pattern'",
-                                tableOptions.get(TOPIC_PATTERN)));
-            } else {
-                throw new ValidationException(
-                        String.format(errorMessageTemp, "'topic'", tableOptions.get(TOPIC)));
+        if (tableOptions.getOptional(TOPIC).isPresent()) {
+            if (tableOptions.get(TOPIC).isEmpty()) {
+                throw new ValidationException("Flink Kafka sink doesn't support empty topic.");
+            } else if (!isSingleTopic(tableOptions)) {
+                String errorMessageTemp =
+                        "Flink Kafka sink currently only supports single topic, but got %s: %s.";
+                if (tableOptions.getOptional(TOPIC_PATTERN).isPresent()) {
+                    throw new ValidationException(
+                            String.format(
+                                    errorMessageTemp,
+                                    "'topic-pattern'",
+                                    tableOptions.get(TOPIC_PATTERN)));
+                } else {
+                    throw new ValidationException(
+                            String.format(errorMessageTemp, "'topic'", tableOptions.get(TOPIC)));
+                }
             }
         }
     }
@@ -801,20 +806,20 @@ public class KafkaOptions {
             Map<String, String> options) {
         Configuration configuration = Configuration.fromMap(options);
         // the subject autoComplete should only be used in sink, check the topic first
-        validateSinkTopic(configuration);
-        final Optional<String> valueFormat = configuration.getOptional(VALUE_FORMAT);
-        final Optional<String> keyFormat = configuration.getOptional(KEY_FORMAT);
-        final Optional<String> format = configuration.getOptional(FORMAT);
-        final String topic = configuration.get(TOPIC).get(0);
-
-        if (format.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(format.get())) {
-            autoCompleteSubject(configuration, format.get(), topic + "-value");
-        } else if (valueFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(valueFormat.get())) {
-            autoCompleteSubject(configuration, "value." + valueFormat.get(), topic + "-value");
-        }
-
-        if (keyFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(keyFormat.get())) {
-            autoCompleteSubject(configuration, "key." + keyFormat.get(), topic + "-key");
+        if (configuration.contains(TOPIC)) {
+            final String topic = configuration.get(TOPIC).get(0);
+            final Optional<String> valueFormat = configuration.getOptional(VALUE_FORMAT);
+            final Optional<String> keyFormat = configuration.getOptional(KEY_FORMAT);
+            final Optional<String> format = configuration.getOptional(FORMAT);
+            if (format.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(format.get())) {
+                autoCompleteSubject(configuration, format.get(), topic + "-value");
+            }
+            if (valueFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(valueFormat.get())) {
+                autoCompleteSubject(configuration, "value." + valueFormat.get(), topic + "-value");
+            }
+            if (keyFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(keyFormat.get())) {
+                autoCompleteSubject(configuration, "key." + keyFormat.get(), topic + "-key");
+            }
         }
         return configuration.toMap();
     }

@@ -33,6 +33,8 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC_UNSPECIFIED;
+
 /** A specific {@link KafkaSerializationSchema} for {@link KafkaDynamicSink}. */
 class DynamicKafkaSerializationSchema
         implements KafkaSerializationSchema<RowData>, KafkaContextAware<RowData> {
@@ -110,7 +112,7 @@ class DynamicKafkaSerializationSchema
         if (keySerialization == null && !hasMetadata) {
             final byte[] valueSerialized = valueSerialization.serialize(consumedRow);
             return new ProducerRecord<>(
-                    topic,
+                    getTargetTopic(consumedRow),
                     extractPartition(consumedRow, null, valueSerialized),
                     null,
                     valueSerialized);
@@ -141,7 +143,7 @@ class DynamicKafkaSerializationSchema
         }
 
         return new ProducerRecord<>(
-                topic,
+                getTargetTopic(consumedRow),
                 extractPartition(consumedRow, keySerialized, valueSerialized),
                 readMetadata(consumedRow, KafkaDynamicSink.WritableMetadata.TIMESTAMP),
                 keySerialized,
@@ -166,7 +168,9 @@ class DynamicKafkaSerializationSchema
 
     @Override
     public String getTargetTopic(RowData element) {
-        return topic;
+        return TOPIC_UNSPECIFIED.equals(topic)
+                ? readMetadata(element, KafkaDynamicSink.WritableMetadata.TOPIC)
+                : topic;
     }
 
     @SuppressWarnings("unchecked")
@@ -182,7 +186,11 @@ class DynamicKafkaSerializationSchema
             RowData consumedRow, @Nullable byte[] keySerialized, byte[] valueSerialized) {
         if (partitioner != null) {
             return partitioner.partition(
-                    consumedRow, keySerialized, valueSerialized, topic, partitions);
+                    consumedRow,
+                    keySerialized,
+                    valueSerialized,
+                    getTargetTopic(consumedRow),
+                    partitions);
         }
         return null;
     }
