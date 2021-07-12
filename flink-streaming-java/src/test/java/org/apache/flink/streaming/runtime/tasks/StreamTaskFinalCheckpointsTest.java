@@ -78,7 +78,7 @@ public class StreamTaskFinalCheckpointsTest {
         harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
         assertTrue(FinishingOperator.finished);
 
-        harness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+        harness.getTaskStateManager().getWaitForReportLatch().reset();
         harness.streamTask.triggerCheckpointOnBarrier(
                 new CheckpointMetaData(2, 0),
                 CheckpointOptions.forCheckpointWithDefaultLocation(),
@@ -205,7 +205,7 @@ public class StreamTaskFinalCheckpointsTest {
 
     static Future<Boolean> triggerCheckpoint(
             StreamTaskMailboxTestHarness<String> testHarness, long checkpointId) {
-        testHarness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+        testHarness.getTaskStateManager().getWaitForReportLatch().reset();
         return testHarness
                 .getStreamTask()
                 .triggerCheckpointAsync(
@@ -317,7 +317,7 @@ public class StreamTaskFinalCheckpointsTest {
             harness.processAll();
 
             // Try trigger a checkpoint.
-            harness.getTaskStateManager().setWaitForReportLatch(new OneShotLatch());
+            harness.getTaskStateManager().getWaitForReportLatch().reset();
             harness.streamTask.triggerCheckpointOnBarrier(
                     new CheckpointMetaData(2, 2),
                     new CheckpointOptions(CheckpointType.CHECKPOINT, getDefault()),
