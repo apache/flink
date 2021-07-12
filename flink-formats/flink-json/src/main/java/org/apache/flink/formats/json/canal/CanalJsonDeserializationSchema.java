@@ -160,7 +160,10 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     }
 
     @Override
-    public void deserialize(byte[] message, Collector<RowData> out) throws IOException {
+    public void deserialize(@Nullable byte[] message, Collector<RowData> out) throws IOException {
+        if (message == null || message.length == 0) {
+            return;
+        }
         try {
             RowData row = jsonDeserializer.deserialize(message);
             if (database != null) {

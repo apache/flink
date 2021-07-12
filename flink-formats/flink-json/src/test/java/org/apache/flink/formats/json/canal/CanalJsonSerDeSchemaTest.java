@@ -73,6 +73,20 @@ public class CanalJsonSerDeSchemaTest {
     }
 
     @Test
+    public void testDeserializeNullRow() throws Exception {
+        final CanalJsonDeserializationSchema deserializationSchema =
+                CanalJsonDeserializationSchema.builder(SCHEMA, InternalTypeInfo.of(SCHEMA))
+                        .setDatabase("mydb")
+                        .setTable("product")
+                        .build();
+        final SimpleCollector collector = new SimpleCollector();
+
+        deserializationSchema.deserialize(null, collector);
+        deserializationSchema.deserialize(new byte[0], collector);
+        assertEquals(0, collector.list.size());
+    }
+
+    @Test
     public void testSerializationDeserialization() throws Exception {
         List<String> lines = readLines("canal-data.txt");
         CanalJsonDeserializationSchema deserializationSchema =
