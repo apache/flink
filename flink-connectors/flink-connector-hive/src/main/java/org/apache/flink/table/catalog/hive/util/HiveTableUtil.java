@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.Schema;
@@ -93,6 +94,25 @@ public class HiveTableUtil {
     private static final StorageFormatFactory storageFormatFactory = new StorageFormatFactory();
 
     private HiveTableUtil() {}
+
+    public static TableSchema createTableSchema(
+            HiveConf hiveConf,
+            Table hiveTable,
+            HiveMetastoreClientWrapper client,
+            HiveShim hiveShim) {
+        List<FieldSchema> fields = getNonPartitionFields(hiveConf, hiveTable, hiveShim);
+        Set<String> notNullColumns =
+                client.getNotNullColumns(hiveConf, hiveTable.getDbName(), hiveTable.getTableName());
+        Optional<UniqueConstraint> primaryKey =
+                client.getPrimaryKey(
+                        hiveTable.getDbName(),
+                        hiveTable.getTableName(),
+                        HiveTableUtil.relyConstraint((byte) 0));
+        // PK columns cannot be null
+        primaryKey.ifPresent(pk -> notNullColumns.addAll(pk.getColumns()));
+        return createTableSchema(
+                fields, hiveTable.getPartitionKeys(), notNullColumns, primaryKey.orElse(null));
+    }
 
     /** Create a Flink's TableSchema from Hive table's columns and partition keys. */
     public static TableSchema createTableSchema(
@@ -576,6 +596,18 @@ public class HiveTableUtil {
         public String visit(Expression other) {
             // only support resolved expressions
             return null;
+        }
+    }
+
+    public static List<FieldSchema> getNonPartitionFields(
+            HiveConf hiveConf, Table hiveTable, HiveShim hiveShim) {
+        if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(
+                hiveConf, hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
+            // get schema from metastore
+            return hiveTable.getSd().getCols();
+        } else {
+            // get schema from deserializer
+            return hiveShim.getFieldsFromDeserializer(hiveConf, hiveTable, true);
         }
     }
 }

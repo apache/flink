@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 
 import java.io.IOException;
@@ -31,9 +33,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A class that describes a partition of a Hive table. And it represents the whole table if table is
- * not partitioned. Please note that the class is serializable because all its member variables are
- * serializable.
+ * not partitioned.
  */
+@PublicEvolving
 public class HiveTablePartition implements Serializable {
 
     private static final long serialVersionUID = 4145470177119940673L;
@@ -47,10 +49,24 @@ public class HiveTablePartition implements Serializable {
     // Table properties that should be used to initialize SerDe
     private final Properties tableProps;
 
+    /**
+     * Creates a HiveTablePartition to describe a hive table.
+     *
+     * @param storageDescriptor SD of the hive table
+     * @param tableProps properties of the hive table
+     */
     public HiveTablePartition(StorageDescriptor storageDescriptor, Properties tableProps) {
         this(storageDescriptor, new LinkedHashMap<>(), tableProps);
     }
 
+    /**
+     * Creates a HiveTablePartition to describe a hive table or partition.
+     *
+     * @param storageDescriptor SD of the hive table or partition
+     * @param partitionSpec the spec for the hive partition, and should be empty if the
+     *     HiveTablePartition is to describe a hive table
+     * @param tableProps properties of the hive table or partition
+     */
     public HiveTablePartition(
             StorageDescriptor storageDescriptor,
             Map<String, String> partitionSpec,
@@ -103,13 +119,11 @@ public class HiveTablePartition implements Serializable {
 
     @Override
     public String toString() {
+        StorageDescriptor sd = getStorageDescriptor();
         return "HiveTablePartition{"
-                + "storageDescriptor="
-                + getStorageDescriptor()
-                + ", partitionSpec="
-                + partitionSpec
-                + ", tableProps="
-                + tableProps
-                + '}';
+                + String.format("PartitionSpec=%s, ", partitionSpec)
+                + String.format("Location=%s, ", sd.getLocation())
+                + String.format("InputFormat=%s", sd.getInputFormat())
+                + "}";
     }
 }

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connectors.hive.read.HiveInputFormatPartitionReader;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
+import org.apache.flink.connectors.hive.util.JobConfUtils;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -38,7 +39,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
@@ -147,10 +147,7 @@ public class HiveLookupTableSource extends HiveTableSource implements LookupTabl
 
     private TableFunction<RowData> getLookupFunction(int[] keys) {
 
-        final String defaultPartitionName =
-                jobConf.get(
-                        HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
-                        HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
+        final String defaultPartitionName = JobConfUtils.getDefaultPartitionName(jobConf);
         PartitionFetcher.Context<HiveTablePartition> fetcherContext =
                 new HiveTablePartitionFetcherContext(
                         tablePath,
