@@ -25,15 +25,19 @@ import org.apache.flink.util.function.BiConsumerWithException;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -102,13 +106,55 @@ public class BatchingStateChangeUploaderTest {
                 });
     }
 
+    /** Test integration with {@link RetryingExecutor}. */
+    @Test
+    public void testRetry() throws Exception {
+        final int maxAttempts = 5;
+
+        try (BatchingStateChangeUploader store =
+                new BatchingStateChangeUploader(
+                        0,
+                        0,
+                        RetryPolicy.fixed(maxAttempts, 0, 0),
+                        new TestingStateChangeUploader() {
+                            final AtomicInteger currentAttempt = new AtomicInteger(0);
+
+                            @Override
+                            public void upload(UploadTask uploadTask) throws IOException {
+                                if (currentAttempt.getAndIncrement() < maxAttempts - 1) {
+                                    throw new IOException();
+                                } else {
+                                    uploadTask.complete(emptyList());
+                                }
+                            }
+                        },
+                        new DirectScheduledExecutorService(),
+                        new RetryingExecutor(new DirectScheduledExecutorService()),
+                        10_000)) {
+            CompletableFuture<List<UploadResult>> completionFuture = new CompletableFuture<>();
+            store.upload(
+                    new UploadTask(
+                            getChanges(4),
+                            completionFuture::complete,
+                            (unused, throwable) ->
+                                    completionFuture.completeExceptionally(throwable)));
+            completionFuture.get();
+        }
+    }
+
     @Test(expected = RejectedExecutionException.class)
     public void testErrorHandling() throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
         try (BatchingStateChangeUploader store =
                 new BatchingStateChangeUploader(
-                        Integer.MAX_VALUE, Integer.MAX_VALUE, probe, scheduler, 10_000)) {
+                        Integer.MAX_VALUE,
+                        Integer.MAX_VALUE,
+                        RetryPolicy.NONE,
+                        probe,
+                        scheduler,
+                        new RetryingExecutor(5),
+                        10_000)) {
             scheduler.shutdown();
             upload(store, getChanges(4));
         }
@@ -118,9 +164,19 @@ public class BatchingStateChangeUploaderTest {
     public void testClose() throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
-        new BatchingStateChangeUploader(0, 0, probe, scheduler, 10_000).close();
+        DirectScheduledExecutorService retryScheduler = new DirectScheduledExecutorService();
+        new BatchingStateChangeUploader(
+                        0,
+                        0,
+                        RetryPolicy.NONE,
+                        probe,
+                        scheduler,
+                        new RetryingExecutor(retryScheduler),
+                        10_000)
+                .close();
         assertTrue(probe.isClosed());
         assertTrue(scheduler.isShutdown());
+        assertTrue(retryScheduler.isShutdown());
     }
 
     private List<StateChangeSet> getChanges(int size) {
@@ -146,8 +202,10 @@ public class BatchingStateChangeUploaderTest {
                 new BatchingStateChangeUploader(
                         delayMs,
                         sizeThreshold,
+                        RetryPolicy.NONE,
                         probe,
                         new DirectScheduledExecutorService(),
+                        new RetryingExecutor(new DirectScheduledExecutorService()),
                         10_000)) {
             test.accept(store, probe);
         }

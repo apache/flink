@@ -21,6 +21,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -38,7 +39,7 @@ class TestingStateChangeUploader implements StateChangeUploader {
     }
 
     @Override
-    public void upload(UploadTask uploadTask) {
+    public void upload(UploadTask uploadTask) throws IOException {
         uploaded.addAll(uploadTask.changeSets);
         tasks.add(uploadTask);
     }
