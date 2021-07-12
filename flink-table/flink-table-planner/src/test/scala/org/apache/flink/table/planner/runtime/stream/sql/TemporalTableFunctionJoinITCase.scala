@@ -98,6 +98,74 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
   }
 
   @Test
+  def testProcessTimeInnerJoinWithConstantTable(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+    val result = tEnv.sqlQuery("SELECT amount, currency, proctime() as proctime " +
+      "FROM (VALUES (1, 2.0)) AS T(amount, currency)").toAppendStream[Row]
+    result.addSink(new TestingAppendSink)
+    env.execute()
+  }
+
+  @Test
+  def testProcessTimeInnerJoinUnionAll(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+    env.setParallelism(1)
+    env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
+
+    val sqlQuery =
+      """
+        |SELECT
+        |  o.amount * r.rate AS amount
+        |FROM
+        |  Orders AS o,
+        |  LATERAL TABLE (Rates(o.proctime)) AS r
+        |WHERE r.currency = o.currency
+        |""".stripMargin
+
+    val ordersData = new mutable.MutableList[(Long, String)]
+    ordersData.+=((2L, "Euro"))
+    ordersData.+=((1L, "US Dollar"))
+    ordersData.+=((50L, "Yen"))
+    ordersData.+=((3L, "Euro"))
+    ordersData.+=((5L, "US Dollar"))
+
+    val ratesHistoryData = new mutable.MutableList[(String, Long)]
+    ratesHistoryData.+=(("US Dollar", 102L))
+    ratesHistoryData.+=(("Euro", 114L))
+    ratesHistoryData.+=(("Yen", 1L))
+    ratesHistoryData.+=(("Euro", 116L))
+    ratesHistoryData.+=(("Euro", 119L))
+
+    val orders1 = env
+      .fromCollection(ordersData)
+      .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
+    val orders2 = env
+      .fromCollection(ordersData)
+      .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
+    val ratesHistory = env
+      .fromCollection(ratesHistoryData)
+      .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
+
+    tEnv.registerTable("Orders1", orders1)
+    tEnv.registerTable("Orders2", orders2)
+    tEnv.registerTable("RatesHistory", ratesHistory)
+
+    tEnv.registerFunction(
+      "Rates",
+      ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
+    tEnv.registerTable(
+      "Orders",
+      tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(new TestingAppendSink)
+    env.execute()
+  }
+
+  @Test
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)

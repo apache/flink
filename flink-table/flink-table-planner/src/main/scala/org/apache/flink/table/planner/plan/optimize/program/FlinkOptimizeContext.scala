@@ -18,17 +18,18 @@
 
 package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.calcite.rex.RexBuilder
 import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 
 /**
   * A FlinkOptimizeContext allows to obtain table environment information when optimizing.
   */
 trait FlinkOptimizeContext extends FlinkContext {
+
   /**
-    * Gets the Calcite [[RexBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def getRexBuilder: RexBuilder
+   * Gets the [[FlinkRelBuilder]] defined in [[org.apache.flink.table.api.TableEnvironment]].
+   */
+  def getFlinkRelBuilder: FlinkRelBuilder
 
   /**
     * Returns true if the output node needs final TimeIndicator conversion
