@@ -180,4 +180,22 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE WHEN f2 = 1 THEN CAST ('' as INT) ELSE 0 END", "null")
     testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "null")
   }
+
+  @Test
+  def testUnaryPlusMinus(): Unit = {
+    testSqlApi("-f0", "-1")
+    testSqlApi("+f0", "1")
+    testSqlApi("-f1", "-1")
+    testSqlApi("+f1", "1")
+    testSqlApi("-f2", "-1")
+    testSqlApi("+f2", "1")
+    testSqlApi("-f3", "-1")
+    testSqlApi("+f3", "1")
+    testSqlApi("-f4", "-1.0")
+    testSqlApi("+f4", "1.0")
+    testSqlApi("-f5", "-1.0")
+    testSqlApi("+f5", "1.0")
+    testSqlApi("-f17", "-10.0")
+    testSqlApi("+f17", "10.0")
+  }
 }
