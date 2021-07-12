@@ -53,8 +53,8 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToDataType
 import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToNames;
 
 /**
- * Utility to derive a physical {@link DataType}, {@link Schema}, and projections when entering or
- * leaving the table ecosystem from and to other APIs where {@link TypeInformation} is required.
+ * Utility to derive a physical {@link DataType}, {@link Schema}, and projections for sinks and
+ * sources.
  */
 @Internal
 public final class ExternalSchemaTranslator {
@@ -154,6 +154,28 @@ public final class ExternalSchemaTranslator {
             @Nullable Schema declaredSchema) {
         final DataType inputDataType =
                 TypeInfoDataTypeConverter.toDataType(dataTypeFactory, inputTypeInfo);
+        return fromExternal(dataTypeFactory, inputDataType, declaredSchema, true);
+    }
+
+    /**
+     * Converts the given {@link DataType} and an optional declared {@link Schema} (possibly
+     * incomplete) into the final {@link InputResult}.
+     *
+     * <p>This method serves three types of use cases:
+     *
+     * <ul>
+     *   <li>1. Derive physical columns from the input data type.
+     *   <li>2. Derive physical columns but merge them with declared computed columns and other
+     *       schema information.
+     *   <li>3. Derive and enrich physical columns and merge other schema information (only if
+     *       {@param mergePhysicalSchema} is set to {@code true}).
+     * </ul>
+     */
+    public static InputResult fromExternal(
+            DataTypeFactory dataTypeFactory,
+            DataType inputDataType,
+            @Nullable Schema declaredSchema,
+            boolean mergePhysicalSchema) {
         final LogicalType inputType = inputDataType.getLogicalType();
 
         // we don't allow modifying the number of columns during enrichment, therefore we preserve
@@ -178,6 +200,10 @@ public final class ExternalSchemaTranslator {
             addPhysicalSourceDataTypeFields(builder, inputDataType, declaredPrimaryKey);
             builder.fromSchema(declaredSchema);
             return new InputResult(inputDataType, isTopLevelRecord, builder.build(), null);
+        }
+
+        if (!mergePhysicalSchema) {
+            return new InputResult(inputDataType, isTopLevelRecord, declaredSchema, null);
         }
 
         // the declared schema enriches the physical data type and the derived schema,
