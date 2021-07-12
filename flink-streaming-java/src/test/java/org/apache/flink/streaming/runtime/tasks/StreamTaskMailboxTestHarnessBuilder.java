@@ -34,6 +34,7 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.TestTaskStateManagerBuilder;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -177,13 +178,17 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     }
 
     public StreamTaskMailboxTestHarness<OUT> buildUnrestored() throws Exception {
-        TestTaskStateManager taskStateManager = new TestTaskStateManager(localRecoveryConfig);
-        taskStateManager.setCheckpointResponder(checkpointResponder);
+        TestTaskStateManagerBuilder taskStateManagerBuilder =
+                TestTaskStateManager.builder()
+                        .setLocalRecoveryConfig(localRecoveryConfig)
+                        .setCheckpointResponder(checkpointResponder);
         if (taskStateSnapshots != null) {
-            taskStateManager.setReportedCheckpointId(taskStateSnapshots.keySet().iterator().next());
-            taskStateManager.setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshots);
+            taskStateManagerBuilder
+                    .setReportedCheckpointId(taskStateSnapshots.keySet().iterator().next())
+                    .setJobManagerTaskStateSnapshotsByCheckpointId(taskStateSnapshots);
         }
 
+        TestTaskStateManager taskStateManager = taskStateManagerBuilder.build();
         StreamMockEnvironment streamMockEnvironment =
                 new StreamMockEnvironment(
                         jobConfig,

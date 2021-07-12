@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -590,9 +589,6 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         configureChainedTestingStreamOperator(streamConfig, numberChainedTasks);
         TestTaskStateManager taskStateManager = testHarness.taskStateManager;
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-
-        taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
 
         // reset number of restore calls
         TestingStreamOperator.numberRestoreCalls = 0;
@@ -613,7 +609,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         // since no state was set, there shouldn't be restore calls
         assertEquals(0, TestingStreamOperator.numberRestoreCalls);
 
-        waitForAcknowledgeLatch.await();
+        taskStateManager.getWaitForReportLatch().await();
 
         assertEquals(checkpointId, taskStateManager.getReportedCheckpointId());
 

@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -43,6 +42,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Implementation of {@link TaskStateManager} for tests. */
 public class TestTaskStateManager implements TaskStateManager {
 
@@ -50,14 +51,15 @@ public class TestTaskStateManager implements TaskStateManager {
     private long notifiedCompletedCheckpointId;
     private long notifiedAbortedCheckpointId;
 
-    private JobID jobId;
-    private ExecutionAttemptID executionAttemptID;
+    private final JobID jobId;
+    private final ExecutionAttemptID executionAttemptID;
 
     private final Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId;
     private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
-    private CheckpointResponder checkpointResponder;
-    private OneShotLatch waitForReportLatch;
-    private LocalRecoveryConfig localRecoveryDirectoryProvider;
+    private final CheckpointResponder checkpointResponder;
+    private final OneShotLatch waitForReportLatch;
+    private final LocalRecoveryConfig localRecoveryDirectoryProvider;
+    private final StateChangelogStorage<?> stateChangelogStorage;
 
     public TestTaskStateManager() {
         this(TestLocalRecoveryConfig.disabled());
@@ -68,23 +70,34 @@ public class TestTaskStateManager implements TaskStateManager {
                 new JobID(),
                 new ExecutionAttemptID(),
                 new TestCheckpointResponder(),
-                localRecoveryConfig);
+                localRecoveryConfig,
+                new InMemoryStateChangelogStorage(),
+                new HashMap<>(),
+                -1L,
+                new OneShotLatch());
     }
 
     public TestTaskStateManager(
             JobID jobId,
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponder,
-            LocalRecoveryConfig localRecoveryConfig) {
-        this.jobId = jobId;
-        this.executionAttemptID = executionAttemptID;
-        this.checkpointResponder = checkpointResponder;
-        this.localRecoveryDirectoryProvider = localRecoveryConfig;
-        this.jobManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
+            LocalRecoveryConfig localRecoveryConfig,
+            StateChangelogStorage<?> changelogStorage,
+            Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId,
+            long reportedCheckpointId,
+            OneShotLatch waitForReportLatch) {
+        this.jobId = checkNotNull(jobId);
+        this.executionAttemptID = checkNotNull(executionAttemptID);
+        this.checkpointResponder = checkNotNull(checkpointResponder);
+        this.localRecoveryDirectoryProvider = checkNotNull(localRecoveryConfig);
+        this.stateChangelogStorage = checkNotNull(changelogStorage);
+        this.jobManagerTaskStateSnapshotsByCheckpointId =
+                checkNotNull(jobManagerTaskStateSnapshotsByCheckpointId);
         this.taskManagerTaskStateSnapshotsByCheckpointId = new HashMap<>();
-        this.reportedCheckpointId = -1L;
+        this.reportedCheckpointId = reportedCheckpointId;
         this.notifiedCompletedCheckpointId = -1L;
         this.notifiedAbortedCheckpointId = -1L;
+        this.waitForReportLatch = checkNotNull(waitForReportLatch);
     }
 
     @Override
@@ -180,7 +193,7 @@ public class TestTaskStateManager implements TaskStateManager {
     @Nonnull
     @Override
     public LocalRecoveryConfig createLocalRecoveryConfig() {
-        return Preconditions.checkNotNull(
+        return checkNotNull(
                 localRecoveryDirectoryProvider,
                 "Local state directory was never set for this test object!");
     }
@@ -193,11 +206,7 @@ public class TestTaskStateManager implements TaskStateManager {
     @Nullable
     @Override
     public StateChangelogStorage<?> getStateChangelogStorage() {
-        return new InMemoryStateChangelogStorage();
-    }
-
-    public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {
-        this.localRecoveryDirectoryProvider = recoveryDirectoryProvider;
+        return stateChangelogStorage;
     }
 
     @Override
@@ -214,24 +223,12 @@ public class TestTaskStateManager implements TaskStateManager {
         return jobId;
     }
 
-    public void setJobId(JobID jobId) {
-        this.jobId = jobId;
-    }
-
     public ExecutionAttemptID getExecutionAttemptID() {
         return executionAttemptID;
     }
 
-    public void setExecutionAttemptID(ExecutionAttemptID executionAttemptID) {
-        this.executionAttemptID = executionAttemptID;
-    }
-
     public CheckpointResponder getCheckpointResponder() {
         return checkpointResponder;
-    }
-
-    public void setCheckpointResponder(CheckpointResponder checkpointResponder) {
-        this.checkpointResponder = checkpointResponder;
     }
 
     public Map<Long, TaskStateSnapshot> getJobManagerTaskStateSnapshotsByCheckpointId() {
@@ -288,10 +285,6 @@ public class TestTaskStateManager implements TaskStateManager {
         return waitForReportLatch;
     }
 
-    public void setWaitForReportLatch(OneShotLatch waitForReportLatch) {
-        this.waitForReportLatch = waitForReportLatch;
-    }
-
     public void restoreLatestCheckpointState(
             Map<Long, TaskStateSnapshot> taskStateSnapshotsByCheckpointId) {
 
@@ -314,4 +307,8 @@ public class TestTaskStateManager implements TaskStateManager {
 
     @Override
     public void close() throws Exception {}
+
+    public static TestTaskStateManagerBuilder builder() {
+        return new TestTaskStateManagerBuilder();
+    }
 }
