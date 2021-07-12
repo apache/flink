@@ -29,7 +29,6 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -558,7 +557,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
         streamConfig.setOperatorID(operatorID);
 
         final TestTaskStateManager taskStateManagerMock = testHarness.getTaskStateManager();
-        taskStateManagerMock.setWaitForReportLatch(new OneShotLatch());
 
         testHarness.invoke();
         testHarness.waitForTaskRunning();
