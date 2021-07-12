@@ -23,17 +23,17 @@ import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 /**
- * Partitioner that selects all the output channels.
+ * Marker partitioner that allows to select less loaded channel.
  *
- * @param <T> Type of the elements in the Stream being broadcast
+ * @param <T> Type of the elements in the Stream being sending
  */
 @Internal
-public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
+public class LoadRebalancePartitioner<T> extends StreamPartitioner<T> {
     private static final long serialVersionUID = 1L;
 
     /**
-     * Note: Broadcast mode could be handled directly for all the output channels in record writer,
-     * so it is no need to select channels via this method.
+     * Note: Load based mode could be handled directly in record writer, so it is no need to select
+     * channels via this method.
      */
     @Override
     public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
@@ -53,7 +53,7 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 
     @Override
     public SelectorType getType() {
-        return SelectorType.BROADCAST;
+        return SelectorType.LOAD_BASED;
     }
 
     @Override
@@ -68,6 +68,6 @@ public class BroadcastPartitioner<T> extends StreamPartitioner<T> {
 
     @Override
     public String toString() {
-        return "BROADCAST";
+        return "LOAD_REBALANCE";
     }
 }

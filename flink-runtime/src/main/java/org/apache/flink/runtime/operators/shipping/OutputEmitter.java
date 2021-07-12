@@ -160,11 +160,11 @@ public class OutputEmitter<T> implements ChannelSelector<SerializationDelegate<T
     }
 
     @Override
-    public boolean isBroadcast() {
+    public SelectorType getType() {
         if (strategy == ShipStrategyType.BROADCAST) {
-            return true;
+            return SelectorType.BROADCAST;
         } else {
-            return false;
+            return SelectorType.SELECTABLE;
         }
     }
 

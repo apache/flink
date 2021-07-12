@@ -59,8 +59,8 @@ public class DataSkewStreamNetworkThroughputBenchmark extends StreamNetworkThrou
         }
 
         @Override
-        public boolean isBroadcast() {
-            return false;
+        public SelectorType getType() {
+            return SelectorType.SELECTABLE;
         }
     }
 }

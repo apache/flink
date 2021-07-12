@@ -46,10 +46,16 @@ public interface ChannelSelector<T extends IOReadableWritable> {
      */
     int selectChannel(T record);
 
-    /**
-     * Returns whether the channel selector always selects all the output channels.
-     *
-     * @return true if the selector is for broadcast mode.
-     */
-    boolean isBroadcast();
+    /** @return one of {@link SelectorType} corresponded to this selector. */
+    SelectorType getType();
+
+    /** Type of the selector. */
+    enum SelectorType {
+        /** The channel can be selected according to inner rules of current selector. */
+        SELECTABLE,
+        /** The channel selector always selects all the output channels. */
+        BROADCAST,
+        /** The channel always selects based on the load of the subpartition. */
+        LOAD_BASED
+    }
 }

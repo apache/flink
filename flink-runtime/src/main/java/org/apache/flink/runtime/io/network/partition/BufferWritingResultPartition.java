@@ -138,7 +138,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
     }
 
     @Override
-    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+    public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
         BufferBuilder buffer = appendUnicastDataForNewRecord(record, targetSubpartition);
 
         while (record.hasRemaining()) {
@@ -152,6 +152,7 @@ public abstract class BufferWritingResultPartition extends ResultPartition {
             finishUnicastBufferBuilder(targetSubpartition);
         }
 
+        return subpartitions[targetSubpartition].getWritingThreadTotalNumberOfSentBytes();
         // partial buffer, full record
     }
 

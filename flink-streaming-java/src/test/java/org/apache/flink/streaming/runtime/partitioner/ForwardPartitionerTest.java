@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.partitioner;
 
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.runtime.io.network.api.writer.ChannelSelector.SelectorType;
 
 import org.junit.Test;
 
@@ -29,7 +30,7 @@ public class ForwardPartitionerTest extends StreamPartitionerTest {
     @Override
     public StreamPartitioner<Tuple> createPartitioner() {
         StreamPartitioner<Tuple> partitioner = new ForwardPartitioner<>();
-        assertFalse(partitioner.isBroadcast());
+        assertFalse(partitioner.getType() == SelectorType.BROADCAST);
         return partitioner;
     }
 

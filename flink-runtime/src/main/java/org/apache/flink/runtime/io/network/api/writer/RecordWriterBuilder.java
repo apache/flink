@@ -45,10 +45,15 @@ public class RecordWriterBuilder<T extends IOReadableWritable> {
     }
 
     public RecordWriter<T> build(ResultPartitionWriter writer) {
-        if (selector.isBroadcast()) {
-            return new BroadcastRecordWriter<>(writer, timeout, taskName);
-        } else {
-            return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
+        switch (selector.getType()) {
+            case BROADCAST:
+                return new BroadcastRecordWriter<>(writer, timeout, taskName);
+            case SELECTABLE:
+                return new ChannelSelectorRecordWriter<>(writer, selector, timeout, taskName);
+            case LOAD_BASED:
+                return new LoadBasedRecordWriter<>(writer, timeout, taskName);
+            default:
+                throw new IllegalArgumentException("Unknown selector type=" + selector.getType());
         }
     }
 }

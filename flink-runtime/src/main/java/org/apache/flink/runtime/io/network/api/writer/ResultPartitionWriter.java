@@ -52,7 +52,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     int getNumTargetKeyGroups();
 
     /** Writes the given serialized record to the target subpartition. */
-    void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
+    long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
     /**
      * Writes the given serialized record to all subpartitions. One can also achieve the same effect

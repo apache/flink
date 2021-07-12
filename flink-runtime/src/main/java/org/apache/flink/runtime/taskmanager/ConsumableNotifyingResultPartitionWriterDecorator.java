@@ -127,10 +127,12 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
             partitionWriter.emitRecord(record, targetSubpartition);
 
             notifyPipelinedConsumers();
+
+            return -1;
         }
 
         @Override

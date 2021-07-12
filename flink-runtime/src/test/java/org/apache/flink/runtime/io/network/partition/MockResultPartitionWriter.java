@@ -52,7 +52,9 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
     }
 
     @Override
-    public void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {}
+    public long emitRecord(ByteBuffer record, int targetSubpartition) throws IOException {
+        return -1;
+    }
 
     @Override
     public void broadcastRecord(ByteBuffer record) throws IOException {}

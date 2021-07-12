@@ -92,6 +92,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.io.network.api.writer.ChannelSelector.SelectorType.BROADCAST;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -341,7 +342,7 @@ public class StreamGraphGenerator {
 
     private boolean shouldDisableUnalignedCheckpointing(StreamEdge edge) {
         StreamPartitioner<?> partitioner = edge.getPartitioner();
-        return partitioner.isPointwise() || partitioner.isBroadcast();
+        return partitioner.isPointwise() || partitioner.getType() == BROADCAST;
     }
 
     private void configureStreamGraph(final StreamGraph graph) {
