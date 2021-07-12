@@ -87,7 +87,8 @@ object InputFormatCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedInput(funcName, funcCode, ctx.references.toArray)
+    new GeneratedInput(
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
 }

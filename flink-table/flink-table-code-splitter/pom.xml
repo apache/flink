@@ -29,7 +29,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-table-code-splitter</artifactId>
-	<name>Flink : Table : Code Splitter </name>
+	<name>Flink : Table : Code Splitter</name>
 	<description>
 		This module contains a tool to split generated Java code
 		so that each method does not exceed the limit of 64KB.
@@ -79,6 +79,30 @@ under the License.
 						<configuration>
 							<outputDirectory>${project.build.directory}/generated-sources/antlr4/org/apache/flink/table/codesplit</outputDirectory>
 							<visitor>true</visitor>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<artifactSet>
+								<includes combine.children="append">
+									<include>org.antlr:antlr4-runtime</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>org.antlr.v4.runtime</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.antlr.v4.runtime</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

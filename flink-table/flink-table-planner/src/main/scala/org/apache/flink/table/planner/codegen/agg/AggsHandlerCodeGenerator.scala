@@ -417,7 +417,8 @@ class AggsHandlerCodeGenerator(
         }
       """.stripMargin
 
-    new GeneratedAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
+    new GeneratedAggsHandleFunction(
+      functionName, functionCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**
@@ -568,7 +569,8 @@ class AggsHandlerCodeGenerator(
         }
       """.stripMargin
 
-    new GeneratedTableAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
+    new GeneratedTableAggsHandleFunction(
+      functionName, functionCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**
@@ -694,7 +696,8 @@ class AggsHandlerCodeGenerator(
         }
       """.stripMargin
 
-    new GeneratedNamespaceAggsHandleFunction[N](functionName, functionCode, ctx.references.toArray)
+    new GeneratedNamespaceAggsHandleFunction[N](
+      functionName, functionCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**
@@ -847,7 +850,7 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedNamespaceTableAggsHandleFunction[N](
-      functionName, functionCode, ctx.references.toArray)
+      functionName, functionCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   private def genCreateAccumulators(): String = {

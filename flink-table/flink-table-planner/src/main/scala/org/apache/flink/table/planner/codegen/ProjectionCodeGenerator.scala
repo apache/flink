@@ -117,7 +117,8 @@ object ProjectionCodeGenerator {
          |}
         """.stripMargin
 
-    new GeneratedProjection(className, code, ctx.references.toArray)
+    new GeneratedProjection(
+      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**

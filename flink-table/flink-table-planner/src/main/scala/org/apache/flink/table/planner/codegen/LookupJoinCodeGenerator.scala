@@ -408,7 +408,8 @@ object LookupJoinCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedCollector(funcName, funcCode, ctx.references.toArray)
+    new GeneratedCollector(
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**
@@ -498,7 +499,8 @@ object LookupJoinCodeGenerator {
       }
     """.stripMargin
 
-    new GeneratedResultFuture(funcName, funcCode, ctx.references.toArray)
+    new GeneratedResultFuture(
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   /**

@@ -131,7 +131,8 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                     new GeneratedWatermarkGenerator(
                                     generatedWatermarkGenerator.getClassName(),
                                     generatedWatermarkGenerator.getCode(),
-                                    references.toArray())
+                                    references.toArray(),
+                                    configuration)
                             .newInstance(Thread.currentThread().getContextClassLoader());
 
             try {

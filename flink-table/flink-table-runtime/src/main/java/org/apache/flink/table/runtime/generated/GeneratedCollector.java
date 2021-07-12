@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 /**
@@ -27,7 +29,12 @@ import org.apache.flink.util.Collector;
  */
 public class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C> {
 
-    private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = 2L;
+
+    @VisibleForTesting
+    public GeneratedCollector(String className, String code, Object[] references) {
+        super(className, code, references, new Configuration());
+    }
 
     /**
      * Creates a GeneratedCollector.
@@ -35,8 +42,10 @@ public class GeneratedCollector<C extends Collector<?>> extends GeneratedClass<C
      * @param className class name of the generated Collector.
      * @param code code of the generated Collector.
      * @param references referenced objects of the generated Collector.
+     * @param conf configuration when generating Collector.
      */
-    public GeneratedCollector(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedCollector(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

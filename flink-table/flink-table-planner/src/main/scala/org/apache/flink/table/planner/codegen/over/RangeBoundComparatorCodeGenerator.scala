@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
-import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec.SortFieldSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
 
@@ -123,7 +122,8 @@ class RangeBoundComparatorCodeGenerator(
       }
       """.stripMargin
 
-    new GeneratedRecordComparator(className, code, ctx.references.toArray)
+    new GeneratedRecordComparator(
+      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 
   private def getComparatorCode(inputValue: String, currentValue: String): String = {

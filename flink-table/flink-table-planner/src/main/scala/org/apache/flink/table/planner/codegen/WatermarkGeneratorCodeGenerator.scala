@@ -117,7 +117,9 @@ object WatermarkGeneratorCodeGenerator {
         }
       }
     """.stripMargin
-    new GeneratedWatermarkGenerator(funcName, funcCode, ctx.references.toArray)
+
+    new GeneratedWatermarkGenerator(
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
   }
 }
 

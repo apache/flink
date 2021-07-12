@@ -183,7 +183,7 @@ class SortCodeGenerator(
       }
     """.stripMargin
 
-    new GeneratedNormalizedKeyComputer(className, code)
+    new GeneratedNormalizedKeyComputer(className, code, conf.getConfiguration)
   }
 
   def generatePutNormalizedKeys(numKeyBytes: Int): mutable.ArrayBuffer[String] = {

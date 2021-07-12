@@ -384,6 +384,7 @@ under the License.
 
 									<!-- flink-table-runtime dependencies -->
 									<include>org.codehaus.janino:*</include>
+									<include>org.apache.flink:flink-table-code-splitter</include>
 
 									<!-- Tools to unify display format for different languages -->
 									<include>com.ibm.icu:icu4j</include>

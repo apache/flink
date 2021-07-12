@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.configuration.Configuration;
+
 /** Describes a generated {@link HashFunction}. */
 public class GeneratedHashFunction extends GeneratedClass<HashFunction> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     /**
      * Creates a GeneratedHashFunction.
@@ -29,8 +31,10 @@ public class GeneratedHashFunction extends GeneratedClass<HashFunction> {
      * @param className class name of the generated Function.
      * @param code code of the generated Function.
      * @param references referenced objects of the generated Function.
+     * @param conf configuration when generating Function.
      */
-    public GeneratedHashFunction(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedHashFunction(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

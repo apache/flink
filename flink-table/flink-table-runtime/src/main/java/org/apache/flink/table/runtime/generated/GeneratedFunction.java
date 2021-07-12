@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.Function;
+import org.apache.flink.configuration.Configuration;
 
 /**
  * Describes a generated {@link Function}.
@@ -27,7 +29,12 @@ import org.apache.flink.api.common.functions.Function;
  */
 public class GeneratedFunction<F extends Function> extends GeneratedClass<F> {
 
-    private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = 2L;
+
+    @VisibleForTesting
+    public GeneratedFunction(String className, String code, Object[] references) {
+        super(className, code, references, new Configuration());
+    }
 
     /**
      * Creates a GeneratedFunction.
@@ -35,8 +42,10 @@ public class GeneratedFunction<F extends Function> extends GeneratedClass<F> {
      * @param className class name of the generated Function.
      * @param code code of the generated Function.
      * @param references referenced objects of the generated Function.
+     * @param conf configuration when generating Function.
      */
-    public GeneratedFunction(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedFunction(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }

@@ -18,10 +18,18 @@
 
 package org.apache.flink.table.runtime.generated;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+
 /** Describes a generated {@link RecordComparator}. */
 public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
+
+    @VisibleForTesting
+    public GeneratedRecordComparator(String className, String code, Object[] references) {
+        super(className, code, references, new Configuration());
+    }
 
     /**
      * Creates a GeneratedRecordComparator.
@@ -29,8 +37,10 @@ public class GeneratedRecordComparator extends GeneratedClass<RecordComparator> 
      * @param className class name of the generated class.
      * @param code code of the generated class.
      * @param references referenced objects of the generated class.
+     * @param conf configuration when generating the generated class.
      */
-    public GeneratedRecordComparator(String className, String code, Object[] references) {
-        super(className, code, references);
+    public GeneratedRecordComparator(
+            String className, String code, Object[] references, Configuration conf) {
+        super(className, code, references, conf);
     }
 }
