@@ -173,8 +173,6 @@ public class RemoteAkkaRpcActorTest extends TestLogger {
 
             toBeClosedRpcService.stopService().join();
 
-            Thread.sleep(100L);
-
             try {
                 gateway.getSerializedValue().join();
                 fail("The endpoint should have been stopped.");
