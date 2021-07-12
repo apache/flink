@@ -348,14 +348,17 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Collection<ResourceRequirement> acquiredResources) {
         assertRunningInMainThread();
 
-        failPendingRequests();
+        failPendingRequests(acquiredResources);
     }
 
-    private void failPendingRequests() {
+    private void failPendingRequests(Collection<ResourceRequirement> acquiredResources) {
         if (!pendingRequests.isEmpty()) {
             final NoResourceAvailableException cause =
                     new NoResourceAvailableException(
-                            "Could not acquire the minimum required resources.");
+                            "Could not acquire the minimum required resources. Acquired: "
+                                    + acquiredResources
+                                    + ". Current slot pool status: "
+                                    + getSlotServiceStatus());
 
             cancelPendingRequests(
                     request -> !isBatchSlotRequestTimeoutCheckDisabled || !request.isBatchRequest(),
