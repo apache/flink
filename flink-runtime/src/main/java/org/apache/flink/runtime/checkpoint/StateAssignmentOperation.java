@@ -135,14 +135,14 @@ public class StateAssignmentOperation {
 
         // repartition state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasState) {
+            if (stateAssignment.hasNonFinishedState) {
                 assignAttemptState(stateAssignment);
             }
         }
 
         // actually assign the state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
-            if (stateAssignment.hasState) {
+            if (stateAssignment.hasNonFinishedState || stateAssignment.isFinished) {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
             }
         }
@@ -213,31 +213,49 @@ public class StateAssignmentOperation {
          *
          */
         for (int subTaskIndex = 0; subTaskIndex < newParallelism; subTaskIndex++) {
-
             Execution currentExecutionAttempt =
                     executionJobVertex.getTaskVertices()[subTaskIndex].getCurrentExecutionAttempt();
 
-            TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
-            boolean statelessTask = true;
-
-            for (OperatorIDPair operatorID : operatorIDs) {
-                OperatorInstanceID instanceID =
-                        OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
-
-                OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
-
-                if (operatorSubtaskState.hasState()) {
-                    statelessTask = false;
-                }
-                taskState.putSubtaskStateByOperatorID(
-                        operatorID.getGeneratedOperatorID(), operatorSubtaskState);
+            if (assignment.isFinished) {
+                assignFinishedStateToTask(currentExecutionAttempt);
+            } else {
+                assignNonFinishedStateToTask(
+                        assignment, operatorIDs, subTaskIndex, currentExecutionAttempt);
             }
+        }
+    }
 
-            if (!statelessTask) {
-                JobManagerTaskRestore taskRestore =
-                        new JobManagerTaskRestore(restoreCheckpointId, taskState);
-                currentExecutionAttempt.setInitialState(taskRestore);
+    private void assignFinishedStateToTask(Execution currentExecutionAttempt) {
+        JobManagerTaskRestore taskRestore =
+                new JobManagerTaskRestore(restoreCheckpointId, TaskStateSnapshot.FINISHED);
+        currentExecutionAttempt.setInitialState(taskRestore);
+    }
+
+    private void assignNonFinishedStateToTask(
+            TaskStateAssignment assignment,
+            List<OperatorIDPair> operatorIDs,
+            int subTaskIndex,
+            Execution currentExecutionAttempt) {
+        TaskStateSnapshot taskState = new TaskStateSnapshot(operatorIDs.size());
+        boolean statelessTask = true;
+
+        for (OperatorIDPair operatorID : operatorIDs) {
+            OperatorInstanceID instanceID =
+                    OperatorInstanceID.of(subTaskIndex, operatorID.getGeneratedOperatorID());
+
+            OperatorSubtaskState operatorSubtaskState = assignment.getSubtaskState(instanceID);
+
+            if (operatorSubtaskState.hasState()) {
+                statelessTask = false;
             }
+            taskState.putSubtaskStateByOperatorID(
+                    operatorID.getGeneratedOperatorID(), operatorSubtaskState);
+        }
+
+        if (!statelessTask) {
+            JobManagerTaskRestore taskRestore =
+                    new JobManagerTaskRestore(restoreCheckpointId, taskState);
+            currentExecutionAttempt.setInitialState(taskRestore);
         }
     }
 

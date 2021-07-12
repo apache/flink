@@ -56,8 +56,12 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
     private static final long serialVersionUID = 1L;
 
+    public static final TaskStateSnapshot FINISHED = new TaskStateSnapshot(new HashMap<>(), true);
+
     /** Mapping from an operator id to the state of one subtask of this operator. */
     private final Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID;
+
+    private final boolean isFinished;
 
     public TaskStateSnapshot() {
         this(10);
@@ -68,7 +72,18 @@ public class TaskStateSnapshot implements CompositeStateHandle {
     }
 
     public TaskStateSnapshot(Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID) {
+        this(subtaskStatesByOperatorID, false);
+    }
+
+    private TaskStateSnapshot(
+            Map<OperatorID, OperatorSubtaskState> subtaskStatesByOperatorID, boolean isFinished) {
         this.subtaskStatesByOperatorID = Preconditions.checkNotNull(subtaskStatesByOperatorID);
+        this.isFinished = isFinished;
+    }
+
+    /** Returns whether all the operators of the task are finished. */
+    public boolean isFinished() {
+        return isFinished;
     }
 
     /** Returns the subtask state for the given operator id (or null if not contained). */
@@ -102,7 +117,7 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                 return true;
             }
         }
-        return false;
+        return isFinished;
     }
 
     /**

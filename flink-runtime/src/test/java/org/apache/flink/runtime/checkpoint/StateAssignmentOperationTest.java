@@ -25,6 +25,7 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -683,6 +684,36 @@ public class StateAssignmentOperationTest extends TestLogger {
                 rescalingDescriptor(to(1), array(mappings(to(0), to(1), to())), set(0, 1)),
                 getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 2)
                         .getInputRescalingDescriptor());
+    }
+
+    @Test
+    public void testStateWithFullyFinishedOperators() throws JobException, JobExecutionException {
+        List<OperatorID> operatorIds = buildOperatorIds(2);
+        Map<OperatorID, OperatorState> states =
+                buildOperatorStates(Collections.singletonList(operatorIds.get(1)), 3);
+
+        // Create an operator state marked as finished
+        OperatorState operatorState = new FullyFinishedOperatorState(operatorIds.get(0), 3, 256);
+        states.put(operatorIds.get(0), operatorState);
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                buildVertices(operatorIds, 2, RANGE, ROUND_ROBIN);
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // Check the job vertex with only finished operator.
+        ExecutionJobVertex jobVertexWithFinishedOperator = vertices.get(operatorIds.get(0));
+        for (ExecutionVertex task : jobVertexWithFinishedOperator.getTaskVertices()) {
+            JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
+            Assert.assertTrue(taskRestore.getTaskStateSnapshot().isFinished());
+        }
+
+        // Check the job vertex without finished operator.
+        ExecutionJobVertex jobVertexWithoutFinishedOperator = vertices.get(operatorIds.get(1));
+        for (ExecutionVertex task : jobVertexWithoutFinishedOperator.getTaskVertices()) {
+            JobManagerTaskRestore taskRestore = task.getCurrentExecutionAttempt().getTaskRestore();
+            Assert.assertFalse(taskRestore.getTaskStateSnapshot().isFinished());
+        }
     }
 
     private void assertState(
