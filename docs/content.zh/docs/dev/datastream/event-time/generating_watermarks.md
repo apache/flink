@@ -353,11 +353,11 @@ class PunctuatedAssigner extends AssignerWithPunctuatedWatermarks[MyEvent] {
 
 ## Watermark 策略与 Kafka 连接器
 
-当使用 [Apache Kafka 连接器](connectors/kafka.html)作为数据源时，每个 Kafka 分区可能有一个简单的事件时间模式（递增的时间戳或有界无序）。然而，当使用 Kafka 数据源时，多个分区常常并行使用，因此交错来自各个分区的事件数据就会破坏每个分区的事件时间模式（这是 Kafka 消费客户端所固有的）。
+当使用 [Apache Kafka 连接器]({{< ref "docs/connectors/datastream/kafka" >}})作为数据源时，每个 Kafka 分区可能有一个简单的事件时间模式（递增的时间戳或有界无序）。然而，当使用 Kafka 数据源时，多个分区常常并行使用，因此交错来自各个分区的事件数据就会破坏每个分区的事件时间模式（这是 Kafka 消费客户端所固有的）。
 
 在这种情况下，你可以使用 Flink 中可识别 Kafka 分区的 watermark 生成机制。使用此特性，将在 Kafka 消费端内部针对每个 Kafka 分区生成 watermark，并且不同分区 watermark 的合并方式与在数据流 shuffle 时的合并方式相同。
 
-例如，如果每个 Kafka 分区中的事件时间戳严格递增，则使用[时间戳单调递增](event_timestamp_extractors.html#时间戳单调递增)按分区生成的 watermark 将生成完美的全局 watermark。注意，我们在示例中未使用 `TimestampAssigner`，而是使用了 Kafka 记录自身的时间戳。
+例如，如果每个 Kafka 分区中的事件时间戳严格递增，则使用[单调递增时间戳分配器]({{< ref "docs/dev/datastream/event-time/built_in">}}#单调递增时间戳分配器)按分区生成的 watermark 将生成完美的全局 watermark。注意，我们在示例中未使用 `TimestampAssigner`，而是使用了 Kafka 记录自身的时间戳。
 
 下图展示了如何使用单 kafka 分区 watermark 生成机制，以及在这种情况下 watermark 如何通过 dataflow 传播。
 

@@ -411,7 +411,7 @@ performance.
 
 ## Watermark Strategies and the Kafka Connector
 
-When using [Apache Kafka](connectors/kafka.html) as a data source, each Kafka
+When using [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) as a data source, each Kafka
 partition may have a simple event time pattern (ascending timestamps or bounded
 out-of-orderness). However, when consuming streams from Kafka, multiple
 partitions often get consumed in parallel, interleaving the events from the
@@ -425,7 +425,7 @@ watermarks are merged on stream shuffles.
 
 For example, if event timestamps are strictly ascending per Kafka partition,
 generating per-partition watermarks with the [ascending timestamps watermark
-generator](event_timestamp_extractors.html#assigners-with-ascending-timestamps)
+generator]({{< ref "docs/dev/datastream/event-time/built_in">}}#monotonously-increasing-timestamps)
 will result in perfect overall watermarks. Note, that we don't provide a
 `TimestampAssigner` in the example, the timestamps of the Kafka records
 themselves will be used instead.
