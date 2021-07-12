@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.types.DataType;
 
 /**
  * The {@link Table} object is the core abstraction of the Table API. Similar to how the DataStream
@@ -1379,6 +1380,19 @@ public interface Table {
      * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
      * even with the same descriptor, results in multiple sink tables being registered.
      *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
      * <p>Examples:
      *
      * <pre>{@code
@@ -1415,6 +1429,19 @@ public interface Table {
      * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
      * TableDescriptor)}) using a unique identifier. Note that calling this method multiple times,
      * even with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
      *
      * <p>Examples:
      *

@@ -30,6 +30,7 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ResultKind;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
@@ -492,14 +493,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private void createTemporaryTableInternal(
             UnresolvedIdentifier path, TableDescriptor descriptor) {
         final ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(path);
-
-        final CatalogTable catalogTable =
-                CatalogTable.of(
-                        descriptor.getSchema(),
-                        descriptor.getComment().orElse(null),
-                        descriptor.getPartitionKeys(),
-                        descriptor.getOptions());
-
+        final CatalogTable catalogTable = convertTableDescriptor(descriptor);
         catalogManager.createTemporaryTable(catalogTable, tableIdentifier, false);
     }
 
@@ -510,15 +504,27 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
         final ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(getParser().parseIdentifier(path));
-
-        final CatalogTable catalogTable =
-                CatalogTable.of(
-                        descriptor.getSchema(),
-                        descriptor.getComment().orElse(null),
-                        descriptor.getPartitionKeys(),
-                        descriptor.getOptions());
-
+        final CatalogTable catalogTable = convertTableDescriptor(descriptor);
         catalogManager.createTable(catalogTable, tableIdentifier, false);
+    }
+
+    private CatalogTable convertTableDescriptor(TableDescriptor descriptor) {
+        final Schema schema =
+                descriptor
+                        .getSchema()
+                        .orElseThrow(
+                                () ->
+                                        new ValidationException(
+                                                "Missing schema in TableDescriptor. "
+                                                        + "A schema is typically required. "
+                                                        + "It can only be omitted at certain "
+                                                        + "documented locations."));
+
+        return CatalogTable.of(
+                schema,
+                descriptor.getComment().orElse(null),
+                descriptor.getPartitionKeys(),
+                descriptor.getOptions());
     }
 
     @Override

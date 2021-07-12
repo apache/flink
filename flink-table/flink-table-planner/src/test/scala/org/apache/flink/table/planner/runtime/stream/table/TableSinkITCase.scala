@@ -1361,23 +1361,53 @@ class TableSinkITCase extends StreamingTestBase {
 
   @Test
   def testExecuteInsertToTableDescriptor(): Unit = {
-    val schema = Schema.newBuilder()
-      .column("f0", DataTypes.INT())
-      .build();
-
-    val tableId = TestValuesTableFactory.registerData(Seq(row(42)))
-    tEnv.createTemporaryTable("T", TableDescriptor.forConnector("values")
-      .schema(schema)
-      .option("data-id", tableId)
+    val sourceDescriptor = TableDescriptor.forConnector("values")
+      .schema(Schema.newBuilder()
+        .column("f0", DataTypes.INT())
+        .build())
       .option("bounded", "true")
-      .build())
+      .build()
 
-    val tableResult = tEnv.from("T").executeInsert(TableDescriptor.forConnector("values")
-      .schema(schema)
-      .build())
+    // Explicit schema
 
-    tableResult.await()
+    TestValuesTableFactory.clearAllData()
+    val tableId1 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T1", sourceDescriptor.toBuilder.option("data-id", tableId1).build)
+
+    tEnv.from("T1").executeInsert(TableDescriptor.forConnector("values")
+      .schema(Schema.newBuilder()
+        .column("f0", DataTypes.INT())
+        .build())
+      .build())
+      .await()
     assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+
+    // Derived schema
+
+    TestValuesTableFactory.clearAllData()
+    val tableId2 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T2", sourceDescriptor.toBuilder.option("data-id", tableId2).build)
+
+    tEnv.from("T2").executeInsert(TableDescriptor.forConnector("values").build())
+      .await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+
+    // Enriched schema
+
+    TestValuesTableFactory.clearAllData()
+    val tableId3 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T3", sourceDescriptor.toBuilder.option("data-id", tableId3).build)
+
+    tEnv.from("T3").executeInsert(TableDescriptor.forConnector("values")
+      .option("writable-metadata", "m1:INT")
+      .schema(Schema.newBuilder()
+        .columnByMetadata("m1", DataTypes.INT(), true)
+        .primaryKey("f0")
+        .build())
+      .build())
+      .await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+    TestValuesTableFactory.clearAllData()
   }
 
   @Test
