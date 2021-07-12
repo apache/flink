@@ -53,6 +53,7 @@ import static org.apache.flink.formats.csv.CsvOptions.ARRAY_ELEMENT_DELIMITER;
 import static org.apache.flink.formats.csv.CsvOptions.DISABLE_QUOTE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.ESCAPE_CHARACTER;
 import static org.apache.flink.formats.csv.CsvOptions.FIELD_DELIMITER;
+import static org.apache.flink.formats.csv.CsvOptions.IGNORE_FIRST_LINE;
 import static org.apache.flink.formats.csv.CsvOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.csv.CsvOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvOptions.QUOTE_CHARACTER;
@@ -83,6 +84,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
         options.add(ARRAY_ELEMENT_DELIMITER);
         options.add(ESCAPE_CHARACTER);
         options.add(NULL_LITERAL);
+        options.add(IGNORE_FIRST_LINE);
         return options;
     }
 
@@ -113,6 +115,7 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
         CsvSchema csvSchema = buildCsvSchema(formatRowType, options);
 
         boolean ignoreParseErrors = options.get(IGNORE_PARSE_ERRORS);
+        boolean ignoreFirstLine = options.get(IGNORE_FIRST_LINE);
 
         return new CsvInputFormat(
                 context.getPaths(),
@@ -126,7 +129,8 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
                 context.getPushedDownLimit(),
                 csvSelectFieldToProjectFieldMapping,
                 csvSelectFieldToCsvFieldMapping,
-                ignoreParseErrors);
+                ignoreParseErrors,
+                ignoreFirstLine);
     }
 
     private CsvSchema buildCsvSchema(RowType rowType, ReadableConfig options) {
@@ -194,8 +198,9 @@ public class CsvFileSystemFormatFactory implements FileSystemFormatFactory {
                 long limit,
                 int[] csvSelectFieldToProjectFieldMapping,
                 int[] csvSelectFieldToCsvFieldMapping,
-                boolean ignoreParseErrors) {
-            super(filePaths, csvSchema);
+                boolean ignoreParseErrors,
+                boolean ignoreFirstLine) {
+            super(filePaths, csvSchema, ignoreFirstLine);
             this.fieldTypes = fieldTypes;
             this.fieldNames = fieldNames;
             this.formatRowType = formatRowType;

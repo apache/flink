@@ -141,6 +141,14 @@ Format 参数
       <td>String</td>
       <td>是否将 "null" 字符串转化为 null 值。</td>
     </tr>
+    <tr>
+      <td><h5>csv.ignore-first-line</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Boolean</td>
+      <td>跳过csv文件的第一行(默认关闭), 只有使用filesystem connector时生效.</td>
+    </tr>
+    </tbody>
     </tbody>
 </table>
 

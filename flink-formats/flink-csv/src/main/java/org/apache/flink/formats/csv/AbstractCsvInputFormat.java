@@ -40,11 +40,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
 
     protected final CsvSchema csvSchema;
+    private final boolean ignoreFirstLine;
     protected transient InputStream csvInputStream;
 
-    public AbstractCsvInputFormat(Path[] filePaths, CsvSchema csvSchema) {
+    public AbstractCsvInputFormat(Path[] filePaths, CsvSchema csvSchema, boolean ignoreFirstLine) {
         setFilePaths(filePaths);
         this.csvSchema = checkNotNull(csvSchema);
+        this.ignoreFirstLine = ignoreFirstLine;
     }
 
     @Override
@@ -59,7 +61,8 @@ public abstract class AbstractCsvInputFormat<T> extends FileInputFormat<T> {
         csvInputStream = stream;
 
         long csvStart = splitStart;
-        if (splitStart != 0) {
+        // find next line offset when splitStart != 0 or splitStart == 0 && ignoreFirstLine == true.
+        if (splitStart != 0 || ignoreFirstLine) {
             csvStart = findNextLineStartOffset();
         }
 

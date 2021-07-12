@@ -142,6 +142,13 @@ Format Options
       <td>String</td>
       <td>Null literal string that is interpreted as a null value (disabled by default).</td>
     </tr>
+    <tr>
+      <td><h5>csv.ignore-first-line</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Boolean</td>
+      <td>Skip the first line when read a csv file (disabled by default), and it only take effect on filesystem connector.</td>
+    </tr>
     </tbody>
 </table>
 

@@ -73,8 +73,9 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
             TypeInformation[] fieldTypes,
             CsvSchema csvSchema,
             int[] selectedFields,
-            boolean ignoreParseErrors) {
-        super(filePaths, csvSchema);
+            boolean ignoreParseErrors,
+            boolean ignoreFirstLine) {
+        super(filePaths, csvSchema, ignoreFirstLine);
 
         this.fieldTypes = checkNotNull(fieldTypes);
         checkArgument(fieldTypes.length == csvSchema.size());
@@ -152,6 +153,7 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
         private final TypeInformation[] fieldTypes;
         private CsvSchema csvSchema;
         private boolean ignoreParseErrors;
+        private boolean ignoreFirstLine;
         private int[] selectedFields;
 
         /**
@@ -208,6 +210,11 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
             return this;
         }
 
+        public Builder setIgnoreFirstLine() {
+            this.ignoreFirstLine = true;
+            return this;
+        }
+
         public Builder setSelectedFields(int[] selectedFields) {
             this.selectedFields = selectedFields;
             return this;
@@ -222,7 +229,12 @@ public class RowCsvInputFormat extends AbstractCsvInputFormat<Row> {
             }
 
             return new RowCsvInputFormat(
-                    filePaths, fieldTypes, csvSchema, selectedFields, ignoreParseErrors);
+                    filePaths,
+                    fieldTypes,
+                    csvSchema,
+                    selectedFields,
+                    ignoreParseErrors,
+                    ignoreFirstLine);
         }
     }
 }
