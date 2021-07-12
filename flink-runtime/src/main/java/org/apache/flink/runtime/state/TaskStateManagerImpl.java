@@ -155,6 +155,14 @@ public class TaskStateManagerImpl implements TaskStateManager {
         return jobManagerTaskRestore.getTaskStateSnapshot().getOutputRescalingDescriptor();
     }
 
+    public boolean isFinishedOnRestore() {
+        if (jobManagerTaskRestore == null) {
+            return false;
+        }
+
+        return jobManagerTaskRestore.getTaskStateSnapshot().isFinished();
+    }
+
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
 

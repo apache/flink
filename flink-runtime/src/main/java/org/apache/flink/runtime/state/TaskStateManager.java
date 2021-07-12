@@ -71,6 +71,9 @@ public interface TaskStateManager extends CheckpointListener, AutoCloseable {
     void reportIncompleteTaskStateSnapshots(
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics);
 
+    /** Whether all the operators of the task are finished on restore. */
+    boolean isFinishedOnRestore();
+
     /**
      * Returns means to restore previously reported state of an operator running in the owning task.
      *
