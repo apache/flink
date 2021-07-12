@@ -670,8 +670,8 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
-                                                new DuplicateJobSubmissionException(
-                                                        testJobID, true)))
+                                                DuplicateJobSubmissionException
+                                                        .ofGloballyTerminated(testJobID)))
                         .setRequestJobStatusFunction(
                                 jobId -> CompletableFuture.completedFuture(JobStatus.FINISHED))
                         .setRequestJobResultFunction(
@@ -702,8 +702,8 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
-                                                new DuplicateJobSubmissionException(
-                                                        testJobID, true)))
+                                                DuplicateJobSubmissionException
+                                                        .ofGloballyTerminated(testJobID)))
                         .setRequestJobStatusFunction(
                                 jobId ->
                                         FutureUtils.completedExceptionally(
@@ -737,8 +737,8 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
-                                                new DuplicateJobSubmissionException(
-                                                        testJobID, true)))
+                                                DuplicateJobSubmissionException
+                                                        .ofGloballyTerminated(testJobID)))
                         .setRequestJobStatusFunction(
                                 jobId ->
                                         FutureUtils.completedExceptionally(
@@ -765,8 +765,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                         .setSubmitFunction(
                                 jobGraph ->
                                         FutureUtils.completedExceptionally(
-                                                new DuplicateJobSubmissionException(
-                                                        testJobID, false)));
+                                                DuplicateJobSubmissionException.of(testJobID)));
         final CompletableFuture<Void> applicationFuture =
                 runApplication(dispatcherBuilder, configurationUnderTest, 1);
         final ExecutionException executionException =
@@ -777,7 +776,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
                 ExceptionUtils.findThrowable(
                         executionException, DuplicateJobSubmissionException.class);
         assertTrue(maybeDuplicate.isPresent());
-        assertFalse(maybeDuplicate.get().isTerminated());
+        assertFalse(maybeDuplicate.get().isGloballyTerminated());
     }
 
     private CompletableFuture<Void> runApplication(

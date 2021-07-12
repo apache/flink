@@ -25,11 +25,19 @@ import org.apache.flink.api.common.JobID;
  */
 public class DuplicateJobSubmissionException extends JobSubmissionException {
 
-    private final boolean terminated;
+    public static DuplicateJobSubmissionException of(JobID jobId) {
+        return new DuplicateJobSubmissionException(jobId, false);
+    }
 
-    public DuplicateJobSubmissionException(JobID jobID, boolean terminated) {
+    public static DuplicateJobSubmissionException ofGloballyTerminated(JobID jobId) {
+        return new DuplicateJobSubmissionException(jobId, true);
+    }
+
+    private final boolean globallyTerminated;
+
+    private DuplicateJobSubmissionException(JobID jobID, boolean globallyTerminated) {
         super(jobID, "Job has already been submitted.");
-        this.terminated = terminated;
+        this.globallyTerminated = globallyTerminated;
     }
 
     /**
@@ -37,7 +45,7 @@ public class DuplicateJobSubmissionException extends JobSubmissionException {
      *
      * @return true if the job has already finished, either successfully or as a failure
      */
-    public boolean isTerminated() {
-        return terminated;
+    public boolean isGloballyTerminated() {
+        return globallyTerminated;
     }
 }

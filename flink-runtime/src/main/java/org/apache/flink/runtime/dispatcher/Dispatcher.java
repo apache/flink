@@ -301,9 +301,12 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         try {
             if (isDuplicateJob(jobGraph.getJobID())) {
-                return FutureUtils.completedExceptionally(
-                        new DuplicateJobSubmissionException(
-                                jobGraph.getJobID(), isTerminated(jobGraph.getJobID())));
+                final DuplicateJobSubmissionException exception =
+                        isInGloballyTerminalState(jobGraph.getJobID())
+                                ? DuplicateJobSubmissionException.ofGloballyTerminated(
+                                        jobGraph.getJobID())
+                                : DuplicateJobSubmissionException.of(jobGraph.getJobID());
+                return FutureUtils.completedExceptionally(exception);
             } else if (isPartialResourceConfigured(jobGraph)) {
                 return FutureUtils.completedExceptionally(
                         new JobSubmissionException(
@@ -326,7 +329,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      * @throws FlinkException if the job scheduling status cannot be retrieved
      */
     private boolean isDuplicateJob(JobID jobId) throws FlinkException {
-        return isTerminated(jobId) || runningJobs.containsKey(jobId);
+        return isInGloballyTerminalState(jobId) || runningJobs.containsKey(jobId);
     }
 
     /**
@@ -336,7 +339,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
      * @return true if the job has already finished, either successfully or as a failure
      * @throws FlinkException if the job scheduling status cannot be retrieved
      */
-    private boolean isTerminated(JobID jobId) throws FlinkException {
+    private boolean isInGloballyTerminalState(JobID jobId) throws FlinkException {
         try {
             final RunningJobsRegistry.JobSchedulingStatus schedulingStatus =
                     runningJobsRegistry.getJobSchedulingStatus(jobId);

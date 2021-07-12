@@ -271,7 +271,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                     ExceptionUtils.findThrowable(t, DuplicateJobSubmissionException.class);
             if (enforceSingleJobExecution
                     && maybeDuplicate.isPresent()
-                    && maybeDuplicate.get().isTerminated()) {
+                    && maybeDuplicate.get().isGloballyTerminated()) {
                 final JobID jobId = maybeDuplicate.get().getJobID();
                 tolerateMissingResult.add(jobId);
                 jobIdsFuture.complete(Collections.singletonList(jobId));

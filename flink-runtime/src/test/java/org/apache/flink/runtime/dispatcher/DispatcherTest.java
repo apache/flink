@@ -285,7 +285,7 @@ public class DispatcherTest extends TestLogger {
         assertTrue(executionException.getCause() instanceof DuplicateJobSubmissionException);
         final DuplicateJobSubmissionException duplicateException =
                 (DuplicateJobSubmissionException) executionException.getCause();
-        assertTrue(duplicateException.isTerminated());
+        assertTrue(duplicateException.isGloballyTerminated());
     }
 
     @Test
@@ -307,7 +307,7 @@ public class DispatcherTest extends TestLogger {
         assertTrue(executionException.getCause() instanceof DuplicateJobSubmissionException);
         final DuplicateJobSubmissionException duplicateException =
                 (DuplicateJobSubmissionException) executionException.getCause();
-        assertFalse(duplicateException.isTerminated());
+        assertFalse(duplicateException.isGloballyTerminated());
     }
 
     /**
