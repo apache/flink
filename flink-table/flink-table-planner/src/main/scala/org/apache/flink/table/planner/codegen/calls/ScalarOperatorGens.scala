@@ -1059,13 +1059,22 @@ object ScalarOperatorGens {
 
     // String -> Boolean
     case (VARCHAR | CHAR, BOOLEAN) =>
-      generateUnaryOperatorIfNotNull(
+      val castedExpression = generateUnaryOperatorIfNotNull(
         ctx,
         targetType,
         operand,
         resultNullable = true) {
         operandTerm => s"$BINARY_STRING_UTIL.toBooleanSQL($operandTerm)"
       }
+      val resultTerm = newName("primitiveCastResult")
+      castedExpression.copy(
+        resultTerm = resultTerm,
+        code =
+          s"""
+             |${castedExpression.code}
+             |boolean $resultTerm = Boolean.TRUE.equals(${castedExpression.resultTerm});
+             |""".stripMargin
+      )
 
     // String -> NUMERIC TYPE (not Character)
     case (VARCHAR | CHAR, _)
