@@ -268,6 +268,23 @@ public class TaskStateManagerImplTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testStateRetrievingWithFinishedOperator() {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+
+        JobManagerTaskRestore jobManagerTaskRestore =
+                new JobManagerTaskRestore(2, taskStateSnapshot);
+        TaskStateManagerImpl stateManager =
+                new TaskStateManagerImpl(
+                        new JobID(),
+                        new ExecutionAttemptID(),
+                        new TestTaskLocalStateStore(),
+                        null,
+                        jobManagerTaskRestore,
+                        new TestCheckpointResponder());
+        Assert.assertTrue(stateManager.isFinishedOnRestore());
+    }
+
     public static TaskStateManager taskStateManager(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,

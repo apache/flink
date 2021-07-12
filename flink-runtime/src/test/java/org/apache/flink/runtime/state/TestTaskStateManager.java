@@ -132,6 +132,16 @@ public class TestTaskStateManager implements TaskStateManager {
         reportedCheckpointId = checkpointMetaData.getCheckpointId();
     }
 
+    @Override
+    public boolean isFinishedOnRestore() {
+        TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
+        if (jmTaskStateSnapshot != null) {
+            return jmTaskStateSnapshot.isFinished();
+        }
+
+        return false;
+    }
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
