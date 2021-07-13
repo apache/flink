@@ -195,7 +195,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
     }
 
     @Test
-    public void testOfferingTooManySlots() {
+    public void testOfferingTooManySlotsWillRejectSuperfluousSlots() {
         final NewSlotsService notifyNewSlots = new NewSlotsService();
         final DefaultDeclarativeSlotPool slotPool =
                 createDefaultDeclarativeSlotPoolWithNewSlotsListener(notifyNewSlots);
