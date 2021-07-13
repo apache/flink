@@ -40,6 +40,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.After;
@@ -48,6 +50,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -733,6 +736,32 @@ public class CheckpointBarrierTrackerTest {
         assertFalse(inputGate.getCheckpointBarrierHandler().isCheckpointPending());
     }
 
+    @Test
+    public void testTwoLastBarriersOneByOne() throws Exception {
+        BufferOrEvent[] sequence = {
+            // start checkpoint 1
+            createBarrier(1, 1),
+            // start checkpoint 2
+            createBarrier(2, 1),
+            // finish the checkpoint 1
+            createBarrier(1, 0),
+            //  finish the checkpoint 2
+            createBarrier(2, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
+        ManualClock manualClock = new ManualClock();
+        inputGate = createCheckpointedInputGate(2, sequence, validator, manualClock);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+            manualClock.advanceTime(Duration.ofSeconds(1));
+        }
+        assertEquals(
+                Duration.ofSeconds(2).toNanos(),
+                validator.lastAlignmentDurationNanos.get().longValue());
+    }
+
     // ------------------------------------------------------------------------
     //  Utils
     // ------------------------------------------------------------------------
@@ -778,13 +807,28 @@ public class CheckpointBarrierTrackerTest {
     }
 
     private static CheckpointedInputGate createCheckpointedInputGate(
+            int numberOfChannels,
+            BufferOrEvent[] sequence,
+            @Nullable AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock) {
+        MockInputGate gate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
+        return createCheckpointedInputGate(gate, toNotifyOnCheckpoint, clock);
+    }
+
+    private static CheckpointedInputGate createCheckpointedInputGate(
             IndexedInputGate inputGate, @Nullable AbstractInvokable toNotifyOnCheckpoint) {
+        return createCheckpointedInputGate(
+                inputGate, toNotifyOnCheckpoint, SystemClock.getInstance());
+    }
+
+    private static CheckpointedInputGate createCheckpointedInputGate(
+            IndexedInputGate inputGate,
+            @Nullable AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock) {
         return new CheckpointedInputGate(
                 inputGate,
                 new CheckpointBarrierTracker(
-                        inputGate.getNumberOfInputChannels(),
-                        toNotifyOnCheckpoint,
-                        SystemClock.getInstance()),
+                        inputGate.getNumberOfInputChannels(), toNotifyOnCheckpoint, clock),
                 new SyncMailboxExecutor());
     }
 
