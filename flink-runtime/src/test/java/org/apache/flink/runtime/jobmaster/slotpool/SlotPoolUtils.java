@@ -26,11 +26,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -38,8 +36,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.SystemClock;
-
-import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -71,33 +67,6 @@ public class SlotPoolUtils {
                 Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
                 Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
                 Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-    }
-
-    static TestingSlotPoolImpl createAndSetUpSlotPool(
-            @Nullable final ResourceManagerGateway resourceManagerGateway) throws Exception {
-
-        return new SlotPoolBuilder(ComponentMainThreadExecutorServiceAdapter.forMainThread())
-                .setResourceManagerGateway(resourceManagerGateway)
-                .build();
-    }
-
-    static CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            final SlotPool slotPool, final SlotRequestId slotRequestId) {
-
-        return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
-    }
-
-    static CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-            final SlotPool slotPool, final SlotRequestId slotRequestId, final Time timeout) {
-
-        return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
-    }
-
-    static void requestNewAllocatedSlots(
-            final SlotPool slotPool, final SlotRequestId... slotRequestIds) {
-        for (SlotRequestId slotRequestId : slotRequestIds) {
-            requestNewAllocatedSlot(slotPool, slotRequestId);
-        }
     }
 
     public static CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
@@ -177,16 +146,6 @@ public class SlotPoolUtils {
                 .join();
 
         return taskManagerLocation.getResourceID();
-    }
-
-    public static void failAllocation(
-            SlotPool slotPool,
-            ComponentMainThreadExecutor mainThreadExecutor,
-            AllocationID allocationId,
-            Exception exception) {
-        CompletableFuture.runAsync(
-                        () -> slotPool.failAllocation(allocationId, exception), mainThreadExecutor)
-                .join();
     }
 
     public static void releaseTaskManager(
