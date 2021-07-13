@@ -53,7 +53,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class FastTop1Function extends AbstractTopNFunction implements CheckpointedFunction {
 
-    private static final long serialVersionUID = -1379466658843676156L;
+    private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(FastTop1Function.class);
 
