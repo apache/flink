@@ -38,7 +38,6 @@ under the License.
 		<aws.sdk.version>1.11.754</aws.sdk.version>
 		<aws.sdkv2.version>2.15.32</aws.sdkv2.version>
 		<reactivestreams.version>1.0.2</reactivestreams.version>
-		<lz4.version>1.6.0</lz4.version>
 		<netty.version>4.1.53.Final</netty.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
@@ -91,12 +90,6 @@ under the License.
 				<groupId>org.reactivestreams</groupId>
 				<artifactId>reactive-streams</artifactId>
 				<version>${reactivestreams.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.lz4</groupId>
-				<artifactId>lz4-java</artifactId>
-				<version>${lz4.version}</version>
 			</dependency>
 
 			<dependency>
