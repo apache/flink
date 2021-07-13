@@ -17,8 +17,8 @@
         <tr>
             <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
-            <td><p>Enum</p>Possible values: [DELETE_ON_CANCELLATION, RETAIN_ON_CANCELLATION]</td>
-            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>. In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">state.checkpoints.dir</code>.</td>
+            <td><p>Enum</p></td>
+            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>. In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">state.checkpoints.dir</code>.<br><br>Possible values:<ul><li>"DELETE_ON_CANCELLATION"</li><li>"RETAIN_ON_CANCELLATION"</li></ul></td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.interval</h5></td>
@@ -41,8 +41,8 @@
         <tr>
             <td><h5>execution.checkpointing.mode</h5></td>
             <td style="word-wrap: break-word;">EXACTLY_ONCE</td>
-            <td><p>Enum</p>Possible values: [EXACTLY_ONCE, AT_LEAST_ONCE]</td>
-            <td>The checkpointing mode (exactly-once vs. at-least-once).</td>
+            <td><p>Enum</p></td>
+            <td>The checkpointing mode (exactly-once vs. at-least-once).<br><br>Possible values:<ul><li>"EXACTLY_ONCE"</li><li>"AT_LEAST_ONCE"</li></ul></td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.prefer-checkpoint-for-recovery</h5></td>
