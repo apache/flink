@@ -69,6 +69,10 @@ under the License.
 					<groupId>org.apache.hadoop</groupId>
 					<artifactId>hadoop-common</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>net.minidev</groupId>
+					<artifactId>json-smart</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -78,6 +82,12 @@ under the License.
 			<artifactId>azure</artifactId>
 			<version>${fs.azure.sdk.version}</version>
 			<scope>test</scope>
+        <exclusions>
+			<exclusion>
+				<groupId>net.minidev</groupId>
+				<artifactId>json-smart</artifactId>
+			</exclusion>
+		</exclusions>
 		</dependency>
 
 		<!-- for the behavior test suite -->
