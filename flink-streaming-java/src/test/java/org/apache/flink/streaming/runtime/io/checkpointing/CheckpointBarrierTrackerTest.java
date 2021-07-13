@@ -346,6 +346,32 @@ public class CheckpointBarrierTrackerTest {
     }
 
     @Test
+    public void testNextFirstCheckpointBarrierOvertakesCancellationBarrier() throws Exception {
+        BufferOrEvent[] sequence = {
+            // start checkpoint 1
+            createBarrier(1, 1),
+            //  start checkpoint 2(just suppose checkpoint 1 was canceled)
+            createBarrier(2, 1),
+            // cancellation barrier of checkpoint 1
+            createCancellationBarrier(1, 0),
+            //  finish the checkpoint 2
+            createBarrier(2, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
+        ManualClock manualClock = new ManualClock();
+        inputGate = createCheckpointedInputGate(2, sequence, validator, manualClock);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+            manualClock.advanceTime(Duration.ofSeconds(1));
+        }
+        assertEquals(
+                Duration.ofSeconds(2).toNanos(),
+                validator.lastAlignmentDurationNanos.get().longValue());
+    }
+
+    @Test
     public void testSingleChannelAbortCheckpoint() throws Exception {
         BufferOrEvent[] sequence = {
             createBuffer(0),

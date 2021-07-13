@@ -1154,6 +1154,34 @@ public class AlternatingCheckpointsTest {
         assertFalse(secondChannel.isBlocked());
     }
 
+    @Test
+    public void testNextFirstCheckpointBarrierOvertakesCancellationBarrier() throws Exception {
+        int numberOfChannels = 2;
+        ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
+        CheckpointedInputGate gate =
+                new TestCheckpointedInputGateBuilder(
+                                numberOfChannels, getTestBarrierHandlerFactory(target))
+                        .withTestChannels()
+                        .withSyncExecutor()
+                        .build();
+
+        long alignmentTimeout = 10000;
+        Buffer checkpointBarrier = withTimeout(alignmentTimeout);
+
+        send(checkpointBarrier, 0, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(withTimeout(2, alignmentTimeout), 0, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(toBuffer(new CancelCheckpointMarker(1L), true), 1, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+        send(withTimeout(2, alignmentTimeout), 1, gate);
+        clock.advanceTime(Duration.ofSeconds(1));
+
+        assertEquals(
+                Duration.ofSeconds(2).toNanos(),
+                target.lastAlignmentDurationNanos.get().longValue());
+    }
+
     private void testBarrierHandling(CheckpointType checkpointType) throws Exception {
         final long barrierId = 123L;
         ValidatingCheckpointHandler target = new ValidatingCheckpointHandler();
