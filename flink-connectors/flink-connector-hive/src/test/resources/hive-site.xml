@@ -19,6 +19,12 @@
 
 <configuration>
 
+    <!-- allow integral partition filter pushdown to avoid unstable test -->
+	<property>
+		<name>hive.metastore.integral.jdo.pushdown</name>
+		<value>true</value>
+	</property>
+
 	<property>
 		<name>hive.metastore.schema.verification</name>
 		<value>false</value>
