@@ -493,6 +493,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         return pendingRequests.size();
     }
 
+    @VisibleForTesting
+    void increaseResourceRequirementsBy(ResourceCounter increment) {
+        getDeclarativeSlotPool().increaseResourceRequirementsBy(increment);
+    }
+
     private static final class PendingRequest {
 
         private final SlotRequestId slotRequestId;
