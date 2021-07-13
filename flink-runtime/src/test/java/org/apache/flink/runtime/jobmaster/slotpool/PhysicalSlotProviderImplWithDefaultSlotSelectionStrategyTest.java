@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,7 +34,7 @@ import static org.junit.Assert.assertThat;
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
  * DefaultLocationPreferenceSlotSelectionStrategy}.
  */
-public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest {
+public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest extends TestLogger {
 
     @Rule
     public final PhysicalSlotProviderResource physicalSlotProviderResource =
