@@ -494,12 +494,6 @@ public class JobMasterTest extends TestLogger {
                     "TestingSlotPool does not support this operation.");
         }
 
-        @Override
-        public Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause) {
-            throw new UnsupportedOperationException(
-                    "TestingSlotPool does not support this operation.");
-        }
-
         @Nonnull
         @Override
         public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
