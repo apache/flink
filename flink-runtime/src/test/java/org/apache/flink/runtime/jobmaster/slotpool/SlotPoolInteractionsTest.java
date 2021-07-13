@@ -20,17 +20,9 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutor;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -43,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -135,63 +126,6 @@ public class SlotPoolInteractionsTest extends TestLogger {
             CommonTestUtils.waitUntilCondition(
                     () -> pool.getNumPendingRequests() == 0,
                     Deadline.fromNow(TestingUtils.TESTING_DURATION));
-        }
-    }
-
-    /** Tests that extra slots are kept by the {@link SlotPoolImpl}. */
-    @Test
-    public void testExtraSlotsAreKept() throws Exception {
-        final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-
-        TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-        resourceManagerGateway.setRequestSlotConsumer(
-                (SlotRequest slotRequest) ->
-                        allocationIdFuture.complete(slotRequest.getAllocationId()));
-
-        try (TestingSlotPoolImpl pool =
-                new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
-                        .setResourceManagerGateway(resourceManagerGateway)
-                        .build()) {
-
-            final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture =
-                    new CompletableFuture<>();
-            pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
-
-            final CompletableFuture<PhysicalSlot> future =
-                    testMainThreadExecutor.execute(
-                            () ->
-                                    pool.requestNewAllocatedSlot(
-                                            new SlotRequestId(),
-                                            ResourceProfile.UNKNOWN,
-                                            fastTimeout));
-
-            try {
-                future.get();
-                fail("We expected a TimeoutException.");
-            } catch (ExecutionException e) {
-                assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
-            }
-
-            // wait until we have timed out the slot request
-            slotRequestTimeoutFuture.get();
-
-            assertEquals(0L, pool.getNumberOfPendingRequests());
-
-            AllocationID allocationId = allocationIdFuture.get();
-            final SlotOffer slotOffer = new SlotOffer(allocationId, 0, ResourceProfile.ANY);
-            final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-            final TaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-
-            testMainThreadExecutor.execute(
-                    () -> pool.registerTaskManager(taskManagerLocation.getResourceID()));
-
-            assertTrue(
-                    testMainThreadExecutor.execute(
-                            () ->
-                                    pool.offerSlot(
-                                            taskManagerLocation, taskManagerGateway, slotOffer)));
-
-            assertTrue(pool.containsAvailableSlot(allocationId));
         }
     }
 
