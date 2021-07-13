@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -174,12 +175,13 @@ public class TaskStateSnapshot implements CompositeStateHandle {
 
         TaskStateSnapshot that = (TaskStateSnapshot) o;
 
-        return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID);
+        return subtaskStatesByOperatorID.equals(that.subtaskStatesByOperatorID)
+                && isFinished == that.isFinished;
     }
 
     @Override
     public int hashCode() {
-        return subtaskStatesByOperatorID.hashCode();
+        return Objects.hash(subtaskStatesByOperatorID, isFinished);
     }
 
     @Override
@@ -187,6 +189,8 @@ public class TaskStateSnapshot implements CompositeStateHandle {
         return "TaskOperatorSubtaskStates{"
                 + "subtaskStatesByOperatorID="
                 + subtaskStatesByOperatorID
+                + ", isFinished="
+                + isFinished
                 + '}';
     }
 

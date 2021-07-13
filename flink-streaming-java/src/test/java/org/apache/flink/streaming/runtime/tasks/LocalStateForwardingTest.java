@@ -127,6 +127,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         asyncCheckpointRunnable -> {},
                         testStreamTask.getEnvironment(),
                         testStreamTask,
+                        false,
                         () -> true);
 
         checkpointMetrics.setAlignmentDurationNanos(0L);
