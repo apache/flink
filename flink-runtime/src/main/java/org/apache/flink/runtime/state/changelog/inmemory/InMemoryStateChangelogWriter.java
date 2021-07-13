@@ -60,8 +60,8 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     public void append(int keyGroup, byte[] value) {
         Preconditions.checkState(!closed, "LogWriter is closed");
         LOG.trace("append, keyGroup={}, {} bytes", keyGroup, value.length);
-        sqn = sqn.next();
         changesByKeyGroup.computeIfAbsent(keyGroup, unused -> new TreeMap<>()).put(sqn, value);
+        sqn = sqn.next();
     }
 
     @Override
@@ -82,17 +82,17 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
                 new InMemoryChangelogStateHandle(collectChanges(from), from, sqn, keyGroupRange));
     }
 
-    private List<StateChange> collectChanges(SequenceNumber after) {
+    private List<StateChange> collectChanges(SequenceNumber from) {
         return changesByKeyGroup.entrySet().stream()
-                .flatMap(e -> toChangeStream(e.getValue(), after, e.getKey()))
+                .flatMap(e -> toChangeStream(e.getValue(), from, e.getKey()))
                 .sorted(Comparator.comparing(sqnAndChange -> sqnAndChange.f0))
                 .map(t -> t.f1)
                 .collect(Collectors.toList());
     }
 
     private Stream<Tuple2<SequenceNumber, StateChange>> toChangeStream(
-            NavigableMap<SequenceNumber, byte[]> changeMap, SequenceNumber after, int keyGroup) {
-        return changeMap.tailMap(after, true).entrySet().stream()
+            NavigableMap<SequenceNumber, byte[]> changeMap, SequenceNumber from, int keyGroup) {
+        return changeMap.tailMap(from, true).entrySet().stream()
                 .map(e2 -> Tuple2.of(e2.getKey(), new StateChange(keyGroup, e2.getValue())));
     }
 
