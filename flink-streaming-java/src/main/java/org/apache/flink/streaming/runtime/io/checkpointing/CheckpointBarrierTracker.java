@@ -178,6 +178,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
         // 3. Received cancellation barrier from channel 1.
         // In this case we should cleanup the existing pending checkpoint.
         if (cancelBarrier.getCheckpointId() > latestPendingCheckpointID && numOpenChannels == 1) {
+            resetAlignment();
             notifyAbortOnCancellationBarrier(checkpointId);
             return;
         }
@@ -243,6 +244,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
                                             .CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
                 }
             }
+            resetAlignment();
         } else {
             checkAlignmentOnEndOfPartitionIfEnabled(channelInfo);
         }
