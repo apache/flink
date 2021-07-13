@@ -25,11 +25,13 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.TestLogger;
@@ -190,6 +192,31 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
             } catch (ExecutionException expected) {
                 // expected
             }
+        }
+    }
+
+    @Test
+    public void testAcceptingOfferedSlotsWithoutResourceManagerConnected() throws Exception {
+        try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
+                createDeclarativeSlotPoolBridge(new DefaultDeclarativeSlotPoolFactory())) {
+
+            declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+
+            final CompletableFuture<PhysicalSlot> slotFuture =
+                    declarativeSlotPoolBridge.requestNewAllocatedSlot(
+                            new SlotRequestId(), ResourceProfile.UNKNOWN, rpcTimeout);
+
+            final LocalTaskManagerLocation localTaskManagerLocation =
+                    new LocalTaskManagerLocation();
+            declarativeSlotPoolBridge.registerTaskManager(localTaskManagerLocation.getResourceID());
+
+            final AllocationID allocationId = new AllocationID();
+            declarativeSlotPoolBridge.offerSlots(
+                    localTaskManagerLocation,
+                    new SimpleAckingTaskManagerGateway(),
+                    Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.ANY)));
+
+            assertThat(slotFuture.join().getAllocationId(), is(allocationId));
         }
     }
 
