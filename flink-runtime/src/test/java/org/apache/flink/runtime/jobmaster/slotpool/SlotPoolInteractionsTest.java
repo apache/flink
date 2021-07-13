@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -30,6 +31,8 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -44,7 +47,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for the SlotPoolImpl interactions. */
+/** Tests for the {@link DeclarativeSlotPoolBridge} interactions. */
 public class SlotPoolInteractionsTest extends TestLogger {
 
     private static final Time fastTimeout = Time.milliseconds(1L);
@@ -85,10 +88,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
     @Test
     public void testCancelSlotAllocationWithoutResourceManager() throws Exception {
 
-        try (TestingSlotPoolImpl pool = createAndSetUpSlotPoolWithoutResourceManager()) {
-
-            final CompletableFuture<SlotRequestId> timeoutFuture = new CompletableFuture<>();
-            pool.setTimeoutPendingSlotRequestConsumer(timeoutFuture::complete);
+        try (DeclarativeSlotPoolBridge pool = createAndSetUpSlotPoolWithoutResourceManager()) {
 
             final CompletableFuture<PhysicalSlot> future =
                     testMainThreadExecutor.execute(
@@ -105,10 +105,9 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            // wait for the timeout of the pending slot request
-            timeoutFuture.get();
-
-            assertEquals(0L, pool.getNumberOfWaitingForResourceRequests());
+            CommonTestUtils.waitUntilCondition(
+                    () -> pool.getNumPendingRequests() == 0,
+                    Deadline.fromNow(TestingUtils.TESTING_DURATION));
         }
     }
 
@@ -116,11 +115,7 @@ public class SlotPoolInteractionsTest extends TestLogger {
     @Test
     public void testSlotAllocationTimeout() throws Exception {
 
-        try (TestingSlotPoolImpl pool = createAndSetUpSlotPool()) {
-
-            final CompletableFuture<SlotRequestId> slotRequestTimeoutFuture =
-                    new CompletableFuture<>();
-            pool.setTimeoutPendingSlotRequestConsumer(slotRequestTimeoutFuture::complete);
+        try (DeclarativeSlotPoolBridge pool = createAndSetUpSlotPool()) {
 
             final CompletableFuture<PhysicalSlot> future =
                     testMainThreadExecutor.execute(
@@ -137,10 +132,9 @@ public class SlotPoolInteractionsTest extends TestLogger {
                 assertTrue(ExceptionUtils.stripExecutionException(e) instanceof TimeoutException);
             }
 
-            // wait until we have timed out the slot request
-            slotRequestTimeoutFuture.get();
-
-            assertEquals(0L, pool.getNumberOfPendingRequests());
+            CommonTestUtils.waitUntilCondition(
+                    () -> pool.getNumPendingRequests() == 0,
+                    Deadline.fromNow(TestingUtils.TESTING_DURATION));
         }
     }
 
@@ -201,12 +195,14 @@ public class SlotPoolInteractionsTest extends TestLogger {
         }
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
-        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor()).build();
+    private DeclarativeSlotPoolBridge createAndSetUpSlotPool() throws Exception {
+        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
+                .build();
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-        return new SlotPoolBuilder(testMainThreadExecutor.getMainThreadExecutor())
+    private DeclarativeSlotPoolBridge createAndSetUpSlotPoolWithoutResourceManager()
+            throws Exception {
+        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
                 .setResourceManagerGateway(null)
                 .build();
     }
