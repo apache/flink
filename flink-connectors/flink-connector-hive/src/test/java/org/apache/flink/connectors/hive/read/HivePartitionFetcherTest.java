@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -76,7 +77,7 @@ public class HivePartitionFetcherTest {
 
         // test partition-time order
         Configuration flinkConf = new Configuration();
-        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, "partition-time");
+        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, PartitionOrder.PARTITION_TIME);
         HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveCatalog.getHiveVersion());
         JobConfWrapper jobConfWrapper = new JobConfWrapper(new JobConf(hiveCatalog.getHiveConf()));
         String defaultPartName = "__HIVE_DEFAULT_PARTITION__";
@@ -94,7 +95,7 @@ public class HivePartitionFetcherTest {
         assertEquals(0, fetcherContext.getComparablePartitionValueList().size());
 
         // test create-time order
-        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, "create-time");
+        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, PartitionOrder.CREATE_TIME);
         fetcherContext =
                 new MyHivePartitionFetcherContext(
                         tablePath,
@@ -109,7 +110,7 @@ public class HivePartitionFetcherTest {
         assertEquals(0, fetcherContext.getComparablePartitionValueList().size());
 
         // test partition-name order
-        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, "partition-name");
+        flinkConf.set(STREAMING_SOURCE_PARTITION_ORDER, PartitionOrder.PARTITION_NAME);
         fetcherContext =
                 new MyHivePartitionFetcherContext(
                         tablePath,
