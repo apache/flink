@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
@@ -51,8 +50,15 @@ public final class SchedulerUtils {
         final JobID jobId = jobGraph.getJobID();
         if (DefaultExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
-                return createCompletedCheckpointStore(
-                        configuration, userCodeLoader, checkpointRecoveryFactory, log, jobId);
+                CompletedCheckpointStore completedCheckpointStore =
+                        createCompletedCheckpointStore(
+                                configuration,
+                                userCodeLoader,
+                                checkpointRecoveryFactory,
+                                log,
+                                jobId);
+                completedCheckpointStore.recover();
+                return completedCheckpointStore;
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId,
@@ -64,8 +70,7 @@ public final class SchedulerUtils {
         }
     }
 
-    @VisibleForTesting
-    static CompletedCheckpointStore createCompletedCheckpointStore(
+    private static CompletedCheckpointStore createCompletedCheckpointStore(
             Configuration jobManagerConfig,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,

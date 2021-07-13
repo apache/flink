@@ -21,16 +21,29 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /** Tests for the {@link SchedulerUtils} utilities. */
 public class SchedulerUtilsTest extends TestLogger {
+
+    private ClassLoader classLoader = getClass().getClassLoader();
+    private JobGraph jobGraph = mock(JobGraph.class);
+    private JobID jobID = new JobID();
+    private CheckpointRecoveryFactory checkpointRecoveryFactory =
+            mock(CheckpointRecoveryFactory.class);
+    private CompletedCheckpointStore expectedCompletedCheckpointStore =
+            mock(CompletedCheckpointStore.class);
 
     @Test
     public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
@@ -40,16 +53,16 @@ public class SchedulerUtilsTest extends TestLogger {
         jobManagerConfig.setInteger(
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
 
-        final CompletedCheckpointStore completedCheckpointStore =
-                SchedulerUtils.createCompletedCheckpointStore(
-                        jobManagerConfig,
-                        getClass().getClassLoader(),
-                        new StandaloneCheckpointRecoveryFactory(),
-                        log,
-                        new JobID());
+        when(jobGraph.getCheckpointingSettings()).thenReturn(mock(JobCheckpointingSettings.class));
+        when(jobGraph.getJobID()).thenReturn(jobID);
+        when(checkpointRecoveryFactory.createCheckpointStore(
+                        jobID, maxNumberOfCheckpointsToRetain, classLoader))
+                .thenReturn(expectedCompletedCheckpointStore);
+        final CompletedCheckpointStore actualCompletedCheckpointStore =
+                SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
+                        jobGraph, jobManagerConfig, classLoader, checkpointRecoveryFactory, log);
 
-        assertEquals(
-                maxNumberOfCheckpointsToRetain,
-                completedCheckpointStore.getMaxNumberOfRetainedCheckpoints());
+        verify(actualCompletedCheckpointStore).recover();
+        assertEquals(expectedCompletedCheckpointStore, actualCompletedCheckpointStore);
     }
 }
