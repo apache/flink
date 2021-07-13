@@ -395,7 +395,13 @@ class DataStreamTests(object):
             self.assertEqual(expected, actual)
 
     def test_key_by_map(self):
-        ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
+        from pyflink.util.java_utils import get_j_env_configuration
+        from pyflink.common import Configuration
+        self.env.set_parallelism(1)
+        config = Configuration(
+            j_configuration=get_j_env_configuration(self.env._j_stream_execution_environment))
+        config.set_integer("python.fn-execution.bundle.size", 1)
+        ds = self.env.from_collection([('a', 0), ('b', 1), ('c', 0), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
         keyed_stream = ds.key_by(MyKeySelector(), key_type=Types.INT())
 
@@ -404,7 +410,6 @@ class DataStreamTests(object):
 
         class AssertKeyMapFunction(MapFunction):
             def __init__(self):
-                self.pre = None
                 self.state = None
 
             def open(self, runtime_context: RuntimeContext):
@@ -412,28 +417,37 @@ class DataStreamTests(object):
                     ValueStateDescriptor("test_state", Types.PICKLED_BYTE_ARRAY()))
 
             def map(self, value):
+                if value[0] == 'a':
+                    pass
+                elif value[0] == 'b':
+                    state_value = self._get_state_value()
+                    assert state_value == 1
+                    self.state.update(state_value)
+                elif value[0] == 'c':
+                    state_value = self._get_state_value()
+                    assert state_value == 1
+                    self.state.update(state_value)
+                elif value[0] == 'd':
+                    state_value = self._get_state_value()
+                    assert state_value == 2
+                    self.state.update(state_value)
+                else:
+                    pass
+                return value
+
+            def _get_state_value(self):
                 state_value = self.state.value()
                 if state_value is None:
                     state_value = 1
                 else:
                     state_value += 1
-                if value[0] == 'b':
-                    assert self.pre == 'a'
-                    assert state_value == 2
-                if value[0] == 'd':
-                    assert self.pre == 'c'
-                    assert state_value == 2
-                if value[0] == 'e':
-                    assert state_value == 1
-                self.pre = value[0]
-                self.state.update(state_value)
-                return value
+                return state_value
 
         keyed_stream.map(AssertKeyMapFunction()).add_sink(self.test_sink)
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(True)
-        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=0)",
-                    "Row(f0='c', f1=1)", "Row(f0='d', f1=1)"]
+        expected = ["Row(f0='e', f1=2)", "Row(f0='a', f1=0)", "Row(f0='b', f1=1)",
+                    "Row(f0='c', f1=0)", "Row(f0='d', f1=1)"]
         results.sort()
         expected.sort()
         self.assertEqual(expected, results)
