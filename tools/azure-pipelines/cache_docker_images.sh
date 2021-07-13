@@ -20,37 +20,78 @@
 # saves the docker images we typically pull during a testing cycle. This typically
 # includes testcontainer images, kafka, elasticearch, etc.
 #
-echo "=============================================================================="
-echo "Caching Testing Docker Images"
-echo "=============================================================================="
-echo ""
 
-if [ -z "$TESTCONTAINER_CACHE_FOLDER" ]
+if [ -z "$DOCKER_IMAGES_CACHE_FOLDER" ]
 then
-      echo "\$TESTCONTAINER_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
-      exit 1
+    echo "\$DOCKER_IMAGES_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
+    exit 1
 fi
-
-mkdir -p "${TESTCONTAINER_CACHE_FOLDER}"
 
 # This is the pattern that determines which containers we save.
 DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|elasticsearch|postgres|mysql"
 
-# The list of images in the current docker context that match the above pattern.
-IMAGES_TO_CACHE=$(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- ${DOCKER_IMAGE_CACHE_PATTERN})
+# The path to the tar file that will contain the saved docker images.
+DOCKER_IMAGES_CACHE_PATH="${DOCKER_IMAGES_CACHE_FOLDER}/cache.tar"
 
-if [ -z "$IMAGES_TO_CACHE" ]
+helpFunction()
+{
+   echo ""
+   echo "Usage: $0 MODE"
+   echo -e "\tMODE :: What mode to run the script in (either save or load)"
+   exit 1
+}
+
+saveImages()
+{
+    echo "=============================================================================="
+    echo "Saving Docker Images"
+    echo "=============================================================================="
+    echo ""
+
+    mkdir -p "${DOCKER_IMAGES_CACHE_FOLDER}"
+
+    # The list of images in the current docker context that match the above pattern.
+    IMAGES_TO_CACHE=$(docker image ls --format "{{.Repository}}:{{.Tag}}" | grep -E -- ${DOCKER_IMAGE_CACHE_PATTERN})
+
+    if [ -z "$IMAGES_TO_CACHE" ]
+    then
+          echo "No images found that match pattern (${DOCKER_IMAGE_CACHE_PATTERN}). Skipping."
+    else
+          echo "Images To Save"
+          echo "=============="
+          echo ""
+
+          for IMAGE in ${IMAGES_TO_CACHE}
+          do
+              echo "${IMAGE}"
+          done
+
+          docker save ${IMAGES_TO_CACHE} -o "${DOCKER_IMAGES_CACHE_PATH}"
+    fi
+}
+
+loadImages()
+{
+    echo "=============================================================================="
+    echo "Loading Cached Docker Images"
+    echo "=============================================================================="
+    echo ""
+
+    if [ -f "$DOCKER_IMAGES_CACHE_PATH" ];
+    then
+        docker load -i "${DOCKER_IMAGES_CACHE_PATH}"
+    else
+        echo "No cache file found at ${DOCKER_IMAGES_CACHE_PATH}. Skipping"
+    fi
+}
+
+if [ "$1" == "save" ];
 then
-      echo "No images found that match pattern (${DOCKER_IMAGE_CACHE_PATTERN}). Skipping."
+    saveImages
+elif [ "$1" == "load" ];
+then
+    loadImages
 else
-      echo "Images To Cache"
-      echo "==============="
-      echo ""
-
-      for IMAGE in ${IMAGES_TO_CACHE}
-      do
-          echo "${IMAGE}"
-      done
-
-      docker save ${IMAGES_TO_CACHE} -o "${TESTCONTAINER_CACHE_FOLDER}/cache.tar"
+    echo "Invalid option: ${1}"
+    helpFunction
 fi

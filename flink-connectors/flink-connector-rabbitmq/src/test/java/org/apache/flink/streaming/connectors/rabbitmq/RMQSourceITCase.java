@@ -33,7 +33,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.connectors.rabbitmq.common.RMQConnectionConfig;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestContainerVersions;
+import org.apache.flink.util.DockerImageVersions;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -73,7 +73,7 @@ public class RMQSourceITCase {
 
     @ClassRule
     public static final RabbitMQContainer RMQ_CONTAINER =
-            new RabbitMQContainer(DockerImageName.parse(TestContainerVersions.RABBITMQ))
+            new RabbitMQContainer(DockerImageName.parse(DockerImageVersions.RABBITMQ))
                     .withExposedPorts(RABBITMQ_PORT)
                     .waitingFor(Wait.forListeningPort());
 

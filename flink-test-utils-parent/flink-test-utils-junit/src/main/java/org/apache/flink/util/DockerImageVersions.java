@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.util;
+package org.apache.flink.util;
 
 /**
  * Utility class for defining the image names and versions of Docker containers used during the Java
  * tests. The names/versions are centralised here in order to make testing version updates easier,
  * as well as to provide a central file to use as a key when caching testing Docker files.
  */
-public class TestContainerVersions {
+public class DockerImageVersions {
     public static final String ELASTICSEARCH_7 =
             "docker.elastic.co/elasticsearch/elasticsearch-oss:7.5.1";
 

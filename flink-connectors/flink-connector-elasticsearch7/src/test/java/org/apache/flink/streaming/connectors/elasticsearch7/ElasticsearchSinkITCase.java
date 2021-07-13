@@ -22,7 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
-import org.apache.flink.test.util.TestContainerVersions;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.Client;
@@ -45,7 +45,7 @@ public class ElasticsearchSinkITCase
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
             new ElasticsearchContainer(
-                    DockerImageName.parse(TestContainerVersions.ELASTICSEARCH_7));
+                    DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
 
     @Override
     protected String getClusterName() {

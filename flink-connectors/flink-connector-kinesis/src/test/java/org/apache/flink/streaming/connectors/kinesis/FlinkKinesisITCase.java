@@ -27,8 +27,8 @@ import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConsta
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestContainerVersions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -62,7 +62,7 @@ public class FlinkKinesisITCase extends TestLogger {
 
     @ClassRule
     public static KinesaliteContainer kinesalite =
-            new KinesaliteContainer(DockerImageName.parse(TestContainerVersions.KINESALITE));
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
 
     @Rule public TemporaryFolder temp = new TemporaryFolder();
 
