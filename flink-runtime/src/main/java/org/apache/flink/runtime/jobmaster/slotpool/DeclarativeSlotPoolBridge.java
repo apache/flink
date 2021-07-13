@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -296,12 +295,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         getDeclarativeSlotPool()
                 .increaseResourceRequirementsBy(
                         ResourceCounter.withResource(pendingRequest.getResourceProfile(), 1));
-    }
-
-    @Override
-    public Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause) {
-        throw new UnsupportedOperationException(
-                "Please call failAllocation(ResourceID, AllocationID, Exception)");
     }
 
     @Override

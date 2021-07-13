@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -136,8 +135,8 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
     }
 
     /**
-     * Tests that a batch slot request does react to {@link SlotPool#failAllocation(AllocationID,
-     * Exception)} signals whose exception is {@link UnfulfillableSlotRequestException}.
+     * Tests that a batch slot request does react to {@link
+     * SlotPoolService#notifyNotEnoughResourcesAvailable}.
      */
     @Test
     public void testPendingBatchSlotRequestFailsIfAllocationFailsUnfulfillably() throws Exception {
