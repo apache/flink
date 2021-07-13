@@ -498,6 +498,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         getDeclarativeSlotPool().increaseResourceRequirementsBy(increment);
     }
 
+    @VisibleForTesting
+    boolean isBatchSlotRequestTimeoutCheckEnabled() {
+        return !isBatchSlotRequestTimeoutCheckDisabled;
+    }
+
     private static final class PendingRequest {
 
         private final SlotRequestId slotRequestId;

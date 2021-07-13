@@ -66,8 +66,10 @@ public class PhysicalSlotProviderImplWithDefaultSlotSelectionStrategyTest extend
     @Test
     public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
             throws Exception {
-        TestingSlotPoolImpl slotPool =
-                new SlotPoolBuilder(physicalSlotProviderResource.getMainThreadExecutor()).build();
+        DeclarativeSlotPoolBridge slotPool =
+                new DeclarativeSlotPoolBridgeBuilder(
+                                physicalSlotProviderResource.getMainThreadExecutor())
+                        .build();
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
 
         new PhysicalSlotProviderImpl(
