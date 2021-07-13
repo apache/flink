@@ -42,11 +42,7 @@ public class SqlClientOptions {
             ConfigOptions.key("sql-client.execution.result-mode")
                     .enumType(ResultMode.class)
                     .defaultValue(ResultMode.TABLE)
-                    .withDescription(
-                            "Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog']. "
-                                    + "The 'table' mode materializes results in memory and visualizes them in a regular, paginated table representation. "
-                                    + "The 'changelog' mode does not materialize results and visualizes the result stream that is produced by a continuous query. "
-                                    + "The 'tableau' mode is more like a traditional way which will display the results in the screen directly with a tableau format. ");
+                    .withDescription("Determines how the query result should be displayed.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> VERBOSE =

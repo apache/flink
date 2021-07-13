@@ -91,12 +91,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBackend
         implements ConfigurableStateBackend {
 
-    /** The options to chose for the type of priority queue state. */
-    public enum PriorityQueueStateType {
-        HEAP,
-        ROCKSDB
-    }
-
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG = LoggerFactory.getLogger(EmbeddedRocksDBStateBackend.class);
@@ -138,7 +132,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private final RocksDBMemoryConfiguration memoryConfiguration;
 
     /** This determines the type of priority queue state. */
-    @Nullable private EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+    @Nullable private RocksDBOptions.PriorityQueueStateType priorityQueueStateType;
 
     /** The default rocksdb metrics options. */
     private final RocksDBNativeMetricOptions defaultMetricOptions;
@@ -663,7 +657,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      *
      * @return The type of the priority queue state.
      */
-    public EmbeddedRocksDBStateBackend.PriorityQueueStateType getPriorityQueueStateType() {
+    public RocksDBOptions.PriorityQueueStateType getPriorityQueueStateType() {
         return priorityQueueStateType == null
                 ? TIMER_SERVICE_FACTORY.defaultValue()
                 : priorityQueueStateType;
@@ -674,7 +668,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * not explicitly set.
      */
     public void setPriorityQueueStateType(
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType) {
+            RocksDBOptions.PriorityQueueStateType priorityQueueStateType) {
         this.priorityQueueStateType = checkNotNull(priorityQueueStateType);
     }
 

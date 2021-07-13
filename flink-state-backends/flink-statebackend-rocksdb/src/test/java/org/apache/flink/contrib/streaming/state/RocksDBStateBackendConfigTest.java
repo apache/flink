@@ -151,15 +151,13 @@ public class RocksDBStateBackendConfigTest {
                 RocksDBOptions.TIMER_SERVICE_FACTORY.key());
 
         // Fix the option value string and ensure all are covered
-        Assert.assertEquals(2, EmbeddedRocksDBStateBackend.PriorityQueueStateType.values().length);
-        Assert.assertEquals(
-                "ROCKSDB", EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-        Assert.assertEquals(
-                "HEAP", EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+        Assert.assertEquals(2, RocksDBOptions.PriorityQueueStateType.values().length);
+        Assert.assertEquals("ROCKSDB", RocksDBOptions.PriorityQueueStateType.ROCKSDB.toString());
+        Assert.assertEquals("HEAP", RocksDBOptions.PriorityQueueStateType.HEAP.toString());
 
         // Fix the default
         Assert.assertEquals(
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                RocksDBOptions.PriorityQueueStateType.ROCKSDB,
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
         EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
@@ -172,9 +170,7 @@ public class RocksDBStateBackendConfigTest {
         keyedBackend.dispose();
 
         Configuration conf = new Configuration();
-        conf.set(
-                RocksDBOptions.TIMER_SERVICE_FACTORY,
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
+        conf.set(RocksDBOptions.TIMER_SERVICE_FACTORY, RocksDBOptions.PriorityQueueStateType.HEAP);
 
         rocksDbBackend =
                 rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
@@ -193,7 +189,7 @@ public class RocksDBStateBackendConfigTest {
 
         // priorityQueueStateType of the job backend
         final EmbeddedRocksDBStateBackend backend = new EmbeddedRocksDBStateBackend();
-        backend.setPriorityQueueStateType(EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
+        backend.setPriorityQueueStateType(RocksDBOptions.PriorityQueueStateType.HEAP);
 
         // priorityQueueStateType in the cluster config
         final Configuration configFromConfFile = new Configuration();

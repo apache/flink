@@ -25,7 +25,7 @@ class LegacyEnumBridge {
     private LegacyEnumBridge() {}
 
     static RocksDBStateBackend.PriorityQueueStateType convert(
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType t) {
+            RocksDBOptions.PriorityQueueStateType t) {
         switch (t) {
             case HEAP:
                 return RocksDBStateBackend.PriorityQueueStateType.HEAP;
@@ -36,13 +36,13 @@ class LegacyEnumBridge {
         }
     }
 
-    static EmbeddedRocksDBStateBackend.PriorityQueueStateType convert(
+    static RocksDBOptions.PriorityQueueStateType convert(
             RocksDBStateBackend.PriorityQueueStateType t) {
         switch (t) {
             case HEAP:
-                return EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP;
+                return RocksDBOptions.PriorityQueueStateType.HEAP;
             case ROCKSDB:
-                return EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
+                return RocksDBOptions.PriorityQueueStateType.ROCKSDB;
             default:
                 throw new IllegalStateException("Unknown enum type " + t);
         }
