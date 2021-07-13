@@ -1060,14 +1060,14 @@ class RemoteKeyedStateBackend(object):
         if key == self._current_key:
             return
         encoded_old_key = self._encoded_current_key
-        self._current_key = key
-        self._encoded_current_key = self._key_coder_impl.encode(self._current_key)
         for state_name, state_obj in self._all_states.items():
             if self._state_cache_size > 0:
                 # cache old internal state
                 self.cache_internal_state(encoded_old_key, state_obj)
             state_obj.namespace = None
             state_obj._internal_state = None
+        self._current_key = key
+        self._encoded_current_key = self._key_coder_impl.encode(self._current_key)
 
     def get_current_key(self):
         return self._current_key
