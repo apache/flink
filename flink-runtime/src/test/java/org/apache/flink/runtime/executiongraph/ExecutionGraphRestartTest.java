@@ -19,12 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -38,7 +34,6 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridge;
-import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
@@ -51,7 +46,6 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -74,8 +68,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
     private static final ComponentMainThreadExecutor mainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
-    private static final JobID TEST_JOB_ID = new JobID();
-
     private ManuallyTriggeredScheduledExecutor taskRestartExecutor;
 
     @Before
@@ -96,19 +88,9 @@ public class ExecutionGraphRestartTest extends TestLogger {
         }
     }
 
-    private DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge() {
-        return new DeclarativeSlotPoolBridge(
-                TEST_JOB_ID,
-                new DefaultDeclarativeSlotPoolFactory(),
-                SystemClock.getInstance(),
-                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
-                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
-                Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-    }
-
     @Test
     public void testCancelAllPendingRequestWhileCanceling() throws Exception {
-        try (DeclarativeSlotPoolBridge slotPool = createDeclarativeSlotPoolBridge()) {
+        try (DeclarativeSlotPoolBridge slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
 
             final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
             // create a graph with task count larger than slot pool
@@ -136,7 +118,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     @Test
     public void testCancelAllPendingRequestWhileFailing() throws Exception {
-        try (DeclarativeSlotPoolBridge slotPool = createDeclarativeSlotPoolBridge()) {
+        try (DeclarativeSlotPoolBridge slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
 
             final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
             // create a graph with task count larger than slot pool
@@ -165,7 +147,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     @Test
     public void testCancelWhileRestarting() throws Exception {
         // We want to manually control the restart and delay
-        try (SlotPool slotPool = createDeclarativeSlotPoolBridge()) {
+        try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
@@ -205,7 +187,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     @Test
     public void testCancelWhileFailing() throws Exception {
-        try (SlotPool slotPool = createDeclarativeSlotPoolBridge()) {
+        try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
@@ -240,7 +222,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
     @Test
     public void testFailWhileCanceling() throws Exception {
-        try (SlotPool slotPool = createDeclarativeSlotPoolBridge()) {
+        try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
@@ -288,7 +270,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
                 ExecutionGraphTestUtils.createJobVertex("Task2", 1, NoOpInvokable.class);
         JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-        try (SlotPool slotPool = createDeclarativeSlotPoolBridge()) {
+        try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
@@ -347,7 +329,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
      */
     @Test
     public void testFailExecutionAfterCancel() throws Exception {
-        try (SlotPool slotPool = createDeclarativeSlotPoolBridge()) {
+        try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(
                                     createJobGraphToCancel(), mainThreadExecutor)
