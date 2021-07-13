@@ -106,11 +106,32 @@ public class SlotPoolUtils {
                 new SimpleAckingTaskManagerGateway());
     }
 
+    public static ResourceID tryOfferSlots(
+            SlotPool slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            List<ResourceProfile> resourceProfiles) {
+        return offerSlots(
+                slotPool,
+                mainThreadExecutor,
+                resourceProfiles,
+                new SimpleAckingTaskManagerGateway(),
+                false);
+    }
+
     public static ResourceID offerSlots(
             SlotPool slotPool,
             ComponentMainThreadExecutor mainThreadExecutor,
             List<ResourceProfile> resourceProfiles,
             TaskManagerGateway taskManagerGateway) {
+        return offerSlots(slotPool, mainThreadExecutor, resourceProfiles, taskManagerGateway, true);
+    }
+
+    private static ResourceID offerSlots(
+            SlotPool slotPool,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            List<ResourceProfile> resourceProfiles,
+            TaskManagerGateway taskManagerGateway,
+            boolean assertAllSlotsAreAccepted) {
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         CompletableFuture.runAsync(
                         () -> {
@@ -130,7 +151,9 @@ public class SlotPoolUtils {
                                     slotPool.offerSlots(
                                             taskManagerLocation, taskManagerGateway, slotOffers);
 
-                            assertThat(acceptedOffers, is(slotOffers));
+                            if (assertAllSlotsAreAccepted) {
+                                assertThat(acceptedOffers, is(slotOffers));
+                            }
                         },
                         mainThreadExecutor)
                 .join();
