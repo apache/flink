@@ -47,9 +47,13 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A more concise implementation for {@link AppendOnlyTopNFunction} and {@link
- * UpdatableTopNFunction} when only Top-1 is desired.
+ * UpdatableTopNFunction} when only Top-1 is desired. This function can handle updating stream
+ * because the RankProcessStrategy is inferred as UpdateFastStrategy, i.e., 1) the upsert key of
+ * input steam contains partition key; 2) the sort field is updated monotonely under the upsert key.
  */
 public class FastTop1Function extends AbstractTopNFunction implements CheckpointedFunction {
+
+    private static final long serialVersionUID = -1379466658843676156L;
 
     private static final Logger LOG = LoggerFactory.getLogger(FastTop1Function.class);
 

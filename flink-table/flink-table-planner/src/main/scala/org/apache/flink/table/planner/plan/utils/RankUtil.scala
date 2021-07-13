@@ -296,7 +296,7 @@ object RankUtil {
   }
 
   def isTop1(rankRange: RankRange): Boolean = rankRange match {
-    case crg: ConstantRankRange => crg.getRankEnd == 1L
+    case crg: ConstantRankRange => crg.getRankStart == 1L && crg.getRankEnd == 1L
     case _ => false
   }
 
