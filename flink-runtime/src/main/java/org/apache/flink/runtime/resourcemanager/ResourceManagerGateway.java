@@ -75,16 +75,6 @@ public interface ResourceManagerGateway
             @RpcTimeout Time timeout);
 
     /**
-     * Requests a slot from the resource manager.
-     *
-     * @param jobMasterId id of the JobMaster
-     * @param slotRequest The slot to request
-     * @return The confirmation that the slot gets allocated
-     */
-    CompletableFuture<Acknowledge> requestSlot(
-            JobMasterId jobMasterId, SlotRequest slotRequest, @RpcTimeout Time timeout);
-
-    /**
      * Declares the absolute resource requirements for a job.
      *
      * @param jobMasterId id of the JobMaster

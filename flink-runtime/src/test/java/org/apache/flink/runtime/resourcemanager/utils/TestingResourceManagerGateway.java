@@ -40,7 +40,6 @@ import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
@@ -62,7 +61,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -79,11 +77,7 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private final String hostname;
 
-    private final AtomicReference<CompletableFuture<Acknowledge>> slotFutureReference;
-
     private volatile Consumer<AllocationID> cancelSlotConsumer;
-
-    private volatile Consumer<SlotRequest> requestSlotConsumer;
 
     private volatile QuadFunction<
                     JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>>
@@ -145,25 +139,15 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.ownResourceId = Preconditions.checkNotNull(resourceId);
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
-        this.slotFutureReference = new AtomicReference<>();
         this.cancelSlotConsumer = null;
-        this.requestSlotConsumer = null;
     }
 
     public ResourceID getOwnResourceId() {
         return ownResourceId;
     }
 
-    public void setRequestSlotFuture(CompletableFuture<Acknowledge> slotFuture) {
-        this.slotFutureReference.set(slotFuture);
-    }
-
     public void setCancelSlotConsumer(Consumer<AllocationID> cancelSlotConsumer) {
         this.cancelSlotConsumer = cancelSlotConsumer;
-    }
-
-    public void setRequestSlotConsumer(Consumer<SlotRequest> slotRequestConsumer) {
-        this.requestSlotConsumer = slotRequestConsumer;
     }
 
     public void setRegisterJobManagerFunction(
@@ -276,24 +260,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     public JobMasterRegistrationSuccess getJobMasterRegistrationSuccess() {
         return new JobMasterRegistrationSuccess(resourceManagerId, ownResourceId);
-    }
-
-    @Override
-    public CompletableFuture<Acknowledge> requestSlot(
-            JobMasterId jobMasterId, SlotRequest slotRequest, Time timeout) {
-        Consumer<SlotRequest> currentRequestSlotConsumer = requestSlotConsumer;
-
-        if (currentRequestSlotConsumer != null) {
-            currentRequestSlotConsumer.accept(slotRequest);
-        }
-
-        CompletableFuture<Acknowledge> slotFuture = slotFutureReference.getAndSet(null);
-
-        if (slotFuture != null) {
-            return slotFuture;
-        } else {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        }
     }
 
     @Override
