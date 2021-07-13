@@ -30,8 +30,6 @@ import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex._
 
-import scala.collection.JavaConversions._
-
 object CalcCodeGenerator {
 
   def generateCalcOperator(
@@ -55,8 +53,7 @@ object CalcCodeGenerator {
       projection,
       condition,
       eagerInputUnboxingCode = true,
-      retainHeader = retainHeader,
-      allowSplit = true)
+      retainHeader = retainHeader)
 
     val genOperator =
       OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
@@ -115,8 +112,7 @@ object CalcCodeGenerator {
       collectorTerm: String = CodeGenUtils.DEFAULT_OPERATOR_COLLECTOR_TERM,
       eagerInputUnboxingCode: Boolean,
       retainHeader: Boolean = false,
-      outputDirectly: Boolean = false,
-      allowSplit: Boolean = false): String = {
+      outputDirectly: Boolean = false): String = {
 
     // according to the SQL standard, every table function should also be a scalar function
     // but we don't allow that for now
@@ -142,8 +138,7 @@ object CalcCodeGenerator {
       val projectionExpression = exprGenerator.generateResultExpression(
         projectionExprs,
         outRowType,
-        outRowClass,
-        allowSplit = allowSplit)
+        outRowClass)
 
       val projectionExpressionCode = projectionExpression.code
 

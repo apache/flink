@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.data.binary.BinaryRowData
@@ -42,6 +41,8 @@ import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.runtime.util.KeyValueIterator
 import org.apache.flink.table.runtime.util.collections.binary.{BytesHashMap, BytesMap}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+
+import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConversions._
 
@@ -427,10 +428,7 @@ object HashAggCodeGenHelper {
       outRow = currentAggBufferTerm,
       outRowWriter = None,
       reusedOutRow = true,
-      outRowAlreadyExists = true,
-      allowSplit = false,
-      methodName = null
-    )
+      outRowAlreadyExists = true)
   }
 
   /**
