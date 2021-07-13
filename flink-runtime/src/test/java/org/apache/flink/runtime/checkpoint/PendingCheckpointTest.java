@@ -43,7 +43,6 @@ import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,9 +64,11 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -508,7 +509,7 @@ public class PendingCheckpointTest {
         assertTrue(checkpoint.isFullyAcknowledged());
         assertThat(
                 checkpoint.getOperatorStates().keySet(),
-                Matchers.containsInAnyOrder(OPERATOR_ID, coord1.operatorId(), coord2.operatorId()));
+                containsInAnyOrder(OPERATOR_ID, coord1.operatorId(), coord2.operatorId()));
     }
 
     @Test
@@ -608,6 +609,52 @@ public class PendingCheckpointTest {
         OperatorState finishedOperatorState =
                 completedCheckpoint.getOperatorStates().get(finishedOperatorID);
         assertThat(finishedOperatorState.isFullyFinished(), is(true));
+    }
+
+    @Test
+    public void testReportFinishSnapshots() throws Exception {
+        JobVertexID jobVertexId = new JobVertexID();
+        OperatorID operatorId1 = new OperatorID();
+        OperatorID operatorId2 = new OperatorID();
+
+        ExecutionGraph executionGraph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(
+                                jobVertexId,
+                                2,
+                                2,
+                                Arrays.asList(
+                                        OperatorIDPair.generatedIDOnly(operatorId1),
+                                        OperatorIDPair.generatedIDOnly(operatorId2)),
+                                true)
+                        .build();
+        List<ExecutionAttemptID> runningTaskIds =
+                Arrays.stream(executionGraph.getJobVertex(jobVertexId).getTaskVertices())
+                        .map(task -> task.getCurrentExecutionAttempt().getAttemptId())
+                        .collect(Collectors.toList());
+        assertEquals(2, runningTaskIds.size());
+
+        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
+
+        for (ExecutionAttemptID attemptId : runningTaskIds) {
+            TaskAcknowledgeResult result =
+                    pendingCheckpoint.acknowledgeTask(
+                            attemptId, TaskStateSnapshot.FINISHED, new CheckpointMetrics(), null);
+            assertEquals(TaskAcknowledgeResult.SUCCESS, result);
+        }
+
+        // Here we should collect the snapshots of all the tasks
+        assertTrue(pendingCheckpoint.isFullyAcknowledged());
+        CompletedCheckpoint completedCheckpoint =
+                pendingCheckpoint.finalizeCheckpoint(
+                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+
+        // Check that the operators are fully finished.
+        assertThat(
+                completedCheckpoint.getOperatorStates().keySet(),
+                containsInAnyOrder(operatorId1, operatorId2));
+        assertTrue(completedCheckpoint.getOperatorStates().get(operatorId1).isFullyFinished());
+        assertTrue(completedCheckpoint.getOperatorStates().get(operatorId2).isFullyFinished());
     }
 
     // ------------------------------------------------------------------------
