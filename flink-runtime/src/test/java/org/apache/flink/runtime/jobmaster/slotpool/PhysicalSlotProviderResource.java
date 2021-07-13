@@ -46,7 +46,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     private final SlotSelectionStrategy slotSelectionStrategy;
 
-    private TestingSlotPoolImpl slotPool;
+    private DeclarativeSlotPoolBridge slotPool;
 
     private PhysicalSlotProvider physicalSlotProvider;
 
@@ -60,7 +60,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        slotPool = new SlotPoolBuilder(mainThreadExecutor).build();
+        slotPool = new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).build();
         physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
     }
 
@@ -77,6 +77,13 @@ public class PhysicalSlotProviderResource extends ExternalResource {
     }
 
     public void registerSlotOffersFromNewTaskExecutor(ResourceProfile... resourceProfiles) {
+        CompletableFuture.runAsync(
+                        () -> {
+                            slotPool.increaseResourceRequirementsBy(
+                                    SlotPoolUtils.calculateResourceCounter(resourceProfiles));
+                        },
+                        mainThreadExecutor)
+                .join();
         SlotPoolUtils.offerSlots(slotPool, mainThreadExecutor, Arrays.asList(resourceProfiles));
     }
 

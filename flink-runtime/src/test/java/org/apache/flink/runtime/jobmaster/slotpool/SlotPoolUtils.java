@@ -35,18 +35,22 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static java.util.stream.Collectors.reducing;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -206,5 +210,15 @@ public class SlotPoolUtils {
                         () -> slotPoolService.notifyNotEnoughResourcesAvailable(acquiredResources),
                         mainThreadExecutor)
                 .join();
+    }
+
+    static ResourceCounter calculateResourceCounter(ResourceProfile[] resourceProfiles) {
+        final Map<ResourceProfile, Integer> resources =
+                Arrays.stream(resourceProfiles)
+                        .collect(
+                                Collectors.groupingBy(
+                                        Function.identity(), reducing(0, e -> 1, Integer::sum)));
+        final ResourceCounter increment = ResourceCounter.withResources(resources);
+        return increment;
     }
 }
