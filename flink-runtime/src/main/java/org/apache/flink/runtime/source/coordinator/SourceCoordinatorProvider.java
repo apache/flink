@@ -27,6 +27,8 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 
+import javax.annotation.Nullable;
+
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -85,13 +87,16 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     }
 
     /** A thread factory class that provides some helper methods. */
-    public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
+    public static class CoordinatorExecutorThreadFactory
+            implements ThreadFactory, Thread.UncaughtExceptionHandler {
 
         private final String coordinatorThreadName;
         private final ClassLoader cl;
         private final Thread.UncaughtExceptionHandler errorHandler;
 
-        private Thread t;
+        @Nullable private Thread t;
+
+        @Nullable private volatile Throwable previousFailureReason;
 
         CoordinatorExecutorThreadFactory(
                 final String coordinatorThreadName, final ClassLoader contextClassLoader) {
@@ -110,16 +115,30 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized Thread newThread(Runnable r) {
-            if (t != null) {
+            if (t != null && t.isAlive()) {
                 throw new Error(
-                        "This indicates that a fatal error has happened and caused the "
-                                + "coordinator executor thread to exit. Check the earlier logs"
-                                + "to see the root cause of the problem.");
+                        "Source Coordinator Thread already exists. There should never be more than one "
+                                + "thread driving the actions of a Source Coordinator. Existing Thread: "
+                                + t);
+            }
+            if (t != null && previousFailureReason != null) {
+                throw new Error(
+                        "The following fatal error has happened in a previously spawned "
+                                + "Source Coordinator thread. No new thread can be spawned.",
+                        previousFailureReason);
             }
             t = new Thread(r, coordinatorThreadName);
             t.setContextClassLoader(cl);
-            t.setUncaughtExceptionHandler(errorHandler);
+            t.setUncaughtExceptionHandler(this);
             return t;
+        }
+
+        @Override
+        public synchronized void uncaughtException(Thread t, Throwable e) {
+            if (previousFailureReason == null) {
+                previousFailureReason = e;
+            }
+            errorHandler.uncaughtException(t, e);
         }
 
         String getCoordinatorThreadName() {
