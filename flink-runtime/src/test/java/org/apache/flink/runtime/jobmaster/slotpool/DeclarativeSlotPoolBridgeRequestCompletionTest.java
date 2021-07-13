@@ -21,9 +21,9 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -34,7 +34,6 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,8 +49,8 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 
-/** Tests how the {@link SlotPoolImpl} completes slot requests. */
-public class SlotPoolRequestCompletionTest extends TestLogger {
+/** Tests how the {@link DeclarativeSlotPoolBridge} completes slot requests. */
+public class DeclarativeSlotPoolBridgeRequestCompletionTest extends TestLogger {
 
     private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
 
@@ -62,14 +61,17 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
         resourceManagerGateway = new TestingResourceManagerGateway();
     }
 
-    /** Tests that the {@link SlotPoolImpl} completes slots in request order. */
+    /** Tests that the {@link DeclarativeSlotPoolBridge} completes slots in request order. */
     @Test
     public void testRequestsAreCompletedInRequestOrder() {
         runSlotRequestCompletionTest(
                 CheckedSupplier.unchecked(this::createAndSetUpSlotPool), slotPool -> {});
     }
 
-    /** Tests that the {@link SlotPoolImpl} completes stashed slot requests in request order. */
+    /**
+     * Tests that the {@link DeclarativeSlotPoolBridge} completes stashed slot requests in request
+     * order.
+     */
     @Test
     public void testStashOrderMaintainsRequestOrder() {
         runSlotRequestCompletionTest(
@@ -78,9 +80,8 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
     }
 
     private void runSlotRequestCompletionTest(
-            Supplier<SlotPoolImpl> slotPoolSupplier,
-            Consumer<SlotPoolImpl> actionAfterSlotRequest) {
-        try (final SlotPoolImpl slotPool = slotPoolSupplier.get()) {
+            Supplier<SlotPool> slotPoolSupplier, Consumer<SlotPool> actionAfterSlotRequest) {
+        try (final SlotPool slotPool = slotPoolSupplier.get()) {
 
             final int requestNum = 10;
 
@@ -88,10 +89,6 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
                     IntStream.range(0, requestNum)
                             .mapToObj(ignored -> new SlotRequestId())
                             .collect(Collectors.toList());
-
-            final List<SlotRequest> rmReceivedSlotRequests = new ArrayList<>(requestNum);
-            resourceManagerGateway.setRequestSlotConsumer(
-                    request -> rmReceivedSlotRequests.add(request));
 
             final List<CompletableFuture<PhysicalSlot>> slotRequests =
                     slotRequestIds.stream()
@@ -109,9 +106,7 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
             slotPool.registerTaskManager(taskManagerLocation.getResourceID());
 
             // create a slot offer that is initiated by the last request
-            final AllocationID lastAllocationId =
-                    rmReceivedSlotRequests.get(requestNum - 1).getAllocationId();
-            final SlotOffer slotOffer = new SlotOffer(lastAllocationId, 0, ResourceProfile.ANY);
+            final SlotOffer slotOffer = new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY);
             final Collection<SlotOffer> acceptedSlots =
                     slotPool.offerSlots(
                             taskManagerLocation,
@@ -132,15 +127,21 @@ public class SlotPoolRequestCompletionTest extends TestLogger {
         }
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPool() throws Exception {
-        return SlotPoolUtils.createAndSetUpSlotPool(resourceManagerGateway);
+    private SlotPool createAndSetUpSlotPool() throws Exception {
+        return new DeclarativeSlotPoolBridgeBuilder(
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                .setResourceManagerGateway(resourceManagerGateway)
+                .build();
     }
 
-    private void connectToResourceManager(SlotPoolImpl slotPool) {
+    private void connectToResourceManager(SlotPool slotPool) {
         slotPool.connectToResourceManager(resourceManagerGateway);
     }
 
-    private TestingSlotPoolImpl createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-        return SlotPoolUtils.createAndSetUpSlotPool(null);
+    private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
+        return new DeclarativeSlotPoolBridgeBuilder(
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                .setResourceManagerGateway(null)
+                .build();
     }
 }
