@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -48,11 +49,15 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.api.common.restartstrategy.RestartStrategies.fixedDelayRestart;
 import static org.apache.flink.configuration.JobManagerOptions.SchedulerType.Adaptive;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assume.assumeFalse;
 
 /**
@@ -80,6 +85,7 @@ public class CheckpointStoreITCase extends TestLogger {
 
     @Test
     public void testRestartOnRecoveryFailure() throws Exception {
+        FailingStore.finishedRecovering.countDown();
         assumeFalse(
                 // TODO: remove after FLINK-22483
                 "Adaptive scheduler doesn't retry after failures on recovery",
@@ -91,6 +97,34 @@ public class CheckpointStoreITCase extends TestLogger {
                 .map(new FailingMapper())
                 .addSink(new DiscardingSink<>());
         env.execute();
+
+        checkState(FailingStore.recovered && FailingMapper.failedAndProcessed);
+    }
+
+    @Test
+    public void testRpcJobIsResponsiveDuringRecovery() throws Exception {
+        assumeFalse(
+                // TODO: remove after FLINK-22483
+                "Adaptive scheduler doesn't retry after failures on recovery",
+                ClusterOptions.getSchedulerType(CONFIGURATION) == Adaptive);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(10);
+        env.setRestartStrategy(fixedDelayRestart(2 /* failure on processing + on recovery */, 0));
+        env.addSource(emitUntil(() -> FailingStore.recovered && FailingMapper.failedAndProcessed))
+                .map(new FailingMapper())
+                .addSink(new DiscardingSink<>());
+        final JobClient jobClient = env.executeAsync();
+
+        FailingStore.startedRecovering.await();
+        // Make sure job master is responsive during recovery..
+        for (int i = 0; i < 10; i++) {
+            assertThat(jobClient.getJobStatus().get(1, TimeUnit.SECONDS), equalTo(JobStatus.INITIALIZING));
+        }
+        // Unblock recovery.
+        FailingStore.finishedRecovering.countDown();
+
+        // Wait for job to finish.
+        jobClient.getJobExecutionResult().get();
 
         checkState(FailingStore.recovered && FailingMapper.failedAndProcessed);
     }
@@ -135,22 +169,29 @@ public class CheckpointStoreITCase extends TestLogger {
     }
 
     private static class FailingStore implements CompletedCheckpointStore {
-        private static volatile boolean started = false;
+        private static volatile int started = 2;
         private static volatile boolean failed = false;
         private static volatile boolean recovered = false;
+        private static volatile CountDownLatch startedRecovering = new CountDownLatch(1);
+        private static volatile CountDownLatch finishedRecovering = new CountDownLatch(1);
 
         public static void reset() {
-            started = failed = recovered = false;
+            started = 2;
+            failed = recovered = false;
+            startedRecovering = new CountDownLatch(1);
+            finishedRecovering = new CountDownLatch(1);
         }
 
         @Override
         public void recover() throws Exception {
-            if (!started) {
-                started = true;
+            if (started > 0) {
+                started--;
             } else if (!failed) {
                 failed = true;
                 throw new RuntimeException();
             } else if (!recovered) {
+                startedRecovering.countDown();
+                finishedRecovering.await();
                 recovered = true;
             }
         }

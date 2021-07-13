@@ -21,16 +21,41 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link SchedulerUtils} utilities. */
 public class SchedulerUtilsTest extends TestLogger {
+
+    private ClassLoader classLoader = getClass().getClassLoader();
+    private JobID jobID = new JobID();
+    private JobGraph jobGraph = new JobGraph(jobID, "jobName");
+    private RecoveryRecordingCompletedCheckpointStore expectedCompletedCheckpointStore =
+            new RecoveryRecordingCompletedCheckpointStore();
+    private CheckpointRecoveryFactory checkpointRecoveryFactory =
+            new TestingCheckpointRecoveryFactory(expectedCompletedCheckpointStore, null);
+
+    @Before
+    public void setUp() throws Exception {
+        jobGraph.setSnapshotSettings(
+                new JobCheckpointingSettings(
+                        new CheckpointCoordinatorConfiguration
+                                        .CheckpointCoordinatorConfigurationBuilder()
+                                .build(),
+                        null));
+    }
 
     @Test
     public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
@@ -40,16 +65,25 @@ public class SchedulerUtilsTest extends TestLogger {
         jobManagerConfig.setInteger(
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
 
-        final CompletedCheckpointStore completedCheckpointStore =
-                SchedulerUtils.createCompletedCheckpointStore(
-                        jobManagerConfig,
-                        getClass().getClassLoader(),
-                        new StandaloneCheckpointRecoveryFactory(),
-                        log,
-                        new JobID());
+        final CompletedCheckpointStore actualCompletedCheckpointStore =
+                SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
+                        jobGraph, jobManagerConfig, classLoader, checkpointRecoveryFactory, log);
 
-        assertEquals(
-                maxNumberOfCheckpointsToRetain,
-                completedCheckpointStore.getMaxNumberOfRetainedCheckpoints());
+        assertTrue(expectedCompletedCheckpointStore.recovered);
+        assertEquals(expectedCompletedCheckpointStore, actualCompletedCheckpointStore);
+    }
+
+    private static class RecoveryRecordingCompletedCheckpointStore
+            extends StandaloneCompletedCheckpointStore {
+        private volatile boolean recovered = false;
+
+        public RecoveryRecordingCompletedCheckpointStore() {
+            super(1);
+        }
+
+        @Override
+        public void recover() throws Exception {
+            recovered = true;
+        }
     }
 }
