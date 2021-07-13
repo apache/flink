@@ -200,6 +200,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         tasks.add(jobVertex1);
         tasks.add(jobVertex2);
 
+        store.recover();
         assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
 
         // validate that all shared states are registered again after the recovery.

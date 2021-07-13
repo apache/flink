@@ -1513,10 +1513,6 @@ public class CheckpointCoordinator {
             sharedStateRegistry.close();
             sharedStateRegistry = sharedStateRegistryFactory.create(executor);
 
-            // Recover the checkpoints, TODO this could be done only when there is a new leader, not
-            // on each recovery
-            completedCheckpointStore.recover();
-
             // Now, we re-register all (shared) states from the checkpoint store with the new
             // registry
             for (CompletedCheckpoint completedCheckpoint :
