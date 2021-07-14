@@ -77,8 +77,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private final String hostname;
 
-    private volatile Consumer<AllocationID> cancelSlotConsumer;
-
     private volatile QuadFunction<
                     JobMasterId, ResourceID, String, JobID, CompletableFuture<RegistrationResponse>>
             registerJobManagerFunction;
@@ -139,15 +137,10 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
         this.ownResourceId = Preconditions.checkNotNull(resourceId);
         this.address = Preconditions.checkNotNull(address);
         this.hostname = Preconditions.checkNotNull(hostname);
-        this.cancelSlotConsumer = null;
     }
 
     public ResourceID getOwnResourceId() {
         return ownResourceId;
-    }
-
-    public void setCancelSlotConsumer(Consumer<AllocationID> cancelSlotConsumer) {
-        this.cancelSlotConsumer = cancelSlotConsumer;
     }
 
     public void setRegisterJobManagerFunction(
@@ -266,15 +259,6 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     public CompletableFuture<Acknowledge> declareRequiredResources(
             JobMasterId jobMasterId, ResourceRequirements resourceRequirements, Time timeout) {
         return declareRequiredResourcesFunction.apply(jobMasterId, resourceRequirements);
-    }
-
-    @Override
-    public void cancelSlotRequest(AllocationID allocationID) {
-        Consumer<AllocationID> currentCancelSlotConsumer = cancelSlotConsumer;
-
-        if (currentCancelSlotConsumer != null) {
-            currentCancelSlotConsumer.accept(allocationID);
-        }
     }
 
     @Override

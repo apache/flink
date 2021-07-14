@@ -533,13 +533,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     @Override
-    public void cancelSlotRequest(AllocationID allocationID) {
-        // As the slot allocations are async, it can not avoid all redundant slots, but should best
-        // effort.
-        slotManager.unregisterSlotRequest(allocationID);
-    }
-
-    @Override
     public void notifySlotAvailable(
             final InstanceID instanceID, final SlotID slotId, final AllocationID allocationId) {
 

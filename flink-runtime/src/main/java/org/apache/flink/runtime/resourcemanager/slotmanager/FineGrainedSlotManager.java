@@ -657,12 +657,6 @@ public class FineGrainedSlotManager implements SlotManager {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public int getNumberPendingSlotRequests() {
-        // only exists for testing purposes
-        throw new UnsupportedOperationException();
-    }
-
     // ---------------------------------------------------------------------------------------------
     // Internal periodic check methods
     // ---------------------------------------------------------------------------------------------

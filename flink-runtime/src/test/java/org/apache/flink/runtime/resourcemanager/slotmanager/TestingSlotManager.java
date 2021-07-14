@@ -24,7 +24,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
@@ -108,11 +107,6 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
-    public int getNumberPendingSlotRequests() {
-        return 0;
-    }
-
-    @Override
     public void start(
             ResourceManagerId newResourceManagerId,
             Executor newMainThreadExecutor,
@@ -129,16 +123,6 @@ public class TestingSlotManager implements SlotManager {
     @Override
     public void processResourceRequirements(ResourceRequirements resourceRequirements) {
         processRequirementsConsumer.accept(resourceRequirements);
-    }
-
-    @Override
-    public boolean registerSlotRequest(SlotRequest slotRequest) {
-        return false;
-    }
-
-    @Override
-    public boolean unregisterSlotRequest(AllocationID allocationId) {
-        return false;
     }
 
     @Override

@@ -87,13 +87,6 @@ public interface ResourceManagerGateway
             @RpcTimeout Time timeout);
 
     /**
-     * Cancel the slot allocation requests from the resource manager.
-     *
-     * @param allocationID The slot to request
-     */
-    void cancelSlotRequest(AllocationID allocationID);
-
-    /**
      * Register a {@link TaskExecutor} at the resource manager.
      *
      * @param taskExecutorRegistration the task executor registration.
