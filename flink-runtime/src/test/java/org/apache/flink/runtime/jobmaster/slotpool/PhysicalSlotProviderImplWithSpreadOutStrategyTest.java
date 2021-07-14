@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,7 +39,7 @@ import static org.hamcrest.Matchers.not;
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
  * EvenlySpreadOutLocationPreferenceSlotSelectionStrategy}.
  */
-public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
+public class PhysicalSlotProviderImplWithSpreadOutStrategyTest extends TestLogger {
 
     @Rule
     public PhysicalSlotProviderResource physicalSlotProviderResource =
