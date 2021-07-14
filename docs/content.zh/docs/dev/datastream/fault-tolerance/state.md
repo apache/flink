@@ -3,8 +3,8 @@ title: "Working with State"
 weight: 2
 type: docs
 aliases:
-  - /zh/dev/stream/state/state.html
-  - /zh/apis/streaming/state.html
+- /zh/dev/stream/state/state.html
+- /zh/apis/streaming/state.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,32 +25,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Working with State
+# 带有状态的处理
 
-In this section you will learn about the APIs that Flink provides for writing
-stateful programs. Please take a look at [Stateful Stream
-Processing]({{< ref "docs/concepts/stateful-stream-processing" >}})
-to learn about the concepts behind stateful stream processing.
+在本节中，你可以了解Flink提供的为有状态编程开发的的API。 请查看 [Stateful Stream
+Processing]({{< ref "docs/concepts/stateful-stream-processing" >}})，以便了解有状态流处理的概念。
 
 ## Keyed DataStream
 
-If you want to use keyed state, you first need to specify a key on a
-`DataStream` that should be used to partition the state (and also the records
-in the stream themselves). You can specify a key using `keyBy(KeySelector)`
-in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
-This will yield a `KeyedStream`, which then allows operations that use keyed state.
+如果要使用 keyed state,，首先需要在 `DataStream` 中指定用于为状态（以及流本身中的记录）分区的 key。可以在 `DataStream` 上使用 Java/Scala API 中的 `keyby（keyselector）` 或 Python API 中的 `Key_by（keyselector）` 指定 key。这样会产生一个 `keyedStream` ，在这个数据流上支持使用 keyed state 的操作。
 
-A key selector function takes a single record as input and returns the key for
-that record. The key can be of any type and **must** be derived from
-deterministic computations.
+KeySelector 将单个记录作为输入并返回记录的 key。这个 key 可以是任何类型的，并且**必须**取自确定性计算。
 
-The data model of Flink is not based on key-value pairs. Therefore, you do not
-need to physically pack the data set types into keys and values. Keys are
-"virtual": they are defined as functions over the actual data to guide the
-grouping operator.
+Flink 的数据模型并不是基于键值对的。因此，不需要将数据集类型硬性地包装为键值对。这里的 key 是“虚拟”的：key 可以理解为真实数据上的函数，用于分组算子计算。
 
-The following example shows a key selector function that simply returns the
-field of an object:
+以下示例给出了一个返回对象的某个字段的 KeySelector：
 
 {{< tabs "9730828c-2f0f-48c8-9a5c-4ec415d0c492" >}}
 {{< tab "Java" >}}
@@ -85,15 +73,9 @@ keyed = words.key_by(lambda row: row[0])
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Tuple Keys and Expression Keys
+#### 元祖键和表达式键
 
-Flink also has two alternative ways of defining keys: tuple keys and expression
-keys in the Java/Scala API(still not supported in the Python API). With this you can
-specify keys using tuple field indices or expressions
-for selecting fields of objects. We don't recommend using these today but you
-can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
-function is strictly superior: with Java lambdas they are easy to use and they
-have potentially less overhead at runtime.
+Flink 还有两种定义key的方法：Java/scala API 中的元组键和表达式键（python API 中仍然不支持）。这样，可以使用元组字段索引或表达式来指定 key，选择对象的字段。我们现在不推荐使用这些，但是可以参考 DataStream 的 Javadoc 来了解它们。使用 KeySelector 函数是绝对有优势的：结合 java lambda 语法，KeySelector 易于使用，并且在运行时的开销会更小。
 
 {{< top >}}
 
