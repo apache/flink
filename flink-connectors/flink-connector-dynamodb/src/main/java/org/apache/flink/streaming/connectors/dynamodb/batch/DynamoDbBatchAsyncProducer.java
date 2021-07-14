@@ -20,12 +20,25 @@ package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 import org.apache.flink.streaming.connectors.dynamodb.DynamoDbProducer;
 
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
 /** Asynchronous batch producer. */
 public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
+
+    private final DynamoDbClient client;
+    private final BatchCollector batchCollector;
+    private final int elementsPerBatchWrite;
+
+    public DynamoDbBatchAsyncProducer(
+            DynamoDbClient client, BatchCollector batchCollector, int elementsPerBatchWrite) {
+        this.client = client;
+        this.batchCollector = batchCollector;
+        this.elementsPerBatchWrite = elementsPerBatchWrite;
+    }
+
     @Override
     public void close() throws Exception {}
 

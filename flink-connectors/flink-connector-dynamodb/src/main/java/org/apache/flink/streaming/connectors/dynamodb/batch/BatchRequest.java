@@ -18,16 +18,29 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-/** TODO. */
-public class BatchWriteFailedException extends Exception {
+import org.apache.flink.util.Preconditions;
 
-    private BatchResponse result;
+import software.amazon.awssdk.services.dynamodb.model.DynamoDbRequest;
 
-    public BatchWriteFailedException(BatchResponse response) {
-        this.result = response;
+import java.util.List;
+
+/** Wrapper class for DynamoDB batch request. */
+public class BatchRequest<T extends DynamoDbRequest> {
+    private final String id;
+    private final List<T> requests;
+
+    public BatchRequest(String id, List<T> requests) {
+        Preconditions.checkNotNull(id);
+        Preconditions.checkNotNull(requests);
+        this.id = id;
+        this.requests = requests;
     }
 
-    public BatchResponse getResult() {
-        return this.result;
+    public String getId() {
+        return id;
+    }
+
+    public List<T> getRequests() {
+        return requests;
     }
 }

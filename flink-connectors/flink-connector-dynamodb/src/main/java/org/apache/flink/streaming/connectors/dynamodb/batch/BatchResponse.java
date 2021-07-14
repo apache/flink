@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-/** TODO. */
+/** DynamoDB batch writer response. */
 public class BatchResponse {
     private final boolean successful;
     private final long elapsedTimeMs;
