@@ -299,7 +299,6 @@ object AkkaUtils {
         |   guardian-supervisor-strategy = $supervisorStrategy
         |
         |   warn-about-java-serializer-usage = off
-        |   allow-java-serialization = on
         |
         |   default-dispatcher {
         |     throughput = $akkaThroughput
@@ -471,18 +470,15 @@ object AkkaUtils {
          |    provider = "akka.remote.RemoteActorRefProvider"
          |  }
          |
-         |  remote.artery.enabled = false
-         |  remote.startup-timeout = $startupTimeout
+         |  remote {
+         |    startup-timeout = $startupTimeout
          |
-         |  remote.classic {
          |    # disable the transport failure detector by setting very high values
          |    transport-failure-detector{
          |      acceptable-heartbeat-pause = 6000 s
          |      heartbeat-interval = 1000 s
          |      threshold = 300
          |    }
-         |
-         |    enabled-transports = ["akka.remote.classic.netty.tcp"]
          |
          |    netty {
          |      tcp {
@@ -526,7 +522,7 @@ object AkkaUtils {
     val hostnameConfigString =
       s"""
          |akka {
-         |  remote.classic {
+         |  remote {
          |    netty {
          |      tcp {
          |        hostname = "$effectiveHostname"
@@ -540,13 +536,13 @@ object AkkaUtils {
     val sslConfigString = if (akkaEnableSSLConfig) {
       s"""
          |akka {
-         |  remote.classic {
+         |  remote {
          |
-         |    enabled-transports = ["akka.remote.classic.netty.ssl"]
+         |    enabled-transports = ["akka.remote.netty.ssl"]
          |
          |    netty {
          |
-         |      ssl = $${akka.remote.classic.netty.tcp}
+         |      ssl = $${akka.remote.netty.tcp}
          |
          |      ssl {
          |

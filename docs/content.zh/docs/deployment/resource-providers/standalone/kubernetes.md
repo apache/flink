@@ -310,7 +310,7 @@ data:
     appender.rolling.strategy.max = 10
 
     # Suppress the irrelevant (wrong) warnings from the Netty channel handler
-    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
 
@@ -380,7 +380,7 @@ data:
     appender.rolling.strategy.max = 10
 
     # Suppress the irrelevant (wrong) warnings from the Netty channel handler
-    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.name = org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline
     logger.netty.level = OFF
 ```
 

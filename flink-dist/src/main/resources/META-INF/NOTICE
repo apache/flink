@@ -10,6 +10,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.code.findbugs:jsr305:1.3.9
 - com.twitter:chill-java:0.7.6
 - com.twitter:chill_2.11:0.7.6
+- com.typesafe:config:1.3.0
+- com.typesafe:ssl-config-core_2.11:0.3.7
+- com.typesafe.akka:akka-actor_2.11:2.5.21
+- com.typesafe.akka:akka-protobuf_2.11:2.5.21
+- com.typesafe.akka:akka-slf4j_2.11:2.5.21
+- com.typesafe.akka:akka-stream_2.11:2.5.21
 - commons-cli:commons-cli:1.3.1
 - commons-collections:commons-collections:3.2.2
 - commons-io:commons-io:2.8.0
@@ -26,6 +32,7 @@ See bundled license files for details.
 
 - com.esotericsoftware.kryo:kryo:2.24.0
 - com.esotericsoftware.minlog:minlog:1.2
+- org.clapper:grizzled-slf4j_2.11:1.3.2
 
 The following dependencies all share the same BSD license which you find under licenses/LICENSE.scala.
 
@@ -39,6 +46,7 @@ The following dependencies all share the same BSD license which you find under l
 This project bundles the following dependencies under the MIT/X11 license.
 See bundled license files for details.
 
+- com.github.scopt:scopt_2.11:3.5.0
 - org.slf4j:slf4j-api:1.7.15
 
 This project bundles the following dependencies under the CDDL 1.1 license.
@@ -46,3 +54,7 @@ See bundled license files for details.
 
 - javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
+
+This project bundles the following dependencies under the Creative Commons CC0 "No Rights Reserved".
+
+- org.reactivestreams:reactive-streams:1.0.2

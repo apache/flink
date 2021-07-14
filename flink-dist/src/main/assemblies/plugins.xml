@@ -32,7 +32,7 @@
 		<!-- Metrics -->
 
 		<file>
-			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-jmx/target/flink-metrics-jmx_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-jmx/</outputDirectory>
 			<destName>flink-metrics-jmx-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
@@ -46,14 +46,14 @@
 		</file>
 
 		<file>
-			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-influxdb/target/flink-metrics-influxdb_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-influx/</outputDirectory>
 			<destName>flink-metrics-influxdb-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<file>
-			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus-${project.version}.jar</source>
+			<source>../flink-metrics/flink-metrics-prometheus/target/flink-metrics-prometheus_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>plugins/metrics-prometheus/</outputDirectory>
 			<destName>flink-metrics-prometheus-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>

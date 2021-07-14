@@ -78,9 +78,6 @@ import java.util.function.Function;
 import scala.Option;
 import scala.reflect.ClassTag$;
 
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.guardCompletionWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.runWithContextClassLoader;
-import static org.apache.flink.runtime.concurrent.akka.ClassLoadingUtils.withContextClassLoader;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -101,8 +98,6 @@ public class AkkaRpcService implements RpcService {
     private final ActorSystem actorSystem;
     private final AkkaRpcServiceConfiguration configuration;
 
-    private final ClassLoader flinkClassLoader;
-
     @GuardedBy("lock")
     private final Map<ActorRef, RpcEndpoint> actors = new HashMap<>(4);
 
@@ -122,16 +117,8 @@ public class AkkaRpcService implements RpcService {
     @VisibleForTesting
     public AkkaRpcService(
             final ActorSystem actorSystem, final AkkaRpcServiceConfiguration configuration) {
-        this(actorSystem, configuration, AkkaRpcService.class.getClassLoader());
-    }
-
-    AkkaRpcService(
-            final ActorSystem actorSystem,
-            final AkkaRpcServiceConfiguration configuration,
-            final ClassLoader flinkClassLoader) {
         this.actorSystem = checkNotNull(actorSystem, "actor system");
         this.configuration = checkNotNull(configuration, "akka rpc service configuration");
-        this.flinkClassLoader = checkNotNull(flinkClassLoader, "flinkClassLoader");
 
         Address actorSystemAddress = AkkaUtils.getAddress(actorSystem);
 
@@ -149,14 +136,7 @@ public class AkkaRpcService implements RpcService {
 
         captureAskCallstacks = configuration.captureAskCallStack();
 
-        // Akka always sets the threads context class loader to the class loader with which it was
-        // loaded (i.e., the plugin class loader)
-        // we must ensure that the context class loader is set to the Flink class loader when we
-        // call into Flink
-        // otherwise we could leak the plugin class loader or poison the context class loader of
-        // external threads (because they inherit the current threads context class loader)
-        internalScheduledExecutor =
-                new ActorSystemScheduledExecutorAdapter(actorSystem, flinkClassLoader);
+        internalScheduledExecutor = new ActorSystemScheduledExecutorAdapter(actorSystem);
 
         terminationFuture = new CompletableFuture<>();
 
@@ -178,9 +158,7 @@ public class AkkaRpcService implements RpcService {
                         new ExecutorThreadFactory(
                                 "AkkaRpcService-Supervisor-Termination-Future-Executor"));
         final ActorRef actorRef =
-                SupervisorActor.startSupervisorActor(
-                        actorSystem,
-                        withContextClassLoader(terminationFutureExecutor, flinkClassLoader));
+                SupervisorActor.startSupervisorActor(actorSystem, terminationFutureExecutor);
 
         return Supervisor.create(actorRef, terminationFutureExecutor);
     }
@@ -221,8 +199,7 @@ public class AkkaRpcService implements RpcService {
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
                             null,
-                            captureAskCallstacks,
-                            flinkClassLoader);
+                            captureAskCallstacks);
                 });
     }
 
@@ -244,8 +221,7 @@ public class AkkaRpcService implements RpcService {
                             configuration.getMaximumFramesize(),
                             null,
                             () -> fencingToken,
-                            captureAskCallstacks,
-                            flinkClassLoader);
+                            captureAskCallstacks);
                 });
     }
 
@@ -292,8 +268,7 @@ public class AkkaRpcService implements RpcService {
                             configuration.getMaximumFramesize(),
                             actorTerminationFuture,
                             ((FencedRpcEndpoint<?>) rpcEndpoint)::getFencingToken,
-                            captureAskCallstacks,
-                            flinkClassLoader);
+                            captureAskCallstacks);
 
             implementedRpcGateways.add(FencedMainThreadExecutable.class);
         } else {
@@ -305,8 +280,7 @@ public class AkkaRpcService implements RpcService {
                             configuration.getTimeout(),
                             configuration.getMaximumFramesize(),
                             actorTerminationFuture,
-                            captureAskCallstacks,
-                            flinkClassLoader);
+                            captureAskCallstacks);
         }
 
         // Rather than using the System ClassLoader directly, we derive the ClassLoader
@@ -348,8 +322,7 @@ public class AkkaRpcService implements RpcService {
                                             rpcEndpoint,
                                             actorTerminationFuture,
                                             getVersion(),
-                                            configuration.getMaximumFramesize(),
-                                            flinkClassLoader),
+                                            configuration.getMaximumFramesize()),
                             rpcEndpoint.getEndpointId());
 
             final SupervisorActor.ActorRegistration actorRegistration =
@@ -381,8 +354,7 @@ public class AkkaRpcService implements RpcService {
                             configuration.getMaximumFramesize(),
                             null,
                             () -> fencingToken,
-                            captureAskCallstacks,
-                            flinkClassLoader);
+                            captureAskCallstacks);
 
             // Rather than using the System ClassLoader directly, we derive the ClassLoader
             // from this class . That works better in cases where Flink runs embedded and all Flink
@@ -452,9 +424,11 @@ public class AkkaRpcService implements RpcService {
 
         actorSystemTerminationFuture.whenComplete(
                 (Void ignored, Throwable throwable) -> {
-                    runWithContextClassLoader(
-                            () -> FutureUtils.doForward(ignored, throwable, terminationFuture),
-                            flinkClassLoader);
+                    if (throwable != null) {
+                        terminationFuture.completeExceptionally(throwable);
+                    } else {
+                        terminationFuture.complete(null);
+                    }
 
                     LOG.info("Stopped Akka RPC service.");
                 });
@@ -561,33 +535,27 @@ public class AkkaRpcService implements RpcService {
                                                                         HandshakeSuccessMessage
                                                                                 .class))));
 
-        final CompletableFuture<C> gatewayFuture =
-                actorRefFuture.thenCombineAsync(
-                        handshakeFuture,
-                        (ActorRef actorRef, HandshakeSuccessMessage ignored) -> {
-                            InvocationHandler invocationHandler =
-                                    invocationHandlerFactory.apply(actorRef);
+        return actorRefFuture.thenCombineAsync(
+                handshakeFuture,
+                (ActorRef actorRef, HandshakeSuccessMessage ignored) -> {
+                    InvocationHandler invocationHandler = invocationHandlerFactory.apply(actorRef);
 
-                            // Rather than using the System ClassLoader directly, we derive the
-                            // ClassLoader from this class.
-                            // That works better in cases where Flink runs embedded and
-                            // all Flink code is loaded dynamically
-                            // (for example from an OSGI bundle) through a custom ClassLoader
-                            ClassLoader classLoader = getClass().getClassLoader();
+                    // Rather than using the System ClassLoader directly, we derive the ClassLoader
+                    // from this class . That works better in cases where Flink runs embedded and
+                    // all Flink
+                    // code is loaded dynamically (for example from an OSGI bundle) through a custom
+                    // ClassLoader
+                    ClassLoader classLoader = getClass().getClassLoader();
 
-                            @SuppressWarnings("unchecked")
-                            C proxy =
-                                    (C)
-                                            Proxy.newProxyInstance(
-                                                    classLoader,
-                                                    new Class<?>[] {clazz},
-                                                    invocationHandler);
+                    @SuppressWarnings("unchecked")
+                    C proxy =
+                            (C)
+                                    Proxy.newProxyInstance(
+                                            classLoader, new Class<?>[] {clazz}, invocationHandler);
 
-                            return proxy;
-                        },
-                        actorSystem.dispatcher());
-
-        return guardCompletionWithContextClassLoader(gatewayFuture, flinkClassLoader);
+                    return proxy;
+                },
+                actorSystem.dispatcher());
     }
 
     private CompletableFuture<ActorRef> resolveActorAddress(String address) {

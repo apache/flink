@@ -29,15 +29,9 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-rpc-akka</artifactId>
+	<artifactId>flink-rpc-akka_${scala.binary.version}</artifactId>
 	<name>Flink : RPC : Akka</name>
 	<packaging>jar</packaging>
-
-	<properties>
-		<akka.version>2.6.15</akka.version>
-		<akka.scala.binary.version>2.12</akka.scala.binary.version>
-		<akka.scala.version>2.12.7</akka.scala.version>
-	</properties>
 
 	<dependencies>
 		<dependency>
@@ -61,89 +55,100 @@ under the License.
 
 		<dependency>
 			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-reflect</artifactId>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.scala-lang</groupId>
-			<artifactId>scala-compiler</artifactId>
-			<scope>compile</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor_${akka.scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${akka.scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<artifactId>akka-actor_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
 			<exclusions>
 				<exclusion>
-					<!-- optional dependency for UDP transport which we don't need -->
-					<groupId>io.aeron</groupId>
-					<artifactId>aeron-driver</artifactId>
-				</exclusion>
-				<exclusion>
-					<!-- optional dependency for UDP transport which we don't need -->
-					<groupId>io.aeron</groupId>
-					<artifactId>aeron-client</artifactId>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
+
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-slf4j_${akka.scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<artifactId>akka-remote_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to pin
+		 	its version (our Hadoop dependency has overridden the netty version in the past) -->
 		<dependency>
 			<groupId>io.netty</groupId>
 			<artifactId>netty</artifactId>
 			<version>3.10.6.Final</version>
 		</dependency>
 
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-stream_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.typesafe</groupId>
+					<artifactId>config</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
+			visible after the shading (without relocation!) of akka-remote -->
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-protobuf_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe.akka</groupId>
+			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<dependency>
 			<groupId>org.clapper</groupId>
-			<artifactId>grizzled-slf4j_${akka.scala.binary.version}</artifactId>
-			<version>1.3.2</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.google.code.findbugs</groupId>
-			<artifactId>jsr305</artifactId>
-			<scope>provided</scope>
+			<artifactId>grizzled-slf4j_${scala.binary.version}</artifactId>
+			<!-- exclusions for dependency conversion -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-test-utils-junit</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
-		<dependency>
-			<groupId>org.scalatest</groupId>
-			<artifactId>scalatest_${akka.scala.binary.version}</artifactId>
-			<version>3.0.0</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>
@@ -163,29 +168,9 @@ under the License.
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-compiler</artifactId>
-				<version>${akka.scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-library</artifactId>
-				<version>${akka.scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang</groupId>
-				<artifactId>scala-reflect</artifactId>
-				<version>${akka.scala.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.scala-lang.modules</groupId>
-				<artifactId>scala-xml_${akka.scala.binary.version}</artifactId>
-				<version>1.0.6</version>
-			</dependency>
-			<dependency>
 				<groupId>com.typesafe</groupId>
 				<artifactId>config</artifactId>
-				<version>1.4.0</version>
+				<version>1.3.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -216,10 +201,20 @@ under the License.
 						</goals>
 						<configuration>
 							<artifactSet>
-								<includes>
-									<include>*</include>
+								<includes combine.children="append">
+									<!-- add akka, akka's netty -->
+									<!-- we can do this only because our own netty dependency is
+										already externally shaded (flink-shaded-netty) -->
+									<include>com.typesafe.akka:akka-remote_*</include>
+									<include>io.netty:netty</include>
 								</includes>
 							</artifactSet>
+							<relocations combine.children="append">
+								<relocation>
+									<pattern>org.jboss.netty</pattern>
+									<shadedPattern>org.apache.flink.shaded.akka.org.jboss.netty</shadedPattern>
+								</relocation>
+							</relocations>
 							<filters>
 								<filter>
 									<artifact>io.netty:netty</artifact>
@@ -233,27 +228,7 @@ under the License.
 									</excludes>
 								</filter>
 							</filters>
-							<transformers>
-								<transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>reference.conf</resource>
-								</transformer>
-							</transformers>
 						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<!-- disable check for 2.12 dependencies -->
-					<execution>
-						<id>enforce-versions</id>
-						<goals>
-							<goal>enforce</goal>
-						</goals>
-						<phase>none</phase>
 					</execution>
 				</executions>
 			</plugin>
@@ -284,7 +259,6 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
-					<scalaVersion>${akka.scala.version}</scalaVersion>
 					<jvmArgs>
 						<jvmArg>-Xms128m</jvmArg>
 						<jvmArg>-Xmx512m</jvmArg>

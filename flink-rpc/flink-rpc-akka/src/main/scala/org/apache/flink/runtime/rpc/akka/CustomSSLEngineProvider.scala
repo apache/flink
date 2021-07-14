@@ -26,8 +26,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrust
 class CustomSSLEngineProvider(system : akka.actor.ActorSystem)
                               extends ConfigSSLEngineProvider(system) {
 
-  private val securityConfig = system.settings.config.
-    getConfig("akka.remote.classic.netty.ssl.security")
+  private val securityConfig = system.settings.config.getConfig("akka.remote.netty.ssl.security")
   private val SSLTrustStore = securityConfig.getString("trust-store")
   private val SSLTrustStorePassword = securityConfig.getString("trust-store-password")
   private val SSLCertFingerprints = securityConfig.getStringList("cert-fingerprints")

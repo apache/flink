@@ -183,8 +183,7 @@ public class CoreOptions {
         return parseParentFirstLoaderPatterns(base, append);
     }
 
-    @Internal
-    public static String[] parseParentFirstLoaderPatterns(String base, String append) {
+    private static String[] parseParentFirstLoaderPatterns(String base, String append) {
         Splitter splitter = Splitter.on(';').omitEmptyStrings();
         return Iterables.toArray(
                 Iterables.concat(splitter.split(base), splitter.split(append)), String.class);

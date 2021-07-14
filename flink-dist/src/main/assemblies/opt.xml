@@ -105,9 +105,9 @@
 
 		<!-- Queryable State -->
 		<file>
-			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime-${project.version}.jar</source>
+			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-queryable-state-runtime-${project.version}.jar</destName>
+			<destName>flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
