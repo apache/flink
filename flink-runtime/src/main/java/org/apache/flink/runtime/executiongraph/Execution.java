@@ -831,10 +831,11 @@ public class Execution
      * @param checkpointId of th checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
+     * @return Future acknowledge which is returned once the checkpoint has been triggered
      */
-    public void triggerCheckpoint(
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-        triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
+        return triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
     }
 
     /**
@@ -843,13 +844,14 @@ public class Execution
      * @param checkpointId of th checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
+     * @return Future acknowledge which is returned once the checkpoint has been triggered
      */
-    public void triggerSynchronousSavepoint(
+    public CompletableFuture<Acknowledge> triggerSynchronousSavepoint(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-        triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
+        return triggerCheckpointHelper(checkpointId, timestamp, checkpointOptions);
     }
 
-    private void triggerCheckpointHelper(
+    private CompletableFuture<Acknowledge> triggerCheckpointHelper(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
 
         final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
@@ -864,12 +866,12 @@ public class Execution
         if (slot != null) {
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
-            taskManagerGateway.triggerCheckpoint(
+            return taskManagerGateway.triggerCheckpoint(
                     attemptId, getVertex().getJobId(), checkpointId, timestamp, checkpointOptions);
-        } else {
-            LOG.debug(
-                    "The execution has no slot assigned. This indicates that the execution is no longer running.");
         }
+        LOG.debug(
+                "The execution has no slot assigned. This indicates that the execution is no longer running.");
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     /**
