@@ -1416,22 +1416,53 @@ class TableSinkITCase extends StreamingTestBase {
       .column("f0", DataTypes.INT())
       .build()
 
-    val tableId = TestValuesTableFactory.registerData(Seq(row(42)))
     val sourceDescriptor = TableDescriptor.forConnector("values")
       .schema(schema)
-      .option("data-id", tableId)
       .option("bounded", "true")
       .build()
-    val sinkDescriptor = TableDescriptor.forConnector("values")
-      .schema(schema)
-      .build();
 
-    tEnv.createTemporaryTable("T", sourceDescriptor)
+    // Explicit schema
 
-    val stmtSet = tEnv.createStatementSet()
-    stmtSet.addInsert(sinkDescriptor, tEnv.from("T"))
+    TestValuesTableFactory.clearAllData()
+    val tableId1 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T1", sourceDescriptor.toBuilder.option("data-id", tableId1).build)
 
-    stmtSet.execute().await()
+    tEnv.createStatementSet().addInsert(
+      TableDescriptor.forConnector("values")
+        .schema(schema)
+        .build(),
+      tEnv.from("T1")
+    ).execute().await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+
+    // Derived schema
+
+    TestValuesTableFactory.clearAllData()
+    val tableId2 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T2", sourceDescriptor.toBuilder.option("data-id", tableId2).build)
+
+    tEnv.createStatementSet().addInsert(
+      TableDescriptor.forConnector("values").build(),
+      tEnv.from("T2")
+    ).execute().await()
+    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
+
+    // Enriched schema
+
+    TestValuesTableFactory.clearAllData()
+    val tableId3 = TestValuesTableFactory.registerData(Seq(row(42)))
+    tEnv.createTemporaryTable("T3", sourceDescriptor.toBuilder.option("data-id", tableId3).build)
+
+    tEnv.createStatementSet().addInsert(
+      TableDescriptor.forConnector("values")
+        .option("writable-metadata", "m1:INT")
+        .schema(Schema.newBuilder()
+          .columnByMetadata("m1", DataTypes.INT(), true)
+          .primaryKey("f0")
+          .build())
+        .build(),
+      tEnv.from("T3")
+    ).execute().await()
     assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResults.toList)
   }
 }

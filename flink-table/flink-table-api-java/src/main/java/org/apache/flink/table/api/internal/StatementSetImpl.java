@@ -27,6 +27,7 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -89,16 +90,24 @@ class StatementSetImpl implements StatementSet {
 
     @Override
     public StatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
-        final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-        tableEnvironment.createTemporaryTable(path, targetDescriptor);
-        return addInsert(path, table);
+        return addInsert(targetDescriptor, table, false);
     }
 
     @Override
     public StatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
         final String path = TableDescriptorUtil.getUniqueAnonymousPath();
-        tableEnvironment.createTemporaryTable(path, targetDescriptor);
+
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
+                        tableEnvironment.getCatalogManager().getDataTypeFactory(),
+                        table.getResolvedSchema().toSourceRowDataType(),
+                        targetDescriptor.getSchema().orElse(null),
+                        false);
+        final TableDescriptor updatedDescriptor =
+                targetDescriptor.toBuilder().schema(schemaTranslationResult.getSchema()).build();
+
+        tableEnvironment.createTemporaryTable(path, updatedDescriptor);
         return addInsert(path, table, overwrite);
     }
 

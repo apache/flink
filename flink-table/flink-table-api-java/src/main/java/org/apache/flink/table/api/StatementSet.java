@@ -92,6 +92,19 @@ public interface StatementSet {
      * TableDescriptor)}. Then a statement is added to the statement set that inserts the {@link
      * Table} object's pipeline into that temporary table.
      *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>add computed or metadata columns next to the physical columns
+     *   <li>declare a watermark strategy
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
      * <p>Examples:
      *
      * <pre>{@code
