@@ -21,6 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.types.DataType;
 
 /**
  * A {@link StatementSet} accepts pipelines defined by DML statements or {@link Table} objects. The
@@ -66,6 +67,19 @@ public interface StatementSet {
      * TableDescriptor)}. Then a statement is added to the statement set that inserts the {@link
      * Table} object's pipeline into that temporary table.
      *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
      * <p>Examples:
      *
      * <pre>{@code
@@ -91,6 +105,19 @@ public interface StatementSet {
      * temporary catalog table (see {@link TableEnvironment#createTemporaryTable(String,
      * TableDescriptor)}. Then a statement is added to the statement set that inserts the {@link
      * Table} object's pipeline into that temporary table.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
      *
      * <p>Examples:
      *
