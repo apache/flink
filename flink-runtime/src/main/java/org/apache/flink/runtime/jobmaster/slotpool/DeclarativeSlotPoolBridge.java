@@ -345,17 +345,17 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     private void failPendingRequests(Collection<ResourceRequirement> acquiredResources) {
-        if (!pendingRequests.isEmpty()) {
-            final NoResourceAvailableException cause =
-                    new NoResourceAvailableException(
-                            "Could not acquire the minimum required resources. Acquired: "
-                                    + acquiredResources
-                                    + ". Current slot pool status: "
-                                    + getSlotServiceStatus());
-
+        Predicate<PendingRequest> predicate =
+                request -> !isBatchSlotRequestTimeoutCheckDisabled || !request.isBatchRequest();
+        if (pendingRequests.values().stream().anyMatch(predicate)) {
+            log.warn(
+                    "Could not acquire the minimum required resources, failing slot requests. Acquired: {}. Current slot pool status: {}",
+                    acquiredResources,
+                    getSlotServiceStatus());
             cancelPendingRequests(
-                    request -> !isBatchSlotRequestTimeoutCheckDisabled || !request.isBatchRequest(),
-                    cause);
+                    predicate,
+                    new NoResourceAvailableException(
+                            "Could not acquire the minimum required resources."));
         }
     }
 
