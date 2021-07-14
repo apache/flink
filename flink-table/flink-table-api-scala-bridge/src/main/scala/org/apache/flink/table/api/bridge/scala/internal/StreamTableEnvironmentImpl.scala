@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment =>
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
@@ -44,10 +45,8 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Preconditions
 
 import javax.annotation.Nullable
-
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
-
 import scala.collection.JavaConverters._
 
 /**
@@ -153,7 +152,7 @@ class StreamTableEnvironmentImpl (
     val objectIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier)
 
     val schemaTranslationResult =
-      ExternalSchemaTranslator.fromExternal(
+      SchemaTranslator.createConsumingResult(
         catalogManager.getDataTypeFactory, dataStream.getType, schema)
 
     val resolvedSchema = schemaTranslationResult.getSchema.resolve(schemaResolver)
@@ -206,7 +205,7 @@ class StreamTableEnvironmentImpl (
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetDataType, "Target data type must not be null.")
 
-    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+    val schemaTranslationResult = SchemaTranslator.createProducingResult(
       catalogManager.getDataTypeFactory,
       table.getResolvedSchema,
       targetDataType)
@@ -217,7 +216,7 @@ class StreamTableEnvironmentImpl (
   override def toChangelogStream(table: Table): DataStream[Row] = {
     Preconditions.checkNotNull(table, "Table must not be null.")
 
-    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+    val schemaTranslationResult = SchemaTranslator.createProducingResult(
       table.getResolvedSchema,
       null)
 
@@ -228,7 +227,7 @@ class StreamTableEnvironmentImpl (
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
 
-    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+    val schemaTranslationResult = SchemaTranslator.createProducingResult(
       table.getResolvedSchema,
       targetSchema)
 
@@ -244,7 +243,7 @@ class StreamTableEnvironmentImpl (
     Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
     Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
 
-    val schemaTranslationResult = ExternalSchemaTranslator.fromInternal(
+    val schemaTranslationResult = SchemaTranslator.createProducingResult(
       table.getResolvedSchema,
       targetSchema)
 
@@ -253,9 +252,8 @@ class StreamTableEnvironmentImpl (
 
   private def toStreamInternal[T](
       table: Table,
-      schemaTranslationResult: ExternalSchemaTranslator.OutputResult,
-      @Nullable changelogMode: ChangelogMode)
-    : DataStream[T] = {
+      schemaTranslationResult: ProducingResult,
+      @Nullable changelogMode: ChangelogMode): DataStream[T] = {
     val catalogManager = getCatalogManager
     val schemaResolver = catalogManager.getSchemaResolver
     val operationTreeBuilder = getOperationTreeBuilder

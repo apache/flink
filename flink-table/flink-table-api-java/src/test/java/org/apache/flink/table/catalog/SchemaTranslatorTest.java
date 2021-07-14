@@ -23,8 +23,8 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.ExternalSchemaTranslator.InputResult;
-import org.apache.flink.table.catalog.ExternalSchemaTranslator.OutputResult;
+import org.apache.flink.table.catalog.SchemaTranslator.ConsumingResult;
+import org.apache.flink.table.catalog.SchemaTranslator.ProducingResult;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
@@ -44,16 +44,16 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/** Tests for {@link ExternalSchemaTranslator}. */
-public class ExternalSchemaTranslatorTest {
+/** Tests for {@link SchemaTranslator}. */
+public class SchemaTranslatorTest {
 
     @Test
     public void testInputFromRow() {
         final TypeInformation<?> inputTypeInfo =
                 Types.ROW(Types.ROW(Types.INT, Types.BOOLEAN), Types.ENUM(DayOfWeek.class));
 
-        final InputResult result =
-                ExternalSchemaTranslator.fromExternal(
+        final ConsumingResult result =
+                SchemaTranslator.createConsumingResult(
                         dataTypeFactoryWithRawType(DayOfWeek.class), inputTypeInfo, null);
 
         assertEquals(
@@ -98,8 +98,8 @@ public class ExternalSchemaTranslatorTest {
                         DataTypes.FIELD("b", DataTypes.DOUBLE()),
                         DataTypes.FIELD("c", DataTypes.INT()));
 
-        final OutputResult result =
-                ExternalSchemaTranslator.fromInternal(
+        final ProducingResult result =
+                SchemaTranslator.createProducingResult(
                         dataTypeFactory(), inputSchema, physicalDataType);
 
         assertEquals(Optional.of(Arrays.asList("a", "b", "c")), result.getProjections());
@@ -119,8 +119,8 @@ public class ExternalSchemaTranslatorTest {
     public void testInputFromAtomic() {
         final TypeInformation<?> inputTypeInfo = Types.GENERIC(Row.class);
 
-        final InputResult result =
-                ExternalSchemaTranslator.fromExternal(
+        final ConsumingResult result =
+                SchemaTranslator.createConsumingResult(
                         dataTypeFactoryWithRawType(Row.class), inputTypeInfo, null);
 
         assertEquals(DataTypeFactoryMock.dummyRaw(Row.class), result.getPhysicalDataType());
@@ -138,8 +138,8 @@ public class ExternalSchemaTranslatorTest {
     public void testOutputToAtomicDataType() {
         final ResolvedSchema inputSchema = ResolvedSchema.of(Column.physical("a", DataTypes.INT()));
 
-        final OutputResult result =
-                ExternalSchemaTranslator.fromInternal(
+        final ProducingResult result =
+                SchemaTranslator.createProducingResult(
                         dataTypeFactory(), inputSchema, DataTypes.INT());
 
         assertEquals(Optional.empty(), result.getProjections());
@@ -153,8 +153,8 @@ public class ExternalSchemaTranslatorTest {
     public void testInputFromRowWithNonPhysicalDeclaredSchema() {
         final TypeInformation<?> inputTypeInfo = Types.ROW(Types.INT, Types.LONG);
 
-        final InputResult result =
-                ExternalSchemaTranslator.fromExternal(
+        final ConsumingResult result =
+                SchemaTranslator.createConsumingResult(
                         dataTypeFactory(),
                         inputTypeInfo,
                         Schema.newBuilder()
@@ -190,8 +190,8 @@ public class ExternalSchemaTranslatorTest {
         final TypeInformation<?> inputTypeInfo =
                 Types.ROW(Types.INT, Types.LONG, Types.GENERIC(BigDecimal.class), Types.BOOLEAN);
 
-        final InputResult result =
-                ExternalSchemaTranslator.fromExternal(
+        final ConsumingResult result =
+                SchemaTranslator.createConsumingResult(
                         dataTypeFactoryWithRawType(BigDecimal.class),
                         inputTypeInfo,
                         Schema.newBuilder()
@@ -234,8 +234,8 @@ public class ExternalSchemaTranslatorTest {
     public void testInputFromAtomicWithPhysicalDeclaredSchema() {
         final TypeInformation<?> inputTypeInfo = Types.GENERIC(Row.class);
 
-        final InputResult result =
-                ExternalSchemaTranslator.fromExternal(
+        final ConsumingResult result =
+                SchemaTranslator.createConsumingResult(
                         dataTypeFactoryWithRawType(Row.class),
                         inputTypeInfo,
                         Schema.newBuilder()
@@ -276,7 +276,7 @@ public class ExternalSchemaTranslatorTest {
         final TypeInformation<?> inputTypeInfo = Types.ROW(Types.INT, Types.LONG);
 
         try {
-            ExternalSchemaTranslator.fromExternal(
+            SchemaTranslator.createConsumingResult(
                     dataTypeFactory(),
                     inputTypeInfo,
                     Schema.newBuilder().column("INVALID", DataTypes.BIGINT()).build());
@@ -296,7 +296,7 @@ public class ExternalSchemaTranslatorTest {
                         Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false),
                         Column.physical("name", DataTypes.STRING()));
 
-        final OutputResult result = ExternalSchemaTranslator.fromInternal(tableSchema, null);
+        final ProducingResult result = SchemaTranslator.createProducingResult(tableSchema, null);
 
         assertEquals(Optional.empty(), result.getProjections());
 
@@ -319,8 +319,8 @@ public class ExternalSchemaTranslatorTest {
                         Column.physical("name", DataTypes.STRING()),
                         Column.metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3), null, false));
 
-        final OutputResult result =
-                ExternalSchemaTranslator.fromInternal(
+        final ProducingResult result =
+                SchemaTranslator.createProducingResult(
                         tableSchema,
                         Schema.newBuilder()
                                 .columnByExpression("computed", "f1 + 42")
@@ -345,8 +345,8 @@ public class ExternalSchemaTranslatorTest {
                         Column.physical("rowtime", DataTypes.TIMESTAMP_LTZ(3)),
                         Column.physical("name", DataTypes.STRING()));
 
-        final OutputResult result =
-                ExternalSchemaTranslator.fromInternal(
+        final ProducingResult result =
+                SchemaTranslator.createProducingResult(
                         tableSchema,
                         Schema.newBuilder()
                                 .column("id", DataTypes.BIGINT())

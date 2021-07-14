@@ -57,10 +57,10 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.flattenToNames;
  * sources.
  */
 @Internal
-public final class ExternalSchemaTranslator {
+public final class SchemaTranslator {
 
     /**
-     * Converts the given {@link DataType} into the final {@link OutputResult}.
+     * Converts the given {@link DataType} into the final {@link ProducingResult}.
      *
      * <p>This method serves three types of use cases:
      *
@@ -70,7 +70,7 @@ public final class ExternalSchemaTranslator {
      *   <li>3. Entirely use declared schema.
      * </ul>
      */
-    public static OutputResult fromInternal(
+    public static ProducingResult createProducingResult(
             ResolvedSchema inputSchema, @Nullable Schema declaredSchema) {
 
         // no schema has been declared by the user,
@@ -79,14 +79,14 @@ public final class ExternalSchemaTranslator {
             // go through data type to erase time attributes
             final DataType physicalDataType = inputSchema.toSourceRowDataType();
             final Schema schema = Schema.newBuilder().fromRowDataType(physicalDataType).build();
-            return new OutputResult(null, schema, null);
+            return new ProducingResult(null, schema, null);
         }
 
         final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
 
         // the declared schema does not contain physical information,
         // thus, it only replaces physical columns with metadata rowtime
-        if (declaredColumns.stream().noneMatch(ExternalSchemaTranslator::isPhysical)) {
+        if (declaredColumns.stream().noneMatch(SchemaTranslator::isPhysical)) {
             // go through data type to erase time attributes
             final DataType sourceDataType = inputSchema.toSourceRowDataType();
             final DataType physicalDataType =
@@ -94,14 +94,14 @@ public final class ExternalSchemaTranslator {
             final Schema.Builder builder = Schema.newBuilder();
             builder.fromRowDataType(physicalDataType);
             builder.fromColumns(declaredColumns);
-            return new OutputResult(null, builder.build(), null);
+            return new ProducingResult(null, builder.build(), null);
         }
 
-        return new OutputResult(null, declaredSchema, null);
+        return new ProducingResult(null, declaredSchema, null);
     }
 
     /**
-     * Converts the given {@link DataType} into the final {@link OutputResult}.
+     * Converts the given {@link DataType} into the final {@link ProducingResult}.
      *
      * <p>This method serves one type of use case:
      *
@@ -109,7 +109,7 @@ public final class ExternalSchemaTranslator {
      *   <li>1. Derive physical columns from the input data type.
      * </ul>
      */
-    public static OutputResult fromInternal(
+    public static ProducingResult createProducingResult(
             DataTypeFactory dataTypeFactory,
             ResolvedSchema inputSchema,
             AbstractDataType<?> targetDataType) {
@@ -132,12 +132,12 @@ public final class ExternalSchemaTranslator {
         final Schema schema =
                 Schema.newBuilder().fromFields(targetFieldNames, targetFieldDataTypes).build();
 
-        return new OutputResult(projections, schema, resolvedDataType);
+        return new ProducingResult(projections, schema, resolvedDataType);
     }
 
     /**
      * Converts the given {@link TypeInformation} and an optional declared {@link Schema} (possibly
-     * incomplete) into the final {@link InputResult}.
+     * incomplete) into the final {@link ConsumingResult}.
      *
      * <p>This method serves three types of use cases:
      *
@@ -148,18 +148,18 @@ public final class ExternalSchemaTranslator {
      *   <li>3. Derive and enrich physical columns and merge other schema information.
      * </ul>
      */
-    public static InputResult fromExternal(
+    public static ConsumingResult createConsumingResult(
             DataTypeFactory dataTypeFactory,
             TypeInformation<?> inputTypeInfo,
             @Nullable Schema declaredSchema) {
         final DataType inputDataType =
                 TypeInfoDataTypeConverter.toDataType(dataTypeFactory, inputTypeInfo);
-        return fromExternal(dataTypeFactory, inputDataType, declaredSchema, true);
+        return createConsumingResult(dataTypeFactory, inputDataType, declaredSchema, true);
     }
 
     /**
      * Converts the given {@link DataType} and an optional declared {@link Schema} (possibly
-     * incomplete) into the final {@link InputResult}.
+     * incomplete) into the final {@link ConsumingResult}.
      *
      * <p>This method serves three types of use cases:
      *
@@ -171,7 +171,7 @@ public final class ExternalSchemaTranslator {
      *       {@param mergePhysicalSchema} is set to {@code true}).
      * </ul>
      */
-    public static InputResult fromExternal(
+    public static ConsumingResult createConsumingResult(
             DataTypeFactory dataTypeFactory,
             DataType inputDataType,
             @Nullable Schema declaredSchema,
@@ -187,7 +187,7 @@ public final class ExternalSchemaTranslator {
         if (declaredSchema == null) {
             final Schema.Builder builder = Schema.newBuilder();
             addPhysicalSourceDataTypeFields(builder, inputDataType, null);
-            return new InputResult(inputDataType, isTopLevelRecord, builder.build(), null);
+            return new ConsumingResult(inputDataType, isTopLevelRecord, builder.build(), null);
         }
 
         final List<UnresolvedColumn> declaredColumns = declaredSchema.getColumns();
@@ -195,15 +195,15 @@ public final class ExternalSchemaTranslator {
 
         // the declared schema does not contain physical information,
         // thus, it only enriches the non-physical column parts
-        if (declaredColumns.stream().noneMatch(ExternalSchemaTranslator::isPhysical)) {
+        if (declaredColumns.stream().noneMatch(SchemaTranslator::isPhysical)) {
             final Schema.Builder builder = Schema.newBuilder();
             addPhysicalSourceDataTypeFields(builder, inputDataType, declaredPrimaryKey);
             builder.fromSchema(declaredSchema);
-            return new InputResult(inputDataType, isTopLevelRecord, builder.build(), null);
+            return new ConsumingResult(inputDataType, isTopLevelRecord, builder.build(), null);
         }
 
         if (!mergePhysicalSchema) {
-            return new InputResult(inputDataType, isTopLevelRecord, declaredSchema, null);
+            return new ConsumingResult(inputDataType, isTopLevelRecord, declaredSchema, null);
         }
 
         // the declared schema enriches the physical data type and the derived schema,
@@ -213,7 +213,7 @@ public final class ExternalSchemaTranslator {
         final Schema patchedSchema =
                 createPatchedSchema(isTopLevelRecord, patchedDataType, declaredSchema);
         final List<String> projections = extractProjections(patchedSchema, declaredSchema);
-        return new InputResult(patchedDataType, isTopLevelRecord, patchedSchema, projections);
+        return new ConsumingResult(patchedDataType, isTopLevelRecord, patchedSchema, projections);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -303,7 +303,7 @@ public final class ExternalSchemaTranslator {
             List<UnresolvedColumn> declaredColumns) {
         final List<UnresolvedPhysicalColumn> physicalColumns =
                 declaredColumns.stream()
-                        .filter(ExternalSchemaTranslator::isPhysical)
+                        .filter(SchemaTranslator::isPhysical)
                         .map(UnresolvedPhysicalColumn.class::cast)
                         .collect(Collectors.toList());
 
@@ -445,11 +445,11 @@ public final class ExternalSchemaTranslator {
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Result of {@link #fromExternal(DataTypeFactory, TypeInformation, Schema)}.
+     * Result of {@link #createConsumingResult(DataTypeFactory, TypeInformation, Schema)}.
      *
      * <p>The result should be applied as: physical data type -> schema -> projections.
      */
-    public static final class InputResult {
+    public static final class ConsumingResult {
 
         /**
          * Data type expected from the first table ecosystem operator for input conversion. The data
@@ -476,7 +476,7 @@ public final class ExternalSchemaTranslator {
          */
         private final @Nullable List<String> projections;
 
-        private InputResult(
+        private ConsumingResult(
                 DataType physicalDataType,
                 boolean isTopLevelRecord,
                 Schema schema,
@@ -505,11 +505,11 @@ public final class ExternalSchemaTranslator {
     }
 
     /**
-     * Result of {@link #fromExternal(DataTypeFactory, TypeInformation, Schema)}.
+     * Result of {@link #createConsumingResult(DataTypeFactory, TypeInformation, Schema)}.
      *
      * <p>The result should be applied as: projections -> schema -> physical data type.
      */
-    public static final class OutputResult {
+    public static final class ProducingResult {
 
         /**
          * List of field names to adjust the order of columns in {@link #schema} for the final
@@ -528,7 +528,7 @@ public final class ExternalSchemaTranslator {
          */
         private final @Nullable DataType physicalDataType;
 
-        private OutputResult(
+        private ProducingResult(
                 @Nullable List<String> projections,
                 Schema schema,
                 @Nullable DataType physicalDataType) {

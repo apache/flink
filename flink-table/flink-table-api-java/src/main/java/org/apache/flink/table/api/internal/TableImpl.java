@@ -34,10 +34,10 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
-import org.apache.flink.table.catalog.ExternalSchemaTranslator;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
@@ -583,8 +583,8 @@ public class TableImpl implements Table {
     public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
         final String path = TableDescriptorUtil.getUniqueAnonymousPath();
 
-        final ExternalSchemaTranslator.InputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromExternal(
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
                         getResolvedSchema().toSourceRowDataType(),
                         descriptor.getSchema().orElse(null),
