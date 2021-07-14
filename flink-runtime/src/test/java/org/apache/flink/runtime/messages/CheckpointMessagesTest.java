@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateObjectID;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import org.junit.Test;
@@ -141,6 +142,11 @@ public class CheckpointMessagesTest {
         @Override
         public StateObjectID getID() {
             return StateObjectID.of("test");
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }

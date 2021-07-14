@@ -144,4 +144,11 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
                 + "} "
                 + super.toString();
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        super.accept(visitor);
+        metaDataState.accept(visitor);
+        visitor.visit(this);
+    }
 }

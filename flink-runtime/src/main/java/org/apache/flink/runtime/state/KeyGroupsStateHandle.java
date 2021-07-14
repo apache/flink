@@ -155,4 +155,10 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
                 + stateHandle
                 + '}';
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        stateHandle.accept(visitor);
+        visitor.visit(this);
+    }
 }

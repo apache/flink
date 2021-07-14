@@ -116,6 +116,14 @@ public class SnapshotResult<T extends StateObject> implements StateObject {
         return jobManagerOwnedSnapshot != null ? jobManagerOwnedSnapshot.getStateSize() : 0L;
     }
 
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        if (jobManagerOwnedSnapshot != null) {
+            jobManagerOwnedSnapshot.accept(visitor);
+        }
+        visitor.visit(this);
+    }
+
     @SuppressWarnings("unchecked")
     public static <T extends StateObject> SnapshotResult<T> empty() {
         return (SnapshotResult<T>) EMPTY;

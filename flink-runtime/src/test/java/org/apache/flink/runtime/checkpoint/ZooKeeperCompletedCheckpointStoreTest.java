@@ -26,6 +26,7 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
@@ -299,6 +300,11 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 

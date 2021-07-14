@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObjectID;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -121,5 +122,13 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
 
     public List<Tuple2<StreamStateHandle, Long>> getHandlesAndOffsets() {
         return Collections.unmodifiableList(handlesAndOffsets);
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (Tuple2<StreamStateHandle, Long> t : handlesAndOffsets) {
+            t.f0.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

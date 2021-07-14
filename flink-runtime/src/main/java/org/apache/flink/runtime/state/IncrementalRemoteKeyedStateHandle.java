@@ -335,4 +335,16 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 + (sharedStateRegistry != null)
                 + '}';
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        metaStateHandle.accept(visitor);
+        for (StreamStateHandle handle : privateState.values()) {
+            handle.accept(visitor);
+        }
+        for (StreamStateHandle handle : sharedState.values()) {
+            handle.accept(visitor);
+        }
+        visitor.visit(this);
+    }
 }

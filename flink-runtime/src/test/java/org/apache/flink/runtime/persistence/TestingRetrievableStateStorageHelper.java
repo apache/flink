@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.persistence;
 
 import org.apache.flink.runtime.state.RetrievableStateHandle;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -86,6 +87,11 @@ public final class TestingRetrievableStateStorageHelper<T extends Serializable>
         @Override
         public long getStateSize() {
             return getStateSizeFunction.apply(state);
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }

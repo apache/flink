@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
@@ -98,5 +99,10 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
 
     public long getTo() {
         return ((SequenceNumber.GenericSequenceNumber) to).number;
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        visitor.visit(this);
     }
 }

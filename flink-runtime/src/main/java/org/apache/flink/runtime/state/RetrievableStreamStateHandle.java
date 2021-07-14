@@ -90,4 +90,10 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     public void close() throws IOException {
         //		wrappedStreamStateHandle.close();
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        wrappedStreamStateHandle.accept(visitor);
+        visitor.visit(this);
+    }
 }

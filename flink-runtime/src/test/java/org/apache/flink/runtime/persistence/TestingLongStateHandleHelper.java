@@ -20,6 +20,7 @@ package org.apache.flink.runtime.persistence;
 
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.util.AbstractID;
 
 import java.util.ArrayList;
@@ -108,6 +109,11 @@ public class TestingLongStateHandleHelper
                     .add("numberOfDiscardCalls=" + numberOfDiscardCalls)
                     .toString();
         }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
+        }
     }
 
     /** Testing {@link RetrievableStateStorageHelper} implementation with {@link Long}. */
@@ -135,6 +141,11 @@ public class TestingLongStateHandleHelper
         @Override
         public long getStateSize() {
             return AbstractID.SIZE;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }
