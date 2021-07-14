@@ -373,6 +373,11 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
                         BasicTypeInfo.INT_TYPE_INFO, new ExecutionConfig());
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // Never let checkpoint expire so that we can get thread dump on CI if the test get stuck
+        // See FLINK-21117
+        env.getCheckpointConfig().setCheckpointTimeout(Long.MAX_VALUE);
+
         env.enableCheckpointing(500);
         env.setParallelism(1);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
