@@ -144,9 +144,9 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                 new TestingResourceManagerGateway();
 
         try (final DeclarativeSlotPoolBridge slotPool =
-                new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor)
+                new DeclarativeSlotPoolBridgeBuilder()
                         .setResourceManagerGateway(testingResourceManagerGateway)
-                        .build()) {
+                        .buildAndStart(mainThreadExecutor)) {
 
             final CompletableFuture<PhysicalSlot> slotFuture =
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
@@ -270,10 +270,10 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
             final Time batchSlotTimeout)
             throws Exception {
 
-        return new DeclarativeSlotPoolBridgeBuilder(componentMainThreadExecutor)
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
                 .setBatchSlotTimeout(batchSlotTimeout)
-                .build();
+                .buildAndStart(componentMainThreadExecutor);
     }
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool(
@@ -283,10 +283,10 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
             final Clock clock)
             throws Exception {
 
-        return new DeclarativeSlotPoolBridgeBuilder(componentMainThreadExecutor)
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
                 .setBatchSlotTimeout(batchSlotTimeout)
                 .setClock(clock)
-                .build();
+                .buildAndStart(componentMainThreadExecutor);
     }
 }

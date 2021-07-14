@@ -179,9 +179,9 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     private SlotPool createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor)
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setBatchSlotTimeout(batchSlotTimeout)
-                .build();
+                .buildAndStart(mainThreadExecutor);
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {

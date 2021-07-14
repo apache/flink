@@ -36,8 +36,6 @@ import java.util.concurrent.CompletableFuture;
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
 
-    private final ComponentMainThreadExecutor componentMainThreadExecutor;
-
     private JobID jobId = new JobID();
     private Time batchSlotTimeout =
             Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
@@ -46,11 +44,6 @@ public class DeclarativeSlotPoolBridgeBuilder {
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-
-    public DeclarativeSlotPoolBridgeBuilder(
-            ComponentMainThreadExecutor componentMainThreadExecutor) {
-        this.componentMainThreadExecutor = componentMainThreadExecutor;
-    }
 
     public DeclarativeSlotPoolBridgeBuilder setResourceManagerGateway(
             @Nullable ResourceManagerGateway resourceManagerGateway) {
@@ -78,15 +71,19 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
-    public DeclarativeSlotPoolBridge build() throws Exception {
-        final DeclarativeSlotPoolBridge slotPool =
-                new DeclarativeSlotPoolBridge(
-                        jobId,
-                        new DefaultDeclarativeSlotPoolFactory(),
-                        clock,
-                        TestingUtils.infiniteTime(),
-                        idleSlotTimeout,
-                        batchSlotTimeout);
+    public DeclarativeSlotPoolBridge build() {
+        return new DeclarativeSlotPoolBridge(
+                jobId,
+                new DefaultDeclarativeSlotPoolFactory(),
+                clock,
+                TestingUtils.infiniteTime(),
+                idleSlotTimeout,
+                batchSlotTimeout);
+    }
+
+    public DeclarativeSlotPoolBridge buildAndStart(
+            ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
+        final DeclarativeSlotPoolBridge slotPool = build();
 
         slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 

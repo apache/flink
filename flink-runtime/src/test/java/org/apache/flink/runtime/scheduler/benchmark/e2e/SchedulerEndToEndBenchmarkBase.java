@@ -61,7 +61,7 @@ public class SchedulerEndToEndBenchmarkBase extends SchedulerBenchmarkBase {
         final List<JobVertex> jobVertices = createDefaultJobVertices(jobConfiguration);
         jobGraph = createJobGraph(jobVertices, jobConfiguration);
 
-        slotPool = new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).build();
+        slotPool = new DeclarativeSlotPoolBridgeBuilder().buildAndStart(mainThreadExecutor);
         physicalSlotProvider = createPhysicalSlotProvider(slotPool);
     }
 

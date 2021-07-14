@@ -130,14 +130,14 @@ public class SlotPoolInteractionsTest extends TestLogger {
     }
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPool() throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
-                .build();
+        return new DeclarativeSlotPoolBridgeBuilder()
+                .buildAndStart(testMainThreadExecutor.getMainThreadExecutor());
     }
 
     private DeclarativeSlotPoolBridge createAndSetUpSlotPoolWithoutResourceManager()
             throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(testMainThreadExecutor.getMainThreadExecutor())
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(null)
-                .build();
+                .buildAndStart(testMainThreadExecutor.getMainThreadExecutor());
     }
 }

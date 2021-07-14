@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -35,7 +32,6 @@ import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.clock.SystemClock;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,13 +56,7 @@ public class SlotPoolUtils {
     }
 
     public static DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge() {
-        return new DeclarativeSlotPoolBridge(
-                new JobID(),
-                new DefaultDeclarativeSlotPoolFactory(),
-                SystemClock.getInstance(),
-                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
-                Time.fromDuration(AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue()),
-                Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
+        return new DeclarativeSlotPoolBridgeBuilder().build();
     }
 
     public static CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
