@@ -3,7 +3,7 @@ title: "Handling Application Parameters"
 weight: 51
 type: docs
 aliases:
-  - /zh/dev/application_parameters.html
+- /zh/dev/application_parameters.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,28 +24,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Handling Application Parameters
+# 应用程序参数处理
 
-
-
-Handling Application Parameters
+应用程序参数处理
 -------------------------------
-Almost all Flink applications, both batch and streaming, rely on external configuration parameters.
-They are used to specify input and output sources (like paths or addresses), system parameters (parallelism, runtime configuration), and application specific parameters (typically used within user functions).
+几乎所有的Flink应用程序，也就是批和流程序，都依赖于外部配置参数。这些配置参数指定输入和输出源（如路径或地址），系统参数（并行度，运行时配置）和应用程序特定参数（通常在用户函数中使用）。
 
-Flink provides a simple utility called `ParameterTool` to provide some basic tooling for solving these problems.
-Please note that you don't have to use the `ParameterTool` described here. Other frameworks such as [Commons CLI](https://commons.apache.org/proper/commons-cli/) and
-[argparse4j](http://argparse4j.sourceforge.net/) also work well with Flink.
+Flink提供一个名为 `Parametertool` 的简单实用类，为解决以上问题提供了基本的工具。 这里请注意，此处描述的` parametertool` 并不是必须的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/)等其他框架也与Flink兼容非常好。
 
+### `ParameterTool` 读取配置值
 
-### Getting your configuration values into the `ParameterTool`
-
-The `ParameterTool` provides a set of predefined static methods for reading the configuration. The tool is internally expecting a `Map<String, String>`, so it's very easy to integrate it with your own configuration style.
+`ParameterTool` 提供一组预定义的静态方法，用于读取配置信息。 该工具类内部实现倾向于使用` Map<string，string>`，因此很容易与我们自己的配置集成。
 
 
-#### From `.properties` files
+#### 配置值来自 `.properties` 文件
 
-The following method will read a [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) file and provide the key/value pairs:
+以下方法将读取 [Properties](https://docs.oracle.com/javase/tutorial/essential/environment/properties.html) 文件并解析出键/值对：
+
 ```java
 String propertiesFilePath = "/home/sam/flink/myjob.properties";
 ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFilePath);
@@ -58,9 +53,10 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 ```
 
 
-#### From the command line arguments
+#### 配置值来自命令行
 
-This allows getting arguments like `--input hdfs:///mydata --elements 42` from the command line.
+该操作从命令行获取像 `--input hdfs:///mydata --elements 42` 的参数。
+
 ```java
 public static void main(String[] args) {
     ParameterTool parameter = ParameterTool.fromArgs(args);
@@ -68,22 +64,22 @@ public static void main(String[] args) {
 ```
 
 
-#### From system properties
+#### 配置值来自系统属性
 
-When starting a JVM, you can pass system properties to it: `-Dinput=hdfs:///mydata`. You can also initialize the `ParameterTool` from these system properties:
+启动JVM时，可以将系统属性传递给JVM：`-Dinput=hdfs:///mydata`。还可以从这些系统属性初始化 `ParameterTool`：
 
 ```java
 ParameterTool parameter = ParameterTool.fromSystemProperties();
 ```
 
+### Flink程序中使用参数
 
-### Using the parameters in your Flink program
+现在我们已经从某处获得了参数（见上文），我们可以以各种方式使用它们。
 
-Now that we've got the parameters from somewhere (see above) we can use them in various ways.
+**直接从`ParameterTool`获取**
 
-**Directly from the `ParameterTool`**
+`ParameterTool`本身具有访问配置值的方法。
 
-The `ParameterTool` itself has methods for accessing the values.
 ```java
 ParameterTool parameters = // ...
 parameter.getRequired("input");
@@ -93,8 +89,7 @@ parameter.getNumberOfParameters()
 // .. there are more methods available.
 ```
 
-You can use the return values of these methods directly in the `main()` method of the client submitting the application.
-For example, you could set the parallelism of a operator like this:
+你可以直接在提交应用程序时在客户端的 `main()` 方法中使用这些方法的返回值。例如，你可以这样设置算子的并行度：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -102,20 +97,20 @@ int parallelism = parameters.get("mapParallelism", 2);
 DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer()).setParallelism(parallelism);
 ```
 
-Since the `ParameterTool` is serializable, you can pass it to the functions itself:
+由于 `ParameterTool` 是序列化的，可以将其传递给函数本身：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
 DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(parameters));
 ```
 
-and then use it inside the function for getting values from the command line.
+然后在函数内使用它以获取命令行的值。
 
-#### Register the parameters globally
+#### 全局注册参数
 
-Parameters registered as global job parameters in the `ExecutionConfig` can be accessed as configuration values from the JobManager web interface and in all functions defined by the user.
+从 JobManager web 界面和用户定义的所有函数中可以以配置值的方式获取在 `ExecutionConfig` 中注册为全局作业参数。
 
-Register the parameters globally:
+在全局注册参数：
 
 ```java
 ParameterTool parameters = ParameterTool.fromArgs(args);
@@ -124,8 +119,7 @@ ParameterTool parameters = ParameterTool.fromArgs(args);
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 env.getConfig().setGlobalJobParameters(parameters);
 ```
-
-Access them in any rich user function:
+在任意富函数中访问参数：
 
 ```java
 public static final class Tokenizer extends RichFlatMapFunction<String, Tuple2<String, Integer>> {
