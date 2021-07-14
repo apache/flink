@@ -30,7 +30,7 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 //
-//  This Java grammar file is copied from the official Antlr repository
+//  This Java grammar file is copied from
 //  https://github.com/antlr/grammars-v4/tree/master/java/java
 //
 // ----------------------------------------------------------------------------

@@ -30,8 +30,12 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 //
-//  This Java grammar file is copied from the official Antlr repository
+//  This Java grammar file is copied and modified from
 //  https://github.com/antlr/grammars-v4/tree/master/java/java
+//
+//  Modification:
+//    1. Add constructorCall
+//    2. Make constructorCall as a child of expression
 //
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
@@ -476,6 +480,10 @@ methodCall
     : IDENTIFIER '(' expressionList? ')'
     ;
 
+constructorCall
+    : (THIS | SUPER) '(' expressionList? ')'
+    ;
+
 expression
     : primary
     | expression bop='.'
@@ -488,6 +496,7 @@ expression
       )
     | expression '[' expression ']'
     | methodCall
+    | constructorCall
     | NEW creator
     | '(' typeType ')' expression
     | expression postfix=('++' | '--')
