@@ -115,8 +115,9 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param checkpointId of the checkpoint to trigger
      * @param timestamp of the checkpoint to trigger
      * @param checkpointOptions of the checkpoint to trigger
+     * @return Future acknowledge which is returned once the checkpoint has been triggered
      */
-    void triggerCheckpoint(
+    CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,

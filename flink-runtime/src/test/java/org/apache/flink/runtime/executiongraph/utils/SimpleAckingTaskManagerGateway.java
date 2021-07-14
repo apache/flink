@@ -140,7 +140,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             long timestamp) {}
 
     @Override
-    public void triggerCheckpoint(
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
@@ -149,6 +149,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
         checkpointConsumer.accept(
                 executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions);
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
