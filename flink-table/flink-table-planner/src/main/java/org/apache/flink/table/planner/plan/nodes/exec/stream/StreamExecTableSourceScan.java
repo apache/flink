@@ -60,9 +60,9 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
-            String name) {
+            String operatorName) {
         // It's better to use StreamExecutionEnvironment.createInput()
         // rather than addLegacySource() for streaming, because it take care of checkpoint.
-        return env.createInput(inputFormat, outputTypeInfo).name(name).getTransformation();
+        return env.createInput(inputFormat, outputTypeInfo).name(operatorName).getTransformation();
     }
 }

@@ -47,13 +47,14 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
-            String name) {
+            String operatorName) {
         // env.createInput will use ContinuousFileReaderOperator, but it do not support multiple
         // paths. If read partitioned source, after partition pruning, we need let InputFormat
         // to read multiple partitions which are multiple paths.
         // We can use InputFormatSourceFunction directly to support InputFormat.
-        InputFormatSourceFunction<RowData> func =
+        final InputFormatSourceFunction<RowData> function =
                 new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
-        return env.addSource(func, name, outputTypeInfo).getTransformation();
+        return createSourceFunctionTransformation(
+                env, function, true, operatorName, outputTypeInfo);
     }
 }

@@ -20,10 +20,15 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -78,11 +83,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
         if (provider instanceof SourceFunctionProvider) {
-            SourceFunction<RowData> sourceFunction =
-                    ((SourceFunctionProvider) provider).createSourceFunction();
-            return env.addSource(sourceFunction, operatorName, outputTypeInfo).getTransformation();
+            final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
+            final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();
+            return createSourceFunctionTransformation(
+                    env,
+                    function,
+                    sourceFunctionProvider.isBounded(),
+                    operatorName,
+                    outputTypeInfo);
         } else if (provider instanceof InputFormatProvider) {
-            InputFormat<RowData, ?> inputFormat =
+            final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
             return createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
         } else if (provider instanceof SourceProvider) {
@@ -108,6 +118,38 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     }
 
     /**
+     * Adopted from {@link StreamExecutionEnvironment#addSource(SourceFunction, String,
+     * TypeInformation)} but with custom {@link Boundedness}.
+     */
+    protected Transformation<RowData> createSourceFunctionTransformation(
+            StreamExecutionEnvironment env,
+            SourceFunction<RowData> function,
+            boolean isBounded,
+            String operatorName,
+            TypeInformation<RowData> outputTypeInfo) {
+
+        env.clean(function);
+
+        final int parallelism;
+        if (function instanceof ParallelSourceFunction) {
+            parallelism = env.getParallelism();
+        } else {
+            parallelism = 1;
+        }
+
+        final Boundedness boundedness;
+        if (isBounded) {
+            boundedness = Boundedness.BOUNDED;
+        } else {
+            boundedness = Boundedness.CONTINUOUS_UNBOUNDED;
+        }
+
+        final StreamSource<RowData, ?> sourceOperator = new StreamSource<>(function);
+        return new LegacySourceTransformation<>(
+                operatorName, sourceOperator, outputTypeInfo, parallelism, boundedness);
+    }
+
+    /**
      * Creates a {@link Transformation} based on the given {@link InputFormat}. The implementation
      * is different for streaming mode and batch mode.
      */
@@ -115,5 +157,5 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
-            String name);
+            String operatorName);
 }
