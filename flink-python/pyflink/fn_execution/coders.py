@@ -175,12 +175,7 @@ class ValueCoder(LengthPrefixBaseCoder):
         super(ValueCoder, self).__init__(field_coder)
 
     def get_impl(self):
-        if isinstance(self._field_coder, (ArrowCoder, OverWindowArrowCoder)):
-            # ArrowCoder and OverWindowArrowCoder doesn't support fast coder currently.
-            from pyflink.fn_execution import coder_impl_slow
-            return coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
-        else:
-            return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
+        return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
 
 
 class FlattenRowCoder(FieldCoder):
@@ -222,9 +217,7 @@ class ArrowCoder(FieldCoder):
         self._timezone = timezone
 
     def get_impl(self):
-        # ArrowCoder doesn't support fast coder implementation currently.
-        from pyflink.fn_execution import coder_impl_slow
-        return coder_impl_slow.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
+        return coder_impl.ArrowCoderImpl(self._schema, self._row_type, self._timezone)
 
     def __repr__(self):
         return 'ArrowCoder[%s]' % self._schema
@@ -239,9 +232,7 @@ class OverWindowArrowCoder(FieldCoder):
         self._arrow_coder = ArrowCoder(schema, row_type, timezone)
 
     def get_impl(self):
-        # OverWindowArrowCoder doesn't support fast coder implementation currently.
-        from pyflink.fn_execution import coder_impl_slow
-        return coder_impl_slow.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
+        return coder_impl.OverWindowArrowCoderImpl(self._arrow_coder.get_impl())
 
     def __repr__(self):
         return 'OverWindowArrowCoder[%s]' % self._arrow_coder

@@ -24,7 +24,7 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 
 from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
 from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
+from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
 
 cdef class FunctionOperation(Operation):
@@ -36,13 +36,8 @@ cdef class FunctionOperation(Operation):
     def __init__(self, name, spec, counter_factory, sampler, consumers, operation_cls):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
-        self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-
-        if isinstance(self._value_coder_impl, BeamCoderImpl):
-            self._is_python_coder = False
-            self._output_coder = self._value_coder_impl._value_coder
-        else:
-            self._is_python_coder = True
+        value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
+        self._output_coder = value_coder_impl._value_coder
 
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
@@ -68,28 +63,22 @@ cdef class FunctionOperation(Operation):
         cdef LengthPrefixBaseCoderImpl input_coder
         cdef BeamOutputStream output_stream
         with self.scoped_process_state:
-            if self._is_python_coder:
-                for value in o.value:
-                    self._value_coder_impl.encode_to_stream(
-                        self.process_element(value), self.consumer.output_stream, True)
-                    self.consumer.output_stream.maybe_flush()
+            input_stream_wrapper = o.value
+            input_stream = input_stream_wrapper._input_stream
+            input_coder = input_stream_wrapper._value_coder
+            output_stream = BeamOutputStream(self.consumer.output_stream)
+            if isinstance(self.operation, BundleOperation):
+                while input_stream.available():
+                    input_data = input_coder.decode_from_stream(input_stream)
+                    self.process_element(input_data)
+                result = self.operation.finish_bundle()
+                self._output_coder.encode_to_stream(result, output_stream)
             else:
-                input_stream_wrapper = o.value
-                input_stream = input_stream_wrapper._input_stream
-                input_coder = input_stream_wrapper._value_coder
-                output_stream = BeamOutputStream(self.consumer.output_stream)
-                if isinstance(self.operation, BundleOperation):
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        self.process_element(input_data)
-                    result = self.operation.finish_bundle()
+                while input_stream.available():
+                    input_data = input_coder.decode_from_stream(input_stream)
+                    result = self.process_element(input_data)
                     self._output_coder.encode_to_stream(result, output_stream)
-                else:
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        result = self.process_element(input_data)
-                        self._output_coder.encode_to_stream(result, output_stream)
-                output_stream.flush()
+            output_stream.close()
 
     def progress_metrics(self):
         metrics = super(FunctionOperation, self).progress_metrics()

@@ -33,6 +33,9 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
     cdef size_t _output_pos
     cdef size_t _output_buffer_size
     cdef BOutputStream _output_stream
+    cdef bint _flush_event
+    cdef object _periodic_flusher
+    cdef void _flush(self)
     cdef void _map_output_data_to_output_stream(self)
     cdef void _maybe_flush(self)
     cdef void _parse_output_stream(self, BOutputStream output_stream)

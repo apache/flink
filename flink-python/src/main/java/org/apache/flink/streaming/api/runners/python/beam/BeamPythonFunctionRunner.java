@@ -328,6 +328,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     @Override
+    public Tuple2<byte[], Integer> takeResult() throws Exception {
+        byte[] result = resultBuffer.take();
+        this.reusableResultTuple.f0 = result;
+        this.reusableResultTuple.f1 = result.length;
+        return this.reusableResultTuple;
+    }
+
+    @Override
     public void flush() throws Exception {
         if (bundleStarted) {
             try {
@@ -336,6 +344,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 bundleStarted = false;
             }
         }
+    }
+
+    /** Interrupts the progress of takeResult. */
+    public void noEmptySignal() {
+        resultBuffer.add(new byte[0]);
     }
 
     private void finishBundle() {

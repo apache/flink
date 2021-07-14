@@ -23,6 +23,8 @@
 from libc.stdlib cimport realloc
 from libc.string cimport memcpy
 
+from apache_beam.runners.worker.data_plane import PeriodicThread
+
 cdef class BeamInputStream(LengthPrefixInputStream):
     def __cinit__(self, input_stream, size):
         self._input_buffer_size = size
@@ -54,6 +56,12 @@ cdef class BeamInputStream(LengthPrefixInputStream):
         input_stream.pos = self._input_buffer_size
 
 cdef class BeamOutputStream(LengthPrefixOutputStream):
+    def __init__(self, *args, **kwargs):
+        self._flush_event = False
+        self._periodic_flusher = PeriodicThread(1.0, self.flush)
+        self._periodic_flusher.daemon = True
+        self._periodic_flusher.start()
+
     def __cinit__(self, output_stream):
         self._output_stream = output_stream
         self._parse_output_stream(output_stream)
@@ -61,11 +69,11 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
     cdef void write(self, char*data, size_t length):
         cdef char bits
         cdef size_t size = length
+        cdef size_t i
         # the length of the variable prefix length will be less than 9 bytes
         if self._output_buffer_size < self._output_pos + length + 9:
             self._output_buffer_size += length + 9
-            self._output_data = <char*> realloc(self._output_data,
-                                                self._output_buffer_size)
+            self._output_data = <char*> realloc(self._output_data, self._output_buffer_size)
         # write variable prefix length
         while size:
             bits = size & 0x7F
@@ -85,9 +93,15 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         self._maybe_flush()
 
     cpdef void flush(self):
-        cdef size_t i
-        self._map_output_data_to_output_stream()
-        self._output_stream.maybe_flush()
+        if not self._flush_event:
+            self._flush_event = True
+
+    cpdef void close(self):
+        if self._periodic_flusher:
+            self._periodic_flusher.cancel()
+            self._periodic_flusher = None
+        if self._output_pos > 0:
+            self._flush()
 
     cdef void _parse_output_stream(self, BOutputStream output_stream):
         self._output_data = output_stream.data
@@ -95,10 +109,14 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         self._output_buffer_size = output_stream.buffer_size
 
     cdef void _maybe_flush(self):
-        if self._output_pos > 10_000_000:
-            self._map_output_data_to_output_stream()
-            self._output_stream.flush()
-            self._output_pos = 0
+        if self._flush_event or self._output_pos > 10_000_000:
+            self._flush()
+            self._flush_event = False
+
+    cdef void _flush(self):
+        self._map_output_data_to_output_stream()
+        self._output_stream.flush()
+        self._output_pos = 0
 
     cdef void _map_output_data_to_output_stream(self):
         self._output_stream.data = self._output_data
