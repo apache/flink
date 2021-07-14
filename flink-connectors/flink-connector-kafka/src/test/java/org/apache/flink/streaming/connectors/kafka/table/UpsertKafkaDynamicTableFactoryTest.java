@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SinkSemantic;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -613,7 +614,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 topic,
                 properties,
                 null,
-                KafkaSinkSemantic.AT_LEAST_ONCE,
+                SinkSemantic.AT_LEAST_ONCE,
                 true,
                 flushMode,
                 parallelism);

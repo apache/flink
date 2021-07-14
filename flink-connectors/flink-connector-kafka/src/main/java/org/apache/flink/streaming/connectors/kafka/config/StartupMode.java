@@ -19,6 +19,8 @@ package org.apache.flink.streaming.connectors.kafka.config;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartitionStateSentinel;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
+import org.apache.flink.table.api.TableException;
 
 /** Startup modes for the Kafka Consumer. */
 @Internal
@@ -54,6 +56,25 @@ public enum StartupMode {
 
     StartupMode(long stateSentinel) {
         this.stateSentinel = stateSentinel;
+    }
+
+    public static StartupMode fromOption(ScanStartupMode scanStartupMode) {
+        switch (scanStartupMode) {
+            case EARLIEST_OFFSET:
+                return StartupMode.EARLIEST;
+            case LATEST_OFFSET:
+                return StartupMode.LATEST;
+            case GROUP_OFFSETS:
+                return StartupMode.GROUP_OFFSETS;
+            case SPECIFIC_OFFSETS:
+                return StartupMode.SPECIFIC_OFFSETS;
+            case TIMESTAMP:
+                return StartupMode.TIMESTAMP;
+
+            default:
+                throw new TableException(
+                        "Unsupported startup mode. Validator should have checked that.");
+        }
     }
 
     public long getStateSentinel() {
