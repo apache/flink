@@ -39,12 +39,12 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.ExternalSchemaTranslator;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaResolver;
+import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
@@ -299,8 +299,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         final ObjectIdentifier objectIdentifier =
                 catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-        final ExternalSchemaTranslator.InputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromExternal(
+        final SchemaTranslator.ConsumingResult schemaTranslationResult =
+                SchemaTranslator.createConsumingResult(
                         catalogManager.getDataTypeFactory(), dataStream.getType(), schema);
 
         final ResolvedSchema resolvedSchema =
@@ -356,8 +356,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetDataType, "Target data type must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(
                         getCatalogManager().getDataTypeFactory(),
                         table.getResolvedSchema(),
                         targetDataType);
@@ -369,8 +369,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
     public DataStream<Row> toChangelogStream(Table table) {
         Preconditions.checkNotNull(table, "Table must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), null);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), null);
 
         return toStreamInternal(table, schemaTranslationResult, null);
     }
@@ -380,8 +380,8 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
         return toStreamInternal(table, schemaTranslationResult, null);
     }
@@ -393,15 +393,15 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
 
-        final ExternalSchemaTranslator.OutputResult schemaTranslationResult =
-                ExternalSchemaTranslator.fromInternal(table.getResolvedSchema(), targetSchema);
+        final SchemaTranslator.ProducingResult schemaTranslationResult =
+                SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
         return toStreamInternal(table, schemaTranslationResult, changelogMode);
     }
 
     private <T> DataStream<T> toStreamInternal(
             Table table,
-            ExternalSchemaTranslator.OutputResult schemaTranslationResult,
+            SchemaTranslator.ProducingResult schemaTranslationResult,
             @Nullable ChangelogMode changelogMode) {
         final CatalogManager catalogManager = getCatalogManager();
         final SchemaResolver schemaResolver = catalogManager.getSchemaResolver();
