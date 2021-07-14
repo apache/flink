@@ -92,11 +92,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelAllPendingRequestWhileCanceling() throws Exception {
         try (DeclarativeSlotPoolBridge slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
 
-            final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
+            final int numTasksExceedSlotPool = 50;
             // create a graph with task count larger than slot pool
             JobVertex sender =
                     ExecutionGraphTestUtils.createJobVertex(
-                            "Task", NUM_TASKS + NUM_TASKS_EXCEED_SLOT_POOL, NoOpInvokable.class);
+                            "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
@@ -108,7 +108,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
             startScheduling(scheduler);
             offerSlots(slotPool, NUM_TASKS);
 
-            assertEquals(NUM_TASKS_EXCEED_SLOT_POOL, slotPool.getNumPendingRequests());
+            assertEquals(numTasksExceedSlotPool, slotPool.getNumPendingRequests());
 
             scheduler.cancel();
             assertEquals(JobStatus.CANCELLING, executionGraph.getState());
@@ -120,11 +120,11 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelAllPendingRequestWhileFailing() throws Exception {
         try (DeclarativeSlotPoolBridge slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
 
-            final int NUM_TASKS_EXCEED_SLOT_POOL = 50;
+            final int numTasksExceedSlotPool = 50;
             // create a graph with task count larger than slot pool
             JobVertex sender =
                     ExecutionGraphTestUtils.createJobVertex(
-                            "Task", NUM_TASKS + NUM_TASKS_EXCEED_SLOT_POOL, NoOpInvokable.class);
+                            "Task", NUM_TASKS + numTasksExceedSlotPool, NoOpInvokable.class);
             JobGraph graph = JobGraphTestUtils.streamingJobGraph(sender);
             SchedulerBase scheduler =
                     SchedulerTestingUtils.newSchedulerBuilder(graph, mainThreadExecutor)
@@ -136,7 +136,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
             startScheduling(scheduler);
             offerSlots(slotPool, NUM_TASKS);
 
-            assertEquals(NUM_TASKS_EXCEED_SLOT_POOL, slotPool.getNumPendingRequests());
+            assertEquals(numTasksExceedSlotPool, slotPool.getNumPendingRequests());
 
             scheduler.handleGlobalFailure(new Exception("test"));
             assertEquals(JobStatus.FAILING, executionGraph.getState());
@@ -366,7 +366,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     //  Utilities
     // ------------------------------------------------------------------------
 
-    private static void startScheduling(SchedulerBase scheduler) throws Exception {
+    private static void startScheduling(SchedulerBase scheduler) {
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.CREATED));
         scheduler.startScheduling();
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));
