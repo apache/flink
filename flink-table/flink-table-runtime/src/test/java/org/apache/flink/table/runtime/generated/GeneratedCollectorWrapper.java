@@ -30,7 +30,7 @@ public class GeneratedCollectorWrapper<C extends Collector<?>> extends Generated
     private final Class<C> clazz;
 
     public GeneratedCollectorWrapper(C collector) {
-        super(collector.getClass().getSimpleName(), "N/A", new Object[0]);
+        super(collector.getClass().getSimpleName(), "", new Object[0]);
         //noinspection unchecked
         this.clazz = (Class<C>) collector.getClass();
     }

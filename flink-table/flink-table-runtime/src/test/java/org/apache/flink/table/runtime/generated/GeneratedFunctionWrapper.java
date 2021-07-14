@@ -30,7 +30,7 @@ public class GeneratedFunctionWrapper<F extends Function> extends GeneratedFunct
     private final Class<F> clazz;
 
     public GeneratedFunctionWrapper(F function) {
-        super(function.getClass().getSimpleName(), "N/A", new Object[0]);
+        super(function.getClass().getSimpleName(), "", new Object[0]);
         //noinspection unchecked
         this.clazz = (Class<F>) function.getClass();
     }

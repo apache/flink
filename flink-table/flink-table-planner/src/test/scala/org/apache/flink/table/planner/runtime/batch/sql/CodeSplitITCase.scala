@@ -28,6 +28,8 @@ import org.apache.flink.types.Row
 import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Before, Test}
 
+import java.io.{OutputStream, PrintStream}
+
 import scala.collection.Seq
 
 class CodeSplitITCase extends BatchTestBase {
@@ -101,12 +103,20 @@ class CodeSplitITCase extends BatchTestBase {
       TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.MaxValue)
     tEnv.getConfig.getConfiguration.setInteger(
       TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.MaxValue)
+    val originalStdOut = System.out
     try {
+      // redirect stdout to a null output stream to silence compile error in CompileUtils
+      System.setOut(new PrintStream(new OutputStream {
+        override def write(b: Int): Unit = {}
+      }))
       checkResult(sql, results)
       Assert.fail("Expecting compiler exception")
     } catch {
       case e: Exception =>
         MatcherAssert.assertThat(e, FlinkMatchers.containsMessage("grows beyond 64 KB"))
+    } finally {
+      // set stdout back
+      System.setOut(originalStdOut)
     }
   }
 }

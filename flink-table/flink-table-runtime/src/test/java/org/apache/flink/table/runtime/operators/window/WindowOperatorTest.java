@@ -2054,7 +2054,7 @@ public class WindowOperatorTest {
                         .countWindow(windowSize)
                         .aggregate(
                                 new GeneratedNamespaceTableAggsHandleFunction<>(
-                                        "MockClass", "MockCode", new Object[] {}),
+                                        "MockClass", "", new Object[] {}),
                                 accTypes,
                                 aggResultTypes,
                                 windowTypes)
