@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.testutils;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 import java.io.IOException;
@@ -75,5 +76,10 @@ public class EmptyStreamStateHandle implements StreamStateHandle {
     @Override
     public long getStateSize() {
         return 0;
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        visitor.visit(this);
     }
 }

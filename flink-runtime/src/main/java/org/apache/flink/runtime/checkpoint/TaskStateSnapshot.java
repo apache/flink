@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -217,5 +218,13 @@ public class TaskStateSnapshot implements CompositeStateHandle {
                         .filter(mapping -> !mapping.equals(NO_RESCALE))
                         .iterator(),
                 NO_RESCALE);
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (OperatorSubtaskState operatorSubtaskState : subtaskStatesByOperatorID.values()) {
+            operatorSubtaskState.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

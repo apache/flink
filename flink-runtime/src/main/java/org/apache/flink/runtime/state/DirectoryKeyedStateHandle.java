@@ -29,7 +29,7 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     private static final long serialVersionUID = 1L;
 
     /** The directory state handle. */
-    @Nonnull private final DirectoryStateHandle directoryStateHandle;
+    @Nonnull protected final DirectoryStateHandle directoryStateHandle;
 
     /** The key-group range. */
     @Nonnull private final KeyGroupRange keyGroupRange;
@@ -107,5 +107,11 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
                 + ", keyGroupRange="
                 + keyGroupRange
                 + '}';
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        directoryStateHandle.accept(visitor);
+        visitor.visit(this);
     }
 }

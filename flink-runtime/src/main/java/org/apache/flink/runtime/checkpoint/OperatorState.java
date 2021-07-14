@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -232,5 +233,16 @@ public class OperatorState implements CompositeStateHandle {
                 + ", total size (bytes): "
                 + getStateSize()
                 + ')';
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (OperatorSubtaskState operatorSubtaskState : operatorSubtaskStates.values()) {
+            operatorSubtaskState.accept(visitor);
+        }
+        if (coordinatorState != null) {
+            coordinatorState.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateObjectID;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -74,6 +75,12 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                     @Override
                     public long getStateSize() {
                         return 0;
+                    }
+
+                    @Override
+                    public <E extends Exception> void accept(StateObjectVisitor<E> visitor)
+                            throws E {
+                        visitor.visit(this);
                     }
                 };
 

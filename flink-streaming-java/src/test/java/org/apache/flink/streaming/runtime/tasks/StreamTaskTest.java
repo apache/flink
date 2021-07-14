@@ -82,6 +82,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
@@ -2496,6 +2497,11 @@ public class StreamTaskTest extends TestLogger {
         public long getStateSize() {
             return 0L;
         }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
+        }
     }
 
     private static class TestingOperatorStateHandle implements OperatorStateHandle {
@@ -2536,6 +2542,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0L;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StateUtil;
 
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -428,5 +430,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
                     inputRescalingDescriptor,
                     outputRescalingDescriptor);
         }
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (StateObjectCollection<?> collection :
+                asList(
+                        managedOperatorState,
+                        rawOperatorState,
+                        managedKeyedState,
+                        rawKeyedState,
+                        inputChannelState,
+                        resultSubpartitionState)) {
+            collection.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

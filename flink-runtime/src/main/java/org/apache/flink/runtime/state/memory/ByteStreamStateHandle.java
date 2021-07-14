@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.Preconditions;
 
@@ -145,5 +146,10 @@ public class ByteStreamStateHandle implements StreamStateHandle {
                 return -1;
             }
         }
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        visitor.visit(this);
     }
 }

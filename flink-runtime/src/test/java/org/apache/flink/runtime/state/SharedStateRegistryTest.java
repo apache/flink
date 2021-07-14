@@ -89,8 +89,7 @@ public class SharedStateRegistryTest {
     @Test(expected = IllegalStateException.class)
     public void testUnregisterWithUnexistedKey() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        sharedStateRegistry.unregisterReference(
-                StateObjectID.of("non-existent"));
+        sharedStateRegistry.unregisterReference(StateObjectID.of("non-existent"));
     }
 
     private static class TestSharedState implements StreamStateHandle {
@@ -140,6 +139,11 @@ public class SharedStateRegistryTest {
 
         public boolean isDiscarded() {
             return discarded;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }

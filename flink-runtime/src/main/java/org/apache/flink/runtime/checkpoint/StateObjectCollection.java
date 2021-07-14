@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StateUtil;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -220,5 +221,13 @@ public class StateObjectCollection<T extends StateObject> implements Collection<
 
     private static long getSizeNullSafe(StateObject stateObject) {
         return stateObject != null ? stateObject.getStateSize() : 0L;
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (T stateObject : stateObjects) {
+            stateObject.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
@@ -421,6 +422,11 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         @Override
         public long getStateSize() {
             return 0;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }

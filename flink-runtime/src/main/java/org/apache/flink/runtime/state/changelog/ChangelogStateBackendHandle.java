@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
@@ -138,6 +139,17 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                     ExceptionUtils.rethrowIOException(e);
                 }
             };
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            for (KeyedStateHandle keyedStateHandle : materialized) {
+                keyedStateHandle.accept(visitor);
+            }
+            for (ChangelogStateHandle handle : nonMaterialized) {
+                handle.accept(visitor);
+            }
+            visitor.visit(this);
         }
     }
 }

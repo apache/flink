@@ -56,4 +56,9 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     public long getStateSize() {
         return 0L;
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        visitor.visit(this);
+    }
 }
