@@ -102,7 +102,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
     protected final @Nullable FlinkKafkaPartitioner<RowData> partitioner;
 
     /** Sink commit semantic. */
-    protected final KafkaSinkSemantic semantic;
+    protected final KafkaConnectorOptions.KafkaSinkSemantic sinkSemantic;
 
     /**
      * Flag to determine sink mode. In upsert mode sink transforms the delete/update-before message
@@ -127,7 +127,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
             String topic,
             Properties properties,
             @Nullable FlinkKafkaPartitioner<RowData> partitioner,
-            KafkaSinkSemantic semantic,
+            KafkaConnectorOptions.KafkaSinkSemantic sinkSemantic,
             boolean upsertMode,
             SinkBufferFlushMode flushMode,
             @Nullable Integer parallelism) {
@@ -148,7 +148,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
         this.topic = checkNotNull(topic, "Topic must not be null.");
         this.properties = checkNotNull(properties, "Properties must not be null.");
         this.partitioner = partitioner;
-        this.semantic = checkNotNull(semantic, "Semantic must not be null.");
+        this.sinkSemantic = checkNotNull(sinkSemantic, "Semantic must not be null.");
         this.upsertMode = upsertMode;
         this.flushMode = checkNotNull(flushMode);
         if (flushMode.isEnabled() && !upsertMode) {
@@ -216,7 +216,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         topic,
                         properties,
                         partitioner,
-                        semantic,
+                        sinkSemantic,
                         upsertMode,
                         flushMode,
                         parallelism);
@@ -249,7 +249,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 && Objects.equals(topic, that.topic)
                 && Objects.equals(properties, that.properties)
                 && Objects.equals(partitioner, that.partitioner)
-                && Objects.equals(semantic, that.semantic)
+                && Objects.equals(sinkSemantic, that.sinkSemantic)
                 && Objects.equals(upsertMode, that.upsertMode)
                 && Objects.equals(flushMode, that.flushMode)
                 && Objects.equals(parallelism, that.parallelism);
@@ -269,7 +269,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 topic,
                 properties,
                 partitioner,
-                semantic,
+                sinkSemantic,
                 upsertMode,
                 flushMode,
                 parallelism);
@@ -330,7 +330,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                 topic,
                 kafkaSerializer,
                 properties,
-                FlinkKafkaProducer.Semantic.valueOf(semantic.toString()),
+                sinkSemantic.getSemantic(),
                 FlinkKafkaProducer.DEFAULT_KAFKA_PRODUCERS_POOL_SIZE);
     }
 

@@ -182,7 +182,7 @@ public class UpsertKafkaDynamicTableFactory
                 tableOptions.get(TOPIC).get(0),
                 properties,
                 null,
-                KafkaSinkSemantic.AT_LEAST_ONCE,
+                KafkaConnectorOptions.KafkaSinkSemantic.AT_LEAST_ONCE,
                 true,
                 flushMode,
                 parallelism);

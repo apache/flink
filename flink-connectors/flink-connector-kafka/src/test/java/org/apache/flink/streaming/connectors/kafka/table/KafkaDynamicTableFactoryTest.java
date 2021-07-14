@@ -33,6 +33,8 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KafkaSinkSemantic;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.ScanStartupMode;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -251,7 +253,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                             options.put("topic-pattern", TOPIC_REGEX);
                             options.put(
                                     "scan.startup.mode",
-                                    KafkaConnectorOptionsUtil.SCAN_STARTUP_MODE_VALUE_EARLIEST);
+                                    ScanStartupMode.EARLIEST_OFFSET.toString());
                             options.remove("scan.startup.specific-offsets");
                         });
         final DynamicTableSource actualSource = createTableSource(SCHEMA, modifiedOptions);
@@ -627,24 +629,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testInvalidScanStartupMode() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Invalid value for option 'scan.startup.mode'. "
-                                        + "Supported values are [earliest-offset, latest-offset, group-offsets, specific-offsets, timestamp], "
-                                        + "but was: abc")));
-
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSourceOptions(),
-                        options -> options.put("scan.startup.mode", "abc"));
-
-        createTableSource(SCHEMA, modifiedOptions);
-    }
-
-    @Test
     public void testSourceTableWithTopicAndTopicPattern() {
         thrown.expect(ValidationException.class);
         thrown.expect(
@@ -725,22 +709,6 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
                 getModifiedOptions(
                         getKeyValueOptions(),
                         options -> options.put("sink.partitioner", "round-robin"));
-
-        createTableSink(SCHEMA, modifiedOptions);
-    }
-
-    @Test
-    public void testInvalidSinkSemantic() {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                containsCause(
-                        new ValidationException(
-                                "Unsupported value 'xyz' for 'sink.semantic'. "
-                                        + "Supported values are ['at-least-once', 'exactly-once', 'none'].")));
-
-        final Map<String, String> modifiedOptions =
-                getModifiedOptions(
-                        getBasicSinkOptions(), options -> options.put("sink.semantic", "xyz"));
 
         createTableSink(SCHEMA, modifiedOptions);
     }
@@ -946,8 +914,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("properties.bootstrap.servers", "dummy");
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put(
-                "sink.semantic", KafkaConnectorOptionsUtil.SINK_SEMANTIC_VALUE_EXACTLY_ONCE);
+        tableOptions.put("sink.semantic", KafkaSinkSemantic.EXACTLY_ONCE.toString());
         // Format options.
         tableOptions.put("format", TestFormatFactory.IDENTIFIER);
         final String formatDelimiterKey =
@@ -967,8 +934,7 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
         tableOptions.put("scan.topic-partition-discovery.interval", DISCOVERY_INTERVAL);
         tableOptions.put(
                 "sink.partitioner", KafkaConnectorOptionsUtil.SINK_PARTITIONER_VALUE_FIXED);
-        tableOptions.put(
-                "sink.semantic", KafkaConnectorOptionsUtil.SINK_SEMANTIC_VALUE_EXACTLY_ONCE);
+        tableOptions.put("sink.semantic", KafkaSinkSemantic.EXACTLY_ONCE.toString());
         // Format options.
         tableOptions.put("key.format", TestFormatFactory.IDENTIFIER);
         tableOptions.put(
