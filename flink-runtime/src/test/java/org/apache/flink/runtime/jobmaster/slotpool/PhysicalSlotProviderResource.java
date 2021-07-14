@@ -60,7 +60,7 @@ public class PhysicalSlotProviderResource extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        slotPool = new DeclarativeSlotPoolBridgeBuilder(mainThreadExecutor).build();
+        slotPool = new DeclarativeSlotPoolBridgeBuilder().buildAndStart(mainThreadExecutor);
         physicalSlotProvider = new PhysicalSlotProviderImpl(slotSelectionStrategy, slotPool);
     }
 

@@ -111,9 +111,8 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest extends TestLogge
     public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
             throws Exception {
         DeclarativeSlotPoolBridge slotPool =
-                new DeclarativeSlotPoolBridgeBuilder(
-                                physicalSlotProviderResource.getMainThreadExecutor())
-                        .build();
+                new DeclarativeSlotPoolBridgeBuilder()
+                        .buildAndStart(physicalSlotProviderResource.getMainThreadExecutor());
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
 
         new PhysicalSlotProviderImpl(

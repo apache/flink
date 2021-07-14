@@ -128,10 +128,9 @@ public class DeclarativeSlotPoolBridgeRequestCompletionTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPool() throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .build();
+                .buildAndStart(ComponentMainThreadExecutorServiceAdapter.forMainThread());
     }
 
     private void connectToResourceManager(SlotPool slotPool) {
@@ -139,9 +138,8 @@ public class DeclarativeSlotPoolBridgeRequestCompletionTest extends TestLogger {
     }
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
-        return new DeclarativeSlotPoolBridgeBuilder(
-                        ComponentMainThreadExecutorServiceAdapter.forMainThread())
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(null)
-                .build();
+                .buildAndStart(ComponentMainThreadExecutorServiceAdapter.forMainThread());
     }
 }
