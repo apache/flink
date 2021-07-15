@@ -48,6 +48,12 @@ class RetryingExecutor implements AutoCloseable {
         this.scheduler = scheduler;
     }
 
+    /**
+     * Execute the given action according to the retry policy.
+     *
+     * <p>NOTE: the action must be idempotent because multiple instances of it can be executed
+     * concurrently (if the policy allows retries).
+     */
     void execute(RetryPolicy retryPolicy, RunnableWithException action) {
         LOG.debug("execute with retryPolicy: {}", retryPolicy);
         RetriableTask task = new RetriableTask(action, retryPolicy, scheduler);
@@ -68,7 +74,18 @@ class RetryingExecutor implements AutoCloseable {
         private final ScheduledExecutorService executorService;
         private final int current;
         private final RetryPolicy retryPolicy;
+        /**
+         * The flag shared across all attempts to execute the same {#link #runnable action}
+         * signifying whether it was completed already or not. Used to prevent scheduling a new
+         * attempt or starting it if another attempt has already completed the action.
+         */
         private final AtomicBoolean actionCompleted;
+
+        /**
+         * The flag private to <b>this</b> attempt signifying whether it has completed or not. Used
+         * to prevent double finalization ({@link #handleError}) by the executing thread and
+         * timeouting thread.
+         */
         private final AtomicBoolean attemptCompleted = new AtomicBoolean(false);
 
         RetriableTask(

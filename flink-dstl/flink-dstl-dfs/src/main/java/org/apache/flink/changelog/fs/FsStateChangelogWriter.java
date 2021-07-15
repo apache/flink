@@ -112,7 +112,12 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     @GuardedBy("lock")
     private SequenceNumber lowestSequenceNumber = INITIAL_SQN;
 
-    /** Active changes, that will all use {@link #activeSequenceNumber}. */
+    /**
+     * Active changes, that all share the same {@link #activeSequenceNumber}.
+     *
+     * <p>When the latter is incremented in {@link #rollover()}, those changes are added to {@link
+     * #notUploaded} and {@link #activeChangeSet} is emptied.
+     */
     private List<StateChange> activeChangeSet = new ArrayList<>();
 
     /** {@link #activeChangeSet} size in bytes. */
@@ -171,6 +176,8 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         SequenceNumber tmp = activeSequenceNumber;
         // the returned current sequence number must be able to distinguish between the changes
         // appended before and after this call so we need to use the next sequence number
+        // At the same time, we don't want to increment SQN on each append (to avoid too many
+        // objects and segments in the resulting file).
         rollover();
         return tmp;
     }

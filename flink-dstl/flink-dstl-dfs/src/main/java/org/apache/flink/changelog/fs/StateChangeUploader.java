@@ -51,6 +51,12 @@ import static org.apache.flink.util.Preconditions.checkState;
 //     2. re-use closeAndGetHandle
 //     3. re-use in-memory handles (.metadata)
 //     4. handle in-memory handles duplication
+
+/**
+ * The purpose of this interface is to abstract the different implementations of uploading state
+ * changelog parts. It has a single {@link #upload} method with a single {@link UploadTask} argument
+ * which is meant to initiate such an upload.
+ */
 interface StateChangeUploader extends AutoCloseable {
 
     void upload(UploadTask uploadTask) throws IOException;
