@@ -22,12 +22,24 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the
@@ -44,14 +56,10 @@ import org.apache.flink.util.Preconditions;
  * <p>The outputs will be as the following format: {{{
  * +------------------+-------------------------+ | forwarded fields | scalar function results |
  * +------------------+-------------------------+ }}}.
- *
- * @param <IN> Type of the input elements.
- * @param <OUT> Type of the output elements.
- * @param <UDFIN> Type of the UDF input type.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
-        extends AbstractStatelessFunctionOperator<IN, OUT, UDFIN> {
+public abstract class AbstractPythonScalarFunctionOperator
+        extends AbstractStatelessFunctionOperator<RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -63,7 +71,19 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
     /** The offset of the fields which should be forwarded. */
     protected final int[] forwardedFields;
 
-    AbstractPythonScalarFunctionOperator(
+    /** The collector used to collect records. */
+    protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
+
+    /** The Projection which projects the forwarded fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
+
+    /** The Projection which projects the udf input fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> udfInputProjection;
+
+    /** The JoinedRowData reused holding the execution result. */
+    protected transient JoinedRowData reuseJoinedRow;
+
+    public AbstractPythonScalarFunctionOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
@@ -77,12 +97,12 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(forwardedFields.length, outputType.getFieldCount()));
         super.open();
+        rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
+        reuseJoinedRow = new JoinedRowData();
+
+        udfInputProjection = createUdfInputProjection();
+        forwardedFieldProjection = createForwardedFieldProjection();
     }
 
     @Override
@@ -106,5 +126,54 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
     @Override
     public String getFunctionUrn() {
         return SCALAR_FUNCTION_URN;
+    }
+
+    @Override
+    public void bufferInput(RowData input) {
+        // always copy the projection result as the generated Projection reuses the projection
+        // result
+        RowData forwardedFields = forwardedFieldProjection.apply(input).copy();
+        forwardedFields.setRowKind(input.getRowKind());
+        forwardedInputQueue.add(forwardedFields);
+    }
+
+    @Override
+    public RowData getFunctionInput(RowData element) {
+        return udfInputProjection.apply(element);
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
+    }
+
+    private Projection<RowData, BinaryRowData> createUdfInputProjection() {
+        final GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "UdfInputProjection",
+                        inputType,
+                        userDefinedFunctionInputType,
+                        userDefinedFunctionInputOffsets);
+        // noinspection unchecked
+        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
+    }
+
+    private Projection<RowData, BinaryRowData> createForwardedFieldProjection() {
+        final RowType forwardedFieldType =
+                new RowType(
+                        Arrays.stream(forwardedFields)
+                                .mapToObj(i -> inputType.getFields().get(i))
+                                .collect(Collectors.toList()));
+        final GeneratedProjection generatedProjection =
+                ProjectionCodeGenerator.generateProjection(
+                        CodeGeneratorContext.apply(new TableConfig()),
+                        "ForwardedFieldProjection",
+                        inputType,
+                        forwardedFieldType,
+                        forwardedFields);
+        // noinspection unchecked
+        return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
     }
 }

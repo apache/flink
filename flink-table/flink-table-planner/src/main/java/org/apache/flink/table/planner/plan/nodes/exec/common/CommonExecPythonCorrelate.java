@@ -60,7 +60,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
 
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
-            "org.apache.flink.table.runtime.operators.python.table.RowDataPythonTableFunctionOperator";
+            "org.apache.flink.table.runtime.operators.python.table.PythonTableFunctionOperator";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;

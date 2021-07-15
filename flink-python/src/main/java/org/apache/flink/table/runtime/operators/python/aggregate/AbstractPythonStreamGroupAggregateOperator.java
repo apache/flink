@@ -155,7 +155,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> fields = new ArrayList<>();
         fields.add(new RowType.RowField("record_type", new TinyIntType()));
         fields.add(new RowType.RowField("row", inputType));
@@ -165,7 +165,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         return outputType;
     }
 

@@ -38,9 +38,9 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/** Tests for {@link RowDataPythonTableFunctionOperator}. */
-public class RowDataPythonTableFunctionOperatorTest
-        extends PythonTableFunctionOperatorTestBase<RowData, RowData, RowData> {
+/** Tests for {@link PythonTableFunctionOperator}. */
+public class PythonTableFunctionOperatorTest
+        extends PythonTableFunctionOperatorTestBase<RowData, RowData> {
 
     private final RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(
@@ -69,21 +69,21 @@ public class RowDataPythonTableFunctionOperatorTest
     }
 
     @Override
-    public AbstractPythonTableFunctionOperator<RowData, RowData, RowData> getTestOperator(
+    public PythonTableFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo tableFunction,
             RowType inputType,
             RowType outputType,
             int[] udfInputOffsets,
             JoinRelType joinRelType) {
-        return new RowDataPassThroughPythonTableFunctionOperator(
+        return new PassThroughPythonTableFunctionOperator(
                 config, tableFunction, inputType, outputType, udfInputOffsets, joinRelType);
     }
 
-    private static class RowDataPassThroughPythonTableFunctionOperator
-            extends RowDataPythonTableFunctionOperator {
+    private static class PassThroughPythonTableFunctionOperator
+            extends PythonTableFunctionOperator {
 
-        RowDataPassThroughPythonTableFunctionOperator(
+        PassThroughPythonTableFunctionOperator(
                 Configuration config,
                 PythonFunctionInfo tableFunction,
                 RowType inputType,

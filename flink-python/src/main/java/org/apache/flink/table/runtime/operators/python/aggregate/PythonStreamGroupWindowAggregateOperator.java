@@ -273,7 +273,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     }
 
     @Override
-    public RowType getUserDefinedFunctionInputType() {
+    public RowType createUserDefinedFunctionInputType() {
         List<RowType.RowField> inputFields = new ArrayList<>();
         inputFields.add(new RowType.RowField("record_type", new TinyIntType()));
         inputFields.add(new RowType.RowField("row_data", inputType));
@@ -288,7 +288,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     }
 
     @Override
-    public RowType getUserDefinedFunctionOutputType() {
+    public RowType createUserDefinedFunctionOutputType() {
         List<RowType.RowField> outputFields = new ArrayList<>();
         outputFields.add(new RowType.RowField("record_type", new TinyIntType()));
         List<RowType.RowField> resultFields =

@@ -40,8 +40,8 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/** Tests for {@link RowDataPythonScalarFunctionOperator}. */
-public class RowDataPythonScalarFunctionOperatorTest
+/** Tests for {@link PythonScalarFunctionOperator}. */
+public class PythonScalarFunctionOperatorTest
         extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
     private final RowDataHarnessAssertor assertor =
@@ -53,7 +53,7 @@ public class RowDataPythonScalarFunctionOperatorTest
                     });
 
     @Override
-    public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
+    public AbstractPythonScalarFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
@@ -94,7 +94,7 @@ public class RowDataPythonScalarFunctionOperatorTest
     }
 
     private static class PassThroughPythonScalarFunctionOperator
-            extends RowDataPythonScalarFunctionOperator {
+            extends PythonScalarFunctionOperator {
 
         PassThroughPythonScalarFunctionOperator(
                 Configuration config,

@@ -120,11 +120,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+        super.open();
         forwardedInputSerializer = new RowDataSerializer(inputType);
         this.lastKeyDataStartPos = 0;
         windowBoundaryWithDataBaos = new ByteArrayOutputStreamWithPos();
@@ -139,7 +135,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 boundedRangeWindowBoundaries.add(new ArrayList<>());
             }
         }
-        super.open();
     }
 
     @Override
@@ -320,6 +315,14 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     @Override
     public String getFunctionUrn() {
         return PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN;
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(inputType.getFieldCount(), outputType.getFieldCount()));
     }
 
     @Override

@@ -26,7 +26,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
@@ -42,8 +41,8 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.row;
 
-/** Tests for {@link RowDataArrowPythonScalarFunctionOperator}. */
-public class RowDataArrowPythonScalarFunctionOperatorTest
+/** Tests for {@link ArrowPythonScalarFunctionOperator}. */
+public class ArrowPythonScalarFunctionOperatorTest
         extends PythonScalarFunctionOperatorTestBase<RowData, RowData, RowData> {
 
     private final RowDataHarnessAssertor assertor =
@@ -55,7 +54,7 @@ public class RowDataArrowPythonScalarFunctionOperatorTest
                     });
 
     @Override
-    public AbstractPythonScalarFunctionOperator<RowData, RowData, RowData> getTestOperator(
+    public ArrowPythonScalarFunctionOperator getTestOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
@@ -94,7 +93,7 @@ public class RowDataArrowPythonScalarFunctionOperatorTest
     }
 
     private static class PassThroughRowDataArrowPythonScalarFunctionOperator
-            extends RowDataArrowPythonScalarFunctionOperator {
+            extends ArrowPythonScalarFunctionOperator {
 
         PassThroughRowDataArrowPythonScalarFunctionOperator(
                 Configuration config,

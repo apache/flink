@@ -157,9 +157,9 @@ public abstract class AbstractPythonStreamAggregateOperator
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
         baosWrapper = new DataOutputViewStreamWrapper(baos);
-        userDefinedFunctionInputType = getUserDefinedFunctionInputType();
+        userDefinedFunctionInputType = createUserDefinedFunctionInputType();
         udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
-        userDefinedFunctionOutputType = getUserDefinedFunctionOutputType();
+        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
         udfOutputTypeSerializer =
                 PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
         rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
@@ -267,9 +267,9 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     public abstract void processElementInternal(RowData value) throws Exception;
 
-    public abstract RowType getUserDefinedFunctionInputType();
+    public abstract RowType createUserDefinedFunctionInputType();
 
-    public abstract RowType getUserDefinedFunctionOutputType();
+    public abstract RowType createUserDefinedFunctionOutputType();
 
     private Map<String, String> buildJobOptions(Configuration config) {
         Map<String, String> jobOptions = new HashMap<>();
