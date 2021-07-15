@@ -217,6 +217,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<includes>
+								<include>**/org/apache/flink/core/mailbox/SyncMailboxExecutor*</include>
+							</includes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

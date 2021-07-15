@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -232,4 +234,20 @@ public interface Environment {
     IndexedInputGate[] getAllInputGates();
 
     TaskEventDispatcher getTaskEventDispatcher();
+
+    // --------------------------------------------------------------------------------------------
+    //  Fields set in the StreamTask to provide access to mailbox and other runtime resources
+    // --------------------------------------------------------------------------------------------
+
+    default void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {}
+
+    default MailboxExecutor getMainMailboxExecutor() {
+        throw new UnsupportedOperationException();
+    }
+
+    default void setAsyncOperationsThreadPool(ExecutorService executorService) {}
+
+    default ExecutorService getAsyncOperationsThreadPool() {
+        throw new UnsupportedOperationException();
+    }
 }

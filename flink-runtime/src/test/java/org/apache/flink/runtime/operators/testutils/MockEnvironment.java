@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.mailbox.MailboxExecutor;
+import org.apache.flink.core.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -52,12 +54,14 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.concurrent.Executors;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -120,6 +124,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
+    private MailboxExecutor mainMailboxExecutor;
+
+    private ExecutorService asyncOperationsThreadPool;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -175,6 +183,10 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         this.externalResourceInfoProvider =
                 Preconditions.checkNotNull(externalResourceInfoProvider);
+
+        this.mainMailboxExecutor = new SyncMailboxExecutor();
+
+        this.asyncOperationsThreadPool = Executors.newDirectExecutorService();
     }
 
     public IteratorWrappingTestSingleInputGate<Record> addInput(
@@ -384,6 +396,26 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         memManager.shutdown();
         ioManager.close();
+    }
+
+    @Override
+    public void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {
+        this.mainMailboxExecutor = mainMailboxExecutor;
+    }
+
+    @Override
+    public MailboxExecutor getMainMailboxExecutor() {
+        return mainMailboxExecutor;
+    }
+
+    @Override
+    public void setAsyncOperationsThreadPool(ExecutorService executorService) {
+        this.asyncOperationsThreadPool = executorService;
+    }
+
+    @Override
+    public ExecutorService getAsyncOperationsThreadPool() {
+        return asyncOperationsThreadPool;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

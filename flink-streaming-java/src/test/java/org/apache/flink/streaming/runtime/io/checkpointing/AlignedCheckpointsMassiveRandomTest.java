@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
+import org.apache.flink.core.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.event.TaskEvent;
@@ -28,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Test;
