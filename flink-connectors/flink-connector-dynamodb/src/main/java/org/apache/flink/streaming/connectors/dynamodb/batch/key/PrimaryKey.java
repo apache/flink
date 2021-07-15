@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.dynamodb.batch.key;
 
 import org.apache.flink.streaming.connectors.dynamodb.batch.InvalidRequestException;
-import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTableConfig;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -87,7 +87,8 @@ public class PrimaryKey {
                 + '}';
     }
 
-    public static PrimaryKey build(DynamoDbTableConfig.KeyConfig config, DynamoDbRequest request) {
+    public static PrimaryKey build(
+            DynamoDbTablesConfig.TableConfig config, DynamoDbRequest request) {
         if (config != null) {
             Map<String, AttributeValue> requestItems = getRequestItems(request);
 

@@ -25,41 +25,41 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
-/** Represents DynamoDB table configuration. */
+/** Represents DynamoDB tables configuration. */
 @PublicEvolving
-public class DynamoDbTableConfig {
+public class DynamoDbTablesConfig {
 
-    private final Map<String, KeyConfig> perTableConfig;
+    private final Map<String, TableConfig> perTableConfig;
 
-    public DynamoDbTableConfig() {
+    public DynamoDbTablesConfig() {
         this.perTableConfig = new HashMap<>();
     }
 
-    public void addKeyConfig(String tableName, String partitionKeyName, String sortKeyName) {
-        this.perTableConfig.put(tableName, new KeyConfig(partitionKeyName, sortKeyName));
+    public void addTableConfig(String tableName, String partitionKeyName, String sortKeyName) {
+        this.perTableConfig.put(tableName, new TableConfig(partitionKeyName, sortKeyName));
     }
 
-    public void addKeyConfig(String tableName, String partitionKeyName) {
-        this.perTableConfig.put(tableName, new KeyConfig(partitionKeyName));
+    public void addTableConfig(String tableName, String partitionKeyName) {
+        this.perTableConfig.put(tableName, new TableConfig(partitionKeyName));
     }
 
-    public KeyConfig getKeyConfig(String tableName) {
+    public TableConfig getTableConfig(String tableName) {
         return perTableConfig.get(tableName);
     }
 
-    /** DynamoDB Primary Key configuration. */
-    public static class KeyConfig {
+    /** DynamoDB table configuration. */
+    public static class TableConfig {
 
         private final String partitionKeyName;
 
         @Nullable private final String sortKeyName;
 
-        public KeyConfig(String partitionKeyName, String sortKeyName) {
+        public TableConfig(String partitionKeyName, String sortKeyName) {
             this.partitionKeyName = partitionKeyName;
             this.sortKeyName = sortKeyName;
         }
 
-        public KeyConfig(String partitionKeyName) {
+        public TableConfig(String partitionKeyName) {
             this.partitionKeyName = partitionKeyName;
             this.sortKeyName = null;
         }

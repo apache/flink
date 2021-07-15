@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
-import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTableConfig;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -74,8 +74,8 @@ public class BatchCollectorTest {
     @Test
     public void testBatchPromoted() {
         String tableName = "testTable";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
-        tableConfig.addKeyConfig(tableName, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
+        tableConfig.addTableConfig(tableName, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
         BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
         collector.accumulateAndPromote(createPutItemRequest(tableName, "1", "1"));
@@ -98,9 +98,9 @@ public class BatchCollectorTest {
     public void testFlushOutstandingRecords() {
         String tableOne = "testTable1";
         String tableTwo = "testTable2";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
-        tableConfig.addKeyConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
-        tableConfig.addKeyConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
+        tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        tableConfig.addTableConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
         BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
@@ -121,7 +121,7 @@ public class BatchCollectorTest {
     @Test
     public void testRequestNotDeduplicatedWhenNoTableConfig() {
         String tableOne = "testTable1";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
 
         BatchCollector collector = new BatchCollector(2, consumer, tableConfig);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));
@@ -140,8 +140,8 @@ public class BatchCollectorTest {
     @Test
     public void testDeduplicatedOnCompositeKey() {
         String tableOne = "testTable1";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
-        tableConfig.addKeyConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
+        tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
         BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
 
@@ -164,8 +164,8 @@ public class BatchCollectorTest {
     @Test
     public void testDeduplicatedOnPartitionKey() {
         String tableOne = "testTable1";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
-        tableConfig.addKeyConfig(tableOne, PARTITION_KEY_NAME);
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
+        tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME);
 
         BatchCollector collector = new BatchCollector(3, consumer, tableConfig);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", null));
@@ -188,9 +188,9 @@ public class BatchCollectorTest {
     public void testPromotedPerTable() {
         String tableOne = "testTable1";
         String tableTwo = "testTable2";
-        DynamoDbTableConfig tableConfig = new DynamoDbTableConfig();
-        tableConfig.addKeyConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
-        tableConfig.addKeyConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        DynamoDbTablesConfig tableConfig = new DynamoDbTablesConfig();
+        tableConfig.addTableConfig(tableOne, PARTITION_KEY_NAME, SORT_KEY_NAME);
+        tableConfig.addTableConfig(tableTwo, PARTITION_KEY_NAME, SORT_KEY_NAME);
 
         BatchCollector collector = new BatchCollector(2, consumer, tableConfig);
         collector.accumulateAndPromote(createPutItemRequest(tableOne, "1", "1"));

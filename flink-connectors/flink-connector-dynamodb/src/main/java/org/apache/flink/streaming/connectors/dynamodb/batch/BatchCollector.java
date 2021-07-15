@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 import org.apache.flink.streaming.connectors.dynamodb.batch.key.PrimaryKey;
-import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTableConfig;
+import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
@@ -45,11 +45,11 @@ public class BatchCollector {
 
     private final int batchSize;
     private final Consumer<BatchRequest> batchConsumer;
-    private final DynamoDbTableConfig tableConfig;
+    private final DynamoDbTablesConfig tableConfig;
     private final TableRequestsContainer container;
 
     public BatchCollector(
-            int batchSize, Consumer<BatchRequest> batchConsumer, DynamoDbTableConfig tableConfig) {
+            int batchSize, Consumer<BatchRequest> batchConsumer, DynamoDbTablesConfig tableConfig) {
         this.batchSize = batchSize;
         requireNonNull(batchConsumer);
         this.batchConsumer = batchConsumer;
@@ -59,10 +59,10 @@ public class BatchCollector {
 
     public void accumulateAndPromote(DynamoDbRequest request) {
         String tableName = getTableName(request);
-        DynamoDbTableConfig.KeyConfig keyConfig = tableConfig.getKeyConfig(tableName);
+        DynamoDbTablesConfig.TableConfig tableConfig = this.tableConfig.getTableConfig(tableName);
 
         int containerSize =
-                container.addRequest(tableName, PrimaryKey.build(keyConfig, request), request);
+                container.addRequest(tableName, PrimaryKey.build(tableConfig, request), request);
 
         if (containerSize >= batchSize) {
             promote(tableName);
