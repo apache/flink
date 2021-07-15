@@ -54,6 +54,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
@@ -548,6 +549,31 @@ public class CheckpointBarrierTrackerTest {
 
         assertTrue(handler.getLastBytesProcessedDuringAlignment().isDone());
         assertThat(handler.getLastBytesProcessedDuringAlignment().get(), equalTo(0L));
+    }
+
+    @Test
+    public void testTwoLastBarriersOneByOne() throws Exception {
+        BufferOrEvent[] sequence = {
+            // start checkpoint 1
+            createBarrier(1, 1),
+            // start checkpoint 2
+            createBarrier(2, 1),
+            // finish the checkpoint 1
+            createBarrier(1, 0),
+            //  finish the checkpoint 2
+            createBarrier(2, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
+        inputGate = createCheckpointedInputGate(2, sequence, validator);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+            Thread.sleep(10);
+        }
+        long alignmentTime = validator.lastAlignmentDurationNanos.get() / 1_000_000;
+        assertThat(alignmentTime, greaterThan(0L));
+        assertThat(alignmentTime, lessThanOrEqualTo(30L));
     }
 
     // ------------------------------------------------------------------------
