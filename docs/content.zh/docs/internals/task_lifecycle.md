@@ -72,7 +72,6 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 
 **Checkpoints:** 算子的 `snapshotState()` 方法是在收到 checkpoint barrier 后异步调用的。Checkpoint 在处理阶段执行，即算子打开之后，结束之前的这个阶段。这个方法的职责是存储算子的当前状态到一个特定的[状态后端]({{< ref "docs/ops/state/state_backends" >}})，当作业失败后恢复执行时会从这个后端恢复状态数据。下面我们简要描述了 Flink 的 checkpoint 机制，如果想了解更多 Flink checkpoint 相关的原理，可以读一读 [数据流容错]({{< ref "docs/learn-flink/fault_tolerance" >}})。
 
-<a name="task-lifecycle-1"> </a>
 
 ## Task 生命周期
 
@@ -99,8 +98,8 @@ Task 在没有中断的情况下执行到结束的阶段如下所示：
 
 如上所示，在恢复 task 配置和初始化一些重要的运行时参数之后，task 的下一步是读取 task 级别的初始状态。这一步在 `setInitialState()` 方法里完成，在下面两种情况尤其重要：
 
-1、当 Task 从失败中恢复并从最近一次成功的 checkpoint 重启的时候
-2、当 Task 从 [savepoint]({{< ref "docs/ops/state/savepoints" >}}) 恢复的时候。
+1. 当 Task 从失败中恢复并从最近一次成功的 checkpoint 重启的时候
+2. 当 Task 从 [savepoint]({{< ref "docs/ops/state/savepoints" >}}) 恢复的时候。
 
 如果 task 是第一次执行的话，它的初始状态为空。
 
@@ -128,7 +127,7 @@ task 里的多个连续算子的关闭是从前往后依次执行。
 
 最后，当所有算子都已经关闭，所有资源都已被释放时，task 关掉它的定时器服务，进行特定 task 的清理操作，例如清理掉所有内部缓存，然后进行常规的 task 清理操作，包括关闭所有的输出管道，清理所有输出缓存等。
 
-**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔周期执行的，并且在一个与主 task 线程不同的单独线程里执行。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期的主要阶段里的原因。简而言之，Flink 作业的输入数据 source task 会定时插入一种叫 `checkpoint barrier` 的特殊数据，并跟正常数据一起从 source 流入到 sink。source task 在处于运行模式后发送这些  barrier，同时会假设 `CheckpointCoordinator` 也在运行。当 task 接收到这样的 barrier 之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
+**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔周期执行的，并且在一个与主 task 线程不同的单独线程里执行。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期的主要阶段里的原因。简而言之，Flink 作业的输入数据 source task 会定时插入一种叫 `checkpoint barrier` 的特殊数据，并跟正常数据一起从 source 流入到 sink。source task 在处于运行模式后发送这些 barrier，同时会假设 `CheckpointCoordinator` 也在运行。当 task 接收到这样的 barrier 之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
 
 <a name="interrupted-execution"> </a>
 
