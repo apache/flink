@@ -32,7 +32,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.vector.ColumnVector;
 import org.apache.flink.table.operations.OutputConversionModifyOperation;
-import org.apache.flink.table.runtime.arrow.sources.AbstractArrowTableSource;
 import org.apache.flink.table.runtime.arrow.sources.ArrowTableSource;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
@@ -49,7 +48,6 @@ import org.apache.flink.table.runtime.arrow.vectors.ArrowTimestampColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowTinyIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarBinaryColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowVarCharColumnVector;
-import org.apache.flink.table.runtime.arrow.vectors.RowDataArrowReader;
 import org.apache.flink.table.runtime.arrow.writers.ArrayWriter;
 import org.apache.flink.table.runtime.arrow.writers.ArrowFieldWriter;
 import org.apache.flink.table.runtime.arrow.writers.BigIntWriter;
@@ -345,15 +343,14 @@ public final class ArrowUtils {
     }
 
     /** Creates an {@link ArrowReader} for the specified {@link VectorSchemaRoot}. */
-    public static RowDataArrowReader createRowDataArrowReader(
-            VectorSchemaRoot root, RowType rowType) {
+    public static ArrowReader createArrowReader(VectorSchemaRoot root, RowType rowType) {
         List<ColumnVector> columnVectors = new ArrayList<>();
         List<FieldVector> fieldVectors = root.getFieldVectors();
         for (int i = 0; i < fieldVectors.size(); i++) {
             columnVectors.add(createColumnVector(fieldVectors.get(i), rowType.getTypeAt(i)));
         }
 
-        return new RowDataArrowReader(columnVectors.toArray(new ColumnVector[0]));
+        return new ArrowReader(columnVectors.toArray(new ColumnVector[0]));
     }
 
     public static ColumnVector createColumnVector(ValueVector vector, LogicalType fieldType) {
@@ -408,8 +405,8 @@ public final class ArrowUtils {
         }
     }
 
-    public static AbstractArrowTableSource createArrowTableSource(
-            DataType dataType, String fileName) throws IOException {
+    public static ArrowTableSource createArrowTableSource(DataType dataType, String fileName)
+            throws IOException {
         try (FileInputStream fis = new FileInputStream(fileName)) {
             return new ArrowTableSource(dataType, readArrowBatches(fis.getChannel()));
         }
