@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
@@ -610,15 +611,19 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     SourceStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .modifyStreamConfig(
+                                    config -> {
+                                        config.setCheckpointingEnabled(true);
+                                        config.getConfiguration()
+                                                .set(
+                                                        ExecutionCheckpointingOptions
+                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                        true);
+                                    })
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new StreamSource<>(new MockSource(0, 0, 1)))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
-                testHarness
-                        .getStreamTask()
-                        .getCheckpointCoordinator()
-                        .setEnableCheckpointAfterTasksFinished(true);
 
                 testHarness.processAll();
                 testHarness.getStreamTask().getCompletionFuture().get();

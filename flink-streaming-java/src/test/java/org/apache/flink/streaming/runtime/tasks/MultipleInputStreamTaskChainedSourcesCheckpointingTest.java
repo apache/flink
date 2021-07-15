@@ -311,10 +311,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
 
-                testHarness
-                        .getStreamTask()
-                        .getCheckpointCoordinator()
-                        .setEnableCheckpointAfterTasksFinished(true);
                 testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
                 Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);

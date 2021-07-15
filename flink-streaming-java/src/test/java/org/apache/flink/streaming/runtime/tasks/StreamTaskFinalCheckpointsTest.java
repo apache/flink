@@ -151,10 +151,6 @@ public class StreamTaskFinalCheckpointsTest {
                             .setupOperatorChain(new EmptyOperator())
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
-                testHarness
-                        .getStreamTask()
-                        .getCheckpointCoordinator()
-                        .setEnableCheckpointAfterTasksFinished(true);
                 testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
                 // Tests triggering checkpoint when all the inputs are alive.
@@ -265,18 +261,19 @@ public class StreamTaskFinalCheckpointsTest {
                                                         BasicTypeInfo.STRING_TYPE_INFO)
                                                 .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                                                 .modifyStreamConfig(
-                                                        config ->
-                                                                config.setCheckpointingEnabled(
-                                                                        true))
+                                                        config -> {
+                                                            config.setCheckpointingEnabled(true);
+                                                            config.getConfiguration()
+                                                                    .set(
+                                                                            ExecutionCheckpointingOptions
+                                                                                    .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                                            true);
+                                                        })
                                                 .setCheckpointResponder(responder)
                                                 .setupOperatorChain(new EmptyOperator())
                                                 .finishForSingletonOperatorChain(
                                                         StringSerializer.INSTANCE)
                                                 .build()) {
-
-                                    harness.streamTask
-                                            .getCheckpointCoordinator()
-                                            .setEnableCheckpointAfterTasksFinished(true);
 
                                     harness.streamTask.triggerCheckpointOnBarrier(
                                             new CheckpointMetaData(1, 101),

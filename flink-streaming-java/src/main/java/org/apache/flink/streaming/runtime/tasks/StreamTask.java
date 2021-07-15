@@ -355,6 +355,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                         getEnvironment(),
                         this,
                         configuration.isUnalignedCheckpointsEnabled(),
+                        configuration
+                                .getConfiguration()
+                                .get(
+                                        ExecutionCheckpointingOptions
+                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH),
                         this::prepareInputSnapshot);
 
         // if the clock is not already set, then assign a default TimeServiceProvider
@@ -716,10 +721,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // tasks. During this process, this task could coordinate with its downstream tasks to
         // continue perform checkpoints.
         CompletableFuture<Void> allRecordsProcessedFuture;
-        if (configuration
-                        .getConfiguration()
-                        .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
-                && configuration.isCheckpointingEnabled()) {
+        if (areCheckpointsWithFinishedTasksEnabled()) {
             LOG.debug("Waiting for all the records processed by the downstream tasks.");
 
             List<CompletableFuture<Void>> partitionRecordsProcessedFutures = new ArrayList<>();
@@ -770,13 +772,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // make sure all buffered data is flushed
         operatorChain.flushOutputs();
 
-        // No new checkpoints could be triggered since mailbox has been drained.
-        subtaskCheckpointCoordinator.waitForPendingCheckpoints();
-        LOG.debug("All pending checkpoints are finished");
+        if (areCheckpointsWithFinishedTasksEnabled()) {
+            // No new checkpoints could be triggered since mailbox has been drained.
+            subtaskCheckpointCoordinator.waitForPendingCheckpoints();
+            LOG.debug("All pending checkpoints are finished");
+        }
 
         // make an attempt to dispose the operators such that failures in the dispose call
         // still let the computation fail
         closeAllOperators();
+    }
+
+    private boolean areCheckpointsWithFinishedTasksEnabled() {
+        return configuration
+                        .getConfiguration()
+                        .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                && configuration.isCheckpointingEnabled();
     }
 
     protected void cleanUpInvoke() throws Exception {
