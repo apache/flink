@@ -313,7 +313,8 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
                         new Object(), // no actual locking needed
                         output,
                         getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval(),
-                        -1);
+                        -1,
+                        true);
 
         this.reusedRecord = serializer.createInstance();
         this.completedSplitsCounter = getMetricGroup().counter("numSplitsProcessed");

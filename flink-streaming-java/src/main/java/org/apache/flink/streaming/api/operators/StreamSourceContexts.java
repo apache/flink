@@ -48,17 +48,26 @@ public class StreamSourceContexts {
             Object checkpointLock,
             Output<StreamRecord<OUT>> output,
             long watermarkInterval,
-            long idleTimeout) {
+            long idleTimeout,
+            boolean emitProgressiveWatermarks) {
 
         final SourceFunction.SourceContext<OUT> ctx;
         switch (timeCharacteristic) {
             case EventTime:
                 ctx =
                         new ManualWatermarkContext<>(
-                                output, processingTimeService, checkpointLock, idleTimeout);
+                                output,
+                                processingTimeService,
+                                checkpointLock,
+                                idleTimeout,
+                                emitProgressiveWatermarks);
 
                 break;
             case IngestionTime:
+                Preconditions.checkState(
+                        emitProgressiveWatermarks,
+                        "Ingestion time is not available when emitting progressive watermarks "
+                                + "is disabled.");
                 ctx =
                         new AutomaticWatermarkContext<>(
                                 output,
@@ -66,7 +75,6 @@ public class StreamSourceContexts {
                                 processingTimeService,
                                 checkpointLock,
                                 idleTimeout);
-
                 break;
             case ProcessingTime:
                 ctx = new NonTimestampContext<>(checkpointLock, output);
@@ -386,6 +394,7 @@ public class StreamSourceContexts {
      */
     private static class ManualWatermarkContext<T> extends WatermarkContext<T> {
 
+        private final boolean emitProgressiveWatermarks;
         private final Output<StreamRecord<T>> output;
         private final StreamRecord<T> reuse;
         private boolean idle = false;
@@ -394,10 +403,12 @@ public class StreamSourceContexts {
                 final Output<StreamRecord<T>> output,
                 final ProcessingTimeService timeService,
                 final Object checkpointLock,
-                final long idleTimeout) {
+                final long idleTimeout,
+                final boolean emitProgressiveWatermarks) {
 
             super(timeService, checkpointLock, idleTimeout);
 
+            this.emitProgressiveWatermarks = emitProgressiveWatermarks;
             this.output = Preconditions.checkNotNull(output, "The output cannot be null.");
             this.reuse = new StreamRecord<>(null);
         }
@@ -427,7 +438,7 @@ public class StreamSourceContexts {
 
         @Override
         protected boolean allowWatermark(Watermark mark) {
-            return true;
+            return emitProgressiveWatermarks || mark.getTimestamp() == Long.MAX_VALUE;
         }
     }
 

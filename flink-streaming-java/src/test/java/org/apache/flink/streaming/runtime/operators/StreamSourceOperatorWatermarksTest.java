@@ -74,6 +74,25 @@ public class StreamSourceOperatorWatermarksTest {
     }
 
     @Test
+    public void testDisabledProgressiveWatermarksForFiniteSource() throws Exception {
+        StreamSource<String, ?> sourceOperator =
+                new StreamSource<>(new FiniteSourceWithWatermarks<>(), false);
+        StreamTaskTestHarness<String> testHarness =
+                setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
+
+        testHarness.invoke();
+        testHarness.waitForTaskCompletion();
+
+        // sent by source function
+        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
+
+        // sent by framework
+        assertEquals(Watermark.MAX_WATERMARK, testHarness.getOutput().poll());
+
+        assertTrue(testHarness.getOutput().isEmpty());
+    }
+
+    @Test
     public void testNoMaxWatermarkOnImmediateCancel() throws Exception {
         StreamSource<String, ?> sourceOperator = new StreamSource<>(new InfiniteSource<>());
         StreamTaskTestHarness<String> testHarness =
@@ -137,7 +156,8 @@ public class StreamSourceOperatorWatermarksTest {
                 task.getCheckpointLock(),
                 new CollectorOutput<String>(output),
                 operator.getExecutionConfig().getAutoWatermarkInterval(),
-                -1);
+                -1,
+                true);
 
         // periodically emit the watermarks
         // even though we start from 1 the watermark are still
@@ -230,6 +250,21 @@ public class StreamSourceOperatorWatermarksTest {
 
         @Override
         public void run(SourceContext<T> ctx) {}
+
+        @Override
+        public void cancel() {}
+    }
+
+    private static final class FiniteSourceWithWatermarks<T> extends RichSourceFunction<T> {
+
+        @Override
+        public void run(SourceContext<T> ctx) {
+            synchronized (ctx.getCheckpointLock()) {
+                ctx.emitWatermark(new Watermark(1000));
+                ctx.emitWatermark(new Watermark(2000));
+                ctx.emitWatermark(Watermark.MAX_WATERMARK);
+            }
+        }
 
         @Override
         public void cancel() {}
