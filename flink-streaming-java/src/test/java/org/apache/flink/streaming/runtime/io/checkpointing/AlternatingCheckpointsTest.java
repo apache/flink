@@ -900,7 +900,6 @@ public class AlternatingCheckpointsTest {
                         .withRemoteChannels()
                         .withMailboxExecutor()
                         .build()) {
-            gate.getCheckpointBarrierHandler().setEnableCheckpointAfterTasksFinished(true);
 
             getChannel(gate, 0)
                     .onBuffer(

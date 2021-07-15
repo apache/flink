@@ -19,6 +19,7 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -715,7 +716,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         // tasks. During this process, this task could coordinate with its downstream tasks to
         // continue perform checkpoints.
         CompletableFuture<Void> allRecordsProcessedFuture;
-        if (configuration.isCheckpointingEnabled()) {
+        if (configuration
+                        .getConfiguration()
+                        .get(ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                && configuration.isCheckpointingEnabled()) {
             LOG.debug("Waiting for all the records processed by the downstream tasks.");
 
             List<CompletableFuture<Void>> partitionRecordsProcessedFutures = new ArrayList<>();

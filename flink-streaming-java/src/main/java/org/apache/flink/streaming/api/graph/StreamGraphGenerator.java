@@ -314,6 +314,8 @@ public class StreamGraphGenerator {
 
     public StreamGraph generate() {
         streamGraph = new StreamGraph(executionConfig, checkpointConfig, savepointRestoreSettings);
+        streamGraph.setEnableCheckpointsAfterTasksFinish(
+                configuration.get(ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
         shouldExecuteInBatchMode = shouldExecuteInBatchMode(runtimeExecutionMode);
         configureStreamGraph(streamGraph);
 

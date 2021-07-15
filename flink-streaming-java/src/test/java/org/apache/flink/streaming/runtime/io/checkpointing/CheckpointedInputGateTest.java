@@ -342,7 +342,8 @@ public class CheckpointedInputGateTest {
                             @Override
                             public void invoke() {}
                         },
-                        SystemClock.getInstance());
+                        SystemClock.getInstance(),
+                        true);
 
         CheckpointedInputGate checkpointedInputGate =
                 new CheckpointedInputGate(

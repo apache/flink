@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -279,7 +280,15 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             try (StreamTaskMailboxTestHarness<String> testHarness =
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                            .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                            .modifyStreamConfig(
+                                    config -> {
+                                        config.setCheckpointingEnabled(true);
+                                        config.getConfiguration()
+                                                .set(
+                                                        ExecutionOptions
+                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                        true);
+                                    })
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO)
@@ -306,11 +315,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .getStreamTask()
                         .getCheckpointCoordinator()
                         .setEnableCheckpointAfterTasksFinished(true);
-                testHarness
-                        .getStreamTask()
-                        .getCheckpointBarrierHandler()
-                        .get()
-                        .setEnableCheckpointAfterTasksFinished(true);
+                testHarness.getStreamTask().getCheckpointBarrierHandler().get();
 
                 Future<Boolean> checkpointFuture = triggerCheckpoint(testHarness, 2);
                 testHarness.processAll();

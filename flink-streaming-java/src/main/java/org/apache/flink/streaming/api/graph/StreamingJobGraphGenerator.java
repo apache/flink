@@ -26,6 +26,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.OperatorIDPair;
@@ -726,6 +727,10 @@ public class StreamingJobGraphGenerator {
         config.setGraphContainingLoops(streamGraph.isIterative());
         config.setTimerServiceProvider(streamGraph.getTimerServiceProvider());
         config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+        config.getConfiguration()
+                .set(
+                        ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                        streamGraph.isEnableCheckpointsAfterTasksFinish());
         config.setCheckpointMode(getCheckpointingMode(checkpointCfg));
         config.setUnalignedCheckpointsEnabled(checkpointCfg.isUnalignedCheckpointsEnabled());
         config.setAlignedCheckpointTimeout(checkpointCfg.getAlignedCheckpointTimeout());

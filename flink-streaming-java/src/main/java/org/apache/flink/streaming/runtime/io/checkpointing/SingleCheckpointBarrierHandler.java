@@ -103,6 +103,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             String taskName,
             AbstractInvokable toNotifyOnCheckpoint,
             Clock clock,
+            boolean enableCheckpointsAfterTasksFinish,
             CheckpointableInput... inputs) {
         return unaligned(
                 taskName,
@@ -117,6 +118,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                     throw new IllegalStateException(
                             "Strictly unaligned checkpoints should never register any callbacks");
                 },
+                enableCheckpointsAfterTasksFinish,
                 inputs);
     }
 
@@ -127,6 +129,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             Clock clock,
             int numOpenChannels,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -137,7 +140,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 new AlternatingWaitingForFirstBarrierUnaligned(false, new ChannelState(inputs)),
                 false,
                 registerTimer,
-                inputs);
+                inputs,
+                enableCheckpointAfterTasksFinished);
     }
 
     public static SingleCheckpointBarrierHandler aligned(
@@ -146,6 +150,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             Clock clock,
             int numOpenChannels,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -156,7 +161,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 new WaitingForFirstBarrier(inputs),
                 false,
                 registerTimer,
-                inputs);
+                inputs,
+                enableCheckpointAfterTasksFinished);
     }
 
     public static SingleCheckpointBarrierHandler alternating(
@@ -166,6 +172,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             Clock clock,
             int numOpenChannels,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
+            boolean enableCheckpointAfterTasksFinished,
             CheckpointableInput... inputs) {
         return new SingleCheckpointBarrierHandler(
                 taskName,
@@ -176,7 +183,8 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
                 new AlternatingWaitingForFirstBarrier(new ChannelState(inputs)),
                 true,
                 registerTimer,
-                inputs);
+                inputs,
+                enableCheckpointAfterTasksFinished);
     }
 
     private SingleCheckpointBarrierHandler(
@@ -188,8 +196,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             BarrierHandlerState currentState,
             boolean alternating,
             BiFunction<Callable<?>, Duration, Cancellable> registerTimer,
-            CheckpointableInput[] inputs) {
-        super(toNotifyOnCheckpoint, clock);
+            CheckpointableInput[] inputs,
+            boolean enableCheckpointAfterTasksFinished) {
+        super(toNotifyOnCheckpoint, clock, enableCheckpointAfterTasksFinished);
 
         this.taskName = taskName;
         this.numOpenChannels = numOpenChannels;
@@ -397,7 +406,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         alignedChannels.add(channelInfo);
         numOpenChannels--;
 
-        if (!enableCheckpointAfterTasksFinished) {
+        if (!isCheckpointAfterTasksFinishedEnabled()) {
             if (isCheckpointPending()) {
                 LOG.warn(
                         "{}: Received EndOfPartition(-1) before completing current checkpoint {}. Skipping current checkpoint.",
