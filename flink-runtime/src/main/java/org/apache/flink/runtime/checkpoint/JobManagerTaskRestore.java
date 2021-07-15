@@ -18,10 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
+
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
+import java.util.HashSet;
+import java.util.Set;
+
+import static java.util.Collections.unmodifiableSet;
 
 /** This class encapsulates the data from the job manager to restore a task. */
 public class JobManagerTaskRestore implements Serializable {
@@ -33,6 +40,19 @@ public class JobManagerTaskRestore implements Serializable {
 
     /** The state for this task to restore. */
     private final TaskStateSnapshot taskStateSnapshot;
+
+    /**
+     * {@link StateObjectID IDs} of {@link StateObject state objects} in the {@link
+     * #taskStateSnapshot snapshot} that this task shares with some other tasks. Those tasks can be
+     * running in the same or in a different TM.
+     *
+     * <p>Updated only during recovery by {@link StateAssignmentOperation} on JM.
+     *
+     * <p>The task can read these objects but must NOT discard them. It notifies JM whether it still
+     * uses those objects or not by including {@link StateObject}s (not IDs) into the snapshot when
+     * acknowledging a checkpoint.
+     */
+    private final HashSet<StateObjectID> sharedStateObjectIDs = new HashSet<>();
 
     public JobManagerTaskRestore(
             @Nonnegative long restoreCheckpointId, @Nonnull TaskStateSnapshot taskStateSnapshot) {
@@ -57,5 +77,13 @@ public class JobManagerTaskRestore implements Serializable {
                 + ", taskStateSnapshot="
                 + taskStateSnapshot
                 + '}';
+    }
+
+    public Set<StateObjectID> getSharedStateObjectIDs() {
+        return unmodifiableSet(sharedStateObjectIDs);
+    }
+
+    void addSharedObjectStateID(StateObjectID sharedStateID) {
+        sharedStateObjectIDs.add(sharedStateID);
     }
 }

@@ -25,8 +25,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -54,6 +56,14 @@ public class SharedStateRegistry implements AutoCloseable {
     /** Executor for async state deletion */
     private final Executor asyncDisposalExecutor;
 
+    /**
+     * Shared state object IDs used to ignore TM-managed state.
+     *
+     * <p><strong>Should be ignored if TM-ownership is disabled</strong> (i.e.
+     * changelog.enabled=false).
+     */
+    private final Set<StateObjectID> sharedStateIDs;
+
     /** Default uses direct executor to delete unreferenced state */
     public SharedStateRegistry() {
         this(Executors.directExecutor());
@@ -63,6 +73,7 @@ public class SharedStateRegistry implements AutoCloseable {
         this.registeredStates = new HashMap<>();
         this.asyncDisposalExecutor = Preconditions.checkNotNull(asyncDisposalExecutor);
         this.open = true;
+        this.sharedStateIDs = new HashSet<>();
     }
 
     /**
@@ -224,6 +235,10 @@ public class SharedStateRegistry implements AutoCloseable {
         synchronized (registeredStates) {
             open = false;
         }
+    }
+
+    public void registerSharedPhysicalStateID(StateObjectID sharedStateID) {
+        this.sharedStateIDs.add(sharedStateID);
     }
 
     /** An entry in the registry, tracking the handle and the corresponding reference count. */
