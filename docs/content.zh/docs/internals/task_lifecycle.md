@@ -97,7 +97,7 @@ Task 在没有中断的情况下执行到结束的阶段如下所示：
 		    task-specific-cleanup
 		    common-cleanup
 
-如上所示，在恢复 task 配置和初始化一些重要的运行时参数之后，task 的下一步是读取 task 级别的初始状态数据。这一步在 `setInitialState()` 方法里完成，在下面两个场景特别重要：
+如上所示，在恢复 task 配置和初始化一些重要的运行时参数之后，task 的下一步是读取 task 级别的初始状态。这一步在 `setInitialState()` 方法里完成，在下面两种情况尤其重要：
 
 1. 当 Task 从失败中恢复，从最后一次成功的 checkpoint 重启的时候
 2. 当 Task 从 [savepoint]({{< ref "docs/ops/state/savepoints" >}}) 里恢复的时候。
