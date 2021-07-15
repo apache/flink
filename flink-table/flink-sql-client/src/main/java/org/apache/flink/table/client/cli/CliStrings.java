@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.client.cli;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -27,9 +26,8 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /** Utility class that contains all strings for CLI commands and messages. */
 public final class CliStrings {
@@ -46,21 +44,23 @@ public final class CliStrings {
     public static final String CMD_DESC_DELIMITER = "\t\t";
 
     /** SQL Client HELP command helper class. */
-    public static class SQLCliCommandsDescriptions {
-        private int commandMaxLength = -1;
-        private List<Tuple2<String, String>> commandsDescriptions;
+    public static final class SQLCliCommandsDescriptions {
+        private int commandMaxLength;
+        private final Map<String, String> commandsDescriptions;
 
         public SQLCliCommandsDescriptions() {
-            commandsDescriptions = new ArrayList<>();
+            this.commandsDescriptions = new LinkedHashMap<>();
+            this.commandMaxLength = -1;
         }
 
-        public SQLCliCommandsDescriptions commandDescription(
-                Tuple2<String, String> commandDescription) {
+        public SQLCliCommandsDescriptions commandDescription(String command, String description) {
             Preconditions.checkState(
-                    checkCommandDescription(commandDescription),
-                    "All contents of command description must not be empty.");
-            this.updateMaxCommandLength(commandDescription.f0.length());
-            this.commandsDescriptions.add(commandDescription);
+                    StringUtils.isNotBlank(command), "content of command must not be empty.");
+            Preconditions.checkState(
+                    StringUtils.isNotBlank(description),
+                    "content of command's description must not be empty.");
+            this.updateMaxCommandLength(command.length());
+            this.commandsDescriptions.put(command, description);
             return this;
         }
 
@@ -71,30 +71,12 @@ public final class CliStrings {
             }
         }
 
-        private boolean checkCommandDescription(Tuple2<String, String> commandDescription) {
-            return Objects.nonNull(commandDescription)
-                    && StringUtils.isNotBlank(commandDescription.f0)
-                    && StringUtils.isNotBlank(commandDescription.f1);
-        }
-
-        public void clearCommandsDescriptions() {
-            this.commandsDescriptions.clear();
-            this.resetMaxCommandLength();
-        }
-
-        private void resetMaxCommandLength() {
-            this.commandMaxLength = -1;
-        }
-
         public int getCommandMaxLength() {
             return this.commandMaxLength;
         }
 
         public AttributedString formatCommand(
-                String cmdDescDelimiter,
-                String cmdFormat,
-                String descFormat,
-                boolean clearCmdsDescs) {
+                String cmdDescDelimiter, String cmdFormat, String descFormat) {
             Preconditions.checkNotNull(cmdDescDelimiter, "delimiter must not be null.");
             Preconditions.checkState(
                     StringUtils.isNotBlank(cmdFormat), "command format must not be null.");
@@ -104,18 +86,15 @@ public final class CliStrings {
             AttributedStringBuilder attributedStringBuilder = new AttributedStringBuilder();
             if (!this.commandsDescriptions.isEmpty()) {
                 this.commandsDescriptions.forEach(
-                        cmdDescTuple2 -> {
+                        (cmd, cmdDesc) -> {
                             attributedStringBuilder
                                     .style(AttributedStyle.DEFAULT.bold())
-                                    .append(String.format(cmdFormat, cmdDescTuple2.f0))
+                                    .append(String.format(cmdFormat, cmd))
                                     .append(CMD_DESC_DELIMITER)
                                     .style(AttributedStyle.DEFAULT)
-                                    .append(String.format(descFormat, cmdDescTuple2.f1))
+                                    .append(String.format(descFormat, cmdDesc))
                                     .append('\n');
                         });
-            }
-            if (clearCmdsDescs) {
-                this.clearCommandsDescriptions();
             }
             return attributedStringBuilder.toAttributedString();
         }
@@ -123,49 +102,39 @@ public final class CliStrings {
 
     public static final SQLCliCommandsDescriptions SQL_CLI_COMMANDS_DESCRIPTIONS =
             new SQLCliCommandsDescriptions()
-                    .commandDescription(Tuple2.of("HELP", "Prints the available commands."))
-                    .commandDescription(Tuple2.of("QUIT/EXIT", "Quits the SQL CLI client."))
-                    .commandDescription(Tuple2.of("CLEAR", "Clears the current terminal."))
+                    .commandDescription("HELP", "Prints the available commands.")
+                    .commandDescription("QUIT/EXIT", "Quits the SQL CLI client.")
+                    .commandDescription("CLEAR", "Clears the current terminal.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "SET",
-                                    "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties."))
+                            "SET",
+                            "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "RESET",
-                                    "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties."))
+                            "RESET",
+                            "Resets a session configuration property. Syntax: \"RESET '<key>';\". Use \"RESET;\" for reset all session properties.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "INSERT INTO",
-                                    "Inserts the results of a SQL SELECT query into a declared table sink."))
+                            "INSERT INTO",
+                            "Inserts the results of a SQL SELECT query into a declared table sink.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "INSERT OVERWRITE",
-                                    "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data."))
+                            "INSERT OVERWRITE",
+                            "Inserts the results of a SQL SELECT query into a declared table sink and overwrite existing data.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "SELECT", "Executes a SQL SELECT query on the Flink cluster."))
+                            "SELECT", "Executes a SQL SELECT query on the Flink cluster.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "EXPLAIN",
-                                    "Describes the execution plan of a query or table with the given name."))
+                            "EXPLAIN",
+                            "Describes the execution plan of a query or table with the given name.")
                     .commandDescription(
-                            Tuple2.of(
-                                    "BEGIN STATEMENT SET",
-                                    "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\""))
-                    .commandDescription(Tuple2.of("END", "Ends a statement set. Syntax: \"END;\""))
+                            "BEGIN STATEMENT SET",
+                            "Begins a statement set. Syntax: \"BEGIN STATEMENT SET;\"")
+                    .commandDescription("END", "Ends a statement set. Syntax: \"END;\"")
                     .commandDescription(
-                            Tuple2.of(
-                                    "ADD JAR",
-                                    "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\""))
+                            "ADD JAR",
+                            "Adds the specified jar file to the submitted jobs' classloader. Syntax: \"ADD JAR '<path_to_filename>.jar'\"")
                     .commandDescription(
-                            Tuple2.of(
-                                    "REMOVE JAR",
-                                    "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\""))
+                            "REMOVE JAR",
+                            "Removes the specified jar file from the submitted jobs' classloader. Syntax: \"REMOVE JAR '<path_to_filename>.jar'\"")
                     .commandDescription(
-                            Tuple2.of(
-                                    "SHOW JARS",
-                                    "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands."));
+                            "SHOW JARS",
+                            "Shows the list of user-specified jar dependencies. This list is impacted by the --jar and --library startup options as well as the ADD/REMOVE JAR commands.");
     public static final String COMMAND_FORMAT =
             String.format("%%-%ds", SQL_CLI_COMMANDS_DESCRIPTIONS.getCommandMaxLength());
 
@@ -176,7 +145,7 @@ public final class CliStrings {
                     .append("The following commands are available:\n\n")
                     .append(
                             SQL_CLI_COMMANDS_DESCRIPTIONS.formatCommand(
-                                    CMD_DESC_DELIMITER, COMMAND_FORMAT, "%s", true))
+                                    CMD_DESC_DELIMITER, COMMAND_FORMAT, "%s"))
                     .style(AttributedStyle.DEFAULT.underline())
                     .append("\nHint")
                     .style(AttributedStyle.DEFAULT)
