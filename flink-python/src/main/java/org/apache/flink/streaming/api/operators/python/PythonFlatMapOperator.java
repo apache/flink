@@ -26,6 +26,8 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+
 /**
  * The {@link PythonFlatMapOperator} is responsible for executing Python functions that gets one
  * input and produces zero/one or more outputs.
@@ -43,14 +45,7 @@ public class PythonFlatMapOperator<IN, OUT>
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                inputTypeInfo,
-                outputTypeInfo,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END,
-                pythonFunctionInfo);
+        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
     }
 
     @Override
@@ -64,5 +59,19 @@ public class PythonFlatMapOperator<IN, OUT>
             collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
             collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
         }
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 }

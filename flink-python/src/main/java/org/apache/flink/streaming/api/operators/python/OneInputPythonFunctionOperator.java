@@ -40,7 +40,8 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -68,10 +69,6 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     /** The serialized python function to be executed. */
     private final DataStreamPythonFunctionInfo pythonFunctionInfo;
 
-    private final FlinkFnApi.CoderParam.DataType inputDataType;
-    private final FlinkFnApi.CoderParam.DataType outputDataType;
-    private final FlinkFnApi.CoderParam.OutputMode outputMode;
-
     /** The TypeSerializer of python worker input data. */
     transient TypeSerializer<UDFIN> runnerInputTypeSerializer;
 
@@ -98,18 +95,12 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
             Configuration config,
             TypeInformation<UDFIN> runnerInputTypeInfo,
             TypeInformation<UDFOUT> runnerOutputTypeInfo,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
         super(config);
         this.jobOptions = config.toMap();
         this.runnerInputTypeInfo = runnerInputTypeInfo;
         this.runnerOutputTypeInfo = runnerOutputTypeInfo;
         this.pythonFunctionInfo = pythonFunctionInfo;
-        this.inputDataType = inputDataType;
-        this.outputDataType = outputDataType;
-        this.outputMode = outputMode;
     }
 
     @Override
@@ -136,8 +127,6 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                runnerInputTypeInfo,
-                runnerOutputTypeInfo,
                 getFunctionUrn(),
                 getUserDefinedDataStreamFunctionProto(
                         pythonFunctionInfo,
@@ -161,9 +150,8 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                inputDataType,
-                outputDataType,
-                outputMode);
+                createInputCoderInfoDescriptor(runnerInputTypeInfo),
+                createOutputCoderInfoDescriptor(runnerOutputTypeInfo));
     }
 
     @Override
@@ -188,5 +176,17 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
 
     public Map<String, String> getInternalParameters() {
         return Collections.EMPTY_MAP;
+    }
+
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
     }
 }

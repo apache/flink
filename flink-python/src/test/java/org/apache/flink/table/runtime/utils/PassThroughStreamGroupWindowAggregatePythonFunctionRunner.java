@@ -32,6 +32,8 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughStreamGroupWindowAggregatePythonFunctionRunner} runner that help to test the
  * Python stream group window aggregate operators.
@@ -56,8 +58,6 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -67,9 +67,10 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false));
         this.operator = operator;
     }
 

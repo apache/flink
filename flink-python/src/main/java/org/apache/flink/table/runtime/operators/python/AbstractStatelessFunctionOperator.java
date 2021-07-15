@@ -65,15 +65,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
 
-    /** The Input DataType of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.DataType inputDataType;
-
-    /** The output DataType of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.DataType outputDataType;
-
-    /** The output mode of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.OutputMode outputMode;
-
     /** The user-defined function input logical type. */
     protected transient RowType userDefinedFunctionInputType;
 
@@ -101,19 +92,13 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
             Configuration config,
             RowType inputType,
             RowType outputType,
-            int[] userDefinedFunctionInputOffsets,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            int[] userDefinedFunctionInputOffsets) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
         this.userDefinedFunctionInputOffsets =
                 Preconditions.checkNotNull(userDefinedFunctionInputOffsets);
         this.jobOptions = buildJobOptions(config);
-        this.inputDataType = Preconditions.checkNotNull(inputDataType);
-        this.outputDataType = Preconditions.checkNotNull(outputDataType);
-        this.outputMode = Preconditions.checkNotNull(outputMode);
     }
 
     @Override
@@ -146,8 +131,6 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
         return new BeamTablePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
                 jobOptions,
@@ -167,9 +150,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                inputDataType,
-                outputDataType,
-                outputMode);
+                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
+                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
     }
 
     /**
@@ -184,6 +166,12 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
     public abstract String getFunctionUrn();
+
+    public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            RowType runnerInputType);
+
+    public abstract FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            RowType runnerOutType);
 
     public abstract void processElementInternal(IN value) throws Exception;
 

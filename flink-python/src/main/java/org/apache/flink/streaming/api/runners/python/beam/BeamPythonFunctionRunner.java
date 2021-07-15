@@ -81,6 +81,7 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
 @Internal
@@ -122,10 +123,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The fraction of total managed memory in the slot that the Python worker could use. */
     private final double managedMemoryFraction;
 
-    protected final FlinkFnApi.CoderParam.DataType inputDataType;
-    protected final FlinkFnApi.CoderParam.DataType outputDataType;
-
-    protected final FlinkFnApi.CoderParam.OutputMode outputMode;
+    protected final FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor;
+    protected final FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor;
 
     // ------------------------------------------------------------------------
 
@@ -182,9 +181,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             @Nullable TypeSerializer namespaceSerializer,
             MemoryManager memoryManager,
             double managedMemoryFraction,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
+            FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
         this.functionUrn = Preconditions.checkNotNull(functionUrn);
@@ -195,9 +193,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
-        this.inputDataType = Preconditions.checkNotNull(inputDataType);
-        this.outputDataType = Preconditions.checkNotNull(outputDataType);
-        this.outputMode = Preconditions.checkNotNull(outputMode);
+        this.inputCoderDescriptor = Preconditions.checkNotNull(inputCoderDescriptor);
+        this.outputCoderDescriptor = Preconditions.checkNotNull(outputCoderDescriptor);
     }
 
     // ------------------------------------------------------------------------
@@ -417,8 +414,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                 RunnerApi.WindowingStrategy.newBuilder()
                                         .setWindowCoderId(WINDOW_CODER_ID)
                                         .build())
-                        .putCoders(INPUT_CODER_ID, getInputCoderProto())
-                        .putCoders(OUTPUT_CODER_ID, getOutputCoderProto())
+                        .putCoders(INPUT_CODER_ID, createCoderProto(inputCoderDescriptor))
+                        .putCoders(OUTPUT_CODER_ID, createCoderProto(outputCoderDescriptor))
                         .putCoders(WINDOW_CODER_ID, getWindowCoderProto())
                         .build();
 
@@ -484,10 +481,6 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     }
 
     protected abstract byte[] getUserDefinedFunctionsProtoBytes();
-
-    protected abstract RunnerApi.Coder getInputCoderProto();
-
-    protected abstract RunnerApi.Coder getOutputCoderProto();
 
     // ------------------------------------------------------------------------
     // Construct RemoteBundler

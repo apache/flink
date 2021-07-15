@@ -25,6 +25,10 @@ package org.apache.flink.fn_execution.v1;
 option java_package = "org.apache.flink.fnexecution.v1";
 option java_outer_classname = "FlinkFnApi";
 
+// ------------------------------------------------------------------------
+// Table API & SQL
+// ------------------------------------------------------------------------
+
 message Input {
   oneof input {
     UserDefinedFunction udf = 1;
@@ -77,43 +81,6 @@ message OverWindow {
   WindowType window_type = 1;
   int64 lower_boundary = 2;
   int64 upper_boundary = 3;
-}
-
-// User defined DataStream function definition.
-message UserDefinedDataStreamFunction {
-  enum FunctionType {
-    MAP = 0;
-    FLAT_MAP = 1;
-    CO_MAP = 2;
-    CO_FLAT_MAP = 3;
-    PROCESS = 4;
-    KEYED_PROCESS = 5;
-    KEYED_CO_PROCESS = 6;
-    TIMESTAMP_ASSIGNER = 7;
-    WINDOW = 8;
-  }
-
-  message JobParameter {
-    string key = 1;
-    string value = 2;
-  }
-
-  message RuntimeContext {
-    string task_name = 1;
-    string task_name_with_subtasks = 2;
-    int32 number_of_parallel_subtasks = 3;
-    int32 max_number_of_parallel_subtasks = 4;
-    int32 index_of_this_subtask = 5;
-    int32 attempt_number = 6;
-    repeated JobParameter job_parameters = 7;
-    bool in_batch_execution_mode = 8;
-  }
-
-  FunctionType function_type = 1;
-  RuntimeContext runtime_context = 2;
-  bytes payload = 3;
-  bool metric_enabled = 4;
-  TypeInfo key_type_info = 5;
 }
 
 message UserDefinedAggregateFunction {
@@ -310,40 +277,9 @@ message Schema {
   repeated Field fields = 1;
 }
 
-// A representation of the coder
-message CoderParam {
-  enum DataType {
-    // used in udf/udtf
-    FLATTEN_ROW = 0;
-    // used in udaf/udtaf
-    ROW = 1;
-    // used in datastream
-    RAW = 2;
-    // used pandas udf/udaf
-    ARROW = 3;
-    // only used in batch over window
-    // the data consists of [window data][arrow data]
-    OVER_WINDOW_ARROW=4;
-  }
-
-  enum OutputMode {
-    // output single result
-    SINGLE = 0;
-    // output multiple result
-    MULTIPLE = 1;
-    // output multiple result and a end message(0x00)
-    MULTIPLE_WITH_END = 2;
-  }
-
-  oneof field_type {
-    Schema schema = 1;
-    TypeInfo type_info = 2;
-  }
-
-  DataType data_type = 3;
-
-  OutputMode output_mode = 4;
-}
+// ------------------------------------------------------------------------
+// DataStream API
+// ------------------------------------------------------------------------
 
 // A representation of the data type information in DataStream.
 message TypeInfo {
@@ -396,4 +332,95 @@ message TypeInfo {
     TupleTypeInfo tuple_type_info = 4;
     MapTypeInfo map_type_info = 5;
   }
+}
+
+// User defined DataStream function definition.
+message UserDefinedDataStreamFunction {
+  enum FunctionType {
+    MAP = 0;
+    FLAT_MAP = 1;
+    CO_MAP = 2;
+    CO_FLAT_MAP = 3;
+    PROCESS = 4;
+    KEYED_PROCESS = 5;
+    KEYED_CO_PROCESS = 6;
+    TIMESTAMP_ASSIGNER = 7;
+    WINDOW = 8;
+  }
+
+  message JobParameter {
+    string key = 1;
+    string value = 2;
+  }
+
+  message RuntimeContext {
+    string task_name = 1;
+    string task_name_with_subtasks = 2;
+    int32 number_of_parallel_subtasks = 3;
+    int32 max_number_of_parallel_subtasks = 4;
+    int32 index_of_this_subtask = 5;
+    int32 attempt_number = 6;
+    repeated JobParameter job_parameters = 7;
+    bool in_batch_execution_mode = 8;
+  }
+
+  FunctionType function_type = 1;
+  RuntimeContext runtime_context = 2;
+  bytes payload = 3;
+  bool metric_enabled = 4;
+  TypeInfo key_type_info = 5;
+}
+
+// ------------------------------------------------------------------------
+// Common of Table API and DataStream API
+// ------------------------------------------------------------------------
+
+// A representation of the coder
+message CoderInfoDescriptor {
+  // for Table & SQL
+  message FlattenRowType {
+    Schema schema = 1;
+  }
+
+  message RowType {
+    Schema schema = 1;
+  }
+
+  message ArrowType {
+    Schema schema = 1;
+  }
+
+  // only used in batch over window
+  // the data consists of [window data][arrow data]
+  message OverWindowArrowType {
+    Schema schema = 1;
+  }
+
+  // for DataStream
+  message RawType {
+    TypeInfo type_info = 1;
+  }
+
+  enum Mode {
+    // process one record at a time
+    SINGLE = 0;
+    // process multiple records at a time
+    MULTIPLE = 1;
+  }
+
+  oneof data_type {
+    // for Table & SQL
+    FlattenRowType flatten_row_type = 1;
+    RowType row_type = 2;
+    ArrowType arrow_type = 3;
+    OverWindowArrowType over_window_arrow_type = 4;
+
+    // for DataStream
+    RawType raw_type = 5;
+  }
+
+  Mode mode = 6;
+
+  // append an end message (0x00) after serializing the records belonging to the same batch.
+  bool separated_with_end_message = 7;
 }

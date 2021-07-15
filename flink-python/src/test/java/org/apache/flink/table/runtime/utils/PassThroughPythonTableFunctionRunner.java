@@ -31,6 +31,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link BeamTablePythonFunctionRunner} that emit each input element in inner join and emit null
  * in left join when certain test conditions are met.
@@ -53,8 +55,6 @@ public class PassThroughPythonTableFunctionRunner extends BeamTablePythonFunctio
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -64,9 +64,10 @@ public class PassThroughPythonTableFunctionRunner extends BeamTablePythonFunctio
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true));
         this.buffer = new LinkedList<>();
     }
 

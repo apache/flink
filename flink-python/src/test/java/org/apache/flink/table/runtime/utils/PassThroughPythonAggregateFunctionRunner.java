@@ -39,6 +39,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughPythonAggregateFunctionRunner} runner that just return the first input
  * element with the same key as the execution results.
@@ -76,8 +78,6 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -87,9 +87,10 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                createArrowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createArrowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false));
         this.buffer = new LinkedList<>();
         this.isBatchOverWindow = isBatchOverWindow;
         arrowSerializer = new RowDataArrowSerializer(inputType, outputType);

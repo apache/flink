@@ -31,7 +31,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.table.runtime.typeutils.PythonTypeUtils.toProtoType;
 
 /**
@@ -97,15 +98,6 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private final int mapStateWriteCacheSize;
 
-    /** The Input DataType of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.DataType inputDataType;
-
-    /** The output DataType of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.DataType outputDataType;
-
-    /** The output mode of BaseCoder in Python. */
-    private final FlinkFnApi.CoderParam.OutputMode outputMode;
-
     private transient Object keyForTimerService;
 
     /** The user-defined function input logical type. */
@@ -143,10 +135,7 @@ public abstract class AbstractPythonStreamAggregateOperator
             DataViewUtils.DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
-            boolean generateUpdateBefore,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType,
-            FlinkFnApi.CoderParam.OutputMode outputMode) {
+            boolean generateUpdateBefore) {
         super(config);
         this.inputType = Preconditions.checkNotNull(inputType);
         this.outputType = Preconditions.checkNotNull(outputType);
@@ -156,9 +145,6 @@ public abstract class AbstractPythonStreamAggregateOperator
         this.grouping = grouping;
         this.indexOfCountStar = indexOfCountStar;
         this.generateUpdateBefore = generateUpdateBefore;
-        this.inputDataType = Preconditions.checkNotNull(inputDataType);
-        this.outputDataType = Preconditions.checkNotNull(outputDataType);
-        this.outputMode = Preconditions.checkNotNull(outputMode);
         this.stateCacheSize = config.get(PythonOptions.STATE_CACHE_SIZE);
         this.mapStateReadCacheSize = config.get(PythonOptions.MAP_STATE_READ_CACHE_SIZE);
         this.mapStateWriteCacheSize = config.get(PythonOptions.MAP_STATE_WRITE_CACHE_SIZE);
@@ -194,8 +180,6 @@ public abstract class AbstractPythonStreamAggregateOperator
         return new BeamTablePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
                 jobOptions,
@@ -215,9 +199,8 @@ public abstract class AbstractPythonStreamAggregateOperator
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                inputDataType,
-                outputDataType,
-                outputMode);
+                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
+                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
     }
 
     /**
@@ -275,8 +258,7 @@ public abstract class AbstractPythonStreamAggregateOperator
                 specs = dataViewSpecs[i];
             }
             builder.addUdfs(
-                    PythonOperatorUtils.getUserDefinedAggregateFunctionProto(
-                            aggregateFunctions[i], specs));
+                    ProtoUtils.getUserDefinedAggregateFunctionProto(aggregateFunctions[i], specs));
         }
         return builder.build();
     }
@@ -301,5 +283,15 @@ public abstract class AbstractPythonStreamAggregateOperator
                 PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key(),
                 String.valueOf(config.get(PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE)));
         return jobOptions;
+    }
+
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createRowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 }

@@ -30,6 +30,8 @@ import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+
 /** Arrow Python {@link ScalarFunction} operator. */
 @Internal
 public class RowDataArrowPythonScalarFunctionOperator
@@ -52,15 +54,7 @@ public class RowDataArrowPythonScalarFunctionOperator
             RowType outputType,
             int[] udfInputOffsets,
             int[] forwardedFields) {
-        super(
-                config,
-                scalarFunctions,
-                inputType,
-                outputType,
-                udfInputOffsets,
-                forwardedFields,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
     }
 
     @Override
@@ -72,6 +66,19 @@ public class RowDataArrowPythonScalarFunctionOperator
                         userDefinedFunctionInputType, userDefinedFunctionOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            RowType runnerOutputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerOutputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
     }
 
     @Override

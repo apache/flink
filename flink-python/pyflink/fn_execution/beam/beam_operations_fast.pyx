@@ -22,9 +22,9 @@
 from libc.stdint cimport *
 from apache_beam.utils.windowed_value cimport WindowedValue
 
-from pyflink.fn_execution.coder_impl_fast cimport LengthPrefixBaseCoderImpl
-from pyflink.fn_execution.beam.beam_stream_fast cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper, BeamCoderImpl
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamOutputStream
+from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
+from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
 from pyflink.fn_execution.table.operations import BundleOperation
 
 cdef class FunctionOperation(Operation):
@@ -38,7 +38,7 @@ cdef class FunctionOperation(Operation):
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
 
-        if isinstance(self._value_coder_impl, BeamCoderImpl):
+        if isinstance(self._value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
             self._is_python_coder = False
             self._output_coder = self._value_coder_impl._value_coder
         else:
@@ -64,8 +64,6 @@ cdef class FunctionOperation(Operation):
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
-        cdef BeamInputStream input_stream
-        cdef LengthPrefixBaseCoderImpl input_coder
         cdef BeamOutputStream output_stream
         with self.scoped_process_state:
             if self._is_python_coder:
@@ -75,19 +73,15 @@ cdef class FunctionOperation(Operation):
                     self.consumer.output_stream.maybe_flush()
             else:
                 input_stream_wrapper = o.value
-                input_stream = input_stream_wrapper._input_stream
-                input_coder = input_stream_wrapper._value_coder
                 output_stream = BeamOutputStream(self.consumer.output_stream)
                 if isinstance(self.operation, BundleOperation):
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        self.process_element(input_data)
+                    while input_stream_wrapper.has_next():
+                        self.process_element(input_stream_wrapper.next())
                     result = self.operation.finish_bundle()
                     self._output_coder.encode_to_stream(result, output_stream)
                 else:
-                    while input_stream.available():
-                        input_data = input_coder.decode_from_stream(input_stream)
-                        result = self.process_element(input_data)
+                    while input_stream_wrapper.has_next():
+                        result = self.process_element(input_stream_wrapper.next())
                         self._output_coder.encode_to_stream(result, output_stream)
                 output_stream.flush()
 

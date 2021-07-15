@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.api.utils.input.KeyedInputWithTimerRowFactory;
@@ -54,6 +55,7 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
@@ -207,10 +209,8 @@ public class PythonKeyedProcessOperator<OUT>
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                runnerInputTypeInfo,
-                runnerOutputTypeInfo,
                 STATEFUL_FUNCTION_URN,
-                PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                ProtoUtils.getUserDefinedDataStreamStatefulFunctionProto(
                         pythonFunctionInfo,
                         getRuntimeContext(),
                         Collections.EMPTY_MAP,
@@ -233,9 +233,10 @@ public class PythonKeyedProcessOperator<OUT>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+                createRawTypeCoderInfoDescriptorProto(
+                        runnerInputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true),
+                createRawTypeCoderInfoDescriptorProto(
+                        runnerOutputTypeInfo, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true));
     }
 
     @Override

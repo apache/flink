@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -32,6 +32,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
 
 /**
  * @param <IN> Type of the input elements.
@@ -59,14 +62,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
             RowType outputType,
             int[] udtfInputOffsets,
             FlinkJoinType joinType) {
-        super(
-                config,
-                inputType,
-                outputType,
-                udtfInputOffsets,
-                toCoderParam(tableFunction),
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+        super(config, inputType, outputType, udtfInputOffsets);
         this.tableFunction = Preconditions.checkNotNull(tableFunction);
         Preconditions.checkArgument(
                 joinType == FlinkJoinType.INNER || joinType == FlinkJoinType.LEFT,
@@ -96,21 +92,30 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
     }
 
     @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        if (tableFunction.getPythonFunction().takesRowAsInput()) {
+            // need the field names in case of row-based operations
+            return createRowTypeCoderInfoDescriptorProto(
+                    runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+        } else {
+            return createFlattenRowTypeCoderInfoDescriptorProto(
+                    runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+        }
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
     public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
         FlinkFnApi.UserDefinedFunctions.Builder builder =
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
-        builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
+        builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(tableFunction));
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
         return builder.build();
-    }
-
-    private static FlinkFnApi.CoderParam.DataType toCoderParam(
-            PythonFunctionInfo pythonFunctionInfo) {
-        if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
-            return FlinkFnApi.CoderParam.DataType.ROW;
-        } else {
-            return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
-        }
     }
 
     /** The received udtf execution result is a finish message when it is a byte with value 0x00. */
