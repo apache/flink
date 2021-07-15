@@ -24,13 +24,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name='task-lifecycle'> </a>
 
 # Task 生命周期
 
 Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task 里执行。例如，一个并行度为 *5* 的算子，它的每个实例都由一个单独的 task 来执行。
 
-在 Flink 流式计算引擎里，`StreamTask` 是所有不同 task 子类的基础。本文会深入讲解  `StreamTask` 生命周期的不同阶段，并描述每个阶段的主要方法。
+`StreamTask` 是 Flink 流式计算引擎中所有不同 task 子类的基础。本文会深入讲解  `StreamTask` 生命周期的不同阶段，并阐述每个阶段的主要方法。
 
 <a name="operator-lifecycle-in-a-nutshell"> </a>
 
@@ -51,7 +50,6 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
         OPERATOR::processElement
             UDF::run
         OPERATOR::processWatermark
-        
         // checkpointing 阶段（对每个 checkpoint 异步调用）
         OPERATOR::snapshotState
         // 通知 operator 处理记录的过程结束
@@ -126,7 +124,6 @@ task 里多个连续算子的开启时是从后往前依次执行。
 
 task 里的多个连续算子的关闭是从前往后依次执行。
 
-Consecutive operators in a task are closed from the first to the last.
 {{< /hint >}}
 
 最后，当所有算子都已经关闭，所有资源都已被释放时，task 关掉它的定时器服务，进行特定 task 的清理操作，例如清理掉所有内部缓存，然后进行常规的 task 清理操作，包括关闭所有的输出管道，清理所有输出缓存等。
