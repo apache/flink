@@ -26,17 +26,17 @@ import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
 
-/** TODO. */
+/** Interface for DynamoDB producer. */
 @PublicEvolving
 public interface DynamoDbProducer {
 
     /** A listener for the execution. */
     interface Listener {
         /** Callback before the batch request is executed. */
-        void beforeBatch(long executionId, BatchRequest request);
+        void beforeWrite(long executionId, BatchRequest request);
 
         /** Callback after a successful execution of batch write request. */
-        void afterBatch(long executionId, BatchRequest request, BatchResponse response);
+        void afterWrite(long executionId, BatchRequest request, BatchResponse response);
 
         /**
          * Callback after a failed execution of batch write request. Note that in case an instance
@@ -44,7 +44,7 @@ public interface DynamoDbProducer {
          * been cancelled externally, the thread's interruption status has been restored prior to
          * calling this method.
          */
-        void afterBatch(long executionId, BatchRequest request, Throwable failure);
+        void afterWrite(long executionId, BatchRequest request, Throwable failure);
     }
 
     /** Tear-down the producer. */
