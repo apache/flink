@@ -3706,9 +3706,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // let all but the first CP overlap by one shared state.
             if (cpSequenceNumber > 0) {
-                sharedState.put(
-                        StateObjectID.of("shared-" + (cpSequenceNumber - 1)),
-                        spy(new PlaceholderStreamStateHandle()));
+                StateObjectID id = StateObjectID.of("shared-" + (cpSequenceNumber - 1));
+                sharedState.put(id, spy(new PlaceholderStreamStateHandle(id)));
             }
 
             sharedState.put(

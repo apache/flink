@@ -21,6 +21,9 @@ package org.apache.flink.runtime.state.filesystem;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.ShareableStateHandle;
+import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
@@ -34,7 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * {@link StreamStateHandle} for state that was written to a file stream. The written data is
  * identified by the file path. The state can be read again by calling {@link #openInputStream()}.
  */
-public class FileStateHandle implements StreamStateHandle {
+public class FileStateHandle implements StreamStateHandle, ShareableStateHandle {
 
     private static final long serialVersionUID = 350284443258002355L;
 
@@ -44,15 +47,28 @@ public class FileStateHandle implements StreamStateHandle {
     /** The size of the state in the file. */
     private final long stateSize;
 
+    private final boolean shared;
+
     /**
      * Creates a new file state for the given file path.
      *
      * @param filePath The path to the file that stores the state.
      */
     public FileStateHandle(Path filePath, long stateSize) {
+        this(filePath, stateSize, false);
+    }
+
+    /**
+     * Creates a new file state for the given file path.
+     *
+     * @param filePath The path to the file that stores the state.
+     * @param shared whether the file is shared
+     */
+    public FileStateHandle(Path filePath, long stateSize, boolean shared) {
         checkArgument(stateSize >= -1);
         this.filePath = checkNotNull(filePath);
         this.stateSize = stateSize;
+        this.shared = shared;
     }
 
     /**
@@ -72,6 +88,21 @@ public class FileStateHandle implements StreamStateHandle {
     @Override
     public Optional<byte[]> asBytesIfInMemory() {
         return Optional.empty();
+    }
+
+    @Override
+    public StateObjectID getID() {
+        return StateObjectID.of(filePath.toString());
+    }
+
+    @Override
+    public boolean isShared() {
+        return shared;
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new FileStateHandle(filePath, stateSize, true);
     }
 
     /**
