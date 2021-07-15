@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.jdbc.dialect.psql;
 
+import org.apache.flink.connector.jdbc.catalog.PostgresTablePath;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.PostgresRowConverter;
@@ -83,7 +84,11 @@ public class PostgresDialect extends AbstractDialect {
 
     @Override
     public String quoteIdentifier(String identifier) {
-        return identifier;
+        if (identifier.contains(".")) {
+            return PostgresTablePath.fromFlinkTableName(identifier).getQuoteFullPath();
+        } else {
+            return "\"" + identifier + "\"";
+        }
     }
 
     @Override

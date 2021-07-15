@@ -53,6 +53,7 @@ public class PostgresCatalogTestBase {
     protected static final String TEST_PWD = "postgres";
     protected static final String TEST_DB = "test";
     protected static final String TEST_SCHEMA = "test_schema";
+    protected static final String TEST_UPPER_SCHEMA = "upper_Schema";
     protected static final String TABLE1 = "t1";
     protected static final String TABLE2 = "t2";
     protected static final String TABLE3 = "t3";
@@ -62,6 +63,7 @@ public class PostgresCatalogTestBase {
     protected static final String TABLE_PRIMITIVE_TYPE2 = "primitive_table2";
     protected static final String TABLE_ARRAY_TYPE = "array_table";
     protected static final String TABLE_SERIAL_TYPE = "serial_table";
+    protected static final String TABLE_UPPER_NAME = "upper_Table";
 
     protected static String baseUrl;
     protected static PostgresCatalog catalog;
@@ -90,6 +92,7 @@ public class PostgresCatalogTestBase {
 
         // create test database and schema
         createSchema(TEST_DB, TEST_SCHEMA);
+        createSchema(TEST_UPPER_SCHEMA);
 
         // create test tables
         // table: postgres.public.t1
@@ -121,6 +124,9 @@ public class PostgresCatalogTestBase {
         createTable(
                 PostgresTablePath.fromFlinkTableName(TABLE_SERIAL_TYPE),
                 getSerialTable().pgSchemaSql);
+        createQuoteTable(
+                new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE_UPPER_NAME),
+                getUpperTable().pgSchemaSql);
 
         executeSQL(
                 PostgresCatalog.DEFAULT_DATABASE,
@@ -139,6 +145,13 @@ public class PostgresCatalogTestBase {
                 PostgresCatalog.DEFAULT_DATABASE,
                 String.format(
                         "insert into %s values (%s);", TABLE_SERIAL_TYPE, getSerialTable().values));
+        executeSQL(
+                PostgresCatalog.DEFAULT_DATABASE,
+                String.format(
+                        "insert into %s values (%s);",
+                        new PostgresTablePath(TEST_UPPER_SCHEMA, TABLE_UPPER_NAME)
+                                .getQuoteFullPath(),
+                        getUpperTable().values));
     }
 
     public static void createTable(PostgresTablePath tablePath, String tableSchemaSql)
@@ -148,18 +161,31 @@ public class PostgresCatalogTestBase {
                 String.format("CREATE TABLE %s(%s);", tablePath.getFullPath(), tableSchemaSql));
     }
 
+    public static void createQuoteTable(PostgresTablePath tablePath, String tableSchemaSql)
+            throws SQLException {
+        executeSQL(
+                PostgresCatalog.DEFAULT_DATABASE,
+                String.format(
+                        "CREATE TABLE %s(%s);", tablePath.getQuoteFullPath(), tableSchemaSql));
+    }
+
     public static void createTable(String db, PostgresTablePath tablePath, String tableSchemaSql)
             throws SQLException {
         executeSQL(
                 db, String.format("CREATE TABLE %s(%s);", tablePath.getFullPath(), tableSchemaSql));
     }
 
+    public static void createSchema(String schema) throws SQLException {
+        executeSQL(
+                PostgresCatalog.DEFAULT_DATABASE, String.format("CREATE SCHEMA \"%s\";", schema));
+    }
+
     public static void createSchema(String db, String schema) throws SQLException {
-        executeSQL(db, String.format("CREATE SCHEMA %s", schema));
+        executeSQL(db, String.format("CREATE SCHEMA \"%s\";", schema));
     }
 
     public static void createDatabase(String database) throws SQLException {
-        executeSQL(String.format("CREATE DATABASE %s;", database));
+        executeSQL(String.format("CREATE DATABASE \"%s\";", database));
     }
 
     public static void executeSQL(String sql) throws SQLException {
@@ -369,5 +395,12 @@ public class PostgresCatalogTestBase {
                         + "2147483647,"
                         + "9223372036854775807,"
                         + "9223372036854775807");
+    }
+
+    public static TestTable getUpperTable() {
+        return new TestTable(
+                Schema.newBuilder().column("foo_Bar", DataTypes.INT()).build(),
+                "\"foo_Bar\" integer",
+                "1");
     }
 }

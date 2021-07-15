@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.jdbc.catalog;
 
+import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
+import org.apache.flink.connector.jdbc.dialect.psql.PostgresDialect;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Objects;
@@ -34,6 +36,7 @@ public class PostgresTablePath {
 
     private final String pgSchemaName;
     private final String pgTableName;
+    private final JdbcDialect dialect;
 
     public PostgresTablePath(String pgSchemaName, String pgTableName) {
         checkArgument(!StringUtils.isNullOrWhitespaceOnly(pgSchemaName));
@@ -41,6 +44,7 @@ public class PostgresTablePath {
 
         this.pgSchemaName = pgSchemaName;
         this.pgTableName = pgTableName;
+        this.dialect = new PostgresDialect();
     }
 
     public static PostgresTablePath fromFlinkTableName(String flinkTableName) {
@@ -65,6 +69,12 @@ public class PostgresTablePath {
 
     public String getFullPath() {
         return String.format("%s.%s", pgSchemaName, pgTableName);
+    }
+
+    public String getQuoteFullPath() {
+        return String.format(
+                "%s.%s",
+                dialect.quoteIdentifier(pgSchemaName), dialect.quoteIdentifier(pgTableName));
     }
 
     public String getPgTableName() {
