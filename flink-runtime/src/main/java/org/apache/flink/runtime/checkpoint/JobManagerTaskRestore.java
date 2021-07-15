@@ -18,10 +18,15 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.StateObject;
+
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 
 import java.io.Serializable;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /** This class encapsulates the data from the job manager to restore a task. */
 public class JobManagerTaskRestore implements Serializable {
@@ -57,5 +62,10 @@ public class JobManagerTaskRestore implements Serializable {
                 + ", taskStateSnapshot="
                 + taskStateSnapshot
                 + '}';
+    }
+
+    public JobManagerTaskRestore transform(Function<StateObject, StateObject> transformation) {
+        return new JobManagerTaskRestore(
+                restoreCheckpointId, transformAndCast(taskStateSnapshot, transformation));
     }
 }

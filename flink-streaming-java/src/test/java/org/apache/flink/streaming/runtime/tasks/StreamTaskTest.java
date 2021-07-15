@@ -82,6 +82,7 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -174,6 +175,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -2487,6 +2489,11 @@ public class StreamTaskTest extends TestLogger {
 
         @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+
+        @Override
+        public StateObject transform(Function<StateObject, StateObject> transformation) {
+            return transformation.apply(this);
+        }
 
         @Override
         public void discardState() {

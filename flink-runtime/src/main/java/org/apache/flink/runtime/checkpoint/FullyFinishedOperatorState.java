@@ -19,9 +19,12 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import javax.annotation.Nullable;
+
+import java.util.function.Function;
 
 /**
  * A special operator state implementation representing the operators whose instances are all
@@ -82,5 +85,12 @@ public class FullyFinishedOperatorState extends OperatorState {
                 + ", maxParallelism: "
                 + getMaxParallelism()
                 + ')';
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new FullyFinishedOperatorState(
+                        getOperatorID(), getParallelism(), getMaxParallelism()));
     }
 }

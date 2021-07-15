@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.Preconditions;
@@ -32,7 +33,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -180,6 +183,18 @@ public class OperatorState implements CompositeStateHandle {
 
     public boolean hasSubtaskStates() {
         return operatorSubtaskStates.size() > 0;
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        OperatorState rebuilt = new OperatorState(operatorID, parallelism, maxParallelism);
+        for (Map.Entry<Integer, OperatorSubtaskState> e : operatorSubtaskStates.entrySet()) {
+            rebuilt.putState(e.getKey(), transformAndCast(e.getValue(), transformation));
+        }
+        if (coordinatorState != null) {
+            rebuilt.setCoordinatorState(transformAndCast(coordinatorState, transformation));
+        }
+        return transformation.apply(rebuilt);
     }
 
     @Override

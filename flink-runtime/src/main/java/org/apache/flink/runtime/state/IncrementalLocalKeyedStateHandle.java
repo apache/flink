@@ -25,6 +25,9 @@ import javax.annotation.Nonnull;
 
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /**
  * State handle for local copies of {@link IncrementalRemoteKeyedStateHandle}. Consists of a {@link
@@ -150,5 +153,17 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
         directoryStateHandle.accept(visitor);
         metaDataState.accept(visitor);
         visitor.visit(this);
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new IncrementalLocalKeyedStateHandle(
+                        backendIdentifier,
+                        checkpointId,
+                        transformAndCast(directoryStateHandle, transformation),
+                        getKeyGroupRange(),
+                        transformAndCast(metaDataState, transformation),
+                        sharedStateHandleIDs));
     }
 }

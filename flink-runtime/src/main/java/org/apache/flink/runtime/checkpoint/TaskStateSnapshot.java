@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.util.Preconditions;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor.NO_RESCALE;
+import static org.apache.flink.runtime.state.StateUtil.transformMap;
 
 /**
  * This class encapsulates state handles to the snapshots of all operator instances executed within
@@ -226,5 +228,14 @@ public class TaskStateSnapshot implements CompositeStateHandle {
             operatorSubtaskState.accept(visitor);
         }
         visitor.visit(this);
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new TaskStateSnapshot(
+                        transformMap(subtaskStatesByOperatorID, transformation),
+                        isFinishedOnRestore,
+                        isOperatorsFinished));
     }
 }

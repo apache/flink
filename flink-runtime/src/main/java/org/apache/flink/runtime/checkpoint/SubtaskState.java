@@ -31,6 +31,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /**
  * Container for the chained state of one parallel subtask of an operator/task. This is part of the
@@ -133,6 +136,16 @@ public class SubtaskState implements CompositeStateHandle {
         if (rawKeyedState != null) {
             rawKeyedState.registerSharedStates(sharedStateRegistry);
         }
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new SubtaskState(
+                        transformAndCast(managedOperatorState, transformation),
+                        transformAndCast(rawOperatorState, transformation),
+                        transformAndCast(managedKeyedState, transformation),
+                        transformAndCast(rawKeyedState, transformation)));
     }
 
     @Override

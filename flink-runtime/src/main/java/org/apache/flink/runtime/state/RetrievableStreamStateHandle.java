@@ -28,6 +28,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /**
  * Wrapper around a {@link StreamStateHandle} to make the referenced state object retrievable trough
@@ -84,6 +87,13 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     @Override
     public void close() throws IOException {
         //		wrappedStreamStateHandle.close();
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new RetrievableStreamStateHandle<>(
+                        transformAndCast(wrappedStreamStateHandle, transformation)));
     }
 
     @Override

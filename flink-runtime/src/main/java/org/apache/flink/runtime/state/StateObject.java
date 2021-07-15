@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import java.io.Serializable;
+import java.util.function.Function;
 
 /**
  * Base of all handles that represent checkpointed state in some form. The object may hold the
@@ -70,4 +71,16 @@ public interface StateObject extends Serializable {
      * correct method is chosen).
      */
     <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E;
+
+    /**
+     * Transform this state object using the given transformation. If this state object contains
+     * another state objects (like {@link CompositeStateHandle}) then they should be transformed
+     * first. So that the whole state object hierarchy is rebuilt recursively.
+     *
+     * <p>{@link StateObjectVisitor} can't be used for this purpose because only handles themselves
+     * know how to reconstruct themselves from its (rebuilt) children.
+     */
+    default StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(this);
+    }
 }

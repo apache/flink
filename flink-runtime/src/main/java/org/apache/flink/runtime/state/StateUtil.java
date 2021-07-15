@@ -25,8 +25,14 @@ import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
+import java.util.function.Function;
 
 /** Helpers for {@link StateObject} related code. */
 public class StateUtil {
@@ -136,5 +142,29 @@ public class StateUtil {
                         + ". "
                         + "This can mostly happen when a different StateBackend from the one "
                         + "that was used for taking a checkpoint/savepoint is used when restoring.");
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends StateObject> T transformAndCast(
+            T state, Function<StateObject, StateObject> transformation) {
+        return (T) state.transform(transformation);
+    }
+
+    public static <K, V extends StateObject> Map<K, V> transformMap(
+            Map<K, V> map, Function<StateObject, StateObject> transformation) {
+        Map<K, V> result = new HashMap<>();
+        for (Map.Entry<K, V> e : map.entrySet()) {
+            result.put(e.getKey(), transformAndCast(e.getValue(), transformation));
+        }
+        return result;
+    }
+
+    public static <V extends StateObject> List<V> transformCollection(
+            Collection<V> list, Function<StateObject, StateObject> transformation) {
+        List<V> result = new ArrayList<>();
+        for (V stateObject : list) {
+            result.add(transformAndCast(stateObject, transformation));
+        }
+        return result;
     }
 }

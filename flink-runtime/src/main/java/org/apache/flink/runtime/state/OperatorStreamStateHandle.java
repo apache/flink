@@ -22,14 +22,18 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /**
  * State handle for partitionable operator state. Besides being a {@link StreamStateHandle}, this
  * also provides a map that contains the offsets to the partitions of named states in the stream.
  */
-public class OperatorStreamStateHandle implements OperatorStateHandle {
+public class OperatorStreamStateHandle implements OperatorStateHandle, CompositeStateHandle {
 
     private static final long serialVersionUID = 35876522969227335L;
 
@@ -129,5 +133,16 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
         delegateStateHandle.accept(visitor);
         visitor.visit(this);
+    }
+
+    @Override
+    public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new OperatorStreamStateHandle(
+                        new HashMap<>(stateNameToPartitionOffsets),
+                        transformAndCast(delegateStateHandle, transformation)));
     }
 }

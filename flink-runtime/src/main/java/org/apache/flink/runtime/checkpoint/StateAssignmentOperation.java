@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -38,7 +39,9 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.ShareableStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -145,6 +148,32 @@ public class StateAssignmentOperation {
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
             if (stateAssignment.hasNonFinishedState || stateAssignment.isFullyFinished) {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
+            }
+        }
+
+        // add shared states to TM snapshots
+        transformSharedState(vertexAssignments.keySet());
+    }
+
+    private static void transformSharedState(Set<ExecutionJobVertex> vertices) {
+        Set<StateObjectID> sharedStateObjectIDs = SharedStateCollector.collect(vertices);
+        Function<StateObject, StateObject> sharedStateTransformer =
+                handle -> {
+                    if (handle instanceof ShareableStateHandle) {
+                        ShareableStateHandle shareable = ((ShareableStateHandle) handle);
+                        if (sharedStateObjectIDs.contains(shareable.getID())) {
+                            return shareable.asShared();
+                        }
+                    }
+                    return handle;
+                };
+        for (ExecutionJobVertex executionJobVertex : vertices) {
+            for (ExecutionVertex executionVertex : executionJobVertex.getTaskVertices()) {
+                Execution execution = executionVertex.getCurrentExecutionAttempt();
+                JobManagerTaskRestore state = execution.getTaskRestore();
+                if (state != null) {
+                    execution.setInitialState(state.transform(sharedStateTransformer));
+                }
             }
         }
     }

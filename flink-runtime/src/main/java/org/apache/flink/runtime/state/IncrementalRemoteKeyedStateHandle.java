@@ -29,6 +29,10 @@ import javax.annotation.Nonnull;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
+import static org.apache.flink.runtime.state.StateUtil.transformMap;
 
 /**
  * The handle to states of an incremental snapshot.
@@ -346,5 +350,17 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             handle.accept(visitor);
         }
         visitor.visit(this);
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new IncrementalRemoteKeyedStateHandle(
+                        backendIdentifier,
+                        keyGroupRange,
+                        checkpointId,
+                        transformMap(sharedState, transformation),
+                        transformMap(privateState, transformation),
+                        transformAndCast(metaStateHandle, transformation)));
     }
 }

@@ -18,6 +18,10 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.state.StateObject;
+
+import java.util.function.Function;
+
 /**
  * A specialized {@link OperatorSubtaskState} representing the subtask is finished. It is also
  * read-only and could not have actual states.
@@ -49,5 +53,10 @@ public class FinishedOperatorSubtaskState extends OperatorSubtaskState {
     @Override
     public String toString() {
         return "FinishedOperatorSubtaskState{}";
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(this);
     }
 }

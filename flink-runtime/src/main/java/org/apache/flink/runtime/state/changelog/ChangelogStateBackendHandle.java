@@ -32,9 +32,11 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.unmodifiableList;
+import static org.apache.flink.runtime.state.StateUtil.transformCollection;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -69,6 +71,15 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
         public void registerSharedStates(SharedStateRegistry stateRegistry) {
             stateRegistry.registerAll(materialized);
             stateRegistry.registerAll(nonMaterialized);
+        }
+
+        @Override
+        public StateObject transform(Function<StateObject, StateObject> transformation) {
+            return transformation.apply(
+                    new ChangelogStateBackendHandleImpl(
+                            transformCollection(materialized, transformation),
+                            transformCollection(nonMaterialized, transformation),
+                            keyGroupRange));
         }
 
         @Override

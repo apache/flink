@@ -34,9 +34,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.state.AbstractChannelStateHandle.collectUniqueDelegates;
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -210,6 +212,20 @@ public class OperatorSubtaskState implements CompositeStateHandle {
     public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
         registerSharedState(sharedStateRegistry, managedKeyedState);
         registerSharedState(sharedStateRegistry, rawKeyedState);
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new OperatorSubtaskState(
+                        transformAndCast(managedOperatorState, transformation),
+                        transformAndCast(rawOperatorState, transformation),
+                        transformAndCast(managedKeyedState, transformation),
+                        transformAndCast(rawKeyedState, transformation),
+                        transformAndCast(inputChannelState, transformation),
+                        transformAndCast(resultSubpartitionState, transformation),
+                        inputRescalingDescriptor,
+                        outputRescalingDescriptor));
     }
 
     private static void registerSharedState(

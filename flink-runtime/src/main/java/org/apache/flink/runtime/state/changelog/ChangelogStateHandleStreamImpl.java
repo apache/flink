@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -32,6 +33,10 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
+
+import static java.util.stream.Collectors.toList;
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -62,6 +67,22 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
                 handleAndOffset ->
                         stateRegistry.registerReference(
                                 getKey(handleAndOffset.f0), handleAndOffset.f0));
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new ChangelogStateHandleStreamImpl(
+                        handlesAndOffsets.stream()
+                                .map(
+                                        handleAndOffset ->
+                                                Tuple2.of(
+                                                        transformAndCast(
+                                                                handleAndOffset.f0, transformation),
+                                                        handleAndOffset.f1))
+                                .collect(toList()),
+                        keyGroupRange,
+                        size));
     }
 
     @Override

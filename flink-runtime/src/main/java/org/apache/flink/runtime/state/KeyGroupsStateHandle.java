@@ -23,6 +23,9 @@ import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformAndCast;
 
 /**
  * A handle to the partitioned stream operator state after it has been checkpointed. This state
@@ -34,7 +37,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     private static final long serialVersionUID = -8070326169926626355L;
 
     /** Range of key-groups with their respective offsets in the stream state */
-    private final KeyGroupRangeOffsets groupRangeOffsets;
+    protected final KeyGroupRangeOffsets groupRangeOffsets;
 
     /** Inner stream handle to the actual states of the key-groups in the range */
     protected final StreamStateHandle stateHandle;
@@ -94,6 +97,13 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry) {
         // No shared states
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new KeyGroupsStateHandle(
+                        groupRangeOffsets, transformAndCast(stateHandle, transformation)));
     }
 
     @Override

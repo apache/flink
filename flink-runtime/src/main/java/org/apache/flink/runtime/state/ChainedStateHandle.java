@@ -22,9 +22,13 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
+
+import static org.apache.flink.runtime.state.StateUtil.transformCollection;
 
 /** Handle to state handles for the operators in an operator chain. */
-public class ChainedStateHandle<T extends StateObject> implements StateObject {
+public class ChainedStateHandle<T extends StateObject>
+        implements StateObject, CompositeStateHandle {
 
     private static final long serialVersionUID = 1L;
 
@@ -133,5 +137,15 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
             handle.accept(visitor);
         }
         visitor.visit(this);
+    }
+
+    @Override
+    public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new ChainedStateHandle<>(
+                        transformCollection(operatorStateHandles, transformation)));
     }
 }

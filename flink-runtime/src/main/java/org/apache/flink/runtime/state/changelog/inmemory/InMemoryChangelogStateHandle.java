@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
@@ -30,6 +31,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
 /** In-memory {@link ChangelogStateHandle}. */
 @Internal
@@ -86,6 +88,12 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     @Override
     public void registerSharedStates(SharedStateRegistry stateRegistry) {
         // do nothing
+    }
+
+    @Override
+    public StateObject transform(Function<StateObject, StateObject> transformation) {
+        return transformation.apply(
+                new InMemoryChangelogStateHandle(changes, from, to, keyGroupRange));
     }
 
     @Override
