@@ -63,7 +63,6 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 简而言之，在算子初始化时调用 `setup()` 来初始化算子的特定设置，比如 `RuntimeContext` 和指标收集的数据结构。在这之后，算子通过 `initializeState()` 初始化状态，算子的所有初始化工作在 `open()` 方法中执行，比如在继承 `AbstractUdfStreamOperator` 的情况下，初始化用户自定义函数。
 
 {{< hint info >}}
-
 `initializeState()` 既包含状态的初始化逻辑（比如注册 keyed 状态），又包含从 checkpoint 中恢复原有状态的逻辑。在接下来的篇幅会更详细的介绍这些。
 {{< /hint >}}
 
