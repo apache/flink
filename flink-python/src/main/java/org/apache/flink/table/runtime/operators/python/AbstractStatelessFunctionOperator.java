@@ -109,6 +109,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                         Arrays.stream(userDefinedFunctionInputOffsets)
                                 .mapToObj(i -> inputType.getFields().get(i))
                                 .collect(Collectors.toList()));
+        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
@@ -166,6 +167,8 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
     public abstract String getFunctionUrn();
+
+    public abstract RowType createUserDefinedFunctionOutputType();
 
     public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
             RowType runnerInputType);

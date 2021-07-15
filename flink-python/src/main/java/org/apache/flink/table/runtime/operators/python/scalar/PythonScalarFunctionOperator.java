@@ -36,8 +36,7 @@ import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoder
 
 /** The Python {@link ScalarFunction} operator. */
 @Internal
-public class RowDataPythonScalarFunctionOperator
-        extends AbstractRowDataPythonScalarFunctionOperator {
+public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator {
 
     private static final long serialVersionUID = 1L;
 
@@ -47,7 +46,7 @@ public class RowDataPythonScalarFunctionOperator
     /** The TypeSerializer for udf input elements. */
     private transient TypeSerializer<RowData> udfInputTypeSerializer;
 
-    public RowDataPythonScalarFunctionOperator(
+    public PythonScalarFunctionOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,

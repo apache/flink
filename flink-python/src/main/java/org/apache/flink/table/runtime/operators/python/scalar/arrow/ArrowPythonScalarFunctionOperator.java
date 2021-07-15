@@ -27,15 +27,14 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
-import org.apache.flink.table.runtime.operators.python.scalar.AbstractRowDataPythonScalarFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
 
 /** Arrow Python {@link ScalarFunction} operator. */
 @Internal
-public class RowDataArrowPythonScalarFunctionOperator
-        extends AbstractRowDataPythonScalarFunctionOperator {
+public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator {
 
     private static final long serialVersionUID = 1L;
 
@@ -47,7 +46,7 @@ public class RowDataArrowPythonScalarFunctionOperator
 
     private transient ArrowSerializer<RowData> arrowSerializer;
 
-    public RowDataArrowPythonScalarFunctionOperator(
+    public ArrowPythonScalarFunctionOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
