@@ -117,9 +117,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
             }
 
             if (getNumOpenChannels() == 1) {
-                markAlignmentStartAndEnd(barrier.getTimestamp());
+                markAlignmentStartAndEnd(barrierId, barrier.getTimestamp());
             } else {
-                markAlignmentStart(barrier.getTimestamp());
+                markAlignmentStart(barrierId, barrier.getTimestamp());
             }
             currentCheckpointId = barrierId;
             numBarriersReceived = 0;
