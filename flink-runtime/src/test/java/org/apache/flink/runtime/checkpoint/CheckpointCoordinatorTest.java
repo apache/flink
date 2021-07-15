@@ -55,7 +55,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -2834,7 +2834,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         int sharedHandleCount = 0;
 
-        List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint =
+        List<Map<StateObjectID, StreamStateHandle>> sharedHandlesByCheckpoint =
                 new ArrayList<>(numCheckpoints);
 
         for (int i = 0; i < numCheckpoints; ++i) {
@@ -2887,7 +2887,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // we expect no shared state was discarded because the state of CP0 is still referenced by
         // CP1
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
+        for (Map<StateObjectID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
             for (StreamStateHandle streamStateHandle : cpList.values()) {
                 verify(streamStateHandle, never()).discardState();
             }
@@ -2937,9 +2937,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // we expect that all shared state from CP0 is no longer referenced and discarded. CP2 is
         // still live and also
         // references the state from CP1, so we expect they are not discarded.
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-            for (Map.Entry<StateHandleID, StreamStateHandle> entry : cpList.entrySet()) {
-                String key = entry.getKey().getKeyString();
+        for (Map<StateObjectID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
+            for (Map.Entry<StateObjectID, StreamStateHandle> entry : cpList.entrySet()) {
+                String key = entry.getKey().toString();
                 int belongToCP = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
                 if (belongToCP == 0) {
                     verify(entry.getValue(), times(1)).discardState();
@@ -2953,7 +2953,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         secondStore.removeOldestCheckpoint();
 
         // we expect all shared state was discarded now, because all CPs are
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
+        for (Map<StateObjectID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
             for (StreamStateHandle streamStateHandle : cpList.values()) {
                 verify(streamStateHandle, times(1)).discardState();
             }
@@ -3697,22 +3697,22 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             KeyGroupRange keyGroupRange = keyGroupPartitions1.get(index);
 
-            Map<StateHandleID, StreamStateHandle> privateState = new HashMap<>();
+            Map<StateObjectID, StreamStateHandle> privateState = new HashMap<>();
             privateState.put(
-                    new StateHandleID("private-1"),
+                    StateObjectID.of("private-1"),
                     spy(new ByteStreamStateHandle("private-1", new byte[] {'p'})));
 
-            Map<StateHandleID, StreamStateHandle> sharedState = new HashMap<>();
+            Map<StateObjectID, StreamStateHandle> sharedState = new HashMap<>();
 
             // let all but the first CP overlap by one shared state.
             if (cpSequenceNumber > 0) {
                 sharedState.put(
-                        new StateHandleID("shared-" + (cpSequenceNumber - 1)),
+                        StateObjectID.of("shared-" + (cpSequenceNumber - 1)),
                         spy(new PlaceholderStreamStateHandle()));
             }
 
             sharedState.put(
-                    new StateHandleID("shared-" + cpSequenceNumber),
+                    StateObjectID.of("shared-" + cpSequenceNumber),
                     spy(
                             new ByteStreamStateHandle(
                                     "shared-" + cpSequenceNumber + "-" + keyGroupRange,

@@ -32,7 +32,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
@@ -92,7 +92,7 @@ public class RocksIncrementalSnapshotStrategyTest {
 
             // If 3rd checkpoint's placeholderStateHandleCount > 0,it means 3rd checkpoint is
             // incremental.
-            Map<StateHandleID, StreamStateHandle> sharedState3 =
+            Map<StateObjectID, StreamStateHandle> sharedState3 =
                     incrementalRemoteKeyedStateHandle3.getSharedState();
             long placeholderStateHandleCount =
                     sharedState3.entrySet().stream()
@@ -115,7 +115,7 @@ public class RocksIncrementalSnapshotStrategyTest {
         // construct RocksIncrementalSnapshotStrategy
         long lastCompletedCheckpointId = -1L;
         ResourceGuard rocksDBResourceGuard = new ResourceGuard();
-        SortedMap<Long, Set<StateHandleID>> materializedSstFiles = new TreeMap<>();
+        SortedMap<Long, Set<StateObjectID>> materializedSstFiles = new TreeMap<>();
         LinkedHashMap<String, RocksDBKeyedStateBackend.RocksDbKvStateInfo> kvStateInformation =
                 new LinkedHashMap<>();
 

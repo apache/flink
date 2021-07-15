@@ -35,8 +35,8 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
@@ -405,9 +405,9 @@ public abstract class MetadataV2V3SerializerBase {
                     KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
 
             StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-            Map<StateHandleID, StreamStateHandle> sharedStates =
+            Map<StateObjectID, StreamStateHandle> sharedStates =
                     deserializeStreamStateHandleMap(dis, context);
-            Map<StateHandleID, StreamStateHandle> privateStates =
+            Map<StateObjectID, StreamStateHandle> privateStates =
                     deserializeStreamStateHandleMap(dis, context);
 
             UUID uuid;
@@ -712,23 +712,23 @@ public abstract class MetadataV2V3SerializerBase {
     }
 
     private static void serializeStreamStateHandleMap(
-            Map<StateHandleID, StreamStateHandle> map, DataOutputStream dos) throws IOException {
+            Map<StateObjectID, StreamStateHandle> map, DataOutputStream dos) throws IOException {
 
         dos.writeInt(map.size());
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry : map.entrySet()) {
             dos.writeUTF(entry.getKey().toString());
             serializeStreamStateHandle(entry.getValue(), dos);
         }
     }
 
-    private static Map<StateHandleID, StreamStateHandle> deserializeStreamStateHandleMap(
+    private static Map<StateObjectID, StreamStateHandle> deserializeStreamStateHandleMap(
             DataInputStream dis, @Nullable DeserializationContext context) throws IOException {
 
         final int size = dis.readInt();
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        Map<StateObjectID, StreamStateHandle> result = new HashMap<>(size);
 
         for (int i = 0; i < size; ++i) {
-            StateHandleID stateHandleID = new StateHandleID(dis.readUTF());
+            StateObjectID stateHandleID = StateObjectID.of(dis.readUTF());
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
             result.put(stateHandleID, stateHandle);
         }

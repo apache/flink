@@ -69,20 +69,20 @@ public class IncrementalRemoteKeyedStateHandleTest {
         IncrementalRemoteKeyedStateHandle stateHandle2 = create(new Random(42));
 
         // Both handles should not be registered and not discarded by now.
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry :
                 stateHandle1.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(entry.getKey());
 
             verify(registry, times(0)).unregisterReference(registryKey);
             verify(entry.getValue(), times(0)).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry :
                 stateHandle2.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(entry.getKey());
 
             verify(registry, times(0)).unregisterReference(registryKey);
@@ -93,20 +93,20 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateHandle1.registerSharedStates(registry);
         stateHandle2.registerSharedStates(registry);
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> stateHandleEntry :
                 stateHandle1.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(
                             stateHandleEntry.getKey());
 
             verify(registry).registerReference(registryKey, stateHandleEntry.getValue());
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> stateHandleEntry :
                 stateHandle2.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(
                             stateHandleEntry.getKey());
 
@@ -117,10 +117,10 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateHandle1.discardState();
 
         // Should be unregistered, non-shared discarded, shared not discarded
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry :
                 stateHandle1.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(entry.getKey());
 
             verify(registry, times(1)).unregisterReference(registryKey);
@@ -132,20 +132,20 @@ public class IncrementalRemoteKeyedStateHandleTest {
             verify(handle, times(0)).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> handleEntry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> handleEntry :
                 stateHandle1.getPrivateState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(handleEntry.getKey());
 
             verify(registry, times(0)).unregisterReference(registryKey);
             verify(handleEntry.getValue(), times(1)).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> handleEntry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> handleEntry :
                 stateHandle2.getPrivateState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(handleEntry.getKey());
 
             verify(registry, times(0)).unregisterReference(registryKey);
@@ -159,20 +159,20 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateHandle2.discardState();
 
         // Now everything should be unregistered and discarded
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry :
                 stateHandle1.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(entry.getKey());
 
             verify(registry, times(2)).unregisterReference(registryKey);
             verify(entry.getValue()).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry :
                 stateHandle2.getSharedState().entrySet()) {
 
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     stateHandle1.createSharedStateRegistryKeyFromFileName(entry.getKey());
 
             verify(registry, times(2)).unregisterReference(registryKey);
@@ -263,10 +263,10 @@ public class IncrementalRemoteKeyedStateHandleTest {
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
     }
 
-    private static Map<StateHandleID, StreamStateHandle> placeSpies(
-            Map<StateHandleID, StreamStateHandle> map) {
+    private static Map<StateObjectID, StreamStateHandle> placeSpies(
+            Map<StateObjectID, StreamStateHandle> map) {
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry : map.entrySet()) {
             entry.setValue(spy(entry.getValue()));
         }
         return map;

@@ -38,5 +38,5 @@ public interface IncrementalKeyedStateHandle extends KeyedStateHandle {
      * created.
      */
     @Nonnull
-    Set<StateHandleID> getSharedStateHandleIDs();
+    Set<StateObjectID> getSharedStateHandleIDs();
 }

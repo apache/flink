@@ -40,8 +40,8 @@ import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -98,7 +98,7 @@ public class RocksIncrementalSnapshotStrategy<K>
     /**
      * Stores the materialized sstable files from all snapshots that build the incremental history.
      */
-    @Nonnull private final SortedMap<Long, Set<StateHandleID>> materializedSstFiles;
+    @Nonnull private final SortedMap<Long, Set<StateObjectID>> materializedSstFiles;
 
     /** The identifier of the last completed checkpoint. */
     private long lastCompletedCheckpointId;
@@ -120,7 +120,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull CloseableRegistry cancelStreamRegistry,
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
-            @Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
+            @Nonnull SortedMap<Long, Set<StateObjectID>> materializedSstFiles,
             @Nonnull RocksDBStateUploader rocksDBStateUploader,
             long lastCompletedCheckpointId) {
 
@@ -151,7 +151,7 @@ public class RocksIncrementalSnapshotStrategy<K>
 
         final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 new ArrayList<>(kvStateInformation.size());
-        final Set<StateHandleID> baseSstFiles =
+        final Set<StateObjectID> baseSstFiles =
                 snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
 
         takeDBNativeCheckpoint(snapshotDirectory);
@@ -258,11 +258,11 @@ public class RocksIncrementalSnapshotStrategy<K>
         }
     }
 
-    private Set<StateHandleID> snapshotMetaData(
+    private Set<StateObjectID> snapshotMetaData(
             long checkpointId, @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
         final long lastCompletedCheckpoint;
-        final Set<StateHandleID> baseSstFiles;
+        final Set<StateObjectID> baseSstFiles;
 
         // use the last completed checkpoint as the comparison base.
         synchronized (materializedSstFiles) {
@@ -319,13 +319,13 @@ public class RocksIncrementalSnapshotStrategy<K>
         @Nonnull private final SnapshotDirectory localBackupDirectory;
 
         /** All sst files that were part of the last previously completed checkpoint. */
-        @Nullable private final Set<StateHandleID> baseSstFiles;
+        @Nullable private final Set<StateObjectID> baseSstFiles;
 
         private RocksDBIncrementalSnapshotOperation(
                 long checkpointId,
                 @Nonnull CheckpointStreamFactory checkpointStreamFactory,
                 @Nonnull SnapshotDirectory localBackupDirectory,
-                @Nullable Set<StateHandleID> baseSstFiles,
+                @Nullable Set<StateObjectID> baseSstFiles,
                 @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
             this.checkpointStreamFactory = checkpointStreamFactory;
@@ -344,9 +344,9 @@ public class RocksIncrementalSnapshotStrategy<K>
             // Handle to the meta data file
             SnapshotResult<StreamStateHandle> metaStateHandle = null;
             // Handles to new sst files since the last completed checkpoint will go here
-            final Map<StateHandleID, StreamStateHandle> sstFiles = new HashMap<>();
+            final Map<StateObjectID, StreamStateHandle> sstFiles = new HashMap<>();
             // Handles to the misc files in the current snapshot will go here
-            final Map<StateHandleID, StreamStateHandle> miscFiles = new HashMap<>();
+            final Map<StateObjectID, StreamStateHandle> miscFiles = new HashMap<>();
 
             try {
 
@@ -432,16 +432,16 @@ public class RocksIncrementalSnapshotStrategy<K>
         }
 
         private void uploadSstFiles(
-                @Nonnull Map<StateHandleID, StreamStateHandle> sstFiles,
-                @Nonnull Map<StateHandleID, StreamStateHandle> miscFiles,
+                @Nonnull Map<StateObjectID, StreamStateHandle> sstFiles,
+                @Nonnull Map<StateObjectID, StreamStateHandle> miscFiles,
                 @Nonnull CloseableRegistry snapshotCloseableRegistry)
                 throws Exception {
 
             // write state data
             Preconditions.checkState(localBackupDirectory.exists());
 
-            Map<StateHandleID, Path> sstFilePaths = new HashMap<>();
-            Map<StateHandleID, Path> miscFilePaths = new HashMap<>();
+            Map<StateObjectID, Path> sstFilePaths = new HashMap<>();
+            Map<StateObjectID, Path> miscFilePaths = new HashMap<>();
 
             Path[] files = localBackupDirectory.listDirectory();
             if (files != null) {
@@ -458,12 +458,12 @@ public class RocksIncrementalSnapshotStrategy<K>
 
         private void createUploadFilePaths(
                 Path[] files,
-                Map<StateHandleID, StreamStateHandle> sstFiles,
-                Map<StateHandleID, Path> sstFilePaths,
-                Map<StateHandleID, Path> miscFilePaths) {
+                Map<StateObjectID, StreamStateHandle> sstFiles,
+                Map<StateObjectID, Path> sstFilePaths,
+                Map<StateObjectID, Path> miscFilePaths) {
             for (Path filePath : files) {
                 final String fileName = filePath.getFileName().toString();
-                final StateHandleID stateHandleID = new StateHandleID(fileName);
+                final StateObjectID stateHandleID = StateObjectID.of(fileName);
 
                 if (fileName.endsWith(SST_FILE_SUFFIX)) {
                     final boolean existsAlready =
@@ -531,12 +531,12 @@ public class RocksIncrementalSnapshotStrategy<K>
 
     static class IncrementalRocksDBSnapshotResources implements SnapshotResources {
         @Nonnull private final SnapshotDirectory snapshotDirectory;
-        @Nonnull private final Set<StateHandleID> baseSstFiles;
+        @Nonnull private final Set<StateObjectID> baseSstFiles;
         @Nonnull private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
         public IncrementalRocksDBSnapshotResources(
                 SnapshotDirectory snapshotDirectory,
-                Set<StateHandleID> baseSstFiles,
+                Set<StateObjectID> baseSstFiles,
                 List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
             this.snapshotDirectory = snapshotDirectory;
             this.baseSstFiles = baseSstFiles;

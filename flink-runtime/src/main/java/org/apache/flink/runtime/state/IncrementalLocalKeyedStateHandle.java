@@ -46,7 +46,7 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
     @Nonnull private final StreamStateHandle metaDataState;
 
     /** Set with the ids of all shared state handles created by the checkpoint. */
-    @Nonnull private final Set<StateHandleID> sharedStateHandleIDs;
+    @Nonnull private final Set<StateObjectID> sharedStateHandleIDs;
 
     public IncrementalLocalKeyedStateHandle(
             @Nonnull UUID backendIdentifier,
@@ -54,7 +54,7 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
             @Nonnull DirectoryStateHandle directoryStateHandle,
             @Nonnull KeyGroupRange keyGroupRange,
             @Nonnull StreamStateHandle metaDataState,
-            @Nonnull Set<StateHandleID> sharedStateHandleIDs) {
+            @Nonnull Set<StateObjectID> sharedStateHandleIDs) {
 
         super(directoryStateHandle, keyGroupRange);
         this.backendIdentifier = backendIdentifier;
@@ -81,7 +81,7 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
 
     @Override
     @Nonnull
-    public Set<StateHandleID> getSharedStateHandleIDs() {
+    public Set<StateObjectID> getSharedStateHandleIDs() {
         return sharedStateHandleIDs;
     }
 

@@ -16,28 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.runtime.state;
 
-import java.io.Serializable;
+import org.apache.flink.util.Preconditions;
 
-/**
- * Base class for typed IDs that are internally represented by a string. This class is not intended
- * for direct use, but should be subclassed for type-safety.
- */
-public class StringBasedID implements Serializable {
+/** String-based {@link StateObjectID} implementation. */
+public class StringBasedStateObjectID implements StateObjectID {
 
     private static final long serialVersionUID = 1L;
 
-    /** Uses a String as internal representation. */
     private final String keyString;
 
-    /** Protected constructor to enforce that subclassing. */
-    protected StringBasedID(String keyString) {
+    public StringBasedStateObjectID(String keyString) {
         this.keyString = Preconditions.checkNotNull(keyString);
-    }
-
-    public String getKeyString() {
-        return keyString;
     }
 
     @Override
@@ -49,8 +40,7 @@ public class StringBasedID implements Serializable {
             return false;
         }
 
-        StringBasedID that = (StringBasedID) o;
-        return keyString.equals(that.keyString);
+        return keyString.equals(((StringBasedStateObjectID) o).keyString);
     }
 
     @Override
@@ -61,5 +51,9 @@ public class StringBasedID implements Serializable {
     @Override
     public String toString() {
         return keyString;
+    }
+
+    public static StateObjectID withPrefix(String prefix, StateObjectID stateHandleID) {
+        return new StringBasedStateObjectID(prefix + '-' + stateHandleID);
     }
 }

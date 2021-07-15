@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -256,11 +256,11 @@ public class CheckpointTestUtils {
                 createDummyStreamStateHandle(rnd, null));
     }
 
-    public static Map<StateHandleID, StreamStateHandle> createRandomStateHandleMap(Random rnd) {
+    public static Map<StateObjectID, StreamStateHandle> createRandomStateHandleMap(Random rnd) {
         final int size = rnd.nextInt(4);
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        Map<StateObjectID, StreamStateHandle> result = new HashMap<>(size);
         for (int i = 0; i < size; ++i) {
-            StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
+            StateObjectID randomId = StateObjectID.of(createRandomUUID(rnd).toString());
             StreamStateHandle stateHandle = createDummyStreamStateHandle(rnd, null);
             result.put(randomId, stateHandle);
         }
