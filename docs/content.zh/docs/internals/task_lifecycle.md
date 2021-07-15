@@ -28,7 +28,7 @@ under the License.
 
 # Task 生命周期
 
-Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task 里执行。例如，一个并行度为 5 的算子，它的每个实例都由一个单独的 task 来执行。
+Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task 里执行。例如，一个并行度为 *5* 的算子，它的每个实例都由一个单独的 task 来执行。
 
 在 Flink 流式计算引擎里，`StreamTask` 是所有不同 task 子类的基础。本文会深入讲解  `StreamTask` 生命周期的不同阶段，并描述每个阶段的主要方法。
 
