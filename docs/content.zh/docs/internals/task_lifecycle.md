@@ -63,7 +63,7 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 简而言之，在算子初始化时调用 `setup()` 来初始化算子的特定设置，比如 `RuntimeContext` 和指标收集的数据结构。在这之后，算子通过 `initializeState()` 初始化状态，算子的所有初始化工作在 `open()` 方法中执行，比如在继承 `AbstractUdfStreamOperator` 的情况下，初始化用户自定义函数。
 
 {{< hint info >}}
-`initializeState()` 既包含状态的初始化逻辑（比如注册 keyed 状态），又包含从 checkpoint 中恢复原有状态的逻辑。在接下来的篇幅会更详细的介绍这些。
+`initializeState()` 既包含在初始化过程中算子状态的初始化逻辑（比如注册 keyed 状态），又包含异常后从 checkpoint 中恢复原有状态的逻辑。在接下来的篇幅会进行更详细的介绍。
 {{< /hint >}}
 
 当所有初始化都完成之后，算子开始处理流入的数据。流入的数据可以分为三种类型：用户数据、watermark 和 checkpoint barriers。每种类型的数据都有单独的方法来处理。用户数据通过 `processElement()` 方法来处理，watermark 通过 `processWatermark()` 来处理，checkpoint barriers 会触发异步执行的 `snapshotState()` 方法来进行 checkpoint。对于每个流入的数据，根据其类型调用上述方法之一。`processElement()`方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的  `map()` 方法。
