@@ -47,7 +47,6 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
         OPERATOR::initializeState
         OPERATOR::open
             UDF::open
-        
         // 处理阶段（对每个 element 或 watermark 调用）
         OPERATOR::processElement
             UDF::run
