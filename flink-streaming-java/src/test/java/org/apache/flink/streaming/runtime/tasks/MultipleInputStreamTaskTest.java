@@ -35,7 +35,6 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.Counter;
@@ -60,6 +59,7 @@ import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
 import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -932,7 +932,7 @@ public class MultipleInputStreamTaskTest {
                                         config.setCheckpointingEnabled(true);
                                         config.getConfiguration()
                                                 .set(
-                                                        ExecutionOptions
+                                                        ExecutionCheckpointingOptions
                                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                                         true);
                                     })

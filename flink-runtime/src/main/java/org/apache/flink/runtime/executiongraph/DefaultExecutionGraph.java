@@ -444,7 +444,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager,
-                        createCheckpointPlanCalculator(),
+                        createCheckpointPlanCalculator(
+                                chkConfig.isEnableCheckpointsAfterTasksFinish()),
                         new ExecutionAttemptMappingProvider(getAllExecutionVertices()));
 
         // register the master hooks on the checkpoint coordinator
@@ -468,11 +469,13 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         this.checkpointStorageName = checkpointStorage.getClass().getSimpleName();
     }
 
-    private CheckpointPlanCalculator createCheckpointPlanCalculator() {
+    private CheckpointPlanCalculator createCheckpointPlanCalculator(
+            boolean enableCheckpointsAfterTasksFinish) {
         return new DefaultCheckpointPlanCalculator(
                 getJobID(),
                 new ExecutionGraphCheckpointPlanCalculatorContext(this),
-                getVerticesTopologically());
+                getVerticesTopologically(),
+                enableCheckpointsAfterTasksFinish);
     }
 
     @Override

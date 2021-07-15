@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -238,4 +239,12 @@ public class ExecutionCheckpointingOptions {
                                                     + "the specific checkpoint without in-flight data.")
                                     .linebreak()
                                     .build());
+
+    @Documentation.ExcludeFromDocumentation("This is a feature toggle")
+    public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Feature toggle for enabling checkpointing after tasks finish.");
 }
