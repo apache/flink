@@ -324,24 +324,43 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
         public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
                 PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
             return CompletableFuture.completedFuture(
-                    new ShuffleDescriptor() {
-                        @Override
-                        public ResultPartitionID getResultPartitionID() {
-                            return new ResultPartitionID(
-                                    partitionDescriptor.getPartitionId(),
-                                    producerDescriptor.getProducerExecutionId());
-                        }
-
-                        @Override
-                        public Optional<ResourceID> storesLocalResourcesOn() {
-                            return Optional.of(producerDescriptor.getProducerLocation());
-                        }
-                    });
+                    new TestingShuffleDescriptor(
+                            partitionDescriptor.getPartitionId(),
+                            producerDescriptor.getProducerExecutionId(),
+                            producerDescriptor.getProducerLocation()));
         }
 
         @Override
         public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
             externallyReleasedPartitions.add(shuffleDescriptor);
+        }
+    }
+
+    private static class TestingShuffleDescriptor implements ShuffleDescriptor {
+
+        private static final long serialVersionUID = 1819950291216655728L;
+
+        private final ExecutionAttemptID producerExecutionId;
+        private final IntermediateResultPartitionID producedPartitionId;
+        private final ResourceID producerLocation;
+
+        TestingShuffleDescriptor(
+                IntermediateResultPartitionID producedPartitionId,
+                ExecutionAttemptID producerExecutionId,
+                ResourceID producerLocation) {
+            this.producedPartitionId = producedPartitionId;
+            this.producerExecutionId = producerExecutionId;
+            this.producerLocation = producerLocation;
+        }
+
+        @Override
+        public ResultPartitionID getResultPartitionID() {
+            return new ResultPartitionID(producedPartitionId, producerExecutionId);
+        }
+
+        @Override
+        public Optional<ResourceID> storesLocalResourcesOn() {
+            return Optional.of(producerLocation);
         }
     }
 }

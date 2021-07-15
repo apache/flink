@@ -42,6 +42,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -51,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Factory of {@link TaskDeploymentDescriptor} to deploy {@link
@@ -64,7 +66,9 @@ public class TaskDeploymentDescriptorFactory {
     private final JobID jobID;
     private final PartitionLocationConstraint partitionDeploymentConstraint;
     private final int subtaskIndex;
-    private final List<List<IntermediateResultPartition>> consumedPartitions;
+    private final List<ConsumedPartitionGroup> consumedPartitionGroups;
+    private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
+            resultPartitionRetriever;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -74,7 +78,9 @@ public class TaskDeploymentDescriptorFactory {
             JobID jobID,
             PartitionLocationConstraint partitionDeploymentConstraint,
             int subtaskIndex,
-            List<List<IntermediateResultPartition>> consumedPartitions) {
+            List<ConsumedPartitionGroup> consumedPartitionGroups,
+            Function<IntermediateResultPartitionID, IntermediateResultPartition>
+                    resultPartitionRetriever) {
         this.executionId = executionId;
         this.attemptNumber = attemptNumber;
         this.serializedJobInformation = serializedJobInformation;
@@ -82,13 +88,15 @@ public class TaskDeploymentDescriptorFactory {
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
         this.subtaskIndex = subtaskIndex;
-        this.consumedPartitions = consumedPartitions;
+        this.consumedPartitionGroups = consumedPartitionGroups;
+        this.resultPartitionRetriever = resultPartitionRetriever;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
             AllocationID allocationID,
             @Nullable JobManagerTaskRestore taskRestore,
-            Collection<ResultPartitionDeploymentDescriptor> producedPartitions) {
+            Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
+            throws IOException {
         return new TaskDeploymentDescriptor(
                 jobID,
                 serializedJobInformation,
@@ -102,14 +110,17 @@ public class TaskDeploymentDescriptorFactory {
                 createInputGateDeploymentDescriptors());
     }
 
-    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors() {
-        List<InputGateDeploymentDescriptor> inputGates = new ArrayList<>(consumedPartitions.size());
+    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors()
+            throws IOException {
+        List<InputGateDeploymentDescriptor> inputGates =
+                new ArrayList<>(consumedPartitionGroups.size());
 
-        for (List<IntermediateResultPartition> partitions : consumedPartitions) {
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             // If the produced partition has multiple consumers registered, we
             // need to request the one matching our sub task index.
             // TODO Refactor after removing the consumers from the intermediate result partitions
-            IntermediateResultPartition resultPartition = partitions.get(0);
+            IntermediateResultPartition resultPartition =
+                    resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
             int numConsumers = resultPartition.getConsumerVertexGroups().get(0).size();
 
@@ -123,41 +134,48 @@ public class TaskDeploymentDescriptorFactory {
                             resultId,
                             partitionType,
                             queueToRequest,
-                            getConsumedPartitionShuffleDescriptors(partitions)));
+                            getConsumedPartitionShuffleDescriptors(
+                                    consumedIntermediateResult, consumedPartitionGroup)));
         }
 
         return inputGates;
     }
 
-    private ShuffleDescriptor[] getConsumedPartitionShuffleDescriptors(
-            List<IntermediateResultPartition> partitions) {
-
-        ShuffleDescriptor[] shuffleDescriptors = new ShuffleDescriptor[partitions.size()];
-        // Each edge is connected to a different result partition
-        for (int i = 0; i < partitions.size(); i++) {
-            shuffleDescriptors[i] =
-                    getConsumedPartitionShuffleDescriptor(
-                            partitions.get(i), partitionDeploymentConstraint);
+    private CompressedSerializedValue<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
+            IntermediateResult intermediateResult, ConsumedPartitionGroup consumedPartitionGroup)
+            throws IOException {
+        CompressedSerializedValue<ShuffleDescriptor[]> serializedShuffleDescriptors =
+                intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
+        if (serializedShuffleDescriptors == null) {
+            serializedShuffleDescriptors =
+                    computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup);
+            intermediateResult.cacheShuffleDescriptors(
+                    consumedPartitionGroup, serializedShuffleDescriptors);
         }
-        return shuffleDescriptors;
+        return serializedShuffleDescriptors;
+    }
+
+    private CompressedSerializedValue<ShuffleDescriptor[]>
+            computeConsumedPartitionShuffleDescriptors(
+                    ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
+
+        ShuffleDescriptor[] shuffleDescriptors =
+                new ShuffleDescriptor[consumedPartitionGroup.size()];
+        // Each edge is connected to a different result partition
+        int i = 0;
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            shuffleDescriptors[i++] =
+                    getConsumedPartitionShuffleDescriptor(
+                            resultPartitionRetriever.apply(partitionId),
+                            partitionDeploymentConstraint);
+        }
+        return CompressedSerializedValue.fromObject(shuffleDescriptors);
     }
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
             ExecutionVertex executionVertex, int attemptNumber) throws IOException {
         InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
-
-        final List<List<IntermediateResultPartition>> consumedPartitions = new ArrayList<>();
-
-        for (ConsumedPartitionGroup partitionGroup :
-                executionVertex.getAllConsumedPartitionGroups()) {
-            List<IntermediateResultPartition> partitions = new ArrayList<>();
-            for (IntermediateResultPartitionID partitionId : partitionGroup) {
-                partitions.add(
-                        internalExecutionGraphAccessor.getResultPartitionOrThrow(partitionId));
-            }
-            consumedPartitions.add(partitions);
-        }
 
         return new TaskDeploymentDescriptorFactory(
                 executionVertex.getCurrentExecutionAttempt().getAttemptId(),
@@ -168,7 +186,8 @@ public class TaskDeploymentDescriptorFactory {
                 internalExecutionGraphAccessor.getJobID(),
                 internalExecutionGraphAccessor.getPartitionLocationConstraint(),
                 executionVertex.getParallelSubtaskIndex(),
-                consumedPartitions);
+                executionVertex.getAllConsumedPartitionGroups(),
+                internalExecutionGraphAccessor::getResultPartitionOrThrow);
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(

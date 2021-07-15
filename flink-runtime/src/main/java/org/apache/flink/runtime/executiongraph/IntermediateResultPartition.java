@@ -91,6 +91,7 @@ public class IntermediateResultPartition {
             totalResult.incrementNumberOfRunningProducersAndGetRemaining();
         }
         hasDataProduced = false;
+        totalResult.notifyPartitionChanged();
     }
 
     public void addConsumers(ConsumerVertexGroup consumers) {
