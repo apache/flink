@@ -361,6 +361,7 @@ public class StreamGraphGenerator {
                 checkpointConfig.disableCheckpointing();
             }
 
+            graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
             graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
             setDefaultBufferTimeout(-1);
             setBatchStateBackendAndTimerService(graph);
