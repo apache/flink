@@ -31,13 +31,11 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.CompressedSerializedValue;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nullable;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -128,12 +126,11 @@ public class InputGateDeploymentDescriptor implements Serializable {
 
             Preconditions.checkNotNull(blobService);
 
-            final File dataFile = blobService.getFile(jobId, blobKey);
             // NOTE: Do not delete the ShuffleDescriptor BLOBs since it may be needed again during
             // recovery. (it is deleted automatically on the BLOB server and cache when its
             // partition is no longer available or the job enters a terminal state)
             CompressedSerializedValue<ShuffleDescriptor[]> serializedValue =
-                    CompressedSerializedValue.fromBytes(FileUtils.readAllBytes(dataFile.toPath()));
+                    CompressedSerializedValue.fromBytes(blobService.readFile(jobId, blobKey));
             serializedInputChannels = new NonOffloaded<>(serializedValue);
 
             Preconditions.checkNotNull(serializedInputChannels);
