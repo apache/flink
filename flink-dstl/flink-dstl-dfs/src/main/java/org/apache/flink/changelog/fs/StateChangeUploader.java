@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -39,7 +40,6 @@ import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_DELA
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PERSIST_SIZE_THRESHOLD;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.UPLOAD_BUFFER_SIZE;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 // todo: consider using CheckpointStreamFactory / CheckpointStorageWorkerView
 //     Considerations:
@@ -94,7 +94,7 @@ interface StateChangeUploader extends AutoCloseable {
         final Collection<StateChangeSet> changeSets;
         final BiConsumer<List<SequenceNumber>, Throwable> failureCallback;
         final Consumer<List<UploadResult>> successCallback;
-        boolean finished = false;
+        final AtomicBoolean finished = new AtomicBoolean();
 
         public UploadTask(
                 Collection<StateChangeSet> changeSets,
@@ -106,17 +106,19 @@ interface StateChangeUploader extends AutoCloseable {
         }
 
         public void complete(List<UploadResult> results) {
-            checkState(!finished);
-            finished = true;
-            successCallback.accept(results);
+            if (finished.compareAndSet(false, true)) {
+                successCallback.accept(results);
+            }
         }
 
         public void fail(Throwable error) {
-            checkState(!finished);
-            finished = true;
-            failureCallback.accept(
-                    changeSets.stream().map(StateChangeSet::getSequenceNumber).collect(toList()),
-                    error);
+            if (finished.compareAndSet(false, true)) {
+                failureCallback.accept(
+                        changeSets.stream()
+                                .map(StateChangeSet::getSequenceNumber)
+                                .collect(toList()),
+                        error);
+            }
         }
 
         public long getSize() {
