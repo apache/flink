@@ -57,6 +57,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -338,6 +339,31 @@ public class CheckpointBarrierTrackerTest {
         for (BufferOrEvent boe : sequence) {
             assertEquals(boe, inputGate.pollNext().get());
         }
+    }
+
+    @Test
+    public void testNextFirstCheckpointBarrierOvertakesCancellationBarrier() throws Exception {
+        BufferOrEvent[] sequence = {
+            // start checkpoint 1
+            createBarrier(1, 1),
+            //  start checkpoint 2(just suppose checkpoint 1 was canceled)
+            createBarrier(2, 1),
+            // cancellation barrier of checkpoint 1
+            createCancellationBarrier(1, 0),
+            //  finish the checkpoint 2
+            createBarrier(2, 0)
+        };
+
+        ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
+        inputGate = createCheckpointedInputGate(2, sequence, validator);
+
+        for (BufferOrEvent boe : sequence) {
+            assertEquals(boe, inputGate.pollNext().get());
+            Thread.sleep(10);
+        }
+        long alignmentTime = validator.lastAlignmentDurationNanos.get() / 1_000_000;
+        assertThat(alignmentTime, greaterThan(0L));
+        assertThat(alignmentTime, lessThan(30L));
     }
 
     @Test

@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The {@link CheckpointBarrierHandler} reacts to checkpoint barrier arriving from the input
@@ -139,7 +140,6 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     }
 
     protected void notifyAbort(long checkpointId, CheckpointException cause) throws IOException {
-        resetAlignment();
         toNotifyOnCheckpoint.abortCheckpointOnBarrier(checkpointId, cause);
     }
 
@@ -162,6 +162,11 @@ public abstract class CheckpointBarrierHandler implements Closeable {
     }
 
     protected void markAlignmentEnd(long alignmentDuration) {
+        checkState(
+                alignmentDuration >= 0,
+                "Alignment time is less than zero({}). Is the time monotonic?",
+                alignmentDuration);
+
         latestAlignmentDurationNanos.complete(alignmentDuration);
         latestBytesProcessedDuringAlignment.complete(bytesProcessedDuringAlignment);
 
@@ -169,7 +174,7 @@ public abstract class CheckpointBarrierHandler implements Closeable {
         bytesProcessedDuringAlignment = 0;
     }
 
-    private void resetAlignment() {
+    protected void resetAlignment() {
         markAlignmentEnd(0);
         latestAlignmentDurationNanos = new CompletableFuture<>();
         latestBytesProcessedDuringAlignment = new CompletableFuture<>();
