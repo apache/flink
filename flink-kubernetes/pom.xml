@@ -35,17 +35,6 @@ under the License.
 		<kubernetes.client.version>4.9.2</kubernetes.client.version>
 	</properties>
 
-	<!-- Set dependency version for transitive dependencies -->
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.squareup.okhttp3</groupId>
-				<artifactId>okhttp</artifactId>
-				<version>3.12.1</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<dependencies>
 
 		<!-- core dependencies  -->
@@ -179,6 +168,13 @@ under the License.
 								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.com.fasterxml.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>okhttp3/internal/publicsuffix</pattern>
+									<shadedPattern>META-INF</shadedPattern>
+									<includes>
+										<include>**/NOTICE</include>
+									</includes>
 								</relocation>
 								<relocation>
 									<pattern>okhttp3</pattern>
