@@ -187,6 +187,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         currentCheckpointId = Math.max(cancelledId, currentCheckpointId);
         numBarriersReceived = 0;
         controller.abortPendingCheckpoint(cancelledId, exception);
+        if (cancelledId == currentCheckpointId) {
+            resetAlignment();
+        }
         notifyAbort(cancelledId, exception);
         allBarriersReceivedFuture.completeExceptionally(exception);
     }
