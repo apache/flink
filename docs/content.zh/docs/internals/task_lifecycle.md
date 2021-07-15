@@ -104,7 +104,7 @@ Task 在没有中断的情况下执行到结束的阶段如下所示：
 
 如果 task 是第一次执行的话，它的初始状态为空。
 
-在恢复初始状态之后，task 进入到 `invoke()` 方法。在这里，首先调用 `setup()` 方法来初始化本地计算涉及到的每个算子，然后调用本地的 `init()` 方法来做特定 task 的初始化。这里所说的特定 task，取决于 task 的类型 (`SourceTask`，`OneInputStreamTask` 或 `TwoInputStreamTask` 等等)。这一步可能会有所不同，但却是申请 task 范围所需资源的地方。例如，`OneInputStreamTask` ，只有一个上游的 task，会初始化和上游的连接。
+在恢复初始状态之后，task 进入到 `invoke()` 方法。在这里，首先调用 `setup()` 方法来初始化本地计算涉及到的每个算子，然后调用本地的 `init()` 方法来做特定 task 的初始化。这里所说的特定 task，取决于 task 的类型 (`SourceTask`、`OneInputStreamTask` 或 `TwoInputStreamTask` 等)。这一步可能会有所不同，但无论如何这是获取 task 范围内所需资源的地方。例如，`OneInputStreamTask`，代表期望一个单一输入流的 task，初始化与本地任务相关输入流的不同分区位置的连接。
 
 在申请到必要的资源之后，不同算子和用户定义函数开始从上面读到的 task 范围状态数据里获取他们各自的状态值。这块工作是在各个算子调用 `initializeState()` 时完成。每个有状态的算子都应该重写该方法，包含状态的初始化逻辑，既适用于作业第一次执行的场景，又适用于 task 从 checkpoint 或 savepoint 中恢复的场景。
 
