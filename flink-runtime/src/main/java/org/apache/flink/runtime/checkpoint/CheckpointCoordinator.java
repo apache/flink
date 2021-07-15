@@ -678,7 +678,7 @@ public class CheckpointCoordinator {
     private CompletableFuture<Void> triggerTasks(
             CheckpointTriggerRequest request, long timestamp, PendingCheckpoint checkpoint) {
         // no exception, no discarding, everything is OK
-        final long checkpointId = checkpoint.getCheckpointId();
+        final long checkpointId = checkpoint.getCheckpointID();
 
         final CheckpointOptions checkpointOptions =
                 CheckpointOptions.forConfig(
@@ -688,7 +688,7 @@ public class CheckpointCoordinator {
                         unalignedCheckpointsEnabled,
                         alignedCheckpointTimeout);
 
-        // send the messages to the tasks that trigger their checkpoint
+        // send messages to the tasks to trigger their checkpoints
         List<CompletableFuture<Acknowledge>> acks = new ArrayList<>();
         for (Execution execution : checkpoint.getCheckpointPlan().getTasksToTrigger()) {
             if (request.props.isSynchronous()) {
@@ -1702,9 +1702,7 @@ public class CheckpointCoordinator {
 
                 newState.putState(
                         originalSubtaskStateEntry.getKey(),
-                        originalSubtaskStateEntry
-                                .getValue()
-                                .toBuilder()
+                        originalSubtaskStateEntry.getValue().toBuilder()
                                 .setResultSubpartitionState(StateObjectCollection.empty())
                                 .setInputChannelState(StateObjectCollection.empty())
                                 .build());
