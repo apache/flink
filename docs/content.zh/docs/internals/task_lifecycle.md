@@ -54,7 +54,6 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
         
         // checkpointing 阶段（对每个 checkpoint 异步调用）
         OPERATOR::snapshotState
-        
         // 通知 operator 处理记录的过程结束
         OPERATOR::finish
                 
