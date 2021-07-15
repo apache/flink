@@ -631,6 +631,7 @@ public class SubtaskCheckpointCoordinatorTest {
                 (message, unused) -> fail(message),
                 (unused1, unused2) -> CompletableFuture.completedFuture(null),
                 0,
-                channelStateWriter);
+                channelStateWriter,
+                true);
     }
 }

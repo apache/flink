@@ -49,6 +49,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
             prepareInputSnapshot = (channelStateWriter, aLong) -> FutureUtils.completedVoidFuture();
     private boolean unalignedCheckpointEnabled;
     private int maxRecordAbortedCheckpoints = 10;
+    private boolean enableCheckpointAfterTasksFinished = true;
 
     public MockSubtaskCheckpointCoordinatorBuilder setEnvironment(Environment environment) {
         this.environment = environment;
@@ -80,6 +81,12 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
         return this;
     }
 
+    public MockSubtaskCheckpointCoordinatorBuilder setEnableCheckpointAfterTasksFinished(
+            boolean enableCheckpointAfterTasksFinished) {
+        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
+        return this;
+    }
+
     SubtaskCheckpointCoordinator build() throws IOException {
         if (environment == null) {
             this.environment = MockEnvironment.builder().build();
@@ -102,6 +109,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
                 environment,
                 asyncExceptionHandler,
                 unalignedCheckpointEnabled,
+                enableCheckpointAfterTasksFinished,
                 prepareInputSnapshot,
                 maxRecordAbortedCheckpoints);
     }
