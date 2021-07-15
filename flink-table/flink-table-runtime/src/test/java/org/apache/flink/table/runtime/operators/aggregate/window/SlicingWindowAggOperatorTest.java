@@ -804,7 +804,7 @@ public class SlicingWindowAggOperatorTest {
 
     private static GeneratedNamespaceAggsHandleFunction<Long> wrapGenerated(
             NamespaceAggsHandleFunction<Long> aggsFunction) {
-        return new GeneratedNamespaceAggsHandleFunction<Long>("N/A", "N/A", new Object[0]) {
+        return new GeneratedNamespaceAggsHandleFunction<Long>("N/A", "", new Object[0]) {
             private static final long serialVersionUID = 1L;
 
             @Override
