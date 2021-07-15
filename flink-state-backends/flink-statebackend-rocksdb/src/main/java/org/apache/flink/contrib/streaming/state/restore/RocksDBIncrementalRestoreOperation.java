@@ -42,7 +42,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StateSerializerProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
@@ -87,7 +87,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             LoggerFactory.getLogger(RocksDBIncrementalRestoreOperation.class);
 
     private final String operatorIdentifier;
-    private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final SortedMap<Long, Set<StateObjectID>> restoredSstFiles;
     private final RocksDBHandle rocksHandle;
     private final Collection<KeyedStateHandle> restoreStateHandles;
     private final CloseableRegistry cancelStreamRegistry;

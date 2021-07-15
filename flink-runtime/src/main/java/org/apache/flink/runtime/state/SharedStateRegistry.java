@@ -46,8 +46,7 @@ public class SharedStateRegistry implements AutoCloseable {
     public static final SharedStateRegistryFactory DEFAULT_FACTORY = SharedStateRegistry::new;
 
     /** All registered state objects by an artificial key */
-    private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry>
-            registeredStates;
+    private final Map<StateObjectID, SharedStateRegistry.SharedStateEntry> registeredStates;
 
     /** This flag indicates whether or not the registry is open or if close() was called */
     private boolean open;
@@ -81,8 +80,7 @@ public class SharedStateRegistry implements AutoCloseable {
      * @return the result of this registration request, consisting of the state handle that is
      *     registered under the key by the end of the operation and its current reference count.
      */
-    public Result registerReference(
-            SharedStateRegistryKey registrationKey, StreamStateHandle state) {
+    public Result registerReference(StateObjectID registrationKey, StreamStateHandle state) {
 
         Preconditions.checkNotNull(state);
 
@@ -135,7 +133,7 @@ public class SharedStateRegistry implements AutoCloseable {
      *     the state handle, or null if the state handle was deleted through this request. Returns
      *     null if the registry was previously closed.
      */
-    public Result unregisterReference(SharedStateRegistryKey registrationKey) {
+    public Result unregisterReference(StateObjectID registrationKey) {
 
         Preconditions.checkNotNull(registrationKey);
 

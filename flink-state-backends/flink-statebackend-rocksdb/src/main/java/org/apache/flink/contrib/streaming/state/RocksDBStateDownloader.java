@@ -20,7 +20,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -56,8 +56,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
             CloseableRegistry closeableRegistry)
             throws Exception {
 
-        final Map<StateHandleID, StreamStateHandle> sstFiles = restoreStateHandle.getSharedState();
-        final Map<StateHandleID, StreamStateHandle> miscFiles =
+        final Map<StateObjectID, StreamStateHandle> sstFiles = restoreStateHandle.getSharedState();
+        final Map<StateObjectID, StreamStateHandle> miscFiles =
                 restoreStateHandle.getPrivateState();
 
         downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
@@ -66,10 +66,10 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 
     /**
      * Copies all the files from the given stream state handles to the given path, renaming the
-     * files w.r.t. their {@link StateHandleID}.
+     * files w.r.t. their {@link StateObjectID}.
      */
     private void downloadDataForAllStateHandles(
-            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            Map<StateObjectID, StreamStateHandle> stateHandleMap,
             Path restoreInstancePath,
             CloseableRegistry closeableRegistry)
             throws Exception {
@@ -94,12 +94,12 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
     }
 
     private List<Runnable> createDownloadRunnables(
-            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            Map<StateObjectID, StreamStateHandle> stateHandleMap,
             Path restoreInstancePath,
             CloseableRegistry closeableRegistry) {
         List<Runnable> runnables = new ArrayList<>(stateHandleMap.size());
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
-            StateHandleID stateHandleID = entry.getKey();
+        for (Map.Entry<StateObjectID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
+            StateObjectID stateHandleID = entry.getKey();
             StreamStateHandle remoteFileHandle = entry.getValue();
 
             Path path = restoreInstancePath.resolve(stateHandleID.toString());

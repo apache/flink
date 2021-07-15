@@ -21,7 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -56,21 +56,21 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
      * @param checkpointStreamFactory The checkpoint streamFactory used to create outputstream.
      * @throws Exception Thrown if can not upload all the files.
      */
-    public Map<StateHandleID, StreamStateHandle> uploadFilesToCheckpointFs(
-            @Nonnull Map<StateHandleID, Path> files,
+    public Map<StateObjectID, StreamStateHandle> uploadFilesToCheckpointFs(
+            @Nonnull Map<StateObjectID, Path> files,
             CheckpointStreamFactory checkpointStreamFactory,
             CloseableRegistry closeableRegistry)
             throws Exception {
 
-        Map<StateHandleID, StreamStateHandle> handles = new HashMap<>();
+        Map<StateObjectID, StreamStateHandle> handles = new HashMap<>();
 
-        Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
+        Map<StateObjectID, CompletableFuture<StreamStateHandle>> futures =
                 createUploadFutures(files, checkpointStreamFactory, closeableRegistry);
 
         try {
             FutureUtils.waitForAll(futures.values()).get();
 
-            for (Map.Entry<StateHandleID, CompletableFuture<StreamStateHandle>> entry :
+            for (Map.Entry<StateObjectID, CompletableFuture<StreamStateHandle>> entry :
                     futures.entrySet()) {
                 handles.put(entry.getKey(), entry.getValue().get());
             }
@@ -87,14 +87,14 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
         return handles;
     }
 
-    private Map<StateHandleID, CompletableFuture<StreamStateHandle>> createUploadFutures(
-            Map<StateHandleID, Path> files,
+    private Map<StateObjectID, CompletableFuture<StreamStateHandle>> createUploadFutures(
+            Map<StateObjectID, Path> files,
             CheckpointStreamFactory checkpointStreamFactory,
             CloseableRegistry closeableRegistry) {
-        Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
+        Map<StateObjectID, CompletableFuture<StreamStateHandle>> futures =
                 new HashMap<>(files.size());
 
-        for (Map.Entry<StateHandleID, Path> entry : files.entrySet()) {
+        for (Map.Entry<StateObjectID, Path> entry : files.entrySet()) {
             final Supplier<StreamStateHandle> supplier =
                     CheckedSupplier.unchecked(
                             () ->

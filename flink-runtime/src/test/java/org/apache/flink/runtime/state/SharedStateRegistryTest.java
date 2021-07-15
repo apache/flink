@@ -56,8 +56,7 @@ public class SharedStateRegistryTest {
         assertFalse(secondState.isDiscarded());
 
         // attempt to register state under an existing key
-        TestSharedState firstStatePrime =
-                new TestSharedState(firstState.getRegistrationKey().getKeyString());
+        TestSharedState firstStatePrime = new TestSharedState(firstState.getRegistrationKey());
         result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstStatePrime);
@@ -90,22 +89,27 @@ public class SharedStateRegistryTest {
     @Test(expected = IllegalStateException.class)
     public void testUnregisterWithUnexistedKey() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        sharedStateRegistry.unregisterReference(new SharedStateRegistryKey("non-existent"));
+        sharedStateRegistry.unregisterReference(
+                StateObjectID.of("non-existent"));
     }
 
     private static class TestSharedState implements StreamStateHandle {
         private static final long serialVersionUID = 4468635881465159780L;
 
-        private SharedStateRegistryKey key;
+        private StateObjectID key;
 
         private boolean discarded;
 
         TestSharedState(String key) {
-            this.key = new SharedStateRegistryKey(key);
+            this(new StringBasedStateObjectID(key));
+        }
+
+        TestSharedState(StateObjectID key) {
+            this.key = key;
             this.discarded = false;
         }
 
-        public SharedStateRegistryKey getRegistrationKey() {
+        public StateObjectID getRegistrationKey() {
             return key;
         }
 
