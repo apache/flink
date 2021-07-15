@@ -125,7 +125,7 @@ class RetryingExecutor implements AutoCloseable {
         }
 
         private void handleError(Exception e) {
-            LOG.trace("execution attempt {} failed: {}", current, e.getMessage());
+            LOG.info("execution attempt {} failed: {}", current, e.getMessage());
             // prevent double completion in case of a timeout and another failure
             boolean attemptTransition = attemptCompleted.compareAndSet(false, true);
             if (attemptTransition && !actionCompleted.get()) {
