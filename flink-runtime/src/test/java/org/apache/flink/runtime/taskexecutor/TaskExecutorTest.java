@@ -184,6 +184,9 @@ public class TaskExecutorTest extends TestLogger {
 
     private static final Time timeout = Time.milliseconds(10000L);
 
+    private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
+            new HeartbeatServices(1L, 10000000L, 1);
+
     private TestingRpcService rpc;
 
     private BlobCacheService dummyBlobCacheService;
@@ -314,7 +317,7 @@ public class TaskExecutorTest extends TestLogger {
         final ResourceID jmResourceId = ResourceID.generate();
         runJobManagerHeartbeatTest(
                 jmResourceId,
-                new HeartbeatServices(1L, 10000L),
+                failedRpcEnabledHeartbeatServices,
                 jobMasterGatewayBuilder ->
                         jobMasterGatewayBuilder.setTaskManagerHeartbeatFunction(
                                 (resourceID, taskExecutorToJobManagerHeartbeatPayload) ->
@@ -471,7 +474,7 @@ public class TaskExecutorTest extends TestLogger {
     @Test
     public void testResourceManagerBecomesUnreachableTriggersDisconnect() throws Exception {
         runResourceManagerHeartbeatTest(
-                new HeartbeatServices(1L, 10000L),
+                failedRpcEnabledHeartbeatServices,
                 (rmGateway) ->
                         rmGateway.setTaskExecutorHeartbeatFunction(
                                 (resourceID, taskExecutorHeartbeatPayload) ->

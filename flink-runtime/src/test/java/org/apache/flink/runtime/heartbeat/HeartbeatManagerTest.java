@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.heartbeat;
 
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -32,9 +33,13 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -57,6 +62,8 @@ public class HeartbeatManagerTest extends TestLogger {
     private static final Logger LOG = LoggerFactory.getLogger(HeartbeatManagerTest.class);
     public static final long HEARTBEAT_INTERVAL = 50L;
     public static final long HEARTBEAT_TIMEOUT = 200L;
+    public static final int FAILED_RPC_THRESHOLD = -1;
+    private static final Duration willNotCompleteWithin = Duration.ofMillis(20L);
 
     /**
      * Tests that regular heartbeat signal triggers the right callback functions in the {@link
@@ -79,6 +86,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManagerImpl<String, Integer> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         ownResourceID,
                         heartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -126,6 +134,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManagerImpl<Object, Object> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         ownResourceID,
                         heartbeatListener,
                         manuallyTriggeredScheduledExecutor,
@@ -164,6 +173,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManagerImpl<Integer, Integer> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         HEARTBEAT_TIMEOUT,
+                        FAILED_RPC_THRESHOLD,
                         ownResourceID,
                         heartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -225,6 +235,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManagerImpl<String, Integer> heartbeatManagerTarget =
                 new HeartbeatManagerImpl<>(
                         HEARTBEAT_TIMEOUT,
+                        FAILED_RPC_THRESHOLD,
                         resourceIdTarget,
                         heartbeatListenerTarget,
                         TestingUtils.defaultScheduledExecutor(),
@@ -234,6 +245,7 @@ public class HeartbeatManagerTest extends TestLogger {
                 new HeartbeatManagerSenderImpl<>(
                         HEARTBEAT_INTERVAL,
                         HEARTBEAT_TIMEOUT,
+                        FAILED_RPC_THRESHOLD,
                         resourceIDSender,
                         heartbeatListenerSender,
                         TestingUtils.defaultScheduledExecutor(),
@@ -279,6 +291,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManager<Integer, Integer> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         resourceID,
                         heartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -309,6 +322,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManager<?, ?> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         resourceId,
                         heartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -331,6 +345,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManager<Object, Object> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         resourceId,
                         new TestingHeartbeatListenerBuilder<>().createNewTestingHeartbeatListener(),
                         TestingUtils.defaultScheduledExecutor(),
@@ -395,6 +410,7 @@ public class HeartbeatManagerTest extends TestLogger {
         HeartbeatManager<?, Integer> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         ResourceID.generate(),
                         testingHeartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -444,6 +460,7 @@ public class HeartbeatManagerTest extends TestLogger {
                 new HeartbeatManagerSenderImpl<>(
                         heartbeatPeriod,
                         heartbeatTimeout,
+                        FAILED_RPC_THRESHOLD,
                         ResourceID.generate(),
                         new TargetDependentHeartbeatSender(
                                 specialTargetId, specialResponse, defaultResponse),
@@ -491,6 +508,7 @@ public class HeartbeatManagerTest extends TestLogger {
                 new HeartbeatManagerSenderImpl<>(
                         heartbeatPeriod,
                         heartbeatTimeout,
+                        1,
                         ResourceID.generate(),
                         testingHeartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -526,9 +544,11 @@ public class HeartbeatManagerTest extends TestLogger {
                         .setNotifyTargetUnreachableConsumer(unreachableTargetFuture::complete)
                         .createNewTestingHeartbeatListener();
 
+        final int failedRpcRequestsUntilUnreachable = 5;
         final HeartbeatManager<Object, Object> heartbeatManager =
                 new HeartbeatManagerImpl<>(
                         heartbeatTimeout,
+                        failedRpcRequestsUntilUnreachable,
                         ResourceID.generate(),
                         testingHeartbeatListener,
                         TestingUtils.defaultScheduledExecutor(),
@@ -537,10 +557,111 @@ public class HeartbeatManagerTest extends TestLogger {
         try {
             heartbeatManager.monitorTarget(someTargetId, someHeartbeatTarget);
 
+            for (int i = 0; i < failedRpcRequestsUntilUnreachable - 1; i++) {
+                heartbeatManager.requestHeartbeat(someTargetId, null);
+
+                assertThat(
+                        unreachableTargetFuture,
+                        FlinkMatchers.willNotComplete(willNotCompleteWithin));
+            }
+
             heartbeatManager.requestHeartbeat(someTargetId, null);
 
-            // the target should be unreachable
+            // the target should be unreachable now
             unreachableTargetFuture.join();
+        } finally {
+            heartbeatManager.stop();
+        }
+    }
+
+    @Test
+    public void testHeartbeatManagerIgnoresRecipientUnreachableExceptionIfDisabled()
+            throws Exception {
+        final long heartbeatTimeout = 10000L;
+        final ResourceID someTargetId = ResourceID.generate();
+        final HeartbeatTarget<Object> someHeartbeatTarget =
+                new TestingHeartbeatTargetBuilder<>()
+                        .setReceiveHeartbeatFunction(
+                                (ignoredA, ignoredB) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "could not receive heartbeat")))
+                        .createTestingHeartbeatTarget();
+        final CompletableFuture<ResourceID> unreachableTargetFuture = new CompletableFuture<>();
+        final HeartbeatListener<Object, Object> testingHeartbeatListener =
+                new TestingHeartbeatListenerBuilder<>()
+                        .setNotifyTargetUnreachableConsumer(unreachableTargetFuture::complete)
+                        .createNewTestingHeartbeatListener();
+
+        final HeartbeatManager<Object, Object> heartbeatManager =
+                new HeartbeatManagerImpl<>(
+                        heartbeatTimeout,
+                        -1, // disable rpc request checking
+                        ResourceID.generate(),
+                        testingHeartbeatListener,
+                        TestingUtils.defaultScheduledExecutor(),
+                        LOG);
+
+        try {
+            heartbeatManager.monitorTarget(someTargetId, someHeartbeatTarget);
+
+            for (int i = 0; i < 10; i++) {
+                heartbeatManager.requestHeartbeat(someTargetId, null);
+            }
+
+            assertThat(
+                    unreachableTargetFuture, FlinkMatchers.willNotComplete(willNotCompleteWithin));
+        } finally {
+            heartbeatManager.stop();
+        }
+    }
+
+    @Test
+    public void testHeartbeatManagerResetsFailedRpcCountOnSuccessfulRpc() throws Exception {
+        final long heartbeatTimeout = 10000L;
+        final ResourceID someTargetId = ResourceID.generate();
+
+        final RecipientUnreachableException unreachableException =
+                new RecipientUnreachableException(
+                        "sender", "recipient", "could not receive heartbeat");
+        final Queue<CompletableFuture<Void>> heartbeatResponses =
+                new ArrayDeque<>(
+                        Arrays.asList(
+                                FutureUtils.completedExceptionally(unreachableException),
+                                FutureUtils.completedExceptionally(unreachableException),
+                                CompletableFuture.completedFuture(null),
+                                FutureUtils.completedExceptionally(unreachableException)));
+        final HeartbeatTarget<Object> someHeartbeatTarget =
+                new TestingHeartbeatTargetBuilder<>()
+                        .setReceiveHeartbeatFunction(
+                                (ignoredA, ignoredB) -> heartbeatResponses.poll())
+                        .createTestingHeartbeatTarget();
+        final CompletableFuture<ResourceID> unreachableTargetFuture = new CompletableFuture<>();
+        final HeartbeatListener<Object, Object> testingHeartbeatListener =
+                new TestingHeartbeatListenerBuilder<>()
+                        .setNotifyTargetUnreachableConsumer(unreachableTargetFuture::complete)
+                        .createNewTestingHeartbeatListener();
+
+        final HeartbeatManager<Object, Object> heartbeatManager =
+                new HeartbeatManagerImpl<>(
+                        heartbeatTimeout,
+                        3,
+                        ResourceID.generate(),
+                        testingHeartbeatListener,
+                        TestingUtils.defaultScheduledExecutor(),
+                        LOG);
+
+        try {
+            heartbeatManager.monitorTarget(someTargetId, someHeartbeatTarget);
+
+            for (int i = 0; i < heartbeatResponses.size(); i++) {
+                heartbeatManager.requestHeartbeat(someTargetId, null);
+            }
+
+            assertThat(
+                    unreachableTargetFuture, FlinkMatchers.willNotComplete(willNotCompleteWithin));
         } finally {
             heartbeatManager.stop();
         }

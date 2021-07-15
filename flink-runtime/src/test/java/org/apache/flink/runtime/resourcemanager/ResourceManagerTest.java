@@ -87,6 +87,9 @@ public class ResourceManagerTest extends TestLogger {
 
     private static final HeartbeatServices fastHeartbeatServices = new HeartbeatServices(1L, 1L);
 
+    private static final HeartbeatServices failedRpcEnabledHeartbeatServices =
+            new HeartbeatServices(1L, 10000000L, 1);
+
     private static final HardwareDescription hardwareDescription =
             new HardwareDescription(42, 1337L, 1337L, 0L);
 
@@ -525,7 +528,7 @@ public class ResourceManagerTest extends TestLogger {
             ThrowingConsumer<ResourceManagerGateway, Exception> registerComponentAtResourceManager,
             ThrowingConsumer<ResourceID, Exception> verifyHeartbeatTimeout)
             throws Exception {
-        resourceManager = createAndStartResourceManager(new HeartbeatServices(5L, 10000L));
+        resourceManager = createAndStartResourceManager(failedRpcEnabledHeartbeatServices);
         final ResourceManagerGateway resourceManagerGateway =
                 resourceManager.getSelfGateway(ResourceManagerGateway.class);
 

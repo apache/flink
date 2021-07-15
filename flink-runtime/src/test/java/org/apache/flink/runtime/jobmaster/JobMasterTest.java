@@ -211,8 +211,9 @@ public class JobMasterTest extends TestLogger {
     public static void setupClass() {
         rpcService = new TestingRpcService();
 
-        fastHeartbeatServices = new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout);
-        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+        fastHeartbeatServices =
+                new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout, -1);
+        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout, 1);
     }
 
     @Before
@@ -303,11 +304,14 @@ public class JobMasterTest extends TestLogger {
         runHeartbeatTest(
                 new TestingTaskExecutorGatewayBuilder()
                         .setHeartbeatJobManagerFunction(
-                                (taskManagerId, ignored) -> FutureUtils.completedVoidFuture()));
+                                (taskManagerId, ignored) -> FutureUtils.completedVoidFuture()),
+                fastHeartbeatServices);
     }
 
     private void runHeartbeatTest(
-            TestingTaskExecutorGatewayBuilder testingTaskExecutorGatewayBuilder) throws Exception {
+            TestingTaskExecutorGatewayBuilder testingTaskExecutorGatewayBuilder,
+            HeartbeatServices heartbeatServices)
+            throws Exception {
         final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
@@ -324,7 +328,7 @@ public class JobMasterTest extends TestLogger {
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withHeartbeatServices(fastHeartbeatServices)
+                        .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
         jobMaster.start();
@@ -365,7 +369,8 @@ public class JobMasterTest extends TestLogger {
                                                 new RecipientUnreachableException(
                                                         "sender",
                                                         "recipient",
-                                                        "test heartbeat target is unreachable"))));
+                                                        "test heartbeat target is unreachable"))),
+                heartbeatServices);
     }
 
     /**
@@ -743,7 +748,7 @@ public class JobMasterTest extends TestLogger {
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withHeartbeatServices(new HeartbeatServices(1L, 10000L))
+                        .withHeartbeatServices(heartbeatServices)
                         .createJobMaster();
 
         jobMaster.start();

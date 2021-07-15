@@ -53,6 +53,7 @@ final class RecordingHeartbeatServices extends HeartbeatServices {
             Logger log) {
         return new RecordingHeartbeatManagerImpl<>(
                 heartbeatTimeout,
+                failedRpcRequestsUntilUnreachable,
                 resourceId,
                 heartbeatListener,
                 mainThreadExecutor,
@@ -79,6 +80,7 @@ final class RecordingHeartbeatServices extends HeartbeatServices {
 
         public RecordingHeartbeatManagerImpl(
                 long heartbeatTimeoutIntervalMs,
+                int failedRpcRequestsUntilUnreachable,
                 ResourceID ownResourceID,
                 HeartbeatListener<I, O> heartbeatListener,
                 ScheduledExecutor mainThreadExecutor,
@@ -87,6 +89,7 @@ final class RecordingHeartbeatServices extends HeartbeatServices {
                 BlockingQueue<ResourceID> monitoredTargets) {
             super(
                     heartbeatTimeoutIntervalMs,
+                    failedRpcRequestsUntilUnreachable,
                     ownResourceID,
                     heartbeatListener,
                     mainThreadExecutor,
