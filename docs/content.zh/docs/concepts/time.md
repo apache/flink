@@ -24,181 +24,121 @@ under the License.
 
 # 及时流处理
 
-## Introduction
+## 介绍
 
-Timely stream processing is an extension of [stateful stream processing]({{< ref "docs/concepts/stateful-stream-processing" >}}) in which time plays some role in the
-computation. Among other things, this is the case when you do time series
-analysis, when doing aggregations based on certain time periods (typically
-called windows), or when you do event processing where the time when an event
-occurred is important.
+及时流处理（timely stream processing）是[有状态的流处理]({{< ref "docs/concepts/stateful-stream-processing" >}})的扩展，它的时间扮演了一些计算的角色。
+除其他事项外，当你进行时间序列分析、基于特定时间段（通常称为窗口）进行聚合时，或者当你进行事件发生时间很重要的事件处理时，就会出现这种情况。
 
-In the following sections we will highlight some of the topics that you should
-consider when working with timely Flink Applications.
+在下面的部分中，我们将重点介绍在使用及时流 Flink 应用程序时应该考虑的一些话题。
 
 {{< top >}}
 
-## Notions of Time: Event Time and Processing Time
+## 时间的概念：Event Time 和 Processing Time
 
-When referring to time in a streaming program (for example to define windows),
-one can refer to different notions of *time*:
+当在流处理程序中提到时间时（比如定义窗口），可以指不同的*时间*概念：
 
-- **Processing time:** Processing time refers to the system time of the machine
-  that is executing the respective operation.
+- **Processing time**：处理时间（processing time）是指正在执行相应操作的机器的系统时间。
 
-  When a streaming program runs on processing time, all time-based operations
-  (like time windows) will use the system clock of the machines that run the
-  respective operator. An hourly processing time window will include all
-  records that arrived at a specific operator between the times when the system
-  clock indicated the full hour. For example, if an application begins running
-  at 9:15am, the first hourly processing time window will include events
-  processed between 9:15am and 10:00am, the next window will include events
-  processed between 10:00am and 11:00am, and so on.
+  当流程序按处理时间运行时，所有基于时间的操作（如时间窗口）都将使用运行相应算子的机器系统时钟。
+  小时处理时间窗口将包括在系统时钟指示整小时之间到达的特定算子的所有记录。
+  例如，如果应用程序在上午 9:15 开始运行，第一个小时处理时间窗口将包含在上午 9:15 和 上午 10:00 之间处理的事件，
+  下一个窗口将包含在上午 10:00 和 11:00 之间处理的事件，然后以此类推。
 
-  Processing time is the simplest notion of time and requires no coordination
-  between streams and machines.  It provides the best performance and the
-  lowest latency. However, in distributed and asynchronous environments
-  processing time does not provide determinism, because it is susceptible to
-  the speed at which records arrive in the system (for example from the message
-  queue), to the speed at which the records flow between operators inside the
-  system, and to outages (scheduled, or otherwise).
+  处理时间是最简单的时间概念，不需要流和机器之间的协调。
+  它提供了最佳的性能和最低的延迟。然而，在分布式和异步环境中，处理时间不提供确定性保证，
+  因为它易受到记录到达系统（例如从消息队列来）的速度，以及记录在系统内部算子之间流动的速度的影响，
+  和断电（预定的或者其他方式）的影响。
 
-- **Event time:** Event time is the time that each individual event occurred on
-  its producing device.  This time is typically embedded within the records
-  before they enter Flink, and that *event timestamp* can be extracted from
-  each record. In event time, the progress of time depends on the data, not on
-  any wall clocks. Event time programs must specify how to generate *Event Time
-  Watermarks*, which is the mechanism that signals progress in event time. This
-  watermarking mechanism is described in a later section,
-  [below](#event-time-and-watermarks).
+- **Event time**：事件时间（event time）是每个事件在其生成设备上发生的时间。
+  这个时间通常在进入到 Flink 之前就嵌入在记录里面，*事件时间戳* 可以从每个记录中获取。
+  在事件时间中，时间的进度取决于数据，而不是任何时钟。
+  事件事件程序必须指定如何生成 *事件水位线*（Event Time Watermarks），这是表示事件时间进度的机制。
+  这种水位线机制在后面的部分中有描述，[如下](#event-time-and-watermarks)。
 
-  In a perfect world, event time processing would yield completely consistent
-  and deterministic results, regardless of when events arrive, or their
-  ordering.  However, unless the events are known to arrive in-order (by
-  timestamp), event time processing incurs some latency while waiting for
-  out-of-order events. As it is only possible to wait for a finite period of
-  time, this places a limit on how deterministic event time applications can
-  be.
+  在理想的情况下，事件时间处理将产生完全一致和确定的结果，无论事件何时到达或它们的顺序如何。
+  然而，除非已经知道事件按顺序到达（通过时间），不然在等待乱序事件时，事件时间的处理会有一些延迟。
+  由于只能等待一段有限的时间，这限制了事件时间应用程序的确定性。
 
-  Assuming all of the data has arrived, event time operations will behave as
-  expected, and produce correct and consistent results even when working with
-  out-of-order or late events, or when reprocessing historic data. For example,
-  an hourly event time window will contain all records that carry an event
-  timestamp that falls into that hour, regardless of the order in which they
-  arrive, or when they are processed. (See the section on [late
-  events](#late-elements) for more information.)
+  假如所有的数据都已经到达，事件时间操作会按预期进行，即使在处理乱序或者延迟事件，或重新处理历史数据时， 也能生产出正确且一致的结果。
+  例如，小时事件时间窗口将包含所有带有属于该小时的事件时间戳的记录，无论它们到达的顺序或处理时间如何。
 
-  Note that sometimes when event time programs are processing live data in
-  real-time, they will use some *processing time* operations in order to
-  guarantee that they are progressing in a timely fashion.
+  请注意，有时候当事件时间程序在处理实时数据时，它们会使用*处理时间*操作以确保它们及时进行。
 
-{{< img src="/fig/event_processing_time.svg" alt="Event Time and Processing Time" width="80%" >}}
+{{< img src="/fig/event_processing_time.svg" alt="Event Time 和 Processing Time" width="80%" >}}
 
 {{< top >}}
 
-## Event Time and Watermarks
+<a name="event-time-and-watermarks"></a>
 
-*Note: Flink implements many techniques from the Dataflow Model. For a good
-introduction to event time and watermarks, have a look at the articles below.*
+## Event Time 和 Watermarks
 
-  - [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) by Tyler Akidau
-  - The [Dataflow Model paper](https://research.google.com/pubs/archive/43864.pdf)
+*注意：Flink 实现了 Dataflow Model 中的很多技术。关于事件事件和水位线的详细介绍，请看以下文章。* 
+
+  - [Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101) ，作者：Tyler Akidau
+  - [Dataflow Model 论文](https://research.google.com/pubs/archive/43864.pdf)
 
 
-A stream processor that supports *event time* needs a way to measure the
-progress of event time.  For example, a window operator that builds hourly
-windows needs to be notified when event time has passed beyond the end of an
-hour, so that the operator can close the window in progress.
+支持*事件时间*的流处理器需要衡量事件时间的进度的方法。
+例如，构建小时窗口的窗口算子需要在事件时间通过这个小时之后通知窗口算子，这样算子可以关闭正在进行的窗口。
 
-*Event time* can progress independently of *processing time* (measured by wall
-clocks).  For example, in one program the current *event time* of an operator
-may trail slightly behind the *processing time* (accounting for a delay in
-receiving the events), while both proceed at the same speed.  On the other
-hand, another streaming program might progress through weeks of event time with
-only a few seconds of processing, by fast-forwarding through some historic data
-already buffered in a Kafka topic (or another message queue).
+*事件时间*可以独立于*处理时间*（通过时钟测量）进行。
+例如，在程序里，算子当前的*事件时间*可能稍微落后于*处理时间*（考虑到接收事件的延迟），然而两者是以相同的速度进行。
+另一方面，另外一个流处理程序通过快速转发一些已经缓冲在 Kafka topic（或另一个消息队列）中的历史数据，
+可能只需要几秒钟就可以处理数周的事件时间。
 
 ------
 
-The mechanism in Flink to measure progress in event time is **watermarks**.
-Watermarks flow as part of the data stream and carry a timestamp *t*. A
-*Watermark(t)* declares that event time has reached time *t* in that stream,
-meaning that there should be no more elements from the stream with a timestamp
-*t' <= t* (i.e. events with timestamps older or equal to the watermark).
+Flink 中衡量事件时间进度的机制是**水位线**（watermarks）。水位线作为数据流的一部分流动并带有时间戳 *t*。
+*水位线（t）*  声明该流中的事件时间已达到时间 *t*，这意味着流中不应再有时间戳为 *t' <= t* 的元素（即时间戳早于或等于水位线的事件）。
 
-The figure below shows a stream of events with (logical) timestamps, and
-watermarks flowing inline. In this example the events are in order (with
-respect to their timestamps), meaning that the watermarks are simply periodic
-markers in the stream.
+下图展示了带有（逻辑）时间戳和内联流动的水位线的事件流。这个例子中，事件是有序的（相对于它们的时间戳），这意味着水位线只是流中的周期性标记。
 
-{{< img src="/fig/stream_watermark_in_order.svg" alt="A data stream with events (in order) and watermarks" width="65%" >}}
+{{< img src="/fig/stream_watermark_in_order.svg" alt="带有（排序的）事件和水位线的数据流" width="65%" >}}
 
-Watermarks are crucial for *out-of-order* streams, as illustrated below, where
-the events are not ordered by their timestamps.  In general a watermark is a
-declaration that by that point in the stream, all events up to a certain
-timestamp should have arrived.  Once a watermark reaches an operator, the
-operator can advance its internal *event time clock* to the value of the
-watermark.
+水位线对于*乱序*（out-of-order）流至关重要，如下图所示，其中事件没有按时间戳排序。
+一般来说，水位线是一种声明，即到流中的那个点，到某个时间戳的所有事件都应该已经到达。
+一旦水位线到达算子，算子就可以将其内部*事件时钟*提前到水位线的值。
 
-{{< img src="/fig/stream_watermark_out_of_order.svg" alt="A data stream with events (out of order) and watermarks" width="65%" >}}
+{{< img src="/fig/stream_watermark_out_of_order.svg" alt="带有事件（乱序）和水位线的数据流" width="65%" >}}
 
-Note that event time is inherited by a freshly created stream element (or
-elements) from either the event that produced them or from watermark that
-triggered creation of those elements.
+请注意，事件时间由新创建的流元素（或多个元素）从产生它们的事件或触发这些元素创建的水位线继承。
 
-### Watermarks in Parallel Streams
+### 并行流中的水位线
 
-Watermarks are generated at, or directly after, source functions. Each parallel
-subtask of a source function usually generates its watermarks independently.
-These watermarks define the event time at that particular parallel source.
+水位线在 source functions 处或直接在 source functions 之后生成。
+source function 的并行 subtask 通常独立生成它的水位线。这些水位线定义了该特定并行源的事件时间。
 
-As the watermarks flow through the streaming program, they advance the event
-time at the operators where they arrive. Whenever an operator advances its
-event time, it generates a new watermark downstream for its successor
-operators.
+由于水位线通过流处理程序流动，它们在到达的算子上提前了事件时间。每当算子提前其事件时间时，它就会为其后继算子在下游生成一个新的水位线。
+每当算子提前它的事件时间时，它都会为其后继算子生成新的水位线下游。
 
-Some operators consume multiple input streams; a union, for example, or
-operators following a *keyBy(...)* or *partition(...)* function.  Such an
-operator's current event time is the minimum of its input streams' event times.
-As its input streams update their event times, so does the operator.
+一些算子消费多个输入流；例如 union 或在 *keyBy(...)* 或 *partition(...)* 函数后面的算子。
+这样的算子的当前事件时间是其输入流事件时间的最小值。当它的输入流更新了它们的事件时间时，算子也会更新。
 
-The figure below shows an example of events and watermarks flowing through
-parallel streams, and operators tracking event time.
+下图展示了流经并行流的事件和水位线和追踪事件时间的算子的例子。
 
-{{< img src="/fig/parallel_streams_watermarks.svg" alt="Parallel data streams and operators with events and watermarks" class="center" width="80%" >}}
+{{< img src="/fig/parallel_streams_watermarks.svg" alt="有事件和水位线的并行数据流和算子" class="center" width="80%" >}}
 
-## Lateness
+## 延迟
 
-It is possible that certain elements will violate the watermark condition,
-meaning that even after the *Watermark(t)* has occurred, more elements with
-timestamp *t' <= t* will occur. In fact, in many real world setups, certain
-elements can be arbitrarily delayed, making it impossible to specify a time by
-which all elements of a certain event timestamp will have occurred.
-Furthermore, even if the lateness can be bounded, delaying the watermarks by
-too much is often not desirable, because it causes too much delay in the
-evaluation of event time windows.
+某些元素可能会违反水位线条件，这意味着即使在*水位线（t）* 发生之后，也会出现更多时间戳为 *t' <= t* 的元素。
+事实上，在很多实际的设置中，有些元素可以任意地延迟，因此无法指定某个事件时间戳的所有元素将发生的时间。
+此外，即使延迟是有界的，过多的水位线延迟通常也是不可取的，因为它会导致事件时间窗口的计算延迟太多。
 
-For this reason, streaming programs may explicitly expect some *late* elements.
-Late elements are elements that arrive after the system's event time clock (as
-signaled by the watermarks) has already passed the time of the late element's
-timestamp. See [Allowed Lateness]({{< ref "docs/dev/datastream/operators/windows" >}}#allowed-lateness) for more information on
-how to work with late elements in event time windows.
+出于这个原因，流处理程序可能会明确地预计有*迟到*元素存在。
+迟到的元素是在系统的事件时间时钟（由水位线发出信号）已经超过迟到元素的时间戳时间之后到达的元素。
+有关如何在事件时间窗口中处理延迟元素的更多信息，请参阅 [允许的延迟]({{< ref "docs/dev/datastream/operators/windows" >}}#allowed-lateness)。
 
 ## Windowing
 
-Aggregating events (e.g., counts, sums) works differently on streams than in
-batch processing.  For example, it is impossible to count all elements in a
-stream, because streams are in general infinite (unbounded). Instead,
-aggregates on streams (counts, sums, etc), are scoped by **windows**, such as
-*"count over the last 5 minutes"*, or *"sum of the last 100 elements"*.
+聚合事件（例如 计数、求和等）在流上的工作方式与批处理不同。例如，我们不可能在流上对所有的元素求和，因为流通常是无限的（无界）。
+相反，在流上的聚合（计数、求和等）由**窗口**限定，比如 *"过去 5 分钟的数量"*或*"最后 100 个元素的和"*。
 
-Windows can be *time driven* (example: every 30 seconds) or *data driven*
-(example: every 100 elements).  One typically distinguishes different types of
-windows, such as *tumbling windows* (no overlap), *sliding windows* (with
-overlap), and *session windows* (punctuated by a gap of inactivity).
+窗口可以是*时间驱动*的（例如：每 30 秒）或*数据驱动*的（例如：每 100 个元素）。
+通常区分不同类型的窗口，例如*滚动窗口*（tumbling windows）（无重叠）、*滑动窗口*（sliding windows）（有重叠）和*会话窗口*（session windows）（由不活动的间隙隔开）。
 
-{{< img src="/fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" >}}
+{{< img src="/fig/windows.svg" alt="时间和计数窗口" class="offset" width="80%" >}}
 
-Please check out this [blog post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
-additional examples of windows or take a look a [window documentation]({{< ref "docs/dev/datastream/operators/windows" >}}) of the DataStream API.
+更多窗口示例，请查看这篇[博客](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) 或查看关于 
+DataStream API 的[窗口文档]({{< ref "docs/dev/datastream/operators/windows" >}})。
 
 {{< top >}}
