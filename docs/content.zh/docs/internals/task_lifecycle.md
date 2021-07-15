@@ -128,7 +128,7 @@ task 里的多个连续算子的关闭是从前往后依次执行。
 
 最后，当所有算子都已经关闭，所有资源都已被释放时，task 关掉它的定时器服务，进行特定 task 的清理操作，例如清理掉所有内部缓存，然后进行常规的 task 清理操作，包括关闭所有的输出管道，清理所有输出缓存等。
 
-**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔周期执行的，并且在一个与主 task 线程不同的单独线程里执行。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期的主要阶段里的原因。简而言之，Flink 作业的输入数据 source task 会定时插入一种叫 `checkpoint barrier` 的特殊数据，并跟正常数据一起从 source 流入到 sink。source task 在处于运行模式后发送这些  barrier  ，同时会假设 `CheckpointCoordinator` 也在运行。当 task 接收到这样的 barrier 之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
+**Checkpoints:** 之前我们看到在执行 `initializeState()` 方法期间，在从异常失败中恢复的情况下，task 和它内部的所有算子函数都从最后一次成功的 checkpoint 数据里获取对应的状态信息。Flink 里的 checkpoint 是根据用户自定义的时间间隔周期执行的，并且在一个与主 task 线程不同的单独线程里执行。这也是我们没有把 checkpoint 过程涵盖在 task 生命周期的主要阶段里的原因。简而言之，Flink 作业的输入数据 source task 会定时插入一种叫 `checkpoint barrier` 的特殊数据，并跟正常数据一起从 source 流入到 sink。source task 在处于运行模式后发送这些  barrier，同时会假设 `CheckpointCoordinator` 也在运行。当 task 接收到这样的 barrier 之后，会通过 task 算子里的 `snapshotState()` 方法调度 checkpoint 线程执行具体任务。在 checkpoint 处理期间，task 依然可以接收输入数据，但是数据会被缓存起来，当 checkpoint 执行成功之后才会被处理和发送到下游算子。 
 
 <a name="interrupted-execution"> </a>
 
