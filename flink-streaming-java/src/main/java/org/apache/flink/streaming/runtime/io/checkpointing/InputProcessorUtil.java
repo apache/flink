@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.io.network.partition.consumer.CheckpointableInput;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
@@ -126,7 +127,12 @@ public class InputProcessorUtil {
                         Arrays.stream(inputs)
                                 .mapToInt(CheckpointableInput::getNumberOfInputChannels)
                                 .sum();
-                return new CheckpointBarrierTracker(numInputChannels, toNotifyOnCheckpoint, clock);
+                return new CheckpointBarrierTracker(
+                        numInputChannels,
+                        toNotifyOnCheckpoint,
+                        clock,
+                        config.getConfiguration()
+                                .get(ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH));
             default:
                 throw new UnsupportedOperationException(
                         "Unrecognized Checkpointing Mode: " + config.getCheckpointMode());
@@ -143,6 +149,9 @@ public class InputProcessorUtil {
             CheckpointableInput[] inputs,
             Clock clock,
             int numberOfChannels) {
+        boolean enableCheckpointAfterTasksFinished =
+                config.getConfiguration()
+                        .get(ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH);
         if (config.isUnalignedCheckpointsEnabled()) {
             return SingleCheckpointBarrierHandler.alternating(
                     taskName,
@@ -151,6 +160,7 @@ public class InputProcessorUtil {
                     clock,
                     numberOfChannels,
                     createRegisterTimerCallback(mailboxExecutor, timerService),
+                    enableCheckpointAfterTasksFinished,
                     inputs);
         } else {
             return SingleCheckpointBarrierHandler.aligned(
@@ -159,6 +169,7 @@ public class InputProcessorUtil {
                     clock,
                     numberOfChannels,
                     createRegisterTimerCallback(mailboxExecutor, timerService),
+                    enableCheckpointAfterTasksFinished,
                     inputs);
         }
     }

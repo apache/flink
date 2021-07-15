@@ -72,19 +72,19 @@ public abstract class CheckpointBarrierHandler implements Closeable {
 
     private CompletableFuture<Long> latestBytesProcessedDuringAlignment = new CompletableFuture<>();
 
-    /**
-     * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
-     * removed in the last PR.
-     */
-    protected boolean enableCheckpointAfterTasksFinished;
+    private final boolean enableCheckpointAfterTasksFinished;
 
-    public CheckpointBarrierHandler(AbstractInvokable toNotifyOnCheckpoint, Clock clock) {
+    public CheckpointBarrierHandler(
+            AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock,
+            boolean enableCheckpointAfterTasksFinished) {
         this.toNotifyOnCheckpoint = checkNotNull(toNotifyOnCheckpoint);
         this.clock = checkNotNull(clock);
+        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
     }
 
-    public void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished) {
-        this.enableCheckpointAfterTasksFinished = enableCheckpointAfterTasksFinished;
+    boolean isCheckpointAfterTasksFinishedEnabled() {
+        return enableCheckpointAfterTasksFinished;
     }
 
     @Override

@@ -81,8 +81,11 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     private long latestPendingCheckpointID = -1;
 
     public CheckpointBarrierTracker(
-            int totalNumberOfInputChannels, AbstractInvokable toNotifyOnCheckpoint, Clock clock) {
-        super(toNotifyOnCheckpoint, clock);
+            int totalNumberOfInputChannels,
+            AbstractInvokable toNotifyOnCheckpoint,
+            Clock clock,
+            boolean enableCheckpointAfterTasksFinished) {
+        super(toNotifyOnCheckpoint, clock, enableCheckpointAfterTasksFinished);
         this.numOpenChannels = totalNumberOfInputChannels;
         this.pendingCheckpoints = new ArrayDeque<>();
     }
@@ -233,7 +236,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
     public void processEndOfPartition(InputChannelInfo channelInfo) throws IOException {
         numOpenChannels--;
 
-        if (!enableCheckpointAfterTasksFinished) {
+        if (!isCheckpointAfterTasksFinishedEnabled()) {
             while (!pendingCheckpoints.isEmpty()) {
                 CheckpointBarrierCount barrierCount = pendingCheckpoints.removeFirst();
                 if (barrierCount.markAborted()) {

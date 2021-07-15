@@ -99,6 +99,7 @@ public class UnalignedCheckpointsCancellationTest {
                         "test",
                         invokable,
                         SystemClock.getInstance(),
+                        true,
                         inputGate);
 
         for (RuntimeEvent e : events) {

@@ -77,6 +77,7 @@ public class AlignedCheckpointsMassiveRandomTest {
                                     SystemClock.getInstance(),
                                     myIG.getNumberOfInputChannels(),
                                     (callable, duration) -> () -> {},
+                                    true,
                                     myIG),
                             new SyncMailboxExecutor());
 

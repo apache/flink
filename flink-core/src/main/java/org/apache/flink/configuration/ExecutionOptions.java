@@ -97,6 +97,18 @@ public class ExecutionOptions {
                                                             + "throughput"))
                                     .build());
 
+    /**
+     * Should be moved to {@code ExecutionCheckpointingOptions}. Once CheckpointCoordinator has
+     * access to those options.
+     */
+    @Documentation.ExcludeFromDocumentation("This is a feature toggle")
+    public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
+            ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Feature toggle for enabling checkpointing after tasks finish.");
+
     @Documentation.ExcludeFromDocumentation(
             "This is an expert option, that we do not want to expose in" + " the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =
