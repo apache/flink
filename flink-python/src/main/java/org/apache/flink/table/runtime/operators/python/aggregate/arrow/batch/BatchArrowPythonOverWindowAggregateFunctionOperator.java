@@ -36,7 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createOverWindowArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
 
 /** The Batch Arrow Python {@link AggregateFunction} Operator for Over Window Aggregation. */
 @Internal
@@ -108,9 +109,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 outputType,
                 groupKey,
                 groupingSet,
-                udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.OVER_WINDOW_ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
+                udafInputOffsets);
         this.lowerBoundary = lowerBoundary;
         this.upperBoundary = upperBoundary;
         this.isRangeWindows = isRangeWindows;
@@ -321,6 +320,12 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     @Override
     public String getFunctionUrn() {
         return PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN;
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createOverWindowArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 
     private boolean isInCurrentOverWindow(RowData data, long time, boolean includeEqual) {

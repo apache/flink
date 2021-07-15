@@ -27,7 +27,6 @@ import pyarrow as pa
 from pyflink.common import Row, RowKind
 from pyflink.datastream.window import TimeWindow, CountWindow
 from pyflink.fn_execution.ResettableIO import ResettableIO
-from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
 from pyflink.fn_execution.stream_slow import InputStream, OutputStream
 from pyflink.table.utils import pandas_to_arrow, arrow_to_pandas
 
@@ -43,10 +42,6 @@ class LengthPrefixBaseCoderImpl(ABC):
     def __init__(self, field_coder: 'FieldCoderImpl'):
         self._field_coder = field_coder
         self._data_out_stream = OutputStream()
-
-    def decode_from_stream(self, in_stream: InputStream):
-        while in_stream.size() > 0:
-            yield self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
     def _write_data_to_output_stream(self, out_stream: OutputStream):
         out_stream.write_var_int64(self._data_out_stream.size())
@@ -92,9 +87,9 @@ class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     message 0x00 to output stream after encoding data.
     """
 
-    def __init__(self, field_coder: 'FieldCoderImpl', output_mode):
+    def __init__(self, field_coder: 'FieldCoderImpl', separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
-        self._output_mode = output_mode
+        self._separated_with_end_message = separated_with_end_message
 
     def encode_to_stream(self, value: List, out_stream):
         for item in value:
@@ -102,9 +97,13 @@ class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             self._write_data_to_output_stream(out_stream)
 
         # write end message
-        if self._output_mode == CoderParam.MULTIPLE_WITH_END:
+        if self._separated_with_end_message:
             out_stream.write_var_int64(1)
             out_stream.write_byte(0x00)
+
+    def decode_from_stream(self, in_stream: InputStream):
+        while in_stream.size() > 0:
+            yield self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
 
 class ValueCoderImpl(LengthPrefixBaseCoderImpl):
@@ -118,6 +117,9 @@ class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     def encode_to_stream(self, value, out_stream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(out_stream)
+
+    def decode_from_stream(self, in_stream: InputStream):
+        return self._field_coder.decode_from_stream(in_stream, in_stream.read_var_int64())
 
 
 class MaskUtils:

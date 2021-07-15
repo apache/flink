@@ -59,9 +59,16 @@ cdef class FieldCoderImpl:
     cpdef bytes encode(self, value)
     cpdef decode(self, encoded)
 
+cdef class InputStreamWrapper:
+    cdef ValueCoderImpl _value_coder
+    cdef LengthPrefixInputStream _input_stream
+
+    cpdef bint has_next(self)
+    cpdef next(self)
+
 cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     cdef char*_end_message
-    cdef bint _writes_end_message
+    cdef bint _separated_with_end_message
 
 cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     pass

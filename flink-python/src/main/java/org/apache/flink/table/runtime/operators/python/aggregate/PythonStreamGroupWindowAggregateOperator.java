@@ -62,6 +62,7 @@ import java.util.List;
 
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_END;
 import static org.apache.flink.fnexecution.v1.FlinkFnApi.GroupWindow.WindowProperty.WINDOW_START;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toEpochMillsForTimer;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 
@@ -170,10 +171,7 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                generateUpdateBefore);
         this.countStarInserted = countStarInserted;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.windowAssigner = windowAssigner;
@@ -347,6 +345,18 @@ public class PythonStreamGroupWindowAggregateOperator<K, W extends Window>
     @Override
     public void onProcessingTime(InternalTimer<K, W> timer) throws Exception {
         emitTriggerTimerData(timer, REGISTER_PROCESSING_TIMER);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 
     @VisibleForTesting

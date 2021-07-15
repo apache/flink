@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.python;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.runners.python.beam.BeamDataStreamPythonFunctionRunner;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.api.utils.input.KeyedTwoInputWithTimerRowFactory;
@@ -46,12 +48,16 @@ import org.apache.flink.types.Row;
 import java.util.Collections;
 
 import static org.apache.flink.python.Constants.STATEFUL_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /** KeyedCoProcessOperator. */
+@Internal
 public class PythonKeyedCoProcessOperator<OUT>
         extends TwoInputPythonFunctionOperator<Row, Row, Row, OUT>
         implements ResultTypeQueryable<OUT>, Triggerable<Row, VoidNamespace> {
+
+    private static final long serialVersionUID = 1L;
 
     /** The TypeInformation of current key. */
     private final TypeInformation<Row> keyTypeInfo;
@@ -81,8 +87,7 @@ public class PythonKeyedCoProcessOperator<OUT>
                 KeyedTwoInputWithTimerRowFactory.getRunnerInputTypeInfo(
                         inputTypeInfo1, inputTypeInfo2, constructKeyTypeInfo(inputTypeInfo1)),
                 OutputWithTimerRowHandler.getRunnerOutputTypeInfo(
-                        outputTypeInfo, constructKeyTypeInfo(inputTypeInfo1)),
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+                        outputTypeInfo, constructKeyTypeInfo(inputTypeInfo1)));
         this.keyTypeInfo = constructKeyTypeInfo(inputTypeInfo1);
         this.keyTypeSerializer =
                 PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
@@ -95,13 +100,11 @@ public class PythonKeyedCoProcessOperator<OUT>
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                getRunnerInputTypeInfo(),
-                getRunnerOutputTypeInfo(),
                 STATEFUL_FUNCTION_URN,
-                PythonOperatorUtils.getUserDefinedDataStreamStatefulFunctionProto(
+                ProtoUtils.getUserDefinedDataStreamStatefulFunctionProto(
                         getPythonFunctionInfo(),
                         getRuntimeContext(),
-                        Collections.EMPTY_MAP,
+                        Collections.emptyMap(),
                         keyTypeInfo,
                         inBatchExecutionMode(getKeyedStateBackend())),
                 getJobOptions(),
@@ -121,9 +124,8 @@ public class PythonKeyedCoProcessOperator<OUT>
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+                createInputCoderInfoDescriptor(runnerInputTypeInfo),
+                createOutputCoderInfoDescriptor(runnerOutputTypeInfo));
     }
 
     @Override
@@ -244,5 +246,19 @@ public class PythonKeyedCoProcessOperator<OUT>
     @Override
     public Object getCurrentKey() {
         return keyForTimerService;
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation<?> runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation<?> runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 }

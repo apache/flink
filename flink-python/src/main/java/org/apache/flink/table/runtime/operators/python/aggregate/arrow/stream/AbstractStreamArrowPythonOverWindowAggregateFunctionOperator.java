@@ -26,7 +26,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.SimpleTimerService;
@@ -84,15 +83,7 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
             long lowerBoundary,
             int[] groupingSet,
             int[] udafInputOffsets) {
-        super(
-                config,
-                pandasAggFunctions,
-                inputType,
-                outputType,
-                groupingSet,
-                udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
+        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.lowerBoundary = lowerBoundary;
     }

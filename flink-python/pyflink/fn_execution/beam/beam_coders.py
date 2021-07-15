@@ -20,15 +20,18 @@ from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
-from pyflink.fn_execution.coders import ArrowCoder, OverWindowArrowCoder, LengthPrefixBaseCoder
-from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
+from pyflink.fn_execution.coders import (
+    ArrowCoder, OverWindowArrowCoder, LengthPrefixBaseCoder)
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderInfoDescriptor
 
 try:
     from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
-    from pyflink.fn_execution.beam.beam_coder_impl_fast import PassThroughPrefixCoderImpl
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkFieldCoderBeamWrapper
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 except ImportError:
     from pyflink.fn_execution.beam import beam_coder_impl_slow as beam_coder_impl
-    PassThroughPrefixCoderImpl = beam_coder_impl.BeamCoderImpl
+    FlinkFieldCoderBeamWrapper = beam_coder_impl.FlinkCoderBeamWrapper
+    FlinkLengthPrefixCoderBeamWrapper = beam_coder_impl.FlinkCoderBeamWrapper
 
 FLINK_CODER_URN = "flink:coder:v1"
 
@@ -64,19 +67,21 @@ class FlinkCoder(FastCoder):
     def get_impl(self):
         if isinstance(self._internal_coder, LengthPrefixBaseCoder):
             if isinstance(self._internal_coder._field_coder, (ArrowCoder, OverWindowArrowCoder)):
-                from pyflink.fn_execution.beam.beam_coder_impl_slow import BeamCoderImpl
-                return BeamCoderImpl(self._create_impl())
+                from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkCoderBeamWrapper
+                return FlinkCoderBeamWrapper(self._create_impl())
             else:
-                return beam_coder_impl.BeamCoderImpl(self._create_impl())
+                return FlinkLengthPrefixCoderBeamWrapper(self._create_impl())
         else:
-            return PassThroughPrefixCoderImpl(self._create_impl())
+            return FlinkFieldCoderBeamWrapper(self._create_impl())
 
     def to_type_hint(self):
         return typehints.Any
 
-    @Coder.register_urn(FLINK_CODER_URN, CoderParam)
-    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
-        return FlinkCoder(LengthPrefixBaseCoder.from_coder_param_proto(coder_praram_proto))
+    @Coder.register_urn(FLINK_CODER_URN, CoderInfoDescriptor)
+    def _pickle_from_runner_api_parameter(
+            coder_info_descriptor_proto, unused_components, unused_context):
+        return FlinkCoder(LengthPrefixBaseCoder.from_coder_info_descriptor_proto(
+            coder_info_descriptor_proto))
 
     def __repr__(self):
         return 'FlinkCoder[%s]' % repr(self._internal_coder)

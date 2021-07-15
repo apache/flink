@@ -31,6 +31,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import java.io.IOException;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRowTypeCoderInfoDescriptorProto;
+
 /** The Python {@link ScalarFunction} operator. */
 @Internal
 public class RowDataPythonScalarFunctionOperator
@@ -51,15 +54,7 @@ public class RowDataPythonScalarFunctionOperator
             RowType outputType,
             int[] udfInputOffsets,
             int[] forwardedFields) {
-        super(
-                config,
-                scalarFunctions,
-                inputType,
-                outputType,
-                udfInputOffsets,
-                forwardedFields,
-                toCoderParam(scalarFunctions),
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW);
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
     }
 
     @Override
@@ -69,6 +64,24 @@ public class RowDataPythonScalarFunctionOperator
         udfInputTypeSerializer = PythonTypeUtils.toInternalSerializer(userDefinedFunctionInputType);
         udfOutputTypeSerializer =
                 PythonTypeUtils.toInternalSerializer(userDefinedFunctionOutputType);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
+            if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
+                return createRowTypeCoderInfoDescriptorProto(
+                        runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+            }
+        }
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createFlattenRowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
     }
 
     @Override
@@ -88,15 +101,5 @@ public class RowDataPythonScalarFunctionOperator
         bais.setBuffer(rawUdfResult, 0, length);
         RowData udfResult = udfOutputTypeSerializer.deserialize(baisWrapper);
         rowDataWrapper.collect(reuseJoinedRow.replace(input, udfResult));
-    }
-
-    private static FlinkFnApi.CoderParam.DataType toCoderParam(
-            PythonFunctionInfo[] pythonFunctionInfos) {
-        for (PythonFunctionInfo pythonFunctionInfo : pythonFunctionInfos) {
-            if (pythonFunctionInfo.getPythonFunction().takesRowAsInput()) {
-                return FlinkFnApi.CoderParam.DataType.ROW;
-            }
-        }
-        return FlinkFnApi.CoderParam.DataType.FLATTEN_ROW;
     }
 }

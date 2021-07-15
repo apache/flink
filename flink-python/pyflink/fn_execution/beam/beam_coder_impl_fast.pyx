@@ -41,7 +41,10 @@ cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     cpdef get_estimated_size_and_observables(self, value, bint nested=False):
         return 0, []
 
-cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
+cdef class FlinkFieldCoderBeamWrapper(StreamCoderImpl):
+    """
+    Bridge between Beam coder and Flink coder for the low-level FieldCoder.
+    """
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
         self._data_out_stream = OutputStream()
@@ -84,8 +87,10 @@ cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
         self._data_out_stream.pos = 0
 
 
-
-cdef class BeamCoderImpl(StreamCoderImpl):
+cdef class FlinkLengthPrefixCoderBeamWrapper(StreamCoderImpl):
+    """
+    Bridge between Beam coder and Flink coder for the top-level LengthPrefixCoder.
+    """
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
 
@@ -94,11 +99,4 @@ cdef class BeamCoderImpl(StreamCoderImpl):
 
     cpdef decode_from_stream(self, BInputStream in_stream, bint nested):
         cdef BeamInputStream input_stream = BeamInputStream(in_stream, in_stream.size())
-        cdef InputStreamWrapper input_stream_wrapper = InputStreamWrapper(self._value_coder,
-                                                                          input_stream)
-        return input_stream_wrapper
-
-cdef class InputStreamWrapper:
-    def __cinit__(self, value_coder, input_stream):
-        self._value_coder = value_coder
-        self._input_stream = input_stream
+        return self._value_coder.decode_from_stream(input_stream)

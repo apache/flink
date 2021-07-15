@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -69,18 +68,8 @@ abstract class AbstractBatchArrowPythonAggregateFunctionOperator
             RowType outputType,
             int[] groupKey,
             int[] groupingSet,
-            int[] udafInputOffsets,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType) {
-        super(
-                config,
-                pandasAggFunctions,
-                inputType,
-                outputType,
-                groupingSet,
-                udafInputOffsets,
-                inputDataType,
-                outputDataType);
+            int[] udafInputOffsets) {
+        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
         this.groupKey = Preconditions.checkNotNull(groupKey);
     }
 

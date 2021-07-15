@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -62,18 +61,8 @@ public abstract class AbstractRowDataPythonScalarFunctionOperator
             RowType inputType,
             RowType outputType,
             int[] udfInputOffsets,
-            int[] forwardedFields,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType) {
-        super(
-                config,
-                scalarFunctions,
-                inputType,
-                outputType,
-                udfInputOffsets,
-                forwardedFields,
-                inputDataType,
-                outputDataType);
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
     }
 
     @Override

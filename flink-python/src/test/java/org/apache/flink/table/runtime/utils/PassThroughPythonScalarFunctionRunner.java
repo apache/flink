@@ -31,6 +31,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughPythonScalarFunctionRunner} runner that just return the input elements as the
  * execution results.
@@ -51,8 +53,6 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -62,9 +62,10 @@ public class PassThroughPythonScalarFunctionRunner extends BeamTablePythonFuncti
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false));
         this.buffer = new LinkedList<>();
     }
 

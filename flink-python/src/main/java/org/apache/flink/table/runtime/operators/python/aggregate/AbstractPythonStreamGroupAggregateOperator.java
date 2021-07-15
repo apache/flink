@@ -94,10 +94,7 @@ public abstract class AbstractPythonStreamGroupAggregateOperator
                 dataViewSpecs,
                 grouping,
                 indexOfCountStar,
-                generateUpdateBefore,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.DataType.ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                generateUpdateBefore);
         this.minRetentionTime = minRetentionTime;
         this.maxRetentionTime = maxRetentionTime;
         this.stateCleaningEnabled = minRetentionTime > 1;

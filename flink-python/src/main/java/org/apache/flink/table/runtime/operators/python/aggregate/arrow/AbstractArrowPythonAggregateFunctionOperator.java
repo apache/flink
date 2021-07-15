@@ -40,7 +40,8 @@ import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowData
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
 
 /** The Abstract class of Arrow Aggregate Operator for Pandas {@link AggregateFunction}. */
 @Internal
@@ -77,17 +78,8 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
             RowType inputType,
             RowType outputType,
             int[] groupingSet,
-            int[] udafInputOffsets,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType) {
-        super(
-                config,
-                inputType,
-                outputType,
-                udafInputOffsets,
-                inputDataType,
-                outputDataType,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+            int[] udafInputOffsets) {
+        super(config, inputType, outputType, udafInputOffsets);
         this.pandasAggFunctions = Preconditions.checkNotNull(pandasAggFunctions);
         this.groupingSet = Preconditions.checkNotNull(groupingSet);
     }
@@ -136,6 +128,18 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
     @Override
     public String getFunctionUrn() {
         return PANDAS_AGGREGATE_FUNCTION_URN;
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(RowType runnerOutType) {
+        return createArrowTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
     }
 
     @Override

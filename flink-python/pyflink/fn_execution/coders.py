@@ -43,8 +43,11 @@ __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'Boolea
            'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
 
 
-# LengthPrefixBaseCoder will be used in Operations and other coders will be the field coder
-# of LengthPrefixBaseCoder
+#########################################################################
+#             Top-level coder: ValueCoder & IterableCoder
+#########################################################################
+
+# LengthPrefixBaseCoder is the top level coder and the other coders will be used as the field coder
 class LengthPrefixBaseCoder(ABC):
     def __init__(self, field_coder: 'FieldCoder'):
         self._field_coder = field_coder
@@ -54,48 +57,43 @@ class LengthPrefixBaseCoder(ABC):
         pass
 
     @classmethod
-    def from_coder_param_proto(cls, coder_param_proto):
-        field_coder = cls._to_field_coder(coder_param_proto)
-        output_mode = coder_param_proto.output_mode
-        if output_mode == flink_fn_execution_pb2.CoderParam.SINGLE:
+    def from_coder_info_descriptor_proto(cls, coder_info_descriptor_proto):
+        field_coder = cls._to_field_coder(coder_info_descriptor_proto)
+        mode = coder_info_descriptor_proto.mode
+        separated_with_end_message = coder_info_descriptor_proto.separated_with_end_message
+        if mode == flink_fn_execution_pb2.CoderInfoDescriptor.SINGLE:
             return ValueCoder(field_coder)
         else:
-            return IterableCoder(field_coder, output_mode)
+            return IterableCoder(field_coder, separated_with_end_message)
 
     @classmethod
-    def _to_field_coder(cls, coder_param_proto):
-        data_type = coder_param_proto.data_type
-        if data_type == flink_fn_execution_pb2.CoderParam.FLATTEN_ROW:
-            if coder_param_proto.HasField('schema'):
-                schema_proto = coder_param_proto.schema
-                field_coders = [from_proto(f.type) for f in schema_proto.fields]
-            else:
-                type_info_proto = coder_param_proto.type_info
-                field_coders = [from_type_info_proto(f.field_type)
-                                for f in type_info_proto.row_type_info.fields]
+    def _to_field_coder(cls, coder_info_descriptor_proto):
+        if coder_info_descriptor_proto.HasField('flatten_row_type'):
+            schema_proto = coder_info_descriptor_proto.flatten_row_type.schema
+            field_coders = [from_proto(f.type) for f in schema_proto.fields]
             return FlattenRowCoder(field_coders)
-        elif data_type == flink_fn_execution_pb2.CoderParam.ROW:
-            schema_proto = coder_param_proto.schema
+        elif coder_info_descriptor_proto.HasField('row_type'):
+            schema_proto = coder_info_descriptor_proto.row_type.schema
             field_coders = [from_proto(f.type) for f in schema_proto.fields]
             field_names = [f.name for f in schema_proto.fields]
             return RowCoder(field_coders, field_names)
-        elif data_type == flink_fn_execution_pb2.CoderParam.RAW:
-            type_info_proto = coder_param_proto.type_info
-            field_coder = from_type_info_proto(type_info_proto)
-            return field_coder
-        elif data_type == flink_fn_execution_pb2.CoderParam.ARROW:
+        elif coder_info_descriptor_proto.HasField('arrow_type'):
             timezone = pytz.timezone(os.environ['table.exec.timezone'])
-            schema_proto = coder_param_proto.schema
+            schema_proto = coder_info_descriptor_proto.arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return ArrowCoder(cls._to_arrow_schema(row_type), row_type, timezone)
-        elif data_type == flink_fn_execution_pb2.CoderParam.OVER_WINDOW_ARROW:
+        elif coder_info_descriptor_proto.HasField('over_window_arrow_type'):
             timezone = pytz.timezone(os.environ['table.exec.timezone'])
-            schema_proto = coder_param_proto.schema
+            schema_proto = coder_info_descriptor_proto.over_window_arrow_type.schema
             row_type = cls._to_row_type(schema_proto)
             return OverWindowArrowCoder(
                 cls._to_arrow_schema(row_type), row_type, timezone)
+        elif coder_info_descriptor_proto.HasField('raw_type'):
+            type_info_proto = coder_info_descriptor_proto.raw_type.type_info
+            field_coder = from_type_info_proto(type_info_proto)
+            return field_coder
         else:
-            raise ValueError("Unexpected coder type %s" % data_type)
+            raise ValueError("Unexpected coder type %s" % coder_info_descriptor_proto)
 
     @classmethod
     def _to_arrow_schema(cls, row_type):
@@ -151,26 +149,24 @@ class LengthPrefixBaseCoder(ABC):
         return RowType([RowField(f.name, cls._to_data_type(f.type)) for f in row_schema.fields])
 
 
-class FieldCoder(ABC):
-
-    def get_impl(self) -> coder_impl.FieldCoderImpl:
-        pass
-
-    def __eq__(self, other):
-        return type(self) == type(other)
-
-
 class IterableCoder(LengthPrefixBaseCoder):
     """
     Coder for iterable data.
     """
 
-    def __init__(self, field_coder: FieldCoder, output_mode):
+    def __init__(self, field_coder: 'FieldCoder', separated_with_end_message):
         super(IterableCoder, self).__init__(field_coder)
-        self._output_mode = output_mode
+        self._separated_with_end_message = separated_with_end_message
 
     def get_impl(self):
-        return coder_impl.IterableCoderImpl(self._field_coder.get_impl(), self._output_mode)
+        if isinstance(self._field_coder, (ArrowCoder, OverWindowArrowCoder)):
+            # ArrowCoder and OverWindowArrowCoder doesn't support fast coder currently.
+            from pyflink.fn_execution import coder_impl_slow
+            return coder_impl_slow.IterableCoderImpl(self._field_coder.get_impl(),
+                                                     self._separated_with_end_message)
+        else:
+            return coder_impl.IterableCoderImpl(self._field_coder.get_impl(),
+                                                self._separated_with_end_message)
 
 
 class ValueCoder(LengthPrefixBaseCoder):
@@ -178,7 +174,7 @@ class ValueCoder(LengthPrefixBaseCoder):
     Coder for single data.
     """
 
-    def __init__(self, field_coder: FieldCoder):
+    def __init__(self, field_coder: 'FieldCoder'):
         super(ValueCoder, self).__init__(field_coder)
 
     def get_impl(self):
@@ -188,6 +184,20 @@ class ValueCoder(LengthPrefixBaseCoder):
             return coder_impl_slow.ValueCoderImpl(self._field_coder.get_impl())
         else:
             return coder_impl.ValueCoderImpl(self._field_coder.get_impl())
+
+
+#########################################################################
+#                         Low-level coder: FieldCoder
+#########################################################################
+
+
+class FieldCoder(ABC):
+
+    def get_impl(self) -> coder_impl.FieldCoderImpl:
+        pass
+
+    def __eq__(self, other):
+        return type(self) == type(other)
 
 
 class FlattenRowCoder(FieldCoder):

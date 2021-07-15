@@ -182,19 +182,7 @@ cdef class LengthPrefixBaseCoderImpl:
         pass
 
     cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
-        cdef char*input_data
-        cdef char*temp
-        cdef size_t size
-        cdef long long addr
-        cdef InputStream data_input_stream
-        # set input_data pointer to the input data
-        size = input_stream.read(&input_data)
-
-        # create InputStream
-        data_input_stream = InputStream()
-        data_input_stream._input_data = input_data
-
-        return self._field_coder.decode_from_stream(data_input_stream, size)
+        pass
 
     cdef void _write_data_to_output_stream(self, LengthPrefixOutputStream output_stream):
         cdef OutputStream data_out_stream
@@ -247,6 +235,17 @@ cdef class FieldCoderImpl:
         input_stream._input_data = <char*> encoded
         return self.decode_from_stream(input_stream, len(encoded))
 
+cdef class InputStreamWrapper:
+    def __cinit__(self, value_coder: ValueCoderImpl, input_stream: LengthPrefixInputStream):
+        self._value_coder = value_coder
+        self._input_stream = input_stream
+
+    cpdef bint has_next(self):
+        return self._input_stream.available()
+
+    cpdef next(self):
+        return self._value_coder.decode_from_stream(self._input_stream)
+
 cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
     """
     Encodes iterable data to output stream. The output mode will decide whether write a special end
@@ -259,12 +258,9 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             raise MemoryError()
         self._end_message[0] = 0x00
 
-    def __init__(self, field_coder: FieldCoderImpl, output_mode):
+    def __init__(self, field_coder: FieldCoderImpl, separated_with_end_message: bool):
         super(IterableCoderImpl, self).__init__(field_coder)
-        if output_mode == flink_fn_execution_pb2.CoderParam.MULTIPLE:
-            self._writes_end_message = False
-        else:
-            self._writes_end_message = True
+        self._separated_with_end_message = separated_with_end_message
 
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         for item in value:
@@ -272,8 +268,11 @@ cdef class IterableCoderImpl(LengthPrefixBaseCoderImpl):
             self._write_data_to_output_stream(output_stream)
 
         # write end message
-        if self._writes_end_message:
+        if self._separated_with_end_message:
             output_stream.write(self._end_message, 1)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        return InputStreamWrapper(ValueCoderImpl(self._field_coder), input_stream)
 
     def __dealloc__(self):
         if self._end_message != NULL:
@@ -290,6 +289,21 @@ cdef class ValueCoderImpl(LengthPrefixBaseCoderImpl):
     cpdef encode_to_stream(self, value, LengthPrefixOutputStream output_stream):
         self._field_coder.encode_to_stream(value, self._data_out_stream)
         self._write_data_to_output_stream(output_stream)
+
+    cpdef decode_from_stream(self, LengthPrefixInputStream input_stream):
+        cdef char*input_data
+        cdef char*temp
+        cdef size_t size
+        cdef long long addr
+        cdef InputStream data_input_stream
+        # set input_data pointer to the input data
+        size = input_stream.read(&input_data)
+
+        # create InputStream
+        data_input_stream = InputStream()
+        data_input_stream._input_data = input_data
+
+        return self._field_coder.decode_from_stream(data_input_stream, size)
 
 cdef class FlattenRowCoderImpl(FieldCoderImpl):
     """

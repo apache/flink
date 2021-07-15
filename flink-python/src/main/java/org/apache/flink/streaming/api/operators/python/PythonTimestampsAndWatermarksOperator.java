@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonTypeUtils;
 import org.apache.flink.streaming.runtime.operators.TimestampsAndWatermarksOperator;
@@ -91,14 +90,7 @@ public class PythonTimestampsAndWatermarksOperator<IN>
             TypeInformation<IN> inputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo,
             WatermarkStrategy<IN> watermarkStrategy) {
-        super(
-                config,
-                Types.ROW(Types.LONG, inputTypeInfo),
-                Types.LONG,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.DataType.RAW,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE,
-                pythonFunctionInfo);
+        super(config, Types.ROW(Types.LONG, inputTypeInfo), Types.LONG, pythonFunctionInfo);
         this.watermarkStrategy = watermarkStrategy;
         this.inputTypeInfo = inputTypeInfo;
     }

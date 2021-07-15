@@ -25,6 +25,8 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+
 /**
  * The {@link PythonCoFlatMapOperator} is responsible for executing the Python CoMap Function.
  *
@@ -44,13 +46,7 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT>
             TypeInformation<IN2> inputTypeInfo2,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
-        super(
-                config,
-                inputTypeInfo1,
-                inputTypeInfo2,
-                outputTypeInfo,
-                pythonFunctionInfo,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+        super(config, inputTypeInfo1, inputTypeInfo2, outputTypeInfo, pythonFunctionInfo);
     }
 
     @Override
@@ -65,5 +61,19 @@ public class PythonCoFlatMapOperator<IN1, IN2, OUT>
             OUT outputRow = getRunnerOutputTypeSerializer().deserialize(baisWrapper);
             collector.collect(outputRow);
         }
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation<?> runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation<?> runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 }
