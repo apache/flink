@@ -82,7 +82,7 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 
 ### 常规执行
 
-Task 在没有中断的情况下执行直到最终的步骤如下所示：
+Task 在没有中断的情况下执行到结束的阶段如下所示：
 
 	    TASK::setInitialState
 	    TASK::invoke
