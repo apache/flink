@@ -29,11 +29,19 @@ import java.util.Optional;
  * ByteStreamStateHandle}. This class is used in the referenced states of {@link
  * IncrementalRemoteKeyedStateHandle}.
  */
-public class PlaceholderStreamStateHandle implements StreamStateHandle {
+public class PlaceholderStreamStateHandle implements StreamStateHandle, ShareableStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    public PlaceholderStreamStateHandle() {}
+    private final boolean shared;
+
+    public PlaceholderStreamStateHandle() {
+        this.shared = false;
+    }
+
+    public PlaceholderStreamStateHandle(boolean shared) {
+        this.shared = shared;
+    }
 
     @Override
     public FSDataInputStream openInputStream() {
@@ -45,6 +53,16 @@ public class PlaceholderStreamStateHandle implements StreamStateHandle {
     public Optional<byte[]> asBytesIfInMemory() {
         throw new UnsupportedOperationException(
                 "This is only a placeholder to be replaced by a real StreamStateHandle in the checkpoint coordinator.");
+    }
+
+    @Override
+    public boolean isShared() {
+        return shared;
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new PlaceholderStreamStateHandle(true);
     }
 
     @Override

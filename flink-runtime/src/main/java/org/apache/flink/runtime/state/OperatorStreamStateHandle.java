@@ -124,4 +124,15 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
                 + delegateStateHandle
                 + '}';
     }
+
+    @Override
+    public boolean isShared() {
+        return delegateStateHandle.isShared();
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new OperatorStreamStateHandle(
+                stateNameToPartitionOffsets, (StreamStateHandle) delegateStateHandle.asShared());
+    }
 }

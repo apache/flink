@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -58,6 +59,16 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                 new SpecifiedException("throw exception while multi thread restore.");
         StreamStateHandle stateHandle =
                 new StreamStateHandle() {
+                    @Override
+                    public boolean isShared() {
+                        return false;
+                    }
+
+                    @Override
+                    public StateObject asShared() {
+                        return this;
+                    }
+
                     @Override
                     public FSDataInputStream openInputStream() throws IOException {
                         throw expectedException;

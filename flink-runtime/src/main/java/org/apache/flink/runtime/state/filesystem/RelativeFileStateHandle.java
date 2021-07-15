@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state.filesystem;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
 /**
@@ -32,7 +33,11 @@ public class RelativeFileStateHandle extends FileStateHandle {
     private final String relativePath;
 
     public RelativeFileStateHandle(Path path, String relativePath, long stateSize) {
-        super(path, stateSize);
+        this(path, relativePath, stateSize, false);
+    }
+
+    public RelativeFileStateHandle(Path path, String relativePath, long stateSize, boolean shared) {
+        super(path, stateSize, shared);
         this.relativePath = relativePath;
     }
 
@@ -66,5 +71,10 @@ public class RelativeFileStateHandle extends FileStateHandle {
         return String.format(
                 "RelativeFileStateHandle State: %s, %s [%d bytes]",
                 getFilePath(), relativePath, getStateSize());
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new RelativeFileStateHandle(getFilePath(), relativePath, getStateSize(), true);
     }
 }

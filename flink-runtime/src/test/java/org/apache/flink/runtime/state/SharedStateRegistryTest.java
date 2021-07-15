@@ -98,11 +98,18 @@ public class SharedStateRegistryTest {
 
         private SharedStateRegistryKey key;
 
+        private final boolean shared;
+
         private boolean discarded;
 
         TestSharedState(String key) {
-            this.key = new SharedStateRegistryKey(key);
+            this(new SharedStateRegistryKey(key), false);
+        }
+
+        TestSharedState(SharedStateRegistryKey key, boolean shared) {
+            this.key = key;
             this.discarded = false;
+            this.shared = shared;
         }
 
         public SharedStateRegistryKey getRegistrationKey() {
@@ -136,6 +143,16 @@ public class SharedStateRegistryTest {
 
         public boolean isDiscarded() {
             return discarded;
+        }
+
+        @Override
+        public boolean isShared() {
+            return shared;
+        }
+
+        @Override
+        public StateObject asShared() {
+            return new TestSharedState(key, shared);
         }
     }
 }

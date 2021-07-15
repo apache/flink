@@ -150,4 +150,15 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
                 + stateHandle
                 + '}';
     }
+
+    @Override
+    public boolean isShared() {
+        return stateHandle.isShared();
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new KeyGroupsStateHandle(
+                groupRangeOffsets, (StreamStateHandle) stateHandle.asShared());
+    }
 }

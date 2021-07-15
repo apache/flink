@@ -85,4 +85,15 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     public void close() throws IOException {
         //		wrappedStreamStateHandle.close();
     }
+
+    @Override
+    public boolean isShared() {
+        return wrappedStreamStateHandle.isShared();
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new RetrievableStreamStateHandle<>(
+                (StreamStateHandle) wrappedStreamStateHandle.asShared());
+    }
 }

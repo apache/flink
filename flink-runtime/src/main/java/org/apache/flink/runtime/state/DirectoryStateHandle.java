@@ -30,7 +30,7 @@ import java.nio.file.Paths;
  * This state handle represents a directory. This class is, for example, used to represent the
  * directory of RocksDB's native checkpoint directories for local recovery.
  */
-public class DirectoryStateHandle implements StateObject {
+public class DirectoryStateHandle implements StateObject, ShareableStateHandle {
 
     /** Serial version. */
     private static final long serialVersionUID = 1L;
@@ -41,9 +41,16 @@ public class DirectoryStateHandle implements StateObject {
     /** Transient path cache, to avoid re-parsing the string. */
     private transient Path directory;
 
+    private final boolean shared;
+
     public DirectoryStateHandle(@Nonnull Path directory) {
+        this(directory, false);
+    }
+
+    public DirectoryStateHandle(@Nonnull Path directory, boolean shared) {
         this.directory = directory;
         this.directoryString = directory.toString();
+        this.shared = shared;
     }
 
     @Override
@@ -93,5 +100,15 @@ public class DirectoryStateHandle implements StateObject {
     @Override
     public String toString() {
         return "DirectoryStateHandle{" + "directory=" + directoryString + '}';
+    }
+
+    @Override
+    public boolean isShared() {
+        return shared;
+    }
+
+    @Override
+    public StateObject asShared() {
+        return new DirectoryStateHandle(directory, true);
     }
 }

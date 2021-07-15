@@ -27,7 +27,7 @@ import java.util.Optional;
  * A {@link StateObject} that represents state that was written to a stream. The data can be read
  * back via {@link #openInputStream()}.
  */
-public interface StreamStateHandle extends StateObject {
+public interface StreamStateHandle extends ShareableStateHandle {
 
     /**
      * Returns an {@link FSDataInputStream} that can be used to read back the data that was
