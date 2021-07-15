@@ -66,7 +66,7 @@ Task 是 Flink 的基本执行单元。算子的每个并行实例都在 task �
 `initializeState()` 既包含在初始化过程中算子状态的初始化逻辑（比如注册 keyed 状态），又包含异常后从 checkpoint 中恢复原有状态的逻辑。在接下来的篇幅会进行更详细的介绍。
 {{< /hint >}}
 
-当所有初始化都完成之后，算子开始处理流入的数据。流入的数据可以分为三种类型：用户数据、watermark 和 checkpoint barriers。每种类型的数据都有单独的方法来处理。用户数据通过 `processElement()` 方法来处理，watermark 通过 `processWatermark()` 来处理，checkpoint barriers 会触发异步执行的 `snapshotState()` 方法来进行 checkpoint。对于每个流入的数据，根据其类型调用上述方法之一。`processElement()`方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的  `map()` 方法。
+当所有初始化都完成之后，算子开始处理流入的数据。流入的数据可以分为三种类型：用户数据、watermark 和 checkpoint barriers。每种类型的数据都有单独的方法来处理。用户数据通过 `processElement()` 方法来处理，watermark 通过 `processWatermark()` 来处理，checkpoint barriers 会调用（异步）`snapshotState()` 方法触发 checkpoint。对于每个流入的数据，根据其类型调用上述相应的方法。注意，`processElement()` 方法也是用户自定义函数逻辑执行的地方，比如用户自定义 `MapFunction` 里的  `map()` 方法。
 
 最后，在正常无失败的情况下（比如，如果流式数据是有限的，并且最后一个数据已经到达），会调用 `finish()` 方法结束算子并进行必要的清理工作（比如刷新所有缓冲数据，或发送处理结束的标记数据）。在这之后会调用 `close()` 方法来释放算子持有的资源（比如算子数据持有的本地内存）。
 
