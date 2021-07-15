@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
- * A {@link RunnableWithException} executor that schedules a next attempt upon timeout based on
- * {@link RetryPolicy}. Aimed to curb tail latencies
+ * A {@link RetriableAction} executor that schedules a next attempt upon timeout based on {@link
+ * RetryPolicy}. Aimed to curb tail latencies
  */
 class RetryingExecutor implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(RetryingExecutor.class);
@@ -54,7 +54,7 @@ class RetryingExecutor implements AutoCloseable {
      * <p>NOTE: the action must be idempotent because multiple instances of it can be executed
      * concurrently (if the policy allows retries).
      */
-    void execute(RetryPolicy retryPolicy, RunnableWithException action) {
+    void execute(RetryPolicy retryPolicy, RetriableAction action) {
         LOG.debug("execute with retryPolicy: {}", retryPolicy);
         RetriableTask task = new RetriableTask(action, retryPolicy, scheduler);
         scheduler.submit(task);
@@ -69,8 +69,16 @@ class RetryingExecutor implements AutoCloseable {
         }
     }
 
+    /**
+     * An action to be performed by {@link RetryingExecutor}, potentially with multiple attempts,
+     * potentially concurrently.
+     *
+     * <p>NOTE: the action must be idempotent because of potential concurrent attempts.
+     */
+    interface RetriableAction extends RunnableWithException {}
+
     private static final class RetriableTask implements Runnable {
-        private final RunnableWithException runnable;
+        private final RetriableAction runnable;
         private final ScheduledExecutorService executorService;
         private final int current;
         private final RetryPolicy retryPolicy;
@@ -89,7 +97,7 @@ class RetryingExecutor implements AutoCloseable {
         private final AtomicBoolean attemptCompleted = new AtomicBoolean(false);
 
         RetriableTask(
-                RunnableWithException runnable,
+                RetriableAction runnable,
                 RetryPolicy retryPolicy,
                 ScheduledExecutorService executorService) {
             this(1, new AtomicBoolean(false), runnable, retryPolicy, executorService);
@@ -98,7 +106,7 @@ class RetryingExecutor implements AutoCloseable {
         private RetriableTask(
                 int current,
                 AtomicBoolean actionCompleted,
-                RunnableWithException runnable,
+                RetriableAction runnable,
                 RetryPolicy retryPolicy,
                 ScheduledExecutorService executorService) {
             this.current = current;
