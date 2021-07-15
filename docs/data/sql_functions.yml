@@ -41,7 +41,7 @@ comparison:
       table: value.isNotNull
       description: Returns TRUE if value is not NULL.
     - sql: value1 IS DISTINCT FROM value2
-      description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
+      description: Returns TRUE if two values are different. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns TRUE; NULL IS NOT DISTINCT FROM NULL returns FALSE.
     - sql: value1 IS NOT DISTINCT FROM value2
       description: Returns TRUE if two values are equal. NULL values are treated as identical here. E.g., 1 IS NOT DISTINCT FROM NULL returns FALSE; NULL IS NOT DISTINCT FROM NULL returns TRUE.
     - sql: value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
@@ -402,7 +402,7 @@ temporal:
   - table: | 
       NUMERIC.hour
       NUMERIC.hours
-    desription: Creates an interval of milliseconds for NUMERIC hours.
+    description: Creates an interval of milliseconds for NUMERIC hours.
   - table: |
       NUMERIC.minute
       NUMERIC.minutes
@@ -469,7 +469,7 @@ temporal:
   - sql: TIMESTAMPADD(timeintervalunit, interval, timepoint)
   - sql: TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
     table: timestampDiff(TIMEPOINTUNIT, TIMEPOINT1, TIMEPOINT2)
-    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.' 
+    description: 'Returns the (signed) number of timepointunit between timepoint1 and timepoint2. The unit for the interval is given by the first argument, which should be one of the following values: SECOND, MINUTE, HOUR, DAY, MONTH, or YEAR.'
   - sql: CONVERT_TZ(string1, string2, string3)
     description: Converts a datetime string1 (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone string2 to time zone string3. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-08:00". E.g., CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles') returns '1969-12-31 16:00:00'.
   - sql: FROM_UNIXTIME(numeric[, string])
@@ -683,7 +683,7 @@ aggregate:
     description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
   - sql: DENSE_RANK()
     description: Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.
-  - sql: ROW_NUMER()
+  - sql: ROW_NUMBER()
     description: Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition. ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).
   - sql: LEAD(expression [, offset] [, default])
     description: Returns the value of expression at the offsetth row after the current row in the window. The default value of offset is 1 and the default value of default is NULL.
