@@ -346,6 +346,9 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
         numBarriersReceived = 0;
         resetAlignmentTimer();
         currentState = currentState.abort(cancelledId);
+        if (cancelledId == currentCheckpointId) {
+            resetAlignment();
+        }
         notifyAbort(cancelledId, exception);
         allBarriersReceivedFuture.completeExceptionally(exception);
     }
