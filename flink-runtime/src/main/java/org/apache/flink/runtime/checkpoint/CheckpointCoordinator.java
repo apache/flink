@@ -1713,7 +1713,9 @@ public class CheckpointCoordinator {
 
                 newState.putState(
                         originalSubtaskStateEntry.getKey(),
-                        originalSubtaskStateEntry.getValue().toBuilder()
+                        originalSubtaskStateEntry
+                                .getValue()
+                                .toBuilder()
                                 .setResultSubpartitionState(StateObjectCollection.empty())
                                 .setInputChannelState(StateObjectCollection.empty())
                                 .build());
