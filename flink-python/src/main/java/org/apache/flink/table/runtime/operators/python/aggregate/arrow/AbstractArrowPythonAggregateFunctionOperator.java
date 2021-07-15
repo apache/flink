@@ -32,7 +32,6 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
-import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
@@ -58,7 +57,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
     protected final int[] groupingSet;
 
-    protected transient ArrowSerializer<RowData> arrowSerializer;
+    protected transient ArrowSerializer arrowSerializer;
 
     /** The collector used to collect records. */
     protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
@@ -92,8 +91,7 @@ public abstract class AbstractArrowPythonAggregateFunctionOperator
 
         udafInputProjection = createUdafInputProjection();
         arrowSerializer =
-                new RowDataArrowSerializer(
-                        userDefinedFunctionInputType, userDefinedFunctionOutputType);
+                new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }

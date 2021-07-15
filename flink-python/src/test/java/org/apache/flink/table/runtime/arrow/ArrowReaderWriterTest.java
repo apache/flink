@@ -63,13 +63,13 @@ import java.util.List;
 import java.util.Objects;
 
 /** Tests for {@link ArrowReader} and {@link ArrowWriter} of RowData. */
-public class RowDataArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
+public class ArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowData> {
     private static List<LogicalType> fieldTypes = new ArrayList<>();
     private static RowType rowType;
     private static RowType rowFieldType;
     private static BufferAllocator allocator;
 
-    public RowDataArrowReaderWriterTest() {
+    public ArrowReaderWriterTest() {
         super(
                 new DeeplyEqualsChecker()
                         .withCustomCheck(
@@ -151,10 +151,10 @@ public class RowDataArrowReaderWriterTest extends ArrowReaderWriterTestBase<RowD
     }
 
     @Override
-    public ArrowReader<RowData> createArrowReader(InputStream inputStream) throws IOException {
+    public ArrowReader createArrowReader(InputStream inputStream) throws IOException {
         ArrowStreamReader reader = new ArrowStreamReader(inputStream, allocator);
         reader.loadNextBatch();
-        return ArrowUtils.createRowDataArrowReader(reader.getVectorSchemaRoot(), rowType);
+        return ArrowUtils.createArrowReader(reader.getVectorSchemaRoot(), rowType);
     }
 
     @Override

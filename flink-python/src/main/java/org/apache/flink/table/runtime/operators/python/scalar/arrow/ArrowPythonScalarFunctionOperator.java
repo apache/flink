@@ -26,7 +26,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
-import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
 import org.apache.flink.table.runtime.operators.python.scalar.AbstractPythonScalarFunctionOperator;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -44,7 +43,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
     /** Max number of elements to include in an arrow batch. */
     private transient int maxArrowBatchSize;
 
-    private transient ArrowSerializer<RowData> arrowSerializer;
+    private transient ArrowSerializer arrowSerializer;
 
     public ArrowPythonScalarFunctionOperator(
             Configuration config,
@@ -61,8 +60,7 @@ public class ArrowPythonScalarFunctionOperator extends AbstractPythonScalarFunct
         super.open();
         maxArrowBatchSize = Math.min(getPythonConfig().getMaxArrowBatchSize(), maxBundleSize);
         arrowSerializer =
-                new RowDataArrowSerializer(
-                        userDefinedFunctionInputType, userDefinedFunctionOutputType);
+                new ArrowSerializer(userDefinedFunctionInputType, userDefinedFunctionOutputType);
         arrowSerializer.open(bais, baos);
         currentBatchCount = 0;
     }

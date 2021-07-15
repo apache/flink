@@ -27,7 +27,7 @@ import org.apache.flink.python.PythonConfig;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.arrow.serializers.RowDataArrowSerializer;
+import org.apache.flink.table.runtime.arrow.serializers.ArrowSerializer;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -51,7 +51,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
 
     private final List<byte[]> buffer;
 
-    private final RowDataArrowSerializer arrowSerializer;
+    private final ArrowSerializer arrowSerializer;
 
     /** Whether it is batch over window. */
     private final boolean isBatchOverWindow;
@@ -93,7 +93,7 @@ public class PassThroughPythonAggregateFunctionRunner extends BeamTablePythonFun
                         outputType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false));
         this.buffer = new LinkedList<>();
         this.isBatchOverWindow = isBatchOverWindow;
-        arrowSerializer = new RowDataArrowSerializer(inputType, outputType);
+        arrowSerializer = new ArrowSerializer(inputType, outputType);
     }
 
     @Override
