@@ -469,7 +469,8 @@ public class RocksIncrementalSnapshotStrategy<K>
                         // we introduce a placeholder state handle, that is replaced with the
                         // original from the shared state registry (created from a previous
                         // checkpoint)
-                        sstFiles.put(stateHandleID, new PlaceholderStreamStateHandle());
+                        sstFiles.put(
+                                stateHandleID, new PlaceholderStreamStateHandle(stateHandleID));
                     } else {
                         sstFilePaths.put(stateHandleID, filePath);
                     }

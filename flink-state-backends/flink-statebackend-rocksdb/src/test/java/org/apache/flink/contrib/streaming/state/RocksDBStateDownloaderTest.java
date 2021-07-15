@@ -69,6 +69,11 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                     }
 
                     @Override
+                    public StateObjectID getID() {
+                        return StateObjectID.of("test");
+                    }
+
+                    @Override
                     public void discardState() {}
 
                     @Override

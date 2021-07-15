@@ -141,5 +141,10 @@ public class SharedStateRegistryTest {
         public boolean isDiscarded() {
             return discarded;
         }
+
+        @Override
+        public StateObjectID getID() {
+            return StateObjectID.of("test");
+        }
     }
 }
