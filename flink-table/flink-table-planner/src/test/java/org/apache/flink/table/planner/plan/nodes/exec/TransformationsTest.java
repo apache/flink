@@ -57,6 +57,7 @@ public class TransformationsTest extends TableTestBase {
                 toLegacySourceTransformation(env, table);
 
         assertBoundedness(Boundedness.BOUNDED, sourceTransform);
+        assertFalse(sourceTransform.getOperator().emitsProgressiveWatermarks());
     }
 
     @Test
@@ -75,6 +76,7 @@ public class TransformationsTest extends TableTestBase {
                 toLegacySourceTransformation(env, table);
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
+        assertTrue(sourceTransform.getOperator().emitsProgressiveWatermarks());
     }
 
     // --------------------------------------------------------------------------------------------
