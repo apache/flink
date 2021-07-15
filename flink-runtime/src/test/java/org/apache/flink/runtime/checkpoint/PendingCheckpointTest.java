@@ -755,8 +755,8 @@ public class PendingCheckpointTest {
                 new DefaultCheckpointPlanCalculator(
                         new JobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
-                        executionGraph.getVerticesTopologically());
-        checkpointPlanCalculator.setAllowCheckpointsAfterTasksFinished(true);
+                        executionGraph.getVerticesTopologically(),
+                        true);
         CheckpointPlan checkpointPlan = checkpointPlanCalculator.calculateCheckpointPlan().get();
 
         final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());

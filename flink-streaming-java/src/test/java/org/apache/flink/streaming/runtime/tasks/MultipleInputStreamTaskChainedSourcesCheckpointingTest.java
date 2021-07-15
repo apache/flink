@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperator;
@@ -285,7 +285,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                         config.setCheckpointingEnabled(true);
                                         config.getConfiguration()
                                                 .set(
-                                                        ExecutionOptions
+                                                        ExecutionCheckpointingOptions
                                                                 .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
                                                         true);
                                     })

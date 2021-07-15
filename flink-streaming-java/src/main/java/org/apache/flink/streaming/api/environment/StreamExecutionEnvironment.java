@@ -987,6 +987,16 @@ public class StreamExecutionEnvironment {
         configuration
                 .getOptional(PipelineOptions.NAME)
                 .ifPresent(jobName -> this.getConfiguration().set(PipelineOptions.NAME, jobName));
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                .ifPresent(
+                        flag ->
+                                this.getConfiguration()
+                                        .set(
+                                                ExecutionCheckpointingOptions
+                                                        .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
+                                                flag));
+
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
     }

@@ -60,20 +60,17 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
 
     private final List<ExecutionVertex> sourceTasks = new ArrayList<>();
 
-    /**
-     * TODO Temporary flag to allow checkpoints after tasks finished. This is disabled for regular
-     * jobs to keep the current behavior but we want to allow it in tests. This should be removed
-     * once all parts of the stack support checkpoints after some tasks finished.
-     */
-    private boolean allowCheckpointsAfterTasksFinished;
+    private final boolean allowCheckpointsAfterTasksFinished;
 
     public DefaultCheckpointPlanCalculator(
             JobID jobId,
             CheckpointPlanCalculatorContext context,
-            Iterable<ExecutionJobVertex> jobVerticesInTopologyOrderIterable) {
+            Iterable<ExecutionJobVertex> jobVerticesInTopologyOrderIterable,
+            boolean allowCheckpointsAfterTasksFinished) {
 
         this.jobId = checkNotNull(jobId);
         this.context = checkNotNull(context);
+        this.allowCheckpointsAfterTasksFinished = allowCheckpointsAfterTasksFinished;
 
         checkNotNull(jobVerticesInTopologyOrderIterable);
         jobVerticesInTopologyOrderIterable.forEach(
@@ -85,10 +82,6 @@ public class DefaultCheckpointPlanCalculator implements CheckpointPlanCalculator
                         sourceTasks.addAll(Arrays.asList(jobVertex.getTaskVertices()));
                     }
                 });
-    }
-
-    public void setAllowCheckpointsAfterTasksFinished(boolean allowCheckpointsAfterTasksFinished) {
-        this.allowCheckpointsAfterTasksFinished = allowCheckpointsAfterTasksFinished;
     }
 
     @Override

@@ -766,9 +766,8 @@ public class CheckpointCoordinatorTestingUtils {
                     new DefaultCheckpointPlanCalculator(
                             executionGraph.getJobID(),
                             new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
-                            executionGraph.getVerticesTopologically());
-            checkpointPlanCalculator.setAllowCheckpointsAfterTasksFinished(
-                    allowCheckpointsAfterTasksFinished);
+                            executionGraph.getVerticesTopologically(),
+                            allowCheckpointsAfterTasksFinished);
 
             return new CheckpointCoordinator(
                     executionGraph.getJobID(),

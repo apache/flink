@@ -19,7 +19,6 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -64,6 +63,7 @@ import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -718,7 +718,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         CompletableFuture<Void> allRecordsProcessedFuture;
         if (configuration
                         .getConfiguration()
-                        .get(ExecutionOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
+                        .get(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH)
                 && configuration.isCheckpointingEnabled()) {
             LOG.debug("Waiting for all the records processed by the downstream tasks.");
 
