@@ -166,6 +166,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
 
         // fast path for single channel trackers
         if (totalNumberOfInputChannels == 1) {
+            resetAlignment();
             notifyAbortOnCancellationBarrier(checkpointId);
             return;
         }
@@ -225,6 +226,7 @@ public class CheckpointBarrierTracker extends CheckpointBarrierHandler {
                                 CheckpointFailureReason.CHECKPOINT_DECLINED_INPUT_END_OF_STREAM));
             }
         }
+        resetAlignment();
     }
 
     public long getLatestCheckpointId() {
