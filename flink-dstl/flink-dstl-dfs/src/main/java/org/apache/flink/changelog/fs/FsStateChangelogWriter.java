@@ -223,8 +223,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         }
     }
 
-    private synchronized void handleUploadFailure(
-            List<SequenceNumber> failedSqn, Throwable throwable) {
+    private void handleUploadFailure(List<SequenceNumber> failedSqn, Throwable throwable) {
         synchronized (lock) {
             if (closed) {
                 return;
@@ -239,7 +238,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         }
     }
 
-    private synchronized void handleUploadSuccess(List<UploadResult> results) {
+    private void handleUploadSuccess(List<UploadResult> results) {
         synchronized (lock) {
             if (closed) {
                 results.forEach(
