@@ -40,15 +40,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
         return {
             'getCompletionHints',
             'fromValues',
-            'create',
-            'createTemporaryTable',
-            'createTable',
-            'createTemporarySystemFunction',
-            'dropTemporarySystemFunction',
-            'createFunction',
-            'dropFunction',
-            'createTemporaryFunction',
-            'dropTemporaryFunction'}
+            'create'}
 
     @classmethod
     def java_method_name(cls, python_method_name):
@@ -59,7 +51,10 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
         :param python_method_name:
         :return:
         """
-        return {'from_path': 'from'}.get(python_method_name, python_method_name)
+        py_func_to_java_method_dict = {'from_path': 'from',
+                                       "from_descriptor": "from",
+                                       "create_java_function": "create_function"}
+        return py_func_to_java_method_dict.get(python_method_name, python_method_name)
 
 
 if __name__ == '__main__':
