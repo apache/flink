@@ -120,7 +120,7 @@
             <td><h5>yarn.per-job-cluster.include-user-jar</h5></td>
             <td style="word-wrap: break-word;">ORDER</td>
             <td><p>Enum</p></td>
-            <td>Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning in the path. They can be positioned at the beginning (FIRST), at the end (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are excluded from the system class path.<br><br>Possible values:<ul><li>"DISABLED"</li><li>"FIRST"</li><li>"LAST"</li><li>"ORDER"</li></ul></td>
+            <td>Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning in the path.<br><br>Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
         </tr>
         <tr>
             <td><h5>yarn.properties-file.location</h5></td>
