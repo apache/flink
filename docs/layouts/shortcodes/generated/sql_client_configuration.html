@@ -24,7 +24,7 @@
             <td><h5>sql-client.execution.result-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">TABLE</td>
             <td><p>Enum</p></td>
-            <td>Determine the mode when display the query result. The available values are ['table', 'tableau', 'changelog']. The 'table' mode materializes results in memory and visualizes them in a regular, paginated table representation. The 'changelog' mode does not materialize results and visualizes the result stream that is produced by a continuous query. The 'tableau' mode is more like a traditional way which will display the results in the screen directly with a tableau format. <br><br>Possible values:<ul><li>"TABLE"</li><li>"CHANGELOG"</li><li>"TABLEAU"</li></ul></td>
+            <td>Determines how the query result should be displayed.<br><br>Possible values:<ul><li>"TABLE": Materializes results in memory and visualizes them in a regular, paginated table representation.</li><li>"CHANGELOG": Visualizes the result stream that is produced by a continuous query.</li><li>"TABLEAU": Display results in the screen directly in a tableau format.</li></ul></td>
         </tr>
         <tr>
             <td><h5>sql-client.verbose</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
