@@ -92,6 +92,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserAuthorizationParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer;
+import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
@@ -160,7 +161,6 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_C
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
-import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.HiveParserRowFormatParams;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
 
@@ -287,93 +287,12 @@ public class HiveParserDDLSemanticAnalyzer {
         return new ObjectPath(parts[0], parts[1]);
     }
 
-    public Operation convertToOperation(HiveParserASTNode input) throws SemanticException {
-        HiveParserASTNode ast = input;
+    public Operation convertToOperation(HiveParserASTNode ast) throws SemanticException {
         Operation res = null;
         switch (ast.getType()) {
             case HiveASTParser.TOK_ALTERTABLE:
-                {
-                    ast = (HiveParserASTNode) input.getChild(1);
-                    String[] qualified =
-                            HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
-                                    (HiveParserASTNode) input.getChild(0));
-                    String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
-                    HashMap<String, String> partSpec = null;
-                    HiveParserASTNode partSpecNode = (HiveParserASTNode) input.getChild(2);
-                    if (partSpecNode != null) {
-                        partSpec = getPartSpec(partSpecNode);
-                    }
-                    if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_RENAME) {
-                        res = convertAlterTableRename(qualified, ast, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_TOUCH) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_ARCHIVE) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_UNARCHIVE) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_ADDCOLS) {
-                        res = convertAlterTableModifyCols(qualified, ast, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_REPLACECOLS) {
-                        res = convertAlterTableModifyCols(qualified, ast, true);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_RENAMECOL) {
-                        res = convertAlterTableRenameCol(qualified, ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_ADDPARTS) {
-                        res = convertAlterTableAddParts(qualified, ast, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_DROPPARTS) {
-                        res = convertAlterTableDropParts(qualified, ast, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_PARTCOLTYPE) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_PROPERTIES) {
-                        res = convertAlterTableProps(qualified, null, ast, false, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_DROPPROPERTIES) {
-                        res = convertAlterTableProps(qualified, null, ast, false, true);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_UPDATESTATS) {
-                        res = convertAlterTableProps(qualified, partSpec, ast, false, false);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_SKEWED) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getType() == HiveASTParser.TOK_ALTERTABLE_EXCHANGEPARTITION) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_FILEFORMAT) {
-                        res = convertAlterTableFileFormat(ast, tableName, partSpec);
-                    } else if (ast.getToken().getType() == HiveASTParser.TOK_ALTERTABLE_LOCATION) {
-                        res = convertAlterTableLocation(ast, tableName, partSpec);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_MERGEFILES) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_SERIALIZER) {
-                        res = convertAlterTableSerde(ast, tableName, partSpec);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_SERDEPROPERTIES) {
-                        res = convertAlterTableSerdeProps(ast, tableName, partSpec);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_RENAMEPART) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_SKEWED_LOCATION) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType() == HiveASTParser.TOK_ALTERTABLE_BUCKETS) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_CLUSTER_SORT) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType() == HiveASTParser.TOK_ALTERTABLE_COMPACT) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_UPDATECOLSTATS) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_DROPCONSTRAINT) {
-                        handleUnsupportedOperation(ast);
-                    } else if (ast.getToken().getType()
-                            == HiveASTParser.TOK_ALTERTABLE_ADDCONSTRAINT) {
-                        handleUnsupportedOperation(ast);
-                    } else {
-                        throw new ValidationException("Unknown AST node for ALTER TABLE: " + ast);
-                    }
-                    break;
-                }
+                res = convertAlterTable(ast);
+                break;
             case HiveASTParser.TOK_DROPTABLE:
                 res = convertDropTable(ast, null);
                 break;
@@ -396,32 +315,8 @@ public class HiveParserDDLSemanticAnalyzer {
                 res = convertDropTable(ast, TableType.VIRTUAL_VIEW);
                 break;
             case HiveASTParser.TOK_ALTERVIEW:
-                {
-                    if (ast.getChild(1).getType() == HiveASTParser.TOK_QUERY) {
-                        // alter view as
-                        res = convertCreateView(ast);
-                    } else {
-                        String[] qualified =
-                                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
-                                        (HiveParserASTNode) ast.getChild(0));
-                        ast = (HiveParserASTNode) ast.getChild(1);
-                        if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_PROPERTIES) {
-                            res = convertAlterTableProps(qualified, null, ast, true, false);
-                        } else if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_DROPPROPERTIES) {
-                            res = convertAlterTableProps(qualified, null, ast, true, true);
-                        } else if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_ADDPARTS) {
-                            handleUnsupportedOperation("ADD PARTITION for view is not supported");
-                        } else if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_DROPPARTS) {
-                            handleUnsupportedOperation("DROP PARTITION for view is not supported");
-                        } else if (ast.getType() == HiveASTParser.TOK_ALTERVIEW_RENAME) {
-                            res = convertAlterTableRename(qualified, ast, true);
-                        } else {
-                            throw new ValidationException(
-                                    "Unknown AST node for ALTER VIEW: " + ast);
-                        }
-                    }
-                    break;
-                }
+                res = convertAlterView(ast);
+                break;
             case HiveASTParser.TOK_SHOWPARTITIONS:
                 res = convertShowPartitions(ast);
                 break;
@@ -498,6 +393,82 @@ public class HiveParserDDLSemanticAnalyzer {
         return res;
     }
 
+    private Operation convertAlterTable(HiveParserASTNode input) throws SemanticException {
+        Operation operation = null;
+        HiveParserASTNode ast = (HiveParserASTNode) input.getChild(1);
+        String[] qualified =
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) input.getChild(0));
+        String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
+        HashMap<String, String> partSpec = null;
+        HiveParserASTNode partSpecNode = (HiveParserASTNode) input.getChild(2);
+        if (partSpecNode != null) {
+            partSpec = getPartSpec(partSpecNode);
+        }
+        checkAlterTableLegal(tableName, false);
+        switch (ast.getType()) {
+            case HiveASTParser.TOK_ALTERTABLE_RENAME:
+                operation = convertAlterTableRename(tableName, ast, false);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_ADDCOLS:
+                operation = convertAlterTableModifyCols(tableName, ast, false);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_REPLACECOLS:
+                operation = convertAlterTableModifyCols(tableName, ast, true);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_RENAMECOL:
+                operation = convertAlterTableChangeCol(qualified, ast);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_ADDPARTS:
+                operation = convertAlterTableAddParts(qualified, ast);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_DROPPARTS:
+                operation = convertAlterTableDropParts(qualified, ast);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_PROPERTIES:
+                operation = convertAlterTableProps(tableName, null, ast, false, false);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_DROPPROPERTIES:
+                operation = convertAlterTableProps(tableName, null, ast, false, true);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_UPDATESTATS:
+                operation = convertAlterTableProps(tableName, partSpec, ast, false, false);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_FILEFORMAT:
+                operation = convertAlterTableFileFormat(ast, tableName, partSpec);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_LOCATION:
+                operation = convertAlterTableLocation(ast, tableName, partSpec);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_SERIALIZER:
+                operation = convertAlterTableSerde(ast, tableName, partSpec);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_SERDEPROPERTIES:
+                operation = convertAlterTableSerdeProps(ast, tableName, partSpec);
+                break;
+            case HiveASTParser.TOK_ALTERTABLE_TOUCH:
+            case HiveASTParser.TOK_ALTERTABLE_ARCHIVE:
+            case HiveASTParser.TOK_ALTERTABLE_UNARCHIVE:
+            case HiveASTParser.TOK_ALTERTABLE_PARTCOLTYPE:
+            case HiveASTParser.TOK_ALTERTABLE_SKEWED:
+            case HiveASTParser.TOK_ALTERTABLE_EXCHANGEPARTITION:
+            case HiveASTParser.TOK_ALTERTABLE_MERGEFILES:
+            case HiveASTParser.TOK_ALTERTABLE_RENAMEPART:
+            case HiveASTParser.TOK_ALTERTABLE_SKEWED_LOCATION:
+            case HiveASTParser.TOK_ALTERTABLE_BUCKETS:
+            case HiveASTParser.TOK_ALTERTABLE_CLUSTER_SORT:
+            case HiveASTParser.TOK_ALTERTABLE_COMPACT:
+            case HiveASTParser.TOK_ALTERTABLE_UPDATECOLSTATS:
+            case HiveASTParser.TOK_ALTERTABLE_DROPCONSTRAINT:
+            case HiveASTParser.TOK_ALTERTABLE_ADDCONSTRAINT:
+                handleUnsupportedOperation(ast);
+                break;
+            default:
+                throw new ValidationException("Unknown AST node for ALTER TABLE: " + ast);
+        }
+        return operation;
+    }
+
     private Operation convertDropFunction(HiveParserASTNode ast) {
         // ^(TOK_DROPFUNCTION identifier ifExists? $temp?)
         String functionName = ast.getChild(0).getText();
@@ -528,9 +499,6 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         if (isTemporaryFunction) {
-            // hive's temporary function is more like flink's temp system function, e.g. doesn't
-            // belong to a catalog/db
-            // the DDL analyzer makes sure temp function name is not a compound one
             FunctionDefinition funcDefinition =
                     funcDefFactory.createFunctionDefinition(
                             functionName,
@@ -542,6 +510,39 @@ public class HiveParserDDLSemanticAnalyzer {
                     new CatalogFunctionImpl(className, FunctionLanguage.JAVA);
             return new CreateCatalogFunctionOperation(identifier, catalogFunction, false, false);
         }
+    }
+
+    private Operation convertAlterView(HiveParserASTNode ast) throws SemanticException {
+        Operation operation = null;
+        String[] qualified =
+                HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
+                        (HiveParserASTNode) ast.getChild(0));
+        String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
+        checkAlterTableLegal(tableName, true);
+        if (ast.getChild(1).getType() == HiveASTParser.TOK_QUERY) {
+            // alter view as
+            operation = convertCreateView(ast);
+        } else {
+            ast = (HiveParserASTNode) ast.getChild(1);
+            switch (ast.getType()) {
+                case HiveASTParser.TOK_ALTERVIEW_PROPERTIES:
+                    operation = convertAlterTableProps(tableName, null, ast, true, false);
+                    break;
+                case HiveASTParser.TOK_ALTERVIEW_DROPPROPERTIES:
+                    operation = convertAlterTableProps(tableName, null, ast, true, true);
+                    break;
+                case HiveASTParser.TOK_ALTERVIEW_RENAME:
+                    operation = convertAlterTableRename(tableName, ast, true);
+                    break;
+                case HiveASTParser.TOK_ALTERVIEW_ADDPARTS:
+                case HiveASTParser.TOK_ALTERVIEW_DROPPARTS:
+                    handleUnsupportedOperation("DROP PARTITION for view is not supported");
+                    break;
+                default:
+                    throw new ValidationException("Unknown AST node for ALTER VIEW: " + ast);
+            }
+        }
+        return operation;
     }
 
     private Operation convertCreateView(HiveParserASTNode ast) throws SemanticException {
@@ -632,9 +633,6 @@ public class HiveParserDDLSemanticAnalyzer {
         Map<String, String> props = new HashMap<>();
         if (isAlterViewAs) {
             CatalogBaseTable baseTable = getCatalogBaseTable(viewIdentifier);
-            if (baseTable instanceof CatalogTable) {
-                throw new ValidationException("ALTER VIEW for a table is not allowed");
-            }
             props.putAll(baseTable.getOptions());
             comment = baseTable.getComment();
         } else {
@@ -855,21 +853,20 @@ public class HiveParserDDLSemanticAnalyzer {
                                 false);
 
                 CreateTableOperation createTableOperation =
-                        (CreateTableOperation)
-                                convertCreateTable(
-                                        dbDotTab,
-                                        isExt,
-                                        ifNotExists,
-                                        isTemporary,
-                                        cols,
-                                        partCols,
-                                        comment,
-                                        location,
-                                        tblProps,
-                                        rowFormatParams,
-                                        storageFormat,
-                                        primaryKeys,
-                                        notNulls);
+                        convertCreateTable(
+                                dbDotTab,
+                                isExt,
+                                ifNotExists,
+                                isTemporary,
+                                cols,
+                                partCols,
+                                comment,
+                                location,
+                                tblProps,
+                                rowFormatParams,
+                                storageFormat,
+                                primaryKeys,
+                                notNulls);
 
                 return new CreateTableASOperation(createTableOperation, insertOperation);
             default:
@@ -877,7 +874,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private Operation convertCreateTable(
+    private CreateTableOperation convertCreateTable(
             String compoundName,
             boolean isExternal,
             boolean ifNotExists,
@@ -1173,31 +1170,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private void validateAlterTableType(
-            Table tbl, AlterTableDesc.AlterTableTypes op, boolean expectView) {
-        if (tbl.isView()) {
-            if (!expectView) {
-                throw new ValidationException(ErrorMsg.ALTER_COMMAND_FOR_VIEWS.getMsg());
-            }
-
-            switch (op) {
-                case ADDPARTITION:
-                case DROPPARTITION:
-                case RENAMEPARTITION:
-                case ADDPROPS:
-                case DROPPROPS:
-                case RENAME:
-                    // allow this form
-                    break;
-                default:
-                    throw new ValidationException(
-                            ErrorMsg.ALTER_VIEW_DISALLOWED_OP.getMsg(op.toString()));
-            }
-        } else {
-            if (expectView) {
-                throw new ValidationException(ErrorMsg.ALTER_COMMAND_FOR_TABLES.getMsg());
-            }
-        }
+    private void validateAlterTableType(Table tbl, AlterTableDesc.AlterTableTypes op) {
         if (tbl.isNonNative()) {
             throw new ValidationException(
                     ErrorMsg.ALTER_TABLE_NON_NATIVE.getMsg(tbl.getTableName()));
@@ -1205,14 +1178,12 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableProps(
-            String[] qualified,
+            String tableName,
             HashMap<String, String> partSpec,
             HiveParserASTNode ast,
             boolean expectView,
-            boolean isUnset)
-            throws SemanticException {
+            boolean isUnset) {
 
-        String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
         HashMap<String, String> mapProp =
                 getProps((HiveParserASTNode) (ast.getChild(0)).getChild(0));
         // we need to check if the properties are valid, especially for stats.
@@ -1450,14 +1421,6 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private void validateTable(String tableName, Map<String, String> partSpec)
-            throws SemanticException {
-        Table tab = getTable(tableName);
-        if (partSpec != null) {
-            getPartition(tab, partSpec);
-        }
-    }
-
     private void getPartition(Table table, Map<String, String> partSpec) {
         try {
             hiveCatalog.getPartition(
@@ -1588,8 +1551,6 @@ public class HiveParserDDLSemanticAnalyzer {
             partSpec = partSpecs.get(0);
         }
 
-        validateTable(tableName, null);
-
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tableName);
         CatalogPartitionSpec spec = null;
         if (partSpec != null && !partSpec.isEmpty()) {
@@ -1656,15 +1617,13 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableRename(
-            String[] source, HiveParserASTNode ast, boolean expectView) throws SemanticException {
+            String sourceName, HiveParserASTNode ast, boolean expectView) throws SemanticException {
         String[] target =
                 HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
                         (HiveParserASTNode) ast.getChild(0));
 
-        String sourceName = HiveParserBaseSemanticAnalyzer.getDotName(source);
         String targetName = HiveParserBaseSemanticAnalyzer.getDotName(target);
         ObjectIdentifier objectIdentifier = parseObjectIdentifier(sourceName);
-        checkAlterTableLegal(objectIdentifier, expectView);
 
         return expectView
                 ? new AlterViewRenameOperation(objectIdentifier, parseObjectIdentifier(targetName))
@@ -1672,7 +1631,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         objectIdentifier, parseObjectIdentifier(targetName));
     }
 
-    private Operation convertAlterTableRenameCol(String[] qualified, HiveParserASTNode ast)
+    private Operation convertAlterTableChangeCol(String[] qualified, HiveParserASTNode ast)
             throws SemanticException {
         String newComment = null;
         boolean first = false;
@@ -1726,9 +1685,6 @@ public class HiveParserDDLSemanticAnalyzer {
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
-        }
         CatalogTable oldTable = (CatalogTable) catalogBaseTable;
         String oldName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(oldColName);
         String newName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(newColName);
@@ -1757,9 +1713,8 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableModifyCols(
-            String[] qualified, HiveParserASTNode ast, boolean replace) throws SemanticException {
+            String tblName, HiveParserASTNode ast, boolean replace) throws SemanticException {
 
-        String tblName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
         List<FieldSchema> newCols =
                 HiveParserBaseSemanticAnalyzer.getColumns((HiveParserASTNode) ast.getChild(0));
         boolean isCascade = false;
@@ -1769,9 +1724,6 @@ public class HiveParserDDLSemanticAnalyzer {
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
-        }
         CatalogTable oldTable = (CatalogTable) catalogBaseTable;
 
         // prepare properties
@@ -1829,8 +1781,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         });
     }
 
-    private Operation convertAlterTableDropParts(
-            String[] qualified, HiveParserASTNode ast, boolean expectView) {
+    private Operation convertAlterTableDropParts(String[] qualified, HiveParserASTNode ast) {
 
         boolean ifExists = ast.getFirstChildWithType(HiveASTParser.TOK_IFEXISTS) != null;
         // If the drop has to fail on non-existent partitions, we cannot batch expressions.
@@ -1851,15 +1802,11 @@ public class HiveParserDDLSemanticAnalyzer {
             }
         }
 
-        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.DROPPARTITION, expectView);
+        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.DROPPARTITION);
 
         ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(
                         UnresolvedIdentifier.of(qualified[0], qualified[1]));
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("DROP PARTITION for a view is not supported");
-        }
         List<CatalogPartitionSpec> specs =
                 partSpecs.stream().map(CatalogPartitionSpec::new).collect(Collectors.toList());
         return new DropPartitionsOperation(tableIdentifier, ifExists, specs);
@@ -1869,21 +1816,20 @@ public class HiveParserDDLSemanticAnalyzer {
      * Add one or more partitions to a table. Useful when the data has been copied to the right
      * location by some other process.
      */
-    private Operation convertAlterTableAddParts(
-            String[] qualified, CommonTree ast, boolean expectView) {
+    private Operation convertAlterTableAddParts(String[] qualified, CommonTree ast) {
         // ^(TOK_ALTERTABLE_ADDPARTS identifier ifNotExists?
         // alterStatementSuffixAddPartitionsElement+)
         boolean ifNotExists = ast.getChild(0).getType() == HiveASTParser.TOK_IFNOTEXISTS;
 
         Table tab = getTable(new ObjectPath(qualified[0], qualified[1]));
         boolean isView = tab.isView();
-        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.ADDPARTITION, expectView);
+        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.ADDPARTITION);
 
         int numCh = ast.getChildCount();
         int start = ifNotExists ? 1 : 0;
 
         String currentLocation = null;
-        Map<String, String> currentPart = null;
+        Map<String, String> currentPartSpec = null;
         // Parser has done some verification, so the order of tokens doesn't need to be verified
         // here.
         List<CatalogPartitionSpec> specs = new ArrayList<>();
@@ -1892,8 +1838,8 @@ public class HiveParserDDLSemanticAnalyzer {
             HiveParserASTNode child = (HiveParserASTNode) ast.getChild(num);
             switch (child.getToken().getType()) {
                 case HiveASTParser.TOK_PARTSPEC:
-                    if (currentPart != null) {
-                        specs.add(new CatalogPartitionSpec(currentPart));
+                    if (currentPartSpec != null) {
+                        specs.add(new CatalogPartitionSpec(currentPartSpec));
                         Map<String, String> props = new HashMap<>();
                         if (currentLocation != null) {
                             props.put(TABLE_LOCATION_URI, currentLocation);
@@ -1901,8 +1847,8 @@ public class HiveParserDDLSemanticAnalyzer {
                         partitions.add(new CatalogPartitionImpl(props, null));
                         currentLocation = null;
                     }
-                    currentPart = getPartSpec(child);
-                    validatePartitionValues(currentPart); // validate reserved values
+                    currentPartSpec = getPartSpec(child);
+                    validatePartitionValues(currentPartSpec); // validate reserved values
                     break;
                 case HiveASTParser.TOK_PARTITIONLOCATION:
                     // if location specified, set in partition
@@ -1919,8 +1865,8 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         // add the last one
-        if (currentPart != null) {
-            specs.add(new CatalogPartitionSpec(currentPart));
+        if (currentPartSpec != null) {
+            specs.add(new CatalogPartitionSpec(currentPartSpec));
             Map<String, String> props = new HashMap<>();
             if (currentLocation != null) {
                 props.put(TABLE_LOCATION_URI, currentLocation);
@@ -1943,9 +1889,6 @@ public class HiveParserDDLSemanticAnalyzer {
     private Operation convertAlterViewProps(String tableName, Map<String, String> newProps) {
         ObjectIdentifier viewIdentifier = parseObjectIdentifier(tableName);
         CatalogBaseTable baseTable = getCatalogBaseTable(viewIdentifier);
-        if (baseTable instanceof CatalogTable) {
-            throw new ValidationException("ALTER VIEW for a table is not allowed");
-        }
         CatalogView oldView = (CatalogView) baseTable;
         Map<String, String> props = new HashMap<>(oldView.getOptions());
         props.putAll(newProps);
@@ -1959,7 +1902,8 @@ public class HiveParserDDLSemanticAnalyzer {
         return new AlterViewPropertiesOperation(viewIdentifier, newView);
     }
 
-    private void checkAlterTableLegal(ObjectIdentifier objectIdentifier, boolean expectView) {
+    private void checkAlterTableLegal(String tableName, boolean expectView) {
+        ObjectIdentifier objectIdentifier = parseObjectIdentifier(tableName);
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(objectIdentifier);
         if (expectView) {
             if (catalogBaseTable instanceof CatalogTable) {
