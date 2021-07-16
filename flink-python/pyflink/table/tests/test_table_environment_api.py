@@ -20,7 +20,6 @@ import decimal
 import os
 import sys
 from py4j.protocol import Py4JJavaError
-from pyflink.table.udf import udf
 
 from pyflink.common import RowKind
 from pyflink.common.typeinfo import Types
@@ -28,10 +27,13 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.java_gateway import get_gateway
 from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings, \
     Module, ResultKind, ModuleEntry
-from pyflink.table.descriptors import FileSystem, OldCsv, Schema
+from pyflink.table.catalog import ObjectPath, CatalogBaseTable
+from pyflink.table.descriptors import FileSystem, OldCsv
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.types import RowType, Row
+from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import \
     PyFlinkBatchTableTestCase, PyFlinkStreamTableTestCase, \
@@ -163,6 +165,8 @@ class TableEnvironmentTest(object):
         self.assert_equals(t_env.list_user_defined_functions(), [])
 
     def test_temporary_tables(self):
+        from pyflink.table.descriptors import Schema
+
         t_env = self.t_env
         t_env.connect(FileSystem().path(os.path.join(self.tempdir + '/temp_1.csv'))) \
             .with_format(OldCsv()
@@ -192,6 +196,71 @@ class TableEnvironmentTest(object):
         actual = t_env.list_temporary_tables()
         expected = ['temporary_table_2']
         self.assert_equals(actual, expected)
+
+    def test_create_temporary_table_from_descriptor(self):
+        from pyflink.table.schema import Schema
+
+        t_env = self.t_env
+        catalog = t_env.get_current_catalog()
+        database = t_env.get_current_database()
+        schema = Schema.new_builder().column("f0", DataTypes.INT()).build()
+        t_env.create_temporary_table(
+            "T",
+            TableDescriptor.for_connector("fake")
+             .schema(schema)
+             .option("a", "Test")
+             .build())
+
+        self.assertFalse(t_env.get_catalog(catalog).table_exists(ObjectPath(database, "T")))
+        gateway = get_gateway()
+
+        catalog_table = CatalogBaseTable(
+            t_env._j_tenv.getCatalogManager()
+                 .getTable(gateway.jvm.ObjectIdentifier.of(catalog, database, "T"))
+                 .get()
+                 .getTable())
+        self.assertEqual(schema, catalog_table.get_unresolved_schema())
+        self.assertEqual("fake", catalog_table.get_options().get("connector"))
+        self.assertEqual("Test", catalog_table.get_options().get("a"))
+
+    def test_create_table_from_descriptor(self):
+        from pyflink.table.schema import Schema
+
+        catalog = self.t_env.get_current_catalog()
+        database = self.t_env.get_current_database()
+        schema = Schema.new_builder().column("f0", DataTypes.INT()).build()
+        self.t_env.create_table(
+            "T",
+            TableDescriptor.for_connector("fake")
+                  .schema(schema)
+                  .option("a", "Test")
+                  .build())
+        object_path = ObjectPath(database, "T")
+        self.assertTrue(self.t_env.get_catalog(catalog).table_exists(object_path))
+
+        catalog_table = self.t_env.get_catalog(catalog).get_table(object_path)
+        self.assertEqual(schema, catalog_table.get_unresolved_schema())
+        self.assertEqual("fake", catalog_table.get_options().get("connector"))
+        self.assertEqual("Test", catalog_table.get_options().get("a"))
+
+    def test_table_from_descriptor(self):
+        from pyflink.table.schema import Schema
+
+        schema = Schema.new_builder().column("f0", DataTypes.INT()).build()
+        descriptor = TableDescriptor.for_connector("fake").schema(schema).build()
+
+        table = self.t_env.from_descriptor(descriptor)
+        self.assertEqual(schema,
+                         Schema(Schema.new_builder()._j_builder
+                                .fromResolvedSchema(table._j_table.getResolvedSchema()).build()))
+        table = CatalogBaseTable(self.t_env._j_tenv
+                                 .getCatalogManager()
+                                 .getTable(table._j_table
+                                           .getQueryOperation()
+                                           .getTableIdentifier())
+                                 .get()
+                                 .getTable())
+        self.assertEqual("fake", table.get_options().get("connector"))
 
 
 class DataStreamConversionTestCases(object):

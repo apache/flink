@@ -40,6 +40,7 @@ from pyflink.table.descriptors import StreamTableDescriptor, \
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
@@ -417,6 +418,61 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available again
+        one can drop the corresponding temporary object.
+
+        Examples:
+        ::
+
+            >>> table_env.create_temporary_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+
+    def create_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        If the table should not be permanently stored in a catalog, use
+        :func:`create_temporary_table` instead.
+
+        Examples:
+        ::
+
+            >>> table_env.create_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...                   .column("f0", DataTypes.STRING())
+            ...                   .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
+
     def register_table(self, name: str, table: Table):
         """
         Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
@@ -550,6 +606,33 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path), self)
+
+    def from_descriptor(self, descriptor: TableDescriptor) -> Table:
+        """
+        Returns a Table backed by the given TableDescriptor.
+
+        The TableDescriptor is registered as an inline (i.e. anonymous) temporary table
+        (see :func:`create_temporary_table`) using a unique identifier and then read. Note that
+        calling this method multiple times, even with the same descriptor, results in multiple
+        temporary tables. In such cases, it is recommended to register it under a name using
+        :func:`create_temporary_table` and reference it via :func:`from_path`
+
+        Examples:
+        ::
+
+            >>> table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .build()
+
+        Note that the returned Table is an API object and only contains a pipeline description.
+        It actually corresponds to a <i>view</i> in SQL terms. Call :func:`execute` in Table to
+        trigger an execution.
+
+        :return: The Table object describing the pipeline for further transformations.
+        """
+        return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
     def insert_into(self, target_path: str, table: Table):
         """
