@@ -21,8 +21,9 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.runtime.util.ClusterUncaughtExceptionHandler;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -54,6 +55,8 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
         final ForcedJVMExitProcess testProcess =
                 new ForcedJVMExitProcess(ClusterTestingEntrypoint.class);
 
+        boolean success = false;
+
         testProcess.startProcess();
         try {
             testProcess.waitFor();
@@ -62,7 +65,12 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
                             .EXIT_CODE; // for FAIL mode, exit is done using this handler.
             int unsignedIntegerExitCode = ((byte) signedIntegerExitCode) & 0xFF;
             assertThat(testProcess.exitCode(), is(unsignedIntegerExitCode));
+            success = true;
         } finally {
+            if (!success) {
+                testProcess.printProcessLog();
+            }
+
             testProcess.destroy();
         }
     }
@@ -83,12 +91,9 @@ public class ClusterUncaughtExceptionHandlerITCase extends TestLogger {
                                 throw new RuntimeException("Test exception");
                             });
             t.start();
-            try {
-                t.join(1000L);
-            } catch (InterruptedException e) {
-                throw new ExpectedTestException("this line should not be reached");
-            }
-            throw new ExpectedTestException("this line should not be reached.");
+
+            return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+                    StandaloneResourceManagerFactory.getInstance());
         }
 
         @Override
