@@ -354,7 +354,8 @@ public class MultipleInputStreamTaskTest {
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                         .name(mainOperatorName)
@@ -450,7 +451,8 @@ public class MultipleInputStreamTaskTest {
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                         .setupOperatorChain(
                                 new LifeCycleTrackingMapToStringMultipleInputOperatorFactory())
@@ -694,7 +696,8 @@ public class MultipleInputStreamTaskTest {
                                         new MockSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 2, true, false),
                                         WatermarkStrategy.forGenerator(
-                                                ctx -> new RecordToWatermarkGenerator())))
+                                                ctx -> new RecordToWatermarkGenerator())),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                         .setupOperatorChain(
                                 mainOperatorId, new MapToStringMultipleInputOperatorFactory(3))
@@ -1036,7 +1039,8 @@ public class MultipleInputStreamTaskTest {
                 .addSourceInput(
                         new SourceOperatorFactory<>(
                                 new MockSource(Boundedness.BOUNDED, 1),
-                                WatermarkStrategy.noWatermarks()))
+                                WatermarkStrategy.noWatermarks()),
+                        BasicTypeInfo.INT_TYPE_INFO)
                 .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                 .setupOutputForSingletonOperatorChain(
                         new MapToStringMultipleInputOperatorFactory(3))
@@ -1078,7 +1082,8 @@ public class MultipleInputStreamTaskTest {
                                         true,
                                         readerMarkIdleOnNoSplits),
                                 WatermarkStrategy.forGenerator(
-                                        ctx -> new RecordToWatermarkGenerator())))
+                                        ctx -> new RecordToWatermarkGenerator())),
+                        BasicTypeInfo.INT_TYPE_INFO)
                 .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, inputChannels)
                 .setupOutputForSingletonOperatorChain(
                         new MapToStringMultipleInputOperatorFactory(3))
