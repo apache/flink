@@ -65,6 +65,17 @@ public class PythonOptions {
                             "When it is false, metric for Python will be disabled. You can "
                                     + "disable the metric to achieve better performance at some circumstance.");
 
+    /** The configuration to enable or disable profile for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_PROFILE_ENABLED =
+            ConfigOptions.key("python.profile.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies whether to enable Python worker profiling. The profile result "
+                                    + "will be displayed in the log file of the TaskManager periodically. "
+                                    + "The interval between each profiling is determined by the config options "
+                                    + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
                     .stringType()

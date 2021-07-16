@@ -73,3 +73,14 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 4. 启动刚刚创建的Python Remote Dubug Server
 
 5. 运行你的Python代码
+
+
+## Profiling Python UDFs
+
+你可以打开profile来分析性能瓶颈
+
+```python
+t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+``` 
+
+你可以在[日志](#查看日志)里面查看profile的结果

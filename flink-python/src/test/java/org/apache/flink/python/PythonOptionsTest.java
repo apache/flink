@@ -92,6 +92,22 @@ public class PythonOptionsTest {
     }
 
     @Test
+    public void testPythonProfileEnabled() {
+        final Configuration configuration = new Configuration();
+        final boolean isProfileEnabled =
+                configuration.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
+        assertThat(
+                isProfileEnabled, is(equalTo(PythonOptions.PYTHON_PROFILE_ENABLED.defaultValue())));
+
+        final boolean expectedIsProfileEnabled = true;
+        configuration.setBoolean(PythonOptions.PYTHON_PROFILE_ENABLED, true);
+
+        final boolean actualIsProfileEnabled =
+                configuration.getBoolean(PythonOptions.PYTHON_PROFILE_ENABLED);
+        assertThat(actualIsProfileEnabled, is(equalTo(expectedIsProfileEnabled)));
+    }
+
+    @Test
     public void testPythonFiles() {
         final Configuration configuration = new Configuration();
         final Optional<String> defaultPythonFiles =

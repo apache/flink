@@ -60,6 +60,7 @@ message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
   bool metric_enabled = 2;
   repeated OverWindow windows = 3;
+  bool profile_enabled = 4;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation
@@ -114,6 +115,7 @@ message UserDefinedDataStreamFunction {
   bytes payload = 3;
   bool metric_enabled = 4;
   TypeInfo key_type_info = 5;
+  bool profile_enabled = 6;
 }
 
 message UserDefinedAggregateFunction {
@@ -212,6 +214,8 @@ message UserDefinedAggregateFunctions {
 
   // Group Window.
   GroupWindow group_window = 12;
+
+  bool profile_enabled = 13;
 }
 
 // A representation of the data schema.

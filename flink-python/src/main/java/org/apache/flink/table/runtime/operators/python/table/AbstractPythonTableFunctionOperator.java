@@ -101,6 +101,7 @@ public abstract class AbstractPythonTableFunctionOperator<IN, OUT, UDTFIN>
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         return builder.build();
     }
 

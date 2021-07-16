@@ -109,6 +109,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
             builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         return builder.build();
     }
 
