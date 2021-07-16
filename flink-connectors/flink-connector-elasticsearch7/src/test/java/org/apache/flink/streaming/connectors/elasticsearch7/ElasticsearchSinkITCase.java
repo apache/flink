@@ -44,8 +44,7 @@ public class ElasticsearchSinkITCase
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(
-                    DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
+            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
 
     @Override
     protected String getClusterName() {

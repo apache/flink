@@ -69,8 +69,7 @@ public class Elasticsearch7DynamicSinkITCase {
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(
-                    DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
+            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
 
     @SuppressWarnings("deprecation")
     protected final Client getClient() {
