@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.connectors.dynamodb;
 
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchResponse;
 import org.apache.flink.streaming.connectors.dynamodb.batch.BatchWriterAttemptResult;
 import org.apache.flink.streaming.connectors.dynamodb.batch.DynamoDbBatchWriter;
+import org.apache.flink.streaming.connectors.dynamodb.batch.WriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.DefaultBatchWriterRetryPolicy;
 
@@ -99,7 +99,7 @@ public class DynamoDBBatchWriterTest {
                 .thenReturn(getResponse());
 
         DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        BatchResponse response = writer.call();
+        WriteResponse response = writer.call();
 
         assertTrue("write was successful", response.isSuccessful());
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
@@ -116,7 +116,7 @@ public class DynamoDBBatchWriterTest {
                 .thenReturn(getResponse());
 
         DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        BatchResponse response = writer.call();
+        WriteResponse response = writer.call();
 
         assertTrue("write was successful", response.isSuccessful());
         assertEquals("was successful after 2 attempts", 2, response.getNumberOfAttempts());
@@ -133,7 +133,7 @@ public class DynamoDBBatchWriterTest {
 
         DynamoDbBatchWriter writer =
                 new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), getRequest());
-        BatchResponse response = writer.call();
+        WriteResponse response = writer.call();
 
         assertFalse("write was not successful", response.isSuccessful());
     }
@@ -146,7 +146,7 @@ public class DynamoDBBatchWriterTest {
 
         DynamoDbBatchWriter writer =
                 new DynamoDbBatchWriter(client, getShouldNotRetryPolicy(), getRequest());
-        BatchResponse response = writer.call();
+        WriteResponse response = writer.call();
 
         assertTrue("write was successful", response.isSuccessful());
     }
@@ -161,7 +161,7 @@ public class DynamoDBBatchWriterTest {
                 .thenReturn(getResponse());
 
         DynamoDbBatchWriter writer = new DynamoDbBatchWriter(client, retryPolicy, getRequest());
-        BatchResponse response = writer.call();
+        WriteResponse response = writer.call();
 
         assertFalse("write was not successful", response.isSuccessful());
         assertEquals("attempted once", 1, response.getNumberOfAttempts());

@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  * A callable that writes batch items to DynamoDB with retries until all items are processed. Every
  * new retry is attempted after backoff time that grows exponentially between retries.
  */
-public class DynamoDbBatchWriter implements Callable<BatchResponse> {
+public class DynamoDbBatchWriter implements Callable<WriteResponse> {
 
     private final DynamoDbClient client;
     private final BatchWriteItemRequest writeRequest;
@@ -61,13 +61,13 @@ public class DynamoDbBatchWriter implements Callable<BatchResponse> {
      * @return unique id of the batch
      */
     @Override
-    public BatchResponse call() {
+    public WriteResponse call() {
         long start = System.nanoTime();
         BatchWriterAttemptResult result = write(writeRequest);
         long stop = System.nanoTime();
         long elapsedTimeMs = TimeUnit.NANOSECONDS.toMillis(stop - start);
 
-        return new BatchResponse(
+        return new WriteResponse(
                 result.isFinallySuccessful(),
                 result.getAttemptNumber(),
                 result.getException(),

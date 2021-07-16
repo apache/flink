@@ -19,14 +19,14 @@
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
 /** DynamoDB batch writer response. */
-public class BatchResponse {
+public class WriteResponse {
     private final boolean successful;
     private final long elapsedTimeMs;
     public final int numberOfAttempts;
 
     public final Exception exception;
 
-    public BatchResponse(
+    public WriteResponse(
             boolean successful,
             int numberOfAttempts,
             Exception attemptException,

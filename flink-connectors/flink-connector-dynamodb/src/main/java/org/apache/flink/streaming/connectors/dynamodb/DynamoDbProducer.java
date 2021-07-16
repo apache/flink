@@ -19,8 +19,8 @@
 package org.apache.flink.streaming.connectors.dynamodb;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchRequest;
-import org.apache.flink.streaming.connectors.dynamodb.batch.BatchResponse;
+import org.apache.flink.streaming.connectors.dynamodb.batch.WriteRequest;
+import org.apache.flink.streaming.connectors.dynamodb.batch.WriteResponse;
 
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
@@ -32,19 +32,19 @@ public interface DynamoDbProducer {
 
     /** A listener for the execution. */
     interface Listener {
-        /** Callback before the batch request is executed. */
-        void beforeWrite(long executionId, BatchRequest request);
+        /** Callback before the a write request is executed. */
+        void beforeWrite(long executionId, WriteRequest request);
 
-        /** Callback after a successful execution of batch write request. */
-        void afterWrite(long executionId, BatchRequest request, BatchResponse response);
+        /** Callback after a successful execution of a write request. */
+        void afterWrite(long executionId, WriteRequest request, WriteResponse response);
 
         /**
-         * Callback after a failed execution of batch write request. Note that in case an instance
-         * of <code>InterruptedException</code> is passed, which means that request processing has
-         * been cancelled externally, the thread's interruption status has been restored prior to
-         * calling this method.
+         * Callback after a failed execution of a write request. Note that in case an instance of
+         * <code>InterruptedException</code> is passed, which means that request processing has been
+         * cancelled externally, the thread's interruption status has been restored prior to calling
+         * this method.
          */
-        void afterWrite(long executionId, BatchRequest request, Throwable failure);
+        void afterWrite(long executionId, WriteRequest request, Throwable failure);
     }
 
     /** Tear-down the producer. */

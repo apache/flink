@@ -44,12 +44,12 @@ import static java.util.Objects.requireNonNull;
 public class BatchCollector {
 
     private final int batchSize;
-    private final Consumer<BatchRequest> batchConsumer;
+    private final Consumer<WriteRequest> batchConsumer;
     private final DynamoDbTablesConfig tableConfig;
     private final TableRequestsContainer container;
 
     public BatchCollector(
-            int batchSize, Consumer<BatchRequest> batchConsumer, DynamoDbTablesConfig tableConfig) {
+            int batchSize, Consumer<WriteRequest> batchConsumer, DynamoDbTablesConfig tableConfig) {
         this.batchSize = batchSize;
         requireNonNull(batchConsumer);
         this.batchConsumer = batchConsumer;
@@ -72,7 +72,7 @@ public class BatchCollector {
 
     private void promote(String tableName) {
         List<DynamoDbRequest> requests = ImmutableList.copyOf(container.get(tableName).values());
-        batchConsumer.accept(new BatchRequest<>(UUID.randomUUID().toString(), requests));
+        batchConsumer.accept(new WriteRequest<>(UUID.randomUUID().toString(), requests));
     }
 
     public void flush() {

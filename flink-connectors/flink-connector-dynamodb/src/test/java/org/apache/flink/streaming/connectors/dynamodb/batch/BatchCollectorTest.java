@@ -42,9 +42,9 @@ import static org.mockito.Mockito.verify;
 @RunWith(MockitoJUnitRunner.class)
 public class BatchCollectorTest {
 
-    @Mock private Consumer<BatchRequest> consumer;
+    @Mock private Consumer<WriteRequest> consumer;
 
-    @Captor private ArgumentCaptor<BatchRequest> batchCaptor;
+    @Captor private ArgumentCaptor<WriteRequest> batchCaptor;
 
     @Before
     public void init() {
@@ -83,7 +83,7 @@ public class BatchCollectorTest {
         collector.accumulateAndPromote(createPutItemRequest(tableName, "3", "3"));
 
         verify(consumer, times(1)).accept(batchCaptor.capture());
-        BatchRequest<PutItemRequest> capturedRequest = batchCaptor.getValue();
+        WriteRequest<PutItemRequest> capturedRequest = batchCaptor.getValue();
 
         assertEquals("promoted batch with 3 requests", 3, capturedRequest.getRequests().size());
         for (PutItemRequest request : capturedRequest.getRequests()) {
@@ -200,7 +200,7 @@ public class BatchCollectorTest {
         // second promote with the entities for tableOne
         verify(consumer, times(1)).accept(batchCaptor.capture());
 
-        BatchRequest<PutItemRequest> capturedRequestOne = batchCaptor.getValue();
+        WriteRequest<PutItemRequest> capturedRequestOne = batchCaptor.getValue();
 
         for (PutItemRequest request : capturedRequestOne.getRequests()) {
             assertEquals("table one on the first batch promote", tableOne, request.tableName());
@@ -211,7 +211,7 @@ public class BatchCollectorTest {
         // second promote with the entities for tableTwo
         verify(consumer, times(2)).accept(batchCaptor.capture());
 
-        BatchRequest<PutItemRequest> capturedRequestTwo = batchCaptor.getValue();
+        WriteRequest<PutItemRequest> capturedRequestTwo = batchCaptor.getValue();
 
         for (PutItemRequest request : capturedRequestTwo.getRequests()) {
             assertEquals("table two on the second batch promote", tableTwo, request.tableName());
