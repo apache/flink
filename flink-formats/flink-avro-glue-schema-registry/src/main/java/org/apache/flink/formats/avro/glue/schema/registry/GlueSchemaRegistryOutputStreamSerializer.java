@@ -20,7 +20,7 @@ package org.apache.flink.formats.avro.glue.schema.registry;
 
 import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
 import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
-import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryUtils;
+import com.amazonaws.services.schemaregistry.utils.GlueSchemaRegistryUtils;
 import org.apache.avro.Schema;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 
@@ -72,17 +72,17 @@ public class GlueSchemaRegistryOutputStreamSerializer {
                 glueSchemaRegistrySerializationFacade.encode(
                         transportName,
                         new com.amazonaws.services.schemaregistry.common.Schema(
-                                schema.toString(), "Avro", getSchemaName()),
+                                schema.toString(), "AVRO", getSchemaName()),
                         data);
         out.write(bytes);
     }
 
     private String getSchemaName() {
-        String schemaName = AWSSchemaRegistryUtils.getInstance().getSchemaName(configs);
+        String schemaName = GlueSchemaRegistryUtils.getInstance().getSchemaName(configs);
 
         return schemaName != null
                 ? schemaName
-                : AWSSchemaRegistryUtils.getInstance()
+                : GlueSchemaRegistryUtils.getInstance()
                         .configureSchemaNamingStrategy(configs)
                         .getSchemaName(transportName);
     }

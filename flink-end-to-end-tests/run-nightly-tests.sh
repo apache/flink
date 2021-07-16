@@ -206,7 +206,8 @@ run_test "Walkthrough DataStream Scala nightly end-to-end test" "$END_TO_END_DIR
 run_test "Avro Confluent Schema Registry nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_confluent_schema_registry.sh"
 
 if [[ -n "$IT_CASE_GLUE_SCHEMA_ACCESS_KEY" ]] && [[ -n "$IT_CASE_GLUE_SCHEMA_SECRET_KEY" ]]; then
-  run_test "AWS Glue Schema Registry nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_glue_schema_registry.sh"
+  run_test "Avro AWS Glue Schema Registry nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_glue_schema_registry_avro.sh"
+  run_test "JSON AWS Glue Schema Registry nightly end-to-end test" "$END_TO_END_DIR/test-scripts/test_glue_schema_registry_json.sh"
 fi
 
 run_test "State TTL Heap backend end-to-end test" "$END_TO_END_DIR/test-scripts/test_stream_state_ttl.sh hashmap" "skip_check_exceptions"
