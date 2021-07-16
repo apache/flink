@@ -3,7 +3,7 @@ title: 'First steps'
 weight: 1
 type: docs
 aliases:
-  - /try-flink/first_steps.html
+  - /try-flink/local_installation.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -101,7 +101,7 @@ $ ./bin/stop-cluster.sh
 ## Submitting a Flink job
 
 Flink provides a CLI tool, __bin/flink__, that can run programs packaged as Java ARchives (JAR)
-and control their execution. Submitting a [job](https://ci.apache.org/projects/ﬂink/ﬂink-docs-stable/concepts/glossary.html#ﬂink-job) means uploading the job’s JAR ﬁle and related dependencies to the running Flink cluster
+and control their execution. Submitting a [job]({{< ref "docs/concepts/glossary" >}}#ﬂink-job) means uploading the job’s JAR ﬁle and related dependencies to the running Flink cluster
 and executing it.
 
 Flink releases come with example jobs, which you can ﬁnd in the __examples/__ folder.
@@ -141,22 +141,17 @@ You can view the data flow plan for the execution:
 
 Here for the job execution, Flink has two operators. The ﬁrst is the source operator which reads data from the
 collection source. The second operator is the transformation operator which aggregates counts of words. Learn
-more about [DataStream operators](https://ci.apache.org/projects/ﬂink/ﬂink-docs-stable/dev/stream/operators/).
+more about [DataStream operators]({{< ref "docs/dev/datastream/operators" >}}).
 
 You can also look at the timeline of the job execution:
 
 ![data flow timeline](timeline.png)
 
-You have successfully ran a [Flink application](https://ci.apache.org/projects/ﬂink/ﬂink-docs-stable/concepts/glossary.html#ﬂink-application)! Feel free to select any other JAR archive from the __examples/__
+You have successfully ran a [Flink application]({{< ref "docs/concepts/glossary" >}}#ﬂink-application)! Feel free to select any other JAR archive from the __examples/__
 folder or deploy your own job!
 
 # Summary
 
-In this guide, you downloaded Flink, explored the project directory, started and stopped a local cluster, and
-submitted a sample Flink job!
+In this guide, you downloaded Flink, explored the project directory, started and stopped a local cluster, and submitted a sample Flink job!
 
-To learn more about Flink fundamentals, check out the [concepts](https://ci.apache.org/projects/ﬂink/ﬂink-docs-release-1.12/concepts/index.html) section. If you want to try something more hands-on, try one of the tutorials.
-
-_________________________________
-[Want to contribute translation?](https://cwiki.apache.org/confluence/display/FLINK/Flink+Translation+Specifications)
-
+To learn more about Flink fundamentals, check out the [concepts]({{< ref "docs/concepts" >}}) section. If you want to try something more hands-on, try one of the tutorials.
