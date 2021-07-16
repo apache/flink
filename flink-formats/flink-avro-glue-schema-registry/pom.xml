@@ -28,119 +28,14 @@ under the License.
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-avro-glue-schema-registry</artifactId>
+	<artifactId>flink-avro-glue-schema-registry_${scala.binary.version}</artifactId>
 	<name>Flink : Formats : Avro AWS Glue Schema Registry</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.0.1</glue.schema.registry.version>
-		<aws.sdkv2.version>2.16.86</aws.sdkv2.version>
-		<reactivestreams.version>1.0.2</reactivestreams.version>
-		<netty.version>4.1.63.Final</netty.version>
+		<glue.schema.registry.version>1.1.2</glue.schema.registry.version>
+		<aws.sdkv2.version>2.16.92</aws.sdkv2.version>
 	</properties>
-
-	<!-- ============================= -->
-	<!-- DEPENDENCY MANAGEMENT -->
-	<!-- ============================= -->
-	<dependencyManagement>
-		<dependencies>
-			<!-- dependencies to solve enforcer check issue -->
-			<!-- can be removed once new version of Glue Schema Registry releases -->
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>http-client-spi</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>aws-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>protocol-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>annotations</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>utils</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>apache-client</artifactId>
-				<version>${aws.sdkv2.version}</version>
-				<scope>test</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>org.reactivestreams</groupId>
-				<artifactId>reactive-streams</artifactId>
-				<version>${reactivestreams.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>aws-json-protocol</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>regions</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>sdk-core</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>netty-nio-client</artifactId>
-				<version>${aws.sdkv2.version}</version>
-				<scope>runtime</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>auth</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>metrics-spi</artifactId>
-				<version>${aws.sdkv2.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-handler</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 		<!-- core dependencies -->
@@ -161,6 +56,12 @@ under the License.
 		<dependency>
 			<groupId>software.amazon.glue</groupId>
 			<artifactId>schema-registry-serde</artifactId>
+			<version>${glue.schema.registry.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.glue</groupId>
+			<artifactId>schema-registry-common</artifactId>
 			<version>${glue.schema.registry.version}</version>
 		</dependency>
 

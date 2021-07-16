@@ -87,7 +87,6 @@ under the License.
 		<module>flink-netty-shuffle-memory-control-test</module>
 		<module>flink-python-test</module>
 		<module>flink-end-to-end-tests-hbase</module>
-		<module>flink-glue-schema-registry-test</module>
 		<module>flink-end-to-end-tests-pulsar</module>
 	</modules>
 
@@ -171,6 +170,25 @@ under the License.
 			<properties>
 				<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>true</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
 			</properties>
+		</profile>
+
+		<profile>
+			<id>scala-2.12</id>
+			<properties>
+				<scala.version>2.12.7</scala.version>
+				<scala.binary.version>2.12</scala.binary.version>
+			</properties>
+			<activation>
+				<property>
+					<name>scala-2.12</name>
+				</property>
+			</activation>
+			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
+			when building for Scala 2.11. -->
+			<modules>
+				<module>flink-glue-schema-registry-avro-test</module>
+				<module>flink-glue-schema-registry-json-test</module>
+			</modules>
 		</profile>
 	</profiles>
 
