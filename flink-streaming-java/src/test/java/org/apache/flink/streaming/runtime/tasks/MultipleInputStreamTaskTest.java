@@ -80,6 +80,10 @@ import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -93,6 +97,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
@@ -110,8 +115,17 @@ import static org.junit.Assert.assertTrue;
  * StreamMultipleInputProcessor}.
  */
 @SuppressWarnings("serial")
+@RunWith(Parameterized.class)
 public class MultipleInputStreamTaskTest {
+
     private static final List<String> LIFE_CYCLE_EVENTS = new ArrayList<>();
+
+    @Parameters(name = "objectReuse = {0}")
+    public static Boolean[] parameters() {
+        return new Boolean[] {true, false};
+    }
+
+    @Parameter public boolean objectReuse;
 
     @Before
     public void setUp() {
@@ -120,7 +134,7 @@ public class MultipleInputStreamTaskTest {
 
     @Test
     public void testBasicProcessing() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             long initialTime = 0L;
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -1024,15 +1038,26 @@ public class MultipleInputStreamTaskTest {
         }
     }
 
-    static StreamTaskMailboxTestHarness<String> buildTestHarness() throws Exception {
-        return buildTestHarness(false);
+    static Consumer<ExecutionConfig> applyObjectReuse(boolean objectReuse) {
+        return config -> {
+            if (objectReuse) {
+                config.enableObjectReuse();
+            } else {
+                config.disableObjectReuse();
+            }
+        };
     }
 
-    static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean unaligned)
+    static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean objectReuse)
             throws Exception {
+        return buildTestHarness(false, objectReuse);
+    }
+
+    static StreamTaskMailboxTestHarness<String> buildTestHarness(
+            boolean unaligned, boolean objectReuse) throws Exception {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                .modifyExecutionConfig(config -> config.enableObjectReuse())
+                .modifyExecutionConfig(applyObjectReuse(objectReuse))
                 .modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
                 .modifyStreamConfig(config -> config.setAlignedCheckpointTimeout(Duration.ZERO))
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)

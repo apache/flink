@@ -327,6 +327,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
             WatermarkGaugeExposingOutput chainedSourceOutput =
                     createChainedSourceOutput(
                             containingTask,
+                            sourceInputConfig,
+                            userCodeClassloader,
                             operatorInputs.get(inputId),
                             (OperatorMetricGroup) multipleInputOperator.getMetricGroup(),
                             outputTag);
@@ -354,21 +356,29 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         return chainedSourceInputs;
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private WatermarkGaugeExposingOutput<StreamRecord> createChainedSourceOutput(
             StreamTask<?, OP> containingTask,
+            StreamConfig sourceInputConfig,
+            ClassLoader userCodeClassloader,
             Input input,
             OperatorMetricGroup metricGroup,
             OutputTag outputTag) {
-        if (!containingTask.getExecutionConfig().isObjectReuseEnabled()) {
-            throw new UnsupportedOperationException(
-                    "Currently chained sources are supported only with objectReuse enabled");
+
+        WatermarkGaugeExposingOutput<StreamRecord> chainedSourceOutput;
+        if (containingTask.getExecutionConfig().isObjectReuseEnabled()) {
+            chainedSourceOutput = new ChainingOutput(input, metricGroup, outputTag);
+        } else {
+            TypeSerializer<?> inSerializer =
+                    sourceInputConfig.getTypeSerializerOut(userCodeClassloader);
+            chainedSourceOutput =
+                    new CopyingChainingOutput(input, inSerializer, metricGroup, outputTag);
         }
         /**
          * Chained sources are closed when {@link
          * org.apache.flink.streaming.runtime.io.StreamTaskSourceInput} are being closed.
          */
-        return closer.register(new ChainingOutput(input, metricGroup, outputTag));
+        return closer.register(chainedSourceOutput);
     }
 
     public boolean isFinishedOnRestore() {
