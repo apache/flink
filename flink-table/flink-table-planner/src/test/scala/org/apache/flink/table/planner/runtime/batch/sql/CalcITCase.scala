@@ -1521,4 +1521,28 @@ class CalcITCase extends BatchTestBase {
       "select cast(b as boolean) from MyTable",
       Seq(row(true), row(false), row(null), row(null)))
   }
+
+  @Test
+  def testTimestampAddWithLocalZonedTimestamp(): Unit = {
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(row(Instant.ofEpochSecond(1626339000))))
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a TIMESTAMP WITH LOCAL TIME ZONE
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      "select timestampadd(minute, 10, a) from MyTable",
+      Seq(row(Instant.ofEpochSecond(1626339600))))
+    checkResult(
+      "select a + interval '10' minute from MyTable",
+      Seq(row(Instant.ofEpochSecond(1626339600))))
+  }
 }
