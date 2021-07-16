@@ -19,12 +19,13 @@ from pyflink.common.config_options import ConfigOptions
 from pyflink.table import DataTypes
 from pyflink.table.schema import Schema
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
-from pyflink.testing.test_case_utils import PyFlinkTestCase
+from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
-class TableDescriptorTest(PyFlinkTestCase):
+class TableDescriptorTest(PyFlinkStreamTableTestCase):
 
     def setUp(self):
+        super(TableDescriptorTest, self).setUp()
         self.option_a = ConfigOptions.key("a").boolean_type().no_default_value()
         self.option_b = ConfigOptions.key("b").int_type().no_default_value()
         self.key_format = ConfigOptions.key("key.format").string_type().no_default_value()
@@ -120,6 +121,42 @@ WITH (
   'test-format.a' = 'false',
   'format' = 'test-format'
 )""", str(table_descriptor))
+
+    def test_execute_insert_to_table_descriptor(self):
+        schema = Schema.new_builder() \
+            .column("f0", DataTypes.STRING()) \
+            .build()
+        table = self.t_env.from_descriptor(TableDescriptor
+                                           .for_connector("datagen")
+                                           .option("number-of-rows", '10')
+                                           .schema(schema)
+                                           .build())
+        table_result = table.execute_insert(TableDescriptor
+                                            .for_connector("blackhole")
+                                            .schema(schema)
+                                            .build())
+        table_result.collect()
+
+    def test_statement_set_insert_using_table_descriptor(self):
+        schema = Schema.new_builder() \
+            .column("f0", DataTypes.INT()) \
+            .build()
+
+        source_descriptor = TableDescriptor.for_connector("datagen") \
+            .schema(schema) \
+            .option("number-of-rows", '10') \
+            .build()
+
+        sink_descriptor = TableDescriptor.for_connector("blackhole") \
+            .schema(schema) \
+            .build()
+
+        self.t_env.create_temporary_table("T", source_descriptor)
+
+        stmt_set = self.t_env.create_statement_set()
+        stmt_set.add_insert(sink_descriptor, self.t_env.from_path("T"))
+
+        stmt_set.execute().wait()
 
 
 if __name__ == '__main__':
