@@ -51,7 +51,7 @@ under the License.
 		<module>flink-hadoop-bulk</module>
 		<module>flink-avro-glue-schema-registry</module>
 		<module>flink-json-glue-schema-registry</module>
-    	<module>flink-format-common</module>
+		<module>flink-format-common</module>
     </modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
