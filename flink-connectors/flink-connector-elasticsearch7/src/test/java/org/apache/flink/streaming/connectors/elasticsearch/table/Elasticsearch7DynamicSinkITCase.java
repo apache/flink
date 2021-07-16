@@ -36,6 +36,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.DockerImageVersions;
 
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.client.Client;
@@ -68,9 +69,7 @@ public class Elasticsearch7DynamicSinkITCase {
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(
-                    DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
-                            .withTag("7.5.1"));
+            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7));
 
     @SuppressWarnings("deprecation")
     protected final Client getClient() {

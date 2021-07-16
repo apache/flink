@@ -129,6 +129,20 @@ jobs:
     condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
     displayName: Cache Maven local repo
 
+  - task: Cache@2
+    inputs:
+      key: '"$(module)" | $(DOCKER_IMAGES_CACHE_KEY)'
+      path: $(DOCKER_IMAGES_CACHE_FOLDER)
+      cacheHitVar: DOCKER_IMAGES_CACHE_HIT
+    continueOnError: true
+    condition: not(eq('${{parameters.test_pool_definition.name}}', 'Default'))
+    displayName: Cache docker images
+
+  - script: ./tools/azure-pipelines/cache_docker_images.sh load
+    displayName: Restore docker images
+    condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+    continueOnError: true
+
   - script: |
       echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
       echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
@@ -159,6 +173,11 @@ jobs:
     inputs:
       targetPath: $(DEBUG_FILES_OUTPUT_DIR)
       artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+
+  - script: ./tools/azure-pipelines/cache_docker_images.sh save
+    displayName: Save docker images
+    condition: and(not(canceled()), or(failed(), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true')))
+    continueOnError: true
 
 - job: e2e_${{parameters.stage_name}}
   # uncomment below condition to run the e2e tests only on request.
@@ -205,6 +224,18 @@ jobs:
       displayName: Cache E2E artifacts
       continueOnError: true
       condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: 'e2e | $(DOCKER_IMAGES_CACHE_KEY)'
+        path: $(DOCKER_IMAGES_CACHE_FOLDER)
+        cacheHitVar: DOCKER_IMAGES_CACHE_HIT
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+      displayName: Cache docker images
+    - script: ./tools/azure-pipelines/cache_docker_images.sh load
+      displayName: Restore docker images
+      condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+      continueOnError: true
     - script: |
         echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
         echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
@@ -243,3 +274,7 @@ jobs:
       inputs:
         targetPath: $(DEBUG_FILES_OUTPUT_DIR)
         artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+    - script: ./tools/azure-pipelines/cache_docker_images.sh save
+      displayName: Save docker images
+      condition: and(not(eq(variables['SKIP'], '1')), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+      continueOnError: true
