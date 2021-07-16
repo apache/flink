@@ -26,6 +26,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -110,14 +111,14 @@ public class TimersSavepointITCase {
             throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         JobGraph jobGraph;
 
-        jobGraph = getJobGraph(PriorityQueueStateType.HEAP);
+        jobGraph = getJobGraph(EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP);
         jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
         client.submitJob(jobGraph).get();
         resultLatch.await();
     }
 
     private void takeSavepoint(String savepointPath, ClusterClient<?> client) throws Exception {
-        JobGraph jobGraph = getJobGraph(PriorityQueueStateType.ROCKSDB);
+        JobGraph jobGraph = getJobGraph(EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         client.submitJob(jobGraph).get();
         waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID());
         CompletableFuture<String> savepointPathFuture =
