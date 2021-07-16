@@ -249,9 +249,9 @@ When writing a dynamic table, the content can always be considered as a changelo
 for which all changes are written out continuously until the changelog is exhausted. The returned _changelog mode_
 indicates the set of changes that the sink accepts during runtime.
 
-For regular batch scenarios, the sink can solely accept insert-only rows and write out bounded streams.
+For regular batch scenarios, the sink can only accept insert-only rows and write out bounded streams.
 
-For regular streaming scenarios, the sink can solely accept insert-only rows and can write out unbounded streams.
+For regular streaming scenarios, the sink can only accept insert-only rows and can write out unbounded streams.
 
 For change data capture (CDC) scenarios, the sink can write out bounded or unbounded streams with insert,
 update, and delete rows.
@@ -334,8 +334,8 @@ a reference implementation.
 In particular, it shows how to
 - create factories that parse and validate options,
 - implement table connectors,
-- implement and discover custom formats,
-- and use provided utilities such as data structure converters and the `FactoryUtil`.
+- implement and discover custom formats, and
+- use provided utilities such as data structure converters and the `FactoryUtil`.
 
 The table source uses a simple single-threaded `SourceFunction` to open a socket that listens for incoming
 bytes. The raw bytes are decoded into rows by a pluggable format. The format expects a changelog flag
