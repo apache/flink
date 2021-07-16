@@ -223,7 +223,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new MockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
                                 new MapToStringMultipleInputOperatorFactory(1))
                         .build()) {
@@ -272,13 +273,15 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
                                                     Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                            WatermarkStrategy.noWatermarks()))
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
                             .addSourceInput(
                                     new SourceOperatorFactory<>(
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
                                                     Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                            WatermarkStrategy.noWatermarks()))
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(4))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
@@ -356,13 +359,15 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                 new SourceOperatorFactory<>(
                                         new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addSourceInput(
                                 secondSourceOperatorId,
                                 new SourceOperatorFactory<>(
                                         new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
                         .setupOperatorChain(
                                 nonSourceOperatorId,
