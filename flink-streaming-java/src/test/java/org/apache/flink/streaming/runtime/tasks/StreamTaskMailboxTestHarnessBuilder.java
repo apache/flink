@@ -149,11 +149,23 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
             OperatorID operatorId,
             SourceOperatorFactory<SourceType> sourceOperatorFactory,
             TypeInformation<SourceType> sourceType) {
+        return addSourceInput(
+                operatorId, sourceOperatorFactory, sourceType.createSerializer(executionConfig));
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
+        return addSourceInput(new OperatorID(), sourceOperatorFactory, sourceSerializer);
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId,
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
         inputs.add(
                 new SourceInputConfigPlaceHolder<>(
-                        operatorId,
-                        sourceOperatorFactory,
-                        sourceType.createSerializer(executionConfig)));
+                        operatorId, sourceOperatorFactory, sourceSerializer));
         return this;
     }
 
