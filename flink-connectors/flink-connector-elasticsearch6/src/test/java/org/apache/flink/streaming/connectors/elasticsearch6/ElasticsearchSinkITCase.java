@@ -45,7 +45,7 @@ public class ElasticsearchSinkITCase
     public static ElasticsearchContainer elasticsearchContainer =
             new ElasticsearchContainer(
                     DockerImageName.parse("docker.elastic.co/elasticsearch/elasticsearch-oss")
-                            .withTag("6.3.1"));
+                            .withTag("6.8.12"));
 
     @Override
     protected String getClusterName() {
