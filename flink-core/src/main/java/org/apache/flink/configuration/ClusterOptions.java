@@ -21,11 +21,9 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
-import org.apache.flink.configuration.description.TextElement;
+import org.apache.flink.configuration.description.InlineElement;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import static org.apache.flink.configuration.ClusterOptions.UserSystemExitMode.THROW;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -113,7 +111,15 @@ public class ClusterOptions {
             key("cluster.intercept-user-system-exit")
                     .enumType(UserSystemExitMode.class)
                     .defaultValue(UserSystemExitMode.DISABLED)
-                    .withDescription(UserSystemExitMode.getConfigDescription());
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Flag to check user code exiting system by terminating JVM (e.g., System.exit()). ")
+                                    .text(
+                                            "Note that this configuration option can interfere with %s: "
+                                                    + "In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when %s is configured.",
+                                            code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()))
+                                    .build());
 
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT =
@@ -174,37 +180,19 @@ public class ClusterOptions {
     }
 
     /** The mode of how to handle user code attempting to exit JVM. */
-    public enum UserSystemExitMode {
-        DISABLED("Flink is not monitoring or intercepting calls to System.exit()"),
-        LOG("Log exit attempt with stack trace but still allowing exit to be performed"),
-        THROW("Throw exception when exit is attempted disallowing JVM termination");
+    public enum UserSystemExitMode implements DescribedEnum {
+        DISABLED(text("Flink is not monitoring or intercepting calls to System.exit()")),
+        LOG(text("Log exit attempt with stack trace but still allowing exit to be performed")),
+        THROW(text("Throw exception when exit is attempted disallowing JVM termination"));
 
-        private final String description;
+        private final InlineElement description;
 
-        UserSystemExitMode(String description) {
+        UserSystemExitMode(InlineElement description) {
             this.description = description;
         }
 
-        public static Description getConfigDescription() {
-            Description.DescriptionBuilder builder = Description.builder();
-            List<TextElement> modeDescriptions =
-                    new ArrayList<>(UserSystemExitMode.values().length);
-            builder.text(
-                    "Flag to check user code exiting system by terminating JVM (e.g., System.exit())");
-            for (UserSystemExitMode mode : UserSystemExitMode.values()) {
-                modeDescriptions.add(
-                        text(String.format("%s - %s", mode.name(), mode.getDescription())));
-            }
-            builder.list(modeDescriptions.toArray(new TextElement[modeDescriptions.size()]));
-            builder.linebreak();
-            builder.text(
-                    "Note that this configuration option can interfere with %s: "
-                            + "In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when %s is configured.",
-                    code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()));
-            return builder.build();
-        }
-
-        public String getDescription() {
+        @Override
+        public InlineElement getDescription() {
             return description;
         }
     }
