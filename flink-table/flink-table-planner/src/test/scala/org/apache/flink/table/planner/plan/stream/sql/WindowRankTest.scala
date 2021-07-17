@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
+
 import org.junit.Test
 
 /**
@@ -81,7 +82,7 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_TumbleOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
@@ -92,7 +93,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -128,7 +132,7 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_HopOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_HopOnProctime(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
@@ -140,7 +144,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -176,7 +183,7 @@ class WindowRankTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_CumulateOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_CumulateOnProctime(): Unit = {
     val sql =
       """
         |SELECT window_start, window_end, window_time, a, b, c, d, e
@@ -188,7 +195,10 @@ class WindowRankTest extends TableTestBase {
         |)
         |WHERE rownum <= 3
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window TopN is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   // ----------------------------------------------------------------------------------------
