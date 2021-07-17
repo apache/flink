@@ -49,6 +49,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -249,7 +250,7 @@ public class FlinkKafkaProducer<IN>
     protected boolean writeTimestampToKafka = false;
 
     /** The transactional.id prefix to be used by the producers when communicating with Kafka. */
-    private String transactionalIdPrefix = null;
+    @Nullable private String transactionalIdPrefix = null;
 
     /** Flag indicating whether to accept failures (and log them), or to fail on failures. */
     private boolean logFailuresOnly;
@@ -788,9 +789,10 @@ public class FlinkKafkaProducer<IN>
      * previously used transactional.id prefix, there will be some lingering transactions left.
      *
      * @param transactionalIdPrefix the transactional.id prefix
+     * @throws NullPointerException Thrown, if the transactionalIdPrefix was null.
      */
     public void setTransactionalIdPrefix(String transactionalIdPrefix) {
-        this.transactionalIdPrefix = transactionalIdPrefix;
+        this.transactionalIdPrefix = Preconditions.checkNotNull(transactionalIdPrefix);
     }
 
     /**
@@ -1168,9 +1170,9 @@ public class FlinkKafkaProducer<IN>
             migrateNextTransactionalIdHindState(context);
         }
 
-        String transactionalIdPrefix;
+        String actualTransactionalIdPrefix;
         if (this.transactionalIdPrefix != null) {
-            transactionalIdPrefix = this.transactionalIdPrefix;
+            actualTransactionalIdPrefix = this.transactionalIdPrefix;
         } else {
             String taskName = getRuntimeContext().getTaskName();
             // Kafka transactional IDs are limited in length to be less than the max value of
@@ -1182,14 +1184,14 @@ public class FlinkKafkaProducer<IN>
                         getRuntimeContext().getTaskName(),
                         taskName);
             }
-            transactionalIdPrefix =
+            actualTransactionalIdPrefix =
                     taskName
                             + "-"
                             + ((StreamingRuntimeContext) getRuntimeContext()).getOperatorUniqueID();
         }
         transactionalIdsGenerator =
                 new TransactionalIdsGenerator(
-                        transactionalIdPrefix,
+                        actualTransactionalIdPrefix,
                         getRuntimeContext().getIndexOfThisSubtask(),
                         getRuntimeContext().getNumberOfParallelSubtasks(),
                         kafkaProducersPoolSize,
@@ -1323,6 +1325,15 @@ public class FlinkKafkaProducer<IN>
             throw new IllegalArgumentException();
         }
         return currentTransaction.producer.getTransactionCoordinatorId();
+    }
+
+    @VisibleForTesting
+    String getTransactionalId() {
+        final FlinkKafkaProducer.KafkaTransactionState currentTransaction = currentTransaction();
+        if (currentTransaction == null || currentTransaction.producer == null) {
+            throw new IllegalArgumentException();
+        }
+        return currentTransaction.producer.getTransactionalId();
     }
 
     /**

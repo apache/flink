@@ -33,7 +33,6 @@ import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,11 +49,9 @@ import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 
 /** IT cases for the {@link FlinkKafkaProducer}. */
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
@@ -603,20 +600,57 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     }
 
     @Test
+    public void testDefaultTransactionalIdPrefix() throws Exception {
+        Properties properties = createProperties();
+        String topic = "testCustomizeTransactionalIdPrefix";
+        FlinkKafkaProducer<Integer> kafkaProducer =
+                new FlinkKafkaProducer<>(
+                        topic,
+                        integerKeyedSerializationSchema,
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+
+        final String taskName = "MyTask";
+        final OperatorID operatorID = new OperatorID();
+
+        String transactionalIdUsed;
+        try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new StreamSink<>(kafkaProducer),
+                        IntSerializer.INSTANCE,
+                        taskName,
+                        operatorID)) {
+            testHarness.setup();
+            testHarness.open();
+            testHarness.processElement(2, 0);
+            testHarness.snapshot(0, 1);
+
+            transactionalIdUsed = kafkaProducer.getTransactionalId();
+        }
+
+        deleteTestTopic(topic);
+        checkProducerLeak();
+
+        assertNotNull(transactionalIdUsed);
+        String expectedTransactionalIdPrefix = taskName + "-" + operatorID.toHexString();
+        assertThat(transactionalIdUsed, startsWith(expectedTransactionalIdPrefix));
+    }
+
+    @Test
     public void testCustomizeTransactionalIdPrefix() throws Exception {
         String transactionalIdPrefix = "my-prefix";
 
         Properties properties = createProperties();
         String topic = "testCustomizeTransactionalIdPrefix";
         FlinkKafkaProducer<Integer> kafkaProducer =
-                spy(
-                        new FlinkKafkaProducer<>(
-                                topic,
-                                integerKeyedSerializationSchema,
-                                properties,
-                                FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+                new FlinkKafkaProducer<>(
+                        topic,
+                        integerKeyedSerializationSchema,
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
         kafkaProducer.setTransactionalIdPrefix(transactionalIdPrefix);
 
+        String transactionalIdUsed;
         try (OneInputStreamOperatorTestHarness<Integer, Object> testHarness =
                 new OneInputStreamOperatorTestHarness<>(
                         new StreamSink<>(kafkaProducer), IntSerializer.INSTANCE)) {
@@ -624,17 +658,15 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
             testHarness.open();
             testHarness.processElement(1, 0);
             testHarness.snapshot(0, 1);
-        }
 
-        ArgumentCaptor<FlinkKafkaProducer.KafkaTransactionState> stateCaptor =
-                ArgumentCaptor.forClass(FlinkKafkaProducer.KafkaTransactionState.class);
-        verify(kafkaProducer).invoke(stateCaptor.capture(), any(), any());
+            transactionalIdUsed = kafkaProducer.getTransactionalId();
+        }
 
         deleteTestTopic(topic);
         checkProducerLeak();
 
-        FlinkKafkaProducer.KafkaTransactionState state = stateCaptor.getValue();
-        assertThat(state.transactionalId, startsWith(transactionalIdPrefix));
+        assertNotNull(transactionalIdUsed);
+        assertThat(transactionalIdUsed, startsWith(transactionalIdPrefix));
     }
 
     @Test
