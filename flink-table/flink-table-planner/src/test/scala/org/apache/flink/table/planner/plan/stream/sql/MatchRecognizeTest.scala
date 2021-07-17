@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.junit.{Before, Test}
 
 class MatchRecognizeTest extends TableTestBase {
@@ -65,6 +66,46 @@ class MatchRecognizeTest extends TableTestBase {
          |    A AS A.price > 0
          |) AS T
          |GROUP BY symbol, TUMBLE(matchRowtime, interval '3' second)
+         |""".stripMargin
+    util.verifyRelPlan(sqlQuery)
+  }
+
+  @Test
+  def testCascadeMatch(): Unit = {
+    val sqlQuery =
+      s"""
+         |SELECT *
+         |FROM (
+         |  SELECT
+         |    symbol,
+         |    matchRowtime,
+         |    price,
+         |    TUMBLE_START(matchRowtime, interval '3' second) as startTime
+         |  FROM Ticker
+         |  MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY ts_ltz
+         |  MEASURES
+         |    A.price as price,
+         |    A.tax as tax,
+         |    MATCH_ROWTIME() as matchRowtime
+         |  ONE ROW PER MATCH
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.price > 0
+         |) AS T
+         |GROUP BY symbol, matchRowtime, price, TUMBLE(matchRowtime, interval '3' second)
+         |)
+         |MATCH_RECOGNIZE (
+         |  PARTITION BY symbol
+         |  ORDER BY matchRowtime
+         |  MEASURES
+         |    A.price as dPrice,
+         |    A.matchRowtime as matchRowtime
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS A.matchRowtime >= (CURRENT_TIMESTAMP - INTERVAL '1' day)
+         |)
          |""".stripMargin
     util.verifyRelPlan(sqlQuery)
   }
