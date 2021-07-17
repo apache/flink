@@ -354,7 +354,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                     getSlotServiceStatus());
             cancelPendingRequests(
                     predicate,
-                    new NoResourceAvailableException(
+                    NoResourceAvailableException.withoutStackTrace(
                             "Could not acquire the minimum required resources."));
         }
     }
