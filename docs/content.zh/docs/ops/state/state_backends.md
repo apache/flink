@@ -125,9 +125,8 @@ On the other hand, `RocksDB` can scale based on available disk space and is the 
 However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
 
 {{< hint info >}}
-In Flink 1.13 we unified the binary format of Flink's savepoints. That means you can take a savepoint and then restore from it using a different state backend.
-All the state backends produce a common format only starting from version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
-take a savepoint with the new version, and only after that you can restore it with a different state backend.
+在 Flink 1.13 版本中我们统一了 savepoints 的二进制格式。这意味着你可以生成 savepoint 并且之后使用另一种 state backend 读取它。
+从 1.13 版本开始，所有的 state backends 都会生成一种普适的格式。因此，如果想切换 state backend 的话，那么最好先升级你的 Flink 版本，在新版本中生成 savepoint，在这之后你才可以使用一个不同的 state backend 来读取并恢复它。
 {{< /hint >}}
 
 ## 设置 State Backend
