@@ -41,11 +41,13 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import com.mysql.cj.jdbc.MysqlXADataSource;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -84,6 +86,7 @@ import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInser
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
+import static org.slf4j.event.Level.TRACE;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
 @RunWith(Parameterized.class)
@@ -91,6 +94,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
+
+    // todo: remove after fixing FLINK-22889
+    @ClassRule
+    public static final LogLevelRule TEST_LOG_LEVEL_RULE =
+            new LogLevelRule()
+                    .set(JdbcExactlyOnceSinkE2eTest.class, TRACE)
+                    .set(XaFacadeImpl.class, TRACE);
 
     private interface JdbcExactlyOnceSinkTestEnv {
         void start();
