@@ -64,6 +64,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -83,6 +84,7 @@ import static org.apache.flink.configuration.TaskManagerOptions.TASK_CANCELLATIO
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInsertedIds;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
@@ -94,6 +96,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
     private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
+
+    private static final long CHECKPOINT_TIMEOUT_MS = 2000L;
+    private static final long TASK_CANCELLATION_TIMEOUT_MS = 2000L;
 
     // todo: remove after fixing FLINK-22889
     @ClassRule
@@ -151,7 +156,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         // restart all tasks if at least one fails
         configuration.set(EXECUTION_FAILOVER_STRATEGY, "full");
         // cancel tasks eagerly to reduce the risk of running out of memory with many restarts
-        configuration.set(TASK_CANCELLATION_TIMEOUT, 1000L);
+        configuration.set(TASK_CANCELLATION_TIMEOUT, TASK_CANCELLATION_TIMEOUT_MS);
+        configuration.set(CHECKPOINTING_TIMEOUT, Duration.ofMillis(CHECKPOINT_TIMEOUT_MS));
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -527,20 +533,27 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             @Override
             public void start() {
                 super.start();
+                long lockWaitTimeout = (CHECKPOINT_TIMEOUT_MS + TASK_CANCELLATION_TIMEOUT_MS) * 2;
                 // prevent XAER_RMERR: Fatal error occurred in the transaction  branch - check your
                 // data for consistency works for mysql v8+
                 try (Connection connection =
                         DriverManager.getConnection(getJdbcUrl(), "root", getPassword())) {
-                    grantRecover(connection);
+                    prepareDb(connection, lockWaitTimeout);
                 } catch (SQLException e) {
                     ExceptionUtils.rethrow(e);
                 }
             }
 
-            private void grantRecover(Connection connection) throws SQLException {
+            private void prepareDb(Connection connection, long lockWaitTimeout)
+                    throws SQLException {
                 try (Statement st = connection.createStatement()) {
                     st.execute("GRANT XA_RECOVER_ADMIN ON *.* TO '" + getUsername() + "'@'%'");
                     st.execute("FLUSH PRIVILEGES");
+                    // if the reason of task cancellation failure is waiting for a lock
+                    // then failing transactions with a relevant message would ease debugging
+                    st.execute("SET GLOBAL innodb_lock_wait_timeout = " + lockWaitTimeout);
+                    // st.execute("SET GLOBAL innodb_status_output = ON");
+                    // st.execute("SET GLOBAL innodb_status_output_locks = ON");
                 }
             }
         }
