@@ -108,6 +108,11 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     // todo: remove after fixing FLINK-22889
     @ClassRule
+    public static final LogLevelRule XA_FACADE_LOG_LEVEL_RULE =
+            new LogLevelRule().set(XaFacadeImpl.class, TRACE);
+
+    // todo: remove after fixing FLINK-22889
+    @ClassRule
     public static final LogLevelRule MYSQL_LOG_LEVEL_RULE =
             new LogLevelRule().set(MySqlJdbcExactlyOnceSinkTestEnv.InnoDbStatusLogger.class, TRACE);
 
@@ -644,10 +649,21 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                     showBlockedTrx(st);
                     showAllTrx(st);
                     showEngineStatus(st);
-                    // additional queries:
-                    //        xa recover convert xid \G; -- only shows recovered
-                    //        show full processlist \G; -- only shows live
+                    showRecoveredTrx(st);
+                    // additional query: show full processlist \G; -- only shows live
+                }
+            }
 
+            private void showRecoveredTrx(Statement st) throws SQLException {
+                try (ResultSet rs = st.executeQuery("xa recover convert xid ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "recovered trx: {} {} {} {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4));
+                    }
                 }
             }
 
