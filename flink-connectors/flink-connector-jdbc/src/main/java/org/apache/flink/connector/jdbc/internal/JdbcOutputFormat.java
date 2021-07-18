@@ -19,8 +19,11 @@
 package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
@@ -39,8 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.Flushable;
 import java.io.IOException;
 import java.io.Serializable;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
@@ -54,9 +59,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A JDBC outputFormat that supports batching records before writing records to database. */
 @Internal
-public class JdbcBatchingOutputFormat<
-                In, JdbcIn, JdbcExec extends JdbcBatchStatementExecutor<JdbcIn>>
-        extends AbstractJdbcOutputFormat<In> {
+public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExecutor<JdbcIn>>
+        extends RichOutputFormat<In> implements Flushable {
+
+    public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
+    public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
+
+    protected final JdbcConnectionProvider connectionProvider;
 
     /**
      * An interface to extract a value from given argument.
@@ -80,7 +89,7 @@ public class JdbcBatchingOutputFormat<
 
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(JdbcBatchingOutputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcOutputFormat.class);
 
     private final JdbcExecutionOptions executionOptions;
     private final StatementExecutorFactory<JdbcExec> statementExecutorFactory;
@@ -94,16 +103,19 @@ public class JdbcBatchingOutputFormat<
     private transient ScheduledFuture<?> scheduledFuture;
     private transient volatile Exception flushException;
 
-    public JdbcBatchingOutputFormat(
+    public JdbcOutputFormat(
             @Nonnull JdbcConnectionProvider connectionProvider,
             @Nonnull JdbcExecutionOptions executionOptions,
             @Nonnull StatementExecutorFactory<JdbcExec> statementExecutorFactory,
             @Nonnull RecordExtractor<In, JdbcIn> recordExtractor) {
-        super(connectionProvider);
+        this.connectionProvider = checkNotNull(connectionProvider);
         this.executionOptions = checkNotNull(executionOptions);
         this.statementExecutorFactory = checkNotNull(statementExecutorFactory);
         this.jdbcRecordExtractor = checkNotNull(recordExtractor);
     }
+
+    @Override
+    public void configure(Configuration parameters) {}
 
     /**
      * Connects to the target database and initializes the prepared statement.
@@ -112,7 +124,11 @@ public class JdbcBatchingOutputFormat<
      */
     @Override
     public void open(int taskNumber, int numTasks) throws IOException {
-        super.open(taskNumber, numTasks);
+        try {
+            connectionProvider.getOrEstablishConnection();
+        } catch (Exception e) {
+            throw new IOException("unable to open JDBC writer", e);
+        }
         jdbcStatementExecutor = createAndOpenStatementExecutor(statementExecutorFactory);
         if (executionOptions.getBatchIntervalMs() != 0 && executionOptions.getBatchSize() != 1) {
             this.scheduler =
@@ -121,7 +137,7 @@ public class JdbcBatchingOutputFormat<
             this.scheduledFuture =
                     this.scheduler.scheduleWithFixedDelay(
                             () -> {
-                                synchronized (JdbcBatchingOutputFormat.this) {
+                                synchronized (JdbcOutputFormat.this) {
                                     if (!closed) {
                                         try {
                                             flush();
@@ -241,7 +257,7 @@ public class JdbcBatchingOutputFormat<
                 LOG.warn("Close JDBC writer failed.", e);
             }
         }
-        super.close();
+        connectionProvider.closeConnection();
         checkFlushException();
     }
 
@@ -249,7 +265,7 @@ public class JdbcBatchingOutputFormat<
         return new Builder();
     }
 
-    /** Builder for a {@link JdbcBatchingOutputFormat}. */
+    /** Builder for a {@link JdbcOutputFormat}. */
     public static class Builder {
         private JdbcConnectorOptions options;
         private String[] fieldNames;
@@ -308,7 +324,7 @@ public class JdbcBatchingOutputFormat<
          *
          * @return Configured JdbcUpsertOutputFormat
          */
-        public JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>>
+        public JdbcOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>>
                 build() {
             checkNotNull(options, "No options supplied.");
             checkNotNull(fieldNames, "No fieldNames supplied.");
@@ -333,7 +349,7 @@ public class JdbcBatchingOutputFormat<
                                         .getInsertIntoStatement(
                                                 dml.getTableName(), dml.getFieldNames()),
                                 new HashMap<>());
-                return new JdbcBatchingOutputFormat<>(
+                return new JdbcOutputFormat<>(
                         new SimpleJdbcConnectionProvider(options),
                         executionOptionsBuilder.build(),
                         ctx ->
@@ -371,5 +387,10 @@ public class JdbcBatchingOutputFormat<
                 reconnect
                         ? connectionProvider.reestablishConnection()
                         : connectionProvider.getConnection());
+    }
+
+    @VisibleForTesting
+    public Connection getConnection() {
+        return connectionProvider.getConnection();
     }
 }

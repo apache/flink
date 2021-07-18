@@ -24,9 +24,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
-import org.apache.flink.connector.jdbc.internal.AbstractJdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
@@ -70,7 +69,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
         this.maxRetryTime = maxRetryTime;
     }
 
-    private JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>>
+    private JdbcOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>>
             newFormat() {
         if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
             throw new UnsupportedOperationException("JdbcUpsertTableSink can not support ");
@@ -82,7 +81,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
                         .mapToInt(JdbcTypeUtil::typeInformationToSqlType)
                         .toArray();
 
-        return JdbcBatchingOutputFormat.builder()
+        return JdbcOutputFormat.builder()
                 .setOptions(options)
                 .setFieldNames(schema.getFieldNames())
                 .setFlushMaxSize(flushMaxSize)
@@ -182,8 +181,8 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
     public static class Builder {
         protected TableSchema schema;
         private JdbcConnectorOptions options;
-        protected int flushMaxSize = AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
-        protected long flushIntervalMills = AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
+        protected int flushMaxSize = JdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
+        protected long flushIntervalMills = JdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
         protected int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
 
         /** required, table schema of this table source. */

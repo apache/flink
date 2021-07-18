@@ -20,7 +20,7 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
@@ -39,7 +39,7 @@ import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStateme
  */
 @Experimental
 public class JdbcRowOutputFormat
-        extends JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
+        extends JdbcOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
 
     private static final long serialVersionUID = 1L;
 
@@ -54,7 +54,7 @@ public class JdbcRowOutputFormat
                 connectionProvider,
                 new JdbcExecutionOptions.Builder().withBatchSize(batchSize).build(),
                 ctx -> createRowExecutor(sql, typesArray, ctx),
-                JdbcBatchingOutputFormat.RecordExtractor.identity());
+                JdbcOutputFormat.RecordExtractor.identity());
     }
 
     private static JdbcBatchStatementExecutor<Row> createRowExecutor(

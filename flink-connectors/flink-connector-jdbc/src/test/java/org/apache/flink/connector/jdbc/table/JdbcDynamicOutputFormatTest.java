@@ -20,7 +20,7 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcDataTestBase;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
 import org.apache.flink.table.api.DataTypes;
@@ -62,7 +62,7 @@ import static org.junit.Assert.fail;
 /** Test suite for {@link JdbcDynamicOutputFormatBuilder}. */
 public class JdbcDynamicOutputFormatTest extends JdbcDataTestBase {
 
-    private static JdbcBatchingOutputFormat<RowData, ?, ?> outputFormat;
+    private static JdbcOutputFormat<RowData, ?, ?> outputFormat;
     private static String[] fieldNames = new String[] {"id", "title", "author", "price", "qty"};
     private static DataType[] fieldDataTypes =
             new DataType[] {
