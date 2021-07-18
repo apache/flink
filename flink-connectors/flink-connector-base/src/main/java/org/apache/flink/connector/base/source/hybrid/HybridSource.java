@@ -44,7 +44,7 @@ import java.util.Map;
  * <pre>{@code
  * FileSource<String> fileSource =
  *   FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir)).build();
- *   KafkaSource<String> kafkaSource =
+ * KafkaSource<String> kafkaSource =
  *           KafkaSource.<String>builder()
  *                   .setBootstrapServers("localhost:9092")
  *                   .setGroupId("MyGroup")
@@ -53,8 +53,8 @@ import java.util.Map;
  *                           KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
  *                   .setStartingOffsets(OffsetsInitializer.earliest())
  *                   .build();
- *   hybridSource =
- *           HybridSource.<String, StaticFileSplitEnumerator>builder(fileSource)
+ * HybridSource<String> hybridSource =
+ *           HybridSource.builder(fileSource)
  *                   .addSource(kafkaSource)
  *                   .build();
  * }</pre>
