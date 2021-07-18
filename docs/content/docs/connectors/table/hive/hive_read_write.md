@@ -181,10 +181,10 @@ Flink supports temporal join both partitioned table and Hive non-partitioned tab
 For a partitioned table which is changing over time, we can read it out as an unbounded stream, the partition can be acted as a version of the temporal table if every partition contains complete data of a version,
 the version of temporal table keeps the data of the partition.
  
-Flink support tracking the latest partition(version) of temporal table automatically in processing time temporal join, the latest partition(version) is defined by 'streaming-source.partition-order' option,
+Flink supports tracking the latest partition (version) of temporal table automatically in processing time temporal join, the latest partition (version) is defined by 'streaming-source.partition-order' option,
 This is the most common user cases that use Hive table as dimension table in a Flink stream application job.
 
-**NOTE:** This feature is only support in Flink `STREAMING` Mode.
+**NOTE:** This feature is only supported in Flink `STREAMING` Mode.
 
 The following demo shows a classical business pipeline, the dimension table comes from Hive and it's updated once every day by a batch pipeline job or a Flink job, the kafka stream comes from real time online business data or log and need to join with the dimension table to enrich stream. 
 
