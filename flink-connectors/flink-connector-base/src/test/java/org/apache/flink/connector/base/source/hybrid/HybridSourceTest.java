@@ -19,11 +19,14 @@
 package org.apache.flink.connector.base.source.hybrid;
 
 import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.base.source.reader.mocks.MockBaseSource;
+import org.apache.flink.connector.base.source.reader.mocks.MockSplitEnumerator;
 
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link HybridSource}. */
@@ -53,5 +56,28 @@ public class HybridSourceTest {
         } catch (IllegalArgumentException e) {
             // boundedness check to fail
         }
+    }
+
+    @Test
+    public void testBuilderWithSourceFactory() {
+        HybridSource.SourceFactory<Integer, Source<Integer, ?, ?>, MockSplitEnumerator>
+                sourceFactory =
+                        new HybridSource.SourceFactory<
+                                Integer, Source<Integer, ?, ?>, MockSplitEnumerator>() {
+                            @Override
+                            public Source<Integer, ?, ?> create(
+                                    HybridSource.SourceSwitchContext<MockSplitEnumerator> context) {
+                                MockSplitEnumerator enumerator = context.getPreviousEnumerator();
+                                return new MockBaseSource(1, 1, Boundedness.BOUNDED);
+                            }
+                        };
+
+        HybridSource<Integer> source =
+                new HybridSource.HybridSourceBuilder<Integer, MockSplitEnumerator>()
+                        .<MockSplitEnumerator, Source<Integer, ?, ?>>addSource(
+                                new MockBaseSource(1, 1, Boundedness.BOUNDED))
+                        .addSource(sourceFactory, Boundedness.BOUNDED)
+                        .build();
+        assertNotNull(source);
     }
 }

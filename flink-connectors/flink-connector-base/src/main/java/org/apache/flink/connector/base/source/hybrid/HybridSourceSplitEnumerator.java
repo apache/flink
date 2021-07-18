@@ -240,13 +240,19 @@ public class HybridSourceSplitEnumerator
             currentSourceIndex++;
         }
 
+        HybridSource.SourceSwitchContext<?> switchContext =
+                new HybridSource.SourceSwitchContext<Object>() {
+                    @Override
+                    public Object getPreviousEnumerator() {
+                        return previousEnumerator;
+                    }
+                };
+
         Source<?, ? extends SourceSplit, Object> source =
                 switchedSources.computeIfAbsent(
                         currentSourceIndex,
                         k -> {
-                            return sources.get(currentSourceIndex)
-                                    .factory
-                                    .create(previousEnumerator);
+                            return sources.get(currentSourceIndex).factory.create(switchContext);
                         });
         switchedSources.put(currentSourceIndex, source);
         SplitEnumeratorContextProxy delegatingContext =

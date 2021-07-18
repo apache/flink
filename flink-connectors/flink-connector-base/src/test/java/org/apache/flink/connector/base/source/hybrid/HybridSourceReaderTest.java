@@ -80,10 +80,6 @@ public class HybridSourceReaderTest {
         HybridSourceSplit hybridSplit = new HybridSourceSplit(0, mockSplit);
         reader.addSplits(Collections.singletonList(hybridSplit));
 
-        Assert.assertEquals(
-                "reader assigned before adding splits", mockSplitReader1, currentReader(reader));
-        Assert.assertEquals(InputStatus.NOTHING_AVAILABLE, reader.pollNext(readerOutput));
-
         // drain splits
         InputStatus status = reader.pollNext(readerOutput);
         while (readerOutput.getEmittedRecords().isEmpty() || status == InputStatus.MORE_AVAILABLE) {

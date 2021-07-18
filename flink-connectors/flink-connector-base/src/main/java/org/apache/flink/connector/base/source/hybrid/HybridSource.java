@@ -39,17 +39,51 @@ import java.util.Map;
 /**
  * Hybrid source that switches underlying sources based on configured source chain.
  *
+ * <p>A simple example with FileSource and KafkaSource with fixed Kafka start position:
+ *
  * <pre>{@code
- * FileSource<String> fileSource = null;
+ * FileSource<String> fileSource =
+ *   FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir)).build();
+ *   KafkaSource<String> kafkaSource =
+ *           KafkaSource.<String>builder()
+ *                   .setBootstrapServers("localhost:9092")
+ *                   .setGroupId("MyGroup")
+ *                   .setTopics(Arrays.asList("quickstart-events"))
+ *                   .setDeserializer(
+ *                           KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *                   .setStartingOffsets(OffsetsInitializer.earliest())
+ *                   .build();
+ *   hybridSource =
+ *           HybridSource.<String, StaticFileSplitEnumerator>builder(fileSource)
+ *                   .addSource(kafkaSource)
+ *                   .build();
+ * }</pre>
+ *
+ * <p>A more complex example with Kafka start position derived from previous source:
+ *
+ * <pre>{@code
  * HybridSource<String> hybridSource =
- *     new HybridSourceBuilder<String, ContinuousFileSplitEnumerator>()
- *         .addSource(fileSource) // fixed start position
+ *     HybridSource.<String, StaticFileSplitEnumerator>builder(fileSource)
  *         .addSource(
- *             (enumerator) -> {
- *               // instantiate Kafka source based on enumerator
- *               KafkaSource<String> kafkaSource = createKafkaSource(enumerator);
+ *             switchContext -> {
+ *               StaticFileSplitEnumerator previousEnumerator =
+ *                   switchContext.getPreviousEnumerator();
+ *               // how to get timestamp depends on specific enumerator
+ *               long timestamp = previousEnumerator.getEndTimestamp();
+ *               OffsetsInitializer offsets =
+ *                   OffsetsInitializer.timestamp(timestamp);
+ *               KafkaSource<String> kafkaSource =
+ *                   KafkaSource.<String>builder()
+ *                       .setBootstrapServers("localhost:9092")
+ *                       .setGroupId("MyGroup")
+ *                       .setTopics(Arrays.asList("quickstart-events"))
+ *                       .setDeserializer(
+ *                           KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+ *                       .setStartingOffsets(offsets)
+ *                       .build();
  *               return kafkaSource;
- *             }, Boundedness.CONTINUOUS_UNBOUNDED)
+ *             },
+ *             Boundedness.CONTINUOUS_UNBOUNDED)
  *         .build();
  * }</pre>
  */
@@ -113,6 +147,21 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
     }
 
     /**
+     * Context provided to source factory.
+     *
+     * <p>To derive a start position at switch time, the source can be initialized from context of
+     * the previous enumerator. A specific enumerator implementation may carry state such as an end
+     * timestamp, that can be used to derive the start position of the next source.
+     *
+     * <p>Currently only the previous enumerator is exposed. The context interface allows for
+     * backward compatible extension, i.e. additional information about the previous source can be
+     * supplied in the future.
+     */
+    public interface SourceSwitchContext<EnumT> {
+        EnumT getPreviousEnumerator();
+    }
+
+    /**
      * Factory for underlying sources of {@link HybridSource}.
      *
      * <p>This factory permits building of a source at graph construction time or deferred at switch
@@ -120,17 +169,19 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
      * Future convenience could be built on top of it, for example a default implementation that
      * recognizes optional interfaces to transfer position in a universal format.
      *
-     * <p>Called when the current enumerator has finished and before the next enumerator is created.
-     * The enumerator end state can thus be used to set the next source's start start position. Only
-     * required for dynamic position transfer at time of switching.
+     * <p>Called when the current enumerator has finished. The previous source's final state can
+     * thus be used to construct the next source, as required for dynamic position transfer at time
+     * of switching.
      *
      * <p>If start position is known at job submission time, the source can be constructed in the
      * entry point and simply wrapped into the factory, providing the benefit of validation during
      * submission.
      */
-    public interface SourceFactory<T, SourceT extends Source, FromEnumT extends SplitEnumerator>
+    @FunctionalInterface
+    public interface SourceFactory<
+                    T, SourceT extends Source<T, ?, ?>, FromEnumT extends SplitEnumerator>
             extends Serializable {
-        SourceT create(FromEnumT enumerator);
+        SourceT create(SourceSwitchContext<FromEnumT> context);
     }
 
     private static class PassthroughSourceFactory<
@@ -144,7 +195,7 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
         }
 
         @Override
-        public SourceT create(FromEnumT enumerator) {
+        public SourceT create(SourceSwitchContext<FromEnumT> context) {
             return source;
         }
     }
