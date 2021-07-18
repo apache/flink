@@ -43,6 +43,7 @@ public class JdbcTestFixture {
     public static final String OUTPUT_TABLE = "newbooks";
     public static final String OUTPUT_TABLE_2 = "newbooks2";
     public static final String OUTPUT_TABLE_3 = "newbooks3";
+    public static final String WORDS_TABLE = "words";
     public static final String SELECT_ALL_BOOKS = "select * from " + INPUT_TABLE;
     public static final String SELECT_ID_BOOKS = "select id from " + INPUT_TABLE;
     public static final String SELECT_ALL_NEWBOOKS = "select * from " + OUTPUT_TABLE;
@@ -51,6 +52,9 @@ public class JdbcTestFixture {
     public static final String SELECT_EMPTY = "select * from books WHERE QTY < 0";
     public static final String INSERT_TEMPLATE =
             "insert into %s (id, title, author, price, qty) values (?,?,?,?,?)";
+    public static final String INSERT_INTO_WORDS_TEMPLATE =
+            "insert into words (id, word) values(?, ?)";
+
     public static final String SELECT_ALL_BOOKS_SPLIT_BY_ID =
             SELECT_ALL_BOOKS + " WHERE id BETWEEN ? AND ?";
     public static final String SELECT_ALL_BOOKS_SPLIT_BY_AUTHOR =
@@ -195,6 +199,21 @@ public class JdbcTestFixture {
             createTable(conn, OUTPUT_TABLE);
             createTable(conn, OUTPUT_TABLE_2);
             createTable(conn, OUTPUT_TABLE_3);
+            createWordsTable(conn);
+        }
+    }
+
+    private static void createWordsTable(Connection conn) throws SQLException {
+        executeUpdate(
+                conn,
+                "create table "
+                        + WORDS_TABLE
+                        + " (id int not null, word varchar(50), primary key (id))");
+    }
+
+    private static void executeUpdate(Connection conn, String sql) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate(sql);
         }
     }
 
@@ -205,9 +224,7 @@ public class JdbcTestFixture {
     }
 
     private static void createTable(Connection conn, String tableName) throws SQLException {
-        Statement stat = conn.createStatement();
-        stat.executeUpdate(getCreateQuery(tableName));
-        stat.close();
+        executeUpdate(conn, getCreateQuery(tableName));
     }
 
     private static void insertDataIntoInputTable(Connection conn) throws SQLException {
@@ -226,13 +243,14 @@ public class JdbcTestFixture {
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE);
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_2);
             stat.executeUpdate("DROP TABLE " + OUTPUT_TABLE_3);
+            stat.executeUpdate("DROP TABLE " + WORDS_TABLE);
         }
     }
 
     static void cleanupData(String url) throws Exception {
-        try (Connection conn = DriverManager.getConnection(url);
-                Statement st = conn.createStatement()) {
-            st.executeUpdate("delete from " + INPUT_TABLE);
+        try (Connection conn = DriverManager.getConnection(url)) {
+            executeUpdate(conn, "delete from " + INPUT_TABLE);
+            executeUpdate(conn, "delete from " + WORDS_TABLE);
         }
     }
 }
