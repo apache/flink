@@ -51,10 +51,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** Tests for the {@link JdbcOutputFormat}. */
-public class JdbcOutputFormatTest extends JdbcDataTestBase {
+/** Tests for the {@link JdbcRowOutputFormat}. */
+public class JdbcRowOutputFormatTest extends JdbcDataTestBase {
 
-    private JdbcOutputFormat jdbcOutputFormat;
+    private JdbcRowOutputFormat jdbcOutputFormat;
 
     @After
     public void tearDown() throws IOException {
@@ -69,7 +69,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "unable to open JDBC writer";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername("org.apache.derby.jdbc.idontexist")
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
@@ -86,7 +86,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "No suitable driver found for jdbc:der:iamanerror:mory:ebookshop";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
@@ -104,7 +104,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "unable to open JDBC writer";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setQuery("iamnotsql")
@@ -122,7 +122,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "jdbc url is empty";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
                             .finish();
@@ -137,7 +137,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "Invalid character string format for type INTEGER.";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setQuery(String.format(INSERT_TEMPLATE, INPUT_TABLE))
@@ -165,7 +165,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "field index: 3, field value: 0.";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
@@ -201,7 +201,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
         String expectedMsg = "Writing records to JDBC failed.";
         try {
             jdbcOutputFormat =
-                    JdbcOutputFormat.buildJdbcOutputFormat()
+                    JdbcRowOutputFormat.buildJdbcOutputFormat()
                             .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                             .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                             .setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
@@ -238,7 +238,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testJdbcOutputFormat() throws IOException, SQLException {
         jdbcOutputFormat =
-                JdbcOutputFormat.buildJdbcOutputFormat()
+                JdbcRowOutputFormat.buildJdbcOutputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE))
@@ -272,7 +272,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testFlush() throws SQLException, IOException {
         jdbcOutputFormat =
-                JdbcOutputFormat.buildJdbcOutputFormat()
+                JdbcRowOutputFormat.buildJdbcOutputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_2))
@@ -309,7 +309,7 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
     @Test
     public void testInvalidConnectionInJdbcOutputFormat() throws IOException, SQLException {
         jdbcOutputFormat =
-                JdbcOutputFormat.buildJdbcOutputFormat()
+                JdbcRowOutputFormat.buildJdbcOutputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
                         .setQuery(String.format(INSERT_TEMPLATE, OUTPUT_TABLE_3))
