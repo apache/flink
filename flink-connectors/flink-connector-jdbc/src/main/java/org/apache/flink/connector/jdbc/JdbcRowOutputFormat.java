@@ -38,14 +38,14 @@ import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStateme
  * supplied OutputFormatBuilder.
  */
 @Experimental
-public class JdbcOutputFormat
+public class JdbcRowOutputFormat
         extends JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(JdbcOutputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcRowOutputFormat.class);
 
-    private JdbcOutputFormat(
+    private JdbcRowOutputFormat(
             JdbcConnectionProvider connectionProvider,
             String sql,
             int[] typesArray,
@@ -71,7 +71,7 @@ public class JdbcOutputFormat
         return new JdbcOutputFormatBuilder();
     }
 
-    /** Builder for {@link JdbcOutputFormat}. */
+    /** Builder for {@link JdbcRowOutputFormat}. */
     public static class JdbcOutputFormatBuilder {
         private String username;
         private String password;
@@ -123,8 +123,8 @@ public class JdbcOutputFormat
          *
          * @return Configured JdbcOutputFormat
          */
-        public JdbcOutputFormat finish() {
-            return new JdbcOutputFormat(
+        public JdbcRowOutputFormat finish() {
+            return new JdbcRowOutputFormat(
                     new SimpleJdbcConnectionProvider(buildConnectionOptions()),
                     query,
                     typesArray,
