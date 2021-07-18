@@ -845,24 +845,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     OperandTypes.family(SqlTypeFamily.BINARY, SqlTypeFamily.STRING),
                     SqlFunctionCategory.STRING);
 
-    public static final SqlFunction GREATEST =
-            new SqlFunction(
-                    "GREATEST",
-                    SqlKind.GREATEST,
-                    ReturnTypes.LEAST_RESTRICTIVE.andThen(SqlTypeTransforms.TO_NULLABLE),
-                    null,
-                    OperandTypes.ONE_OR_MORE,
-                    SqlFunctionCategory.SYSTEM);
-
-    public static final SqlFunction LEAST =
-            new SqlFunction(
-                    "LEAST",
-                    SqlKind.LEAST,
-                    ReturnTypes.LEAST_RESTRICTIVE.andThen(SqlTypeTransforms.TO_NULLABLE),
-                    null,
-                    OperandTypes.ONE_OR_MORE,
-                    SqlFunctionCategory.SYSTEM);
-
     public static final SqlFunction INSTR =
             new SqlFunction(
                     "INSTR",

@@ -24,12 +24,12 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.greatest;
-import static org.apache.flink.table.api.Expressions.least;
+import static org.apache.flink.table.api.Expressions.call;
 
 /** Tests for GREATEST, LEAST functions {@link BuiltInFunctionDefinitions}. */
 public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
@@ -38,29 +38,50 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
     public static List<TestSpec> testData() {
         return Arrays.asList(
                 TestSpec.forFunction(BuiltInFunctionDefinitions.GREATEST)
-                        .onFieldsWithData(null, 1, 2, 3.14, "hello", "world")
+                        .onFieldsWithData(
+                                null,
+                                1,
+                                2,
+                                3.14,
+                                "hello",
+                                "world",
+                                LocalDateTime.parse("1970-01-01T00:00:03.001"),
+                                LocalDateTime.parse("1970-01-01T00:00:02.001"))
                         .andDataTypes(
                                 DataTypes.INT().nullable(),
                                 DataTypes.INT().notNull(),
                                 DataTypes.INT().notNull(),
                                 DataTypes.DECIMAL(3, 2).notNull(),
                                 DataTypes.STRING().notNull(),
-                                DataTypes.STRING().notNull())
-                        .testSqlError("GREATEST(f1, f4)", "Cannot infer return type for GREATEST")
+                                DataTypes.STRING().notNull(),
+                                DataTypes.TIMESTAMP(3).notNull(),
+                                DataTypes.TIMESTAMP(3).notNull())
+                        .testSqlError(
+                                "GREATEST(f1, f4)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "GREATEST(INT NOT NULL, STRING NOT NULL)")
                         .testSqlResult(
                                 "CAST(GREATEST(f1, f3, f2) AS DECIMAL(3, 2))",
                                 BigDecimal.valueOf(3.14),
                                 DataTypes.DECIMAL(3, 2).notNull())
                         .testResult(
-                                greatest($("f0"), $("f1"), $("f2")),
+                                call("GREATEST", $("f0"), $("f1"), $("f2")),
                                 "GREATEST(f0, f1, f2)",
                                 null,
                                 DataTypes.INT())
                         .testResult(
-                                greatest($("f4"), $("f5")),
+                                call("GREATEST", $("f4"), $("f5")),
                                 "GREATEST(f4, f5)",
                                 "world",
-                                DataTypes.STRING().notNull()),
+                                DataTypes.STRING().notNull())
+                        .testSqlResult(
+                                "GREATEST(f6, f7)",
+                                LocalDateTime.parse("1970-01-01T00:00:03.001"),
+                                DataTypes.TIMESTAMP(3).notNull())
+                        .testSqlError(
+                                "GREATEST(f5, f6)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "GREATEST(STRING NOT NULL, TIMESTAMP(3) NOT NULL)"),
                 TestSpec.forFunction(BuiltInFunctionDefinitions.LEAST)
                         .onFieldsWithData(null, 1, 2, 3.14, "hello", "world")
                         .andDataTypes(
@@ -70,18 +91,26 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.DECIMAL(3, 2).notNull(),
                                 DataTypes.STRING().notNull(),
                                 DataTypes.STRING().notNull())
-                        .testSqlError("LEAST(f1, f4)", "Cannot infer return type for LEAST")
+                        .testSqlError(
+                                "LEAST(f1, f4)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "LEAST(INT NOT NULL, STRING NOT NULL)")
                         .testSqlResult(
                                 "CAST(LEAST(f1, f3, f2) AS DECIMAL(3, 2))",
                                 BigDecimal.valueOf(100, 2),
                                 DataTypes.DECIMAL(3, 2).notNull())
                         .testTableApiResult(
-                                least($("f1"), $("f3"), $("f2")).cast(DataTypes.DECIMAL(3, 2)),
+                                call("LEAST", $("f1"), $("f3"), $("f2"))
+                                        .cast(DataTypes.DECIMAL(3, 2)),
                                 BigDecimal.valueOf(100, 2),
                                 DataTypes.DECIMAL(3, 2).notNull())
-                        .testResult(least($("f0"), $("f1")), "LEAST(f0, f1)", null, DataTypes.INT())
                         .testResult(
-                                least($("f4"), $("f5")),
+                                call("LEAST", $("f0"), $("f1")),
+                                "LEAST(f0, f1)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                call("LEAST", $("f4"), $("f5")),
                                 "LEAST(f4, f5)",
                                 "hello",
                                 DataTypes.STRING().notNull()));

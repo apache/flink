@@ -160,9 +160,6 @@ public class DirectConvertRule implements CallExpressionConvertRule {
         DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.HEX, FlinkSqlOperatorTable.HEX);
         DEFINITION_OPERATOR_MAP.put(
                 BuiltInFunctionDefinitions.TRUNCATE, FlinkSqlOperatorTable.TRUNCATE);
-        DEFINITION_OPERATOR_MAP.put(
-                BuiltInFunctionDefinitions.GREATEST, FlinkSqlOperatorTable.GREATEST);
-        DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.LEAST, FlinkSqlOperatorTable.LEAST);
 
         // time functions
         DEFINITION_OPERATOR_MAP.put(

@@ -516,28 +516,6 @@ public final class Expressions {
     }
 
     /**
-     * Creates an expression that returns the greatest from the input.
-     *
-     * <p>e.g. greatest(1, 2, 3) leads to 3, greatest("hello", "world") leads to "world".
-     *
-     * <p>Note: if at least one input parameter is null the return value will be null.
-     */
-    public static ApiExpression greatest(Object head, Object... tail) {
-        return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.GREATEST, head, tail);
-    }
-
-    /**
-     * Creates an expression that returns the least from the input.
-     *
-     * <p>e.g. least(1, 2, 3) leads to 1, least("hello", "world") leads to "hello".
-     *
-     * <p>Note: if at least one input parameter is null the return value will be null.
-     */
-    public static ApiExpression least(Object head, Object... tail) {
-        return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.LEAST, head, tail);
-    }
-
-    /**
      * Creates an expression that selects a range of columns. It can be used wherever an array of
      * expression is accepted such as function calls, projections, or groupings.
      *

@@ -1768,7 +1768,8 @@ object ScalarOperatorGens {
   }
 
   /**
-   * Return null when at least one of the elements is null.
+   * Returns the greatest or least value of the list of arguments,
+   * returns NULL if any argument is NULL.
    */
   def generateGreatestLeast(
       resultType: LogicalType,
@@ -1788,7 +1789,7 @@ object ScalarOperatorGens {
       }
     }
 
-    val elementsCode = elements.zipWithIndex.map { case (element, idx) =>
+    val elementsCode = elements.map { element =>
       s"""
          | ${element.code}
          | if (!$nullTerm) {
@@ -1797,7 +1798,7 @@ object ScalarOperatorGens {
          |     $nullTerm = true;
          |   } else {
          |     int compareResult = $result.compareTo($cur);
-         |     if ($greatest && compareResult < 0 || compareResult > 0 && !$greatest) {
+         |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
          |       $result = $cur;
          |     }
          |   }
