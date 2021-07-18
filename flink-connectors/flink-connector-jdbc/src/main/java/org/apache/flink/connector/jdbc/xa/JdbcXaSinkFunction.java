@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.JdbcExactlyOnceOptions;
 import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.xa.XaFacade.EmptyXaTransactionException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -136,7 +136,7 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
     private final XaFacade xaFacade;
     private final XaGroupOps xaGroupOps;
     private final XidGenerator xidGenerator;
-    private final JdbcBatchingOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat;
+    private final JdbcOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat;
     private final XaSinkStateHandler stateHandler;
     private final JdbcExactlyOnceOptions options;
 
@@ -163,7 +163,7 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
             JdbcExecutionOptions executionOptions,
             JdbcExactlyOnceOptions options) {
         this(
-                new JdbcBatchingOutputFormat<>(
+                new JdbcOutputFormat<>(
                         xaFacade,
                         executionOptions,
                         context -> {
@@ -173,7 +173,7 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                             return JdbcBatchStatementExecutor.simple(
                                     sql, statementBuilder, Function.identity());
                         },
-                        JdbcBatchingOutputFormat.RecordExtractor.identity()),
+                        JdbcOutputFormat.RecordExtractor.identity()),
                 xaFacade,
                 XidGenerator.semanticXidGenerator(),
                 new XaSinkStateHandlerImpl(),
@@ -186,12 +186,12 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
      *
      * <p>All parameters must be {@link java.io.Serializable serializable}.
      *
-     * @param outputFormat {@link JdbcBatchingOutputFormat} to write records with
+     * @param outputFormat {@link JdbcOutputFormat} to write records with
      * @param xaFacade {@link XaFacade} to manage XA transactions
      * @param xidGenerator {@link XidGenerator} to generate new transaction ids
      */
     public JdbcXaSinkFunction(
-            JdbcBatchingOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat,
+            JdbcOutputFormat<T, T, JdbcBatchStatementExecutor<T>> outputFormat,
             XaFacade xaFacade,
             XidGenerator xidGenerator,
             XaSinkStateHandler stateHandler,

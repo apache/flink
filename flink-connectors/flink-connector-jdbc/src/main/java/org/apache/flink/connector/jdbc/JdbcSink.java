@@ -19,7 +19,7 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
 import org.apache.flink.connector.jdbc.xa.JdbcXaSinkFunction;
@@ -69,7 +69,7 @@ public class JdbcSink {
             JdbcExecutionOptions executionOptions,
             JdbcConnectionOptions connectionOptions) {
         return new GenericJdbcSinkFunction<>(
-                new JdbcBatchingOutputFormat<>(
+                new JdbcOutputFormat<>(
                         new SimpleJdbcConnectionProvider(connectionOptions),
                         executionOptions,
                         context -> {
@@ -79,7 +79,7 @@ public class JdbcSink {
                             return JdbcBatchStatementExecutor.simple(
                                     sql, statementBuilder, Function.identity());
                         },
-                        JdbcBatchingOutputFormat.RecordExtractor.identity()));
+                        JdbcOutputFormat.RecordExtractor.identity()));
     }
 
     /**

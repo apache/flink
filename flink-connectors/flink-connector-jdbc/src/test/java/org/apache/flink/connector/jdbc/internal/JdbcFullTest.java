@@ -60,7 +60,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 
-/** Tests using both {@link JdbcInputFormat} and {@link JdbcBatchingOutputFormat}. */
+/** Tests using both {@link JdbcInputFormat} and {@link JdbcOutputFormat}. */
 public class JdbcFullTest extends JdbcDataTestBase {
 
     @Test
@@ -77,8 +77,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
     public void testEnrichedClassCastException() {
         String expectedMsg = "field index: 3, field value: 11.11.";
         try {
-            JdbcBatchingOutputFormat jdbcOutputFormat =
-                    JdbcBatchingOutputFormat.builder()
+            JdbcOutputFormat jdbcOutputFormat =
+                    JdbcOutputFormat.builder()
                             .setOptions(
                                     JdbcConnectorOptions.builder()
                                             .setDBUrl(getDbMetadata().getUrl())
@@ -143,8 +143,8 @@ public class JdbcFullTest extends JdbcDataTestBase {
                         .withDriverName(getDbMetadata().getDriverClass())
                         .build();
 
-        JdbcBatchingOutputFormat jdbcOutputFormat =
-                new JdbcBatchingOutputFormat<>(
+        JdbcOutputFormat jdbcOutputFormat =
+                new JdbcOutputFormat<>(
                         new SimpleJdbcConnectionProvider(connectionOptions),
                         JdbcExecutionOptions.defaults(),
                         ctx ->
@@ -158,7 +158,7 @@ public class JdbcFullTest extends JdbcDataTestBase {
                                             Types.INTEGER
                                         },
                                         ctx.getExecutionConfig().isObjectReuseEnabled()),
-                        JdbcBatchingOutputFormat.RecordExtractor.identity());
+                        JdbcOutputFormat.RecordExtractor.identity());
 
         source.output(jdbcOutputFormat);
         environment.execute();

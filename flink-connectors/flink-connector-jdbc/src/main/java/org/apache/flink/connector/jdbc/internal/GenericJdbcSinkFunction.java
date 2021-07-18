@@ -35,9 +35,9 @@ import java.io.IOException;
 @Internal
 public class GenericJdbcSinkFunction<T> extends RichSinkFunction<T>
         implements CheckpointedFunction {
-    private final AbstractJdbcOutputFormat<T> outputFormat;
+    private final JdbcOutputFormat<T, ?, ?> outputFormat;
 
-    public GenericJdbcSinkFunction(@Nonnull AbstractJdbcOutputFormat<T> outputFormat) {
+    public GenericJdbcSinkFunction(@Nonnull JdbcOutputFormat<T, ?, ?> outputFormat) {
         this.outputFormat = Preconditions.checkNotNull(outputFormat);
     }
 
