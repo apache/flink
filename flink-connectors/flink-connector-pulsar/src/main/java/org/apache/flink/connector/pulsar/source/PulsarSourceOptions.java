@@ -347,6 +347,12 @@ public final class PulsarSourceOptions {
     //
     ///////////////////////////////////////////////////////////////////////////////
 
+    public static final ConfigOption<String> PULSAR_ADMIN_URL =
+            ConfigOptions.key(ADMIN_CONFIG_PREFIX + "adminUrl")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Admin URL for Pulsar service.");
+
     // The network connect timeout in millis.
     public static final ConfigOption<Long> PULSAR_CONNECT_TIMEOUT =
             ConfigOptions.key(ADMIN_CONFIG_PREFIX + "connectTimeout")

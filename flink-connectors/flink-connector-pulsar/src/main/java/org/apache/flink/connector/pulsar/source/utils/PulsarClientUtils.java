@@ -32,6 +32,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTO_CERT_REFRESH_TIME;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_CONNECT_TIMEOUT;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_READ_TIMEOUT;
@@ -128,7 +129,7 @@ public final class PulsarClientUtils {
             throws PulsarClientException {
         ClientConfigurationData clientConfig = createClientConfig(configuration);
         return PulsarAdmin.builder()
-                .serviceHttpUrl(clientConfig.getServiceUrl())
+                .serviceHttpUrl(configuration.get(PULSAR_ADMIN_URL))
                 .authentication(clientConfig.getAuthentication())
                 .tlsTrustCertsFilePath(clientConfig.getTlsTrustCertsFilePath())
                 .allowTlsInsecureConnection(clientConfig.isTlsAllowInsecureConnection())

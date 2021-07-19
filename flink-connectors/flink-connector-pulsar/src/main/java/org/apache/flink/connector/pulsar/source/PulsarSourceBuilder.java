@@ -51,6 +51,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_REGEX_SUBSCRIPTION_MODE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_MODE;
@@ -58,6 +59,7 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_SUBSCRIPTION_TYPE;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPICS_PATTERN;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_TOPIC_NAMES;
+import static org.apache.flink.connector.pulsar.source.config.PulsarConfigurationUtils.checkConfigurations;
 import static org.apache.flink.connector.pulsar.source.config.PulsarConfigurationUtils.getOptionValue;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -99,6 +101,18 @@ public final class PulsarSourceBuilder<IN, OUT> {
     PulsarSourceBuilder() {
         // The default configuration holder.
         this.configuration = new Configuration();
+    }
+
+    /**
+     * Sets the admin endpoint for the PulsarAdmin of the PulsarSource.
+     *
+     * @param adminUrl the url for the PulsarAdmin.
+     *
+     * @return this PulsarSourceBuilder.
+     */
+    public PulsarSourceBuilder<IN, OUT> setAdminUrl(String adminUrl) {
+        configuration.set(PULSAR_ADMIN_URL, adminUrl);
+        return this;
     }
 
     /**
@@ -313,6 +327,7 @@ public final class PulsarSourceBuilder<IN, OUT> {
      */
     public PulsarSource<IN, OUT> build() {
         // Check builder configuration.
+        checkConfigurations(configuration);
 
         // Ensure the topics for pulsar.
         if (subscriber == null) {

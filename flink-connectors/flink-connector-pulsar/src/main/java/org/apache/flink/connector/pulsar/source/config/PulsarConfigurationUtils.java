@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACKNOWLEDGEMENTS_GROUP_TIME_MICROS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACK_RECEIPT_ENABLED;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ACK_TIMEOUT_MILLIS;
+import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTH_PARAMS;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTH_PARAM_MAP;
 import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSAR_AUTH_PLUGIN_CLASS_NAME;
@@ -116,14 +117,17 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.PULSA
 /** The util for creating pulsar configuration class from flink's {@link Configuration} */
 public final class PulsarConfigurationUtils {
 
-    private static final List<Set<ConfigOption<?>>> CONFLICT_CLIENT_OPTIONS =
+    private static final List<Set<ConfigOption<?>>> CONFLICT_SOURCE_OPTIONS =
             ImmutableList.<Set<ConfigOption<?>>>builder()
                     .add(ImmutableSet.of(PULSAR_AUTH_PARAMS, PULSAR_AUTH_PARAM_MAP))
                     .add(ImmutableSet.of(PULSAR_TOPIC_NAMES, PULSAR_TOPICS_PATTERN))
                     .build();
 
-    private static final Set<ConfigOption<?>> REQUIRED_CLIENT_OPTIONS =
-            ImmutableSet.<ConfigOption<?>>builder().add(PULSAR_SERVICE_URL).build();
+    private static final Set<ConfigOption<?>> REQUIRED_SOURCE_OPTIONS =
+            ImmutableSet.<ConfigOption<?>>builder()
+                    .add(PULSAR_SERVICE_URL)
+                    .add(PULSAR_ADMIN_URL)
+                    .build();
 
     private PulsarConfigurationUtils() {
         // No need to create instance.
@@ -138,8 +142,6 @@ public final class PulsarConfigurationUtils {
      */
     public static ClientConfigurationData createClientConfig(Configuration configuration)
             throws PulsarClientException {
-        checkClientConfiguration(configuration);
-
         ClientConfigurationData data = new ClientConfigurationData();
 
         // Set the properties one by one.
@@ -236,20 +238,20 @@ public final class PulsarConfigurationUtils {
      *   <li>If user have provided some conflict options.
      * </ul>
      */
-    private static void checkClientConfiguration(Configuration configuration) {
-        REQUIRED_CLIENT_OPTIONS.forEach(
+    public static void checkConfigurations(Configuration configuration) {
+        REQUIRED_SOURCE_OPTIONS.forEach(
                 option ->
                         Preconditions.checkArgument(
                                 configuration.contains(option),
-                                "Config option %s is not provided for pulsar client.",
+                                "Config option %s is not provided for pulsar source.",
                                 option));
 
-        CONFLICT_CLIENT_OPTIONS.forEach(
+        CONFLICT_SOURCE_OPTIONS.forEach(
                 options -> {
                     long nums = options.stream().filter(configuration::contains).count();
                     Preconditions.checkArgument(
                             nums > 1,
-                            "Conflict config options %s were provided, we only support one of them for creating pulsar client.",
+                            "Conflict config options %s were provided, we only support one of them for creating pulsar source.",
                             options);
                 });
     }
