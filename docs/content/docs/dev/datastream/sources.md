@@ -28,15 +28,18 @@ under the License.
 
 
 {{< hint warning >}}
-**Note**: This describes the new Data Source API, introduced in Flink 1.11 as part of [FLIP-27]("https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface").
-This new API is currently in **BETA**  status.
+**Note**: This describes the new Data Source API, introduced in Flink 1.11 as part
+of [FLIP-27]("https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface")
+. This new API is currently in **BETA**  status.
 
- Most of the existing source connectors are not yet (as of Flink 1.11) implemented using this new API,
- but using the previous API, based on [SourceFunction]("https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java").
-{{< /hint >}}
+Most of the existing source connectors are not yet (as of Flink 1.11) implemented using this new
+API, but using the previous API, based
+on [SourceFunction](https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java)
+. {{< /hint >}}
 
 This page describes Flink's Data Source API and the concepts and architecture behind it.
-**Read this, if you are interested in how data sources in Flink work, or if you want to implement a new Data Source.**
+**Read this, if you are interested in how data sources in Flink work, or if you want to implement a
+new Data Source.**
 
 If you are looking for pre-defined source connectors, please check the [Connector Docs]({{< ref "docs/connectors/datastream/overview" >}}).
 
