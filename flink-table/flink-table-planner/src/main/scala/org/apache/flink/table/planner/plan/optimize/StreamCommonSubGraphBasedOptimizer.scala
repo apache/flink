@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.optimize
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
@@ -159,6 +159,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
     Preconditions.checkNotNull(programs)
 
     val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val flinkRelBuilder = planner.getRelBuilder
 
     programs.optimize(relNode, new StreamOptimizeContext() {
 
@@ -171,13 +172,15 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       override def getSqlExprToRexConverterFactory: SqlExprToRexConverterFactory =
         context.getSqlExprToRexConverterFactory
 
-      override def getRexBuilder: RexBuilder = planner.getRelBuilder.getRexBuilder
+      override def getRexBuilder: RexBuilder = flinkRelBuilder.getRexBuilder
 
       override def isUpdateBeforeRequired: Boolean = updateBeforeRequired
 
       def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
       override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
+
+      override def getFlinkRelBuilder: FlinkRelBuilder = flinkRelBuilder
     })
   }
 

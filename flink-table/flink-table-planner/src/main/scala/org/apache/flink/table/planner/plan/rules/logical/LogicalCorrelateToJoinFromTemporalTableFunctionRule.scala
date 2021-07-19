@@ -25,6 +25,8 @@ import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMdNonCumulativeCost
+import org.apache.flink.table.planner.plan.optimize.program.FlinkOptimizeContext
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalFunctionJoinConCall, makeRowTimeTemporalFunctionJoinConCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
@@ -32,11 +34,10 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasRoot, is
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
-import org.apache.calcite.plan.hep.HepRelVertex
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptSchema}
-import org.apache.calcite.rel.{BiRel, RelNode, SingleRel}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinRelType, TableFunctionScan}
-import org.apache.calcite.rel.logical.{LogicalCorrelate}
+import org.apache.calcite.rel.logical.LogicalCorrelate
 import org.apache.calcite.rex._
 
 /**
@@ -97,7 +98,9 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val relBuilder = FlinkRelBuilder.of(cluster, getRelOptSchema(leftNode))
+        val relBuilder = FlinkRelMdNonCumulativeCost.THREAD_PLANNER.get()
+          .getContext.unwrap(classOf[FlinkOptimizeContext]).getFlinkRelBuilder
+
         val temporalTable: RelNode = relBuilder.queryOperation(underlyingHistoryTable).build()
         // expand QueryOperationCatalogViewTable in Table Scan
         val shuttle = new ExpandTableScanShuttle
@@ -148,15 +151,6 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
       rightDataTypeField.getType, rightReferencesOffset + rightDataTypeField.getIndex)
   }
 
-  /**
-    * Gets [[RelOptSchema]] from the leaf [[RelNode]] which holds a non-null [[RelOptSchema]].
-    */
-  private def getRelOptSchema(relNode: RelNode): RelOptSchema = relNode match {
-    case hep: HepRelVertex => getRelOptSchema(hep.getCurrentRel)
-    case single: SingleRel => getRelOptSchema(single.getInput)
-    case bi: BiRel => getRelOptSchema(bi.getLeft)
-    case _ => relNode.getTable.getRelOptSchema
-  }
 }
 
 object LogicalCorrelateToJoinFromTemporalTableFunctionRule {
