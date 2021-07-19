@@ -104,7 +104,7 @@ public class StreamGraph implements Pipeline {
 
     private TimeCharacteristic timeCharacteristic;
 
-    private GlobalDataExchangeMode globalDataExchangeMode;
+    private GlobalStreamExchangeMode globalExchangeMode;
 
     /** Flag to indicate whether to put all vertices into the same slot sharing group by default. */
     private boolean allVerticesInSameSlotSharingGroupByDefault = true;
@@ -237,12 +237,12 @@ public class StreamGraph implements Pipeline {
         this.timeCharacteristic = timeCharacteristic;
     }
 
-    public GlobalDataExchangeMode getGlobalDataExchangeMode() {
-        return globalDataExchangeMode;
+    public GlobalStreamExchangeMode getGlobalStreamExchangeMode() {
+        return globalExchangeMode;
     }
 
-    public void setGlobalDataExchangeMode(GlobalDataExchangeMode globalDataExchangeMode) {
-        this.globalDataExchangeMode = globalDataExchangeMode;
+    public void setGlobalStreamExchangeMode(GlobalStreamExchangeMode globalExchangeMode) {
+        this.globalExchangeMode = globalExchangeMode;
     }
 
     public void setSlotSharingGroupResource(

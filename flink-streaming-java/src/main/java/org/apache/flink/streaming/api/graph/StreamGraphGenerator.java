@@ -362,7 +362,7 @@ public class StreamGraphGenerator {
             }
 
             graph.setAllVerticesInSameSlotSharingGroupByDefault(false);
-            graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED);
+            graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED);
             setDefaultBufferTimeout(-1);
             setBatchStateBackendAndTimerService(graph);
         } else {
@@ -373,10 +373,10 @@ public class StreamGraphGenerator {
 
             if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
                 checkApproximateLocalRecoveryCompatibility();
-                graph.setGlobalDataExchangeMode(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE);
+                graph.setGlobalStreamExchangeMode(
+                        GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE);
             } else {
-                graph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_PIPELINED);
+                graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
             }
         }
     }

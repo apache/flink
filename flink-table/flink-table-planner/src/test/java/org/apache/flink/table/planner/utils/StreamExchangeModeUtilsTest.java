@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.util.TestLogger;
 
@@ -36,31 +36,31 @@ public class StreamExchangeModeUtilsTest extends TestLogger {
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString());
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString());
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED.toString());
+                GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED.toString());
         assertEquals(
-                GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
+                GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
         assertEquals(
-                GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString());
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED.toString());
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
     }
 
     @Test
@@ -71,15 +71,15 @@ public class StreamExchangeModeUtilsTest extends TestLogger {
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 StreamExchangeModeUtils.ALL_EDGES_BLOCKING_LEGACY);
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 StreamExchangeModeUtils.ALL_EDGES_PIPELINED_LEGACY);
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
     }
 
     @Test
@@ -89,27 +89,27 @@ public class StreamExchangeModeUtilsTest extends TestLogger {
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Forward_edges_PIPELINED");
         assertEquals(
-                GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
 
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Pipelined");
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
     }
 
     @Test
     public void testGetDefaultShuffleMode() {
         final Configuration configuration = new Configuration();
         assertEquals(
-                GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
+                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetInvalidShuffleMode() {
         final Configuration configuration = new Configuration();
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
-        StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
+        StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration);
     }
 }

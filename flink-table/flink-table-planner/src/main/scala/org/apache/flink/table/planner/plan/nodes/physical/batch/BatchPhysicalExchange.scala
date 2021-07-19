@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -75,7 +75,7 @@ class BatchPhysicalExchange(
   private def getExchangeMode: StreamExchangeMode = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
     if (tableConfig.getConfiguration.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-      .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString)) {
+      .equalsIgnoreCase(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString)) {
       StreamExchangeMode.BATCH
     } else {
       StreamExchangeMode.UNDEFINED
