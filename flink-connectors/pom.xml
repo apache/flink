@@ -48,6 +48,7 @@ under the License.
 		<module>flink-connector-hive</module>
 		<module>flink-connector-jdbc</module>
 		<module>flink-connector-rabbitmq</module>
+		<module>flink-connector-rabbitmq2</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
