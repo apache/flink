@@ -221,9 +221,9 @@ To define when to commit a partition, providing partition commit trigger:
     </tr>
     <tr>
         <td><h5>sink.partition-commit.delay</h5></td>
-        <td style="word-wrap: break-word;">0 s</td>
+        <td style="word-wrap: break-word;">0s</td>
         <td>Duration</td>
-        <td>The partition will not commit until the delay time. If it is a daily partition, should be '1 d', if it is a hourly partition, should be '1 h'.</td>
+        <td>The partition will not commit until the delay time. If it is a daily partition, should be '1d', if it is a hourly partition, should be '1h'.</td>
     </tr>
     <tr>
         <td><h5>sink.partition-commit.watermark-time-zone</h5></td>
@@ -427,7 +427,7 @@ CREATE TABLE fs_table (
   'connector'='filesystem',
   'path'='...',
   'format'='parquet',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.policy.kind'='success-file'
 );
 
@@ -465,7 +465,7 @@ CREATE TABLE fs_table (
   'path'='...',
   'format'='parquet',
   'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.trigger'='partition-time',
   'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- Assume user configured time zone is 'Asia/Shanghai'
   'sink.partition-commit.policy.kind'='success-file'

@@ -423,7 +423,7 @@ CREATE TABLE fs_table (
   'connector'='filesystem',
   'path'='...',
   'format'='parquet',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.policy.kind'='success-file'
 );
 
@@ -461,7 +461,7 @@ CREATE TABLE fs_table (
   'path'='...',
   'format'='parquet',
   'partition.time-extractor.timestamp-pattern'='$dt $hour:00:00',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.trigger'='partition-time',
   'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- 假定用户配置的时区是 'Asia/Shanghai'
   'sink.partition-commit.policy.kind'='success-file'

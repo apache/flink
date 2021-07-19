@@ -360,7 +360,7 @@ CREATE TABLE hive_table (
 ) PARTITIONED BY (dt STRING, hr STRING) STORED AS parquet TBLPROPERTIES (
   'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
   'sink.partition-commit.trigger'='partition-time',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.policy.kind'='metastore,success-file'
 );
 
@@ -392,7 +392,7 @@ CREATE TABLE hive_table (
 ) PARTITIONED BY (dt STRING, hr STRING) STORED AS parquet TBLPROPERTIES (
   'partition.time-extractor.timestamp-pattern'='$dt $hr:00:00',
   'sink.partition-commit.trigger'='partition-time',
-  'sink.partition-commit.delay'='1 h',
+  'sink.partition-commit.delay'='1h',
   'sink.partition-commit.watermark-time-zone'='Asia/Shanghai', -- Assume user configured time zone is 'Asia/Shanghai'
   'sink.partition-commit.policy.kind'='metastore,success-file'
 );
