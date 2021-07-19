@@ -15,18 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.glue.schema.registry.test;
+package org.apache.flink.glue.schema.registry.test.json;
 
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 
 import com.amazonaws.services.schemaregistry.common.AWSDeserializerInput;
 import com.amazonaws.services.schemaregistry.common.AWSSerializerInput;
-import com.amazonaws.services.schemaregistry.deserializers.AWSDeserializer;
-import com.amazonaws.services.schemaregistry.serializers.avro.AWSAvroSerializer;
+import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
+import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
+import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
-import org.apache.avro.generic.GenericRecord;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.services.glue.model.DataFormat;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -46,30 +47,32 @@ public class GSRKinesisPubsubClient {
         this.client = new KinesisPubsubClient(properties);
     }
 
-    public void sendMessage(String schema, String streamName, GenericRecord msg) {
+    public void sendMessage(String schema, String streamName, Object msg) {
         UUID schemaVersionId =
-                createSerializer()
-                        .registerSchema(
+                createSerializationFacade()
+                        .getOrRegisterSchemaVersion(
                                 AWSSerializerInput.builder()
                                         .schemaDefinition(schema)
+                                        .dataFormat(DataFormat.JSON.name())
                                         .schemaName(streamName)
                                         .transportName(streamName)
                                         .build());
 
-        client.sendMessage(streamName, createSerializer().serialize(msg, schemaVersionId));
+        client.sendMessage(
+                streamName,
+                createSerializationFacade().serialize(DataFormat.JSON, msg, schemaVersionId));
     }
 
     public List<Object> readAllMessages(String streamName) throws Exception {
-        AWSDeserializer awsDeserializer = createDeserializer();
-
         return client.readAllMessages(
                 streamName,
                 bytes ->
-                        awsDeserializer.deserialize(
-                                AWSDeserializerInput.builder()
-                                        .buffer(ByteBuffer.wrap(bytes))
-                                        .transportName(streamName)
-                                        .build()));
+                        createDeserializationFacade()
+                                .deserialize(
+                                        AWSDeserializerInput.builder()
+                                                .buffer(ByteBuffer.wrap(bytes))
+                                                .transportName(streamName)
+                                                .build()));
     }
 
     public void createStream(String stream, int shards, Properties props) throws Exception {
@@ -87,17 +90,18 @@ public class GSRKinesisPubsubClient {
         return configs;
     }
 
-    private AWSAvroSerializer createSerializer() {
-        return AWSAvroSerializer.builder()
-                .configs(getSerDeConfigs())
+    private GlueSchemaRegistrySerializationFacade createSerializationFacade() {
+        return GlueSchemaRegistrySerializationFacade.builder()
                 .credentialProvider(DefaultCredentialsProvider.builder().build())
+                .glueSchemaRegistryConfiguration(
+                        new GlueSchemaRegistryConfiguration(getSerDeConfigs()))
                 .build();
     }
 
-    private AWSDeserializer createDeserializer() {
-        return AWSDeserializer.builder()
-                .configs(getSerDeConfigs())
+    private GlueSchemaRegistryDeserializationFacade createDeserializationFacade() {
+        return GlueSchemaRegistryDeserializationFacade.builder()
                 .credentialProvider(DefaultCredentialsProvider.builder().build())
+                .configs(getSerDeConfigs())
                 .build();
     }
 }

@@ -90,8 +90,26 @@ Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 
 
 2. `JsonDeserializationSchema`（和 `JSONKeyValueDeserializationSchema`）将序列化的 JSON 转化为 ObjectNode 对象，可以使用 `objectNode.get("field").as(Int/String/...)()` 来访问某个字段。
     KeyValue objectNode 包含一个含所有字段的 key 和 values 字段，以及一个可选的"metadata"字段，可以访问到消息的 offset、partition、topic 等信息。
+    
+3. `GlueSchemaRegistryJsonDeserializationSchema` 可以在[AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)
+    查找编写器的 schema（用于编写记录的 schema）。使用这些反序列化 schema 记录将读取从 AWS Glue Schema Registry 检索到的 schema 转换为代表通用记录的`com.amazonaws.services.schemaregistry.serializers.json.JsonDataWithSchema`
+    或者由[mbknor-jackson-jsonSchema](https://github.com/mbknor/mbknor-jackson-jsonSchema)生成的 Java POJO. 
+    
+    <br>要使用此反序列化 schema 必须添加以下依赖：
+    
+{{< tabs "8c6721c7-4a48-496e-b0fe-6522cf6a5e13" >}}
+{{< tab "GlueSchemaRegistryJsonDeserializationSchema" >}}
+```xml
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-jsonschema-confluent-registry</artifactId>
+  <version>{{< version >}}</version>
+</dependency>
+```
+{{< /tab >}}
+{{< /tabs >}}
 
-3. `AvroDeserializationSchema` 使用静态提供的 schema 读取 Avro 格式的序列化数据。
+4. `AvroDeserializationSchema` 使用静态提供的 schema 读取 Avro 格式的序列化数据。
     它能够从 Avro 生成的类（`AvroDeserializationSchema.forSpecific(...)`）中推断出 schema，或者可以与 `GenericRecords`
     一起使用手动提供的 schema（用 `AvroDeserializationSchema.forGeneric(...)`）。此反序列化 schema 要求序列化记录不能包含嵌入式架构！
 

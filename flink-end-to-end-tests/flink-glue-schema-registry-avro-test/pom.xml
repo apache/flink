@@ -21,23 +21,26 @@ under the License.
 		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<parent>
-		<artifactId>flink-formats</artifactId>
+		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
 		<version>1.14-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-avro-glue-schema-registry</artifactId>
-	<name>Flink : Formats : Avro AWS Glue Schema Registry</name>
+	<artifactId>flink-glue-schema-registry-avro-test</artifactId>
+	<name>Flink : E2E Tests : Avro AWS Glue Schema Registry</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.1</glue.schema.registry.version>
+		<httpclient.version>4.5.9</httpclient.version>
+		<httpcore.version>4.4.11</httpcore.version>
+		<aws.sdk.version>1.11.754</aws.sdk.version>
 		<aws.sdkv2.version>2.16.92</aws.sdkv2.version>
 		<reactivestreams.version>1.0.2</reactivestreams.version>
 		<lz4.version>1.6.0</lz4.version>
 		<netty.version>4.1.53.Final</netty.version>
+		<guava.version>29.0-jre</guava.version>
 	</properties>
 
 	<!-- ============================= -->
@@ -82,7 +85,6 @@ under the License.
 				<groupId>software.amazon.awssdk</groupId>
 				<artifactId>apache-client</artifactId>
 				<version>${aws.sdkv2.version}</version>
-				<scope>test</scope>
 			</dependency>
 
 			<dependency>
@@ -146,17 +148,44 @@ under the License.
 				<version>${netty.version}</version>
 			</dependency>
 
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>${guava.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpclient</artifactId>
+				<version>${httpclient.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.apache.httpcomponents</groupId>
+				<artifactId>httpcore</artifactId>
+				<version>${httpcore.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<dependencies>
-		<!-- core dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
+			<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
-			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-kinesis-test_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -166,16 +195,65 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>software.amazon.glue</groupId>
-			<artifactId>schema-registry-serde</artifactId>
-			<version>${glue.schema.registry.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-avro-glue-schema-registry</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
-			<groupId>software.amazon.glue</groupId>
-			<artifactId>schema-registry-common</artifactId>
-			<version>${glue.schema.registry.version}</version>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-kinesis_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sdk-core</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-kinesis</artifactId>
+			<version>${aws.sdk.version}</version>
+		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<!-- Use the shade plugin to build a fat jar for the Kinesis connector test -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>fat-jar-glue-schema-registry</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<shadeTestJar>false</shadeTestJar>
+							<shadedArtifactAttached>false</shadedArtifactAttached>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<transformers>
+								<transformer
+									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>org.apache.flink.glue.schema.registry.test.GlueSchemaRegistryExample
+									</mainClass>
+								</transformer>
+							</transformers>
+							<finalName>GlueSchemaRegistryExample</finalName>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
 </project>

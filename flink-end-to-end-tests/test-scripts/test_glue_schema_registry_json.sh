@@ -25,7 +25,7 @@
 ################################################################################
 source "$(dirname "$0")"/common.sh
 
-echo "Running streaming kinesis with glue schema registry "
+echo "Running streaming kinesis with AWS Glue Schema Registry using JSON data format "
 
 # Kinesalite doesn't support CBOR
 export AWS_CBOR_DISABLE=1
@@ -37,10 +37,10 @@ export AWS_SECRET_ACCESS_KEY=${IT_CASE_GLUE_SCHEMA_SECRET_KEY}
 KINESALITE_PORT=4567
 
 function start_kinesalite {
-    #docker run -d --rm --name flink-glue-schema-registry-test -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
+    #docker run -d --rm --name flink-glue-schema-registry-json-test -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
     # override entrypoint to enable SSL
     docker run -d --rm --entrypoint "/tini" \
-        --name flink-glue-schema-registry-test \
+        --name flink-glue-schema-registry-json-test \
         -p ${KINESALITE_PORT}:${KINESALITE_PORT} \
         instructure/kinesalite -- \
         /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
@@ -53,13 +53,13 @@ if ! retry_times ${START_KINESALITE_MAX_RETRIES} 0 start_kinesalite; then
 fi
 
 # reveal potential issues with the container in the CI environment
-docker logs flink-glue-schema-registry-test
+docker logs flink-glue-schema-registry-json-test
 
 function test_cleanup {
   # job needs to stop before kinesalite
   stop_cluster
   echo "terminating kinesalite"
-  docker kill flink-glue-schema-registry-test
+  docker kill flink-glue-schema-registry-json-test
 }
 on_exit test_cleanup
 
@@ -69,10 +69,21 @@ DISABLE_CERT_CHECKING_JAVA_OPTS="-Dorg.apache.flink.kinesis.shaded.com.amazonaws
 export FLINK_ENV_JAVA_OPTS=${DISABLE_CERT_CHECKING_JAVA_OPTS}
 start_cluster
 
-TEST_JAR="${END_TO_END_DIR}/flink-glue-schema-registry-test/target/GlueSchemaRegistryExample.jar"
+echo "Start testing for generic JSON records"
+TEST_JAR="${END_TO_END_DIR}/flink-glue-schema-registry-json-test/target/GlueSchemaRegistryGenericKinesisExample.jar"
 JVM_ARGS=${DISABLE_CERT_CHECKING_JAVA_OPTS} \
-$FLINK_DIR/bin/flink run -p 1 -c org.apache.flink.glue.schema.registry.test.GlueSchemaRegistryExampleTest $TEST_JAR \
-  --input-stream gsr-input-stream --output-stream gsr-output-stream \
+$FLINK_DIR/bin/flink run -p 1 -c org.apache.flink.glue.schema.registry.test.json.generic.GlueSchemaRegistryGenericKinesisExampleTest $TEST_JAR \
+  --input-stream gsr-json-generic-input-stream --output-stream gsr-json-generic-output-stream \
   --aws.endpoint https://localhost:${KINESALITE_PORT} --aws.credentials.provider.basic.secretkey fakekey --aws.credentials.provider.basic.accesskeyid fakeid \
   --flink.stream.initpos TRIM_HORIZON \
   --flink.partition-discovery.interval-millis 1000
+
+# Uncomment the following to run the example test using specific JSON records
+#echo "Start testing for specific JSON records"
+#TEST_JAR="${END_TO_END_DIR}/flink-glue-schema-registry-json-test/target/GlueSchemaRegistryPojoKinesisExample.jar"
+#JVM_ARGS=${DISABLE_CERT_CHECKING_JAVA_OPTS} \
+#$FLINK_DIR/bin/flink run -p 1 -c org.apache.flink.glue.schema.registry.test.json.specific.GlueSchemaRegistryPojoKinesisExampleTest $TEST_JAR \
+#  --input-stream gsr-json-specific-input-stream --output-stream gsr-json-specific-output-stream \
+#  --aws.endpoint https://localhost:${KINESALITE_PORT} --aws.credentials.provider.basic.secretkey fakekey --aws.credentials.provider.basic.accesskeyid fakeid \
+#  --flink.stream.initpos TRIM_HORIZON \
+#  --flink.partition-discovery.interval-millis 1000
