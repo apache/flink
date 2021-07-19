@@ -511,7 +511,7 @@ public final class DataTypeUtils {
                 builder.setNullable(structuredType.isNullable());
                 builder.setFinal(structuredType.isFinal());
                 builder.setInstantiable(structuredType.isInstantiable());
-                builder.comparision(structuredType.getComparision());
+                builder.comparison(structuredType.getComparison());
                 structuredType.getDescription().ifPresent(builder::description);
 
                 newLogicalType = builder.build();

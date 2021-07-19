@@ -47,6 +47,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
 import org.apache.calcite.util.{Sarg, TimestampString}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionDefinition}
 
 import scala.collection.JavaConversions._
 
@@ -801,12 +802,26 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
             .generate(ctx, operands, resultType)
 
-      case bsf: BridgingSqlFunction
-        if bsf.getDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
-          generateWatermark(ctx, contextTerm, resultType)
-
-      case _: BridgingSqlFunction =>
-        new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+      case bsf: BridgingSqlFunction =>
+        bsf.getDefinition match {
+          case functionDefinition : FunctionDefinition
+            if functionDefinition eq BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
+            generateWatermark(ctx, contextTerm, resultType)
+          case functionDefinition : FunctionDefinition
+            if functionDefinition eq BuiltInFunctionDefinitions.GREATEST =>
+            operands.foreach { operand =>
+              requireComparable(operand)
+            }
+            generateGreatestLeast(resultType, operands)
+          case functionDefinition : FunctionDefinition
+            if functionDefinition eq BuiltInFunctionDefinitions.LEAST =>
+            operands.foreach { operand =>
+              requireComparable(operand)
+            }
+            generateGreatestLeast(resultType, operands, false)
+          case _ =>
+            new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)
+        }
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>

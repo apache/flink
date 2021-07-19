@@ -820,7 +820,7 @@ object GenerateUtils {
           if (!classOf[Comparable[_]].isAssignableFrom(clazz)) {
             throw new CodeGenException(
               s"Raw type class '$clazz' must implement ${className[Comparable[_]]} to be used " +
-                s"in a comparision of two '${rawType.asSummaryString()}' types.")
+                s"in a comparison of two '${rawType.asSummaryString()}' types.")
           }
           val serializer = rawType.getTypeSerializer
           val serializerTerm = ctx.addReusableObject(serializer, "serializer")

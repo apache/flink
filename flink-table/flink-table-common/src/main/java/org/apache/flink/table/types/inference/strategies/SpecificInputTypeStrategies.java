@@ -63,14 +63,14 @@ public final class SpecificInputTypeStrategies {
      * arguments.
      */
     public static final InputTypeStrategy TWO_FULLY_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparision.FULL);
+            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.FULL);
 
     /**
      * Strategy that checks all types are equals comparable with each other. Requires exactly two
      * arguments.
      */
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
-            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparision.EQUALS);
+            comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
 
     private SpecificInputTypeStrategies() {
         // no instantiation

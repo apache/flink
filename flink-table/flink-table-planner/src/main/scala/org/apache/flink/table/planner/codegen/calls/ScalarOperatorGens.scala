@@ -1767,6 +1767,57 @@ object ScalarOperatorGens {
     }
   }
 
+  /**
+   * Returns the greatest or least value of the list of arguments,
+   * returns NULL if any argument is NULL.
+   */
+  def generateGreatestLeast(
+      resultType: LogicalType,
+      elements: Seq[GeneratedExpression],
+      greatest: Boolean = true)
+  : GeneratedExpression = {
+    val Seq(result, cur, nullTerm) = newNames("result", "cur", "nullTerm")
+    val widerType = toScala(findCommonType(elements.map(element => element.resultType)))
+      .orElse(throw new CodeGenException(s"Unable to find common type for $elements."))
+    val resultTypeTerm = boxedTypeTermForType(widerType.get)
+
+    def castIfNumeric(t: GeneratedExpression): String = {
+      if (TypeCheckUtils.isNumeric(widerType.get)) {
+         s"${numericCasting(t.resultType, widerType.get).apply(t.resultTerm)}"
+      } else {
+         s"${t.resultTerm}"
+      }
+    }
+
+    val elementsCode = elements.map { element =>
+      s"""
+         | ${element.code}
+         | if (!$nullTerm) {
+         |   $resultTypeTerm $cur = ${castIfNumeric(element)};
+         |   if (${element.nullTerm}) {
+         |     $nullTerm = true;
+         |   } else {
+         |     int compareResult = $result.compareTo($cur);
+         |     if (($greatest && compareResult < 0) || (compareResult > 0 && !$greatest)) {
+         |       $result = $cur;
+         |     }
+         |   }
+         | }
+       """.stripMargin
+    }.mkString("\n")
+
+    val code =
+      s"""
+         | $resultTypeTerm $result = ${castIfNumeric(elements.head)};
+         | boolean $nullTerm = false;
+         | $elementsCode
+         | if ($nullTerm) {
+         |   $result = null;
+         | }
+       """.stripMargin
+    GeneratedExpression(result, nullTerm, code, resultType)
+  }
+
   def generateMap(
       ctx: CodeGeneratorContext,
       resultType: LogicalType,
