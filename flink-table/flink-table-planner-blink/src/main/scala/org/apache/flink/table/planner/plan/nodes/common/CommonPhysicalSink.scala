@@ -91,7 +91,8 @@ class CommonPhysicalSink (
         throw new TableException("`DataStreamSinkProvider` is not allowed to work with" +
           " `ParallelismProvider`, " + "please see document of `ParallelismProvider`")
       case provider: DataStreamSinkProvider =>
-        val dataStream = new DataStream(env, inputTransformation).filter(enforcer)
+        val dataStream = new DataStream(env, inputTransformation)
+          .filter(enforcer).setParallelism(inputTransformation.getParallelism)
         provider.consumeDataStream(dataStream).getTransformation.asInstanceOf[Transformation[Any]]
       case _ =>
         val sinkFunction = runtimeProvider match {
