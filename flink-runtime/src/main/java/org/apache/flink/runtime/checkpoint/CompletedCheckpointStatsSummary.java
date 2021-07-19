@@ -27,29 +27,31 @@ public class CompletedCheckpointStatsSummary implements Serializable {
 
     private static final long serialVersionUID = 5784360461635814038L;
 
+    private static final int HISTOGRAM_WINDOW_SIZE = 10_000; // ~300Kb per job with four histograms
+
     /** State size statistics for all completed checkpoints. */
-    private final MinMaxAvgStats stateSize;
+    private final StatsSummary stateSize;
 
     /** Duration statistics for all completed checkpoints. */
-    private final MinMaxAvgStats duration;
+    private final StatsSummary duration;
 
-    private final MinMaxAvgStats processedData;
+    private final StatsSummary processedData;
 
-    private final MinMaxAvgStats persistedData;
+    private final StatsSummary persistedData;
 
     CompletedCheckpointStatsSummary() {
         this(
-                new MinMaxAvgStats(),
-                new MinMaxAvgStats(),
-                new MinMaxAvgStats(),
-                new MinMaxAvgStats());
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE),
+                new StatsSummary(HISTOGRAM_WINDOW_SIZE));
     }
 
     private CompletedCheckpointStatsSummary(
-            MinMaxAvgStats stateSize,
-            MinMaxAvgStats duration,
-            MinMaxAvgStats processedData,
-            MinMaxAvgStats persistedData) {
+            StatsSummary stateSize,
+            StatsSummary duration,
+            StatsSummary processedData,
+            StatsSummary persistedData) {
 
         this.stateSize = checkNotNull(stateSize);
         this.duration = checkNotNull(duration);
@@ -74,12 +76,12 @@ public class CompletedCheckpointStatsSummary implements Serializable {
      *
      * @return A snapshot of the current state.
      */
-    CompletedCheckpointStatsSummary createSnapshot() {
-        return new CompletedCheckpointStatsSummary(
-                stateSize.createSnapshot(),
+    CompletedCheckpointStatsSummarySnapshot createSnapshot() {
+        return new CompletedCheckpointStatsSummarySnapshot(
                 duration.createSnapshot(),
                 processedData.createSnapshot(),
-                persistedData.createSnapshot());
+                persistedData.createSnapshot(),
+                stateSize.createSnapshot());
     }
 
     /**
@@ -87,7 +89,7 @@ public class CompletedCheckpointStatsSummary implements Serializable {
      *
      * @return Summary stats for the state size.
      */
-    public MinMaxAvgStats getStateSizeStats() {
+    public StatsSummary getStateSizeStats() {
         return stateSize;
     }
 
@@ -96,15 +98,15 @@ public class CompletedCheckpointStatsSummary implements Serializable {
      *
      * @return Summary stats for the duration.
      */
-    public MinMaxAvgStats getEndToEndDurationStats() {
+    public StatsSummary getEndToEndDurationStats() {
         return duration;
     }
 
-    public MinMaxAvgStats getProcessedDataStats() {
+    public StatsSummary getProcessedDataStats() {
         return processedData;
     }
 
-    public MinMaxAvgStats getPersistedDataStats() {
+    public StatsSummary getPersistedDataStats() {
         return persistedData;
     }
 }

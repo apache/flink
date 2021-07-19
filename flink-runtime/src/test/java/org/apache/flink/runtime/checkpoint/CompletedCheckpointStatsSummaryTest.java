@@ -25,6 +25,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -66,20 +67,20 @@ public class CompletedCheckpointStatsSummaryTest {
             assertEquals(i + 1, summary.getPersistedDataStats().getCount());
         }
 
-        MinMaxAvgStats stateSizeStats = summary.getStateSizeStats();
+        StatsSummary stateSizeStats = summary.getStateSizeStats();
         assertEquals(stateSize, stateSizeStats.getMinimum());
         assertEquals(stateSize + numCheckpoints - 1, stateSizeStats.getMaximum());
 
-        MinMaxAvgStats durationStats = summary.getEndToEndDurationStats();
+        StatsSummary durationStats = summary.getEndToEndDurationStats();
         assertEquals(ackTimestamp - triggerTimestamp, durationStats.getMinimum());
         assertEquals(
                 ackTimestamp - triggerTimestamp + numCheckpoints - 1, durationStats.getMaximum());
 
-        MinMaxAvgStats processedDataStats = summary.getProcessedDataStats();
+        StatsSummary processedDataStats = summary.getProcessedDataStats();
         assertEquals(processedData, processedDataStats.getMinimum());
         assertEquals(processedData + numCheckpoints - 1, processedDataStats.getMaximum());
 
-        MinMaxAvgStats persistedDataStats = summary.getPersistedDataStats();
+        StatsSummary persistedDataStats = summary.getPersistedDataStats();
         assertEquals(persistedData, persistedDataStats.getMinimum());
         assertEquals(persistedData + numCheckpoints - 1, persistedDataStats.getMaximum());
     }
@@ -112,5 +113,36 @@ public class CompletedCheckpointStatsSummaryTest {
                 persistedData,
                 latest,
                 null);
+    }
+
+    /** Simply test that quantiles can be computed and fields are not permuted. */
+    @Test
+    public void testQuantiles() {
+        int stateSize = 100;
+        int processedData = 200;
+        int persistedData = 300;
+        long triggerTimestamp = 1234;
+        long lastAck = triggerTimestamp + 123;
+
+        CompletedCheckpointStatsSummary summary = new CompletedCheckpointStatsSummary();
+        summary.updateSummary(
+                new CompletedCheckpointStats(
+                        1L,
+                        triggerTimestamp,
+                        CheckpointProperties.forSavepoint(false),
+                        1,
+                        singletonMap(new JobVertexID(), new TaskStateStats(new JobVertexID(), 1)),
+                        1,
+                        stateSize,
+                        processedData,
+                        persistedData,
+                        new SubtaskStateStats(0, lastAck),
+                        ""));
+        CompletedCheckpointStatsSummarySnapshot snapshot = summary.createSnapshot();
+        assertEquals(stateSize, snapshot.getStateSizeStats().getQuantile(1), 0);
+        assertEquals(processedData, snapshot.getProcessedDataStats().getQuantile(1), 0);
+        assertEquals(persistedData, snapshot.getPersistedDataStats().getQuantile(1), 0);
+        assertEquals(
+                lastAck - triggerTimestamp, snapshot.getEndToEndDurationStats().getQuantile(1), 0);
     }
 }

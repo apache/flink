@@ -75,6 +75,11 @@ export interface CheckPointMinMaxAvgStatisticsInterface {
   min: number;
   max: number;
   avg: number;
+  p50: number;
+  p90: number;
+  p95: number;
+  p99: number;
+  p999: number;
 }
 
 export interface CheckPointCompletedStatisticsInterface {

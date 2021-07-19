@@ -18,10 +18,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
+
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 
-/** Helper for keeping track of min/max/average summaries. */
-public class MinMaxAvgStats implements Serializable {
+/**
+ * Aggregated values of some measurement such as min/max/average state size. Used in reporting
+ * {@link CompletedCheckpointStatsSummary checkpoint statistics}.
+ */
+public class StatsSummary implements Serializable {
 
     private static final long serialVersionUID = 1769601903483446707L;
 
@@ -37,13 +45,21 @@ public class MinMaxAvgStats implements Serializable {
     /** Count of added values. */
     private long count;
 
-    MinMaxAvgStats() {}
+    /**
+     * Histogram for the values seen. Must be serializable so that history server can display it.
+     * Not used for min/max/sum because it is a sliding window histogram.
+     */
+    @Nullable private final Histogram histogram;
 
-    private MinMaxAvgStats(long min, long max, long sum, long count) {
-        this.min = min;
-        this.max = max;
-        this.sum = sum;
-        this.count = count;
+    StatsSummary() {
+        this(0);
+    }
+
+    StatsSummary(int histogramWindowSize) {
+        this.histogram =
+                histogramWindowSize > 0
+                        ? new DescriptiveStatisticsHistogram(histogramWindowSize)
+                        : null;
     }
 
     /**
@@ -63,6 +79,9 @@ public class MinMaxAvgStats implements Serializable {
 
             count++;
             sum += value;
+            if (histogram != null) {
+                histogram.update(value);
+            }
         }
     }
 
@@ -71,8 +90,9 @@ public class MinMaxAvgStats implements Serializable {
      *
      * @return A snapshot of the current state.
      */
-    MinMaxAvgStats createSnapshot() {
-        return new MinMaxAvgStats(min, max, sum, count);
+    public StatsSummarySnapshot createSnapshot() {
+        return new StatsSummarySnapshot(
+                min, max, sum, count, histogram == null ? null : histogram.getStatistics());
     }
 
     /**
