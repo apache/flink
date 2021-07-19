@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.junit.Test
 
@@ -134,9 +134,12 @@ class WindowTableFunctionTest extends TableTestBase {
 
     thrown.expectMessage("Currently Flink doesn't support individual window " +
       "table-valued function TUMBLE(time_col=[rowtime], size=[15 min]).\n " +
-      "Please use window table-valued function with aggregate together " +
-      "using window_start and window_end as group keys.")
-    thrown.expect(classOf[UnsupportedOperationException])
+      "Please use window table-valued function with the following computations:\n" +
+      "1. aggregate using window_start and window_end as group keys.\n" +
+      "2. topN using window_start and window_end as partition key.\n" +
+      "3. join with join condition contains window starts equality of input tables " +
+      "and window ends equality of input tables.\n")
+    thrown.expect(classOf[TableException])
     util.verifyExplain(sql)
   }
 

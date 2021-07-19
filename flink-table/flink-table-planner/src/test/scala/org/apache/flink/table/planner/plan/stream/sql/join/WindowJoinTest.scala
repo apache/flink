@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.stream.sql.join
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
@@ -137,7 +138,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_TumbleOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_TumbleOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -151,7 +152,10 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -239,7 +243,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_HopOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_HopOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -255,7 +259,10 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   @Test
@@ -343,7 +350,7 @@ class WindowJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCantMergeWindowTVF_CumulateOnProctime(): Unit = {
+  def testUnsupportedWindowTVF_CumulateOnProctime(): Unit = {
     val sql =
       """
         |SELECT L.a, L.b, L.c, R.a, R.b, R.c
@@ -359,7 +366,10 @@ class WindowJoinTest extends TableTestBase {
         |) R
         |ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.a = R.a
       """.stripMargin
-    util.verifyRelPlan(sql)
+
+    thrown.expectMessage("Processing time Window Join is not supported yet.")
+    thrown.expect(classOf[TableException])
+    util.verifyExplain(sql)
   }
 
   // ----------------------------------------------------------------------------------------
