@@ -6,7 +6,7 @@ public class TestSplitJavaCode {
         this.b = b;
     }
 
-    public void myFun(int a) {
+    public void myFun1(int a) {
         this.a = a;
         b[0] += b[1];
         b[1] += b[2];
@@ -32,6 +32,22 @@ public class TestSplitJavaCode {
             }
         } else {
             b[0] += 50;
+            b[1] += 100;
+            b[2] += 150;
+            b[3] += 200;
+            b[4] += 250;
+            b[5] += 300;
+            b[6] += 350;
+            return;
         }
+    }
+
+    public int myFun2(int[] a) {
+        a[0] += 1;
+        a[1] += 2;
+        a[2] += 3;
+        a[3] += 4;
+        a[4] += 5;
+        return a[0] + a[1] + a[2] + a[3] + a[4];
     }
 }

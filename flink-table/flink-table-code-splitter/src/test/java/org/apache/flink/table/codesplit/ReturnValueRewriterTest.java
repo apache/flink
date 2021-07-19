@@ -19,25 +19,30 @@ package org.apache.flink.table.codesplit;
 
 import org.junit.Test;
 
-/** Tests for {@link IfStatementRewriter}. */
-public class IfStatementRewriterTest extends CodeRewriterTestBase<IfStatementRewriter> {
+/** Tests for {@link ReturnValueRewriter}. */
+public class ReturnValueRewriterTest extends CodeRewriterTestBase<ReturnValueRewriter> {
 
-    public IfStatementRewriterTest() {
-        super("if", code -> new IfStatementRewriter(code, 20));
+    public ReturnValueRewriterTest() {
+        super("return", code -> new ReturnValueRewriter(code, 50));
     }
 
     @Test
-    public void testIfStatementRewrite() {
-        runTest("TestIfStatementRewrite");
-    }
-
-    @Test
-    public void testNotRewriteIfStatementInFunctionWithReturnValue() {
-        runTest("TestNotRewriteIfStatementInFunctionWithReturnValue");
+    public void testRewriteReturnValue() {
+        runTest("TestRewriteReturnValue");
     }
 
     @Test
     public void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
+    }
+
+    @Test
+    public void testNotRewrite() {
+        runTest("TestNotRewrite");
+    }
+
+    @Test
+    public void testSkipAnonymousClassAndLambda() {
+        runTest("TestSkipAnonymousClassAndLambda");
     }
 }

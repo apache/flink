@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.atn.PredictionMode;
 
@@ -28,6 +29,10 @@ import java.util.LinkedHashSet;
 
 /**
  * Extract true and false branch of IFs and ELSEs in long methods into two smaller methods.
+ *
+ * <p>This rewriter only deals with functions without return values. Functions with return values
+ * should have been converted by {@link ReturnValueRewriter}. Also, this rewriter will not extract
+ * blocks containing <code>return</code> statements for correctness.
  *
  * <p><i>Before</i>
  *
@@ -70,7 +75,7 @@ import java.util.LinkedHashSet;
  * </code></pre>
  */
 @Internal
-public class IfStatementRewriter {
+public class IfStatementRewriter implements CodeRewriter {
 
     private final long maxMethodLength;
     private IfStatementVisitor visitor;
@@ -135,22 +140,7 @@ public class IfStatementRewriter {
                 if (blockStatementContext.statement() != null
                         && blockStatementContext.statement().IF() != null
                         && blockStatementContext.statement().getText().length() > maxMethodLength) {
-                    if (blockStatementContext.statement().statement(0) != null
-                            && blockStatementContext.statement().statement(0).block() != null
-                            && blockStatementContext
-                                            .statement()
-                                            .statement(0)
-                                            .block()
-                                            .blockStatement()
-                                    != null
-                            && blockStatementContext
-                                            .statement()
-                                            .statement(0)
-                                            .block()
-                                            .blockStatement()
-                                            .size()
-                                    > 1) {
-
+                    if (shouldExtract(blockStatementContext.statement().statement(0))) {
                         long counter = CodeSplitUtil.getCounter().incrementAndGet();
 
                         String methodDef =
@@ -186,21 +176,7 @@ public class IfStatementRewriter {
                         rewriteCount++;
                     }
 
-                    if (blockStatementContext.statement().statement(1) != null
-                            && blockStatementContext.statement().statement(1).block() != null
-                            && blockStatementContext
-                                            .statement()
-                                            .statement(1)
-                                            .block()
-                                            .blockStatement()
-                                    != null
-                            && blockStatementContext
-                                            .statement()
-                                            .statement(1)
-                                            .block()
-                                            .blockStatement()
-                                            .size()
-                                    > 1) {
+                    if (shouldExtract(blockStatementContext.statement().statement(1))) {
                         long counter = CodeSplitUtil.getCounter().incrementAndGet();
 
                         String methodDef =
@@ -240,6 +216,17 @@ public class IfStatementRewriter {
             return null;
         }
 
+        private boolean shouldExtract(JavaParser.StatementContext ctx) {
+            return ctx != null
+                    && ctx.block() != null
+                    && ctx.block().blockStatement() != null
+                    // if there is only one statement in the block it's useless to extract
+                    // it into a separate function
+                    && ctx.block().blockStatement().size() > 1
+                    // should not extract blocks with return statements
+                    && getNumReturnsInContext(ctx.block()) == 0;
+        }
+
         private String rewriteAndGetCode() {
             JavaParser javaParser = new JavaParser(tokenStream);
             javaParser.getInterpreter().setPredictionMode(PredictionMode.SLL);
@@ -249,6 +236,25 @@ public class IfStatementRewriter {
 
         private boolean hasRewrite() {
             return rewriteCount > 0L;
+        }
+    }
+
+    private int getNumReturnsInContext(ParserRuleContext ctx) {
+        ReturnCounter counter = new ReturnCounter();
+        counter.visit(ctx);
+        return counter.returnCount;
+    }
+
+    private static class ReturnCounter extends JavaParserBaseVisitor<Void> {
+
+        private int returnCount = 0;
+
+        @Override
+        public Void visitStatement(JavaParser.StatementContext ctx) {
+            if (ctx.RETURN() != null) {
+                returnCount++;
+            }
+            return visitChildren(ctx);
         }
     }
 }

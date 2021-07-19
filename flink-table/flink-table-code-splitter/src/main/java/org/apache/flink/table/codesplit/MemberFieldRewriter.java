@@ -68,7 +68,7 @@ import java.util.Stack;
  * </code></pre>
  */
 @Internal
-public class MemberFieldRewriter {
+public class MemberFieldRewriter implements CodeRewriter {
 
     private final int maxFieldCount;
 
@@ -170,6 +170,11 @@ public class MemberFieldRewriter {
                             .variableDeclarator(0)
                             .variableDeclaratorId()
                             .getText();
+            if ("references".equals(fieldName)) {
+                // this is a special field name used by all code generator
+                return null;
+            }
+
             String type = ctx.fieldDeclaration().typeType().getText();
             String init =
                     CodeSplitUtil.getContextString(
