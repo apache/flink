@@ -216,7 +216,7 @@ public class FlinkKafkaProducer<IN>
     protected final Properties producerConfig;
 
     /** The name of the default topic this producer is writing data to. */
-    protected final String defaultTopicId;
+    protected final String defaultTopicName;
 
     /**
      * (Serializable) SerializationSchema for turning objects used with Flink into. byte[] for
@@ -274,12 +274,12 @@ public class FlinkKafkaProducer<IN>
      * Creates a FlinkKafkaProducer for a given topic. The sink produces a DataStream to the topic.
      *
      * @param brokerList Comma separated addresses of the brokers
-     * @param topicId ID of the Kafka topic.
+     * @param topicName Name of the Kafka topic.
      * @param serializationSchema User defined (keyless) serialization schema.
      */
     public FlinkKafkaProducer(
-            String brokerList, String topicId, SerializationSchema<IN> serializationSchema) {
-        this(topicId, serializationSchema, getPropertiesFromBrokerList(brokerList));
+            String brokerList, String topicName, SerializationSchema<IN> serializationSchema) {
+        this(topicName, serializationSchema, getPropertiesFromBrokerList(brokerList));
     }
 
     /**
@@ -292,16 +292,16 @@ public class FlinkKafkaProducer<IN>
      * <p>To use a custom partitioner, please use {@link #FlinkKafkaProducer(String,
      * SerializationSchema, Properties, Optional)} instead.
      *
-     * @param topicId ID of the Kafka topic.
+     * @param topicName Name of the Kafka topic.
      * @param serializationSchema User defined key-less serialization schema.
      * @param producerConfig Properties with the producer configuration.
      */
     public FlinkKafkaProducer(
-            String topicId,
+            String topicName,
             SerializationSchema<IN> serializationSchema,
             Properties producerConfig) {
         this(
-                topicId,
+                topicName,
                 serializationSchema,
                 producerConfig,
                 Optional.of(new FlinkFixedPartitioner<>()));
@@ -316,7 +316,7 @@ public class FlinkKafkaProducer<IN>
      * have an attached key. Therefore, if a partitioner is also not provided, records will be
      * distributed to Kafka partitions in a round-robin fashion.
      *
-     * @param topicId The topic to write data to
+     * @param topicName The topic to write data to
      * @param serializationSchema A key-less serializable serialization schema for turning user
      *     objects into a kafka-consumable byte[]
      * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is
@@ -326,12 +326,12 @@ public class FlinkKafkaProducer<IN>
      *     partitions in a round-robin fashion.
      */
     public FlinkKafkaProducer(
-            String topicId,
+            String topicName,
             SerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             Optional<FlinkKafkaPartitioner<IN>> customPartitioner) {
         this(
-                topicId,
+                topicName,
                 serializationSchema,
                 producerConfig,
                 customPartitioner.orElse(null),
@@ -348,7 +348,7 @@ public class FlinkKafkaProducer<IN>
      * have an attached key. Therefore, if a partitioner is also not provided, records will be
      * distributed to Kafka partitions in a round-robin fashion.
      *
-     * @param topicId The topic to write data to
+     * @param topicName The topic to write data to
      * @param serializationSchema A key-less serializable serialization schema for turning user
      *     objects into a kafka-consumable byte[]
      * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is
@@ -362,18 +362,18 @@ public class FlinkKafkaProducer<IN>
      *     FlinkKafkaProducer.Semantic#EXACTLY_ONCE}).
      */
     public FlinkKafkaProducer(
-            String topicId,
+            String topicName,
             SerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             @Nullable FlinkKafkaPartitioner<IN> customPartitioner,
             FlinkKafkaProducer.Semantic semantic,
             int kafkaProducersPoolSize) {
         this(
-                topicId,
+                topicName,
                 null,
                 null,
                 new KafkaSerializationSchemaWrapper<>(
-                        topicId, customPartitioner, false, serializationSchema),
+                        topicName, customPartitioner, false, serializationSchema),
                 producerConfig,
                 semantic,
                 kafkaProducersPoolSize);
@@ -392,16 +392,16 @@ public class FlinkKafkaProducer<IN>
      * KeyedSerializationSchema, Properties, Optional)} instead.
      *
      * @param brokerList Comma separated addresses of the brokers
-     * @param topicId ID of the Kafka topic.
+     * @param topicName Name of the Kafka topic.
      * @param serializationSchema User defined serialization schema supporting key/value messages
      * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties,
      *     FlinkKafkaProducer.Semantic)}
      */
     @Deprecated
     public FlinkKafkaProducer(
-            String brokerList, String topicId, KeyedSerializationSchema<IN> serializationSchema) {
+            String brokerList, String topicName, KeyedSerializationSchema<IN> serializationSchema) {
         this(
-                topicId,
+                topicName,
                 serializationSchema,
                 getPropertiesFromBrokerList(brokerList),
                 Optional.of(new FlinkFixedPartitioner<IN>()));
@@ -417,7 +417,7 @@ public class FlinkKafkaProducer<IN>
      * <p>To use a custom partitioner, please use {@link #FlinkKafkaProducer(String,
      * KeyedSerializationSchema, Properties, Optional)} instead.
      *
-     * @param topicId ID of the Kafka topic.
+     * @param topicName Name of the Kafka topic.
      * @param serializationSchema User defined serialization schema supporting key/value messages
      * @param producerConfig Properties with the producer configuration.
      * @deprecated use {@link #FlinkKafkaProducer(String, KafkaSerializationSchema, Properties,
@@ -425,11 +425,11 @@ public class FlinkKafkaProducer<IN>
      */
     @Deprecated
     public FlinkKafkaProducer(
-            String topicId,
+            String topicName,
             KeyedSerializationSchema<IN> serializationSchema,
             Properties producerConfig) {
         this(
-                topicId,
+                topicName,
                 serializationSchema,
                 producerConfig,
                 Optional.of(new FlinkFixedPartitioner<IN>()));
@@ -442,7 +442,7 @@ public class FlinkKafkaProducer<IN>
      * partitioner. This default partitioner maps each sink subtask to a single Kafka partition
      * (i.e. all records received by a sink subtask will end up in the same Kafka partition).
      *
-     * @param topicId ID of the Kafka topic.
+     * @param topicName Name of the Kafka topic.
      * @param serializationSchema User defined serialization schema supporting key/value messages
      * @param producerConfig Properties with the producer configuration.
      * @param semantic Defines semantic that will be used by this producer (see {@link
@@ -452,12 +452,12 @@ public class FlinkKafkaProducer<IN>
      */
     @Deprecated
     public FlinkKafkaProducer(
-            String topicId,
+            String topicName,
             KeyedSerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             FlinkKafkaProducer.Semantic semantic) {
         this(
-                topicId,
+                topicName,
                 serializationSchema,
                 producerConfig,
                 Optional.of(new FlinkFixedPartitioner<IN>()),
@@ -476,7 +476,7 @@ public class FlinkKafkaProducer<IN>
      * KeyedSerializationSchema#serializeKey(Object)} returns {@code null}), they will be
      * distributed to Kafka partitions in a round-robin fashion.
      *
-     * @param defaultTopicId The default topic to write data to
+     * @param defaultTopicName The default topic to write data to
      * @param serializationSchema A serializable serialization schema for turning user objects into
      *     a kafka-consumable byte[] supporting key/value messages
      * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is
@@ -491,12 +491,12 @@ public class FlinkKafkaProducer<IN>
      */
     @Deprecated
     public FlinkKafkaProducer(
-            String defaultTopicId,
+            String defaultTopicName,
             KeyedSerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             Optional<FlinkKafkaPartitioner<IN>> customPartitioner) {
         this(
-                defaultTopicId,
+                defaultTopicName,
                 serializationSchema,
                 producerConfig,
                 customPartitioner,
@@ -515,7 +515,7 @@ public class FlinkKafkaProducer<IN>
      * KeyedSerializationSchema#serializeKey(Object)} returns {@code null}), they will be
      * distributed to Kafka partitions in a round-robin fashion.
      *
-     * @param defaultTopicId The default topic to write data to
+     * @param defaultTopicName The default topic to write data to
      * @param serializationSchema A serializable serialization schema for turning user objects into
      *     a kafka-consumable byte[] supporting key/value messages
      * @param producerConfig Configuration properties for the KafkaProducer. 'bootstrap.servers.' is
@@ -534,14 +534,14 @@ public class FlinkKafkaProducer<IN>
      */
     @Deprecated
     public FlinkKafkaProducer(
-            String defaultTopicId,
+            String defaultTopicName,
             KeyedSerializationSchema<IN> serializationSchema,
             Properties producerConfig,
             Optional<FlinkKafkaPartitioner<IN>> customPartitioner,
             FlinkKafkaProducer.Semantic semantic,
             int kafkaProducersPoolSize) {
         this(
-                defaultTopicId,
+                defaultTopicName,
                 serializationSchema,
                 customPartitioner.orElse(null),
                 null, /* kafka serialization schema */
@@ -647,7 +647,7 @@ public class FlinkKafkaProducer<IN>
                 new FlinkKafkaProducer.TransactionStateSerializer(),
                 new FlinkKafkaProducer.ContextStateSerializer());
 
-        this.defaultTopicId = checkNotNull(defaultTopic, "defaultTopic is null");
+        this.defaultTopicName = checkNotNull(defaultTopic, "defaultTopic is null");
 
         if (kafkaSchema != null) {
             this.keyedSchema = null;
@@ -855,7 +855,7 @@ public class FlinkKafkaProducer<IN>
             byte[] serializedValue = keyedSchema.serializeValue(next);
             String targetTopic = keyedSchema.getTargetTopic(next);
             if (targetTopic == null) {
-                targetTopic = defaultTopicId;
+                targetTopic = defaultTopicName;
             }
 
             Long timestamp = null;
@@ -893,7 +893,7 @@ public class FlinkKafkaProducer<IN>
 
                 String targetTopic = contextAwareSchema.getTargetTopic(next);
                 if (targetTopic == null) {
-                    targetTopic = defaultTopicId;
+                    targetTopic = defaultTopicName;
                 }
                 int[] partitions = topicPartitionsMap.get(targetTopic);
 
@@ -1349,7 +1349,7 @@ public class FlinkKafkaProducer<IN>
                 "Starting FlinkKafkaInternalProducer ({}/{}) to produce into default topic {}",
                 getRuntimeContext().getIndexOfThisSubtask() + 1,
                 getRuntimeContext().getNumberOfParallelSubtasks(),
-                defaultTopicId);
+                defaultTopicName);
 
         // register Kafka metrics to Flink accumulators
         if (registerMetrics

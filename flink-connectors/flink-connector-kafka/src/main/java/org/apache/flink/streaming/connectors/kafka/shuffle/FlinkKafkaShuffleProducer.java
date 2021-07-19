@@ -47,14 +47,14 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
     private final int numberOfPartitions;
 
     FlinkKafkaShuffleProducer(
-            String defaultTopicId,
+            String defaultTopicName,
             TypeSerializer<IN> typeSerializer,
             Properties props,
             KeySelector<IN, KEY> keySelector,
             Semantic semantic,
             int kafkaProducersPoolSize) {
         super(
-                defaultTopicId,
+                defaultTopicName,
                 (element, timestamp) -> null,
                 props,
                 semantic,
@@ -98,7 +98,7 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
 
         ProducerRecord<byte[], byte[]> record =
                 new ProducerRecord<>(
-                        defaultTopicId,
+                        defaultTopicName,
                         partitionIndex,
                         timestamp,
                         null,
@@ -126,7 +126,7 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
         for (int partition : partitions) {
             ProducerRecord<byte[], byte[]> record =
                     new ProducerRecord<>(
-                            defaultTopicId,
+                            defaultTopicName,
                             partition,
                             timestamp,
                             null,
@@ -138,10 +138,10 @@ public class FlinkKafkaShuffleProducer<IN, KEY> extends FlinkKafkaProducer<IN> {
     }
 
     private int[] getPartitions(KafkaTransactionState transaction) {
-        int[] partitions = topicPartitionsMap.get(defaultTopicId);
+        int[] partitions = topicPartitionsMap.get(defaultTopicName);
         if (partitions == null) {
-            partitions = getPartitionsByTopic(defaultTopicId, transaction.getProducer());
-            topicPartitionsMap.put(defaultTopicId, partitions);
+            partitions = getPartitionsByTopic(defaultTopicName, transaction.getProducer());
+            topicPartitionsMap.put(defaultTopicName, partitions);
         }
 
         Preconditions.checkArgument(partitions.length == numberOfPartitions);
