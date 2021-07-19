@@ -64,7 +64,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -90,7 +89,7 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     // 6 seconds is default. Seems to be too small for travis. 30 seconds
     private int zkTimeout = 30000;
     private Config config;
-    private static final int DELETE_TIMEOUT_SECONDS = 30;
+    private static final int DEFAULT_TIMEOUT_SECONDS = 30;
 
     public void setProducerSemantic(FlinkKafkaProducer.Semantic producerSemantic) {
         this.producerSemantic = producerSemantic;
@@ -108,11 +107,11 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         this.config = config;
 
         File tempDir = new File(System.getProperty("java.io.tmpdir"));
-        tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (UUID.randomUUID().toString()));
+        tmpZkDir = new File(tempDir, "kafkaITcase-zk-dir-" + (java.util.UUID.randomUUID()));
         assertTrue("cannot create zookeeper temp dir", tmpZkDir.mkdirs());
 
         tmpKafkaParent =
-                new File(tempDir, "kafkaITcase-kafka-dir-" + (UUID.randomUUID().toString()));
+                new File(tempDir, "kafkaITcase-kafka-dir-" + (java.util.UUID.randomUUID()));
         assertTrue("cannot create kafka temp dir", tmpKafkaParent.mkdirs());
 
         tmpKafkaDirs = new ArrayList<>(config.getKafkaServersNumber());
@@ -184,9 +183,15 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     private void tryDelete(AdminClient adminClient, String topic) throws Exception {
         try {
             adminClient
-                    .deleteTopics(Collections.singleton(topic))
+                    .deleteTopics(
+                            Collections.singleton(topic),
+                            new org.apache.kafka.clients.admin.DeleteTopicsOptions()
+                                    .timeoutMs(
+                                            (int)
+                                                    TimeUnit.SECONDS.toMillis(
+                                                            DEFAULT_TIMEOUT_SECONDS)))
                     .all()
-                    .get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             for (KafkaServer kafkaServer : brokers) {
                 CommonTestUtils.waitUtil(
@@ -197,11 +202,16 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         } catch (TimeoutException e) {
             LOG.info(
                     "Did not receive delete topic response within {} seconds. Checking if it succeeded",
-                    DELETE_TIMEOUT_SECONDS);
+                    DEFAULT_TIMEOUT_SECONDS);
             if (adminClient
-                    .listTopics()
+                    .listTopics(
+                            new org.apache.kafka.clients.admin.ListTopicsOptions()
+                                    .timeoutMs(
+                                            (int)
+                                                    TimeUnit.SECONDS.toMillis(
+                                                            DEFAULT_TIMEOUT_SECONDS)))
                     .names()
-                    .get(DELETE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .get(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .contains(topic)) {
                 throw new Exception("Topic still exists after timeout");
             }
@@ -214,7 +224,16 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         LOG.info("Creating topic {}", topic);
         try (AdminClient adminClient = AdminClient.create(getStandardProperties())) {
             NewTopic topicObj = new NewTopic(topic, numberOfPartitions, (short) replicationFactor);
-            adminClient.createTopics(Collections.singleton(topicObj)).all().get();
+            adminClient
+                    .createTopics(
+                            Collections.singleton(topicObj),
+                            new org.apache.kafka.clients.admin.CreateTopicsOptions()
+                                    .timeoutMs(
+                                            (int)
+                                                    TimeUnit.SECONDS.toMillis(
+                                                            DEFAULT_TIMEOUT_SECONDS)))
+                    .all()
+                    .get();
             for (KafkaServer kafkaServer : brokers) {
                 CommonTestUtils.waitUtil(
                         () -> kafkaServer.metadataCache().contains(topic),
@@ -380,7 +399,16 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
     public int getLeaderToShutDown(String topic) throws Exception {
         AdminClient client = AdminClient.create(getStandardProperties());
         TopicDescription result =
-                client.describeTopics(Collections.singleton(topic)).all().get().get(topic);
+                client.describeTopics(
+                        Collections.singleton(topic),
+                        new org.apache.kafka.clients.admin.DescribeTopicsOptions()
+                                .timeoutMs(
+                                        (int)
+                                                TimeUnit.SECONDS.toMillis(
+                                                        DEFAULT_TIMEOUT_SECONDS)))
+                        .all()
+                        .get()
+                        .get(topic);
         return result.partitions().get(0).leader().id();
     }
 
