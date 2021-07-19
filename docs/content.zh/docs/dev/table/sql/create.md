@@ -227,7 +227,7 @@ CREATE TABLE MyTable (
   `name` STRING,
   `record_time` TIMESTAMP_LTZ(3) METADATA FROM 'timestamp'    -- reads and writes a Kafka record's timestamp
 ) WITH (
-  'connector' = 'kafka'
+  'connector' = 'kafka',
   ...
 );
 ```
@@ -251,7 +251,7 @@ CREATE TABLE MyTable (
   `name` STRING,
   `timestamp` TIMESTAMP_LTZ(3) METADATA    -- use column name as metadata key
 ) WITH (
-  'connector' = 'kafka'
+  'connector' = 'kafka',
   ...
 );
 ```
@@ -265,7 +265,7 @@ CREATE TABLE MyTable (
   `name` STRING,
   `timestamp` BIGINT METADATA    -- cast the timestamp as BIGINT
 ) WITH (
-  'connector' = 'kafka'
+  'connector' = 'kafka',
   ...
 );
 ```
@@ -279,9 +279,9 @@ CREATE TABLE MyTable (
   `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
   `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
   `user_id` BIGINT,
-  `name` STRING,
+  `name` STRING
 ) WITH (
-  'connector' = 'kafka'
+  'connector' = 'kafka',
   ...
 );
 ```
@@ -316,9 +316,9 @@ CREATE TABLE MyTable (
   `user_id` BIGINT,
   `price` DOUBLE,
   `quantity` DOUBLE,
-  `cost` AS price * quanitity,  -- evaluate expression and supply the result to queries
+  `cost` AS price * quanitity  -- evaluate expression and supply the result to queries
 ) WITH (
-  'connector' = 'kafka'
+  'connector' = 'kafka',
   ...
 );
 ```
