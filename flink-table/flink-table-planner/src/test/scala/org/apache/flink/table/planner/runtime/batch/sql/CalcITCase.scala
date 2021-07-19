@@ -49,7 +49,7 @@ import org.junit.rules.ExpectedException
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
-import java.time.{Instant, LocalDate, ZoneId}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime, ZoneId}
 import java.util
 
 import scala.collection.Seq
@@ -1520,5 +1520,92 @@ class CalcITCase extends BatchTestBase {
     checkResult(
       "select cast(b as boolean) from MyTable",
       Seq(row(true), row(false), row(null), row(null)))
+  }
+
+  @Test
+  def testTimestampAdd(): Unit = {
+    // we're not adding this test to ScalarFunctionsTest because that test
+    // directly uses the generated code and does not check for expression types
+    val dataId = TestValuesTableFactory.registerData(
+      Seq(row(
+        LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 0, 123456789),
+        Instant.ofEpochMilli(1626339000123L),
+        Instant.ofEpochSecond(1626339000, 123456789),
+        LocalDate.of(2021, 7, 15),
+        LocalTime.of(16, 50, 0, 123000000)
+      )))
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a TIMESTAMP(3),
+         |  b TIMESTAMP(9),
+         |  c TIMESTAMP_LTZ(3),
+         |  d TIMESTAMP_LTZ(9),
+         |  e DATE,
+         |  f TIME(3)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      """
+        |select
+        |  timestampadd(day, 1, a),
+        |  timestampadd(hour, 1, a),
+        |  timestampadd(minute, 1, a),
+        |  timestampadd(second, 1, a),
+        |  timestampadd(day, 1, b),
+        |  timestampadd(hour, 1, b),
+        |  timestampadd(minute, 1, b),
+        |  timestampadd(second, 1, b),
+        |  timestampadd(day, 1, c),
+        |  timestampadd(hour, 1, c),
+        |  timestampadd(minute, 1, c),
+        |  timestampadd(second, 1, c),
+        |  timestampadd(day, 1, d),
+        |  timestampadd(hour, 1, d),
+        |  timestampadd(minute, 1, d),
+        |  timestampadd(second, 1, d),
+        |  timestampadd(day, 1, e),
+        |  timestampadd(hour, 1, e),
+        |  timestampadd(minute, 1, e),
+        |  timestampadd(second, 1, e),
+        |  timestampadd(day, 1, f),
+        |  timestampadd(hour, 1, f),
+        |  timestampadd(minute, 1, f),
+        |  timestampadd(second, 1, f)
+        |from MyTable
+        |""".stripMargin,
+      Seq(row(
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123000000),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123000000),
+        LocalDateTime.of(2021, 7, 16, 16, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 17, 50, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 51, 0, 123456789),
+        LocalDateTime.of(2021, 7, 15, 16, 50, 1, 123456789),
+        Instant.ofEpochMilli(1626339000123L + 24 * 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 3600 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 60 * 1000L),
+        Instant.ofEpochMilli(1626339000123L + 1000L),
+        Instant.ofEpochSecond(1626339000 + 24 * 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 3600, 123456789),
+        Instant.ofEpochSecond(1626339000 + 60, 123456789),
+        Instant.ofEpochSecond(1626339000 + 1, 123456789),
+        LocalDate.of(2021, 7, 16),
+        LocalDateTime.of(2021, 7, 15, 1, 0, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 1, 0),
+        LocalDateTime.of(2021, 7, 15, 0, 0, 1),
+        LocalTime.of(16, 50, 0, 123000000),
+        LocalTime.of(17, 50, 0, 123000000),
+        LocalTime.of(16, 51, 0, 123000000),
+        LocalTime.of(16, 50, 1, 123000000)
+      )))
   }
 }

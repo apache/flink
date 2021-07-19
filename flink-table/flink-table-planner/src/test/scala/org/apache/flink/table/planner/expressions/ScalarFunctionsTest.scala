@@ -3433,7 +3433,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "2016-06-14 23:00:00.000")
     testSqlApi(
       "timestampadd(HOUR, -1, date '2016-06-15')",
-      "2016-06-14 23:00:00.000000")
+      "2016-06-14 23:00:00")
 
     // There is no timestamp literal function in Java String Table API,
     // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
@@ -3441,7 +3441,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-06-15'.toTimestamp + 1.minute",
       "2016-06-15 00:01:00.000")
     testSqlApi("timestampadd(MINUTE, 1, date '2016-06-15')",
-      "2016-06-15 00:01:00.000000")
+      "2016-06-15 00:01:00")
 
     // There is no timestamp literal function in Java String Table API,
     // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
@@ -3449,7 +3449,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-06-15'.toTimestamp - 1.second",
       "2016-06-14 23:59:59.000")
     testSqlApi("timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
-      "2016-06-14 23:59:59.000000")
+      "2016-06-14 23:59:59")
 
     // There is no timestamp literal function in Java String Table API,
     // toTimestamp is casting string to TIMESTAMP(3) which is not the same to timestamp literal.
@@ -3457,7 +3457,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "'2016-06-15'.toTimestamp + 1.second",
       "2016-06-15 00:00:01.000")
     testSqlApi("timestampadd(SECOND, 1, date '2016-06-15')",
-      "2016-06-15 00:00:01.000000")
+      "2016-06-15 00:00:01")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
