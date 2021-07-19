@@ -102,6 +102,13 @@ raw:
     category: format
     builtin: true
 
+thrift:
+    name: Thrift
+    maven: flink-thrift
+    category: format
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/$version/flink-sql-thrift-$version.jar
+
+
 elastic:
     name: Elasticsearch
     category: connector
