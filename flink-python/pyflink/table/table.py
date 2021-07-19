@@ -26,6 +26,7 @@ from pyflink.table import ExplainDetail
 from pyflink.table.expression import Expression, _get_java_expression
 from pyflink.table.expressions import col, with_columns, without_columns
 from pyflink.table.serializers import ArrowSerializer
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import create_arrow_schema
@@ -1033,27 +1034,81 @@ class Table(object):
         """
         self._j_table.printSchema()
 
-    def execute_insert(self, table_path: str, overwrite: bool = False) -> TableResult:
+    def execute_insert(self,
+                       table_path_or_descriptor: Union[str, TableDescriptor],
+                       overwrite: bool = False) -> TableResult:
         """
-        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
-        registered under the specified name, and then execute the insert operation.
-        For the path resolution algorithm see :func:`~TableEnvironment.use_database`.
+        1. When target_path_or_descriptor is a tale path:
 
-        Example:
-        ::
+            Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
+            registered under the specified name, and then execute the insert operation. For the path
+            resolution algorithm see :func:`~TableEnvironment.use_database`.
 
-            >>> tab.execute_insert("sink")
+            Example:
+            ::
 
-        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-               the :class:`~pyflink.table.Table` is written.
-        :param overwrite: The flag that indicates whether the insert should overwrite
-               existing data or not.
+                >>> tab.execute_insert("sink")
+
+        2. When target_path_or_descriptor is a table descriptor:
+
+            Declares that the pipeline defined by the given Table object should be written to a
+            table (backed by a DynamicTableSink) expressed via the given TableDescriptor. It
+            executes the insert operation.
+
+            TableDescriptor is registered as an inline (i.e. anonymous) temporary catalog table
+            (see :func:`~TableEnvironment.create_temporary_table`) using a unique identifier.
+            Note that calling this method multiple times, even with the same descriptor, results
+            in multiple sink tables being registered.
+
+            This method allows to declare a :class:`~pyflink.table.Schema` for the sink descriptor.
+            The declaration is similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+                1. overwrite automatically derived columns with a custom DataType
+                2. add metadata columns next to the physical columns
+                3. declare a primary key
+
+            It is possible to declare a schema without physical/regular columns. In this case, those
+            columns will be automatically derived and implicitly put at the beginning of the schema
+            declaration.
+
+            Examples:
+            ::
+
+                >>> schema = Schema.new_builder()
+                ...      .column("f0", DataTypes.STRING())
+                ...      .build()
+                >>> table = table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+                ...      .schema(schema)
+                ...      .build())
+                >>> table.execute_insert(TableDescriptor.for_connector("blackhole")
+                ...      .schema(schema)
+                ...      .build())
+
+            If multiple pipelines should insert data into one or more sink tables as part of a
+            single execution, use a :class:`~pyflink.table.StatementSet`
+            (see :func:`~TableEnvironment.create_statement_set`).
+
+            By default, all insertion operations are executed asynchronously. Use
+            :func:`~TableResult.await` or :func:`~TableResult.get_job_client` to monitor the
+            execution.
+
+            .. note:: execute_insert for a table descriptor (case 2.) was added from
+                flink 1.14.0.
+
+        :param table_path_or_descriptor: The path of the registered
+            :class:`~pyflink.table.TableSink` or the descriptor describing the sink table into which
+            data should be inserted to which the :class:`~pyflink.table.Table` is written.
+        :param overwrite: Indicates whether the insert should overwrite existing data or not.
         :return: The table result.
 
         .. versionadded:: 1.11.0
         """
         self._t_env._before_execute()
-        return TableResult(self._j_table.executeInsert(table_path, overwrite))
+        if isinstance(table_path_or_descriptor, str):
+            return TableResult(self._j_table.executeInsert(table_path_or_descriptor, overwrite))
+        else:
+            return TableResult(self._j_table.executeInsert(
+                table_path_or_descriptor._j_table_descriptor, overwrite))
 
     def execute(self) -> TableResult:
         """
