@@ -45,6 +45,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -58,14 +59,20 @@ public class StreamingKafkaITCase extends TestLogger {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamingKafkaITCase.class);
 
-    @Parameterized.Parameters(name = "{index}: kafka-version:{1}")
+    @Parameterized.Parameters(name = "{index}: kafka-version:{1}, new-source:{2}")
     public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{"flink-streaming-kafka-test.*", "2.4.1"}});
+        return Arrays.asList(
+                new Object[][] {
+                    {"flink-streaming-kafka-test.*", "2.4.1", true},
+                    {"flink-streaming-kafka-test.*", "2.4.1", false}
+                });
     }
 
     private final Path kafkaExampleJar;
 
     private final String kafkaVersion;
+
+    private final boolean useNewSource;
 
     @Rule
     public final Timeout timeout =
@@ -88,27 +95,28 @@ public class StreamingKafkaITCase extends TestLogger {
         return flinkConfig;
     }
 
-    public StreamingKafkaITCase(final String kafkaExampleJarPattern, final String kafkaVersion) {
+    public StreamingKafkaITCase(
+            final String kafkaExampleJarPattern,
+            final String kafkaVersion,
+            final boolean useNewSource) {
         this.kafkaExampleJar = TestUtils.getResource(kafkaExampleJarPattern);
         this.kafka = KafkaResource.get(kafkaVersion);
         this.kafkaVersion = kafkaVersion;
+        this.useNewSource = useNewSource;
     }
 
     @Test
     public void testKafka() throws Exception {
         try (final ClusterController clusterController = flink.startCluster(1)) {
 
-            final String inputTopic =
-                    "test-input-" + kafkaVersion + "-" + UUID.randomUUID().toString();
-            final String outputTopic =
-                    "test-output" + kafkaVersion + "-" + UUID.randomUUID().toString();
+            final String inputTopic = "test-input-" + kafkaVersion + "-" + UUID.randomUUID();
+            final String outputTopic = "test-output-" + kafkaVersion + "-" + UUID.randomUUID();
 
             // create the required topics
             kafka.createTopic(1, 1, inputTopic);
             kafka.createTopic(1, 1, outputTopic);
 
-            // run the Flink job (detached mode)
-            clusterController.submitJob(
+            final JobSubmission.JobSubmissionBuilder jobSubmissionBuilder =
                     new JobSubmission.JobSubmissionBuilder(kafkaExampleJar)
                             .setDetached(true)
                             .addArgument("--input-topic", inputTopic)
@@ -126,9 +134,14 @@ public class StreamingKafkaITCase extends TestLogger {
                             .addArgument("--group.id", "myconsumer")
                             .addArgument("--auto.offset.reset", "earliest")
                             .addArgument("--transaction.timeout.ms", "900000")
-                            .addArgument("--flink.partition-discovery.interval-millis", "1000")
-                            .build(),
-                    Duration.ofMinutes(2L));
+                            .addArgument("--partition-discovery-interval-ms", "1000");
+
+            if (useNewSource) {
+                jobSubmissionBuilder.addArgument("--use-new-source");
+            }
+
+            // run the Flink job (detached mode)
+            clusterController.submitJob(jobSubmissionBuilder.build(), Duration.ofMinutes(2L));
 
             LOG.info("Sending messages to Kafka topic [{}] ...", inputTopic);
             // send some data to Kafka
@@ -194,19 +207,19 @@ public class StreamingKafkaITCase extends TestLogger {
 
                 Assert.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
-                        Arrays.asList("elephant,27,64213"),
+                        Collections.singletonList("elephant,27,64213"),
                         elephants);
                 Assert.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
-                        Arrays.asList("squirrel,52,66413"),
+                        Collections.singletonList("squirrel,52,66413"),
                         squirrels);
                 Assert.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
-                        Arrays.asList("bee,18,65647"),
+                        Collections.singletonList("bee,18,65647"),
                         bees);
                 Assert.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
-                        Arrays.asList("giraffe,9,65555"),
+                        Collections.singletonList("giraffe,9,65555"),
                         giraffes);
             }
         }

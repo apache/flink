@@ -17,17 +17,24 @@
 
 package org.apache.flink.streaming.kafka.test;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumerBase;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationSchemaWrapper;
-import org.apache.flink.streaming.kafka.test.base.CustomWatermarkExtractor;
+import org.apache.flink.streaming.connectors.kafka.internals.KafkaSerializationSchemaWrapper;
+import org.apache.flink.streaming.kafka.test.base.CustomWatermarkStrategy;
 import org.apache.flink.streaming.kafka.test.base.KafkaEvent;
 import org.apache.flink.streaming.kafka.test.base.KafkaEventSchema;
 import org.apache.flink.streaming.kafka.test.base.KafkaExampleUtil;
 import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
+
+import java.util.Properties;
 
 /**
  * A simple example that shows how to read from and write to modern Kafka. This will read String
@@ -40,7 +47,7 @@ import org.apache.flink.streaming.kafka.test.base.RollingAdditionMapper;
  * messages are of formatted as a (word,frequency,timestamp) tuple.
  *
  * <p>Example usage: --input-topic test-input --output-topic test-output --bootstrap.servers
- * localhost:9092 --group.id myconsumer
+ * localhost:9092 --group.id myconsumer --partition-discovery-interval-ms 60000
  */
 public class KafkaExample extends KafkaExampleUtil {
 
@@ -49,24 +56,74 @@ public class KafkaExample extends KafkaExampleUtil {
         final ParameterTool parameterTool = ParameterTool.fromArgs(args);
         StreamExecutionEnvironment env = KafkaExampleUtil.prepareExecutionEnv(parameterTool);
 
-        DataStream<KafkaEvent> input =
-                env.addSource(
-                                new FlinkKafkaConsumer<>(
-                                                parameterTool.getRequired("input-topic"),
-                                                new KafkaEventSchema(),
-                                                parameterTool.getProperties())
-                                        .assignTimestampsAndWatermarks(
-                                                new CustomWatermarkExtractor()))
-                        .keyBy("word")
-                        .map(new RollingAdditionMapper());
+        // Whether to use Kafka Source based on FLIP-27 Source API
+        boolean useNewApi = parameterTool.has("use-new-source");
 
-        input.addSink(
-                new FlinkKafkaProducer<>(
-                        parameterTool.getRequired("output-topic"),
-                        new KeyedSerializationSchemaWrapper<>(new KafkaEventSchema()),
-                        parameterTool.getProperties(),
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE));
+        // Input and output topic name
+        String inputTopic = parameterTool.getRequired("input-topic");
+        String outputTopic = parameterTool.getRequired("output-topic");
+
+        // Additional Kafka client properties
+        Properties properties = parameterTool.getProperties();
+
+        // The option for setting partition discovery interval is different in the old and new
+        // source. We use this helper function to "translate" the option to use the correct one in
+        // different sources.
+        setPartitionDiscoveryInterval(properties, useNewApi);
+
+        DataStream<KafkaEvent> input;
+
+        if (useNewApi) {
+            // Kafka FLIP-27 Source
+            final KafkaSource<KafkaEvent> source =
+                    KafkaSource.<KafkaEvent>builder()
+                            .setTopics(inputTopic)
+                            .setValueOnlyDeserializer(new KafkaEventSchema())
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setProperties(properties)
+                            .build();
+            input = env.fromSource(source, new CustomWatermarkStrategy(), "Kafka Source");
+        } else {
+            // Kafka SourceFunction
+            final FlinkKafkaConsumerBase<KafkaEvent> sourceFunction =
+                    new FlinkKafkaConsumer<>(inputTopic, new KafkaEventSchema(), properties)
+                            .setStartFromEarliest();
+            input =
+                    env.addSource(sourceFunction)
+                            .name("Kafka SourceFunction")
+                            .assignTimestampsAndWatermarks(new CustomWatermarkStrategy());
+        }
+
+        input.keyBy((KeySelector<KafkaEvent, String>) KafkaEvent::getWord)
+                .map(new RollingAdditionMapper())
+                .addSink(
+                        new FlinkKafkaProducer<>(
+                                outputTopic,
+                                new KafkaSerializationSchemaWrapper<>(
+                                        outputTopic, null, false, new KafkaEventSchema()),
+                                properties,
+                                FlinkKafkaProducer.Semantic.EXACTLY_ONCE))
+                .name("Kafka SinkFunction");
 
         env.execute("Modern Kafka Example");
+    }
+
+    private static void setPartitionDiscoveryInterval(Properties properties, boolean useNewApi) {
+        if (properties == null) {
+            throw new NullPointerException("Kafka properties should not be null");
+        }
+
+        String partitionDiscoveryIntervalMs =
+                properties.getProperty("partition-discovery-interval-ms", "-1");
+
+        if (useNewApi) {
+            properties.setProperty(
+                    KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
+                    partitionDiscoveryIntervalMs);
+        } else {
+            properties.setProperty(
+                    FlinkKafkaConsumer.KEY_PARTITION_DISCOVERY_INTERVAL_MILLIS,
+                    partitionDiscoveryIntervalMs);
+        }
     }
 }
