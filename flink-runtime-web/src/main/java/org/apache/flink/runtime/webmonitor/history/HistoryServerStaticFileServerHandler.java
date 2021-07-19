@@ -229,7 +229,7 @@ public class HistoryServerStaticFileServerHandler
             StaticFileServerHandler.setContentTypeHeader(response, file);
 
             // the job overview should be updated as soon as possible
-            if (!requestPath.equals("/joboverview.json")) {
+            if (!requestPath.equals("/joboverview.json") && !requestPath.equals("/jobs/overview.json")) {
                 StaticFileServerHandler.setDateAndCacheHeaders(response, file);
             }
             if (HttpHeaders.isKeepAlive(request)) {
