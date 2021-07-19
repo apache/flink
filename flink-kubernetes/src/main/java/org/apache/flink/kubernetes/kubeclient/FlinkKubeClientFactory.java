@@ -28,7 +28,10 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.utils.HttpClientUtils;
 import io.fabric8.kubernetes.client.utils.Utils;
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,7 +102,16 @@ public class FlinkKubeClientFactory {
         // information.
         trySetMaxConcurrentRequest(config);
 
-        final NamespacedKubernetesClient client = new DefaultKubernetesClient(config);
+        HttpLoggingInterceptor.Level logLevel =
+                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_OK_HTTP_LOG_LEVEL);
+
+        OkHttpClient httpClient = HttpClientUtils.createHttpClient(config);
+        if (logLevel != HttpLoggingInterceptor.Level.NONE) {
+            final HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor(LOG::info);
+            interceptor.setLevel(logLevel);
+            httpClient = httpClient.newBuilder().addInterceptor(interceptor).build();
+        }
+        final NamespacedKubernetesClient client = new DefaultKubernetesClient(httpClient, config);
         final int poolSize =
                 flinkConfig.get(KubernetesConfigOptions.KUBERNETES_CLIENT_IO_EXECUTOR_POOL_SIZE);
         return new Fabric8FlinkKubeClient(
