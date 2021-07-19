@@ -35,9 +35,6 @@ public interface ShuffleMaster<T extends ShuffleDescriptor> {
     /**
      * Asynchronously register a partition and its producer with the shuffle service.
      *
-     * <p>IMPORTANT: the returned future must be completed due to limitations in the default
-     * scheduler.
-     *
      * <p>The returned shuffle descriptor is an internal handle which identifies the partition
      * internally within the shuffle service. The descriptor should provide enough information to
      * read from or write data to the partition.

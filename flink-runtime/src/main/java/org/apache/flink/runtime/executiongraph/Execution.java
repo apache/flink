@@ -48,7 +48,6 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -404,7 +403,7 @@ public class Execution
     //  Actions
     // --------------------------------------------------------------------------------------------
 
-    public CompletableFuture<Execution> registerProducedPartitions(
+    public CompletableFuture<Void> registerProducedPartitions(
             TaskManagerLocation location, boolean notifyPartitionDataAvailable) {
 
         assertRunningInJobMasterMainThread();
@@ -415,34 +414,27 @@ public class Execution
                 vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor(),
                 producedPartitionsCache -> {
                     producedPartitions = producedPartitionsCache;
-                    startTrackingPartitions(
-                            location.getResourceID(), producedPartitionsCache.values());
-                    return this;
+
+                    if (getState() == SCHEDULED) {
+                        startTrackingPartitions(
+                                location.getResourceID(), producedPartitionsCache.values());
+                    } else {
+                        LOG.info(
+                                "Discarding late registered partitions for {} task {}.",
+                                getState(),
+                                attemptId);
+                        for (ResultPartitionDeploymentDescriptor desc :
+                                producedPartitionsCache.values()) {
+                            getVertex()
+                                    .getExecutionGraphAccessor()
+                                    .getShuffleMaster()
+                                    .releasePartitionExternally(desc.getShuffleDescriptor());
+                        }
+                    }
+                    return null;
                 });
     }
 
-    /**
-     * Register producedPartitions to {@link ShuffleMaster}
-     *
-     * <p>HACK: Please notice that this method simulates asynchronous registration in a synchronous
-     * way by making sure the returned {@link CompletableFuture} from {@link
-     * ShuffleMaster#registerPartitionWithProducer} is completed immediately.
-     *
-     * <p>{@link Execution#producedPartitions} are registered through an asynchronous interface
-     * {@link ShuffleMaster#registerPartitionWithProducer} to {@link ShuffleMaster}, however they
-     * are not always accessed through callbacks. So, it is possible that {@link
-     * Execution#producedPartitions} have not been available yet when accessed (in {@link
-     * Execution#deploy} for example).
-     *
-     * <p>Since the only implementation of {@link ShuffleMaster} is {@link NettyShuffleMaster},
-     * which indeed registers producedPartition in a synchronous way, this method enforces
-     * synchronous registration under an asynchronous interface for now.
-     *
-     * <p>TODO: If asynchronous registration is needed in the future, use callbacks to access {@link
-     * Execution#producedPartitions}.
-     *
-     * @return completed future of partition deployment descriptors.
-     */
     @VisibleForTesting
     static CompletableFuture<
                     Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>>
@@ -469,10 +461,6 @@ public class Execution
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
                             .registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
-
-            // temporary hack; the scheduler does not handle incomplete futures properly
-            Preconditions.checkState(
-                    shuffleDescriptorFuture.isDone(), "ShuffleDescriptor future is incomplete.");
 
             CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration =
                     shuffleDescriptorFuture.thenApply(
