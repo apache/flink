@@ -31,8 +31,8 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.groups.SourceMetricGroup;
-import org.apache.flink.runtime.metrics.groups.InternalSourceMetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.runtime.operators.coordination.OperatorEventHandler;
@@ -135,7 +135,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     /** Indicating whether the source operator has been closed. */
     private boolean closed;
 
-    private InternalSourceMetricGroup sourceMetricGroup;
+    private InternalSourceReaderMetricGroup sourceMetricGroup;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -174,14 +174,14 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (sourceReader != null) {
             return;
         }
-        sourceMetricGroup = InternalSourceMetricGroup.wrap(getMetricGroup());
+        sourceMetricGroup = InternalSourceReaderMetricGroup.wrap(getMetricGroup());
 
         final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
 
         final SourceReaderContext context =
                 new SourceReaderContext() {
                     @Override
-                    public SourceMetricGroup metricGroup() {
+                    public SourceReaderMetricGroup metricGroup() {
                         return sourceMetricGroup;
                     }
 
@@ -384,10 +384,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private static class MetricTrackingOutput<OUT> implements DataOutput<OUT> {
         private final DataOutput<OUT> output;
-        private final InternalSourceMetricGroup sourceMetricGroup;
+        private final InternalSourceReaderMetricGroup sourceMetricGroup;
 
         public MetricTrackingOutput(
-                DataOutput<OUT> output, InternalSourceMetricGroup sourceMetricGroup) {
+                DataOutput<OUT> output, InternalSourceReaderMetricGroup sourceMetricGroup) {
             this.output = output;
             this.sourceMetricGroup = sourceMetricGroup;
         }

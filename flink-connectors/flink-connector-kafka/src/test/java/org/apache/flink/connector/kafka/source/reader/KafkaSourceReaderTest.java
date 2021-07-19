@@ -35,7 +35,7 @@ import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.metrics.groups.InternalSourceMetricGroup;
+import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -341,7 +341,7 @@ public class KafkaSourceReaderTest extends SourceReaderTestBase<KafkaPartitionSp
                 boundedness,
                 groupId,
                 new TestingReaderContext(
-                        new Configuration(), InternalSourceMetricGroup.mock(metricGroup)));
+                        new Configuration(), InternalSourceReaderMetricGroup.mock(metricGroup)));
     }
 
     private SourceReader<Integer, KafkaPartitionSplit> createReader(

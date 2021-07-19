@@ -19,7 +19,7 @@
 package org.apache.flink.api.connector.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -36,7 +36,7 @@ import java.util.function.BiConsumer;
 @PublicEvolving
 public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
 
-    MetricGroup metricGroup();
+    SplitEnumeratorMetricGroup metricGroup();
 
     /**
      * Send a source event to a source reader. The source reader is identified by its subtask id.

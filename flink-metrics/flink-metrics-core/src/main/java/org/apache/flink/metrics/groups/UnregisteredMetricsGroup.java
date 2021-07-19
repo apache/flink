@@ -98,8 +98,12 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         return new UnregisteredOperatorIOMetricGroup();
     }
 
-    public static SourceMetricGroup createUnregisteredSourceMetricGroup() {
-        return new UnregisteredSourceMetricGroup();
+    public static SourceReaderMetricGroup createUnregisteredSourceReaderMetricGroup() {
+        return new UnregisteredSourceReaderMetricGroup();
+    }
+
+    public static SplitEnumeratorMetricGroup createUnregisteredSplitEnumeratorMetricGroup() {
+        return new UnregisteredSplitEnumeratorMetricGroup();
     }
 
     private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
@@ -133,8 +137,8 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         }
     }
 
-    private static class UnregisteredSourceMetricGroup extends UnregisteredMetricsGroup
-            implements SourceMetricGroup {
+    private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
+            implements SourceReaderMetricGroup {
         @Override
         public OperatorIOMetricGroup getIOMetricGroup() {
             return new UnregisteredOperatorIOMetricGroup();
@@ -171,6 +175,14 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         @Override
         public T getValue() {
             return value;
+        }
+    }
+
+    private static class UnregisteredSplitEnumeratorMetricGroup extends UnregisteredMetricsGroup
+            implements SplitEnumeratorMetricGroup {
+        @Override
+        public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
+            return null;
         }
     }
 }

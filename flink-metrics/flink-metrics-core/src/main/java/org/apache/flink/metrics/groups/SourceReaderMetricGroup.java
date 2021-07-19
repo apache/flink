@@ -24,12 +24,12 @@ import org.apache.flink.metrics.SettableGauge;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**
- * Pre-defined metrics for sources.
+ * Pre-defined metrics for {@code SourceReader}.
  *
  * <p>All metrics can only be accessed in the main operator thread.
  */
 @NotThreadSafe
-public interface SourceMetricGroup extends OperatorMetricGroup {
+public interface SourceReaderMetricGroup extends OperatorMetricGroup {
     /** The total number of record that failed to consume, process, or emit. */
     Counter getNumRecordsInErrorsCounter();
 

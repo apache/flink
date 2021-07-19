@@ -26,7 +26,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SettableGauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.metrics.groups.SourceMetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.util.clock.Clock;
@@ -34,8 +34,8 @@ import org.apache.flink.util.clock.SystemClock;
 
 /** Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator. */
 @Internal
-public class InternalSourceMetricGroup extends ProxyMetricGroup<MetricGroup>
-        implements SourceMetricGroup {
+public class InternalSourceReaderMetricGroup extends ProxyMetricGroup<MetricGroup>
+        implements SourceReaderMetricGroup {
 
     public static final long ACTIVE = Long.MAX_VALUE;
     private final OperatorIOMetricGroup operatorIOMetricGroup;
@@ -47,7 +47,7 @@ public class InternalSourceMetricGroup extends ProxyMetricGroup<MetricGroup>
     private SettableGauge<Long> eventTimeGauge;
     private long idleStartTime = ACTIVE;
 
-    private InternalSourceMetricGroup(
+    private InternalSourceReaderMetricGroup(
             MetricGroup parentMetricGroup,
             OperatorIOMetricGroup operatorIOMetricGroup,
             Clock clock) {
@@ -60,16 +60,16 @@ public class InternalSourceMetricGroup extends ProxyMetricGroup<MetricGroup>
                 () -> isIdling() ? this.clock.absoluteTimeMillis() - idleStartTime : 0);
     }
 
-    public static InternalSourceMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
-        return new InternalSourceMetricGroup(
+    public static InternalSourceReaderMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
+        return new InternalSourceReaderMetricGroup(
                 operatorMetricGroup,
                 operatorMetricGroup.getIOMetricGroup(),
                 SystemClock.getInstance());
     }
 
     @VisibleForTesting
-    public static InternalSourceMetricGroup mock(MetricGroup metricGroup) {
-        return new InternalSourceMetricGroup(
+    public static InternalSourceReaderMetricGroup mock(MetricGroup metricGroup) {
+        return new InternalSourceReaderMetricGroup(
                 metricGroup,
                 UnregisteredMetricsGroup.createUnregisteredOperatorIOMetricGroup(),
                 SystemClock.getInstance());

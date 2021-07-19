@@ -18,7 +18,8 @@
 
 package org.apache.flink.connector.base.source.reader;
 
-import org.apache.flink.metrics.groups.SourceMetricGroup;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import javax.annotation.Nullable;
 
@@ -28,7 +29,7 @@ import java.util.Set;
 public interface RecordsWithSplitIds<E> {
     /**
      * Returns the timestamp of the last fetch. Will be used to automatically set {@link
-     * SourceMetricGroup#addLastFetchTimeGauge(Gauge)}.
+     * SourceReaderMetricGroup#addLastFetchTimeGauge(Gauge)}.
      */
     @Nullable
     default Long lastFetchTime() {

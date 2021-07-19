@@ -33,7 +33,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.SettableGauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.metrics.groups.SourceMetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +58,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <ul>
  *   <li>{@link OperatorIOMetricGroup#getNumRecordsInCounter()}
- *   <li>{@link SourceMetricGroup#addLastFetchTimeGauge(Gauge)} if {@link
+ *   <li>{@link SourceReaderMetricGroup#addLastFetchTimeGauge(Gauge)} if {@link
  *       RecordsWithSplitIds#lastFetchTime()} is set.
  * </ul>
  *

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.metrics.groups.SourceMetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -37,10 +37,10 @@ import java.util.concurrent.CompletableFuture;
  * <ul>
  *   <li>{@link OperatorIOMetricGroup#getNumRecordsInCounter()} (highly recommended)
  *   <li>{@link OperatorIOMetricGroup#getNumBytesInCounter()} (recommended)
- *   <li>{@link SourceMetricGroup#getNumRecordsInErrorsCounter()} (recommended)
- *   <li>{@link SourceMetricGroup#addLastFetchTimeGauge(Gauge)}
- *   <li>{@link SourceMetricGroup#setPendingRecordsGauge(Gauge)}
- *   <li>{@link SourceMetricGroup#setPendingBytesGauge(Gauge)}
+ *   <li>{@link SourceReaderMetricGroup#getNumRecordsInErrorsCounter()} (recommended)
+ *   <li>{@link SourceReaderMetricGroup#addLastFetchTimeGauge(Gauge)}
+ *   <li>{@link SourceReaderMetricGroup#setPendingRecordsGauge(Gauge)}
+ *   <li>{@link SourceReaderMetricGroup#setPendingBytesGauge(Gauge)}
  * </ul>
  *
  * @param <T> The type of the record emitted by this source reader.
