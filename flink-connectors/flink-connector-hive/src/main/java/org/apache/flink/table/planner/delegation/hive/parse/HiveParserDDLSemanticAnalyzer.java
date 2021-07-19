@@ -45,7 +45,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
@@ -1021,13 +1020,11 @@ public class HiveParserDDLSemanticAnalyzer {
 
         for (int i = 1; i < ast.getChildCount(); i++) {
             HiveParserASTNode childNode = (HiveParserASTNode) ast.getChild(i);
-            switch (childNode.getToken().getType()) {
-                case HiveASTParser.TOK_DATABASEPROPERTIES:
-                    dbProps = getProps((HiveParserASTNode) childNode.getChild(0));
-                    break;
-                default:
-                    throw new ValidationException(
-                            "Unknown AST node for ALTER DATABASE PROPERTIES: " + childNode);
+            if (childNode.getToken().getType() == HiveASTParser.TOK_DATABASEPROPERTIES) {
+                dbProps = getProps((HiveParserASTNode) childNode.getChild(0));
+            } else {
+                throw new ValidationException(
+                        "Unknown AST node for ALTER DATABASE PROPERTIES: " + childNode);
             }
         }
         CatalogDatabase originDB = getDatabase(dbName);
@@ -1381,7 +1378,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 if (dbName == null) {
                     return tableName + "." + QualifiedNameUtil.getFullyQualifiedName(columnNode);
                 } else {
-                    return tableName.substring(dbName.length() + 1, tableName.length())
+                    return tableName.substring(dbName.length() + 1)
                             + "."
                             + QualifiedNameUtil.getFullyQualifiedName(columnNode);
                 }
@@ -1391,9 +1388,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         // get partition metadata
-        public static Map<String, String> getPartitionSpec(
-                HiveCatalog db, HiveParserASTNode ast, ObjectPath tablePath)
-                throws SemanticException {
+        public static Map<String, String> getPartitionSpec(HiveParserASTNode ast) {
             HiveParserASTNode partNode = null;
             // if this ast has only one child, then no partition spec specified.
             if (ast.getChildCount() == 1) {
@@ -1421,16 +1416,6 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private void getPartition(Table table, Map<String, String> partSpec) {
-        try {
-            hiveCatalog.getPartition(
-                    new ObjectPath(table.getDbName(), table.getTableName()),
-                    new CatalogPartitionSpec(partSpec));
-        } catch (PartitionNotExistException e) {
-            throw new ValidationException("Partition not found", e);
-        }
-    }
-
     private CatalogPartition getPartition(
             ObjectIdentifier tableIdentifier, CatalogPartitionSpec partitionSpec) {
         return catalogManager
@@ -1450,7 +1435,7 @@ public class HiveParserDDLSemanticAnalyzer {
      * specified default maptable TOK_PARTSPEC --> root node for partition spec. else columnName
      * TOK_PARTVAL b 100 id --> root node for columnName formatted
      */
-    private Operation convertDescribeTable(HiveParserASTNode ast) throws SemanticException {
+    private Operation convertDescribeTable(HiveParserASTNode ast) {
         HiveParserASTNode tableTypeExpr = (HiveParserASTNode) ast.getChild(0);
 
         String dbName = null;
@@ -1476,9 +1461,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         // process the second child,if exists, node to get partition spec(s)
-        partSpec =
-                QualifiedNameUtil.getPartitionSpec(
-                        hiveCatalog, tableTypeExpr, toObjectPath(tableName));
+        partSpec = QualifiedNameUtil.getPartitionSpec(tableTypeExpr);
 
         // process the third child node,if exists, to get partition spec(s)
         colPath = QualifiedNameUtil.getColPath(tableTypeExpr, dbName, tableName, partSpec);
@@ -1539,7 +1522,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return partSpecs;
     }
 
-    private Operation convertShowPartitions(HiveParserASTNode ast) throws SemanticException {
+    private Operation convertShowPartitions(HiveParserASTNode ast) {
         String tableName =
                 HiveParserBaseSemanticAnalyzer.getUnescapedName(
                         (HiveParserASTNode) ast.getChild(0));
