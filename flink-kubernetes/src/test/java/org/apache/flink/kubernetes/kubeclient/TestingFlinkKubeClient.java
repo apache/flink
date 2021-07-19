@@ -19,6 +19,7 @@
 package org.apache.flink.kubernetes.kubeclient;
 
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
+import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
@@ -29,6 +30,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -57,8 +61,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                     Function<KubernetesConfigMap, Optional<KubernetesConfigMap>>,
                     CompletableFuture<Boolean>>
             checkAndUpdateConfigMapFunction;
-    private final BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, KubernetesWatch>
-            watchConfigMapsFunction;
     private final Function<Map<String, String>, CompletableFuture<Void>>
             deleteConfigMapByLabelFunction;
     private final Function<String, CompletableFuture<Void>> deleteConfigMapFunction;
@@ -68,6 +70,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                     KubernetesLeaderElector.LeaderCallbackHandler,
                     KubernetesLeaderElector>
             createLeaderElectorFunction;
+
+    private final Function<Map<String, String>, KubernetesConfigMapSharedWatcher>
+            createConfigMapSharedWatcherFunction;
 
     private TestingFlinkKubeClient(
             Function<KubernetesPod, CompletableFuture<Void>> createTaskManagerPodFunction,
@@ -83,8 +88,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                             Function<KubernetesConfigMap, Optional<KubernetesConfigMap>>,
                             CompletableFuture<Boolean>>
                     checkAndUpdateConfigMapFunction,
-            BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, KubernetesWatch>
-                    watchConfigMapsFunction,
             Function<Map<String, String>, CompletableFuture<Void>> deleteConfigMapByLabelFunction,
             Function<String, CompletableFuture<Void>> deleteConfigMapFunction,
             Consumer<Void> closeConsumer,
@@ -92,7 +95,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                             KubernetesLeaderElectionConfiguration,
                             KubernetesLeaderElector.LeaderCallbackHandler,
                             KubernetesLeaderElector>
-                    createLeaderElectorFunction) {
+                    createLeaderElectorFunction,
+            Function<Map<String, String>, KubernetesConfigMapSharedWatcher>
+                    createConfigMapSharedWatcherFunction) {
 
         this.createTaskManagerPodFunction = createTaskManagerPodFunction;
         this.stopPodFunction = stopPodFunction;
@@ -103,13 +108,13 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
         this.createConfigMapFunction = createConfigMapFunction;
         this.getConfigMapFunction = getConfigMapFunction;
         this.checkAndUpdateConfigMapFunction = checkAndUpdateConfigMapFunction;
-        this.watchConfigMapsFunction = watchConfigMapsFunction;
         this.deleteConfigMapByLabelFunction = deleteConfigMapByLabelFunction;
         this.deleteConfigMapFunction = deleteConfigMapFunction;
 
         this.closeConsumer = closeConsumer;
 
         this.createLeaderElectorFunction = createLeaderElectorFunction;
+        this.createConfigMapSharedWatcherFunction = createConfigMapSharedWatcherFunction;
     }
 
     @Override
@@ -178,12 +183,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public KubernetesWatch watchConfigMaps(
-            String name, WatchCallbackHandler<KubernetesConfigMap> callbackHandler) {
-        return watchConfigMapsFunction.apply(name, callbackHandler);
-    }
-
-    @Override
     public CompletableFuture<Void> deleteConfigMapsByLabels(Map<String, String> labels) {
         return deleteConfigMapByLabelFunction.apply(labels);
     }
@@ -191,6 +190,12 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     @Override
     public CompletableFuture<Void> deleteConfigMap(String configMapName) {
         return deleteConfigMapFunction.apply(configMapName);
+    }
+
+    @Override
+    public KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(
+            Map<String, String> labels) {
+        return createConfigMapSharedWatcherFunction.apply(labels);
     }
 
     @Override
@@ -230,8 +235,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                         CompletableFuture<Boolean>>
                 checkAndUpdateConfigMapFunction =
                         (ignore1, ignore2) -> CompletableFuture.completedFuture(true);
-        private BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, KubernetesWatch>
-                watchConfigMapsFunction = (ignore1, ignore2) -> new MockKubernetesWatch();
         private Function<Map<String, String>, CompletableFuture<Void>>
                 deleteConfigMapByLabelFunction = (ignore) -> FutureUtils.completedVoidFuture();
         private Function<String, CompletableFuture<Void>> deleteConfigMapFunction =
@@ -244,6 +247,9 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                         KubernetesLeaderElector.LeaderCallbackHandler,
                         KubernetesLeaderElector>
                 createLeaderElectorFunction = TestingKubernetesLeaderElector::new;
+
+        private Function<Map<String, String>, KubernetesConfigMapSharedWatcher>
+                createConfigMapSharedWatcherFunction = TestingKubernetesConfigMapSharedWatcher::new;
 
         private Builder() {}
 
@@ -306,14 +312,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
             return this;
         }
 
-        public Builder setWatchConfigMapsFunction(
-                BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, KubernetesWatch>
-                        watchConfigMapsAndDoCallbackFunction) {
-            this.watchConfigMapsFunction =
-                    Preconditions.checkNotNull(watchConfigMapsAndDoCallbackFunction);
-            return this;
-        }
-
         public Builder setDeleteConfigMapByLabelFunction(
                 Function<Map<String, String>, CompletableFuture<Void>>
                         deleteConfigMapByLabelFunction) {
@@ -342,6 +340,13 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
             return this;
         }
 
+        public Builder setCreateConfigMapSharedWatcherFunction(
+                Function<Map<String, String>, KubernetesConfigMapSharedWatcher>
+                        createConfigMapSharedWatcherFunction) {
+            this.createConfigMapSharedWatcherFunction = createConfigMapSharedWatcherFunction;
+            return this;
+        }
+
         public TestingFlinkKubeClient build() {
             return new TestingFlinkKubeClient(
                     createTaskManagerPodFunction,
@@ -352,16 +357,16 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
                     createConfigMapFunction,
                     getConfigMapFunction,
                     checkAndUpdateConfigMapFunction,
-                    watchConfigMapsFunction,
                     deleteConfigMapByLabelFunction,
                     deleteConfigMapFunction,
                     closeConsumer,
-                    createLeaderElectorFunction);
+                    createLeaderElectorFunction,
+                    createConfigMapSharedWatcherFunction);
         }
     }
 
-    /** Testing implementation of {@link KubernetesWatch}. */
-    public static class MockKubernetesWatch extends KubernetesWatch {
+    /** Testing implementation of {@link KubernetesWatch} and {@link Watch}. */
+    public static class MockKubernetesWatch extends KubernetesWatch implements Watch {
         private boolean isClosed;
 
         public MockKubernetesWatch() {
@@ -433,6 +438,40 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
         @Override
         public void run() {
             // noop
+        }
+    }
+
+    /** Testing implementation of {@link KubernetesSharedWatcher} for ConfigMap. */
+    public static class TestingKubernetesConfigMapSharedWatcher
+            implements KubernetesConfigMapSharedWatcher {
+
+        private BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, Watch> watchFunction =
+                (ignore1, ignore2) -> new MockKubernetesWatch();
+
+        public TestingKubernetesConfigMapSharedWatcher(Map<String, String> labels) {}
+
+        public void setWatchFunction(
+                BiFunction<String, WatchCallbackHandler<KubernetesConfigMap>, Watch>
+                        watchFunction) {
+            this.watchFunction = watchFunction;
+        }
+
+        @Override
+        public void run() {
+            // noop
+        }
+
+        @Override
+        public void close() {
+            // noop
+        }
+
+        @Override
+        public Watch watch(
+                String name,
+                WatchCallbackHandler<KubernetesConfigMap> callbackHandler,
+                @Nullable ExecutorService executorService) {
+            return watchFunction.apply(name, callbackHandler);
         }
     }
 }

@@ -22,10 +22,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient.TestingKubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
@@ -52,6 +55,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
+import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -102,6 +106,9 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
 
         final FlinkKubeClient flinkKubeClient;
 
+        final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
+        final ExecutorService watchExecutorService;
+
         final LeaderElectionDriver leaderElectionDriver;
         final TestingLeaderElectionEventHandler electionEventHandler;
 
@@ -110,6 +117,11 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
 
         Context() {
             flinkKubeClient = createFlinkKubeClient();
+            configMapSharedWatcher =
+                    flinkKubeClient.createConfigMapSharedWatcher(
+                            KubernetesUtils.getConfigMapLabels(
+                                    CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+            watchExecutorService = Executors.newCachedThreadPool();
 
             electionEventHandler = new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
             leaderElectionDriver = createLeaderElectionDriver();
@@ -119,6 +131,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         }
 
         void runTest(RunnableWithException testMethod) throws Exception {
+            configMapSharedWatcher.run();
             electionEventHandler.init(leaderElectionDriver);
             testMethod.run();
 
@@ -196,18 +209,6 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                                         new KubernetesException(
                                                 "ConfigMap " + configMapName + " does not exist."));
                             })
-                    .setWatchConfigMapsFunction(
-                            (ignore, handler) -> {
-                                final CompletableFuture<
-                                                FlinkKubeClient.WatchCallbackHandler<
-                                                        KubernetesConfigMap>>
-                                        future = CompletableFuture.completedFuture(handler);
-                                configMapCallbackFutures.add(future);
-                                final TestingFlinkKubeClient.MockKubernetesWatch watch =
-                                        new TestingFlinkKubeClient.MockKubernetesWatch();
-                                configMapWatches.add(watch);
-                                return watch;
-                            })
                     .setDeleteConfigMapFunction(
                             name -> {
                                 configMapStore.remove(name);
@@ -232,6 +233,27 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                                 leaderCallbackHandlerFuture.complete(callbackHandler);
                                 return new TestingFlinkKubeClient.TestingKubernetesLeaderElector(
                                         leaderConfig, callbackHandler);
+                            })
+                    .setCreateConfigMapSharedWatcherFunction(
+                            (labels) -> {
+                                final TestingKubernetesConfigMapSharedWatcher watcher =
+                                        new TestingKubernetesConfigMapSharedWatcher(labels);
+                                watcher.setWatchFunction(
+                                        (ignore, handler) -> {
+                                            final CompletableFuture<
+                                                            FlinkKubeClient.WatchCallbackHandler<
+                                                                    KubernetesConfigMap>>
+                                                    future =
+                                                            CompletableFuture.completedFuture(
+                                                                    handler);
+                                            configMapCallbackFutures.add(future);
+                                            final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                                    new TestingFlinkKubeClient
+                                                            .MockKubernetesWatch();
+                                            configMapWatches.add(watch);
+                                            return watch;
+                                        });
+                                return watcher;
                             });
         }
 
@@ -240,7 +262,11 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                     new KubernetesLeaderElectionConfiguration(
                             LEADER_CONFIGMAP_NAME, LOCK_IDENTITY, configuration);
             final KubernetesLeaderElectionDriverFactory factory =
-                    new KubernetesLeaderElectionDriverFactory(flinkKubeClient, leaderConfig);
+                    new KubernetesLeaderElectionDriverFactory(
+                            flinkKubeClient,
+                            configMapSharedWatcher,
+                            watchExecutorService,
+                            leaderConfig);
             return factory.createLeaderElectionDriver(
                     electionEventHandler, electionEventHandler::handleError, LEADER_URL);
         }
@@ -248,7 +274,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         private LeaderRetrievalDriver createLeaderRetrievalDriver() {
             final KubernetesLeaderRetrievalDriverFactory factory =
                     new KubernetesLeaderRetrievalDriverFactory(
-                            flinkKubeClient, LEADER_CONFIGMAP_NAME);
+                            flinkKubeClient,
+                            configMapSharedWatcher,
+                            watchExecutorService,
+                            LEADER_CONFIGMAP_NAME);
             return factory.createLeaderRetrievalDriver(
                     retrievalEventHandler, retrievalEventHandler::handleError);
         }

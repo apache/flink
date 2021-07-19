@@ -164,16 +164,6 @@ public interface FlinkKubeClient extends AutoCloseable {
             Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction);
 
     /**
-     * Watch the ConfigMaps with specified name and do the {@link WatchCallbackHandler}.
-     *
-     * @param name name to filter the ConfigMaps to watch
-     * @param callbackHandler callbackHandler which reacts to ConfigMap events
-     * @return Return a watch for ConfigMaps. It needs to be closed after use.
-     */
-    KubernetesWatch watchConfigMaps(
-            String name, WatchCallbackHandler<KubernetesConfigMap> callbackHandler);
-
-    /**
      * Delete the Kubernetes ConfigMaps by labels. This will be used by {@link
      * org.apache.flink.kubernetes.highavailability.KubernetesHaServices} to clean up all data.
      *
@@ -189,6 +179,15 @@ public interface FlinkKubeClient extends AutoCloseable {
      * @return Return the delete future.
      */
     CompletableFuture<Void> deleteConfigMap(String configMapName);
+
+    /**
+     * Create a shared watcher for ConfigMaps with specified labels.
+     *
+     * @param labels labels to filter ConfigMaps. If the labels is null or empty, all ConfigMaps
+     *     will be taken in account, or it will be rejected if the implementation does not allow it.
+     * @return Return a shared watcher.
+     */
+    KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(Map<String, String> labels);
 
     /** Close the Kubernetes client with no exception. */
     void close();

@@ -19,9 +19,9 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.kubernetes.kubeclient.KubernetesSharedWatcher.Watch;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalEventHandler;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
@@ -30,9 +30,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.concurrent.GuardedBy;
-
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInformationFromConfigMap;
@@ -49,8 +48,6 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
     private static final Logger LOG =
             LoggerFactory.getLogger(KubernetesLeaderRetrievalDriver.class);
 
-    private final Object watchLock = new Object();
-
     private final FlinkKubeClient kubeClient;
 
     private final String configMapName;
@@ -61,11 +58,12 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
     private volatile boolean running;
 
-    @GuardedBy("watchLock")
-    private KubernetesWatch kubernetesWatch;
+    private final Watch kubernetesWatch;
 
     public KubernetesLeaderRetrievalDriver(
             FlinkKubeClient kubeClient,
+            KubernetesConfigMapSharedWatcher configMapSharedWatcher,
+            ExecutorService watchExecutorService,
             String configMapName,
             LeaderRetrievalEventHandler leaderRetrievalEventHandler,
             FatalErrorHandler fatalErrorHandler) {
@@ -76,7 +74,11 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 
         kubernetesWatch =
-                kubeClient.watchConfigMaps(configMapName, new ConfigMapCallbackHandlerImpl());
+                checkNotNull(configMapSharedWatcher, "ConfigMap Shared Informer")
+                        .watch(
+                                configMapName,
+                                new ConfigMapCallbackHandlerImpl(),
+                                watchExecutorService);
 
         running = true;
     }
@@ -90,11 +92,7 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         LOG.info("Stopping {}.", this);
 
-        synchronized (watchLock) {
-            if (kubernetesWatch != null) {
-                kubernetesWatch.close();
-            }
-        }
+        kubernetesWatch.close();
     }
 
     private class ConfigMapCallbackHandlerImpl
@@ -128,23 +126,9 @@ public class KubernetesLeaderRetrievalDriver implements LeaderRetrievalDriver {
 
         @Override
         public void handleError(Throwable throwable) {
-            if (throwable instanceof KubernetesTooOldResourceVersionException) {
-                synchronized (watchLock) {
-                    if (running) {
-                        if (kubernetesWatch != null) {
-                            kubernetesWatch.close();
-                        }
-                        LOG.info("Creating a new watch on ConfigMap {}.", configMapName);
-                        kubernetesWatch =
-                                kubeClient.watchConfigMaps(
-                                        configMapName, new ConfigMapCallbackHandlerImpl());
-                    }
-                }
-            } else {
-                fatalErrorHandler.onFatalError(
-                        new LeaderRetrievalException(
-                                "Error while watching the ConfigMap " + configMapName, throwable));
-            }
+            fatalErrorHandler.onFatalError(
+                    new LeaderRetrievalException(
+                            "Error while watching the ConfigMap " + configMapName, throwable));
         }
     }
 

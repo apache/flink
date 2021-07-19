@@ -35,9 +35,7 @@ import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactor
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.kubeclient.resources.NoOpWatchCallbackHandler;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -49,7 +47,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -60,7 +57,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
@@ -75,7 +71,6 @@ import static org.junit.Assert.fail;
 
 /** Tests for Fabric implementation of {@link FlinkKubeClient}. */
 public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
-    private static final long TIMEOUT = 10 * 1000;
     private static final int RPC_PORT = 7123;
     private static final int BLOB_SERVER_PORT = 8346;
 
@@ -511,25 +506,6 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                             .isPresent(),
                     is(true));
         }
-    }
-
-    @Test
-    public void testWatchConfigMaps() throws Exception {
-        final String kubeConfigFile = writeKubeConfigForMockKubernetesServer();
-        flinkConfig.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
-
-        final FlinkKubeClient realFlinkKubeClient =
-                FlinkKubeClientFactory.getInstance().fromConfiguration(flinkConfig, "testing");
-        realFlinkKubeClient.watchConfigMaps(CLUSTER_ID, new NoOpWatchCallbackHandler<>());
-        final String path =
-                "/api/v1/namespaces/"
-                        + NAMESPACE
-                        + "/configmaps?fieldSelector=metadata.name%3D"
-                        + CLUSTER_ID
-                        + "&watch=true";
-        final RecordedRequest watchRequest = server.takeRequest(TIMEOUT, TimeUnit.MILLISECONDS);
-        assertThat(watchRequest.getPath(), is(path));
-        assertThat(watchRequest.getMethod(), is(HttpMethodWrapper.GET.toString()));
     }
 
     @Test

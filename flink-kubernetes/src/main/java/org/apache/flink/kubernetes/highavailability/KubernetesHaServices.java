@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -33,9 +34,14 @@ import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.NAME_SEPARATOR;
@@ -63,6 +69,9 @@ public class KubernetesHaServices extends AbstractHaServices {
     /** Kubernetes client. */
     private final FlinkKubeClient kubeClient;
 
+    private final KubernetesConfigMapSharedWatcher configMapSharedWatcher;
+    private final ExecutorService watchExecutorService;
+
     private static final String RESOURCE_MANAGER_NAME = "resourcemanager";
 
     private static final String DISPATCHER_NAME = "dispatcher";
@@ -89,6 +98,15 @@ public class KubernetesHaServices extends AbstractHaServices {
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
 
+        this.configMapSharedWatcher =
+                this.kubeClient.createConfigMapSharedWatcher(
+                        KubernetesUtils.getConfigMapLabels(
+                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+        this.watchExecutorService =
+                Executors.newCachedThreadPool(
+                        new ExecutorThreadFactory("config-map-watch-handler"));
+        this.configMapSharedWatcher.run();
+
         lockIdentity = UUID.randomUUID().toString();
     }
 
@@ -97,13 +115,15 @@ public class KubernetesHaServices extends AbstractHaServices {
         final KubernetesLeaderElectionConfiguration leaderConfig =
                 new KubernetesLeaderElectionConfiguration(leaderName, lockIdentity, configuration);
         return new DefaultLeaderElectionService(
-                new KubernetesLeaderElectionDriverFactory(kubeClient, leaderConfig));
+                new KubernetesLeaderElectionDriverFactory(
+                        kubeClient, configMapSharedWatcher, watchExecutorService, leaderConfig));
     }
 
     @Override
     public LeaderRetrievalService createLeaderRetrievalService(String leaderName) {
         return new DefaultLeaderRetrievalService(
-                new KubernetesLeaderRetrievalDriverFactory(kubeClient, leaderName));
+                new KubernetesLeaderRetrievalDriverFactory(
+                        kubeClient, configMapSharedWatcher, watchExecutorService, leaderName));
     }
 
     @Override
@@ -130,7 +150,9 @@ public class KubernetesHaServices extends AbstractHaServices {
 
     @Override
     public void internalClose() {
+        configMapSharedWatcher.close();
         kubeClient.close();
+        ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, this.watchExecutorService);
     }
 
     @Override

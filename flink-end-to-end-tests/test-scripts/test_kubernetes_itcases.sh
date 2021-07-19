@@ -46,6 +46,7 @@ cd $END_TO_END_DIR/../flink-kubernetes
 # Run the ITCases
 run_mvn_test org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientITCase
 run_mvn_test org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
+run_mvn_test org.apache.flink.kubernetes.kubeclient.resources.KubernetesSharedInformerITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
 run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityRecoverFromSavepointITCase
