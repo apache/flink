@@ -25,33 +25,33 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.metrics.groups.SinkMetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.metrics.MetricNames;
 
 /** Special {@link org.apache.flink.metrics.MetricGroup} representing an Operator. */
 @Internal
-public class InternalSinkMetricGroup extends ProxyMetricGroup<MetricGroup>
-        implements SinkMetricGroup {
+public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
+        implements SinkWriterMetricGroup {
 
     private final Counter numRecordsOutErrors;
     private final OperatorIOMetricGroup operatorIOMetricGroup;
 
-    private InternalSinkMetricGroup(
+    private InternalSinkWriterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numRecordsOutErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_OUT_ERRORS);
         this.operatorIOMetricGroup = operatorIOMetricGroup;
     }
 
-    public static InternalSinkMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
-        return new InternalSinkMetricGroup(
+    public static InternalSinkWriterMetricGroup wrap(OperatorMetricGroup operatorMetricGroup) {
+        return new InternalSinkWriterMetricGroup(
                 operatorMetricGroup, operatorMetricGroup.getIOMetricGroup());
     }
 
     @VisibleForTesting
-    public static InternalSinkMetricGroup mock(MetricGroup metricGroup) {
-        return new InternalSinkMetricGroup(
+    public static InternalSinkWriterMetricGroup mock(MetricGroup metricGroup) {
+        return new InternalSinkWriterMetricGroup(
                 metricGroup, UnregisteredMetricsGroup.createUnregisteredOperatorIOMetricGroup());
     }
 

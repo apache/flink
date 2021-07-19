@@ -29,7 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * <p>All metrics can only be accessed in the main operator thread.
  */
 @NotThreadSafe
-public interface SinkMetricGroup extends OperatorMetricGroup {
+public interface SinkWriterMetricGroup extends OperatorMetricGroup {
     /** The total number of records failed to send. */
     Counter getNumRecordsOutErrorsCounter();
 
