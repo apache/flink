@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
@@ -139,10 +140,17 @@ class FlinkPlannerImpl(
         return sqlNode
       }
       sqlNode match {
-        case explain: SqlExplain =>
-          val validated = validator.validate(explain.getExplicandum)
-          explain.setOperand(0, validated)
-          explain
+        case richExplain: SqlRichExplain =>
+          val validatedStatement = richExplain.getStatement match {
+            case insert: RichSqlInsert =>
+              val validatedSource = validator.validate(insert.getSource)
+              insert.setOperand(2, validatedSource)
+              insert
+            case others =>
+              validator.validate(others)
+          }
+          richExplain.setOperand(0, validatedStatement)
+          richExplain
         case _ =>
           validator.validate(sqlNode)
       }

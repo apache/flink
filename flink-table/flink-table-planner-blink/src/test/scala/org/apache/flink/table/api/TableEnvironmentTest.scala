@@ -1039,6 +1039,9 @@ class TableEnvironmentTest {
     } catch {
       case e: TableException =>
         assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+            .contains("Was expecting:\n    \"FOR\" ..."))
       case e =>
         fail("This should not happen, " + e.getMessage)
     }

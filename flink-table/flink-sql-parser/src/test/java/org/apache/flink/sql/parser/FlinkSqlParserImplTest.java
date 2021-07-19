@@ -1145,6 +1145,56 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
     }
 
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // TODO: FLINK-20562
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override

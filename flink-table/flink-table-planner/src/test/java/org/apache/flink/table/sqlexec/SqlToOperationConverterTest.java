@@ -20,6 +20,7 @@ package org.apache.flink.table.sqlexec;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
@@ -48,6 +49,7 @@ import org.apache.flink.table.expressions.ExpressionBridge;
 import org.apache.flink.table.expressions.PlannerExpressionConverter;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
+import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -88,6 +90,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Test cases for {@link SqlToOperationConverter}. * */
@@ -662,6 +665,26 @@ public class SqlToOperationConverterTest {
         properties.put("k1", "v1");
         properties.put("K2", "V2");
         assertEquals(properties, alterTablePropertiesOperation.getCatalogTable().getProperties());
+    }
+
+    @Test
+    public void testSqlRichExplainWithSelect() {
+        final String sql = "explain plan for select b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+        assertTrue(node instanceof SqlRichExplain);
+        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        assertTrue(operation instanceof ExplainOperation);
+    }
+
+    @Test
+    public void testSqlRichExplainWithInsert() {
+        final String sql = "explain plan for insert into t1 select a, b, c, d from t2";
+        FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+        assertTrue(node instanceof SqlRichExplain);
+        Operation operation = SqlToOperationConverter.convert(planner, catalogManager, node).get();
+        assertTrue(operation instanceof ExplainOperation);
     }
 
     // ~ Tool Methods ----------------------------------------------------------
