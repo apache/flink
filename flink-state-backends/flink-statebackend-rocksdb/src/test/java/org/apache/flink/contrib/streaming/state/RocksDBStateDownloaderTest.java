@@ -22,7 +22,8 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TestLogger;
@@ -69,16 +70,27 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                     }
 
                     @Override
+                    public StateObjectID getID() {
+                        return StateObjectID.of("test");
+                    }
+
+                    @Override
                     public void discardState() {}
 
                     @Override
                     public long getStateSize() {
                         return 0;
                     }
+
+                    @Override
+                    public <E extends Exception> void accept(StateObjectVisitor<E> visitor)
+                            throws E {
+                        visitor.visit(this);
+                    }
                 };
 
-        Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
-        stateHandles.put(new StateHandleID("state1"), stateHandle);
+        Map<StateObjectID, StreamStateHandle> stateHandles = new HashMap<>(1);
+        stateHandles.put(StateObjectID.of("state1"), stateHandle);
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                 new IncrementalRemoteKeyedStateHandle(
@@ -116,12 +128,12 @@ public class RocksDBStateDownloaderTest extends TestLogger {
             handles.add(new ByteStreamStateHandle(String.format("state%d", i), contents[i]));
         }
 
-        Map<StateHandleID, StreamStateHandle> sharedStates = new HashMap<>(contentNum);
-        Map<StateHandleID, StreamStateHandle> privateStates = new HashMap<>(contentNum);
+        // todo: interface as key?
+        Map<StateObjectID, StreamStateHandle> sharedStates = new HashMap<>(contentNum);
+        Map<StateObjectID, StreamStateHandle> privateStates = new HashMap<>(contentNum);
         for (int i = 0; i < contentNum; ++i) {
-            sharedStates.put(new StateHandleID(String.format("sharedState%d", i)), handles.get(i));
-            privateStates.put(
-                    new StateHandleID(String.format("privateState%d", i)), handles.get(i));
+            sharedStates.put(StateObjectID.of(String.format("sharedState%d", i)), handles.get(i));
+            privateStates.put(StateObjectID.of(String.format("privateState%d", i)), handles.get(i));
         }
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =

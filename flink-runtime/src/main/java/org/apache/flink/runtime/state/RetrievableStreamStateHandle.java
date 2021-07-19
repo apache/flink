@@ -72,6 +72,11 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     }
 
     @Override
+    public StateObjectID getID() {
+        return wrappedStreamStateHandle.getID();
+    }
+
+    @Override
     public void discardState() throws Exception {
         wrappedStreamStateHandle.discardState();
     }
@@ -84,5 +89,11 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     @Override
     public void close() throws IOException {
         //		wrappedStreamStateHandle.close();
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        wrappedStreamStateHandle.accept(visitor);
+        visitor.visit(this);
     }
 }

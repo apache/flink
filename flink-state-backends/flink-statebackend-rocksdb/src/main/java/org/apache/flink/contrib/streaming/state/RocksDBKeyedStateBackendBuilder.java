@@ -43,7 +43,7 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
@@ -292,7 +292,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         try {
             // Variables for snapshot strategy when incremental checkpoint is enabled
             UUID backendUID = UUID.randomUUID();
-            SortedMap<Long, Set<StateHandleID>> materializedSstFiles = new TreeMap<>();
+            SortedMap<Long, Set<StateObjectID>> materializedSstFiles = new TreeMap<>();
             long lastCompletedCheckpointId = -1L;
             if (injectedTestDB != null) {
                 db = injectedTestDB;
@@ -509,7 +509,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             int keyGroupPrefixBytes,
             RocksDB db,
             UUID backendUID,
-            SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
+            SortedMap<Long, Set<StateObjectID>> materializedSstFiles,
             long lastCompletedCheckpointId) {
         RocksDBSnapshotStrategyBase<K, ?> checkpointSnapshotStrategy;
         if (enableIncrementalCheckpointing) {

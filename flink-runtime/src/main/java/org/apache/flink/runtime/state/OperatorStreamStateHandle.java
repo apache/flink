@@ -72,6 +72,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
     }
 
     @Override
+    public StateObjectID getID() {
+        return delegateStateHandle.getID();
+    }
+
+    @Override
     public StreamStateHandle getDelegateStateHandle() {
         return delegateStateHandle;
     }
@@ -123,5 +128,11 @@ public class OperatorStreamStateHandle implements OperatorStateHandle {
                 + ", delegateStateHandle="
                 + delegateStateHandle
                 + '}';
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        delegateStateHandle.accept(visitor);
+        visitor.visit(this);
     }
 }

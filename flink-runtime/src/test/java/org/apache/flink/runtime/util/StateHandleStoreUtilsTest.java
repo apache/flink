@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectVisitor;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
@@ -109,6 +110,11 @@ public class StateHandleStoreUtilsTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0;
+        }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
         }
     }
 }

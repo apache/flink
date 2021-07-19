@@ -116,5 +116,10 @@ public class StateUtilTest {
 
         @Override
         public void discardState() {}
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
+        }
     }
 }

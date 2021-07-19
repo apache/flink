@@ -37,4 +37,7 @@ public interface StreamStateHandle extends StateObject {
 
     /** @return Content of this handle as bytes array if it is already in memory. */
     Optional<byte[]> asBytesIfInMemory();
+
+    /** @return physical {@link StateObjectID ID} of this object, such as file name on DFS. */
+    StateObjectID getID();
 }

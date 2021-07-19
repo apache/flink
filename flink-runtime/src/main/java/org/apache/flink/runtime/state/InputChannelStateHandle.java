@@ -54,4 +54,10 @@ public class InputChannelStateHandle extends AbstractChannelStateHandle<InputCha
             long size) {
         super(delegate, offset, subtaskIndex, info, size);
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        delegate.accept(visitor);
+        visitor.visit(this);
+    }
 }

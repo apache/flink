@@ -76,10 +76,10 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
     private final long checkpointId;
 
     /** Shared state in the incremental checkpoint. */
-    private final Map<StateHandleID, StreamStateHandle> sharedState;
+    private final Map<StateObjectID, StreamStateHandle> sharedState;
 
     /** Private state in the incremental checkpoint. */
-    private final Map<StateHandleID, StreamStateHandle> privateState;
+    private final Map<StateObjectID, StreamStateHandle> privateState;
 
     /** Primary meta data state of the incremental checkpoint. */
     private final StreamStateHandle metaStateHandle;
@@ -97,8 +97,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
             UUID backendIdentifier,
             KeyGroupRange keyGroupRange,
             long checkpointId,
-            Map<StateHandleID, StreamStateHandle> sharedState,
-            Map<StateHandleID, StreamStateHandle> privateState,
+            Map<StateObjectID, StreamStateHandle> sharedState,
+            Map<StateObjectID, StreamStateHandle> privateState,
             StreamStateHandle metaStateHandle) {
 
         this.backendIdentifier = Preconditions.checkNotNull(backendIdentifier);
@@ -120,11 +120,11 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         return checkpointId;
     }
 
-    public Map<StateHandleID, StreamStateHandle> getSharedState() {
+    public Map<StateObjectID, StreamStateHandle> getSharedState() {
         return sharedState;
     }
 
-    public Map<StateHandleID, StreamStateHandle> getPrivateState() {
+    public Map<StateObjectID, StreamStateHandle> getPrivateState() {
         return privateState;
     }
 
@@ -139,7 +139,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
     @Nonnull
     @Override
-    public Set<StateHandleID> getSharedStateHandleIDs() {
+    public Set<StateObjectID> getSharedStateHandleIDs() {
         return getSharedState().keySet();
     }
 
@@ -186,7 +186,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         if (isRegistered) {
             // If this was registered, we only unregister all our referenced shared states
             // from the registry.
-            for (StateHandleID stateHandleID : sharedState.keySet()) {
+            for (StateObjectID stateHandleID : sharedState.keySet()) {
                 registry.unregisterReference(
                         createSharedStateRegistryKeyFromFileName(stateHandleID));
             }
@@ -239,9 +239,9 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 checkpointId,
                 backendIdentifier);
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> sharedStateHandle :
+        for (Map.Entry<StateObjectID, StreamStateHandle> sharedStateHandle :
                 sharedState.entrySet()) {
-            SharedStateRegistryKey registryKey =
+            StateObjectID registryKey =
                     createSharedStateRegistryKeyFromFileName(sharedStateHandle.getKey());
 
             SharedStateRegistry.Result result =
@@ -265,8 +265,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 
     /** Create a unique key to register one of our shared state handles. */
     @VisibleForTesting
-    public SharedStateRegistryKey createSharedStateRegistryKeyFromFileName(StateHandleID shId) {
-        return new SharedStateRegistryKey(
+    public StateObjectID createSharedStateRegistryKeyFromFileName(StateObjectID shId) {
+        return StringBasedStateObjectID.withPrefix(
                 String.valueOf(backendIdentifier) + '-' + keyGroupRange, shId);
     }
 
@@ -334,5 +334,17 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 + ", registered="
                 + (sharedStateRegistry != null)
                 + '}';
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        metaStateHandle.accept(visitor);
+        for (StreamStateHandle handle : privateState.values()) {
+            handle.accept(visitor);
+        }
+        for (StreamStateHandle handle : sharedState.values()) {
+            handle.accept(visitor);
+        }
+        visitor.visit(this);
     }
 }

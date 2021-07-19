@@ -1574,7 +1574,13 @@ public class CheckpointCoordinator {
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
-                            latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
+                            latest.getCheckpointID(),
+                            tasks,
+                            operatorStates,
+                            allowNonRestoredState,
+                            stateObjectIDs ->
+                                    sharedStateRegistry.registerSharedPhysicalStateID(
+                                            stateObjectIDs));
 
             stateAssignmentOperation.assignStates();
 

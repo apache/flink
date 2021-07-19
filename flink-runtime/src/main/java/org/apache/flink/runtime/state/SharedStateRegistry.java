@@ -25,8 +25,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -46,14 +48,21 @@ public class SharedStateRegistry implements AutoCloseable {
     public static final SharedStateRegistryFactory DEFAULT_FACTORY = SharedStateRegistry::new;
 
     /** All registered state objects by an artificial key */
-    private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry>
-            registeredStates;
+    private final Map<StateObjectID, SharedStateRegistry.SharedStateEntry> registeredStates;
 
     /** This flag indicates whether or not the registry is open or if close() was called */
     private boolean open;
 
     /** Executor for async state deletion */
     private final Executor asyncDisposalExecutor;
+
+    /**
+     * Shared state object IDs used to ignore TM-managed state.
+     *
+     * <p><strong>Should be ignored if TM-ownership is disabled</strong> (i.e.
+     * changelog.enabled=false).
+     */
+    private final Set<StateObjectID> sharedStateIDs;
 
     /** Default uses direct executor to delete unreferenced state */
     public SharedStateRegistry() {
@@ -64,6 +73,7 @@ public class SharedStateRegistry implements AutoCloseable {
         this.registeredStates = new HashMap<>();
         this.asyncDisposalExecutor = Preconditions.checkNotNull(asyncDisposalExecutor);
         this.open = true;
+        this.sharedStateIDs = new HashSet<>();
     }
 
     /**
@@ -81,8 +91,7 @@ public class SharedStateRegistry implements AutoCloseable {
      * @return the result of this registration request, consisting of the state handle that is
      *     registered under the key by the end of the operation and its current reference count.
      */
-    public Result registerReference(
-            SharedStateRegistryKey registrationKey, StreamStateHandle state) {
+    public Result registerReference(StateObjectID registrationKey, StreamStateHandle state) {
 
         Preconditions.checkNotNull(state);
 
@@ -135,7 +144,7 @@ public class SharedStateRegistry implements AutoCloseable {
      *     the state handle, or null if the state handle was deleted through this request. Returns
      *     null if the registry was previously closed.
      */
-    public Result unregisterReference(SharedStateRegistryKey registrationKey) {
+    public Result unregisterReference(StateObjectID registrationKey) {
 
         Preconditions.checkNotNull(registrationKey);
 
@@ -226,6 +235,10 @@ public class SharedStateRegistry implements AutoCloseable {
         synchronized (registeredStates) {
             open = false;
         }
+    }
+
+    public void registerSharedPhysicalStateID(StateObjectID sharedStateID) {
+        this.sharedStateIDs.add(sharedStateID);
     }
 
     /** An entry in the registry, tracking the handle and the corresponding reference count. */

@@ -108,4 +108,10 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
                 + keyGroupRange
                 + '}';
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        directoryStateHandle.accept(visitor);
+        visitor.visit(this);
+    }
 }

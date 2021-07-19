@@ -126,4 +126,12 @@ public class ChainedStateHandle<T extends StateObject> implements StateObject {
     public static boolean isNullOrEmpty(ChainedStateHandle<?> chainedStateHandle) {
         return chainedStateHandle == null || chainedStateHandle.isEmpty();
     }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        for (T handle : operatorStateHandles) {
+            handle.accept(visitor);
+        }
+        visitor.visit(this);
+    }
 }

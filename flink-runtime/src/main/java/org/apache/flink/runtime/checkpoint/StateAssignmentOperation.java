@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -39,6 +40,7 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.StateObjectID;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -50,7 +52,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -81,17 +85,30 @@ public class StateAssignmentOperation {
     private final Map<IntermediateDataSetID, TaskStateAssignment> consumerAssignment =
             new HashMap<>();
 
+    private final Consumer<StateObjectID> sharedStateConsumer;
+
+    @VisibleForTesting
     public StateAssignmentOperation(
             long restoreCheckpointId,
             Set<ExecutionJobVertex> tasks,
             Map<OperatorID, OperatorState> operatorStates,
             boolean allowNonRestoredState) {
+        this(restoreCheckpointId, tasks, operatorStates, allowNonRestoredState, unused -> {});
+    }
+
+    public StateAssignmentOperation(
+            long restoreCheckpointId,
+            Set<ExecutionJobVertex> tasks,
+            Map<OperatorID, OperatorState> operatorStates,
+            boolean allowNonRestoredState,
+            Consumer<StateObjectID> sharedStateConsumer) {
 
         this.restoreCheckpointId = restoreCheckpointId;
         this.tasks = Preconditions.checkNotNull(tasks);
         this.operatorStates = Preconditions.checkNotNull(operatorStates);
         this.allowNonRestoredState = allowNonRestoredState;
-        vertexAssignments = new HashMap<>(tasks.size());
+        this.vertexAssignments = new HashMap<>(tasks.size());
+        this.sharedStateConsumer = sharedStateConsumer;
     }
 
     public void assignStates() {
@@ -146,6 +163,22 @@ public class StateAssignmentOperation {
                 assignTaskStateToExecutionJobVertices(stateAssignment);
             }
         }
+
+        // add shared states to TM snapshots and JM SharedStateRegistry
+        SharedStateCollector.collect(vertexAssignments.keySet())
+                .forEach(
+                        (stateId, vertices) -> {
+                            addSharedState(stateId, vertices);
+                            sharedStateConsumer.accept(stateId);
+                        });
+    }
+
+    private static void addSharedState(
+            StateObjectID sharedStateID, List<ExecutionVertex> vertices) {
+        vertices.stream()
+                .map(v -> v.getCurrentExecutionAttempt().getTaskRestore())
+                .filter(Objects::nonNull)
+                .forEach(ev -> ev.addSharedObjectStateID(sharedStateID));
     }
 
     private void assignAttemptState(TaskStateAssignment taskStateAssignment) {

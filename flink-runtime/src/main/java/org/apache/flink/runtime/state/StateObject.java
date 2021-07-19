@@ -63,4 +63,11 @@ public interface StateObject extends Serializable {
      * @return Size of the state in bytes.
      */
     long getStateSize();
+
+    /**
+     * Accept the given visitor by first calling this method for all of the current state object
+     * children and then {@link StateObjectVisitor#visit(StateObject) visitor.visit(this)} (so that
+     * correct method is chosen).
+     */
+    <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E;
 }

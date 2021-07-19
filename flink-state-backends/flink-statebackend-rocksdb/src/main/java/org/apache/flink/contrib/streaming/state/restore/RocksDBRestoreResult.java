@@ -19,7 +19,7 @@
 package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.StateObjectID;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
@@ -37,7 +37,7 @@ public class RocksDBRestoreResult {
     // fields only for incremental restore
     private final long lastCompletedCheckpointId;
     private final UUID backendUID;
-    private final SortedMap<Long, Set<StateHandleID>> restoredSstFiles;
+    private final SortedMap<Long, Set<StateObjectID>> restoredSstFiles;
 
     public RocksDBRestoreResult(
             RocksDB db,
@@ -45,7 +45,7 @@ public class RocksDBRestoreResult {
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             long lastCompletedCheckpointId,
             UUID backendUID,
-            SortedMap<Long, Set<StateHandleID>> restoredSstFiles) {
+            SortedMap<Long, Set<StateObjectID>> restoredSstFiles) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
@@ -66,7 +66,7 @@ public class RocksDBRestoreResult {
         return backendUID;
     }
 
-    public SortedMap<Long, Set<StateHandleID>> getRestoredSstFiles() {
+    public SortedMap<Long, Set<StateObjectID>> getRestoredSstFiles() {
         return restoredSstFiles;
     }
 

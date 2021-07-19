@@ -64,5 +64,10 @@ public class SnapshotResultTest extends TestLogger {
         public long getStateSize() {
             return size;
         }
+
+        @Override
+        public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+            visitor.visit(this);
+        }
     }
 }

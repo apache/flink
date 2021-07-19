@@ -117,6 +117,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
+    public StateObjectID getID() {
+        return stateHandle.getID();
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -149,5 +154,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
                 + ", stateHandle="
                 + stateHandle
                 + '}';
+    }
+
+    @Override
+    public <E extends Exception> void accept(StateObjectVisitor<E> visitor) throws E {
+        stateHandle.accept(visitor);
+        visitor.visit(this);
     }
 }

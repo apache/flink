@@ -41,7 +41,7 @@ public abstract class AbstractChannelStateHandle<Info> implements StateObject {
     private static final long serialVersionUID = 1L;
 
     private final Info info;
-    private final StreamStateHandle delegate;
+    protected final StreamStateHandle delegate;
     /**
      * Start offsets in a {@link org.apache.flink.core.fs.FSDataInputStream stream} {@link
      * StreamStateHandle#openInputStream obtained} from {@link #delegate}.
