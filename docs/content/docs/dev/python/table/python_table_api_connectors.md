@@ -43,7 +43,7 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 
 ## How to use connectors
 
-In PyFink's Table API, DDL is the recommended way to define sources and sinks, executed via the
+In PyFlink's Table API, DDL is the recommended way to define sources and sinks, executed via the
 `execute_sql()` method on the `TableEnvironment`.
 This makes the table available for use by the application.
 

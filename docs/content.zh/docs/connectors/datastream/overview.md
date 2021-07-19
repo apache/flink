@@ -63,7 +63,7 @@ Flink 还有些一些额外的连接器通过 [Apache Bahir](https://bahir.apach
  * [Akka](https://bahir.apache.org/docs/flink/current/flink-streaming-akka/) (sink)
  * [Netty](https://bahir.apache.org/docs/flink/current/flink-streaming-netty/) (source)
 
-## 连接Fink的其他方法
+## 连接Flink的其他方法
 
 ### 异步 I/O
 
