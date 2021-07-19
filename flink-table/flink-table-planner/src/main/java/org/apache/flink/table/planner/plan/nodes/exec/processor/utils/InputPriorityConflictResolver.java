@@ -50,7 +50,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
      * @param safeDamBehavior when checking for conflicts we'll ignore the edges with {@link
      *     InputProperty.DamBehavior} stricter or equal than this
      * @param exchangeMode when a conflict occurs we'll insert an {@link BatchExecExchange} node
-     *     with this shuffleMode to resolve conflict
+     *     with this exchange mode to resolve conflict
      */
     public InputPriorityConflictResolver(
             List<ExecNode<?>> roots,

@@ -139,7 +139,7 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
     }
 
     @Test
-    public void testGlobalDataExchangeModeDoesNotOverrideSpecifiedShuffleMode() {
+    public void testGlobalDataExchangeModeDoesNotOverrideSpecifiedExchangeMode() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
         final DataStream<Integer> forward =

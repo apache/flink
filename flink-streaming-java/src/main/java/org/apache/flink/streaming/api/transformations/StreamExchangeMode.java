@@ -18,10 +18,11 @@
 
 package org.apache.flink.streaming.api.transformations;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 
-/** The shuffle mode defines the data exchange mode between operators. */
-@PublicEvolving
+/** The data exchange mode between operators during {@link StreamGraph} generation. */
+@Internal
 public enum StreamExchangeMode {
     /**
      * Producer and consumer are online at the same time. Produced data is received by consumer
@@ -36,7 +37,7 @@ public enum StreamExchangeMode {
     BATCH,
 
     /**
-     * The shuffle mode is undefined. It leaves it up to the framework to decide the shuffle mode.
+     * The exchange mode is undefined. It leaves it up to the framework to decide the exchange mode.
      * The framework will pick one of {@link StreamExchangeMode#BATCH} or {@link
      * StreamExchangeMode#PIPELINED} in the end.
      */

@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
-/** Utility class to load job-wide shuffle mode. */
+/** Utility class to load job-wide exchange mode. */
 public class StreamExchangeModeUtils {
 
     static final String ALL_EDGES_BLOCKING_LEGACY = "batch";
