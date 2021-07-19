@@ -148,7 +148,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static void startClusters(KafkaTestEnvironment.Config environmentConfig)
             throws Exception {
-        kafkaServer = constructKafkaTestEnvionment();
+        kafkaServer = constructKafkaTestEnvironment();
 
         LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
@@ -167,7 +167,7 @@ public abstract class KafkaTestBase extends TestLogger {
         }
     }
 
-    public static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+    public static KafkaTestEnvironment constructKafkaTestEnvironment() throws Exception {
         Class<?> clazz =
                 Class.forName(
                         "org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
