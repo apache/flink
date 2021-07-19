@@ -221,7 +221,7 @@ LogicalProject(f0=[$0], f1=[$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleGroupingsNotSupported">
+  <TestCase name="testCorrelateSortToRankWithMultipleGroupKeys">
     <Resource name="sql">
       <![CDATA[
 SELECT f0, f2
@@ -252,14 +252,8 @@ LogicalProject(f0=[$0], f2=[$2])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(f0=[$0], f2=[$2])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1}])
-   :- LogicalAggregate(group=[{0, 1}])
-   :  +- LogicalProject(f0=[$0], f1=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
-   +- LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[3])
-      +- LogicalProject(f2=[$2])
-         +- LogicalFilter(condition=[AND(=($0, $cor0.f0), =($1, $cor0.f1))])
-            +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
++- LogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=3], partitionBy=[$0,$1], orderBy=[$2 DESC], select=[f0=$0, f1=$1, f2=$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
   </TestCase>

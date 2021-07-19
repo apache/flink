@@ -1378,4 +1378,41 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "TX,San_Antonio")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testCorrelateSortToRankWithMultipleGroupKeys(): Unit = {
+    val data = List(
+      ("book", "aws", 1, 12),
+      ("book", "aws", 2, 19),
+      ("book", "aws", 4, 11),
+      ("fruit", "aws", 4, 33),
+      ("fruit", "aws", 3, 44),
+      ("fruit", "aws", 5, 22))
+
+    val ds = failingDataSource(data).toTable(tEnv, 'category, 'seller, 'shopId, 'num)
+    tEnv.registerTable("T", ds)
+
+    val sql =
+      """
+        |SELECT category, seller, shopId
+        |FROM (SELECT DISTINCT category, seller from T) shops,
+        |   LATERAL (
+        |     SELECT shopId, num
+        |     FROM T
+        |     WHERE category = shops.category and seller = shops.seller
+        |     ORDER BY num DESC
+        |     LIMIT 2
+        |   )
+      """.stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected = List(
+      "book,aws,1",
+      "book,aws,2",
+      "fruit,aws,3",
+      "fruit,aws,4")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
