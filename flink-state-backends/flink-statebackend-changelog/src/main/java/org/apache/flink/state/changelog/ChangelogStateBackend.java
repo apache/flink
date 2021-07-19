@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.mailbox.MailboxExecutor;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -221,7 +222,9 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 env.getExecutionConfig(),
                                 ttlTimeProvider,
                                 changelogStorage.createWriter(operatorIdentifier, keyGroupRange),
-                                baseState));
+                                baseState,
+                                env.getMainMailboxExecutor(),
+                                env.getAsyncOperationsThreadPool()));
     }
 
     private Collection<ChangelogStateBackendHandle> castHandles(

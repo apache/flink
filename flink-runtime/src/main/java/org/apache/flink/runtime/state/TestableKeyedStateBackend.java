@@ -18,6 +18,9 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+
+import javax.annotation.Nonnull;
 
 /** A keyed state backend interface for internal testing purpose. */
 @VisibleForTesting
@@ -31,5 +34,12 @@ public interface TestableKeyedStateBackend<K> extends KeyedStateBackend<K> {
      */
     default KeyedStateBackend<K> getDelegatedKeyedStateBackend(boolean recursive) {
         return this;
+    }
+
+    default void triggerMaterialization(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory streamFactory,
+            @Nonnull CheckpointOptions checkpointOptions) throws Exception {
     }
 }

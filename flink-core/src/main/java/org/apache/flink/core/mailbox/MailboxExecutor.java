@@ -15,12 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.core.mailbox;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.runtime.concurrent.FutureTaskWithException;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
-import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;

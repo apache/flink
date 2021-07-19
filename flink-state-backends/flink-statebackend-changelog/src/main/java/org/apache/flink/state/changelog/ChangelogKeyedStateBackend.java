@@ -26,6 +26,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -59,6 +60,8 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import org.apache.flink.util.concurrent.FutureUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,12 +78,15 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -151,17 +157,19 @@ public class ChangelogKeyedStateBackend<K>
     private final FunctionDelegationHelper functionDelegationHelper =
             new FunctionDelegationHelper();
 
-    /** Updated initially on restore and later upon materialization (in FLINK-21357). */
-    @GuardedBy("materialized")
-    private final List<KeyedStateHandle> materialized = new ArrayList<>();
+    private final MailboxExecutor mainMailboxExecutor;
+
+    private final ExecutorService asyncOperationsThreadPool;
 
     /** Updated initially on restore and later cleared upon materialization (in FLINK-21357). */
     @GuardedBy("materialized")
     private final List<ChangelogStateHandle> restoredNonMaterialized = new ArrayList<>();
 
+    private SnapshotResult<KeyedStateHandle> materializedSnapshot = SnapshotResult.empty();
+
     /**
      * {@link SequenceNumber} denoting last upload range <b>start</b>, inclusive. Updated to {@link
-     * #materializedTo} when {@link #snapshot(long, long, CheckpointStreamFactory,
+     * #lastMaterializedTo} when {@link #snapshot(long, long, CheckpointStreamFactory,
      * CheckpointOptions) starting snapshot}. Used to notify {@link #stateChangelogWriter} about
      * changelog ranges that were confirmed or aborted by JM.
      */
@@ -182,22 +190,30 @@ public class ChangelogKeyedStateBackend<K>
      *
      * <p>WARN: this value needs to be updated for benchmarking, e.g. in notifyCheckpointComplete.
      */
-    private final SequenceNumber materializedTo;
+    private SequenceNumber lastMaterializedTo;
 
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
-            Collection<ChangelogStateBackendHandle> initialState) {
+            Collection<ChangelogStateBackendHandle> initialState,
+            MailboxExecutor mainMailboxExecutor,
+            ExecutorService asyncOperationsThreadPool) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
         this.keyValueStatesByName = new HashMap<>();
         this.priorityQueueStatesByName = new HashMap<>();
         this.stateChangelogWriter = stateChangelogWriter;
-        this.materializedTo = stateChangelogWriter.initialSequenceNumber();
+        this.lastMaterializedTo = stateChangelogWriter.initialSequenceNumber();
         this.changelogStates = new HashMap<>();
+
+//        this.mainMailboxExecutor = checkNotNull(mainMailboxExecutor);
+//        this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
+        this.mainMailboxExecutor = mainMailboxExecutor;
+        this.asyncOperationsThreadPool = asyncOperationsThreadPool;
+
         this.completeRestore(initialState);
     }
 
@@ -319,37 +335,83 @@ public class ChangelogKeyedStateBackend<K>
         // materialization may truncate only a part of the previous result and the backend would
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
-        lastUploadedFrom = materializedTo;
-        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+        lastUploadedFrom = lastMaterializedTo;
+        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber();
 
         LOG.debug(
                 "snapshot for checkpoint {}, change range: {}..{}",
                 checkpointId,
                 lastUploadedFrom,
                 lastUploadedTo);
+
+        SnapshotResult<KeyedStateHandle> asOfNow = materializedSnapshot;
         return toRunnableFuture(
                 stateChangelogWriter
                         .persist(lastUploadedFrom)
-                        .thenApply(this::buildSnapshotResult));
+                        .thenApply(delta -> buildSnapshotResult(delta, asOfNow)));
     }
 
-    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(ChangelogStateHandle delta) {
-        // Can be called by either task thread during the sync checkpoint phase (if persist future
-        // was already completed); or by the writer thread otherwise. So need to synchronize.
-        // todo: revisit after FLINK-21357 - use mailbox action?
-        synchronized (materialized) {
-            // collections don't change once started and handles are immutable
-            List<ChangelogStateHandle> prevDeltaCopy = new ArrayList<>(restoredNonMaterialized);
-            if (delta != null && delta.getStateSize() > 0) {
-                prevDeltaCopy.add(delta);
-            }
-            if (prevDeltaCopy.isEmpty() && materialized.isEmpty()) {
-                return SnapshotResult.empty();
-            } else {
-                return SnapshotResult.of(
-                        new ChangelogStateBackendHandleImpl(
-                                materialized, prevDeltaCopy, getKeyGroupRange()));
-            }
+    @VisibleForTesting
+    @Override
+    public void triggerMaterialization(long checkpointId,
+                              long timestamp,
+                              @Nonnull CheckpointStreamFactory streamFactory,
+                              @Nonnull CheckpointOptions checkpointOptions) throws Exception {
+        mainMailboxExecutor.execute(
+                () -> {
+                    RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture =
+                            keyedStateBackend.snapshot(
+                                    checkpointId,
+                                    timestamp,
+                                    streamFactory,
+                                    checkpointOptions);
+                    SequenceNumber upTo = stateChangelogWriter.lastAppendedSequenceNumber();
+
+                    // TODO: add metadata to log FLINK-23170
+                    asyncOperationsThreadPool.execute(
+                            () -> asyncMaterialization(materializedRunnableFuture, upTo)
+                    );
+                },
+                "materialization"
+        );
+    }
+
+    private void asyncMaterialization(
+            RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture,
+            SequenceNumber materializedTo) {
+        try {
+            FutureUtils.runIfNotDoneAndGet(materializedRunnableFuture);
+            mainMailboxExecutor.execute(
+                    () -> {
+                        materializedSnapshot = materializedRunnableFuture.get();
+                        lastMaterializedTo = materializedTo;
+                    },
+                    "update materializedSnapshot after  "
+        );
+        } catch (Exception e) {
+            LOG.info("{} - asynchronous part of materialization could not be completed.", e);
+            // clean-up
+        }
+    }
+
+    private SnapshotResult<KeyedStateHandle> buildSnapshotResult(
+            ChangelogStateHandle delta, SnapshotResult<KeyedStateHandle> materialized) {
+
+        // collections don't change once started and handles are immutable
+        List<ChangelogStateHandle> prevDeltaCopy = new ArrayList<>(restoredNonMaterialized);
+        if (delta != null && delta.getStateSize() > 0) {
+            prevDeltaCopy.add(delta);
+        }
+        if (prevDeltaCopy.isEmpty() && materialized.equals(SnapshotResult.empty())) {
+            return SnapshotResult.empty();
+        } else {
+            KeyedStateHandle jobManagerOwned = materialized.getJobManagerOwnedSnapshot();
+            return SnapshotResult.of(
+                    new ChangelogStateBackendHandleImpl(
+                            // TODO : This part will be changed after ownership moving?
+                            jobManagerOwned == null ? emptyList() : singletonList(jobManagerOwned),
+                            prevDeltaCopy,
+                            getKeyGroupRange()));
         }
     }
 
@@ -506,17 +568,14 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     private void completeRestore(Collection<ChangelogStateBackendHandle> stateHandles) {
-        if (!stateHandles.isEmpty()) {
-            synchronized (materialized) { // ensure visibility
-                for (ChangelogStateBackendHandle h : stateHandles) {
-                    if (h != null) {
-                        materialized.addAll(h.getMaterializedStateHandles());
-                        restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
-                    }
-                }
-            }
-        }
-        changelogStates.clear();
+//        if (!stateHandles.isEmpty()) {
+//            for (ChangelogStateBackendHandle h : stateHandles) {
+//                if (h != null) {
+//                    materialized = addAll(h.getMaterializedStateHandles());
+//                    restoredNonMaterialized.addAll(h.getNonMaterializedStateHandles());
+//                }
+//            }
+//        }
     }
 
     @Override
