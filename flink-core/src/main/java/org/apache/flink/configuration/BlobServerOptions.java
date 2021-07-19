@@ -118,4 +118,10 @@ public class BlobServerOptions {
             key("blob.client.connect.timeout")
                     .defaultValue(0)
                     .withDescription("The connection timeout in milliseconds for the blob client.");
+
+    /** The maximum size limit of blob cache on TaskExecutor. */
+    public static final ConfigOption<Long> BLOB_CACHE_SIZE_LIMIT =
+            key("blob.cache.size.limit")
+                    .defaultValue(1_024 * 1_024 * 1_024 * 10L)
+                    .withDescription("The maximum size limit of blob cache for each TaskExecutor.");
 }

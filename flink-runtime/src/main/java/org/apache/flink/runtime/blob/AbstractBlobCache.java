@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
@@ -32,6 +33,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -73,6 +75,8 @@ public abstract class AbstractBlobCache implements Closeable {
 
     @Nullable protected volatile InetSocketAddress serverAddress;
 
+    private final BlobCacheSizeTracker blobCacheSizeTracker;
+
     public AbstractBlobCache(
             final Configuration blobClientConfig,
             final BlobView blobView,
@@ -84,6 +88,10 @@ public abstract class AbstractBlobCache implements Closeable {
         this.blobClientConfig = checkNotNull(blobClientConfig);
         this.blobView = checkNotNull(blobView);
         this.readWriteLock = new ReentrantReadWriteLock();
+
+        // configure the size limit tracker
+        final long sizeLimit = blobClientConfig.getLong(BlobServerOptions.BLOB_CACHE_SIZE_LIMIT);
+        this.blobCacheSizeTracker = new BlobCacheSizeTracker(sizeLimit);
 
         // configure and create the storage directory
         this.storageDir = BlobUtils.initLocalStorageDirectory(blobClientConfig);
@@ -131,6 +139,7 @@ public abstract class AbstractBlobCache implements Closeable {
 
         try {
             if (localFile.exists()) {
+                blobCacheSizeTracker.update(jobId, blobKey);
                 return localFile;
             }
         } finally {
@@ -146,8 +155,7 @@ public abstract class AbstractBlobCache implements Closeable {
                     // now move the temp file to our local cache atomically
                     readWriteLock.writeLock().lock();
                     try {
-                        BlobUtils.moveTempFileToStore(
-                                incomingFile, jobId, blobKey, localFile, log, null);
+                        moveTempFileToStore(incomingFile, jobId, blobKey, localFile, log, null);
                     } finally {
                         readWriteLock.writeLock().unlock();
                     }
@@ -173,8 +181,7 @@ public abstract class AbstractBlobCache implements Closeable {
 
                 readWriteLock.writeLock().lock();
                 try {
-                    BlobUtils.moveTempFileToStore(
-                            incomingFile, jobId, blobKey, localFile, log, null);
+                    moveTempFileToStore(incomingFile, jobId, blobKey, localFile, log, null);
                 } finally {
                     readWriteLock.writeLock().unlock();
                 }
@@ -194,6 +201,28 @@ public abstract class AbstractBlobCache implements Closeable {
                         jobId);
             }
         }
+    }
+
+    private void moveTempFileToStore(
+            File incomingFile,
+            @Nullable JobID jobId,
+            BlobKey blobKey,
+            File localFile,
+            Logger log,
+            @Nullable BlobStore blobStore)
+            throws IOException {
+
+        // Check the size limit and delete the files that exceeds the limit
+        List<Tuple2<JobID, BlobKey>> fileToDelete =
+                blobCacheSizeTracker.checkLimit(incomingFile.length());
+        for (Tuple2<JobID, BlobKey> key : fileToDelete) {
+            deleteFileUnsafely(key.f0, key.f1);
+            blobCacheSizeTracker.remove(key);
+        }
+
+        // Move the file and register it to the tracker
+        BlobUtils.moveTempFileToStore(incomingFile, jobId, blobKey, localFile, log, blobStore);
+        blobCacheSizeTracker.add(jobId, blobKey, localFile.length());
     }
 
     /**
@@ -247,6 +276,28 @@ public abstract class AbstractBlobCache implements Closeable {
                 ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), log);
             }
         }
+    }
+
+    /**
+     * Delete the blob file with the given key.
+     *
+     * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
+     * @param blobKey The key of the desired BLOB.
+     * @return file successfully deleted or not.
+     */
+    public boolean deleteFileUnsafely(@Nullable JobID jobId, BlobKey blobKey) {
+        final File localFile =
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.getAbsolutePath(), jobId, blobKey));
+        if (!localFile.delete() && localFile.exists()) {
+            log.warn(
+                    "Failed to delete locally cached BLOB {} at {}",
+                    blobKey,
+                    localFile.getAbsolutePath());
+            return false;
+        }
+        return true;
     }
 
     /**

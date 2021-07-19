@@ -192,6 +192,13 @@ public class TransientBlobCache extends AbstractBlobCache implements TransientBl
         return true;
     }
 
+    @Override
+    public boolean deleteFileUnsafely(@Nullable JobID jobId, BlobKey blobKey) {
+        boolean result = super.deleteFileUnsafely(jobId, blobKey);
+        blobExpiryTimes.remove(Tuple2.of(jobId, blobKey));
+        return result;
+    }
+
     /**
      * Returns the blob expiry times - for testing purposes only!
      *
