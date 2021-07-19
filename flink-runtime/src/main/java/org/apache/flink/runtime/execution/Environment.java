@@ -37,6 +37,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -232,4 +234,20 @@ public interface Environment {
     IndexedInputGate[] getAllInputGates();
 
     TaskEventDispatcher getTaskEventDispatcher();
+
+    // --------------------------------------------------------------------------------------------
+    //  Fields set in the StreamTask to provide access to mailbox and other runtime resources
+    // --------------------------------------------------------------------------------------------
+
+    default void setMainMailboxExecutor(MailboxExecutor mainMailboxExecutor) {}
+
+    default MailboxExecutor getMainMailboxExecutor() {
+        throw new UnsupportedOperationException();
+    }
+
+    default void setAsyncOperationsThreadPool(ExecutorService executorService) {}
+
+    default ExecutorService getAsyncOperationsThreadPool() {
+        throw new UnsupportedOperationException();
+    }
 }
