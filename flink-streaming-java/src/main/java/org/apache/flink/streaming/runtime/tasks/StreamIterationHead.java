@@ -20,7 +20,9 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.io.BlockingQueueBroker;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -30,6 +32,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamIterationHead.class);
+    private static final long DEFAULT_POOLING_TIME = 100L;
 
     private RecordWriterOutput<OUT>[] streamOutputs;
 
@@ -71,10 +75,14 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 
     @Override
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-        StreamRecord<OUT> nextRecord =
-                shouldWait
-                        ? dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS)
-                        : dataChannel.take();
+        StreamRecord<OUT> nextRecord;
+        if (shouldWait) {
+            nextRecord = dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS);
+        } else {
+            while ((nextRecord = dataChannel.poll(DEFAULT_POOLING_TIME, TimeUnit.MILLISECONDS)) == null) {
+                mainMailboxExecutor.yield();
+            }
+        }
 
         if (nextRecord != null) {
             for (RecordWriterOutput<OUT> output : streamOutputs) {
