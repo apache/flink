@@ -22,6 +22,7 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.Objects;
 
 /**
@@ -35,15 +36,23 @@ public final class RequestSplitEvent implements OperatorEvent {
     private static final long serialVersionUID = 1L;
 
     @Nullable private final String hostName;
+    @Nullable private final Collection<String> finishedSplitIds;
 
     /** Creates a new {@code RequestSplitEvent} with no host information. */
     public RequestSplitEvent() {
-        this(null);
+        this(null, null);
     }
 
     /** Creates a new {@code RequestSplitEvent} with a hostname. */
     public RequestSplitEvent(@Nullable String hostName) {
+        this(hostName, null);
+    }
+
+    /** Creates a new {@code RequestSplitEvent} with a hostname and finishedSplitIds. */
+    public RequestSplitEvent(
+            @Nullable String hostName, @Nullable Collection<String> finishedSplitIds) {
         this.hostName = hostName;
+        this.finishedSplitIds = finishedSplitIds;
     }
 
     // ------------------------------------------------------------------------
@@ -51,6 +60,11 @@ public final class RequestSplitEvent implements OperatorEvent {
     @Nullable
     public String hostName() {
         return hostName;
+    }
+
+    @Nullable
+    public Collection<String> finishedSplitIds() {
+        return finishedSplitIds;
     }
 
     // ------------------------------------------------------------------------
