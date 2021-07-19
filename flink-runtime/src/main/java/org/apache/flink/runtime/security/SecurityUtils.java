@@ -114,7 +114,8 @@ public class SecurityUtils {
         }
     }
 
-    static void uninstall() {
+    /** Uninstalls all installed {@link SecurityModule}s. */
+    public static void uninstall() {
         if (installedModules != null) {
             // uninstall them in reverse order
             for (int i = installedModules.size() - 1; i >= 0; i--) {
