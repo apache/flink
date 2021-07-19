@@ -153,6 +153,7 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -946,16 +947,23 @@ public class SqlToOperationConverter {
     private Operation convertRichExplain(SqlRichExplain sqlExplain) {
         Operation operation;
         SqlNode sqlNode = sqlExplain.getStatement();
+        Set<String> explainDetails = sqlExplain.getExplainDetails();
+
+        //  Link to FLINK-22155,EXPLAIN statement should validate insert and query.If sql is a
+        //  INSERT statement, it will parse to RichSqlInsert. If sql is a SELECT statement
+        //  it will be converted to SqlSelect, but when this SELECT statement contains UNION
+        //  it will be converted to SqlBasicCall and it's operator is union instead of converted
+        //  to SqlSelect SqlNode.
         if (sqlNode instanceof RichSqlInsert) {
             operation = convertSqlInsert((RichSqlInsert) sqlNode);
-        } else if (sqlNode instanceof SqlSelect) {
+        } else if (sqlNode instanceof SqlSelect || sqlNode instanceof SqlBasicCall) {
             operation = convertSqlQuery(sqlExplain.getStatement());
         } else {
             throw new ValidationException(
                     String.format(
                             "EXPLAIN statement doesn't support %s", sqlNode.getKind().toString()));
         }
-        return new ExplainOperation(operation);
+        return new ExplainOperation(operation, explainDetails);
     }
 
     /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
