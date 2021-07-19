@@ -58,7 +58,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * <p>Returns modified datetime.
  *
  * <p>This class was copied over from Calcite to fix the return type deduction issue on timestamp
- * with local time zone type.
+ * with local time zone type (CALCITE-4698).
  */
 public class SqlTimestampAddFunction extends SqlFunction {
 
@@ -75,25 +75,27 @@ public class SqlTimestampAddFunction extends SqlFunction {
                         opBinding.getOperandType(2));
             };
 
+    // BEGIN FLINK MODIFICATION
+    // Reason: this method is changed to deduce return type on timestamp with local time zone
+    // correctly
+    // Whole class should be removed after CALCITE-4698 is fixed
     public static RelDataType deduceType(
             RelDataTypeFactory typeFactory,
             TimeUnit timeUnit,
             RelDataType intervalType,
             RelDataType datetimeType) {
-        // CHANGED: this method is changed to deduce return type on timestamp with local time zone
-        // correctly
         RelDataType type;
         switch (timeUnit) {
             case MILLISECOND:
                 type =
                         typeFactory.createSqlType(
-                                SqlTypeName.TIMESTAMP,
+                                timestampOrTimestampLtz(datetimeType),
                                 Math.max(MILLISECOND_PRECISION, datetimeType.getPrecision()));
                 break;
             case MICROSECOND:
                 type =
                         typeFactory.createSqlType(
-                                SqlTypeName.TIMESTAMP,
+                                timestampOrTimestampLtz(datetimeType),
                                 Math.max(MICROSECOND_PRECISION, datetimeType.getPrecision()));
                 break;
             case HOUR:
@@ -101,16 +103,11 @@ public class SqlTimestampAddFunction extends SqlFunction {
             case SECOND:
                 if (datetimeType.getFamily() == SqlTypeFamily.TIME) {
                     type = datetimeType;
-                } else if (datetimeType.getSqlTypeName()
-                        == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE) {
-                    type =
-                            typeFactory.createSqlType(
-                                    SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
-                                    datetimeType.getPrecision());
                 } else {
                     type =
                             typeFactory.createSqlType(
-                                    SqlTypeName.TIMESTAMP, datetimeType.getPrecision());
+                                    timestampOrTimestampLtz(datetimeType),
+                                    datetimeType.getPrecision());
                 }
                 break;
             default:
@@ -119,6 +116,13 @@ public class SqlTimestampAddFunction extends SqlFunction {
         return typeFactory.createTypeWithNullability(
                 type, intervalType.isNullable() || datetimeType.isNullable());
     }
+
+    private static SqlTypeName timestampOrTimestampLtz(RelDataType datetimeType) {
+        return datetimeType.getSqlTypeName() == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                ? SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE
+                : SqlTypeName.TIMESTAMP;
+    }
+    // END FLINK MODIFICATION
 
     /** Creates a SqlTimestampAddFunction. */
     SqlTimestampAddFunction() {
