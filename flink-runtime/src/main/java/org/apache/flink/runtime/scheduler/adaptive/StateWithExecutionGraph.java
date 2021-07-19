@@ -30,8 +30,10 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -49,18 +51,27 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * Abstract state class which contains an {@link ExecutionGraph} and the required handlers to
@@ -108,6 +119,22 @@ abstract class StateWithExecutionGraph implements State {
     @VisibleForTesting
     ExecutionGraph getExecutionGraph() {
         return executionGraph;
+    }
+
+    ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
+        return executionGraph
+                .getAllVertices()
+                .get(executionVertexId.getJobVertexId())
+                .getTaskVertices()[executionVertexId.getSubtaskIndex()];
+    }
+
+    @Nullable
+    protected ExecutionVertexID getExecutionVertexId(ExecutionAttemptID id) {
+        Execution execution = getExecutionGraph().getRegisteredExecutions().get(id);
+        if (execution == null) {
+            return null;
+        }
+        return execution.getVertex().getID();
     }
 
     JobID getJobId() {
@@ -282,6 +309,26 @@ abstract class StateWithExecutionGraph implements State {
         }
     }
 
+    void archiveExecutionFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId, Throwable cause) {
+        Set<ExecutionVertexID> concurrentVertexIds =
+                IterableUtils.toStream(getExecutionGraph().getSchedulingTopology().getVertices())
+                        .map(SchedulingExecutionVertex::getId)
+                        .filter(
+                                v ->
+                                        failingExecutionVertexId != null
+                                                && !failingExecutionVertexId.equals(v))
+                        .collect(Collectors.toSet());
+
+        context.archiveFailure(
+                FailureHandlingResultSnapshot.create(
+                        Optional.ofNullable(failingExecutionVertexId),
+                        cause,
+                        concurrentVertexIds,
+                        System.currentTimeMillis(),
+                        id -> this.getExecutionVertex(id).getCurrentExecutionAttempt()));
+    }
+
     void deliverOperatorEventToCoordinator(
             ExecutionAttemptID taskExecutionId, OperatorID operatorId, OperatorEvent evt)
             throws FlinkException {
@@ -346,5 +393,12 @@ abstract class StateWithExecutionGraph implements State {
          *     Finished} state
          */
         void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
+
+        /**
+         * Archive the details of an execution failure for future retrieval and inspection.
+         *
+         * @param failureHandlingResultSnapshot
+         */
+        void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot);
     }
 }

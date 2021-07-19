@@ -31,6 +31,7 @@ import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -39,6 +40,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -81,11 +83,15 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     @Override
     public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
+        handleAnyFailure(null, cause);
     }
 
-    private void handleAnyFailure(Throwable cause) {
-        final FailureResult failureResult = context.howToHandleFailure(cause);
+    private void handleAnyFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId, Throwable cause) {
+        final FailureResult failureResult =
+                context.howToHandleFailure(failingExecutionVertexId, cause);
+
+        archiveExecutionFailure(failingExecutionVertexId, cause);
 
         if (failureResult.canRestart()) {
             getLogger().info("Restarting job.", failureResult.getFailureCause());
@@ -105,13 +111,15 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     }
 
     @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
-        final boolean successfulUpdate = getExecutionGraph().updateState(taskExecutionState);
+    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+        final boolean successfulUpdate =
+                getExecutionGraph().updateState(taskExecutionStateTransition);
 
         if (successfulUpdate) {
-            if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
-                Throwable cause = taskExecutionState.getError(userCodeClassLoader);
+            if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
+                Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
                 handleAnyFailure(
+                        getExecutionVertexId(taskExecutionStateTransition.getID()),
                         cause == null
                                 ? new FlinkException(
                                         "Unknown failure cause. Probably related to FLINK-21376.")
@@ -211,10 +219,14 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         /**
          * Asks how to handle the failure.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *     indicates that the failure was issued by Flink itself.
          * @param failure failure describing the failure cause
          * @return {@link FailureResult} which describes how to handle the failure
          */
-        FailureResult howToHandleFailure(Throwable failure);
+        FailureResult howToHandleFailure(
+                @Nullable ExecutionVertexID failingExecutionVertexId, Throwable failure);
 
         /**
          * Asks if we can scale up the currently executing job.
@@ -293,15 +305,36 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     static final class FailureResult {
         @Nullable private final Duration backoffTime;
 
+        /**
+         * the {@link ExecutionVertexID} refering to the {@link ExecutionVertex} the failure is
+         * originating from or {@code null} if it's a global failure.
+         */
+        @Nullable private final ExecutionVertexID failingExecutionVertexId;
+
         private final Throwable failureCause;
 
-        private FailureResult(Throwable failureCause, @Nullable Duration backoffTime) {
+        private FailureResult(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failureCause,
+                @Nullable Duration backoffTime) {
+            this.failingExecutionVertexId = failingExecutionVertexId;
             this.backoffTime = backoffTime;
             this.failureCause = failureCause;
         }
 
         boolean canRestart() {
             return backoffTime != null;
+        }
+
+        /**
+         * Returns an {@code Optional} with the {@link ExecutionVertexID} of the task causing this
+         * failure or an empty {@code Optional} if it's a global failure.
+         *
+         * @return The {@code ExecutionVertexID} of the causing task or an empty {@code Optional} if
+         *     it's a global failure.
+         */
+        Optional<ExecutionVertexID> getExecutionVertexIdOfFailedTask() {
+            return Optional.ofNullable(failingExecutionVertexId);
         }
 
         Duration getBackoffTime() {
@@ -317,22 +350,32 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         /**
          * Creates a FailureResult which allows to restart the job.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *     indicates that the failure was issued by Flink itself.
          * @param failureCause failureCause for restarting the job
          * @param backoffTime backoffTime to wait before restarting the job
          * @return FailureResult which allows to restart the job
          */
-        static FailureResult canRestart(Throwable failureCause, Duration backoffTime) {
-            return new FailureResult(failureCause, backoffTime);
+        static FailureResult canRestart(
+                @Nullable ExecutionVertexID failingExecutionVertexId,
+                Throwable failureCause,
+                Duration backoffTime) {
+            return new FailureResult(failingExecutionVertexId, failureCause, backoffTime);
         }
 
         /**
          * Creates FailureResult which does not allow to restart the job.
          *
+         * @param failingExecutionVertexId the {@link ExecutionVertexID} refering to the {@link
+         *     ExecutionVertex} the failure is originating from. Passing {@code null} as a value
+         *     indicates that the failure was issued by Flink itself.
          * @param failureCause failureCause describes the reason why the job cannot be restarted
          * @return FailureResult which does not allow to restart the job
          */
-        static FailureResult canNotRestart(Throwable failureCause) {
-            return new FailureResult(failureCause, null);
+        static FailureResult canNotRestart(
+                @Nullable ExecutionVertexID failingExecutionVertexId, Throwable failureCause) {
+            return new FailureResult(failingExecutionVertexId, failureCause, null);
         }
     }
 

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -98,7 +99,11 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.exceptionhistory.FailureHandlingResultSnapshot;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -116,6 +121,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Optional;
@@ -203,6 +209,8 @@ public class AdaptiveScheduler
 
     private final SchedulerExecutionMode executionMode;
 
+    private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -264,6 +272,10 @@ public class AdaptiveScheduler
         this.resourceStabilizationTimeout = resourceStabilizationTimeout;
 
         this.executionGraphFactory = executionGraphFactory;
+
+        this.exceptionHistory =
+                new BoundedFIFOQueue<>(
+                        configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
 
         registerMetrics();
     }
@@ -511,8 +523,7 @@ public class AdaptiveScheduler
 
     @Override
     public ExecutionGraphInfo requestJob() {
-        // no exception history support is added for now (see FLINK-21439)
-        return new ExecutionGraphInfo(state.getJob());
+        return new ExecutionGraphInfo(state.getJob(), getExceptionHistory());
     }
 
     @Override
@@ -881,6 +892,17 @@ public class AdaptiveScheduler
     }
 
     @Override
+    public void archiveFailure(FailureHandlingResultSnapshot failureHandlingResultSnapshot) {
+        exceptionHistory.add(
+                RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(
+                        failureHandlingResultSnapshot));
+    }
+
+    private Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
+        return new ArrayList(exceptionHistory);
+    }
+
+    @Override
     public void goToCreatingExecutionGraph() {
         final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                 executionGraphWithAvailableResourcesFuture =
@@ -1059,18 +1081,23 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executing.FailureResult howToHandleFailure(Throwable failure) {
+    public Executing.FailureResult howToHandleFailure(
+            @Nullable ExecutionVertexID failingExecutionVertexId, Throwable failure) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
             return Executing.FailureResult.canNotRestart(
+                    failingExecutionVertexId,
                     new JobException("The failure is not recoverable", failure));
         }
 
         restartBackoffTimeStrategy.notifyFailure(failure);
         if (restartBackoffTimeStrategy.canRestart()) {
             return Executing.FailureResult.canRestart(
-                    failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
+                    failingExecutionVertexId,
+                    failure,
+                    Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
         } else {
             return Executing.FailureResult.canNotRestart(
+                    failingExecutionVertexId,
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, failure));
         }
