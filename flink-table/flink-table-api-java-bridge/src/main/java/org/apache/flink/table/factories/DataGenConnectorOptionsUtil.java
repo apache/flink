@@ -32,6 +32,7 @@ public class DataGenConnectorOptionsUtil {
     public static final String END = "end";
     public static final String MIN = "min";
     public static final String MAX = "max";
+    public static final String MAX_PAST = "max-past";
     public static final String LENGTH = "length";
 
     public static final String SEQUENCE = "sequence";

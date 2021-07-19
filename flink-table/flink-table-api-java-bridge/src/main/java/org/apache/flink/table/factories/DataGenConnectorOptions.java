@@ -22,12 +22,15 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 
+import java.time.Duration;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.END;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.FIELDS;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.KIND;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.LENGTH;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MAX;
+import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MAX_PAST;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.MIN;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
 import static org.apache.flink.table.factories.DataGenConnectorOptionsUtil.START;
@@ -75,6 +78,14 @@ public class DataGenConnectorOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Maximum value to generate for fields of kind 'random'. Maximum value possible for the type of the field.");
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<Duration> FIELD_MAX_PAST =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, MAX_PAST))
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum past relative to the current timestamp of the local machine to generate for timestamp fields of kind 'random'.");
 
     /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
     public static final ConfigOption<Integer> FIELD_LENGTH =

@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.datagen.DataGenTableSource;
 import org.apache.flink.util.InstantiationUtil;
@@ -54,7 +55,8 @@ public class DataGenTableSourceFactoryTest {
             ResolvedSchema.of(
                     Column.physical("f0", DataTypes.STRING()),
                     Column.physical("f1", DataTypes.BIGINT()),
-                    Column.physical("f2", DataTypes.BIGINT()));
+                    Column.physical("f2", DataTypes.BIGINT()),
+                    Column.physical("f3", DataTypes.TIMESTAMP()));
 
     @Test
     public void testDataTypeCoverage() throws Exception {
@@ -153,7 +155,16 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putLong(
                 DataGenConnectorOptionsUtil.FIELDS + ".f2." + DataGenConnectorOptionsUtil.END, 60);
 
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f3." + DataGenConnectorOptionsUtil.KIND,
+                DataGenConnectorOptionsUtil.RANDOM);
+        descriptor.putString(
+                DataGenConnectorOptionsUtil.FIELDS + ".f3." + DataGenConnectorOptionsUtil.MAX_PAST,
+                "5s");
+
+        final long begin = System.currentTimeMillis();
         List<RowData> results = runGenerator(SCHEMA, descriptor);
+        final long end = System.currentTimeMillis();
 
         Assert.assertEquals(11, results.size());
         for (int i = 0; i < results.size(); i++) {
@@ -162,6 +173,8 @@ public class DataGenTableSourceFactoryTest {
             long f1 = row.getLong(1);
             Assert.assertTrue(f1 >= 10 && f1 <= 100);
             Assert.assertEquals(i + 50, row.getLong(2));
+            final TimestampData f3 = row.getTimestamp(3, 3);
+            Assert.assertTrue(f3.getMillisecond() >= begin - 5000 && f3.getMillisecond() <= end);
         }
     }
 

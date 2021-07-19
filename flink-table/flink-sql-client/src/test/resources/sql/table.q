@@ -163,6 +163,7 @@ fields.amount.min
 fields.product.kind
 fields.product.length
 fields.ts.kind
+fields.ts.max-past
 fields.user.kind
 fields.user.max
 fields.user.min
