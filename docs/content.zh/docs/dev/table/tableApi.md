@@ -28,13 +28,13 @@ under the License.
 
 # Table API
 
-Table API 是批处理和流处理的统一的关系 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对 Apache Flink 专门设计的。Table API 集成了 Scala，Java 和 Python 语言的 API。Table API 的查询是使用  Java，Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
+Table API 是批处理和流处理的统一的关系型 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对 Apache Flink 专门设计的。Table API 集成了 Scala，Java 和 Python 语言的 API。Table API 的查询是使用  Java，Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
 
-Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看 [公共概念 & API]({{< ref "docs/dev/table/common" >}}) 来学习如何注册表或如何创建一个 `表` 对象。 [流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
+Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看[公共概念 & API]({{< ref "docs/dev/table/common" >}})来学习如何注册表或如何创建一个`表`对象。[流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
-下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。 `rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
+下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。`rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
 
-概述 & 例子
+概述 & 示例
 -----------------------------
 
 Table API 支持 Scala, Java 和 Python 语言。Scala 语言的 Table API 利用了 Scala 表达式，Java 语言的 Table API 支持 DSL 表达式和解析并转换为等价表达式的字符串，Python 语言的 Table API 仅支持解析并转换为等价表达式的字符串。
@@ -59,17 +59,17 @@ EnvironmentSettings settings = EnvironmentSettings
 
 TableEnvironment tEnv = TableEnvironment.create(env);
 
-// register Orders table in table environment
+// 在表环境中注册Orders表
 // ...
 
-// specify table program
+// 指定表程序
 Table orders = tEnv.from("Orders"); // schema (a, b, c, rowtime)
 
 Table counts = orders
         .groupBy($("a"))
         .select($("a"), $("b").count().as("cnt"));
 
-// print
+// 打印
 counts.execute().print();
 ```
 
@@ -78,14 +78,14 @@ counts.execute().print();
 
 Scala 的 Table API 通过引入 `org.apache.flink.table.api._`、`org.apache.flink.api.scala._` 和 `org.apache.flink.table.api.bridge.scala._`（开启数据流的桥接支持）来使用。
 
-下面的例子展示了如何创建一个 Scala 的 Table API 程序。通过 Scala 的带美元符号 (`$`)的字符串插值来实现表字段引用。
+下面的例子展示了如何创建一个 Scala 的 Table API 程序。通过 Scala 的带美元符号（`$`）的字符串插值来实现表字段引用。
 
 ```scala
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 
-// environment configuration
+// 环境配置
 val settings = EnvironmentSettings
     .newInstance()
     .inStreamingMode()
@@ -93,10 +93,10 @@ val settings = EnvironmentSettings
 
 val tEnv = TableEnvironment.create(settings);
 
-// register Orders table in table environment
+// 在表环境中注册Orders表
 // ...
 
-// specify table program
+// 指定表程序
 val orders = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result = orders
@@ -114,11 +114,11 @@ val result = orders
 ```python
 from pyflink.table import *
 
-# environment configuration
+# 环境配置
 t_env = TableEnvironment.create(
     environment_settings=EnvironmentSettings.in_batch_mode())
 
-# register Orders table and Result table sink in table environment
+# 在表环境中注册Orders表和结果sink表
 source_data_path = "/path/to/source/directory/"
 result_data_path = "/path/to/result/directory/"
 source_ddl = f"""
@@ -148,7 +148,7 @@ sink_ddl = f"""
     """
 t_env.execute_sql(sink_ddl)
 
-# specify table program
+# 指定表程序
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
 orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_insert("result").wait()
@@ -158,16 +158,16 @@ orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_inser
 {{< /tab >}}
 {{< /tabs >}}
 
-下一个例子展示了一个更加复杂的 Table API 程序。这个程序也扫描 `Orders` 表。程序过滤了空值，使字符串类型的字段 `a` 标准化，并且每个小时计算并返回 `a` 的平均账单金额 `b`。
+下一个例子展示了一个更加复杂的 Table API 程序。这个程序也扫描 `Orders` 表。程序过滤了空值，使字符串类型的字段 `a` 标准化，并且每个小时进行一次计算并返回 `a` 的平均账单金额 `b`。
 
 {{< tabs "6df651bc-ae06-44de-a36c-6a1e6d1b7355" >}}
 {{< tab "Java" >}}
 
 ```java
-// environment configuration
+// 环境配置
 // ...
 
-// specify table program
+// 指定表程序
 Table orders = tEnv.from("Orders"); // schema (a, b, c, rowtime)
 
 Table result = orders
@@ -187,10 +187,10 @@ Table result = orders
 {{< tab "Scala" >}}
 
 ```scala
-// environment configuration
+// 环境配置
 // ...
 
-// specify table program
+// 指定表程序
 val orders: Table = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
@@ -205,7 +205,7 @@ val result: Table = orders
 {{< tab "Python" >}}
 
 ```python
-# specify table program
+# 指定表程序
 from pyflink.table.expressions import col, lit
 
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
@@ -224,11 +224,10 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 
 {{< top >}}
 
-<a name="operations"></a>
-操作
+Operations
 ----------
 
-Table API支持如下操作。请注意不是所有的操作都可以既支持流也支持批；这些操作也被如是标记了。
+Table API支持如下操作。请注意不是所有的操作都可以既支持流也支持批；这些操作都具有相应的标记。
 
 ### Scan, Projection, and Filter
 
@@ -375,7 +374,7 @@ result = orders.select(orders.a, orders.c.alias('d'))
 {{< /tab >}}
 {{< /tabs >}}
 
-你可以选择星号 `(*)` 作为通配符，select 表中的所有列。
+你可以选择星号`（*）`作为通配符，select 表中的所有列。
 
 {{< tabs "selectstar" >}}
 {{< tab "Java" >}}
@@ -604,7 +603,7 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 {{< label "Result Updating" >}}
 
 和 SQL 的 `GROUP BY` 子句类似。
-使用跟着分组键的运行聚合运算符对行进行分组，来按照组聚合行。
+使用分组键对行进行分组，使用伴随的聚合算子来按照组进行聚合行。
 
 {{< tabs "groupby" >}}
 {{< tab "Java" >}}
@@ -633,16 +632,16 @@ result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-对表在[分组窗口](#group-windows)和可能的一个或多个聚合键进行分组和聚合。 
+使用[分组窗口](#group-windows)结合单个或者多个分组键对表进行分组和聚合。 
 
 {{< tabs "groupbywindow" >}}
 {{< tab "Java" >}}
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over(lit(5).minutes()).on($("rowtime")).as("w")) // define window
-    .groupBy($("a"), $("w")) // group by key and window
-    // access window properties and aggregate
+    .window(Tumble.over(lit(5).minutes()).on($("rowtime")).as("w")) // 定义窗口
+    .groupBy($("a"), $("w")) // 按窗口和键分组
+    // 访问窗口属性并聚合
     .select(
         $("a"),
         $("w").start(),
@@ -656,9 +655,9 @@ Table result = orders
 ```scala
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
-    .window(Tumble over 5.minutes on $"rowtime" as "w") // define window
-    .groupBy($"a", $"w") // group by key and window
-    .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".sum as "d") // access window properties and aggregate
+    .window(Tumble over 5.minutes on $"rowtime" as "w") // 定义窗口
+    .groupBy($"a", $"w") // 按窗口和键分组
+    .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".sum as "d") // 访问窗口属性并聚合
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -676,7 +675,7 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 
 #### Over Window Aggregation
 
-和 SQL 的 `OVER` 语句类似。
+和 SQL 的 `OVER` 子句类似。
 更多细节详见 [over windows section](#over-windows)
 
 {{< tabs "overwindowagg" >}}
@@ -684,7 +683,7 @@ result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")
 ```java
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    // define window
+    // 定义窗口
     .window(
         Over
           .partitionBy($("a"))
@@ -692,7 +691,7 @@ Table result = orders
           .preceding(UNBOUNDED_RANGE)
           .following(CURRENT_RANGE)
           .as("w"))
-    // sliding aggregate
+    // 滑动聚合
     .select(
         $("a"),
         $("b").avg().over($("w")),
@@ -705,7 +704,7 @@ Table result = orders
 ```scala
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
-    // define window
+    // 定义窗口
     .window(
         Over
           partitionBy $"a"
@@ -713,7 +712,7 @@ val result: Table = orders
           preceding UNBOUNDED_RANGE
           following CURRENT_RANGE
           as "w")
-    .select($"a", $"b".avg over $"w", $"b".max().over($"w"), $"b".min().over($"w")) // sliding aggregate
+    .select($"a", $"b".avg over $"w", $"b".max().over($"w"), $"b".min().over($"w")) // 滑动聚合
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -730,7 +729,7 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
 {{< /tab >}}
 {{< /tabs >}}
 
-所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前，只支持 PRECEDING 到当前行范围  (无界或有界)的窗口。目前还不支持 FOLLOWING 范围的窗口。ORDER BY 必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前只支持 PRECEDING 到当前行范围（无界或有界）的窗口。尚不支持 FOLLOWING 范围的窗口。ORDER BY 操作必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
 
 #### Distinct Aggregation
 
@@ -738,18 +737,18 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
 {{< label "Result Updating" >}}
 
 和 SQL DISTINCT 聚合子句类似，例如 `COUNT(DISTINCT a)`。
-Distinct 聚合声明的聚合函数（内置或用户定义的）仅应用于不同的输入值。
+Distinct 聚合声明的聚合函数（内置或用户定义的）仅应用于互不相同的输入值。
 Distinct 可以应用于 **GroupBy Aggregation**、**GroupBy Window Aggregation** 和 **Over Window Aggregation**。
 
 {{< tabs "distinctagg" >}}
 {{< tab "Java" >}}
 ```java
 Table orders = tableEnv.from("Orders");
-// Distinct aggregation on group by
+// 按属性分组后的的互异（互不相同、去重）聚合
 Table groupByDistinctResult = orders
     .groupBy($("a"))
     .select($("a"), $("b").sum().distinct().as("d"));
-// Distinct aggregation on time window group by
+// 按属性、时间窗口分组后的互异（互不相同、去重）聚合
 Table groupByWindowDistinctResult = orders
     .window(Tumble
             .over(lit(5).minutes())
@@ -758,7 +757,7 @@ Table groupByWindowDistinctResult = orders
     )
     .groupBy($("a"), $("w"))
     .select($("a"), $("b").sum().distinct().as("d"));
-// Distinct aggregation on over window
+// over window 上的互异（互不相同、去重）聚合
 Table result = orders
     .window(Over
         .partitionBy($("a"))
@@ -775,15 +774,15 @@ Table result = orders
 {{< tab "Scala" >}}
 ```scala
 val orders: Table = tableEnv.from("Orders");
-// Distinct aggregation on group by
+// 按属性分组后的的互异（互不相同、去重）聚合
 val groupByDistinctResult = orders
     .groupBy($"a")
     .select($"a", $"b".sum.distinct as "d")
-// Distinct aggregation on time window group by
+// 按属性、时间窗口分组后的互异（互不相同、去重）聚合
 val groupByWindowDistinctResult = orders
     .window(Tumble over 5.minutes on $"rowtime" as "w").groupBy($"a", $"w")
     .select($"a", $"b".sum.distinct as "d")
-// Distinct aggregation on over window
+// over window 上的互异（互不相同、去重）聚合
 val result = orders
     .window(Over
         partitionBy $"a"
@@ -798,14 +797,14 @@ val result = orders
 from pyflink.table.expressions import col, lit, UNBOUNDED_RANGE
 
 orders = t_env.from_path("Orders")
-# Distinct aggregation on group by
+# 按属性分组后的的互异（互不相同、去重）聚合
 group_by_distinct_result = orders.group_by(orders.a) \
                                  .select(orders.a, orders.b.sum.distinct.alias('d'))
-# Distinct aggregation on time window group by
+# 按属性、时间窗口分组后的互异（互不相同、去重）聚合
 group_by_window_distinct_result = orders.window(
     Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")).group_by(orders.a, col('w')) \
     .select(orders.a, orders.b.sum.distinct.alias('d'))
-# Distinct aggregation on over window
+# over window 上的互异（互不相同、去重）聚合
 result = orders.over_window(Over
                        .partition_by(orders.a)
                        .order_by(orders.rowtime)
@@ -816,14 +815,14 @@ result = orders.over_window(Over
 {{< /tab >}}
 {{< /tabs >}}
 
-用户定义的聚合函数也可以与 `DISTINCT` 修饰符一起使用。要仅计算不同值的聚合结果，只需向聚合函数添加 distinct 修饰符。
+用户定义的聚合函数也可以与 `DISTINCT` 修饰符一起使用。如果计算不同（互异、去重的）值的聚合结果，则只需向聚合函数添加 distinct 修饰符即可。
 
 {{< tabs "distinctudf" >}}
 {{< tab "Java" >}}
 ```java
 Table orders = tEnv.from("Orders");
 
-// Use distinct aggregation for user-defined aggregate functions
+// 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
 tEnv.registerFunction("myUdagg", new MyUdagg());
 orders.groupBy("users")
     .select(
@@ -836,13 +835,13 @@ orders.groupBy("users")
 ```scala
 val orders: Table = tEnv.from("Orders");
 
-// Use distinct aggregation for user-defined aggregate functions
+// 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
 val myUdagg = new MyUdagg();
 orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
-不支持
+Unsupported
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -854,7 +853,7 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 {{< label "Result Updating" >}}
 
 和 SQL 的 `DISTINCT` 子句类似。
-返回具有不同值组合的记录。
+返回具有不同组合值的记录。
 
 {{< tabs "distinct" >}}
 {{< tab "Java" >}}
@@ -887,7 +886,7 @@ result = orders.distinct()
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-和 SQL 的 JOIN 语句类似。关联两张表。两张表必须有不同的字段名，并且必须定义至少一个使用 join 运算符或使用 where 或 filter 运算符的相等连接谓词。
+和 SQL 的 JOIN 子句类似。关联两张表。两张表必须有不同的字段名，并且必须通过 join 算子或者使用 where 或 filter 算子定义至少一个 join 等式连接谓词。
 
 {{< tabs "innerjoin" >}}
 {{< tab "Java" >}}
@@ -923,9 +922,9 @@ result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.
 {{< label "Batch" >}} {{< label "Streaming" >}}
 {{< label "Result Updating" >}}
 
-和 SQL `LEFT`/`RIGHT`/`FULL OUTER JOIN` 语句类似。
+和 SQL `LEFT`/`RIGHT`/`FULL OUTER JOIN` 子句类似。
 关联两张表。
-两张表必须有不同的字段名，并且必须定义至少一个等价连接谓词。
+两张表必须有不同的字段名，并且必须定义至少一个等式连接谓词。
 
 {{< tabs "outerjoin" >}}
 {{< tab "Java" >}}
@@ -971,9 +970,9 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-Interval join 是可以以流方式处理的常规 join 的子集。
+Interval join 是可以通过流模式处理的常规 join 的子集。
 
-Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界限的 join 条件。这种条件可以由两个合适的范围谓词（`<、<=、>=、>`）或一个比较两个输入表相同类型（即处理时间或事件时间）的时间属性的相等谓词来定义。
+Interval join 至少需要一个 equi-join 谓词和一个限制双方时间界限的 join 条件。这种条件可以由两个合适的范围谓词（`<、<=、>=、>`）或一个比较两个输入表相同时间属性（即处理时间或事件时间）的等值谓词来定义。
 
 {{< tabs "intervaljoin" >}}
 {{< tab "Java" >}}
@@ -1018,13 +1017,13 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-join 表和表函数的结果。左（外部）表的每一行都会 join 表函数的相应调用产生的所有行。
+join 表和表函数的结果。左（外部）表的每一行都会 join 表函数相应调用产生的所有行。
 如果表函数调用返回空结果，则删除左侧（外部）表的一行。
 
 {{< tabs "udtf" >}}
 {{< tab "Java" >}}
 ```java
-// register User-Defined Table Function
+// 注册 User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
@@ -1037,7 +1036,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// instantiate User-Defined Table Function
+// 实例化 User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
@@ -1048,7 +1047,7 @@ val result: Table = table
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# register User-Defined Table Function
+# 注册 User-Defined Table Function
 @udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 def split(x):
     return [Row(1, 2, 3)]
@@ -1066,14 +1065,14 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 
 {{< label "Batch" >}} {{< label "Streaming" >}}
 
-join 表和表函数的结果。左（外部）表的每一行都会 join 表函数的相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的外部行并用空值填充结果。
+join 表和表函数的结果。左（外部）表的每一行都会 join 表函数相应调用产生的所有行。如果表函数调用返回空结果，则保留相应的 outer（外部连接）行并用空值填充右侧结果。
 
-目前，表函数左外连接的谓词只能为空或字面真。
+目前，表函数左外连接的谓词只能为空或字面（常量）真。
 
 {{< tabs "outerudtf" >}}
 {{< tab "Java" >}}
 ```java
-// register User-Defined Table Function
+// 注册 User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
@@ -1086,7 +1085,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// instantiate User-Defined Table Function
+// 实例化 User-Defined Table Function
 val split: TableFunction[_] = new MySplitUDTF()
 
 // join
@@ -1097,7 +1096,7 @@ val result: Table = table
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# register User-Defined Table Function
+# 注册 User-Defined Table Function
 @udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
 def split(x):
     return [Row(1, 2, 3)]
@@ -1114,22 +1113,22 @@ result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joi
 
 Temporal table 是跟踪随时间变化的表。
 
-Temporal table 函数提供对特定时间点 temporal table 状态的访问。将表与 temporal table 函数 join 的语法与和表函数的 inner join 相同。
+Temporal table 函数提供对特定时间点 temporal table 状态的访问。表与 temporal table 函数进行 join 的语法和使用表函数进行 inner join 的语法相同。
 
-目前仅支持与 temporal table 的 inner join 。
+目前仅支持与 temporal table 的 inner join。
 
 {{< tabs "temporaltablefunc" >}}
 {{< tab "Java" >}}
 ```java
 Table ratesHistory = tableEnv.from("RatesHistory");
 
-// register temporal table function with a time attribute and primary key
+// 注册带有时间属性和主键的 temporal table function
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
     "r_proctime",
     "r_currency");
 tableEnv.registerFunction("rates", rates);
 
-// join with "Orders" based on the time attribute and key
+// 基于时间属性和键与“Orders”表关联
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
@@ -1138,17 +1137,17 @@ Table result = orders
 ​```scala
 val ratesHistory = tableEnv.from("RatesHistory")
 
-// register temporal table function with a time attribute and primary key
+// 注册带有时间属性和主键的 temporal table function
 val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency")
 
-// join with "Orders" based on the time attribute and key
+// 基于时间属性和键与“Orders”表关联
 val orders = tableEnv.from("Orders")
 val result = orders
     .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 ```
 {{< /tabs >}}
 {{< tab "Python" >}}
-目前 Python 的 Table API 不支持。
+目前不支持 Python 的 Table API。
 {{< /tab >}}
 {{< /tabs >}}
 
@@ -1224,7 +1223,7 @@ left.unionAl(right)
 
 {{< label Batch >}}
 
-和 SQL `INTERSECT` 子句类似。Intersect 返回两个表中都有的记录。如果一条记录在一张或两张表中存在多次，则只返回一条记录，例如，结果表中不存在重复记录。两张表必须具有相同的字段类型。
+和 SQL `INTERSECT` 子句类似。Intersect 返回两个表中都存在的记录。如果一条记录在一张或两张表中存在多次，则只返回一条记录，也就是说，结果表中不存在重复的记录。两张表必须具有相同的字段类型。
 
 {{< tabs "intersect" >}}
 {{< tab "Java" >}}
@@ -1255,7 +1254,7 @@ left.intersect(right)
 
 {{< label Batch >}}
 
-和 SQL `INTERSECT ALL` 子句类似。IntersectAll 返回两个表中都存在的记录。如果一条记录在两张表中出现多次，则返回它在两个表中出现的每一条，例如，结果表可能存在重复记录。两张表必须具有相同的字段类型。
+和 SQL `INTERSECT ALL` 子句类似。IntersectAll 返回两个表中都存在的记录。如果一条记录在两张表中出现多次，那么该记录返回的次数同该记录在两个表中都出现的次数一致，也就是说，结果表可能存在重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "intersectAll" >}}
 {{< tab "Java" >}}
@@ -1286,7 +1285,7 @@ left.intersectAll(right)
 
 {{< label Batch  >}}
 
-和 SQL `EXCEPT` 子句类似。Minus 返回左表中存在且右表中不存在的记录。左表中的重复记录只返回一次，例如，结果表中没有重复记录。两张表必须具有相同的字段类型。
+和 SQL `EXCEPT` 子句类似。Minus 返回左表中存在且右表中不存在的记录。左表中的重复记录只返回一次，换句话说，结果表中没有重复记录。两张表必须具有相同的字段类型。
 
 {{< tabs "minus" >}}
 {{< tab "Java" >}}
@@ -1316,7 +1315,7 @@ left.minus(right)
 #### MinusAll
 {{< label Batch >}}
 
-和 SQL `EXCEPT ALL` 子句类似。MinusAll 返回右表中不存在的记录。在左表中出现 n 次，在右表中出现 m 次的记录，在结果表中存在 (n - m) 次，例如，结果中删掉了在右表中存在重复记录的条数的记录。两张表必须具有相同的字段类型。
+和 SQL `EXCEPT ALL` 子句类似。MinusAll 返回右表中不存在的记录。在左表中出现 n 次且在右表中出现 m 次的记录，在结果表中出现 (n - m) 次，例如，也就是说结果中删掉了在右表中存在重复记录的条数的记录。两张表必须具有相同的字段类型。
 
 {{< tabs "minusall" >}}
 {{< tab "Java" >}}
@@ -1347,7 +1346,7 @@ left.minusAll(right)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-和 SQL `IN` 子句类似。如果在给定表的子查询中存在包含 in 的表达式，则返回 true。子查询表必须由一列组成。这个列必须与表达式具有相同的数据类型。
+和 SQL `IN` 子句类似。如果表达式的值存在于给定表的子查询中，那么 In 子句返回 true。子查询表必须由一列组成。这个列必须与表达式具有相同的数据类型。
 
 {{< tabs "in" >}}
 {{< tab "Java" >}}
@@ -1386,7 +1385,7 @@ result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 
 {{< label Batch >}} {{< label Streaming >}}
 
-和 SQL `ORDER BY` 子句类似。返回跨所有并行分区的全局排序记录。对于无界表，该操作需要对时间属性进行排序或在其之后有 fetch 操作。
+和 SQL `ORDER BY` 子句类似。返回跨所有并行分区的全局有序记录。对于无界表，该操作需要对时间属性进行排序或进行后续的 fetch 操作。
 
 {{< tabs "orderby" >}}
 {{< tab "Java" >}}
@@ -1410,43 +1409,43 @@ result = in.order_by(in.a.asc)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-和 SQL 的 `OFFSET`  和 `FETCH` 语句类似。Offset 操作限制来自偏移位置的（可能已排序）结果。Fetch 操作将（可能已排序的）结果限制为前 n 行。通常，这两个操作前面都有一个排序运算符。对于无界表，offset 操作需要 fetch 操作。
+和 SQL 的 `OFFSET`  和 `FETCH` 子句类似。Offset 操作根据偏移位置来限定（可能是已排序的）结果集。Fetch 操作将（可能已排序的）结果集限制为前 n 行。通常，这两个操作前面都有一个排序操作。对于无界表，offset 操作需要 fetch 操作。
 
 {{< tabs "offsetfetch" >}}
 {{< tab "Java" >}}
 ```java
-// returns the first 5 records from the sorted result
+// 从已排序的结果集中返回前5条记录
 Table result1 = in.orderBy($("a").asc()).fetch(5);
 
-// skips the first 3 records and returns all following records from the sorted result
+// 从已排序的结果集中返回跳过3条记录之后的所有记录
 Table result2 = in.orderBy($("a").asc()).offset(3);
 
-// skips the first 10 records and returns the next 5 records from the sorted result
+// 从已排序的结果集中返回跳过10条记录之后的前5条记录
 Table result3 = in.orderBy($("a").asc()).offset(10).fetch(5);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 
-// returns the first 5 records from the sorted result
+// 从已排序的结果集中返回前5条记录
 val result1: Table = in.orderBy($"a".asc).fetch(5)
 
-// skips the first 3 records and returns all following records from the sorted result
+// 从已排序的结果集中返回跳过3条记录之后的所有记录
 val result2: Table = in.orderBy($"a".asc).offset(3)
 
-// skips the first 10 records and returns the next 5 records from the sorted result
+// 从已排序的结果集中返回跳过10条记录之后的前5条记录
 val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# returns the first 5 records from the sorted result
+# 从已排序的结果集中返回前5条记录
 result1 = table.order_by(table.a.asc).fetch(5)
 
-# skips the first 3 records and returns all following records from the sorted result
+# 从已排序的结果集中返回跳过3条记录之后的所有记录
 result2 = table.order_by(table.a.asc).offset(3)
 
-# skips the first 10 records and returns the next 5 records from the sorted result
+# 从已排序的结果集中返回跳过10条记录之后的前5条记录
 result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 ```
 {{< /tab >}}
@@ -1458,7 +1457,7 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 
 和 SQL 查询中的 `INSERT INTO` 子句类似，该方法执行对已注册的输出表的插入操作。`executeInsert()` 方法将立即提交执行插入操作的 Flink job。
 
-输出表必须在 TableEnvironment (详见表连接器) 中注册。此外，注册的表的 schema 必须与查询的 schema 相匹配。
+输出表必须已注册在 TableEnvironment（详见表连接器）中。此外，已注册表的 schema 必须与查询中的 schema 相匹配。
 
 {{< tabs "insertinto" >}}
 {{< tab "Java" >}}
@@ -1489,14 +1488,14 @@ Group window 聚合根据时间或行计数间隔将行分为有限组，并为�
 
 {{< tabs "248a1eb3-c75a-404e-957e-08a012cbed51" >}}
 {{< tab "Java" >}}
-窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名必须像常规分组属性一样在 `groupBy(...)` 子句中引用。
+窗口是使用 `window(GroupWindow w)` 子句定义的，并且需要使用 `as` 子句来指定别名。为了按窗口对表进行分组，窗口别名的引用必须像常规分组属性一样在 `groupBy(...)` 子句中。
 以下示例展示了如何在表上定义窗口聚合。
 
 ```java
 Table table = input
-  .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy($("w"))  // group the table by window w
-  .select($("b").sum());  // aggregate
+  .window([GroupWindow w].as("w"))  // 定义窗口并指定别名为 w
+  .groupBy($("w"))  // 以窗口 w 对表进行分组
+  .select($("b").sum());  // 聚合
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1505,9 +1504,9 @@ Table table = input
 
 ```scala
 val table = input
-  .window([w: GroupWindow] as $"w")  // define window with alias w
-  .groupBy($"w")   // group the table by window w
-  .select($"b".sum)  // aggregate
+  .window([w: GroupWindow] as $"w")  // 定义窗口并指定别名为 w
+  .groupBy($"w")   // 以窗口 w 对表进行分组
+  .select($"b".sum)  // 聚合
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1515,7 +1514,7 @@ val table = input
 以下示例展示了如何在表上定义窗口聚合。
 
 ```python
-# define window with alias w, group the table by window w, then aggregate
+# 定义窗口并指定别名为 w，以窗口 w 对表进行分组，然后再聚合
 table = input.window([w: GroupWindow].alias("w")) \
              .group_by(col('w')).select(input.b.sum)
 ```
@@ -1529,9 +1528,9 @@ table = input.window([w: GroupWindow].alias("w")) \
 
 ```java
 Table table = input
-  .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy($("w"), $("a"))  // group the table by attribute a and window w
-  .select($("a"), $("b").sum());  // aggregate
+  .window([GroupWindow w].as("w"))  // 定义窗口并指定别名为 w
+  .groupBy($("w"), $("a"))  // 以属性 a 和窗口 w 对表进行分组
+  .select($("a"), $("b").sum());  // 聚合
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1540,9 +1539,9 @@ Table table = input
 
 ```scala
 val table = input
-  .window([w: GroupWindow] as $"w") // define window with alias w
-  .groupBy($"w", $"a")  // group the table by attribute a and window w
-  .select($"a", $"b".sum)  // aggregate
+  .window([w: GroupWindow] as $"w") // 定义窗口并指定别名为 w
+  .groupBy($"w", $"a")  // 以属性 a 和窗口 w 对表进行分组
+  .select($"a", $"b".sum)  // 聚合
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1550,37 +1549,37 @@ val table = input
 以下示例展示了如何定义有附加分组属性的窗口聚合。
 
 ```python
-# define window with alias w, group the table by attribute a and window w,
-# then aggregate
+# 定义窗口并指定别名为 w，以属性 a 和窗口 w 对表进行分组，
+# 然后再聚合
 table = input.window([w: GroupWindow].alias("w")) \
              .group_by(col('w'), input.a).select(input.b.sum)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-时间窗口的开始、结束或行时间戳等窗口属性可以作为窗口别名的属性添加到选择语句中，如 `w.start`、`w.end` 和 `w.rowtime`。窗口开始和行时间戳是包含的上下窗口边界。相反，窗口结束时间戳是唯一的上窗口边界。例如，从下午 2 点开始的 30 分钟滚动窗口将 “14:00:00.000” 作为开始时间戳，“14:29:59.999” 作为行时间时间戳，“14:30:00.000” 作为结束时间戳。
+时间窗口的开始、结束或行时间戳等窗口属性可以作为窗口别名的属性添加到 select 子句中，如 `w.start`、`w.end` 和 `w.rowtime`。窗口开始和行时间戳是包含的上下窗口边界。相反，窗口结束时间戳是唯一的上窗口边界。例如，从下午 2 点开始的 30 分钟滚动窗口将 “14:00:00.000” 作为开始时间戳，“14:29:59.999” 作为行时间时间戳，“14:30:00.000” 作为结束时间戳。
 
 {{< tabs "1397cfe2-8ed8-4a39-938c-f2c066c2bdcf" >}}
 {{< tab "Java" >}}
 ```java
 Table table = input
-  .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy($("w"), $("a"))  // group the table by attribute a and window w
-  .select($("a"), $("w").start(), $("w").end(), $("w").rowtime(), $("b").count()); // aggregate and add window start, end, and rowtime timestamps
+  .window([GroupWindow w].as("w"))  // 定义窗口并指定别名为 w
+  .groupBy($("w"), $("a"))  // 以属性 a 和窗口 w 对表进行分组
+  .select($("a"), $("w").start(), $("w").end(), $("w").rowtime(), $("b").count()); // 聚合并添加窗口开始、结束和 rowtime 时间戳
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val table = input
-  .window([w: GroupWindow] as $"w")  // define window with alias w
-  .groupBy($"w", $"a")  // group the table by attribute a and window w
-  .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".count) // aggregate and add window start, end, and rowtime timestamps
+  .window([w: GroupWindow] as $"w")  // 定义窗口并指定别名为 w
+  .groupBy($"w", $"a")  // 以属性 a 和窗口 w 对表进行分组
+  .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".count) // 聚合并添加窗口开始、结束和 rowtime 时间戳
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# define window with alias w, group the table by attribute a and window w,
-# then aggregate and add window start, end, and rowtime timestamps
+# 定义窗口并指定别名为 w，以属性 a 和窗口 w 对表进行分组，
+# 然后再聚合并添加窗口开始、结束和 rowtime 时间戳
 table = input.window([w: GroupWindow].alias("w")) \
              .group_by(col('w'), input.a) \
              .select(input.a, col('w').start, col('w').end, col('w').rowtime, input.b.count)
@@ -2050,46 +2049,46 @@ table = input.over_window([w: OverWindow].alias("w")) \
 {{< tabs "ff010e04-fbb2-461b-823f-13c186c0df4a" >}}
 {{< tab "Java" >}}
 ```java
-// Unbounded Event-time over window (assuming an event-time attribute "rowtime")
+// 无界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_RANGE).as("w"));
 
-// Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
+// 无界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over.partitionBy($("a")).orderBy("proctime").preceding(UNBOUNDED_RANGE).as("w"));
 
-// Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+// 无界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_ROW).as("w"));
  
-// Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+// 无界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(UNBOUNDED_ROW).as("w"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// Unbounded Event-time over window (assuming an event-time attribute "rowtime")
+// 无界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w")
 
-// Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
+// 无界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w")
 
-// Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+// 无界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w")
  
-// Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+// 无界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# Unbounded Event-time over window (assuming an event-time attribute "rowtime")
+# 无界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(UNBOUNDED_RANGE).alias("w"))
 
-# Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
+# 无界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(UNBOUNDED_RANGE).alias("w"))
 
-# Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+# 无界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(UNBOUNDED_ROW).alias("w"))
  
-# Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+# 无界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(UNBOUNDED_ROW).alias("w"))
 ```
 {{< /tab >}}
@@ -2099,46 +2098,46 @@ table = input.over_window([w: OverWindow].alias("w")) \
 {{< tabs "221fc3e4-a1b0-4d0a-a745-bd1e89e926f7" >}}
 {{< tab "Java" >}}
 ```java
-// Bounded Event-time over window (assuming an event-time attribute "rowtime")
+// 有界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"));
 
-// Bounded Processing-time over window (assuming a processing-time attribute "proctime")
+// 有界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"));
 
-// Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+// 有界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"));
  
-// Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+// 有界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-// Bounded Event-time over window (assuming an event-time attribute "rowtime")
+// 有界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over partitionBy $"a" orderBy $"rowtime" preceding 1.minutes as "w")
 
-// Bounded Processing-time over window (assuming a processing-time attribute "proctime")
+// 有界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over partitionBy $"a" orderBy $"proctime" preceding 1.minutes as "w")
 
-// Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+// 有界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .window(Over partitionBy $"a" orderBy $"rowtime" preceding 10.rows as "w")
   
-// Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+// 有界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .window(Over partitionBy $"a" orderBy $"proctime" preceding 10.rows as "w")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-# Bounded Event-time over window (assuming an event-time attribute "rowtime")
+# 有界的事件时间 over window（假定有一个叫“rowtime”的事件时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(lit(1).minutes).alias("w"))
 
-# Bounded Processing-time over window (assuming a processing-time attribute "proctime")
+# 有界的处理时间 over window（假定有一个叫“proctime”的处理时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(lit(1).minutes).alias("w"))
 
-# Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
+# 有界的事件时间行数 over window（假定有一个叫“rowtime”的事件时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(row_interval(10)).alias("w"))
  
-# Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
+# 有界的处理时间行数 over window（假定有一个叫“proctime”的处理时间属性）
 .over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(row_interval(10)).alias("w"))
 ```
 {{< /tab >}}
@@ -2146,10 +2145,9 @@ table = input.over_window([w: OverWindow].alias("w")) \
 
 {{< top >}}
 
-<a name="row-based-operations"></a>
-### 基于行的操作
+### Row-based Operations
 
-基于行的操作生成有多列的输出。
+基于行生成多列输出的操作。
 
 #### Map
 
@@ -2200,7 +2198,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[一般标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
+使用 python 的[通用标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2210,13 +2208,13 @@ from pyflink.table.udf import udf
 def map_function(a: Row) -> Row:
     return Row(a.a + 1, a.b * a.b)
 
-# map operation with a python general scalar function
+# 使用 python 通用标量函数进行 map 操作
 func = udf(map_function, result_type=DataTypes.ROW(
                                      [DataTypes.FIELD("a", DataTypes.BIGINT()),
                                       DataTypes.FIELD("b", DataTypes.BIGINT())]))
 table = input.map(func).alias('a', 'b')
 
-# map operation with a python vectorized scalar function
+# 使用 python 向量化标量函数进行 map 操作
 pandas_func = udf(lambda x: x * 2, result_type=DataTypes.ROW(
                                                     [DataTypes.FIELD("a", DataTypes.BIGINT()),
                                                     DataTypes.FIELD("b", DataTypes.BIGINT()))]),
@@ -2315,7 +2313,7 @@ input.flat_map(split)
 {{< tabs "aggregate" >}}
 {{< tab "Java" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```java
 public class MyMinMaxAcc {
@@ -2365,7 +2363,7 @@ Table table = input
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-使用聚合函数来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用聚合函数来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```scala
 case class MyMinMaxAcc(var min: Int, var max: Int)
@@ -2406,7 +2404,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 语句关闭 `aggregate` ，并且 select 语句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量化聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2450,12 +2448,12 @@ agg = udaf(function,
            accumulator_type=function.get_accumulator_type(),
            name=str(function.__class__.__name__))
 
-# aggregate with a python general aggregate function
+# 使用 python 通用聚合函数进行聚合
 result = t.group_by(t.a) \
     .aggregate(agg.alias("c", "d")) \
     .select("a, c, d")
     
-# aggregate with a python vectorized aggregate function
+# 使用 python 向量化聚合函数进行聚合
 pandas_udaf = udaf(lambda pd: (pd.b.mean(), pd.b.max()),
                    result_type=DataTypes.ROW(
                        [DataTypes.FIELD("a", DataTypes.FLOAT()),
@@ -2473,7 +2471,7 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 
 {{< label Batch >}} {{< label Streaming >}}
 
-在 [group window](#group-window) 和可能的一个或多个分组键上对表进行分组和聚合。你必须使用 select 子句关闭 `aggregate` 。并且 select 子句不支持“*”或聚合函数。
+在 [group window](#group-window) 和可能的一个或多个分组键上对表进行分组和聚合。你必须使用 select 子句关闭 `aggregate`。并且 select 子句不支持“*"或聚合函数。
 
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
@@ -2484,20 +2482,20 @@ tableEnv.registerFunction("myAggFunc", myAggFunc);
 Table table = input
     .window(Tumble.over(lit(5).minutes())
                   .on($("rowtime"))
-                  .as("w")) // define window
-    .groupBy($("key"), $("w")) // group by key and window
+                  .as("w")) // 定义窗口
+    .groupBy($("key"), $("w")) // 以键和窗口分组
     .aggregate(call("myAggFunc", $("a")).as("x", "y"))
-    .select($("key"), $("x"), $("y"), $("w").start(), $("w").end()); // access window properties and aggregate results
+    .select($("key"), $("x"), $("y"), $("w").start(), $("w").end()); // 访问窗口属性与聚合结果
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val myAggFunc = new MyMinMax
 val table = input
-    .window(Tumble over 5.minutes on $"rowtime" as "w") // define window
-    .groupBy($"key", $"w") // group by key and window
+    .window(Tumble over 5.minutes on $"rowtime" as "w") // 定义窗口
+    .groupBy($"key", $"w") // 以键和窗口分组
     .aggregate(myAggFunc($"a") as ("x", "y"))
-    .select($"key", $"x", $"y", $"w".start, $"w".end) // access window properties and aggregate results
+    .select($"key", $"x", $"y", $"w".start, $"w".end) // 访问窗口属性与聚合结果
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -2527,13 +2525,13 @@ t.select(t.b, t.rowtime) \
 {{< tabs "flataggregate" >}}
 {{< tab "Java" >}}
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flatAggregate`。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合算子对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 子句关闭 `flatAggregate`。并且 select 子句不支持聚合函数。
 
-除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
+除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于下发已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
 ```java
 /**
- * Accumulator for Top2.
+ * Top2 聚合器。
  */
 public class Top2Accum {
     public Integer first;
@@ -2541,7 +2539,7 @@ public class Top2Accum {
 }
 
 /**
- * The top2 user-defined table aggregate function.
+ * 用户定义的聚合函数 top2。
  */
 public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2Accum> {
 
@@ -2571,7 +2569,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 
     public void emitValue(Top2Accum acc, Collector<Tuple2<Integer, Integer>> out) {
-        // emit the value and rank
+        // 下发原值与等级值
         if (acc.first != Integer.MIN_VALUE) {
             out.collect(Tuple2.of(acc.first, 1));
         }
@@ -2591,7 +2589,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flatAggregate` 。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 子句关闭 `flatAggregate` 。并且 select 子句不支持聚合函数。
 
 除了使用 emitValue 输出结果，你还可以使用 emitUpdateWithRetract 方法。和 emitValue 不同的是，emitUpdateWithRetract 用于发出已更新的值。此方法在retract 模式下增量输出数据，例如，一旦有更新，我们必须在发送新的更新记录之前收回旧记录。如果在表聚合函数中定义了这两个方法，则将优先使用 emitUpdateWithRetract 方法而不是 emitValue 方法，这是因为该方法可以增量输出值，因此被视为比 emitValue 方法更有效。
 
@@ -2601,7 +2599,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableAggregateFunction
 
 /**
- * Accumulator for top2.
+ * Top2 聚合器。
  */
 class Top2Accum {
   var first: JInteger = _
@@ -2609,7 +2607,7 @@ class Top2Accum {
 }
 
 /**
- * The top2 user-defined table aggregate function.
+ * 用户定义的聚合函数 top2。
  */
 class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum] {
 
@@ -2639,7 +2637,7 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
   }
 
   def emitValue(acc: Top2Accum, out: Collector[JTuple2[JInteger, JInteger]]): Unit = {
-    // emit the value and rank
+    // 下发原值与等级值
     if (acc.first != Int.MinValue) {
       out.collect(JTuple2.of(acc.first, 1))
     }
@@ -2661,7 +2659,7 @@ val result = orders
 
 使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
 
-和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 语句关闭 `flat_aggregate` 。并且 select 语句不支持聚合函数。
+和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 子句关闭 `flat_aggregate`。并且 select 子句不支持聚合函数。
 
 ```python
 from pyflink.common import Row
