@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.MatchRowTimeConverter;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
@@ -121,8 +122,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 
     /**
      * Function used to access a event time attribute with TIMESTAMP or TIMESTAMP_LTZ type from
-     * MATCH_RECOGNIZE, for TIMESTAMP_LTZ type, we rewrite the return type in
-     * [org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter].
+     * MATCH_RECOGNIZE. For TIMESTAMP_LTZ type, we rewrite the return type in {@link
+     * MatchRowTimeConverter}.
      */
     public static final SqlFunction MATCH_ROWTIME =
             new CalciteSqlFunction(

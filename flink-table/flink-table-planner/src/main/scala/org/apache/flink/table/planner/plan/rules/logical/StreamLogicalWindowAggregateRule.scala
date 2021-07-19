@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
+import org.apache.calcite.sql.`type`.SqlTypeFamily
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 
@@ -51,15 +51,6 @@ class StreamLogicalWindowAggregateRule
         s"time attribute column, but ${timeAttribute.getType} encountered.")
     }
     timeAttribute
-  }
-
-  /** Returns a zero literal of a timestamp type */
-  override private[table] def getOutAggregateGroupExpression(
-      rexBuilder: RexBuilder,
-      windowExpression: RexCall): RexNode = {
-    // Create a literal with normal SqlTypeName.TIMESTAMP
-    // in case we reference a rowtime field.
-    rexBuilder.makeZeroLiteral(windowExpression.getType)
   }
 
   private[table] override def getTimeFieldReference(
