@@ -22,16 +22,16 @@ source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 source "$(dirname "$0")"/common_artifact_download_cacher.sh
 
-FLINK_TARBALL_DIR=$TEST_DATA_DIR
-FLINK_TARBALL=flink.tar.gz
+FLINK_ZIP_DIR=$TEST_DATA_DIR
+FLINK_ZIP=flink.zip
 FLINK_DIRNAME=$(basename $FLINK_DIR)
 
 MAX_RETRY_SECONDS=120
 CLUSTER_SETUP_RETRIES=3
 IMAGE_BUILD_RETRIES=5
 
-echo "Flink Tarball directory $FLINK_TARBALL_DIR"
-echo "Flink tarball filename $FLINK_TARBALL"
+echo "Flink Zip directory $FLINK_ZIP_DIR"
+echo "Flink zip filename $FLINK_ZIP"
 echo "Flink distribution directory name $FLINK_DIRNAME"
 echo "End-to-end directory $END_TO_END_DIR"
 
@@ -43,7 +43,7 @@ function cluster_shutdown {
       debug_copy_and_show_logs
   fi
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
-  rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
+  rm $FLINK_ZIP_DIR/$FLINK_ZIP
 }
 on_exit cluster_shutdown
 
@@ -115,13 +115,15 @@ function start_hadoop_cluster_and_prepare_flink() {
         exit 1
     fi
 
-    mkdir -p $FLINK_TARBALL_DIR
-    tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
+    mkdir -p $FLINK_ZIP_DIR
+    current_dir=$(pwd)
+    cd $(dirname $FLINK_DIR) && zip -r $FLINK_ZIP_DIR/$FLINK_ZIP $(basename $FLINK_DIR)
+    cd $current_dir
 
-    docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
+    docker cp $FLINK_ZIP_DIR/$FLINK_ZIP master:/home/hadoop-user/
 
     # now, at least the container is ready
-    docker exec master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --directory /home/hadoop-user/"
+    docker exec master bash -c "cd /home/hadoop-user/ && unzip $FLINK_ZIP"
 
     # minimal Flink config, bebe
     FLINK_CONFIG=$(cat << END
