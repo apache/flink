@@ -74,14 +74,14 @@ class Schema(object):
             """
             Adopts all members from the given unresolved schema.
             """
-            self._j_builder.fromSchema(unresolved_schema)
+            self._j_builder.fromSchema(unresolved_schema._j_schema)
             return self
 
         def from_row_data_type(self, data_type: DataType) -> 'Schema.Builder':
             """
             Adopts all fields of the given row as physical columns of the schema.
             """
-            self._j_builder.fromRowDataType(data_type)
+            self._j_builder.fromRowDataType(_to_java_data_type(data_type))
             return self
 
         def from_fields(self,
