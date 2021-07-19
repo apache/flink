@@ -351,19 +351,19 @@ public abstract class FileSystem {
             FALLBACK_FACTORY.configure(config);
 
             // also read the default file system scheme
-            final String stringifiedUri =
+            final String defaultSchemeString =
                     config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
-            if (stringifiedUri == null) {
+            if (defaultSchemeString == null) {
                 defaultScheme = null;
             } else {
                 try {
-                    defaultScheme = new URI(stringifiedUri);
+                    defaultScheme = new URI(defaultSchemeString);
                 } catch (URISyntaxException e) {
                     throw new IllegalConfigurationException(
                             "The default file system scheme ('"
                                     + CoreOptions.DEFAULT_FILESYSTEM_SCHEME
                                     + "') is invalid: "
-                                    + stringifiedUri,
+                                    + defaultSchemeString,
                             e);
                 }
             }
