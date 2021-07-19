@@ -179,6 +179,8 @@ public class JdbcXaSinkFunction<T> extends AbstractRichFunction
                 new XaSinkStateHandlerImpl(),
                 options,
                 new XaGroupOpsImpl(xaFacade));
+        Preconditions.checkArgument(
+                executionOptions.getMaxRetries() == 0, "JDBC XA sink requires maxRetries = 0");
     }
 
     /**
