@@ -88,30 +88,49 @@ function find_max_block_cache_usage() {
 }
 
 function memory_under_limit() {
-    local MAX_BLOCK_CACHE_USAGE=$1
-    local EXPECTED_MAX_MEMORY_USAGE=$2
+    local MAX_BLOCK_CACHE_0_USAGE=$1
+    local MAX_BLOCK_CACHE_1_USAGE=$2
+    local EXPECTED_MAX_MEMORY_USAGE=$3
 
-    echo "[INFO] Current block cache usage for RocksDB instance in slot was $MAX_BLOCK_CACHE_USAGE"
+    if [ "$MAX_BLOCK_CACHE_0_USAGE" -gt "$MAX_BLOCK_CACHE_1_USAGE" ]; then
+      MAX_BLOCK_CACHE_USAGE=$MAX_BLOCK_CACHE_0_USAGE
+    else
+      MAX_BLOCK_CACHE_USAGE=$MAX_BLOCK_CACHE_1_USAGE
+    fi
+    echo "[INFO] Current max block cache usage of RocksDB instance in slot was $MAX_BLOCK_CACHE_USAGE"
 
     if [ "$MAX_BLOCK_CACHE_USAGE" -gt "$EXPECTED_MAX_MEMORY_USAGE" ]; then
-      echo "[ERROR] Current block cache usage $MAX_BLOCK_CACHE_USAGE larger than expected memory limit $EXPECTED_MAX_MEMORY_USAGE"
-      exit 1
+      echo "[WARN] Current max block cache usage $MAX_BLOCK_CACHE_USAGE larger than expected memory limit $EXPECTED_MAX_MEMORY_USAGE"
+      return 1
     fi
 }
 
 JOB_CMD=`buildBaseJobCmd `
 
-DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
+MAX_ERROR_TIMES=3
+for ((i=1;i<=$MAX_ERROR_TIMES;i++)); do
+  DATASTREAM_JOB=$($JOB_CMD | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_job_running $DATASTREAM_JOB
-wait_oper_metric_num_in_records TumblingWindowOperator.0 10000 'RocksDB test job'
-cancel_job $DATASTREAM_JOB
+  wait_job_running $DATASTREAM_JOB
+  wait_oper_metric_num_in_records TumblingWindowOperator.0 10000 'RocksDB test job'
+  cancel_job $DATASTREAM_JOB
 
-
-MAX_BLOCK_CACHE_0_USAGE=$(find_max_block_cache_usage 'TumblingWindowOperator.0.window-contents' 'RocksDB test job')
-MAX_BLOCK_CACHE_1_USAGE=$(find_max_block_cache_usage 'TumblingWindowOperator.1.window-contents' 'RocksDB test job')
-memory_under_limit $MAX_BLOCK_CACHE_0_USAGE $EXPECTED_MAX_MEMORY_USAGE
-memory_under_limit $MAX_BLOCK_CACHE_1_USAGE $EXPECTED_MAX_MEMORY_USAGE
+  MAX_BLOCK_CACHE_0_USAGE=$(find_max_block_cache_usage 'TumblingWindowOperator.0.window-contents' 'RocksDB test job')
+  MAX_BLOCK_CACHE_1_USAGE=$(find_max_block_cache_usage 'TumblingWindowOperator.1.window-contents' 'RocksDB test job')
+  memory_under_limit $MAX_BLOCK_CACHE_0_USAGE $MAX_BLOCK_CACHE_1_USAGE $EXPECTED_MAX_MEMORY_USAGE
+  if [[ $? -ne 0 ]]; then
+    if [[ $i -eq $MAX_ERROR_TIMES ]]; then
+      echo "[ERROR] Max block cache usage has exceeded expected memory usage $EXPECTED_MAX_MEMORY_USAGE with $MAX_ERROR_TIMES times."
+      exit 1
+    else
+      echo "[WARN] Max block cache usage exceed expected memory usage $EXPECTED_MAX_MEMORY_USAGE once, try to run end-to-end test again."
+      continue
+    fi
+  else
+    echo "[INFO] Max block cache usage under expected memory usage $EXPECTED_MAX_MEMORY_USAGE."
+    break
+  fi
+done
 
 
 
