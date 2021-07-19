@@ -58,10 +58,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.junit.Assert.assertNotNull;
 
 /**
@@ -263,22 +263,20 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         cluster.before();
 
-        ClusterClient<?> client = cluster.getClusterClient();
-
         try {
             // main test sequence:  start job -> eCP -> restore job -> eCP -> restore job
             String firstExternalCheckpoint =
-                    runJobAndGetExternalizedCheckpoint(backend, checkpointDir, null, client);
+                    runJobAndGetExternalizedCheckpoint(backend, checkpointDir, null, cluster);
             assertNotNull(firstExternalCheckpoint);
 
             String secondExternalCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            backend, checkpointDir, firstExternalCheckpoint, client);
+                            backend, checkpointDir, firstExternalCheckpoint, cluster);
             assertNotNull(secondExternalCheckpoint);
 
             String thirdExternalCheckpoint =
                     runJobAndGetExternalizedCheckpoint(
-                            backend, checkpointDir, secondExternalCheckpoint, client);
+                            backend, checkpointDir, secondExternalCheckpoint, cluster);
             assertNotNull(thirdExternalCheckpoint);
         } finally {
             cluster.after();
@@ -289,15 +287,15 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
             StateBackend backend,
             File checkpointDir,
             @Nullable String externalCheckpoint,
-            ClusterClient<?> client)
+            MiniClusterWithClientResource cluster)
             throws Exception {
         JobGraph initialJobGraph = getJobGraph(backend, externalCheckpoint);
-        NotifyingInfiniteTupleSource.countDownLatch = new CountDownLatch(PARALLELISM);
 
-        client.submitJob(initialJobGraph).get();
+        ClusterClient<?> client = cluster.getClusterClient();
+        JobID jobID = client.submitJob(initialJobGraph).get();
 
-        // wait until all sources have been started
-        NotifyingInfiniteTupleSource.countDownLatch.await();
+        // wait until all subtasks have been started
+        waitForAllTaskRunning(cluster.getMiniCluster(), jobID);
 
         waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
         client.cancel(initialJobGraph.getJobID()).get();
@@ -367,7 +365,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                 .enableExternalizedCheckpoints(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-        env.addSource(new NotifyingInfiniteTupleSource(10_000))
+        env.addSource(new ManualWindowSpeedITCase.InfiniteTupleSource(10_000))
                 .assignTimestampsAndWatermarks(IngestionTimeWatermarkStrategy.create())
                 .keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(3)))
@@ -385,31 +383,6 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         }
 
         return jobGraph;
-    }
-
-    /**
-     * Infinite source which notifies when all of its sub tasks have been started via the count down
-     * latch.
-     */
-    public static class NotifyingInfiniteTupleSource
-            extends ManualWindowSpeedITCase.InfiniteTupleSource {
-
-        private static final long serialVersionUID = 8120981235081181746L;
-
-        private static CountDownLatch countDownLatch;
-
-        public NotifyingInfiniteTupleSource(int numKeys) {
-            super(numKeys);
-        }
-
-        @Override
-        public void run(SourceContext<Tuple2<String, Integer>> out) throws Exception {
-            if (countDownLatch != null) {
-                countDownLatch.countDown();
-            }
-
-            super.run(out);
-        }
     }
 
     /**
