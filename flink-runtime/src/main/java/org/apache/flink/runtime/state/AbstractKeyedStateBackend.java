@@ -339,7 +339,7 @@ public abstract class AbstractKeyedStateBackend<K>
 
         checkNotNull(namespace, "Namespace");
 
-        if (lastName != null && lastName.equals(stateDescriptor.getName()) && lastNamespaceSerializerClass != null && lastNamespaceSerializerClass.equals(namespaceSerializer.getClass())) {
+        if (lastName != null && lastName.equals(stateDescriptor.getName())) {
             lastState.setCurrentNamespace(namespace);
             return (S) lastState;
         }
