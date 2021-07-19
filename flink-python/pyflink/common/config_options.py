@@ -27,7 +27,7 @@ __all__ = ['ConfigOptions', 'ConfigOption']
 class ConfigOptions(object):
     """
     {@code ConfigOptions} are used to build a :class:`~pyflink.table.ConfigOption`. The option is
-    typically built in one of the following pattern:
+    typically built in one of the following patterns:
 
     Example:
     ::
