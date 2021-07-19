@@ -52,6 +52,7 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
@@ -85,6 +86,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -208,7 +210,11 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                         jobID,
                         executionAttemptID,
                         checkpointResponderMock,
-                        TestLocalRecoveryConfig.disabled());
+                        TestLocalRecoveryConfig.disabled(),
+                        new InMemoryStateChangelogStorage(),
+                        new HashMap<>(),
+                        -1L,
+                        new OneShotLatch());
 
         StreamMockEnvironment mockEnv =
                 new StreamMockEnvironment(

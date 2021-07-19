@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ServiceLoader;
@@ -81,7 +82,7 @@ public class StateChangelogStorageLoader {
     }
 
     @Nullable
-    public static StateChangelogStorage<?> load(Configuration configuration) {
+    public static StateChangelogStorage<?> load(Configuration configuration) throws IOException {
         final String identifier =
                 configuration
                         .getString(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE)

@@ -678,9 +678,14 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getSubtaskIndex());
 
             // TODO: Pass config value from user program and do overriding here.
-            final StateChangelogStorage<?> changelogStorage =
-                    changelogStoragesManager.stateChangelogStorageForJob(
-                            jobId, taskManagerConfiguration.getConfiguration());
+            final StateChangelogStorage<?> changelogStorage;
+            try {
+                changelogStorage =
+                        changelogStoragesManager.stateChangelogStorageForJob(
+                                jobId, taskManagerConfiguration.getConfiguration());
+            } catch (IOException e) {
+                throw new TaskSubmissionException(e);
+            }
 
             final JobManagerTaskRestore taskRestore = tdd.getTaskRestore();
 
