@@ -47,9 +47,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSubQueryUti
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeCheckCtx;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSpec;
-import org.apache.flink.table.planner.delegation.hive.desc.CreateTableASDesc;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
 import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
@@ -197,8 +196,8 @@ public class HiveParserCalcitePlanner {
     // this will be used in HiveParserRexNodeConverter to create cor var
     private int subqueryId = 0;
 
-    private HiveParserCreateViewDesc createViewDesc;
-    private CreateTableASDesc ctasDesc;
+    private HiveParserCreateViewInfo createViewInfo;
+    private List<FieldSchema> ctasCols;
 
     public HiveParserCalcitePlanner(
             HiveParserQueryState queryState,
@@ -224,15 +223,15 @@ public class HiveParserCalcitePlanner {
                         cluster, frameworkConfig.getOperatorTable(), catalogReader.nameMatcher());
     }
 
-    public void setCtasDesc(CreateTableASDesc ctasDesc) {
-        this.ctasDesc = ctasDesc;
+    public void setCtasCols(List<FieldSchema> ctasCols) {
+        this.ctasCols = ctasCols;
     }
 
-    public void setCreateViewDesc(HiveParserCreateViewDesc createViewDesc) {
-        if (createViewDesc != null) {
+    public void setCreatViewInfo(HiveParserCreateViewInfo createViewInfo) {
+        if (createViewInfo != null) {
             semanticAnalyzer.unparseTranslator.enable();
         }
-        this.createViewDesc = createViewDesc;
+        this.createViewInfo = createViewInfo;
     }
 
     public void initCtx(HiveParserContext context) {
@@ -283,22 +282,22 @@ public class HiveParserCalcitePlanner {
 
         try {
             RelNode plan = genLogicalPlan(getQB(), true, null, null);
-            if (createViewDesc != null) {
+            if (createViewInfo != null) {
                 semanticAnalyzer.resultSchema =
                         HiveParserUtils.convertRowSchemaToResultSetSchema(
                                 relToRowResolver.get(plan), false);
                 HiveParserUtils.saveViewDefinition(
                         semanticAnalyzer.resultSchema,
-                        createViewDesc,
+                        createViewInfo,
                         semanticAnalyzer.ctx.getTokenRewriteStream(),
                         semanticAnalyzer.unparseTranslator,
                         semanticAnalyzer.getConf());
-            } else if (ctasDesc != null) {
+            } else if (ctasCols != null) {
                 // CTAS doesn't allow specifying col list, so we set it according to result schema
                 semanticAnalyzer.resultSchema =
                         HiveParserUtils.convertRowSchemaToResultSetSchema(
                                 relToRowResolver.get(plan), false);
-                ctasDesc.getCreateTableDesc().getCols().addAll(semanticAnalyzer.resultSchema);
+                ctasCols.addAll(semanticAnalyzer.resultSchema);
             }
             return plan;
         } catch (SemanticException e) {

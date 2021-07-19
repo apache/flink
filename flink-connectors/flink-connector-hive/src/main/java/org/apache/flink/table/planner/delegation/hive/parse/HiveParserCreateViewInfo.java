@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive.desc;
+package org.apache.flink.table.planner.delegation.hive.parse;
 
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
 
@@ -24,38 +24,23 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 
-/** Desc for create view operation. */
-public class HiveParserCreateViewDesc implements Serializable {
+/** Information for create view operation. */
+public class HiveParserCreateViewInfo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private final String compoundName;
-    private final String comment;
-    private final Map<String, String> tblProps;
-    private final boolean ifNotExists;
-    private final boolean isAlterViewAs;
     private final HiveParserASTNode query;
 
     private List<FieldSchema> schema;
     private String originalText;
     private String expandedText;
 
-    public HiveParserCreateViewDesc(
-            String compoundName,
-            List<FieldSchema> schema,
-            String comment,
-            Map<String, String> tblProps,
-            boolean ifNotExists,
-            boolean isAlterViewAs,
-            HiveParserASTNode query) {
+    public HiveParserCreateViewInfo(
+            String compoundName, List<FieldSchema> schema, HiveParserASTNode query) {
         this.compoundName = compoundName;
         this.schema = schema;
-        this.comment = comment;
-        this.tblProps = tblProps;
-        this.ifNotExists = ifNotExists;
-        this.isAlterViewAs = isAlterViewAs;
         this.query = query;
     }
 
@@ -69,22 +54,6 @@ public class HiveParserCreateViewDesc implements Serializable {
 
     public void setSchema(List<FieldSchema> schema) {
         this.schema = schema;
-    }
-
-    public String getComment() {
-        return comment;
-    }
-
-    public Map<String, String> getTblProps() {
-        return tblProps;
-    }
-
-    public boolean ifNotExists() {
-        return ifNotExists;
-    }
-
-    public boolean isAlterViewAs() {
-        return isAlterViewAs;
     }
 
     public String getOriginalText() {
