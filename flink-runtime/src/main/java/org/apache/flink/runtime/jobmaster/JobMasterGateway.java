@@ -291,4 +291,10 @@ public interface JobMasterGateway
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             @RpcTimeout Time timeout);
+
+    /**
+     * Notifies the {@link org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker}
+     * to stop tracking the target result partitions.
+     */
+    CompletableFuture<?> stopTrackingPartitions(Collection<ResultPartitionID> partitionIDS);
 }

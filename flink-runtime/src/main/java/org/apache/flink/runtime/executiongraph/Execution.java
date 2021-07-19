@@ -468,7 +468,8 @@ public class Execution
             CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture =
                     vertex.getExecutionGraphAccessor()
                             .getShuffleMaster()
-                            .registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+                            .registerPartitionWithProducer(
+                                    vertex.getJobId(), partitionDescriptor, producerDescriptor);
 
             // temporary hack; the scheduler does not handle incomplete futures properly
             Preconditions.checkState(
