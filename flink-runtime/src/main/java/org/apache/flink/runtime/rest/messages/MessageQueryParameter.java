@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,7 +40,7 @@ public abstract class MessageQueryParameter<X> extends MessageParameter<List<X>>
         String[] splitValues = values.split(",");
         List<X> list = new ArrayList<>();
         for (String value : splitValues) {
-            list.add(convertStringToValue(value));
+            list.add(convertStringToValue(URLDecoder.decode(URLDecoder.decode(value))));
         }
         return list;
     }
