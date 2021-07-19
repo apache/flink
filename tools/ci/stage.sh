@@ -91,6 +91,7 @@ flink-formats/flink-orc-nohive,\
 flink-connectors/flink-connector-hbase-base,\
 flink-connectors/flink-connector-hbase-1.4,\
 flink-connectors/flink-connector-hbase-2.2,\
+flink-connectors/flink-connector-hbase-unified,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
