@@ -258,7 +258,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     final java.nio.file.Path shipPath = file.toPath();
                     final java.nio.file.Path parentPath = shipPath.getParent();
                     Files.walkFileTree(
-                            shipPath,
+                            shipPath.toRealPath(),
                             new SimpleFileVisitor<java.nio.file.Path>() {
                                 @Override
                                 public FileVisitResult visitFile(
