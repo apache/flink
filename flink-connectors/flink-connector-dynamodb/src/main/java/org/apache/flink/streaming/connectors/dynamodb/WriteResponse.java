@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.batch;
+package org.apache.flink.streaming.connectors.dynamodb;
 
 /** DynamoDB batch writer response. */
 public class WriteResponse {

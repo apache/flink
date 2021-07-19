@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.connectors.dynamodb;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.streaming.connectors.dynamodb.batch.WriteRequest;
-import org.apache.flink.streaming.connectors.dynamodb.batch.WriteResponse;
 
 import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;

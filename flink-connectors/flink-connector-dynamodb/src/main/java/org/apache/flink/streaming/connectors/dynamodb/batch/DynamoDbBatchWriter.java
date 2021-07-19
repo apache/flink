@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
+import org.apache.flink.streaming.connectors.dynamodb.WriteResponse;
 import org.apache.flink.streaming.connectors.dynamodb.retry.BatchWriterRetryPolicy;
 import org.apache.flink.streaming.connectors.dynamodb.retry.DynamoDbExceptionUtils;
 

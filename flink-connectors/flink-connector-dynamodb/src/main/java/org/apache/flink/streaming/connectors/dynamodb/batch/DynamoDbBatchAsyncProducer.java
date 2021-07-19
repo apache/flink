@@ -30,13 +30,10 @@ public class DynamoDbBatchAsyncProducer implements DynamoDbProducer {
 
     private final DynamoDbClient client;
     private final BatchCollector batchCollector;
-    private final int elementsPerBatchWrite;
 
-    public DynamoDbBatchAsyncProducer(
-            DynamoDbClient client, BatchCollector batchCollector, int elementsPerBatchWrite) {
+    public DynamoDbBatchAsyncProducer(DynamoDbClient client, BatchCollector batchCollector) {
         this.client = client;
         this.batchCollector = batchCollector;
-        this.elementsPerBatchWrite = elementsPerBatchWrite;
     }
 
     @Override

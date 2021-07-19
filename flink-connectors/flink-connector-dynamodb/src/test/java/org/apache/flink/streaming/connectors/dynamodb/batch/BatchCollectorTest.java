@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.dynamodb.batch;
 
+import org.apache.flink.streaming.connectors.dynamodb.WriteRequest;
 import org.apache.flink.streaming.connectors.dynamodb.config.DynamoDbTablesConfig;
 
 import com.google.common.collect.ImmutableMap;

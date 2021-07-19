@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.dynamodb.batch;
+package org.apache.flink.streaming.connectors.dynamodb;
 
 import org.apache.flink.util.Preconditions;
 
