@@ -2888,6 +2888,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         // restore the store
+        store.recover();
         Set<ExecutionJobVertex> tasks = new HashSet<>();
         tasks.add(jobVertex1);
         assertTrue(checkpointCoordinator.restoreLatestCheckpointedStateToAll(tasks, false));
