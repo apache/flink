@@ -125,7 +125,10 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         zookeeper = null;
         brokers.clear();
 
-        zookeeper = new TestingServer(-1, tmpZkDir);
+        synchronized (KafkaTestEnvironmentImpl.class) {
+            zookeeper = new TestingServer(-1, tmpZkDir);
+        }
+
         zookeeperConnectionString = zookeeper.getConnectString();
         LOG.info(
                 "Starting Zookeeper with zookeeperConnectionString: {}", zookeeperConnectionString);
