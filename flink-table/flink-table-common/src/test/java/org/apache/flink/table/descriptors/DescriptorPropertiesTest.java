@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.LogicalTypeParserTest;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
@@ -33,9 +34,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link DescriptorProperties}. */
 public class DescriptorPropertiesTest {
@@ -288,6 +292,26 @@ public class DescriptorPropertiesTest {
                         .build();
 
         assertEquals(expected, restored);
+    }
+
+    @Test
+    public void testValidateRange() {
+        DescriptorProperties properties = new DescriptorProperties();
+        properties.putString("hello1", "2");
+        properties.putString("hello2", "4");
+        try {
+            properties.validateInt("hello1", false, 1, 3);
+        } catch (Exception e) {
+            fail();
+        }
+        try {
+            properties.validateInt("hello2", false, 1, 3);
+        } catch (Exception e) {
+            Optional<Throwable> throwable = ExceptionUtils.findThrowableWithMessage(e, "between");
+            assertTrue(throwable.isPresent());
+            return;
+        }
+        fail();
     }
 
     private void testArrayValidation(
