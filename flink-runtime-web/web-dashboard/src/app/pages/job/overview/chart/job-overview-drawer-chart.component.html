@@ -20,8 +20,8 @@
   <span *ngIf="listOfMetricName.length === 0; else elseTemplate;">No Available Metric</span>
   <ng-template #elseTemplate>
     Add Metric:
-    <nz-select nzSize="small" [ngModel]="null" nzShowSearch [nzPlaceHolder]="'Select Metric Name'" (ngModelChange)="updateMetric($event)">
-      <nz-option *ngFor="let name of listOfUnselectedMetric" [nzLabel]="name" [nzValue]="name"></nz-option>
+    <nz-select nzSize="small" [ngModel]="null" (nzOnSearch)="nzOnSearch($event)" nzShowSearch [nzPlaceHolder]="'Select Metric Name'" (ngModelChange)="updateMetric($event)" (nzScrollToBottom)="loadMore()">
+      <nz-option *ngFor="let name of showList" [nzLabel]="name" [nzValue]="name"></nz-option>
     </nz-select>
   </ng-template>
 </div>
