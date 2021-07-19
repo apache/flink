@@ -43,9 +43,9 @@ import java.util.Objects;
  */
 public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStateMetaInfoBase {
 
-    @Nonnull private final StateDescriptor.Type stateType;
+    @Nonnull protected final StateDescriptor.Type stateType;
     @Nonnull private final StateSerializerProvider<N> namespaceSerializerProvider;
-    @Nonnull private final StateSerializerProvider<S> stateSerializerProvider;
+    @Nonnull protected final StateSerializerProvider<S> stateSerializerProvider;
     @Nonnull private StateSnapshotTransformFactory<S> stateSnapshotTransformFactory;
 
     public RegisteredKeyValueStateBackendMetaInfo(

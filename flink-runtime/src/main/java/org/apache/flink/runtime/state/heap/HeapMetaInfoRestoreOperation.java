@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.Keyed;
@@ -42,7 +43,8 @@ import java.util.Map;
  *
  * @param <K> The key by which state is keyed.
  */
-class HeapMetaInfoRestoreOperation<K> {
+@Internal
+public class HeapMetaInfoRestoreOperation<K> {
     private final StateSerializerProvider<K> keySerializerProvider;
     private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
     @Nonnull private final KeyGroupRange keyGroupRange;
@@ -50,7 +52,7 @@ class HeapMetaInfoRestoreOperation<K> {
     private final StateTableFactory<K> stateTableFactory;
     private final InternalKeyContext<K> keyContext;
 
-    HeapMetaInfoRestoreOperation(
+    protected HeapMetaInfoRestoreOperation(
             StateSerializerProvider<K> keySerializerProvider,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
             @Nonnull KeyGroupRange keyGroupRange,
@@ -78,15 +80,11 @@ class HeapMetaInfoRestoreOperation<K> {
                 case KEY_VALUE:
                     registeredState = registeredKVStates.get(metaInfoSnapshot.getName());
                     if (registeredState == null) {
-                        RegisteredKeyValueStateBackendMetaInfo<?, ?>
-                                registeredKeyedBackendStateMetaInfo =
-                                        new RegisteredKeyValueStateBackendMetaInfo<>(
-                                                metaInfoSnapshot);
                         registeredKVStates.put(
                                 metaInfoSnapshot.getName(),
                                 stateTableFactory.newStateTable(
                                         keyContext,
-                                        registeredKeyedBackendStateMetaInfo,
+                                        createMetaInfo(metaInfoSnapshot),
                                         keySerializerProvider.currentSchemaSerializer()));
                     }
                     break;
@@ -113,6 +111,11 @@ class HeapMetaInfoRestoreOperation<K> {
         }
 
         return kvStatesById;
+    }
+
+    protected RegisteredKeyValueStateBackendMetaInfo<?, ?> createMetaInfo(
+            StateMetaInfoSnapshot snapshot) {
+        return new RegisteredKeyValueStateBackendMetaInfo<>(snapshot);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
