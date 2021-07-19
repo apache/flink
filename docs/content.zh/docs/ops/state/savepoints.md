@@ -36,9 +36,14 @@ Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault
 </div>
 从概念上讲， Flink 的 Savepoint 与 Checkpoint 的不同之处类似于传统数据库中的备份与恢复日志之间的差异。 Checkpoint 的主要目的是为意外失败的作业提供恢复机制。 Checkpoint 的生命周期由 Flink 管理，即 Flink 创建，管理和删除 Checkpoint - 无需用户交互。 作为一种恢复和定期触发的方法，Checkpoint 实现有两个设计目标：i）轻量级创建和 ii）尽可能快地恢复。 可能会利用某些特定的属性来达到这个，例如， 工作代码在执行尝试之间不会改变。 在用户终止作业后，通常会删除 Checkpoint（除非明确配置为保留的 Checkpoint）。
 
- 与此相反、Savepoint 由用户创建，拥有和删除。 他们的用例是计划的，手动备份和恢复。 例如，升级 Flink 版本，调整用户逻辑，改变并行度，以及进行红蓝部署等。 当然，Savepoint 必须在作业停止后继续存在。 从概念上讲，Savepoint 的生成，恢复成本可能更高一些，Savepoint 更多地关注可移植性和对前面提到的作业更改的支持。
+与此相反、Savepoint 由用户创建，拥有和删除。 他们的用例是计划的，手动备份和恢复。 例如，升级 Flink 版本，调整用户逻辑，改变并行度，以及进行红蓝部署等。 当然，Savepoint 必须在作业停止后继续存在。 从概念上讲，Savepoint 的生成，恢复成本可能更高一些，Savepoint 更多地关注可移植性和对前面提到的作业更改的支持。
 
-除去这些概念上的差异，Checkpoint 和 Savepoint 的当前实现基本上使用相同的代码并生成相同的格式。然而，目前有一个例外，我们可能会在未来引入更多的差异。例外情况是使用 RocksDB 状态后端的增量 Checkpoint。他们使用了一些 RocksDB 内部格式，而不是 Flink 的本机 Savepoint 格式。这使他们成为了与 Savepoint 相比，更轻量级的 Checkpoint 机制的第一个实例。
+Flink 的 Savepoint 二进制格式在所有 State Backend 之间都是统一的。这意味着你可以在一个 State Backend 下获取一个 Savepoint，然后使用另一个 State Backend 将其还原。
+
+{{< hint info >}}
+所有 State Backend 生成一个通用的 Savepoint 二进制格式是从 Flink 1.13 版本才开始的。因此，如果想切换 State Backend，应当首先升级你的 Flink 版本，然后
+在新版本下获取一个 Savepoint，只有这样你才能够使用其他 State Backend 将其还原。
+{{< /hint >}}
 
 ## 分配算子 ID
 
