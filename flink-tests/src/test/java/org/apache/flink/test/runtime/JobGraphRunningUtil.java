@@ -28,11 +28,26 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.util.SerializedThrowable;
 
 /** Utils to run {@link JobGraph} on {@link MiniCluster}. */
 public class JobGraphRunningUtil {
 
     public static void execute(
+            JobGraph jobGraph,
+            Configuration configuration,
+            int numTaskManagers,
+            int numSlotsPerTaskManager)
+            throws Exception {
+        SerializedThrowable exception =
+                executeAndGetThrowable(
+                        jobGraph, configuration, numTaskManagers, numSlotsPerTaskManager);
+        if (exception != null) {
+            throw new AssertionError(exception);
+        }
+    }
+
+    public static SerializedThrowable executeAndGetThrowable(
             JobGraph jobGraph,
             Configuration configuration,
             int numTaskManagers,
@@ -57,8 +72,9 @@ public class JobGraphRunningUtil {
 
             JobResult jobResult = miniClusterClient.requestJobResult(jobID).get();
             if (jobResult.getSerializedThrowable().isPresent()) {
-                throw new AssertionError(jobResult.getSerializedThrowable().get());
+                return jobResult.getSerializedThrowable().get();
             }
+            return null;
         }
     }
 }
