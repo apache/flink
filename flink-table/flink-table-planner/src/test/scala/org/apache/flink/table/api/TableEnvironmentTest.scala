@@ -1412,28 +1412,6 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testTableExplain(): Unit = {
-    val createTableStmt =
-      """
-        |CREATE TABLE MyTable (
-        |  a bigint,
-        |  b int,
-        |  c varchar
-        |) with (
-        |  'connector' = 'COLLECTION',
-        |  'is-bounded' = 'false'
-        |)
-      """.stripMargin
-    val tableResult1 = tableEnv.executeSql(createTableStmt)
-    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
-
-    val actual = tableEnv.sqlQuery("select * from MyTable where a > 10")
-      .explain(ExplainDetail.CHANGELOG_MODE)
-    val expected = TableTestUtil.readFromResource("/explain/testExplainSqlWithSelect.out")
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-  }
-
-  @Test
   def testExecuteSqlWithExplainDetailsSelect(): Unit = {
     val createTableStmt =
       """
