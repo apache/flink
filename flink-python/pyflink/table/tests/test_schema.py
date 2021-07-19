@@ -23,7 +23,15 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 class SchemaTest(PyFlinkTestCase):
     def test_schema_basic(self):
+        old_schema = Schema.new_builder() \
+            .from_row_data_type(DataTypes.ROW(
+                [DataTypes.FIELD("a", DataTypes.TINYINT()),
+                 DataTypes.FIELD("b", DataTypes.SMALLINT()),
+                 DataTypes.FIELD("c", DataTypes.INT())])) \
+            .from_fields(["d", "e"], [DataTypes.STRING(), DataTypes.BOOLEAN()]) \
+            .build()
         self.schema = Schema.new_builder() \
+            .from_schema(old_schema) \
             .primary_key_named("primary_constraint", "id") \
             .column("id", DataTypes.INT().not_null()) \
             .column("counter", DataTypes.INT().not_null()) \
@@ -35,6 +43,11 @@ class SchemaTest(PyFlinkTestCase):
             .column_by_expression("proctime", "PROCTIME()") \
             .build()
         self.assertEqual("""(
+  `a` TINYINT,
+  `b` SMALLINT,
+  `c` INT,
+  `d` STRING,
+  `e` BOOLEAN,
   `id` INT NOT NULL,
   `counter` INT NOT NULL,
   `payload` [ROW<name STRING, age INT, flag BOOLEAN>],
