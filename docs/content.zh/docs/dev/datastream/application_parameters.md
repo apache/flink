@@ -28,13 +28,13 @@ under the License.
 
 应用程序参数处理
 -------------------------------
-几乎所有的 Flink 应用程序，也就是批和流程序，都依赖于外部配置参数。这些配置参数指定输入和输出源（如路径或地址），系统参数（并行度，运行时配置）和应用程序特定参数（通常在用户函数中使用）。
+几乎所有的批和流的 Flink 应用程序，都依赖于外部配置参数。这些配置参数可以用于指定输入和输出源（如路径或地址）、系统参数（并行度，运行时配置）和特定的应用程序参数（通常使用在用户自定义函数）。
 
-Flink 提供一个名为 `Parametertool` 的简单实用类，为解决以上问题提供了基本的工具。请注意，此处描述的 `Parametertool` 并不是必须的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 等其他框架也可以非常好地兼容 Flink。
+为解决以上问题，Flink 提供一个名为 `Parametertool` 的简单公共类，其中包含了一些基本的工具。请注意，这里说的 `Parametertool` 并不是必须使用的。[Commons CLI](https://commons.apache.org/proper/commons-cli/) 和 [argparse4j](http://argparse4j.sourceforge.net/) 等其他框架也可以非常好地兼容 Flink。
 
 ### `ParameterTool` 读取配置值
 
-`ParameterTool` 提供一组预定义的静态方法，用于读取配置信息。该工具类内部实现倾向于使用 `Map<string，string>`，因此很容易与我们自己的配置集成。
+`ParameterTool` 已经定义好了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可能很容易的与你的配置集成在一起。
 
 
 #### 配置值来自 `.properties` 文件
@@ -54,7 +54,7 @@ ParameterTool parameter = ParameterTool.fromPropertiesFile(propertiesFileInputSt
 
 #### 配置值来自命令行
 
-该操作从命令行获取像 `--input hdfs:///mydata --elements 42` 的参数。
+以下方法可以从命令行中获取参数，如 `--input hdfs:///mydata --elements 42`。
 
 ```java
 public static void main(String[] args) {
@@ -65,13 +65,13 @@ public static void main(String[] args) {
 
 #### 配置值来自系统属性
 
-启动 JVM 时，可以将系统属性传递给 JVM ：`-Dinput=hdfs:///mydata` 。你也可以从这些系统属性初始化 `ParameterTool`：
+启动 JVM 时，可以将系统属性传递给 JVM：`-Dinput=hdfs:///mydata`。你也可以从这些系统属性初始化 `ParameterTool`：
 
 ```java
 ParameterTool parameter = ParameterTool.fromSystemProperties();
 ```
 
-### Flink 程序中使用参数
+### 在 Flink 程序中使用参数
 
 现在我们已经从某处获取了参数（见上文），可以以各种不同的方式使用它们。
 
@@ -116,7 +116,7 @@ ParameterTool parameters = ParameterTool.fromArgs(args);
 
 // set up the execution environment
 final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setGlobalJobParameters(parameters);
+env.getConfig().setGlobalJobParameters(parameters);
 ```
 在任意富函数中访问参数：
 
