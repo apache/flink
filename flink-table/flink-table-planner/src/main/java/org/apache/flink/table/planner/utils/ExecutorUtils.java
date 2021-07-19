@@ -84,7 +84,7 @@ public class ExecutorUtils {
     }
 
     private static GlobalDataExchangeMode getGlobalDataExchangeMode(TableConfig tableConfig) {
-        return ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(
+        return StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(
                 tableConfig.getConfiguration());
     }
 }

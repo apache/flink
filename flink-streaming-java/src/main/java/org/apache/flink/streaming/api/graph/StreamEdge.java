@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.util.OutputTag;
 
@@ -58,7 +58,7 @@ public class StreamEdge implements Serializable {
     /** The name of the operator in the target vertex. */
     private final String targetOperatorName;
 
-    private final ShuffleMode shuffleMode;
+    private final StreamExchangeMode exchangeMode;
 
     private long bufferTimeout;
 
@@ -78,7 +78,7 @@ public class StreamEdge implements Serializable {
                 ALWAYS_FLUSH_BUFFER_TIMEOUT,
                 outputPartitioner,
                 outputTag,
-                ShuffleMode.UNDEFINED);
+                StreamExchangeMode.UNDEFINED);
     }
 
     public StreamEdge(
@@ -87,7 +87,7 @@ public class StreamEdge implements Serializable {
             int typeNumber,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            ShuffleMode shuffleMode) {
+            StreamExchangeMode exchangeMode) {
 
         this(
                 sourceVertex,
@@ -96,7 +96,7 @@ public class StreamEdge implements Serializable {
                 sourceVertex.getBufferTimeout(),
                 outputPartitioner,
                 outputTag,
-                shuffleMode);
+                exchangeMode);
     }
 
     public StreamEdge(
@@ -106,7 +106,7 @@ public class StreamEdge implements Serializable {
             long bufferTimeout,
             StreamPartitioner<?> outputPartitioner,
             OutputTag outputTag,
-            ShuffleMode shuffleMode) {
+            StreamExchangeMode exchangeMode) {
 
         this.sourceId = sourceVertex.getId();
         this.targetId = targetVertex.getId();
@@ -116,7 +116,7 @@ public class StreamEdge implements Serializable {
         this.outputTag = outputTag;
         this.sourceOperatorName = sourceVertex.getOperatorName();
         this.targetOperatorName = targetVertex.getOperatorName();
-        this.shuffleMode = checkNotNull(shuffleMode);
+        this.exchangeMode = checkNotNull(exchangeMode);
         this.edgeId =
                 sourceVertex + "_" + targetVertex + "_" + typeNumber + "_" + outputPartitioner;
     }
@@ -141,8 +141,8 @@ public class StreamEdge implements Serializable {
         return outputPartitioner;
     }
 
-    public ShuffleMode getShuffleMode() {
-        return shuffleMode;
+    public StreamExchangeMode getExchangeMode() {
+        return exchangeMode;
     }
 
     public void setPartitioner(StreamPartitioner<?> partitioner) {

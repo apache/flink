@@ -62,7 +62,7 @@ import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -780,7 +780,7 @@ public class StreamingJobGraphGenerator {
         StreamPartitioner<?> partitioner = edge.getPartitioner();
 
         ResultPartitionType resultPartitionType;
-        switch (edge.getShuffleMode()) {
+        switch (edge.getExchangeMode()) {
             case PIPELINED:
                 resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
                 break;
@@ -792,7 +792,7 @@ public class StreamingJobGraphGenerator {
                 break;
             default:
                 throw new UnsupportedOperationException(
-                        "Data exchange mode " + edge.getShuffleMode() + " is not supported yet.");
+                        "Data exchange mode " + edge.getExchangeMode() + " is not supported yet.");
         }
 
         checkAndResetBufferTimeout(resultPartitionType, edge);
@@ -877,7 +877,7 @@ public class StreamingJobGraphGenerator {
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
                 && (edge.getPartitioner() instanceof ForwardPartitioner)
-                && edge.getShuffleMode() != ShuffleMode.BATCH
+                && edge.getExchangeMode() != StreamExchangeMode.BATCH
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 

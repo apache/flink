@@ -44,7 +44,7 @@ public class PartitionTransformation<T> extends Transformation<T> {
 
     private final StreamPartitioner<T> partitioner;
 
-    private final ShuffleMode shuffleMode;
+    private final StreamExchangeMode exchangeMode;
 
     /**
      * Creates a new {@code PartitionTransformation} from the given input and {@link
@@ -54,7 +54,7 @@ public class PartitionTransformation<T> extends Transformation<T> {
      * @param partitioner The {@code StreamPartitioner}
      */
     public PartitionTransformation(Transformation<T> input, StreamPartitioner<T> partitioner) {
-        this(input, partitioner, ShuffleMode.UNDEFINED);
+        this(input, partitioner, StreamExchangeMode.UNDEFINED);
     }
 
     /**
@@ -63,14 +63,16 @@ public class PartitionTransformation<T> extends Transformation<T> {
      *
      * @param input The input {@code Transformation}
      * @param partitioner The {@code StreamPartitioner}
-     * @param shuffleMode The {@code ShuffleMode}
+     * @param exchangeMode The {@code ShuffleMode}
      */
     public PartitionTransformation(
-            Transformation<T> input, StreamPartitioner<T> partitioner, ShuffleMode shuffleMode) {
+            Transformation<T> input,
+            StreamPartitioner<T> partitioner,
+            StreamExchangeMode exchangeMode) {
         super("Partition", input.getOutputType(), input.getParallelism());
         this.input = input;
         this.partitioner = partitioner;
-        this.shuffleMode = checkNotNull(shuffleMode);
+        this.exchangeMode = checkNotNull(exchangeMode);
     }
 
     /**
@@ -81,9 +83,9 @@ public class PartitionTransformation<T> extends Transformation<T> {
         return partitioner;
     }
 
-    /** Returns the {@link ShuffleMode} of this {@link PartitionTransformation}. */
-    public ShuffleMode getShuffleMode() {
-        return shuffleMode;
+    /** Returns the {@link StreamExchangeMode} of this {@link PartitionTransformation}. */
+    public StreamExchangeMode getExchangeMode() {
+        return exchangeMode;
     }
 
     @Override
