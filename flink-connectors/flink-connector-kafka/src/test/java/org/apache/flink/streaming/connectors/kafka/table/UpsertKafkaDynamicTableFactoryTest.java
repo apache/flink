@@ -613,7 +613,7 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
                 topic,
                 properties,
                 null,
-                KafkaSinkSemantic.AT_LEAST_ONCE,
+                KafkaConnectorOptions.KafkaSinkSemantic.AT_LEAST_ONCE,
                 true,
                 flushMode,
                 parallelism);

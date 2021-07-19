@@ -91,7 +91,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
-    private final EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+    private final RocksDBOptions.PriorityQueueStateType priorityQueueStateType;
 
     /** The configuration of local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
@@ -134,7 +134,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             KeyGroupRange keyGroupRange,
             ExecutionConfig executionConfig,
             LocalRecoveryConfig localRecoveryConfig,
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+            RocksDBOptions.PriorityQueueStateType priorityQueueStateType,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
@@ -183,7 +183,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             KeyGroupRange keyGroupRange,
             ExecutionConfig executionConfig,
             LocalRecoveryConfig localRecoveryConfig,
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+            RocksDBOptions.PriorityQueueStateType priorityQueueStateType,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
@@ -464,8 +464,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     ttlCompactFiltersManager,
                     writeBatchSize,
                     optionsContainer.getWriteBufferManagerCapacity());
-        } else if (priorityQueueStateType
-                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
+        } else if (priorityQueueStateType == RocksDBOptions.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(
                     keyGroupRange,
                     numberOfKeyGroups,

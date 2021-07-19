@@ -21,9 +21,10 @@ package org.apache.flink.test.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.contrib.streaming.state.RocksDBOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBOptions.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -67,10 +68,12 @@ public final class BackendSwitchSpecs {
     }
 
     /** Specification for a {@link RocksDBKeyedStateBackend}. */
-    static final BackendSwitchSpec ROCKS = new RocksSpec(PriorityQueueStateType.ROCKSDB);
+    static final BackendSwitchSpec ROCKS =
+            new RocksSpec(RocksDBOptions.PriorityQueueStateType.ROCKSDB);
 
     /** Specification for a {@link RocksDBKeyedStateBackend} which stores its timers on heap. */
-    static final BackendSwitchSpec ROCKS_HEAP_TIMERS = new RocksSpec(PriorityQueueStateType.HEAP);
+    static final BackendSwitchSpec ROCKS_HEAP_TIMERS =
+            new RocksSpec(RocksDBOptions.PriorityQueueStateType.HEAP);
 
     /** Specification for a {@link HeapKeyedStateBackend}. */
     static final BackendSwitchSpec HEAP = new HeapSpec();

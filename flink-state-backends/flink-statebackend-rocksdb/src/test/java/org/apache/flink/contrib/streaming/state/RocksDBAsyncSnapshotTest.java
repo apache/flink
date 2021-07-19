@@ -271,19 +271,17 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         File dbDir = temporaryFolder.newFolder();
 
-        final EmbeddedRocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType =
+        final RocksDBOptions.PriorityQueueStateType timerServicePriorityQueueType =
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
 
         final int skipStreams;
 
-        if (timerServicePriorityQueueType
-                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
+        if (timerServicePriorityQueueType == RocksDBOptions.PriorityQueueStateType.HEAP) {
             // we skip the first created stream, because it is used to checkpoint the timer service,
             // which is
             // currently not asynchronous.
             skipStreams = 1;
-        } else if (timerServicePriorityQueueType
-                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
+        } else if (timerServicePriorityQueueType == RocksDBOptions.PriorityQueueStateType.ROCKSDB) {
             skipStreams = 0;
         } else {
             throw new AssertionError(

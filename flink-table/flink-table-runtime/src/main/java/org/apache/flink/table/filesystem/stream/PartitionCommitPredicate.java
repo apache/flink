@@ -19,6 +19,7 @@
 package org.apache.flink.table.filesystem.stream;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionCommitTriggerType;
 
 import java.util.List;
 
@@ -29,8 +30,6 @@ import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.SINK_
  * ProcTimeCommitPredicate}
  */
 public interface PartitionCommitPredicate {
-    String PARTITION_TIME = "partition-time";
-    String PROCESS_TIME = "process-time";
 
     boolean isPartitionCommittable(PredicateContext predicateContext);
 
@@ -87,7 +86,7 @@ public interface PartitionCommitPredicate {
 
     static PartitionCommitPredicate create(
             Configuration conf, ClassLoader cl, List<String> partitionKeys) {
-        String trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
+        PartitionCommitTriggerType trigger = conf.get(SINK_PARTITION_COMMIT_TRIGGER);
         switch (trigger) {
             case PARTITION_TIME:
                 return createPartitionTimeCommitPredicate(conf, cl, partitionKeys);

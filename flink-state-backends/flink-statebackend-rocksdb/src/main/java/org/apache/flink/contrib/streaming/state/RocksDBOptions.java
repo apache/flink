@@ -21,15 +21,19 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
+import org.apache.flink.configuration.description.InlineElement;
 
-import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP;
-import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
+import java.util.Collections;
+import java.util.List;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
+import static org.apache.flink.contrib.streaming.state.RocksDBOptions.PriorityQueueStateType.ROCKSDB;
 
 /** Configuration options for the RocksDB backend. */
 public class RocksDBOptions {
@@ -51,10 +55,7 @@ public class RocksDBOptions {
                     .enumType(PriorityQueueStateType.class)
                     .defaultValue(ROCKSDB)
                     .withDescription(
-                            String.format(
-                                    "This determines the factory for timer service state implementation. Options "
-                                            + "are either %s (heap-based) or %s for an implementation based on RocksDB.",
-                                    HEAP.name(), ROCKSDB.name()));
+                            "This determines the factory for timer service state implementation.");
 
     /**
      * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
@@ -153,4 +154,25 @@ public class RocksDBOptions {
                                             + "the partitions that are required to perform the index/filter query. "
                                             + "This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+    // --------------------------------------------------------------------------------------------
+    // Enums
+    // --------------------------------------------------------------------------------------------
+
+    /** The options to chose for the type of priority queue state. */
+    public enum PriorityQueueStateType implements DescribedEnum {
+        HEAP(text("Heap-based")),
+        ROCKSDB(text("Implementation based on RocksDB"));
+
+        private final InlineElement description;
+
+        PriorityQueueStateType(InlineElement description) {
+            this.description = description;
+        }
+
+        @Override
+        public List<InlineElement> getDescription() {
+            return Collections.singletonList(description);
+        }
+    }
 }

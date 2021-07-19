@@ -24,13 +24,20 @@ import org.apache.flink.annotation.docs.ConfigGroups;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
+import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -48,13 +55,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.docs.util.Utils.escapeCharacters;
 
 /** Class used for generating code based documentation of configuration parameters. */
@@ -440,6 +450,12 @@ public class ConfigOptionsDocGenerator {
             }
         }
 
+        final String enumOptions =
+                Optional.ofNullable(getEnumOptionsDescription(optionWithMetaInfo))
+                        .map(formatter::format)
+                        .map(desc -> String.format("<br><br>%s", desc))
+                        .orElse("");
+
         return ""
                 + "        <tr>\n"
                 + "            <td><h5>"
@@ -455,8 +471,55 @@ public class ConfigOptionsDocGenerator {
                 + "</td>\n"
                 + "            <td>"
                 + formatter.format(option.description())
+                + enumOptions
                 + "</td>\n"
                 + "        </tr>\n";
+    }
+
+    /**
+     * Returns a {@link Description} for the enum constants of the given option in case it is
+     * enum-based, and {@code null} otherwise.
+     */
+    private static @Nullable Description getEnumOptionsDescription(
+            OptionWithMetaInfo optionWithMetaInfo) {
+        Class<?> clazz = getClazz(optionWithMetaInfo.option);
+        if (!clazz.isEnum()) {
+            return null;
+        }
+
+        List<InlineElement> optionDescriptions =
+                Arrays.stream(clazz.getEnumConstants())
+                        .map(ConfigOptionsDocGenerator::formatEnumOption)
+                        .map(ConfigOptionsDocGenerator::wrap)
+                        .collect(Collectors.toList());
+
+        return Description.builder()
+                .text("Possible values:")
+                .list(optionDescriptions.toArray(InlineElement[]::new))
+                .build();
+    }
+
+    /**
+     * Formats a single enum constant.
+     *
+     * <p>If the enum implements {@link DescribedEnum}, this includes the given description for each
+     * constant. Otherwise, only the constant itself is printed.
+     */
+    private static List<InlineElement> formatEnumOption(Object e) {
+        final List<InlineElement> elements = new LinkedList<>();
+        elements.add(text("\"%s\"", text(escapeCharacters(e.toString()))));
+
+        if (DescribedEnum.class.isAssignableFrom(e.getClass())) {
+            elements.add(text(": "));
+            elements.addAll(((DescribedEnum) e).getDescription());
+        }
+
+        return elements;
+    }
+
+    /** Wraps a list of {@link InlineElement}s into a single element. */
+    private static InlineElement wrap(List<InlineElement> elements) {
+        return text(Strings.repeat("%s", elements.size()), elements.toArray(InlineElement[]::new));
     }
 
     private static Class<?> getClazz(ConfigOption<?> option) {
@@ -490,7 +553,7 @@ public class ConfigOptionsDocGenerator {
         boolean isList = isList(option);
 
         if (clazz.isEnum()) {
-            return enumTypeToHtml(clazz, isList);
+            return enumTypeToHtml(isList);
         }
 
         return atomicTypeToHtml(clazz, isList);
@@ -509,7 +572,7 @@ public class ConfigOptionsDocGenerator {
         return escapeCharacters(type);
     }
 
-    private static String enumTypeToHtml(Class<?> enumClazz, boolean isList) {
+    private static String enumTypeToHtml(boolean isList) {
         final String type;
         if (isList) {
             type = "List<Enum>";
@@ -517,10 +580,7 @@ public class ConfigOptionsDocGenerator {
             type = "Enum";
         }
 
-        return String.format(
-                "<p>%s</p>Possible values: %s",
-                escapeCharacters(type),
-                escapeCharacters(Arrays.toString(enumClazz.getEnumConstants())));
+        return String.format("<p>%s</p>", escapeCharacters(type));
     }
 
     @VisibleForTesting
