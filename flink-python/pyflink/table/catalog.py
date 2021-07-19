@@ -735,7 +735,7 @@ class CatalogBaseTable(object):
 
         :return: Schema of the table/view.
 
-        . note:: Deprecated in 1.14. This method returns the deprecated ableSchema class. The old
+        . note:: Deprecated in 1.14. This method returns the deprecated TableSchema class. The old
         class was a hybrid of resolved and unresolved schema information. It has been replaced by
         the new Schema which is always unresolved and will be resolved by the framework later.
         """
