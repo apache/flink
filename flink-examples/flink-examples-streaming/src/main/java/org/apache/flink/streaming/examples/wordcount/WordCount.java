@@ -18,10 +18,13 @@
 package org.apache.flink.streaming.examples.wordcount;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -88,7 +91,10 @@ public class WordCount {
 
         // emit result
         if (params.has("output")) {
-            counts.writeAsText(params.get("output"));
+            counts.addSink(StreamingFileSink.forRowFormat(
+                    new Path(params.get("output")),
+                    new SimpleStringEncoder<Tuple2<String, Integer>>("UTF-8"))
+                    .build());
         } else {
             System.out.println("Printing result to stdout. Use --output to specify output path.");
             counts.print();

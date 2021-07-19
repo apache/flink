@@ -24,13 +24,16 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
@@ -114,8 +117,14 @@ public class SideOutputExample {
 
         // emit result
         if (params.has("output")) {
-            counts.writeAsText(params.get("output"));
-            rejectedWords.writeAsText(params.get("rejected-words-output"));
+            counts.addSink(StreamingFileSink.forRowFormat(
+                    new Path(params.get("output")),
+                    new SimpleStringEncoder<Tuple2<String, Integer>>("UTF-8"))
+                    .build());
+            rejectedWords.addSink(StreamingFileSink.forRowFormat(
+                    new Path(params.get("rejected-words-output")),
+                    new SimpleStringEncoder<String>("UTF-8"))
+                    .build());
         } else {
             System.out.println("Printing result to stdout. Use --output to specify output path.");
             counts.print();
