@@ -52,7 +52,6 @@ public enum JobRestEndpointFactory implements RestEndpointFactory<RestfulGateway
                 RestHandlerConfiguration.fromConfiguration(configuration);
 
         return new MiniDispatcherRestEndpoint(
-                RestServerEndpointConfiguration.fromConfiguration(configuration),
                 dispatcherGatewayRetriever,
                 configuration,
                 restHandlerConfiguration,

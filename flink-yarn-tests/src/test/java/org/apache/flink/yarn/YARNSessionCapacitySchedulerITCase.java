@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.messages.ClusterOverviewWithVersion;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfo;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoEntry;
@@ -134,10 +133,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         startYARNWithConfig(YARN_CONFIGURATION);
 
         restClientExecutor = Executors.newSingleThreadExecutor();
-        restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        restClientExecutor);
+        restClient = new RestClient(new Configuration(), restClientExecutor);
     }
 
     @AfterClass

@@ -207,10 +207,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
         if (restClient != null) {
             this.restClient = restClient;
         } else {
-            this.restClient =
-                    new RestClient(
-                            restClusterClientConfiguration.getRestClientConfiguration(),
-                            executorService);
+            this.restClient = new RestClient(configuration, executorService);
         }
 
         this.waitStrategy = checkNotNull(waitStrategy);
