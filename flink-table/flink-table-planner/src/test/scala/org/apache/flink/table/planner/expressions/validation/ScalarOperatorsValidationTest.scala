@@ -84,4 +84,28 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
       "FAIL"
     )
   }
+
+  @Test
+  def testTemporalTypeEqualsInvalidStringLiteral(): Unit = {
+    testExpectedSqlException(
+      "f15 = 'invalid'", "is not a valid date",
+      classOf[ValidationException])
+    testExpectedSqlException(
+      "'invalid' = f15", "is not a valid date",
+      classOf[ValidationException])
+
+    testExpectedSqlException(
+      "f21 = 'invalid'", "is not a valid time",
+      classOf[ValidationException])
+    testExpectedSqlException(
+      "'invalid' = f21", "is not a valid time",
+      classOf[ValidationException])
+
+    testExpectedSqlException(
+      "f22 = 'invalid'", "is not a valid timestamp",
+      classOf[ValidationException])
+    testExpectedSqlException(
+      "'invalid' = f22", "is not a valid timestamp",
+      classOf[ValidationException])
+  }
 }

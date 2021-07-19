@@ -198,4 +198,28 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("-f17", "-10.0")
     testSqlApi("+f17", "10.0")
   }
+
+  @Test
+  def testTemporalTypeEqualsStringLiteral(): Unit = {
+    testSqlApi("f15 = '1996-11-10'", "true")
+    testSqlApi("f15 = '1996-11-11'", "false")
+    testSqlApi("f15 = cast(null as string)", "null")
+    testSqlApi("'1996-11-10' = f15", "true")
+    testSqlApi("'1996-11-11' = f15", "false")
+    testSqlApi("cast(null as string) = f15", "null")
+
+    testSqlApi("f21 = '12:34:56'", "true")
+    testSqlApi("f21 = '13:34:56'", "false")
+    testSqlApi("f21 = cast(null as string)", "null")
+    testSqlApi("'12:34:56' = f21", "true")
+    testSqlApi("'13:34:56' = f21", "false")
+    testSqlApi("cast(null as string) = f21", "null")
+
+    testSqlApi("f22 = '1996-11-10 12:34:56'", "true")
+    testSqlApi("f22 = '1996-11-10 12:34:57'", "false")
+    testSqlApi("f22 = cast(null as string)", "null")
+    testSqlApi("'1996-11-10 12:34:56' = f22", "true")
+    testSqlApi("'1996-11-10 12:34:57' = f22", "false")
+    testSqlApi("cast(null as string) = f22", "null")
+  }
 }
