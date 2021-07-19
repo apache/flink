@@ -20,7 +20,7 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
+import org.apache.flink.connector.jdbc.internal.JdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
@@ -38,14 +38,14 @@ import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStateme
  * supplied OutputFormatBuilder.
  */
 @Experimental
-public class JdbcOutputFormat
-        extends JdbcBatchingOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
+public class JdbcRowOutputFormat
+        extends JdbcOutputFormat<Row, Row, JdbcBatchStatementExecutor<Row>> {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Logger LOG = LoggerFactory.getLogger(JdbcOutputFormat.class);
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcRowOutputFormat.class);
 
-    private JdbcOutputFormat(
+    private JdbcRowOutputFormat(
             JdbcConnectionProvider connectionProvider,
             String sql,
             int[] typesArray,
@@ -54,7 +54,7 @@ public class JdbcOutputFormat
                 connectionProvider,
                 new JdbcExecutionOptions.Builder().withBatchSize(batchSize).build(),
                 ctx -> createRowExecutor(sql, typesArray, ctx),
-                JdbcBatchingOutputFormat.RecordExtractor.identity());
+                JdbcOutputFormat.RecordExtractor.identity());
     }
 
     private static JdbcBatchStatementExecutor<Row> createRowExecutor(
@@ -71,7 +71,7 @@ public class JdbcOutputFormat
         return new JdbcOutputFormatBuilder();
     }
 
-    /** Builder for {@link JdbcOutputFormat}. */
+    /** Builder for {@link JdbcRowOutputFormat}. */
     public static class JdbcOutputFormatBuilder {
         private String username;
         private String password;
@@ -123,8 +123,8 @@ public class JdbcOutputFormat
          *
          * @return Configured JdbcOutputFormat
          */
-        public JdbcOutputFormat finish() {
-            return new JdbcOutputFormat(
+        public JdbcRowOutputFormat finish() {
+            return new JdbcRowOutputFormat(
                     new SimpleJdbcConnectionProvider(buildConnectionOptions()),
                     query,
                     typesArray,

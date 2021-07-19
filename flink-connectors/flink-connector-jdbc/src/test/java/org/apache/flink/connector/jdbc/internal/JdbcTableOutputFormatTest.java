@@ -49,7 +49,7 @@ import static org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.doReturn;
 
-/** Tests for the {@link JdbcBatchingOutputFormat}. */
+/** Tests for the {@link JdbcOutputFormat}. */
 public class JdbcTableOutputFormatTest extends JdbcDataTestBase {
 
     private TableJdbcUpsertOutputFormat format;

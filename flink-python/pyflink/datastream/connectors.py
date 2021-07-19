@@ -365,7 +365,7 @@ class JdbcSink(SinkFunction):
                              .typeInformationToSqlType(field_type.get_java_type_info()))
         j_sql_type = to_jarray(gateway.jvm.int, sql_types)
         output_format_clz = gateway.jvm.Class\
-            .forName('org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat', False,
+            .forName('org.apache.flink.connector.jdbc.internal.JdbcOutputFormat', False,
                      get_gateway().jvm.Thread.currentThread().getContextClassLoader())
         j_int_array_type = to_jarray(gateway.jvm.int, []).getClass()
         j_builder_method = output_format_clz.getDeclaredMethod('createRowJdbcStatementBuilder',
