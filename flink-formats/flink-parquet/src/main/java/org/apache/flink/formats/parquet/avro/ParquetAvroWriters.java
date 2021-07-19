@@ -29,6 +29,7 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.io.OutputFile;
 
 import java.io.IOException;
@@ -87,6 +88,25 @@ public class ParquetAvroWriters {
         return AvroParquetWriter.<T>builder(out)
                 .withSchema(schema)
                 .withDataModel(dataModel)
+                .build();
+    }
+
+    private static <T> ParquetWriter<T> createAvroParquetWriter(
+            String schemaString,
+            GenericData dataModel,
+            CompressionCodecName compressionCodecName,
+            OutputFile out) throws IOException {
+
+        if (null == compressionCodecName) {
+            return createAvroParquetWriter(schemaString, dataModel, out);
+        }
+
+        final Schema schema = new Schema.Parser().parse(schemaString);
+
+        return AvroParquetWriter.<T>builder(out)
+                .withSchema(schema)
+                .withDataModel(dataModel)
+                .withCompressionCodec(compressionCodecName)
                 .build();
     }
 
