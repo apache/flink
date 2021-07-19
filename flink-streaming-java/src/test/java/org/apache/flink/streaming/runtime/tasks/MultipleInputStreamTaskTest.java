@@ -24,6 +24,9 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -32,6 +35,8 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -74,13 +79,21 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTest.WatermarkMetricOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.SerializedValue;
 
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -93,6 +106,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
@@ -110,8 +124,19 @@ import static org.junit.Assert.assertTrue;
  * StreamMultipleInputProcessor}.
  */
 @SuppressWarnings("serial")
+@RunWith(Parameterized.class)
 public class MultipleInputStreamTaskTest {
+
     private static final List<String> LIFE_CYCLE_EVENTS = new ArrayList<>();
+
+    @Parameters(name = "objectReuse = {0}")
+    public static Boolean[] parameters() {
+        return new Boolean[] {true, false};
+    }
+
+    @Parameter public boolean objectReuse;
+
+    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
 
     @Before
     public void setUp() {
@@ -120,7 +145,7 @@ public class MultipleInputStreamTaskTest {
 
     @Test
     public void testBasicProcessing() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             long initialTime = 0L;
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -136,6 +161,39 @@ public class MultipleInputStreamTaskTest {
             testHarness.waitForTaskCompletion();
 
             assertThat(testHarness.getOutput(), containsInAnyOrder(expectedOutput.toArray()));
+        }
+    }
+
+    @Test
+    public void testCopyForObjectReuse() throws Exception {
+        SharedReference<List<Integer>> copiedElementsRef = sharedObjects.add(new ArrayList<>());
+        CopyProxySerializer proxySerializer = new CopyProxySerializer(copiedElementsRef);
+
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
+                        .addInput(BasicTypeInfo.STRING_TYPE_INFO)
+                        .addSourceInput(
+                                new SourceOperatorFactory<>(
+                                        new MockSource(Boundedness.BOUNDED, 1),
+                                        WatermarkStrategy.noWatermarks()),
+                                proxySerializer)
+                        .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(
+                                new MapToStringMultipleInputOperatorFactory(3))
+                        .build()) {
+
+            addSourceRecords(testHarness, 1, 42, 43);
+
+            testHarness.endInput();
+            testHarness.waitForTaskCompletion();
+
+            if (objectReuse) {
+                assertTrue(copiedElementsRef.get().isEmpty());
+            } else {
+                assertThat(copiedElementsRef.get(), containsInAnyOrder(42, 43));
+            }
         }
     }
 
@@ -349,12 +407,13 @@ public class MultipleInputStreamTaskTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                         .name(mainOperatorName)
@@ -445,12 +504,13 @@ public class MultipleInputStreamTaskTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new LifeCycleTrackingMockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                         .setupOperatorChain(
                                 new LifeCycleTrackingMapToStringMultipleInputOperatorFactory())
@@ -687,14 +747,15 @@ public class MultipleInputStreamTaskTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new MockSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 2, true, false),
                                         WatermarkStrategy.forGenerator(
-                                                ctx -> new RecordToWatermarkGenerator())))
+                                                ctx -> new RecordToWatermarkGenerator())),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                         .setupOperatorChain(
                                 mainOperatorId, new MapToStringMultipleInputOperatorFactory(3))
@@ -1021,22 +1082,34 @@ public class MultipleInputStreamTaskTest {
         }
     }
 
-    static StreamTaskMailboxTestHarness<String> buildTestHarness() throws Exception {
-        return buildTestHarness(false);
+    static Consumer<ExecutionConfig> applyObjectReuse(boolean objectReuse) {
+        return config -> {
+            if (objectReuse) {
+                config.enableObjectReuse();
+            } else {
+                config.disableObjectReuse();
+            }
+        };
     }
 
-    static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean unaligned)
+    static StreamTaskMailboxTestHarness<String> buildTestHarness(boolean objectReuse)
             throws Exception {
+        return buildTestHarness(false, objectReuse);
+    }
+
+    static StreamTaskMailboxTestHarness<String> buildTestHarness(
+            boolean unaligned, boolean objectReuse) throws Exception {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                .modifyExecutionConfig(config -> config.enableObjectReuse())
+                .modifyExecutionConfig(applyObjectReuse(objectReuse))
                 .modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
                 .modifyStreamConfig(config -> config.setAlignedCheckpointTimeout(Duration.ZERO))
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                 .addSourceInput(
                         new SourceOperatorFactory<>(
                                 new MockSource(Boundedness.BOUNDED, 1),
-                                WatermarkStrategy.noWatermarks()))
+                                WatermarkStrategy.noWatermarks()),
+                        BasicTypeInfo.INT_TYPE_INFO)
                 .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                 .setupOutputForSingletonOperatorChain(
                         new MapToStringMultipleInputOperatorFactory(3))
@@ -1064,11 +1137,11 @@ public class MultipleInputStreamTaskTest {
                 .dispatchOperatorEvent(sourceOperatorID, new SerializedValue<>(addSplitEvent));
     }
 
-    private static StreamTaskMailboxTestHarness<String> buildWatermarkTestHarness(
+    private StreamTaskMailboxTestHarness<String> buildWatermarkTestHarness(
             int inputChannels, boolean readerMarkIdleOnNoSplits) throws Exception {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                .modifyExecutionConfig(config -> config.enableObjectReuse())
+                .modifyExecutionConfig(applyObjectReuse(objectReuse))
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO, inputChannels)
                 .addSourceInput(
                         new SourceOperatorFactory<>(
@@ -1078,7 +1151,8 @@ public class MultipleInputStreamTaskTest {
                                         true,
                                         readerMarkIdleOnNoSplits),
                                 WatermarkStrategy.forGenerator(
-                                        ctx -> new RecordToWatermarkGenerator())))
+                                        ctx -> new RecordToWatermarkGenerator())),
+                        BasicTypeInfo.INT_TYPE_INFO)
                 .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, inputChannels)
                 .setupOutputForSingletonOperatorChain(
                         new MapToStringMultipleInputOperatorFactory(3))
@@ -1227,5 +1301,81 @@ public class MultipleInputStreamTaskTest {
 
         @Override
         public void onPeriodicEmit(WatermarkOutput output) {}
+    }
+
+    private static class CopyProxySerializer extends TypeSerializer<Integer> {
+
+        SharedReference<List<Integer>> copiedElementsRef;
+
+        public CopyProxySerializer(SharedReference<List<Integer>> copiedElementsRef) {
+            this.copiedElementsRef = copiedElementsRef;
+        }
+
+        @Override
+        public boolean isImmutableType() {
+            return false; // to force copy
+        }
+
+        @Override
+        public TypeSerializer<Integer> duplicate() {
+            return new CopyProxySerializer(copiedElementsRef);
+        }
+
+        @Override
+        public Integer createInstance() {
+            return IntSerializer.INSTANCE.createInstance();
+        }
+
+        @Override
+        public Integer copy(Integer from) {
+            copiedElementsRef.applySync(list -> list.add(from));
+            return IntSerializer.INSTANCE.copy(from);
+        }
+
+        @Override
+        public Integer copy(Integer from, Integer reuse) {
+            copiedElementsRef.applySync(list -> list.add(from));
+            return IntSerializer.INSTANCE.copy(from, reuse);
+        }
+
+        @Override
+        public int getLength() {
+            return IntSerializer.INSTANCE.getLength();
+        }
+
+        @Override
+        public void serialize(Integer record, DataOutputView target) throws IOException {
+            IntSerializer.INSTANCE.serialize(record, target);
+        }
+
+        @Override
+        public Integer deserialize(DataInputView source) throws IOException {
+            return IntSerializer.INSTANCE.deserialize(source);
+        }
+
+        @Override
+        public Integer deserialize(Integer reuse, DataInputView source) throws IOException {
+            return IntSerializer.INSTANCE.deserialize(reuse, source);
+        }
+
+        @Override
+        public void copy(DataInputView source, DataOutputView target) throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public int hashCode() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public TypeSerializerSnapshot<Integer> snapshotConfiguration() {
+            throw new UnsupportedOperationException();
+        }
     }
 }

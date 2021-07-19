@@ -139,14 +139,33 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         return this;
     }
 
-    public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
-            SourceOperatorFactory<?> sourceOperatorFactory) {
-        return addSourceInput(new OperatorID(), sourceOperatorFactory);
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeInformation<SourceType> sourceType) {
+        return addSourceInput(new OperatorID(), sourceOperatorFactory, sourceType);
     }
 
-    public StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
-            OperatorID operatorId, SourceOperatorFactory<?> sourceOperatorFactory) {
-        inputs.add(new SourceInputConfigPlaceHolder(operatorId, sourceOperatorFactory));
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId,
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeInformation<SourceType> sourceType) {
+        return addSourceInput(
+                operatorId, sourceOperatorFactory, sourceType.createSerializer(executionConfig));
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
+        return addSourceInput(new OperatorID(), sourceOperatorFactory, sourceSerializer);
+    }
+
+    public <SourceType> StreamTaskMailboxTestHarnessBuilder<OUT> addSourceInput(
+            OperatorID operatorId,
+            SourceOperatorFactory<SourceType> sourceOperatorFactory,
+            TypeSerializer<SourceType> sourceSerializer) {
+        inputs.add(
+                new SourceInputConfigPlaceHolder<>(
+                        operatorId, sourceOperatorFactory, sourceSerializer));
         return this;
     }
 
@@ -296,7 +315,7 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
         sourceConfig.setTimeCharacteristic(streamConfig.getTimeCharacteristic());
         sourceConfig.setOutEdgesInOrder(outEdgesInOrder);
         sourceConfig.setChainedOutputs(outEdgesInOrder);
-        sourceConfig.setTypeSerializerOut(outputSerializer);
+        sourceConfig.setTypeSerializerOut(sourceInput.getSourceSerializer());
         sourceConfig.setOperatorID(sourceInput.getOperatorId());
         sourceConfig.setStreamOperatorFactory(sourceInput.getSourceOperatorFactory());
 
@@ -383,22 +402,30 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
      * A place holder representation of a {@link SourceInputConfig}. When building the test harness
      * it is replaced with {@link SourceInputConfig}.
      */
-    public static class SourceInputConfigPlaceHolder implements InputConfig {
+    public static class SourceInputConfigPlaceHolder<SourceOut> implements InputConfig {
         private OperatorID operatorId;
-        private SourceOperatorFactory<?> sourceOperatorFactory;
+        private SourceOperatorFactory<SourceOut> sourceOperatorFactory;
+        private TypeSerializer<SourceOut> sourceSerializer;
 
         public SourceInputConfigPlaceHolder(
-                OperatorID operatorId, SourceOperatorFactory<?> sourceOperatorFactory) {
+                OperatorID operatorId,
+                SourceOperatorFactory<SourceOut> sourceOperatorFactory,
+                TypeSerializer<SourceOut> sourceSerializer) {
             this.operatorId = operatorId;
             this.sourceOperatorFactory = sourceOperatorFactory;
+            this.sourceSerializer = sourceSerializer;
         }
 
         public OperatorID getOperatorId() {
             return operatorId;
         }
 
-        public SourceOperatorFactory<?> getSourceOperatorFactory() {
+        public SourceOperatorFactory<SourceOut> getSourceOperatorFactory() {
             return sourceOperatorFactory;
+        }
+
+        public TypeSerializer<SourceOut> getSourceSerializer() {
+            return sourceSerializer;
         }
     }
 }

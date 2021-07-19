@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -49,6 +48,10 @@ import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.MapToStringMultipleInputOperatorFactory;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -57,6 +60,7 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.addSourceRecords;
+import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.applyObjectReuse;
 import static org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTaskTest.buildTestHarness;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -73,8 +77,17 @@ import static org.junit.Assert.fail;
  * Tests for {@link MultipleInputStreamTask} combined with {@link
  * org.apache.flink.streaming.api.operators.SourceOperator} chaining.
  */
+@RunWith(Parameterized.class)
 public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
+
     private static final int MAX_STEPS = 100;
+
+    @Parameters(name = "objectReuse = {0}")
+    public static Boolean[] parameters() {
+        return new Boolean[] {true, false};
+    }
+
+    @Parameter public boolean objectReuse;
 
     private final CheckpointMetaData metaData =
             new CheckpointMetaData(1L, System.currentTimeMillis());
@@ -85,7 +98,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointFirst() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             CheckpointBarrier barrier = createBarrier(testHarness);
@@ -117,7 +130,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointFirstUnaligned() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(true)) {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                buildTestHarness(true, objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             addRecords(testHarness);
@@ -152,7 +166,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
      */
     @Test
     public void testSourceCheckpointLast() throws Exception {
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness()) {
+        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
             CheckpointBarrier barrier = createBarrier(testHarness);
@@ -192,7 +206,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     @Test
     public void testSourceCheckpointLastUnaligned() throws Exception {
         boolean unaligned = true;
-        try (StreamTaskMailboxTestHarness<String> testHarness = buildTestHarness(unaligned)) {
+        try (StreamTaskMailboxTestHarness<String> testHarness =
+                buildTestHarness(unaligned, objectReuse)) {
             testHarness.setAutoProcess(false);
             ArrayDeque<Object> expectedOutput = new ArrayDeque<>();
 
@@ -219,11 +234,12 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
-                        .modifyExecutionConfig(config -> config.enableObjectReuse())
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addSourceInput(
                                 new SourceOperatorFactory<>(
                                         new MockSource(Boundedness.BOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .setupOutputForSingletonOperatorChain(
                                 new MapToStringMultipleInputOperatorFactory(1))
                         .build()) {
@@ -264,7 +280,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     new StreamTaskMailboxTestHarnessBuilder<>(
                                     MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                             .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
-                            .modifyExecutionConfig(ExecutionConfig::enableObjectReuse)
+                            .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .addInput(BasicTypeInfo.INT_TYPE_INFO)
                             .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                             .addSourceInput(
@@ -272,13 +288,15 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
                                                     Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                            WatermarkStrategy.noWatermarks()))
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
                             .addSourceInput(
                                     new SourceOperatorFactory<>(
                                             new MultipleInputStreamTaskTest
                                                     .LifeCycleTrackingMockSource(
                                                     Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                            WatermarkStrategy.noWatermarks()))
+                                            WatermarkStrategy.noWatermarks()),
+                                    BasicTypeInfo.INT_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(4))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
@@ -349,20 +367,22 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
-                        .modifyExecutionConfig(ExecutionConfig::enableObjectReuse)
+                        .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addSourceInput(
                                 firstSourceOperatorId,
                                 new SourceOperatorFactory<>(
                                         new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .addSourceInput(
                                 secondSourceOperatorId,
                                 new SourceOperatorFactory<>(
                                         new SourceOperatorStreamTaskTest.LifeCycleMonitorSource(
                                                 Boundedness.CONTINUOUS_UNBOUNDED, 1),
-                                        WatermarkStrategy.noWatermarks()))
+                                        WatermarkStrategy.noWatermarks()),
+                                BasicTypeInfo.INT_TYPE_INFO)
                         .setTaskStateSnapshot(1, TaskStateSnapshot.FINISHED)
                         .setupOperatorChain(
                                 nonSourceOperatorId,
