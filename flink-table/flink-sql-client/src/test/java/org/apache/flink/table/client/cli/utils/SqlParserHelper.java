@@ -19,11 +19,8 @@
 package org.apache.flink.table.client.cli.utils;
 
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
 
 /** An utility class that provides pre-prepared tables and sql parser. */
@@ -33,18 +30,6 @@ public class SqlParserHelper {
 
     public SqlParserHelper() {
         tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-    }
-
-    public SqlParserHelper(SqlDialect sqlDialect) {
-        if (sqlDialect == null || SqlDialect.DEFAULT == sqlDialect) {
-            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-        } else if (SqlDialect.HIVE == sqlDialect) {
-            HiveCatalog hiveCatalog = HiveTestUtils.createHiveCatalog();
-            tableEnv = TableEnvironment.create(EnvironmentSettings.newInstance().build());
-            tableEnv.getConfig().setSqlDialect(sqlDialect);
-            tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-            tableEnv.useCatalog(hiveCatalog.getName());
-        }
     }
 
     /** prepare some tables for testing. */

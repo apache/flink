@@ -49,6 +49,7 @@ under the License.
 	</properties>
 
 	<modules>
+		<module>flink-end-to-end-tests-hive</module>
 		<module>flink-cli-test</module>
 		<module>flink-parent-child-classloading-test-program</module>
 		<module>flink-parent-child-classloading-test-lib-package</module>
