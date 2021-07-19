@@ -73,13 +73,14 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
     Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter() throws IOException;
 
     /** Returns the serializer of the committable type. */
-    Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer();
+    Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer() throws IOException;
 
     /** Returns the serializer of the aggregated committable type. */
-    Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer();
+    Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer()
+            throws IOException;
 
     /** Return the serializer of the writer's state type. */
-    Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer();
+    Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer() throws IOException;
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     interface InitContext {
