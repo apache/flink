@@ -91,13 +91,13 @@ class StatementSet(object):
             Examples:
             ::
 
-                >>>stmt_set = table_env.create_statement_set()
-                >>>source_table = table_env.from_path("SourceTable")
-                >>>sink_descriptor = TableDescriptor.for_connector("blackhole")
+                >>> stmt_set = table_env.create_statement_set()
+                >>> source_table = table_env.from_path("SourceTable")
+                >>> sink_descriptor = TableDescriptor.for_connector("blackhole")
                 ...     .schema(Schema.new_builder()
                 ...         .build())
                 ...     .build()
-                >>>stmt_set.add_insert(sink_descriptor, source_table)
+                >>> stmt_set.add_insert(sink_descriptor, source_table)
 
             .. note:: add_insert for a table descriptor (case 2.) was added from
                 flink 1.14.0.
