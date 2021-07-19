@@ -1074,15 +1074,15 @@ class Table(object):
             Examples:
             ::
 
-                >>>schema = Schema.new_builder()
-                ...     .column("f0", DataTypes.STRING())
-                ...     .build()
-                >>>table = table_env.from_descriptor(TableDescriptor.for_connector("datagen")
-                ...     .schema(schema)
-                ...     .build())
-                >>>table.execute_insert(TableDescriptor.for_connector("blackhole")
-                ...     .schema(schema)
-                ...     .build())
+                >>> schema = Schema.new_builder()
+                ...      .column("f0", DataTypes.STRING())
+                ...      .build()
+                >>> table = table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+                ...      .schema(schema)
+                ...      .build())
+                >>> table.execute_insert(TableDescriptor.for_connector("blackhole")
+                ...      .schema(schema)
+                ...      .build())
 
             If multiple pipelines should insert data into one or more sink tables as part of a
             single execution, use a :class:`~pyflink.table.StatementSet`
