@@ -56,7 +56,7 @@ import java.util.Optional;
  * <p>TODO Remove this class once FLINK-21224 is finished.
  */
 public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
-    // the required shuffle mode for reusable BatchExecExchange
+    // the required exchange mode for reusable BatchExecExchange
     // if it's None, use value from configuration
     @Nullable private StreamExchangeMode requiredExchangeMode;
 

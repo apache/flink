@@ -194,6 +194,8 @@ public class StreamEdge implements Serializable {
                 + typeNumber
                 + ", outputPartitioner="
                 + outputPartitioner
+                + ", exchangeMode="
+                + exchangeMode
                 + ", bufferTimeout="
                 + bufferTimeout
                 + ", outputTag="
