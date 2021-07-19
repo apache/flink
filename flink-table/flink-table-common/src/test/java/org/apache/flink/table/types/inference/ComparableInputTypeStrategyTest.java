@@ -30,7 +30,7 @@ import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import org.junit.runners.Parameterized;
 
@@ -53,7 +53,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Numeric types are comparable",
                                 InputTypeStrategies.comparable(
-                                        ConstantArgumentCount.of(7), StructuredComparision.EQUALS))
+                                        ConstantArgumentCount.of(7), StructuredComparison.EQUALS))
                         .calledWithArgumentTypes(
                                 DataTypes.TINYINT(),
                                 DataTypes.SMALLINT(),
@@ -74,7 +74,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                 TestSpec.forStrategy(
                                 "Datetime types are comparable",
                                 InputTypeStrategies.comparable(
-                                        ConstantArgumentCount.of(5), StructuredComparision.EQUALS))
+                                        ConstantArgumentCount.of(5), StructuredComparison.EQUALS))
                         .calledWithArgumentTypes(
                                 DataTypes.TIMESTAMP(),
                                 DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(),
@@ -124,23 +124,23 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .notNull(),
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .nullable())
                         .expectArgumentTypes(
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .notNull(),
                                 structuredType(
                                                 "type",
                                                 singletonList(DataTypes.INT()),
-                                                StructuredComparision.FULL)
+                                                StructuredComparison.FULL)
                                         .nullable()),
                 TestSpec.forStrategy(
                                 "Equals comparable structured types",
@@ -149,20 +149,20 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectArgumentTypes(
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS)),
+                                        StructuredComparison.EQUALS)),
                 TestSpec.forStrategy(
                                 "Comparable arrays of structured types",
                                 InputTypeStrategies.TWO_EQUALS_COMPARABLE)
@@ -171,26 +171,26 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .notNull()),
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .nullable()))
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .notNull()),
                                 DataTypes.ARRAY(
                                         structuredType(
                                                         "type",
                                                         singletonList(DataTypes.INT()),
-                                                        StructuredComparision.EQUALS)
+                                                        StructuredComparison.EQUALS)
                                                 .nullable())),
                 TestSpec.forStrategy(
                                 "Distinct types are comparable if the source type is comparable",
@@ -280,11 +280,11 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectErrorMessage(
                                 "All types in a comparison should support both 'EQUALS' and 'ORDER' comparison"
                                         + " with each other. Can not compare `cat`.`db`.`type` with `cat`.`db`.`type`"),
@@ -295,11 +295,11 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                 structuredType(
                                         "type1",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS),
+                                        StructuredComparison.EQUALS),
                                 structuredType(
                                         "type2",
                                         singletonList(DataTypes.INT()),
-                                        StructuredComparision.EQUALS))
+                                        StructuredComparison.EQUALS))
                         .expectErrorMessage(
                                 "All types in a comparison should support 'EQUALS' comparison with each other."
                                         + " Can not compare `cat`.`db`.`type1` with `cat`.`db`.`type2`"),
@@ -363,7 +363,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
     }
 
     private static DataType structuredType(
-            String typeName, List<DataType> fieldDataTypes, StructuredComparision comparision) {
+            String typeName, List<DataType> fieldDataTypes, StructuredComparison comparison) {
         return new FieldsDataType(
                 StructuredType.newBuilder(ObjectIdentifier.of("cat", "db", typeName))
                         .attributes(
@@ -376,7 +376,7 @@ public class ComparableInputTypeStrategyTest extends InputTypeStrategiesTestBase
                                                                         .get(idx)
                                                                         .getLogicalType()))
                                         .collect(Collectors.toList()))
-                        .comparision(comparision)
+                        .comparison(comparison)
                         .build(),
                 fieldDataTypes);
     }

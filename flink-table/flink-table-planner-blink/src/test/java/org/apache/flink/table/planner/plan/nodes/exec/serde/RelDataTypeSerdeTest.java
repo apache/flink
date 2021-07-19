@@ -207,7 +207,7 @@ public class RelDataTypeSerdeTest {
                                                                 "f2",
                                                                 new VarCharType(200),
                                                                 "desc")))
-                                        .comparision(StructuredType.StructuredComparision.FULL)
+                                        .comparison(StructuredType.StructuredComparison.FULL)
                                         .setFinal(false)
                                         .setInstantiable(false)
                                         .description("description for StructuredType")
