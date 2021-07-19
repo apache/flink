@@ -169,7 +169,7 @@ Flink 分布式快照的一个核心元素是*流屏障*（stream barriers）。
 ### 未对齐的检查点
 
 检查点（checkpointing）也可以不对齐地执行。
-基本思想是，检查点可以超过所有正在处理的（in-flight）数据，只要正在处理的的数据成为算子状态的一部分。
+基本思想是，检查点可以超过所有正在处理的（in-flight）数据，只要正在处理的数据成为算子状态的一部分。
 
 请注意，这种方法实际上更接近于 [Chandy-Lamport 算法](http://research.microsoft.com/en-us/um/people/lamport/pubs/chandy.pdf) ，
 但是 Flink 仍然在源中插入屏障来避免检查点协调器过载。
