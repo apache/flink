@@ -37,7 +37,7 @@ public class NFAState {
     private Queue<ComputationState> completedMatches;
 
     /** Flag indicating whether the matching status of the state machine has changed. */
-    private boolean stateChanged;
+    private boolean stateChanged = true;
 
     public static final Comparator<ComputationState> COMPUTATION_STATE_COMPARATOR =
             Comparator.<ComputationState>comparingLong(
@@ -95,6 +95,14 @@ public class NFAState {
 
     public void setNewPartialMatches(PriorityQueue<ComputationState> newPartialMatches) {
         this.partialMatches = newPartialMatches;
+    }
+
+    public boolean isEmpty() {
+        return completedMatches.isEmpty() && (partialMatches.isEmpty() || hasOnlyStartState());
+    }
+
+    private boolean hasOnlyStartState() {
+        return partialMatches.size() == 1 && partialMatches.poll().isStartState();
     }
 
     @Override

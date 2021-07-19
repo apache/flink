@@ -109,6 +109,10 @@ public class ComputationState {
                 + '}';
     }
 
+    public boolean isStartState() {
+        return startEventID == null;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(

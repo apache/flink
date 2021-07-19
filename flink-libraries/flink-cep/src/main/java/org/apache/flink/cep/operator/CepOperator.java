@@ -328,7 +328,11 @@ public class CepOperator<IN, KEY, OUT>
         // STEP 4
         updateNFA(nfaState);
 
-        if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
+        if (!sortedTimestamps.isEmpty()
+                || !partialMatches.isEmpty()
+                // register timer if there are counters kept, so that we can clear them up
+                // if time advances without new events
+                || partialMatches.getEventCounters().hasNext()) {
             saveRegisterWatermarkTimer();
         }
     }
@@ -376,10 +380,14 @@ public class CepOperator<IN, KEY, OUT>
         return nfaState != null ? nfaState : nfa.createInitialNFAState();
     }
 
-    private void updateNFA(NFAState nfaState) throws IOException {
+    private void updateNFA(NFAState nfaState) throws Exception {
         if (nfaState.isStateChanged()) {
             nfaState.resetStateChanged();
-            computationStates.update(nfaState);
+            if (nfaState.isEmpty() && partialMatches.isEmpty()) {
+                computationStates.clear();
+            } else {
+                computationStates.update(nfaState);
+            }
         }
     }
 
