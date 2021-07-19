@@ -91,7 +91,8 @@ public class RocksFullSnapshotStrategy<K>
     }
 
     @Override
-    public FullSnapshotResources<K> syncPrepareResources(long checkpointId) throws Exception {
+    public FullSnapshotResources<K> syncPrepareResources(
+            long checkpointId, CheckpointOptions checkpointOptions) throws Exception {
         return RocksDBFullSnapshotResources.create(
                 kvStateInformation,
                 registeredPQStates,

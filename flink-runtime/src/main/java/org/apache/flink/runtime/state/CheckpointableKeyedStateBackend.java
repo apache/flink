@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
 import javax.annotation.Nonnull;
 
@@ -45,5 +46,6 @@ public interface CheckpointableKeyedStateBackend<K>
      * write out a savepoint in the common/unified format.
      */
     @Nonnull
-    SavepointResources<K> savepoint() throws Exception;
+    SavepointResources<K> savepoint(long checkpointId, CheckpointOptions checkpointOptions)
+            throws Exception;
 }

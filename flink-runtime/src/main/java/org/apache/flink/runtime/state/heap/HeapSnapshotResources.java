@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyValueStateIterator;
@@ -41,7 +42,7 @@ import java.util.Map;
  * HeapKeyedStateBackend}.
  */
 @Internal
-final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
+public final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     private final List<StateMetaInfoSnapshot> metaInfoSnapshots;
     private final Map<StateUID, StateSnapshot> cowStateStableSnapshots;
     private final StreamCompressionDecorator streamCompressionDecorator;
@@ -50,7 +51,7 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     private final TypeSerializer<K> keySerializer;
     private final int totalKeyGroups;
 
-    private HeapSnapshotResources(
+    protected HeapSnapshotResources(
             List<StateMetaInfoSnapshot> metaInfoSnapshots,
             Map<StateUID, StateSnapshot> cowStateStableSnapshots,
             StreamCompressionDecorator streamCompressionDecorator,
@@ -68,6 +69,8 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     }
 
     public static <K> HeapSnapshotResources<K> create(
+            long checkpointId,
+            CheckpointOptions checkpointOptions,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             StreamCompressionDecorator streamCompressionDecorator,
@@ -101,6 +104,8 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
         final Map<StateUID, StateSnapshot> cowStateStableSnapshots = new HashMap<>(numStates);
 
         processSnapshotMetaInfoForAllStates(
+                checkpointId,
+                checkpointOptions,
                 metaInfoSnapshots,
                 cowStateStableSnapshots,
                 stateNamesToId,
@@ -108,6 +113,8 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
                 StateMetaInfoSnapshot.BackendStateType.KEY_VALUE);
 
         processSnapshotMetaInfoForAllStates(
+                checkpointId,
+                checkpointOptions,
                 metaInfoSnapshots,
                 cowStateStableSnapshots,
                 stateNamesToId,
@@ -125,6 +132,8 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
     }
 
     private static void processSnapshotMetaInfoForAllStates(
+            long checkpointId,
+            CheckpointOptions checkpointOptions,
             List<StateMetaInfoSnapshot> metaInfoSnapshots,
             Map<StateUID, StateSnapshot> cowStateStableSnapshots,
             Map<StateUID, Integer> stateNamesToId,
@@ -137,11 +146,16 @@ final class HeapSnapshotResources<K> implements FullSnapshotResources<K> {
             stateNamesToId.put(stateUid, stateNamesToId.size());
             StateSnapshotRestore state = kvState.getValue();
             if (null != state) {
-                final StateSnapshot stateSnapshot = state.stateSnapshot();
+                StateSnapshot stateSnapshot = snapshot(checkpointId, checkpointOptions, state);
                 metaInfoSnapshots.add(stateSnapshot.getMetaInfoSnapshot());
                 cowStateStableSnapshots.put(stateUid, stateSnapshot);
             }
         }
+    }
+
+    protected static StateSnapshot snapshot(
+            long checkpointId, CheckpointOptions checkpointOptions, StateSnapshotRestore state) {
+        return state.stateSnapshot();
     }
 
     @Override

@@ -382,7 +382,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                 FAILING_STRATEGY =
                         new SnapshotStrategy<OperatorStateHandle, SnapshotResources>() {
                             @Override
-                            public SnapshotResources syncPrepareResources(long checkpointId)
+                            public SnapshotResources syncPrepareResources(
+                                    long checkpointId, CheckpointOptions checkpointOptions)
                                     throws Exception {
                                 return null;
                             }

@@ -52,7 +52,8 @@ class DefaultOperatorStateBackendSnapshotStrategy
     }
 
     @Override
-    public DefaultOperatorStateBackendSnapshotResources syncPrepareResources(long checkpointId) {
+    public DefaultOperatorStateBackendSnapshotResources syncPrepareResources(
+            long checkpointId, CheckpointOptions checkpointOptions) {
         if (registeredOperatorStates.isEmpty() && registeredBroadcastStates.isEmpty()) {
             return new DefaultOperatorStateBackendSnapshotResources(
                     Collections.emptyMap(), Collections.emptyMap());
