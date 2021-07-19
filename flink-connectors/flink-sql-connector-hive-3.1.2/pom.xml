@@ -69,10 +69,56 @@ under the License.
 			<artifactId>antlr-runtime</artifactId>
 			<version>3.5.2</version>
 		</dependency>
+
+		<!-- hadoop deps to make the copied code compile -->
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>3.1.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+        <!-- avro is included in hive-exec. we use the same dependencies but with a different version -->
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.8.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro-mapred</artifactId>
+			<classifier>hadoop2</classifier>
+			<version>1.8.2</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.mortbay.jetty</groupId>
+					<artifactId>servlet-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- disable spotless since we need copy hive code -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -84,12 +130,25 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
+							<filters>
+								<filter>
+									<artifact>org.apache.hive:hive-exec</artifact>
+									<excludes>
+										<exclude>org/apache/hadoop/hive/conf/HiveConf.class</exclude>
+										<exclude>org/apache/hadoop/hive/metastore/HiveMetaStoreClient.class</exclude>
+										<exclude>org/apache/avro/**</exclude>
+										<exclude>META-INF/maven/org.apache.avro/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
 							<artifactSet>
 								<includes>
 									<include>org.apache.flink:flink-connector-hive_${scala.binary.version}</include>
 									<include>org.apache.hive:hive-exec</include>
 									<include>org.apache.thrift:libfb303</include>
 									<include>org.antlr:antlr-runtime</include>
+									<include>org.apache.avro:avro</include>
+									<include>org.apache.avro:avro-mapred</include>
 								</includes>
 							</artifactSet>
 							<relocations>

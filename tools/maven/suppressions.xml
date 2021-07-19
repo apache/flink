@@ -82,4 +82,6 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]glue[\\/]schema[\\/]registry[\\/]User.java"
 			checks=".*"/>
+		<!-- suppress check for copied hive code -->
+		<suppress files="org[\\/]apache[\\/]hadoop[\\/]hive[\\/].*.java" checks=".*"/>
 </suppressions>
