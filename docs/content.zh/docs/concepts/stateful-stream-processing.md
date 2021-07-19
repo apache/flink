@@ -31,20 +31,20 @@ under the License.
 
 有状态操作的一些示例：
 
-  - 当应用程序搜索某些事件模式时，状态将存储到目前为止遇到的一系列事件。
-  - 当每分钟/每小时/每天聚合事件时，状态会持有待处理的聚合。
-  - 当在数据点的流上训练一个机器学习模型时，状态会保存模型参数的当前版本。
+  - 当应用程序搜索某些事件模式时，状态将保存目前为止遇到事件的顺序。
+  - 当聚合每分钟/每小时/每天事件时，状态会持有待处理的聚合。
+  - 当在数据点的流上训练一个机器学习模型时，状态会保存当前模型参数的版本。
   - 当需要管理历史数据时，状态允许有效访问过去发生的事件。
 
-Flink 需要知道状态以便使用
-[checkpoints]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
-和 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 进行容错。
+Flink 需要使用
+[checkpoint]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}})
+和 [savepoint]({{< ref "docs/ops/state/savepoints" >}}) 来感知状态并进行容错。
 
-关于状态的知识也允许我们重新调节 Flink 应用程序，这意味着 Flink 负责跨并行实例重新分布状态。
+我们知道状态是支持 Flink 程序的动态伸缩的，这意味着 Flink 会跨多个并行实例重新分配状态。
 
-[可查询的状态]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}})允许你在运行时从 Flink 外部访问状态。
+[可查询的状态]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}})允许你在 Flink 运行时从外部访问状态。
 
-在使用状态时，阅读 [Flink 的状态后端]({{< ref "docs/ops/state/state_backends" >}})可能也很有用。 
+在使用状态时，参考 [Flink 的状态后端]({{< ref "docs/ops/state/state_backends" >}})也会有一些帮助。
 Flink 提供了不同的状态后端，用于指定状态存储的方式和位置。
 
 {{< top >}}
@@ -106,7 +106,7 @@ Flink 容错机制的核心部分是绘制分布式数据流和算子状态的�
 Flink 分布式快照的一个核心元素是*流屏障*（stream barriers）。
 这些屏障被注入到数据流中，并作为数据流的一部分与记录一起流动。屏障永远不会超过记录，它们严格按照顺序流动。
 屏障将数据流中的记录分为进入当前快照的记录集和进入下一个快照的记录。每个屏障都带有它推送到它前面的记录的快照的 ID。
-屏障不会被流中断因此非常轻量。来自不同快照的多个屏障可以在同时在流中，这意味着各种快照可能会同时发生。
+屏障不会中断数据流因此非常轻量。来自不同快照的多个屏障可以同时在流中，这意味着各种快照可能会同时发生。
 
 <div style="text-align: center">
   {{< img src="/fig/stream_barriers.svg" alt="数据流中的检查点屏障" width="60%" >}}
@@ -139,11 +139,11 @@ Flink 分布式快照的一个核心元素是*流屏障*（stream barriers）。
 
 #### 对算子状态进行快照
 
-当算子包含流任何形式的*状态*（state）时，该状态也必须是快照的一部分。
+当算子包含任何形式的*状态*（state）时，该状态也必须是快照的一部分。
 
 算子在收到来自输入流的所有快照屏障时以及将屏障发送到其输出流之前对其状态进行快照。
 在这个时候，所有的来自屏障之前的记录状态更新已经完成，并且没有依赖于应用屏障后的记录的更新。
-由于快照状态会比较大，所以它存储在一个可配置的 *[状态后端]({{< ref "docs/ops/state/state_backends" >}})*。 
+由于快照状态会比较大，所以它存储在一个可配置的 *[状态后端]({{< ref "docs/ops/state/state_backends" >}})* 中。 
 默认地，它是 JobManager 的内存，但是对于生产用途，应该配置分布式可靠存储（例如 HDFS）。
 在状态被存储之后，算子确认检查点，将快照屏障发送到输出流中，然后继续。
 
@@ -228,7 +228,7 @@ Flink 分布式快照的一个核心元素是*流屏障*（stream barriers）。
 
 {{< hint info >}}
 对齐只发生在有多个前驱（连接）的算子和有多个发送者（在流重新分区/shuffle 之后）的算子。
-因此，即使在*至少一次*（at least once）模式下，实际上只有令人尴尬的并行流操作（`map()`、`flatMap()`、`filter()` 等）的数据流提供*精确一次*（exactly once）保证。
+因此，即使在*至少一次*（at least once）模式下，只包含高度并行流操作（`map()`、`flatMap()`、`filter()` 等）的数据流也可以提供*精确一次*（exactly once）保证。
 {{< /hint >}}
 
 {{< top >}}
@@ -240,7 +240,7 @@ Flink 执行[批处理程序]({{< ref "docs/dev/dataset/overview" >}})作为流�
 
   - [批处理程序的容错]({{< ref "docs/ops/state/task_failure_recovery" >}})
     并不使用检查点。恢复是通过完全重放流来实现的。这是可能的，因为输入是有界的。
-    这将成本更多地推向了恢复，但是使得定期的处理程序更便宜，因为它避免了检查点。
+    这将导致恢复成本更高，但是使得定期的处理开销更小，因为它避免了生成检查点。
 
   - DataSet API 中有状态的操作使用简化的内存/核外（out-of-core）数据结构，而不是键/值索引。
 
