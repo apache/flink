@@ -251,7 +251,9 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDeprecatedKeys("yarn.ship-directories")
                     .withDescription(
-                            "A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.");
+                            "A semicolon-separated list of files and/or directories to be shipped to the YARN cluster."
+                                    + " These files/directories can come from the local client and remote file system."
+                                    + " For example, yarn.ship-files=/opt/path/conf;hdfs://$namenode_address/path/jars;hdfs://$namenode_address/path/extra.jar");
 
     public static final ConfigOption<List<String>> SHIP_ARCHIVES =
             key("yarn.ship-archives")
@@ -260,8 +262,10 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription(
                             "A semicolon-separated list of archives to be shipped to the YARN cluster."
-                                    + " These archives will be un-packed when localizing and they can be any of the following types: "
-                                    + "\".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\".");
+                                    + " These archives can come from the local client and remote file system,"
+                                    + " they will be un-packed when localizing and they can be any of the following types: "
+                                    + "\".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\"."
+                                    + " For example, yarn.ship-archives=/opt/path/conf.zip;hdfs://$namenode_address/path/jars.tar");
 
     public static final ConfigOption<String> FLINK_DIST_JAR =
             key("yarn.flink-dist-jar")

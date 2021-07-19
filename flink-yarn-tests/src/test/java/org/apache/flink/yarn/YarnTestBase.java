@@ -388,7 +388,8 @@ public abstract class YarnTestBase extends TestLogger {
             org.apache.flink.configuration.Configuration flinkConfiguration) {
         final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptorWithoutLibDir(flinkConfiguration);
-        yarnClusterDescriptor.addShipFiles(Collections.singletonList(flinkLibFolder));
+        yarnClusterDescriptor.addShipFiles(
+                Collections.singletonList(new Path(flinkLibFolder.toURI())));
         return yarnClusterDescriptor;
     }
 
