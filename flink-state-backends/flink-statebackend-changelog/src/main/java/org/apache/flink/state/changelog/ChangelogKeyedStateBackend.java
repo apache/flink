@@ -320,7 +320,7 @@ public class ChangelogKeyedStateBackend<K>
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
         lastUploadedFrom = materializedTo;
-        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber().next();
+        lastUploadedTo = stateChangelogWriter.lastAppendedSequenceNumber();
 
         LOG.debug(
                 "snapshot for checkpoint {}, change range: {}..{}",
