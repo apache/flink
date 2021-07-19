@@ -27,8 +27,8 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Tests for {@link ShuffleModeUtils}. */
-public class ShuffleModeUtilsTest extends TestLogger {
+/** Tests for {@link StreamExchangeModeUtils}. */
+public class StreamExchangeModeUtilsTest extends TestLogger {
 
     @Test
     public void testGetValidShuffleMode() {
@@ -39,28 +39,28 @@ public class ShuffleModeUtilsTest extends TestLogger {
                 GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString());
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalDataExchangeMode.POINTWISE_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
     }
 
     @Test
@@ -69,17 +69,17 @@ public class ShuffleModeUtilsTest extends TestLogger {
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                ShuffleModeUtils.ALL_EDGES_BLOCKING_LEGACY);
+                StreamExchangeModeUtils.ALL_EDGES_BLOCKING_LEGACY);
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-                ShuffleModeUtils.ALL_EDGES_PIPELINED_LEGACY);
+                StreamExchangeModeUtils.ALL_EDGES_PIPELINED_LEGACY);
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
     }
 
     @Test
@@ -90,12 +90,12 @@ public class ShuffleModeUtilsTest extends TestLogger {
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Forward_edges_PIPELINED");
         assertEquals(
                 GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
 
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Pipelined");
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
     }
 
     @Test
@@ -103,13 +103,13 @@ public class ShuffleModeUtilsTest extends TestLogger {
         final Configuration configuration = new Configuration();
         assertEquals(
                 GlobalDataExchangeMode.ALL_EDGES_BLOCKING,
-                ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
+                StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testGetInvalidShuffleMode() {
         final Configuration configuration = new Configuration();
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
-        ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
+        StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
     }
 }

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.util.TestLogger;
@@ -148,7 +148,7 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
                         new PartitionTransformation<>(
                                 source.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                ShuffleMode.PIPELINED));
+                                StreamExchangeMode.PIPELINED));
         forward.map(i -> i).startNewChain().setParallelism(1);
         final StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
@@ -178,7 +178,7 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
                         new PartitionTransformation<>(
                                 source.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                ShuffleMode.UNDEFINED));
+                                StreamExchangeMode.UNDEFINED));
         final DataStream<Integer> map1 = forward.map(i -> i).startNewChain().setParallelism(1);
 
         final DataStream<Integer> rescale =
@@ -187,7 +187,7 @@ public class StreamingJobGraphGeneratorWithGlobalDataExchangeModeTest extends Te
                         new PartitionTransformation<>(
                                 map1.getTransformation(),
                                 new RescalePartitioner<>(),
-                                ShuffleMode.UNDEFINED));
+                                StreamExchangeMode.UNDEFINED));
         final DataStream<Integer> map2 = rescale.map(i -> i).setParallelism(2);
 
         map2.rebalance().print().setParallelism(2);

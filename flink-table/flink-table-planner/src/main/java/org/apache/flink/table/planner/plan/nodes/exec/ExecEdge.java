@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.ExecNodeGraphJsonPlanGenerator.JsonPlanEdge;
@@ -45,22 +45,25 @@ public class ExecEdge {
     private final ExecNode<?> target;
     /** The {@link Shuffle} on this edge from source to target. */
     private final Shuffle shuffle;
-    /** The {@link ShuffleMode} defines the data exchange mode on this edge. */
-    private final ShuffleMode shuffleMode;
+    /** The {@link StreamExchangeMode} defines the data exchange mode on this edge. */
+    private final StreamExchangeMode exchangeMode;
 
     public ExecEdge(
-            ExecNode<?> source, ExecNode<?> target, Shuffle shuffle, ShuffleMode shuffleMode) {
+            ExecNode<?> source,
+            ExecNode<?> target,
+            Shuffle shuffle,
+            StreamExchangeMode exchangeMode) {
         this.source = checkNotNull(source);
         this.target = checkNotNull(target);
         this.shuffle = checkNotNull(shuffle);
-        this.shuffleMode = checkNotNull(shuffleMode);
+        this.exchangeMode = checkNotNull(exchangeMode);
 
         // TODO once FLINK-21224 [Remove BatchExecExchange and StreamExecExchange, and replace their
         //  functionality with ExecEdge] is finished, we should remove the following validation.
         if (shuffle.getType() != Shuffle.Type.FORWARD) {
             throw new TableException("Only FORWARD shuffle is supported now.");
         }
-        if (shuffleMode != ShuffleMode.PIPELINED) {
+        if (exchangeMode != StreamExchangeMode.PIPELINED) {
             throw new TableException("Only PIPELINED shuffle mode is supported now.");
         }
     }
@@ -77,8 +80,8 @@ public class ExecEdge {
         return shuffle;
     }
 
-    public ShuffleMode getShuffleMode() {
-        return shuffleMode;
+    public StreamExchangeMode getExchangeMode() {
+        return exchangeMode;
     }
 
     /** Returns the output {@link LogicalType} of the data passing this edge. */
@@ -95,8 +98,8 @@ public class ExecEdge {
                 + target.getDescription()
                 + ", shuffle="
                 + shuffle
-                + ", shuffleMode="
-                + shuffleMode
+                + ", exchangeMode="
+                + exchangeMode
                 + '}';
     }
 
@@ -109,7 +112,7 @@ public class ExecEdge {
         private ExecNode<?> source;
         private ExecNode<?> target;
         private Shuffle shuffle = FORWARD_SHUFFLE;
-        private ShuffleMode shuffleMode = ShuffleMode.PIPELINED;
+        private StreamExchangeMode exchangeMode = StreamExchangeMode.PIPELINED;
 
         public Builder source(ExecNode<?> source) {
             this.source = source;
@@ -131,13 +134,13 @@ public class ExecEdge {
             return shuffle(fromRequiredDistribution(requiredDistribution));
         }
 
-        public Builder shuffleMode(ShuffleMode shuffleMode) {
-            this.shuffleMode = shuffleMode;
+        public Builder exchangeMode(StreamExchangeMode exchangeMode) {
+            this.exchangeMode = exchangeMode;
             return this;
         }
 
         public ExecEdge build() {
-            return new ExecEdge(source, target, shuffle, shuffleMode);
+            return new ExecEdge(source, target, shuffle, exchangeMode);
         }
 
         private Shuffle fromRequiredDistribution(

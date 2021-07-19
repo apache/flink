@@ -82,7 +82,7 @@ import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
@@ -593,7 +593,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         assertTrue(operatorFactory instanceof SourceOperatorFactory);
     }
 
-    /** Test setting shuffle mode to {@link ShuffleMode#PIPELINED}. */
+    /** Test setting shuffle mode to {@link StreamExchangeMode#PIPELINED}. */
     @Test
     public void testShuffleModePipelined() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -606,7 +606,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 sourceDataStream.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                ShuffleMode.PIPELINED));
+                                StreamExchangeMode.PIPELINED));
         DataStream<Integer> mapDataStream =
                 partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
 
@@ -616,7 +616,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 mapDataStream.getTransformation(),
                                 new RescalePartitioner<>(),
-                                ShuffleMode.PIPELINED));
+                                StreamExchangeMode.PIPELINED));
         partitionAfterMapDataStream.print().setParallelism(2);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
@@ -633,7 +633,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
     }
 
-    /** Test setting shuffle mode to {@link ShuffleMode#BATCH}. */
+    /** Test setting shuffle mode to {@link StreamExchangeMode#BATCH}. */
     @Test
     public void testShuffleModeBatch() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -646,7 +646,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 sourceDataStream.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                ShuffleMode.BATCH));
+                                StreamExchangeMode.BATCH));
         DataStream<Integer> mapDataStream =
                 partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
 
@@ -656,7 +656,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 mapDataStream.getTransformation(),
                                 new RescalePartitioner<>(),
-                                ShuffleMode.BATCH));
+                                StreamExchangeMode.BATCH));
         partitionAfterMapDataStream.print().setParallelism(2);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
@@ -677,7 +677,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 mapVertex.getProducedDataSets().get(0).getResultType());
     }
 
-    /** Test setting shuffle mode to {@link ShuffleMode#UNDEFINED}. */
+    /** Test setting shuffle mode to {@link StreamExchangeMode#UNDEFINED}. */
     @Test
     public void testShuffleModeUndefined() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -690,7 +690,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 sourceDataStream.getTransformation(),
                                 new ForwardPartitioner<>(),
-                                ShuffleMode.UNDEFINED));
+                                StreamExchangeMode.UNDEFINED));
         DataStream<Integer> mapDataStream =
                 partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
 
@@ -700,7 +700,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 mapDataStream.getTransformation(),
                                 new RescalePartitioner<>(),
-                                ShuffleMode.UNDEFINED));
+                                StreamExchangeMode.UNDEFINED));
         partitionAfterMapDataStream.print().setParallelism(2);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
@@ -784,15 +784,15 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
     @Test(expected = UnsupportedOperationException.class)
     public void testConflictShuffleModeWithBufferTimeout() {
-        testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
+        testCompatibleShuffleModeWithBufferTimeout(StreamExchangeMode.BATCH);
     }
 
     @Test
     public void testNormalShuffleModeWithBufferTimeout() {
-        testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.PIPELINED);
+        testCompatibleShuffleModeWithBufferTimeout(StreamExchangeMode.PIPELINED);
     }
 
-    private void testCompatibleShuffleModeWithBufferTimeout(ShuffleMode shuffleMode) {
+    private void testCompatibleShuffleModeWithBufferTimeout(StreamExchangeMode exchangeMode) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setBufferTimeout(100);
 
@@ -801,7 +801,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 new PartitionTransformation<>(
                         sourceDataStream.getTransformation(),
                         new RebalancePartitioner<>(),
-                        shuffleMode);
+                        exchangeMode);
 
         DataStream<Integer> partitionStream = new DataStream<>(env, transformation);
         partitionStream.map(value -> value).print();
@@ -1396,7 +1396,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         new PartitionTransformation<>(
                                 source2.getTransformation(),
                                 new RebalancePartitioner<>(),
-                                ShuffleMode.BATCH));
+                                StreamExchangeMode.BATCH));
         partitioned.map(v -> v).name("map2");
 
         return env.getStreamGraph();

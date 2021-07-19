@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 
 /** The shuffle mode defines the data exchange mode between operators. */
 @PublicEvolving
-public enum ShuffleMode {
+public enum StreamExchangeMode {
     /**
      * Producer and consumer are online at the same time. Produced data is received by consumer
      * immediately.
@@ -37,8 +37,8 @@ public enum ShuffleMode {
 
     /**
      * The shuffle mode is undefined. It leaves it up to the framework to decide the shuffle mode.
-     * The framework will pick one of {@link ShuffleMode#BATCH} or {@link ShuffleMode#PIPELINED} in
-     * the end.
+     * The framework will pick one of {@link StreamExchangeMode#BATCH} or {@link
+     * StreamExchangeMode#PIPELINED} in the end.
      */
     UNDEFINED
 }

@@ -19,13 +19,13 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 
 /**
  * This mode decides the default {@link ResultPartitionType} of job edges. Note that this only
- * affects job edges which are {@link ShuffleMode#UNDEFINED}.
+ * affects job edges which are {@link StreamExchangeMode#UNDEFINED}.
  */
 public enum GlobalDataExchangeMode {
     /** Set all job edges to be {@link ResultPartitionType#BLOCKING}. */
