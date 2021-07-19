@@ -116,7 +116,7 @@ public class AddBoolBeforeReturnRewriter implements CodeRewriter {
             boolVarNames.add(new HashMap<>());
             Void ret = visitChildren(ctx);
             for (String varName : boolVarNames.get(classCount).values()) {
-                rewriter.insertAfter(ctx.start, String.format("\nboolean %s = false;", varName));
+                rewriter.insertAfter(ctx.start, String.format("\nboolean %s;", varName));
             }
             return ret;
         }

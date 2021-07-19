@@ -4,8 +4,6 @@ int[][] rewrite$15 = new int[1][];
 int[] rewrite$16 = new int[6];
 
 {
-rewrite$14[0] = false;
-rewrite$14[1] = false;
 rewrite$16[5] = 1;
 }
 
@@ -24,7 +22,7 @@ rewrite$16[5] = 1;
         this.rewrite$15[0] = b;
     }
 
-    public void myFun1(int a) {
+    public void myFun1(int a) {rewrite$14[0] = false;
         myFun1_split6(a);
 
         myFun1_split7(a);
@@ -107,7 +105,7 @@ if (rewrite$16[1] > 0) {
 
     public int myFun2(int[] a) { myFun2_impl(a); return rewrite$16[4]; }
 
-void myFun2_impl(int[] a){
+void myFun2_impl(int[] a) {rewrite$14[1] = false;
         myFun2_impl_split12(a);
 
         myFun2_impl_split13(a);

@@ -47,8 +47,8 @@ public class MemberFieldRewriterTest extends CodeRewriterTestBase<MemberFieldRew
     }
 
     @Test
-    public void testNotRewriteStaticMember() {
-        runTest("TestNotRewriteStaticMember");
+    public void testNotRewriteMember() {
+        runTest("TestNotRewriteMember");
     }
 
     @Test

@@ -1,5 +1,5 @@
 public class TestSkipAnonymousClassAndLambda {
-boolean codeSplitHasReturned$0 = false;
+boolean codeSplitHasReturned$0;
     public void fun(String a) {
         if (a.length() > 5) {
             a += "long";

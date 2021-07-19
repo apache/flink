@@ -120,6 +120,17 @@ public class DeclarationRewriter implements CodeRewriter {
         }
 
         @Override
+        public Void visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+            if (ctx.variableDeclarators() != null) {
+                for (JavaParser.VariableDeclaratorContext dec :
+                        ctx.variableDeclarators().variableDeclarator()) {
+                    allVarNames.add(dec.variableDeclaratorId().getText());
+                }
+            }
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
             if ("void".equals(ctx.typeTypeOrVoid().getText())) {
                 visitMethodBody(ctx.methodBody());

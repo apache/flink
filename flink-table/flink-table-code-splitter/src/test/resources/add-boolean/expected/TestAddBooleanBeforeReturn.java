@@ -1,6 +1,6 @@
 public class TestAddBooleanBeforeReturn {
-boolean codeSplitHasReturned$1 = false;
-boolean codeSplitHasReturned$0 = false;
+boolean codeSplitHasReturned$1;
+boolean codeSplitHasReturned$0;
     public void fun1(int a) {
         if (a > 0) {
             a += 5;

@@ -130,6 +130,11 @@ public class ReturnValueRewriter implements CodeRewriter {
             String type = CodeSplitUtil.getContextString(ctx.typeTypeOrVoid());
             String functionName = ctx.IDENTIFIER().getText();
             String parameters = CodeSplitUtil.getContextString(ctx.formalParameters());
+            String methodQualifier = "";
+            if (ctx.THROWS() != null) {
+                methodQualifier =
+                        " throws " + CodeSplitUtil.getContextString(ctx.qualifiedNameList());
+            }
 
             // make new return variable
             String returnVarName = CodeSplitUtil.newName("codeSplitReturnValue");
@@ -145,7 +150,7 @@ public class ReturnValueRewriter implements CodeRewriter {
                             "{ %s_impl(%s); return %s; }",
                             functionName, String.join(", ", declarations), returnVarName);
             String implMethodDeclaration =
-                    String.format("void %s_impl%s", functionName, parameters);
+                    String.format("void %s_impl%s%s ", functionName, parameters, methodQualifier);
             rewriter.insertBefore(
                     ctx.methodBody().start, newMethodBody + "\n\n" + implMethodDeclaration);
 

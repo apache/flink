@@ -1,5 +1,5 @@
 public class TestRewriteInnerClass {
-boolean codeSplitHasReturned$0 = false;
+boolean codeSplitHasReturned$0;
     public void fun(int a) {
         if (a > 0) {
             a += 5;
@@ -10,7 +10,7 @@ boolean codeSplitHasReturned$0 = false;
     }
 
     public class InnerClass1 {
-boolean codeSplitHasReturned$1 = false;
+boolean codeSplitHasReturned$1;
         public void fun(int a) {
             if (a > 0) {
                 a += 5;
@@ -22,7 +22,7 @@ boolean codeSplitHasReturned$1 = false;
     }
 
     public class InnerClass2 {
-boolean codeSplitHasReturned$2 = false;
+boolean codeSplitHasReturned$2;
         public void fun(int a) {
             if (a > 0) {
                 a += 5;

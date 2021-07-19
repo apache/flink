@@ -51,4 +51,9 @@ public class DeclarationRewriterTest extends CodeRewriterTestBase<DeclarationRew
     public void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
     }
+
+    @Test
+    public void testLocalVariableAndMemberVariableWithSameName() {
+        runTest("TestLocalVariableAndMemberVariableWithSameName");
+    }
 }

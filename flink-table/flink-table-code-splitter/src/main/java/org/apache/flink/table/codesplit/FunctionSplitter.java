@@ -191,6 +191,13 @@ public class FunctionSplitter implements CodeRewriter {
                         " throws " + CodeSplitUtil.getContextString(ctx.qualifiedNameList());
             }
 
+            String hasReturnedVarName = boolVarNames.get(classCount).get(functionName + parameters);
+            if (hasReturnedVarName != null) {
+                rewriter.insertAfter(
+                        ctx.methodBody().block().start,
+                        String.format("%s = false;", hasReturnedVarName));
+            }
+
             for (String methodBody : mergedCodeBlocks) {
                 long counter = CodeSplitUtil.getCounter().getAndIncrement();
 
@@ -213,8 +220,6 @@ public class FunctionSplitter implements CodeRewriter {
                                 + "("
                                 + String.join(", ", declarations)
                                 + ");\n";
-                String hasReturnedVarName =
-                        boolVarNames.get(classCount).get(functionName + parameters);
                 if (hasReturnedVarName != null && newSplitMethod.contains(hasReturnedVarName)) {
                     newSplitMethodCall +=
                             String.format("if (%s) { return; }\n", hasReturnedVarName);

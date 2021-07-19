@@ -1,6 +1,6 @@
 public class TestRewriteInnerClass {
-boolean codeSplitHasReturned$0 = false;
-    public void myFun(int[] a, int[] b) throws RuntimeException {
+boolean codeSplitHasReturned$0;
+    public void myFun(int[] a, int[] b) throws RuntimeException {codeSplitHasReturned$0 = false;
         myFun_split2(a, b);
 if (codeSplitHasReturned$0) { return; }
 
@@ -42,8 +42,8 @@ b[3] += a[4];
 
 
     public class InnerClass {
-boolean codeSplitHasReturned$1 = false;
-        public void myFun(int[] a, int[] b) throws RuntimeException {
+boolean codeSplitHasReturned$1;
+        public void myFun(int[] a, int[] b) throws RuntimeException {codeSplitHasReturned$1 = false;
             myFun_split6(a, b);
 if (codeSplitHasReturned$1) { return; }
 
