@@ -779,6 +779,106 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
      * performed with Kryo's default {@link com.esotericsoftware.kryo.serializers.FieldSerializer}.
      */
     @Test
+    public void testKryoRestore() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+
+        TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
+
+        // make sure that we are in fact using the KryoSerializer
+        assertTrue(pojoType.createSerializer(env.getExecutionConfig()) instanceof KryoSerializer);
+
+        ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
+
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE, env);
+        try {
+            ValueState<TestPojo> state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            // ============== create snapshot - no Kryo registration or specific / default
+            // serializers
+            // ==============
+
+            // make some modifications
+            backend.setCurrentKey(1);
+            state.update(new TestPojo("u1", 1));
+
+            backend.setCurrentKey(2);
+            state.update(new TestPojo("u2", 2));
+
+            ((TestableKeyedStateBackend) backend).triggerMaterialization(
+                    682375462378L,
+                    2,
+                    shared -> createOutputStream(),
+                    CheckpointOptions.forCheckpointWithDefaultLocation());
+
+//            KeyedStateHandle snapshot1 =
+//                    runSnapshot(
+//                            backend.snapshot(
+//                                    682375462378L,
+//                                    2,
+//                                    streamFactory,
+//                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+//                            sharedStateRegistry);
+
+            // make some more modifications
+//            backend.setCurrentKey(3);
+//            state.update(new TestPojo("u3", 3));
+//
+//            backend.setCurrentKey(2);
+//            state.update(new TestPojo("u2", 4));
+
+            KeyedStateHandle snapshot2 =
+                    runSnapshot(
+                            backend.snapshot(
+                                    682375462379L,
+                                    3,
+                                    streamFactory,
+                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            sharedStateRegistry);
+
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+
+            // ====================================== restore snapshot
+            // ======================================
+
+            env.getExecutionConfig().registerKryoType(TestPojo.class);
+
+            backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot2, env);
+            snapshot2.discardState();
+
+            state =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+
+            backend.setCurrentKey(1);
+            assertEquals(state.value(), new TestPojo("u1", 1));
+
+            backend.setCurrentKey(2);
+            assertEquals(state.value(), new TestPojo("u2", 2));
+
+//            backend.setCurrentKey(3);
+//            assertEquals(state.value(), new TestPojo("u3", 3));
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    private CheckpointStreamFactory.CheckpointStateOutputStream createOutputStream() {
+        try {
+            return getCheckpointStorage()
+                    .createCheckpointStorage(new JobID())
+                    .createTaskOwnedStateStream();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
     public void testKryoRegisteringRestoreResilienceWithRegisteredType() throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();

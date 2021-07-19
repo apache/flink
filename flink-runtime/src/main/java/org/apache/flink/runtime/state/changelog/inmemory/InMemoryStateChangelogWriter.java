@@ -76,7 +76,7 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
 
     @Override
     public CompletableFuture<InMemoryChangelogStateHandle> persist(SequenceNumber from) {
-        LOG.debug("Persist after {}", from);
+        LOG.debug("Persist from {}", from);
         Preconditions.checkNotNull(from);
         return completedFuture(
                 new InMemoryChangelogStateHandle(collectChanges(from), from, sqn, keyGroupRange));

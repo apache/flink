@@ -338,6 +338,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
                 Executors.newCachedThreadPool(
                         new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
 
+        environment.setMainMailboxExecutor(mainMailboxExecutor);
+        environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
+
         this.stateBackend = createStateBackend();
         this.checkpointStorage = createCheckpointStorage(stateBackend);
 

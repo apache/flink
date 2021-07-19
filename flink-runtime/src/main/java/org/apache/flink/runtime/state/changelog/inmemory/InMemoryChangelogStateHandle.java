@@ -37,8 +37,8 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     private static final long serialVersionUID = 1L;
 
     private final List<StateChange> changes;
-    private final SequenceNumber from; // for debug purposes
-    private final SequenceNumber to; // for debug purposes
+    private final SequenceNumber from; // for debug purposes, inclusive
+    private final SequenceNumber to; // for debug purposes, exclusive
     private final KeyGroupRange keyGroupRange;
 
     public InMemoryChangelogStateHandle(
