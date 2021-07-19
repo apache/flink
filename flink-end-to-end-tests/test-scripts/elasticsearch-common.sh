@@ -53,7 +53,7 @@ function setup_elasticsearch {
     done
     echo "Extraction successful."
 
-    if [ `uname -i` == 'aarch64' ] && [ $elasticsearch_version -ge 6 ]; then
+    if [ `uname -i` == 'aarch64' ] && [ $elasticsearch_version == 6 ]; then
       echo xpack.ml.enabled: false >> $elasticsearchDir/config/elasticsearch.yml
     fi
 
