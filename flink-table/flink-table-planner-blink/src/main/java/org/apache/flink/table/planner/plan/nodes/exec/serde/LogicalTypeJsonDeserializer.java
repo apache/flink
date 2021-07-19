@@ -54,7 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ATTRIBUTES;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_COMPARISION;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_COMPARISON;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_DESCRIPTION;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_ELEMENT_TYPE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer.FIELD_NAME_FIELDS;
@@ -302,10 +302,10 @@ public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
         boolean isInstantiable = logicalTypeNode.get(FIELD_NAME_INSTANTIABLE).asBoolean();
         builder.setInstantiable(isInstantiable);
 
-        StructuredType.StructuredComparision comparision =
-                StructuredType.StructuredComparision.valueOf(
-                        logicalTypeNode.get(FIELD_NAME_COMPARISION).asText().toUpperCase());
-        builder.comparision(comparision);
+        StructuredType.StructuredComparison comparison =
+                StructuredType.StructuredComparison.valueOf(
+                        logicalTypeNode.get(FIELD_NAME_COMPARISON).asText().toUpperCase());
+        builder.comparison(comparison);
 
         if (logicalTypeNode.get(FIELD_NAME_SUPPER_TYPE) != null) {
             StructuredType supperType =
