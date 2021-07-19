@@ -320,6 +320,21 @@ public abstract class AbstractKeyedStateBackend<K>
         }
     }
 
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <N, S extends State> S getReadOnlyPartitionedState(
+            final StateDescriptor<S, ?> stateDescriptor) {
+
+        InternalKvState<K, ?, ?> readOnlyState = keyValueStatesByName.get(stateDescriptor.getName());
+
+        if (readOnlyState == null){
+            return  null;
+        }
+
+        return (S) readOnlyState;
+    }
+
     /**
      * TODO: NOTE: This method does a lot of work caching / retrieving states just to update the
      * namespace. This method should be removed for the sake of namespaces being lazily fetched from

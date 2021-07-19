@@ -185,6 +185,7 @@ public class StatefulSinkWriterOperatorTest extends SinkWriterOperatorTestBase {
                         DUMMY_SINK_STATE_NAME, BytePrimitiveArraySerializer.INSTANCE);
         ListState<String> sinkState;
 
+        @Override
         public void initializeState(StateInitializationContext context) throws Exception {
             super.initializeState(context);
             sinkState =

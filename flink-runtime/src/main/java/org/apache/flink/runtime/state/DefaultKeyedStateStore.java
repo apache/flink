@@ -63,6 +63,21 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
         }
     }
 
+
+
+    @Override
+    public <T> ValueState<T> getReadOnlyState(ValueStateDescriptor<T> stateProperties) {
+        requireNonNull(stateProperties, "The state properties must not be null");
+        try {
+            stateProperties.initializeSerializerUnlessSet(executionConfig);
+            return getPartitionedStateReadOnly(stateProperties);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while getting state", e);
+        }
+    }
+
+
+
     @Override
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {
         requireNonNull(stateProperties, "The state properties must not be null");
@@ -114,5 +129,10 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
             throws Exception {
         return keyedStateBackend.getPartitionedState(
                 VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
+
+    protected <S extends State> S getPartitionedStateReadOnly(StateDescriptor<S, ?> stateDescriptor)
+            throws Exception {
+        return keyedStateBackend.getReadOnlyPartitionedState(stateDescriptor);
     }
 }

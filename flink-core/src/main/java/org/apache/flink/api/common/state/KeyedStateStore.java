@@ -68,6 +68,11 @@ public interface KeyedStateStore {
     @PublicEvolving
     <T> ValueState<T> getState(ValueStateDescriptor<T> stateProperties);
 
+
+    default  <T> ValueState<T> getReadOnlyState(ValueStateDescriptor<T> stateProperties){
+        return null;
+    };
+
     /**
      * Gets a handle to the system's key/value list state. This state is similar to the state
      * accessed via {@link #getState(ValueStateDescriptor)}, but is optimized for state that holds

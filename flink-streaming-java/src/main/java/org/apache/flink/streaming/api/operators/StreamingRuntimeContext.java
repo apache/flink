@@ -50,6 +50,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -202,6 +203,25 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
         return keyedStateStore.getState(stateProperties);
     }
+
+
+    @Override
+    public <T> T getReadOnlyStateValue(ValueStateDescriptor<T> stateProperties)  {
+        KeyedStateStore keyedStateStore = checkPreconditionsAndGetKeyedStateStore(stateProperties);
+        stateProperties.initializeSerializerUnlessSet(getExecutionConfig());
+        ValueState<T> readOnlyState = keyedStateStore.getReadOnlyState(stateProperties);
+        if (readOnlyState == null){
+            return null;
+        }
+        T value = null;
+        try {
+            value = readOnlyState.value();
+        } catch (IOException e) {
+            throw new RuntimeException("system cannot access the state");
+        }
+        return value;
+    }
+
 
     @Override
     public <T> ListState<T> getListState(ListStateDescriptor<T> stateProperties) {

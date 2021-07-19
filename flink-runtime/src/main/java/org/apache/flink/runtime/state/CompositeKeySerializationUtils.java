@@ -76,8 +76,8 @@ public class CompositeKeySerializationUtils {
             throws IOException {
 
         int beforeWrite = keySerializationDataOutputView.length();
-        namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
 
+        namespaceSerializer.serialize(namespace, keySerializationDataOutputView);
         if (ambiguousKeyPossible) {
             // write length of namespace
             writeLengthFrom(beforeWrite, keySerializationDataOutputView);

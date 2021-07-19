@@ -121,6 +121,12 @@ public interface KeyedStateBackend<K>
             StateDescriptor<S, ?> stateDescriptor)
             throws Exception;
 
+
+     default  <N, S extends State> S getReadOnlyPartitionedState(StateDescriptor<S, ?> stateDescriptor){
+         return null;
+     }
+
+
     @Override
     void dispose();
 
