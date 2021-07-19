@@ -101,12 +101,18 @@ public class StateUtilTest {
         };
     }
 
-    private static class TestStateObject implements StateObject {
+    public static class TestStateObject implements StateObject {
         private static final long serialVersionUID = -8070326169926626355L;
         private final int size;
+        private final String name;
 
-        private TestStateObject(int size) {
+        public TestStateObject(int size) {
+            this("test", size);
+        }
+
+        public TestStateObject(String name, int size) {
             this.size = size;
+            this.name = name;
         }
 
         @Override
@@ -116,5 +122,10 @@ public class StateUtilTest {
 
         @Override
         public void discardState() {}
+
+        @Override
+        public String toString() {
+            return name + ", size=" + size;
+        }
     }
 }
