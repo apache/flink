@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -49,6 +50,7 @@ import java.util.function.Supplier;
  * manager would only start a single fetcher and assign all the splits to it. A one-thread-per-split
  * fetcher may spawn a new thread every time a new split is assigned.
  */
+@Internal
 public abstract class SplitFetcherManager<E, SplitT extends SourceSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(SplitFetcherManager.class);
 

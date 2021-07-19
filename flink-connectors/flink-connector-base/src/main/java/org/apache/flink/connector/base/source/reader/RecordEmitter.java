@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 
@@ -28,6 +29,7 @@ import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
  * @param <T> the type of records that are eventually emitted to the {@link SourceOutput}.
  * @param <SplitStateT> the mutable type of split state.
  */
+@PublicEvolving
 public interface RecordEmitter<E, T, SplitStateT> {
 
     /**
