@@ -49,6 +49,7 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +66,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.fabric8.kubernetes.client.Config.KUBERNETES_SERVICE_HOST_PROPERTY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The implementation of {@link FlinkKubeClient}. */
@@ -78,6 +80,8 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     private final int maxRetryAttempts;
 
     private final ExecutorService kubeClientExecutorService;
+
+    private static final String KUBERNETES_SERVICE_NAME = "kubernetes";
 
     public Fabric8FlinkKubeClient(
             Configuration flinkConfig,
@@ -446,9 +450,38 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
             }
         } else {
             // Use node port
-            address = this.internalClient.getMasterUrl().getHost();
+            address = getMasterNodeAddress();
         }
         boolean noAddress = address == null || address.isEmpty();
         return noAddress ? Optional.empty() : Optional.of(new Endpoint(address, restPort));
+    }
+
+    private String getMasterNodeAddress() {
+        String address = this.internalClient.getMasterUrl().getHost();
+
+        // If client is configured from Service account,
+        // the address here we get is actually a ClusterIP,
+        // we need to get the real master node IP
+        if (address == null
+                || address.equals(
+                        Utils.getSystemPropertyOrEnvVar(
+                                KUBERNETES_SERVICE_HOST_PROPERTY, (String) null))) {
+            try {
+                address =
+                        this.internalClient
+                                .endpoints()
+                                .withName(KUBERNETES_SERVICE_NAME)
+                                .get()
+                                .getSubsets()
+                                .get(0)
+                                .getAddresses()
+                                .get(0)
+                                .getIp();
+            } catch (Throwable throwable) {
+                LOG.debug("Failed to get master node address, fallback to host from master url");
+            }
+        }
+
+        return address;
     }
 }
