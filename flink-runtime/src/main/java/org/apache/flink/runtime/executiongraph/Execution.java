@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -89,6 +90,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -1435,8 +1437,18 @@ public class Execution
                         getAttemptId(),
                         currentState,
                         targetState);
-            } else {
-                if (LOG.isInfoEnabled()) {
+            } else if (LOG.isInfoEnabled()) {
+                Optional<NoResourceAvailableException> noResourceException =
+                        findThrowable(error, NoResourceAvailableException.class);
+                if (noResourceException.isPresent()) {
+                    LOG.info(
+                            "{} ({}) switched from {} to {}: {}",
+                            getVertex().getTaskNameWithSubtaskIndex(),
+                            getAttemptId(),
+                            currentState,
+                            targetState,
+                            noResourceException.get().getMessage());
+                } else {
                     LOG.info(
                             "{} ({}) switched from {} to {} on {}.",
                             getVertex().getTaskNameWithSubtaskIndex(),
