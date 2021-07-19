@@ -71,7 +71,12 @@ public class CheckpointMetadataLoadingTest {
                 createTasks(operatorId, parallelism, parallelism);
 
         final CompletedCheckpoint loaded =
-                Checkpoints.loadAndValidateCheckpoint(jobId, tasks, testSavepoint, cl, false);
+                Checkpoints.validateCheckpoint(
+                        jobId,
+                        tasks,
+                        testSavepoint,
+                        false,
+                        Checkpoints.loadCheckpoint(testSavepoint, cl));
 
         assertEquals(jobId, loaded.getJobId());
         assertEquals(checkpointId, loaded.getCheckpointID());
@@ -89,7 +94,12 @@ public class CheckpointMetadataLoadingTest {
                 createTasks(operatorId, parallelism, parallelism + 1);
 
         try {
-            Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+            Checkpoints.validateCheckpoint(
+                    new JobID(),
+                    tasks,
+                    testSavepoint,
+                    false,
+                    Checkpoints.loadCheckpoint(testSavepoint, cl));
             fail("Did not throw expected Exception");
         } catch (IllegalStateException expected) {
             assertTrue(expected.getMessage().contains("Max parallelism mismatch"));
@@ -109,7 +119,12 @@ public class CheckpointMetadataLoadingTest {
         final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
         try {
-            Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+            Checkpoints.validateCheckpoint(
+                    new JobID(),
+                    tasks,
+                    testSavepoint,
+                    false,
+                    Checkpoints.loadCheckpoint(testSavepoint, cl));
             fail("Did not throw expected Exception");
         } catch (IllegalStateException expected) {
             assertTrue(expected.getMessage().contains("allowNonRestoredState"));
@@ -129,7 +144,12 @@ public class CheckpointMetadataLoadingTest {
         final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
         final CompletedCheckpoint loaded =
-                Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, true);
+                Checkpoints.validateCheckpoint(
+                        new JobID(),
+                        tasks,
+                        testSavepoint,
+                        true,
+                        Checkpoints.loadCheckpoint(testSavepoint, cl));
 
         assertTrue(loaded.getOperatorStates().isEmpty());
     }
@@ -152,7 +172,12 @@ public class CheckpointMetadataLoadingTest {
         final Map<JobVertexID, ExecutionJobVertex> tasks = Collections.emptyMap();
 
         try {
-            Checkpoints.loadAndValidateCheckpoint(new JobID(), tasks, testSavepoint, cl, false);
+            Checkpoints.validateCheckpoint(
+                    new JobID(),
+                    tasks,
+                    testSavepoint,
+                    false,
+                    Checkpoints.loadCheckpoint(testSavepoint, cl));
             fail("Did not throw expected Exception");
         } catch (IllegalStateException expected) {
             assertTrue(expected.getMessage().contains("allowNonRestoredState"));

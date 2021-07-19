@@ -35,6 +35,7 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.buildCheckpointStorageView;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -79,7 +80,7 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         Collections.emptyList(),
                         new StandaloneCheckpointIDCounter(),
                         new StandaloneCompletedCheckpointStore(1),
-                        new MemoryStateBackend(),
+                        buildCheckpointStorageView(new MemoryStateBackend(), graph.getJobID()),
                         Executors.directExecutor(),
                         new CheckpointsCleaner(),
                         manualThreadExecutor,

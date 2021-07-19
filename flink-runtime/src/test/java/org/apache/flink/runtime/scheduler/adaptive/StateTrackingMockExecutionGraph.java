@@ -54,6 +54,7 @@ import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -258,6 +259,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
             CompletedCheckpointStore checkpointStore,
             StateBackend checkpointStateBackend,
             CheckpointStorage checkpointStorage,
+            CheckpointStorageCoordinatorView checkpointStorageView,
             CheckpointStatsTracker statsTracker,
             CheckpointsCleaner checkpointsCleaner) {
         throw new UnsupportedOperationException();

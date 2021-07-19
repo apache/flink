@@ -19,13 +19,16 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
+import org.apache.flink.runtime.executiongraph.DefaultExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -38,6 +41,7 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 
 import org.slf4j.Logger;
 
@@ -103,28 +107,33 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                     }
                 };
 
-        final ExecutionGraph newExecutionGraph =
-                DefaultExecutionGraphBuilder.buildGraph(
-                        jobGraph,
-                        configuration,
-                        futureExecutor,
-                        ioExecutor,
-                        userCodeClassLoader,
-                        completedCheckpointStore,
-                        checkpointsCleaner,
-                        checkpointIdCounter,
-                        rpcTimeout,
-                        jobManagerJobMetricGroup,
-                        blobWriter,
-                        log,
-                        shuffleMaster,
-                        jobMasterPartitionTracker,
-                        partitionLocationConstraint,
-                        executionDeploymentListener,
-                        executionStateUpdateListener,
-                        initializationTimestamp,
-                        vertexAttemptNumberStore,
-                        vertexParallelismStore);
+        final Tuple3<DefaultExecutionGraph, CompletedCheckpointStorageLocation, CheckpointMetadata>
+                executionGraphTuple =
+                        DefaultExecutionGraphBuilder.buildGraph(
+                                jobGraph,
+                                configuration,
+                                futureExecutor,
+                                ioExecutor,
+                                userCodeClassLoader,
+                                completedCheckpointStore,
+                                checkpointsCleaner,
+                                checkpointIdCounter,
+                                rpcTimeout,
+                                jobManagerJobMetricGroup,
+                                blobWriter,
+                                log,
+                                shuffleMaster,
+                                jobMasterPartitionTracker,
+                                partitionLocationConstraint,
+                                executionDeploymentListener,
+                                executionStateUpdateListener,
+                                initializationTimestamp,
+                                vertexAttemptNumberStore,
+                                vertexParallelismStore);
+
+        final ExecutionGraph newExecutionGraph = executionGraphTuple.f0;
+        final CompletedCheckpointStorageLocation checkpointStorageLocation = executionGraphTuple.f1;
+        final CheckpointMetadata checkpointMetadata = executionGraphTuple.f2;
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
@@ -136,7 +145,10 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
 
                 // check whether we can restore from a savepoint
                 tryRestoreExecutionGraphFromSavepoint(
-                        newExecutionGraph, jobGraph.getSavepointRestoreSettings());
+                        newExecutionGraph,
+                        jobGraph.getSavepointRestoreSettings(),
+                        checkpointStorageLocation,
+                        checkpointMetadata);
             }
         }
 
@@ -150,11 +162,16 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
      * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
      * @param savepointRestoreSettings {@link SavepointRestoreSettings} containing information about
      *     the savepoint to restore from
+     * @param checkpointStorageLocation {@link CompletedCheckpointStorageLocation} which is the
+     *     savepoint location handle
+     * @param checkpointMetadata {@link CheckpointMetadata} containing the metadata of the savepoint
      * @throws Exception if the {@link ExecutionGraph} could not be restored
      */
     private void tryRestoreExecutionGraphFromSavepoint(
             ExecutionGraph executionGraphToRestore,
-            SavepointRestoreSettings savepointRestoreSettings)
+            SavepointRestoreSettings savepointRestoreSettings,
+            CompletedCheckpointStorageLocation checkpointStorageLocation,
+            CheckpointMetadata checkpointMetadata)
             throws Exception {
         if (savepointRestoreSettings.restoreSavepoint()) {
             final CheckpointCoordinator checkpointCoordinator =
@@ -164,7 +181,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         savepointRestoreSettings.getRestorePath(),
                         savepointRestoreSettings.allowNonRestoredState(),
                         executionGraphToRestore.getAllVertices(),
-                        userCodeClassLoader);
+                        checkpointStorageLocation,
+                        checkpointMetadata);
             }
         }
     }

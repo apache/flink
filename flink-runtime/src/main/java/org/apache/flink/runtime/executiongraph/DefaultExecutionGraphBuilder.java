@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -29,10 +30,13 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
@@ -44,15 +48,22 @@ import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.jsonplan.JsonPlanGenerator;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
+import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.DynamicCodeLoadingException;
 import org.apache.flink.util.SerializedValue;
 
@@ -62,8 +73,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -73,28 +87,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultExecutionGraphBuilder {
 
-    public static DefaultExecutionGraph buildGraph(
-            JobGraph jobGraph,
-            Configuration jobManagerConfig,
-            ScheduledExecutorService futureExecutor,
-            Executor ioExecutor,
-            ClassLoader classLoader,
-            CompletedCheckpointStore completedCheckpointStore,
-            CheckpointsCleaner checkpointsCleaner,
-            CheckpointIDCounter checkpointIdCounter,
-            Time rpcTimeout,
-            MetricGroup metrics,
-            BlobWriter blobWriter,
-            Logger log,
-            ShuffleMaster<?> shuffleMaster,
-            JobMasterPartitionTracker partitionTracker,
-            TaskDeploymentDescriptorFactory.PartitionLocationConstraint partitionLocationConstraint,
-            ExecutionDeploymentListener executionDeploymentListener,
-            ExecutionStateUpdateListener executionStateUpdateListener,
-            long initializationTimestamp,
-            VertexAttemptNumberStore vertexAttemptNumberStore,
-            VertexParallelismStore vertexParallelismStore)
-            throws JobExecutionException, JobException {
+    public static Tuple3<
+                    DefaultExecutionGraph, CompletedCheckpointStorageLocation, CheckpointMetadata>
+            buildGraph(
+                    JobGraph jobGraph,
+                    Configuration jobManagerConfig,
+                    ScheduledExecutorService futureExecutor,
+                    Executor ioExecutor,
+                    ClassLoader classLoader,
+                    CompletedCheckpointStore completedCheckpointStore,
+                    CheckpointsCleaner checkpointsCleaner,
+                    CheckpointIDCounter checkpointIdCounter,
+                    Time rpcTimeout,
+                    MetricGroup metrics,
+                    BlobWriter blobWriter,
+                    Logger log,
+                    ShuffleMaster<?> shuffleMaster,
+                    JobMasterPartitionTracker partitionTracker,
+                    TaskDeploymentDescriptorFactory.PartitionLocationConstraint
+                            partitionLocationConstraint,
+                    ExecutionDeploymentListener executionDeploymentListener,
+                    ExecutionStateUpdateListener executionStateUpdateListener,
+                    long initializationTimestamp,
+                    VertexAttemptNumberStore vertexAttemptNumberStore,
+                    VertexParallelismStore vertexParallelismStore)
+                    throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
 
@@ -116,6 +133,112 @@ public class DefaultExecutionGraphBuilder {
         final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
                 PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(
                         jobManagerConfig);
+
+        final JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
+        final boolean isCheckpointingEnabled = isCheckpointingEnabled(jobGraph);
+
+        // create checkpoint storage for checkpoint coordinator
+        StateBackend rootBackend = null;
+        CheckpointStorage rootStorage = null;
+        CompletedCheckpointStorageLocation checkpointStorageLocation = null;
+        CheckpointStorageCoordinatorView checkpointStorageView = null;
+        // read the potential metadata information of savepoint
+        CheckpointMetadata checkpointMetadata = null;
+
+        if (isCheckpointingEnabled) {
+            // load the state backend from the application settings
+            final StateBackend applicationConfiguredBackend;
+            final SerializedValue<StateBackend> serializedAppConfigured =
+                    snapshotSettings.getDefaultStateBackend();
+
+            if (serializedAppConfigured == null) {
+                applicationConfiguredBackend = null;
+            } else {
+                try {
+                    applicationConfiguredBackend =
+                            serializedAppConfigured.deserializeValue(classLoader);
+                } catch (IOException | ClassNotFoundException e) {
+                    throw new JobExecutionException(
+                            jobId, "Could not deserialize application-defined state backend.", e);
+                }
+            }
+
+            try {
+                rootBackend =
+                        StateBackendLoader.fromApplicationOrConfigOrDefault(
+                                applicationConfiguredBackend,
+                                snapshotSettings.isChangelogStateBackendEnabled(),
+                                jobManagerConfig,
+                                classLoader,
+                                log);
+            } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
+                throw new JobExecutionException(
+                        jobId, "Could not instantiate configured state backend", e);
+            }
+
+            // load the checkpoint storage from the application settings
+            final CheckpointStorage applicationConfiguredStorage;
+            final SerializedValue<CheckpointStorage> serializedAppConfiguredStorage =
+                    snapshotSettings.getDefaultCheckpointStorage();
+
+            if (serializedAppConfiguredStorage == null) {
+                applicationConfiguredStorage = null;
+            } else {
+                try {
+                    applicationConfiguredStorage =
+                            serializedAppConfiguredStorage.deserializeValue(classLoader);
+                } catch (IOException | ClassNotFoundException e) {
+                    throw new JobExecutionException(
+                            jobId,
+                            "Could not deserialize application-defined checkpoint storage.",
+                            e);
+                }
+            }
+
+            try {
+                rootStorage =
+                        CheckpointStorageLoader.load(
+                                applicationConfiguredStorage,
+                                null,
+                                rootBackend,
+                                jobManagerConfig,
+                                classLoader,
+                                log);
+            } catch (IllegalConfigurationException | DynamicCodeLoadingException e) {
+                throw new JobExecutionException(
+                        jobId, "Could not instantiate configured checkpoint storage", e);
+            }
+
+            try {
+                // initialize the checkpoint storage coordinator view
+                checkpointStorageView = rootStorage.createCheckpointStorage(jobId);
+                checkpointStorageView.initializeBaseLocations();
+            } catch (IOException e) {
+                throw new JobExecutionException(
+                        jobId,
+                        "Could not initialize configured checkpoint storage coordinator view",
+                        e);
+            }
+
+            final SavepointRestoreSettings savepointRestoreSettings =
+                    jobGraph.getSavepointRestoreSettings();
+            if (savepointRestoreSettings.restoreSavepoint()) {
+                try {
+                    checkpointStorageLocation =
+                            checkpointStorageView.resolveCheckpoint(
+                                    savepointRestoreSettings.getRestorePath());
+                    // load the savepoint to determine the max parallelism
+                    checkpointMetadata =
+                            Checkpoints.loadCheckpoint(checkpointStorageLocation, classLoader);
+                } catch (IOException e) {
+                    throw new JobExecutionException(
+                            jobId, "Could not load configured checkpoint metadata", e);
+                }
+                vertexParallelismStore =
+                        computeVertexParallelismStore(
+                                jobGraph, vertexParallelismStore, checkpointMetadata);
+            }
+        }
 
         // create a new execution graph, if none exists so far
         final DefaultExecutionGraph executionGraph;
@@ -201,8 +324,7 @@ public class DefaultExecutionGraphBuilder {
         }
 
         // configure the state checkpointing
-        if (isCheckpointingEnabled(jobGraph)) {
-            JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
+        if (isCheckpointingEnabled) {
 
             // Maximum number of remembered checkpoints
             int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
@@ -212,71 +334,6 @@ public class DefaultExecutionGraphBuilder {
                             historySize,
                             snapshotSettings.getCheckpointCoordinatorConfiguration(),
                             metrics);
-
-            // load the state backend from the application settings
-            final StateBackend applicationConfiguredBackend;
-            final SerializedValue<StateBackend> serializedAppConfigured =
-                    snapshotSettings.getDefaultStateBackend();
-
-            if (serializedAppConfigured == null) {
-                applicationConfiguredBackend = null;
-            } else {
-                try {
-                    applicationConfiguredBackend =
-                            serializedAppConfigured.deserializeValue(classLoader);
-                } catch (IOException | ClassNotFoundException e) {
-                    throw new JobExecutionException(
-                            jobId, "Could not deserialize application-defined state backend.", e);
-                }
-            }
-
-            final StateBackend rootBackend;
-            try {
-                rootBackend =
-                        StateBackendLoader.fromApplicationOrConfigOrDefault(
-                                applicationConfiguredBackend,
-                                snapshotSettings.isChangelogStateBackendEnabled(),
-                                jobManagerConfig,
-                                classLoader,
-                                log);
-            } catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
-                throw new JobExecutionException(
-                        jobId, "Could not instantiate configured state backend", e);
-            }
-
-            // load the checkpoint storage from the application settings
-            final CheckpointStorage applicationConfiguredStorage;
-            final SerializedValue<CheckpointStorage> serializedAppConfiguredStorage =
-                    snapshotSettings.getDefaultCheckpointStorage();
-
-            if (serializedAppConfiguredStorage == null) {
-                applicationConfiguredStorage = null;
-            } else {
-                try {
-                    applicationConfiguredStorage =
-                            serializedAppConfiguredStorage.deserializeValue(classLoader);
-                } catch (IOException | ClassNotFoundException e) {
-                    throw new JobExecutionException(
-                            jobId,
-                            "Could not deserialize application-defined checkpoint storage.",
-                            e);
-                }
-            }
-
-            final CheckpointStorage rootStorage;
-            try {
-                rootStorage =
-                        CheckpointStorageLoader.load(
-                                applicationConfiguredStorage,
-                                null,
-                                rootBackend,
-                                jobManagerConfig,
-                                classLoader,
-                                log);
-            } catch (IllegalConfigurationException | DynamicCodeLoadingException e) {
-                throw new JobExecutionException(
-                        jobId, "Could not instantiate configured checkpoint storage", e);
-            }
 
             // instantiate the user-defined checkpoint hooks
 
@@ -319,6 +376,7 @@ public class DefaultExecutionGraphBuilder {
                     completedCheckpointStore,
                     rootBackend,
                     rootStorage,
+                    checkpointStorageView,
                     checkpointStatsTracker,
                     checkpointsCleaner);
         }
@@ -329,11 +387,47 @@ public class DefaultExecutionGraphBuilder {
         metrics.gauge(DownTimeGauge.METRIC_NAME, new DownTimeGauge(executionGraph));
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
 
-        return executionGraph;
+        return new Tuple3<>(executionGraph, checkpointStorageLocation, checkpointMetadata);
     }
 
     public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
         return jobGraph.getCheckpointingSettings() != null;
+    }
+
+    static VertexParallelismStore computeVertexParallelismStore(
+            JobGraph jobGraph,
+            VertexParallelismStore vertexParallelismStore,
+            CheckpointMetadata checkpointMetadata) {
+        DefaultVertexParallelismStore store = new DefaultVertexParallelismStore();
+
+        final Map<OperatorID, OperatorState> operatorStates =
+                checkpointMetadata.getOperatorStates().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        OperatorState::getOperatorID, Function.identity()));
+        jobGraph.getVertices()
+                .forEach(
+                        vertex -> {
+                            final VertexParallelismInformation parallelismInfo =
+                                    vertexParallelismStore.getParallelismInfo(vertex.getID());
+                            OperatorState operatorState =
+                                    CollectionUtil.isNullOrEmpty(vertex.getOperatorIDs())
+                                            ? null
+                                            : operatorStates.get(
+                                                    vertex.getOperatorIDs()
+                                                            .get(0)
+                                                            .getGeneratedOperatorID());
+
+                            if (operatorState != null
+                                    && parallelismInfo.canRescaleMaxParallelism(
+                                            operatorState.getMaxParallelism())) {
+                                parallelismInfo.setMaxParallelism(
+                                        operatorState.getMaxParallelism());
+                            }
+                            store.setParallelismInfo(vertex.getID(), parallelismInfo);
+                        });
+
+        return store;
     }
 
     // ------------------------------------------------------------------------

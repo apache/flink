@@ -46,6 +46,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageCoordinatorView;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
@@ -85,6 +86,7 @@ import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
 
 /** Testing utils for checkpoint coordinator. */
@@ -776,7 +778,7 @@ public class CheckpointCoordinatorTestingUtils {
                     coordinatorsToCheckpoint,
                     checkpointIDCounter,
                     completedCheckpointStore,
-                    checkpointStorage,
+                    buildCheckpointStorageView(checkpointStorage, executionGraph.getJobID()),
                     ioExecutor,
                     checkpointsCleaner,
                     timer,
@@ -785,6 +787,19 @@ public class CheckpointCoordinatorTestingUtils {
                     checkpointPlanCalculator,
                     new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()));
         }
+    }
+
+    protected static CheckpointStorageCoordinatorView buildCheckpointStorageView(
+            CheckpointStorage checkpointStorage, JobID jobId) {
+        try {
+            final CheckpointStorageCoordinatorView checkpointStorageView =
+                    checkpointStorage.createCheckpointStorage(jobId);
+            checkpointStorageView.initializeBaseLocations();
+            return checkpointStorageView;
+        } catch (IOException e) {
+            fail("Failed to create checkpoint storage for checkpoint coordinator side.");
+        }
+        return null;
     }
 
     /** A test implementation of {@link SimpleVersionedSerializer} for String type. */
