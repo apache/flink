@@ -66,7 +66,8 @@ will dictate the optimal memory configurations of your cluster.
 ### HashMap state backend
 
 When running a stateless job or using the [HashMapStateBackend]({{< ref "docs/ops/state/state_backends#the-hashmapstatebackend" >}})), set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
-This will ensure that the maximum amount of heap memory is allocated for user code on the JVM.
+This will ensure that the maximum amount of heap memory is allocated for user code on the JVM. 
+Note: it can cause NullPointerException when using Window TVF by SQL when running locally, due to free page size is zero for allocating memory segment during startup.
 
 ### RocksDB state backend
 
