@@ -143,7 +143,7 @@
               </flink-checkpoint-badge>
             <td>
               {{ checkpoint['num_acknowledged_subtasks'] }}/{{ checkpoint['num_subtasks'] }}
-              <span *ngIf="checkpoint['status'] == 'IN_PROGRESS'">({{ (checkpoint['num_acknowledged_subtasks']/checkpoint['num_subtasks']) | percent }})</span>
+              <span *ngIf="checkpoint['status'] == 'IN_PROGRESS'">({{ (checkpoint['num_acknowledged_subtasks']/checkpoint['num_subtasks']) | percent:'0.0-2' }})</span>
             </td>
             <td>{{ checkpoint['trigger_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
             <td *ngIf="checkpoint['latest_ack_timestamp'] >= 0">{{ checkpoint['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
