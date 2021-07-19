@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -94,6 +95,8 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
     protected final long pollTimeout;
 
     // ------------------------------------------------------------------------
+
+    private static final AtomicInteger CONSUMER_CLIENT_ID_SEQUENCE = new AtomicInteger(1);
 
     /**
      * Creates a new Kafka streaming source consumer.
@@ -271,9 +274,8 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
             KafkaTopicsDescriptor topicsDescriptor,
             int indexOfThisSubtask,
             int numParallelSubtasks) {
-
         return new KafkaPartitionDiscoverer(
-                topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, properties);
+                topicsDescriptor, indexOfThisSubtask, numParallelSubtasks, createPartitionDiscovererProperties(properties));
     }
 
     @Override
@@ -337,5 +339,12 @@ public class FlinkKafkaConsumer<T> extends FlinkKafkaConsumerBase<T> {
 
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deSerName);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deSerName);
+    }
+
+    public static Properties createPartitionDiscovererProperties(Properties properties){
+        Properties discovererProperties = PropertiesUtil.flatten(properties);
+        String clientId = "PartitionDiscoverer-" + CONSUMER_CLIENT_ID_SEQUENCE.incrementAndGet();
+        discovererProperties.setProperty("client.id", clientId);
+        return discovererProperties;
     }
 }
