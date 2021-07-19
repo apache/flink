@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 

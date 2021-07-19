@@ -18,10 +18,12 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -71,6 +73,8 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
     /** Inputs collected between every pre-commit. */
     private List<InputT> currentInputs;
 
+    private final MailboxExecutor mailboxExecutor;
+
     /**
      * Notifies a list of committables that might need to be committed again after recovering from a
      * failover.
@@ -95,11 +99,19 @@ abstract class AbstractStreamingCommitterOperator<InputT, CommT>
      */
     abstract List<CommT> commit(List<CommT> committables) throws Exception;
 
-    AbstractStreamingCommitterOperator(SimpleVersionedSerializer<CommT> committableSerializer) {
+    AbstractStreamingCommitterOperator(
+            SimpleVersionedSerializer<CommT> committableSerializer,
+            MailboxExecutor mailboxExecutor) {
         this.streamingCommitterStateSerializer =
                 new StreamingCommitterStateSerializer<>(committableSerializer);
+        this.mailboxExecutor = mailboxExecutor;
         this.committablesPerCheckpoint = new TreeMap<>();
         this.currentInputs = new ArrayList<>();
+    }
+
+    protected Sink.InitContext createInitContext() {
+        return InitContextImpl.of(
+                getRuntimeContext(), processingTimeService, mailboxExecutor, getMetricGroup());
     }
 
     @Override

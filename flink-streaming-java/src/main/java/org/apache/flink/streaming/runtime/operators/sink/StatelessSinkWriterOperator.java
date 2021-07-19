@@ -19,12 +19,12 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
 import java.io.IOException;
-import java.util.Collections;
 
 /**
  * Runtime {@link org.apache.flink.streaming.api.operators.StreamOperator} for executing {@link
@@ -35,20 +35,21 @@ import java.util.Collections;
  */
 @Internal
 final class StatelessSinkWriterOperator<InputT, CommT>
-        extends AbstractSinkWriterOperator<InputT, CommT> {
+        extends AbstractSinkWriterOperator<InputT, CommT, SinkWriter<InputT>> {
 
     /** Used to create the stateless {@link SinkWriter}. */
-    private final Sink<InputT, CommT, ?, ?> sink;
+    private final Sink<InputT> sink;
 
     StatelessSinkWriterOperator(
             final ProcessingTimeService processingTimeService,
-            final Sink<InputT, CommT, ?, ?> sink) {
-        super(processingTimeService);
+            MailboxExecutor mailboxExecutor,
+            final Sink<InputT> sink) {
+        super(processingTimeService, mailboxExecutor);
         this.sink = sink;
     }
 
     @Override
-    SinkWriter<InputT, CommT, ?> createWriter() throws IOException {
-        return sink.createWriter(createInitContext(), Collections.emptyList());
+    SinkWriter<InputT> createWriter() throws IOException {
+        return sink.createWriter(createInitContext());
     }
 }

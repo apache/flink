@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
+import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 
 /**
  * Base {@link OneInputStreamOperatorFactory} for subclasses of {@link
@@ -33,7 +34,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
  */
 abstract class AbstractStreamingCommitterOperatorFactory<InputT, CommT>
         extends AbstractStreamOperatorFactory<CommT>
-        implements OneInputStreamOperatorFactory<InputT, CommT> {
+        implements OneInputStreamOperatorFactory<InputT, CommT>, YieldingOperatorFactory<CommT> {
 
     @SuppressWarnings("unchecked")
     @Override

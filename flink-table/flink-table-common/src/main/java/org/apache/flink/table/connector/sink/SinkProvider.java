@@ -30,16 +30,16 @@ import java.util.Optional;
 public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 
     /** Helper method for creating a static provider. */
-    static SinkProvider of(Sink<RowData, ?, ?, ?> sink) {
+    static SinkProvider of(Sink<RowData> sink) {
         return () -> sink;
     }
 
     /** Helper method for creating a Sink provider with a provided sink parallelism. */
-    static SinkProvider of(Sink<RowData, ?, ?, ?> sink, Integer sinkParallelism) {
+    static SinkProvider of(Sink<RowData> sink, Integer sinkParallelism) {
         return new SinkProvider() {
 
             @Override
-            public Sink<RowData, ?, ?, ?> createSink() {
+            public Sink<RowData> createSink() {
                 return sink;
             }
 
@@ -51,5 +51,5 @@ public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, Para
     }
 
     /** Creates a {@link Sink} instance. */
-    Sink<RowData, ?, ?, ?> createSink();
+    Sink<RowData> createSink();
 }

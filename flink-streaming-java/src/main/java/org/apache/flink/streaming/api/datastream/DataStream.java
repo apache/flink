@@ -1256,7 +1256,7 @@ public class DataStream<T> {
      * @return The closed DataStream.
      */
     @Experimental
-    public DataStreamSink<T> sinkTo(Sink<T, ?, ?, ?> sink) {
+    public DataStreamSink<T> sinkTo(Sink<T> sink) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
 

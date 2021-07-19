@@ -19,11 +19,8 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.GlobalCommittingSink;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,29 +34,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamingGlobalCommitterOperatorFactory<CommT, GlobalCommT>
         extends AbstractStreamingCommitterOperatorFactory<CommT, GlobalCommT> {
 
-    private final Sink<?, CommT, ?, GlobalCommT> sink;
+    private final GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink;
 
-    public StreamingGlobalCommitterOperatorFactory(Sink<?, CommT, ?, GlobalCommT> sink) {
+    public StreamingGlobalCommitterOperatorFactory(
+            GlobalCommittingSink<?, CommT, ?, GlobalCommT> sink) {
         this.sink = checkNotNull(sink);
     }
 
     @Override
     AbstractStreamingCommitterOperator<CommT, GlobalCommT> createStreamingCommitterOperator() {
-        try {
-            return new StreamingGlobalCommitterOperator<>(
-                    sink.createGlobalCommitter()
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalStateException(
-                                                    "Could not create global committer from the sink")),
-                    sink.getGlobalCommittableSerializer()
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalStateException(
-                                                    "Could not create global committable serializer from the sink")));
-        } catch (IOException e) {
-            throw new FlinkRuntimeException("Could not create the GlobalCommitter.", e);
-        }
+        return new StreamingGlobalCommitterOperator<CommT, GlobalCommT>(
+                sink, getMailboxExecutor(), sink.getGlobalCommittableSerializer());
     }
 
     @Override

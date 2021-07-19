@@ -40,5 +40,5 @@ public interface Committer<CommT> extends AutoCloseable {
      *     "commit-with-retry" pattern.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
-    List<CommT> commit(List<CommT> committables) throws IOException;
+    List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException;
 }

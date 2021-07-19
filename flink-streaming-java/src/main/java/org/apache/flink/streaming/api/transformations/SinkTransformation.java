@@ -50,15 +50,12 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>
 
     private final Transformation<InputT> input;
 
-    private final Sink<InputT, CommT, WriterStateT, GlobalCommT> sink;
+    private final Sink<InputT> sink;
 
     private ChainingStrategy chainingStrategy;
 
     public SinkTransformation(
-            Transformation<InputT> input,
-            Sink<InputT, CommT, WriterStateT, GlobalCommT> sink,
-            String name,
-            int parallelism) {
+            Transformation<InputT> input, Sink<InputT> sink, String name, int parallelism) {
         super(name, TypeExtractor.getForClass(Object.class), parallelism);
         this.input = checkNotNull(input);
         this.sink = checkNotNull(sink);
@@ -111,7 +108,7 @@ public class SinkTransformation<InputT, CommT, WriterStateT, GlobalCommT>
         return chainingStrategy;
     }
 
-    public Sink<InputT, CommT, WriterStateT, GlobalCommT> getSink() {
+    public Sink<InputT> getSink() {
         return sink;
     }
 }

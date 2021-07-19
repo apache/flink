@@ -64,12 +64,13 @@ public interface GlobalCommitter<CommT, GlobalCommT> extends AutoCloseable {
      *     implement a "commit-with-retry" pattern.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
-    List<GlobalCommT> commit(List<GlobalCommT> globalCommittables) throws IOException;
+    List<GlobalCommT> commit(List<GlobalCommT> globalCommittables)
+            throws IOException, InterruptedException;
 
     /**
      * Signals that there is no committable any more.
      *
      * @throws IOException if fail to handle this notification.
      */
-    void endOfInput() throws IOException;
+    void endOfInput() throws IOException, InterruptedException;
 }

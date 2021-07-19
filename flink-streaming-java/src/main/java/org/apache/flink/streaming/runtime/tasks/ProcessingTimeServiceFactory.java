@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 
 /**
  * A factory for creating processing time services with a given {@link MailboxExecutor}. The factory

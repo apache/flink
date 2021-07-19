@@ -24,9 +24,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.BulkWriter;
 import org.apache.flink.api.common.serialization.Encoder;
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink.CommittingSink;
+import org.apache.flink.api.connector.sink.CommittingSinkWriter;
 import org.apache.flink.connector.file.sink.committer.FileCommitter;
 import org.apache.flink.connector.file.sink.writer.DefaultFileWriterBucketFactory;
 import org.apache.flink.connector.file.sink.writer.FileWriter;
@@ -51,7 +50,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -106,7 +104,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  *     written to its output
  */
 @Experimental
-public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBucketState, Void> {
+public class FileSink<IN>
+        implements CommittingSink<IN, FileSinkCommittable, FileWriterBucketState> {
 
     private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
 
@@ -115,7 +114,7 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
     }
 
     @Override
-    public SinkWriter<IN, FileSinkCommittable, FileWriterBucketState> createWriter(
+    public CommittingSinkWriter<IN, FileSinkCommittable, FileWriterBucketState> createWriter(
             InitContext context, List<FileWriterBucketState> states) throws IOException {
         FileWriter<IN> writer = bucketsBuilder.createWriter(context);
         writer.initializeState(states);
@@ -123,9 +122,9 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<FileWriterBucketState>> getWriterStateSerializer() {
+    public SimpleVersionedSerializer<FileWriterBucketState> getWriterStateSerializer() {
         try {
-            return Optional.of(bucketsBuilder.getWriterStateSerializer());
+            return bucketsBuilder.getWriterStateSerializer();
         } catch (IOException e) {
             // it's not optimal that we have to do this but creating the serializers for the
             // FileSink requires (among other things) a call to FileSystem.get() which declares
@@ -135,30 +134,20 @@ public class FileSink<IN> implements Sink<IN, FileSinkCommittable, FileWriterBuc
     }
 
     @Override
-    public Optional<Committer<FileSinkCommittable>> createCommitter() throws IOException {
-        return Optional.of(bucketsBuilder.createCommitter());
+    public Committer<FileSinkCommittable> createCommitter(InitContext context) throws IOException {
+        return bucketsBuilder.createCommitter();
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<FileSinkCommittable>> getCommittableSerializer() {
+    public SimpleVersionedSerializer<FileSinkCommittable> getCommittableSerializer() {
         try {
-            return Optional.of(bucketsBuilder.getCommittableSerializer());
+            return bucketsBuilder.getCommittableSerializer();
         } catch (IOException e) {
             // it's not optimal that we have to do this but creating the serializers for the
             // FileSink requires (among other things) a call to FileSystem.get() which declares
             // IOException.
             throw new FlinkRuntimeException("Could not create committable serializer.", e);
         }
-    }
-
-    @Override
-    public Optional<GlobalCommitter<FileSinkCommittable, Void>> createGlobalCommitter() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
     }
 
     public static <IN> DefaultRowFormatBuilder<IN> forRowFormat(

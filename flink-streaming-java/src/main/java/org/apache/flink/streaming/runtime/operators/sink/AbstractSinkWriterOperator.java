@@ -19,9 +19,10 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.connector.sink.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -44,7 +45,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <CommT> The committable type of the {@link SinkWriter}.
  */
 @Internal
-abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<CommT>
+abstract class AbstractSinkWriterOperator<InputT, CommT, WriteT extends SinkWriter<InputT>>
+        extends AbstractStreamOperator<CommT>
         implements OneInputStreamOperator<InputT, CommT>, BoundedOneInput {
 
     private static final long serialVersionUID = 1L;
@@ -58,9 +60,13 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     private Long currentWatermark;
 
     /** The sink writer that does most of the work. */
-    protected SinkWriter<InputT, CommT, ?> sinkWriter;
+    protected WriteT sinkWriter;
 
-    AbstractSinkWriterOperator(ProcessingTimeService processingTimeService) {
+    private final MailboxExecutor mailboxExecutor;
+
+    AbstractSinkWriterOperator(
+            ProcessingTimeService processingTimeService, MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.processingTimeService = checkNotNull(processingTimeService);
         this.context = new Context<>();
     }
@@ -83,7 +89,9 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
         super.prepareSnapshotPreBarrier(checkpointId);
-        sendCommittables(sinkWriter.prepareCommit(false));
+        if (sinkWriter instanceof CommittingSinkWriter) {
+            sendCommittables(((CommittingSinkWriter<?, CommT, ?>) sinkWriter).prepareCommit(false));
+        }
     }
 
     @Override
@@ -96,7 +104,9 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
 
     @Override
     public void endInput() throws Exception {
-        sendCommittables(sinkWriter.prepareCommit(true));
+        if (sinkWriter instanceof CommittingSinkWriter) {
+            sendCommittables(((CommittingSinkWriter<?, CommT, ?>) sinkWriter).prepareCommit(true));
+        }
     }
 
     @Override
@@ -106,10 +116,8 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
     }
 
     protected Sink.InitContext createInitContext() {
-        return new InitContextImpl(
-                getRuntimeContext().getIndexOfThisSubtask(),
-                processingTimeService,
-                getMetricGroup());
+        return InitContextImpl.of(
+                getRuntimeContext(), processingTimeService, mailboxExecutor, getMetricGroup());
     }
 
     /**
@@ -117,7 +125,7 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
      *
      * @throws Exception If creating {@link SinkWriter} fail
      */
-    abstract SinkWriter<InputT, CommT, ?> createWriter() throws Exception;
+    abstract WriteT createWriter() throws Exception;
 
     private void sendCommittables(final List<CommT> committables) {
         for (CommT committable : committables) {
@@ -140,60 +148,6 @@ abstract class AbstractSinkWriterOperator<InputT, CommT> extends AbstractStreamO
                 return element.getTimestamp();
             }
             return null;
-        }
-    }
-
-    private static class InitContextImpl implements Sink.InitContext {
-
-        private final int subtaskIdx;
-
-        private final ProcessingTimeService processingTimeService;
-
-        private final MetricGroup metricGroup;
-
-        public InitContextImpl(
-                int subtaskIdx,
-                ProcessingTimeService processingTimeService,
-                MetricGroup metricGroup) {
-            this.subtaskIdx = subtaskIdx;
-            this.processingTimeService = checkNotNull(processingTimeService);
-            this.metricGroup = checkNotNull(metricGroup);
-        }
-
-        @Override
-        public Sink.ProcessingTimeService getProcessingTimeService() {
-            return new ProcessingTimerServiceImpl(processingTimeService);
-        }
-
-        @Override
-        public int getSubtaskId() {
-            return subtaskIdx;
-        }
-
-        @Override
-        public MetricGroup metricGroup() {
-            return metricGroup;
-        }
-    }
-
-    private static class ProcessingTimerServiceImpl implements Sink.ProcessingTimeService {
-
-        private final ProcessingTimeService processingTimeService;
-
-        public ProcessingTimerServiceImpl(ProcessingTimeService processingTimeService) {
-            this.processingTimeService = checkNotNull(processingTimeService);
-        }
-
-        @Override
-        public long getCurrentProcessingTime() {
-            return processingTimeService.getCurrentProcessingTime();
-        }
-
-        @Override
-        public void registerProcessingTimer(
-                long time, ProcessingTimeCallback processingTimerCallback) {
-            checkNotNull(processingTimerCallback);
-            processingTimeService.registerTimer(time, processingTimerCallback::onProcessingTime);
         }
     }
 }

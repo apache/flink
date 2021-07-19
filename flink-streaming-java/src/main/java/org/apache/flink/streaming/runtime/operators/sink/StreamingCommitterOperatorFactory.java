@@ -20,11 +20,8 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink.CommittingSink;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.util.FlinkRuntimeException;
-
-import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,29 +35,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class StreamingCommitterOperatorFactory<CommT>
         extends AbstractStreamingCommitterOperatorFactory<CommT, CommT> {
 
-    private final Sink<?, CommT, ?, ?> sink;
+    private final CommittingSink<?, CommT, ?> sink;
 
-    public StreamingCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
+    public StreamingCommitterOperatorFactory(CommittingSink<?, CommT, ?> sink) {
         this.sink = checkNotNull(sink);
     }
 
     @Override
     AbstractStreamingCommitterOperator<CommT, CommT> createStreamingCommitterOperator() {
-        try {
-            return new StreamingCommitterOperator<>(
-                    sink.createCommitter()
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalStateException(
-                                                    "Could not create committer from the sink")),
-                    sink.getCommittableSerializer()
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalStateException(
-                                                    "Could not get committable serializer from the sink")));
-        } catch (IOException e) {
-            throw new FlinkRuntimeException("Could not create the Committer.", e);
-        }
+        return new StreamingCommitterOperator<>(
+                sink, getMailboxExecutor(), sink.getCommittableSerializer());
     }
 
     @Override

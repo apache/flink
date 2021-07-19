@@ -15,25 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox;
+package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
-/**
- * A factory for creating mailbox executors with a given priority. The factory is usually bound to a
- * specific task.
- */
-@FunctionalInterface
-@Internal
-public interface MailboxExecutorFactory {
+import java.io.IOException;
 
+public interface GlobalCommittingSink<InputT, CommT, WriterStateT, GlobalCommT>
+        extends CommittingSink<InputT, CommT, WriterStateT> {
     /**
-     * Creates a new executor for the given priority. The priority is used when enqueuing new mails
-     * as well as yielding.
+     * Creates a {@link Committer}.
      *
-     * @param priority the priority of the mailbox executor.
-     * @return a mailbox executor with the bound priority.
+     * @return A committer.
+     * @throws IOException if fail to create a committer.
      */
-    MailboxExecutor createExecutor(int priority);
+    GlobalCommitter<CommT, GlobalCommT> createGlobalCommitter(Sink.InitContext context)
+            throws IOException;
+
+    /** Returns the serializer of the committable type. */
+    SimpleVersionedSerializer<GlobalCommT> getGlobalCommittableSerializer();
 }

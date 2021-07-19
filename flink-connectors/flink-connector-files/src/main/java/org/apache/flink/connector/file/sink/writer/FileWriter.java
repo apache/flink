@@ -20,6 +20,7 @@ package org.apache.flink.connector.file.sink.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.connector.sink.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -56,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class FileWriter<IN>
-        implements SinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
+        implements CommittingSinkWriter<IN, FileSinkCommittable, FileWriterBucketState>,
                 Sink.ProcessingTimeService.ProcessingTimeCallback {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileWriter.class);

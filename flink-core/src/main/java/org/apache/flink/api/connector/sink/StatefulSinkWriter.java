@@ -20,9 +20,9 @@
 package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.eventtime.Watermark;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * The {@code SinkWriter} is responsible for writing data and handling any potential tmp area used
@@ -35,37 +35,10 @@ import java.io.IOException;
  * @param <WriterStateT> The type of the writer's state
  */
 @Experimental
-public interface SinkWriter<InputT> extends AutoCloseable {
-
+public interface StatefulSinkWriter<InputT, WriterStateT> extends SinkWriter<InputT> {
     /**
-     * Add an element to the writer.
-     *
-     * @param element The input record
-     * @param context The additional information about the input record
-     * @throws IOException if fail to add an element.
+     * @return The writer's state.
+     * @throws IOException if fail to snapshot writer's state.
      */
-    void write(InputT element, Context context) throws IOException, InterruptedException;
-
-    /**
-     * Add a watermark to the writer.
-     *
-     * <p>This method is intended for advanced sinks that propagate watermarks.
-     *
-     * @param watermark The watermark.
-     * @throws IOException if fail to add a watermark.
-     */
-    default void writeWatermark(Watermark watermark) throws IOException, InterruptedException {}
-
-    /** Context that {@link #write} can use for getting additional data about an input record. */
-    interface Context {
-
-        /** Returns the current event-time watermark. */
-        long currentWatermark();
-
-        /**
-         * Returns the timestamp of the current input record or {@code null} if the element does not
-         * have an assigned timestamp.
-         */
-        Long timestamp();
-    }
+    List<WriterStateT> snapshotState() throws IOException;
 }

@@ -20,13 +20,12 @@
 package org.apache.flink.api.connector.sink;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * This interface lets the sink developer build a simple sink topology, which could guarantee the
@@ -43,7 +42,7 @@ import java.util.Optional;
  * @param <GlobalCommT> The type of the aggregated committable
  */
 @Experimental
-public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializable {
+public interface Sink<InputT> extends Serializable {
 
     /**
      * Create a {@link SinkWriter}.
@@ -53,36 +52,28 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
      * @return A sink writer.
      * @throws IOException if fail to create a writer.
      */
-    SinkWriter<InputT, CommT, WriterStateT> createWriter(
-            InitContext context, List<WriterStateT> states) throws IOException;
-
-    /**
-     * Creates a {@link Committer}.
-     *
-     * @return A committer.
-     * @throws IOException if fail to create a committer.
-     */
-    Optional<Committer<CommT>> createCommitter() throws IOException;
-
-    /**
-     * Creates a {@link GlobalCommitter}.
-     *
-     * @return A global committer.
-     * @throws IOException if fail to create a global committer.
-     */
-    Optional<GlobalCommitter<CommT, GlobalCommT>> createGlobalCommitter() throws IOException;
-
-    /** Returns the serializer of the committable type. */
-    Optional<SimpleVersionedSerializer<CommT>> getCommittableSerializer();
-
-    /** Returns the serializer of the aggregated committable type. */
-    Optional<SimpleVersionedSerializer<GlobalCommT>> getGlobalCommittableSerializer();
-
-    /** Return the serializer of the writer's state type. */
-    Optional<SimpleVersionedSerializer<WriterStateT>> getWriterStateSerializer();
+    SinkWriter<InputT> createWriter(InitContext context) throws IOException;
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     interface InitContext {
+        /**
+         * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
+         * but are part of the jar file of a user job.
+         *
+         * @see UserCodeClassLoader
+         */
+        UserCodeClassLoader getUserCodeClassLoader();
+
+        /**
+         * Returns the mailbox executor that allows to execute {@link Runnable}s inside the task
+         * thread in between record processing.
+         *
+         * <p>Note that this method should not be used per-record for performance reasons in the
+         * same way as individual records should not be sent individually. Rather, implementers are
+         * expected to batch records and only enqueue a single {@link Runnable} per batch to handle
+         * the result.
+         */
+        MailboxExecutor getMailboxExecutor();
 
         /**
          * Returns a {@link ProcessingTimeService} that can be used to get the current time and
@@ -92,6 +83,9 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
 
         /** @return The id of task where the writer is. */
         int getSubtaskId();
+
+        /** @return number of parallel Sink tasks. */
+        int getNumberOfParallelSubtasks();
 
         /** @return The metric group this writer belongs to. */
         MetricGroup metricGroup();
