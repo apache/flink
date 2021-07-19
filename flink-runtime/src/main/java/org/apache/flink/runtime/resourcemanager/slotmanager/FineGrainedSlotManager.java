@@ -490,6 +490,7 @@ public class FineGrainedSlotManager implements SlotManager {
      */
     private void checkResourceRequirementsWithDelay() {
         if (lastResourceRequirementsCheck == null || lastResourceRequirementsCheck.isDone()) {
+            LOG.info("Scheduling the resource requirement check.");
             lastResourceRequirementsCheck =
                     scheduledExecutor.schedule(
                             () -> mainThreadExecutor.execute(this::checkResourceRequirements),
@@ -502,6 +503,7 @@ public class FineGrainedSlotManager implements SlotManager {
      * DO NOT call this method directly. Use {@link #checkResourceRequirementsWithDelay()} instead.
      */
     private void checkResourceRequirements() {
+        LOG.info("Matching resource requirements against available resources.");
         Map<JobID, Collection<ResourceRequirement>> missingResources =
                 resourceTracker.getMissingResources();
         if (missingResources.isEmpty()) {
@@ -519,9 +521,11 @@ public class FineGrainedSlotManager implements SlotManager {
                         missingResources, taskManagerTracker);
 
         // Allocate slots according to the result
+        LOG.info("Allocating slots for the resource requirements.");
         allocateSlotsAccordingTo(result.getAllocationsOnRegisteredResources());
 
         // Allocate task managers according to the result
+        LOG.info("Allocating task managers for the resource requirements.");
         final Set<PendingTaskManagerId> failAllocations =
                 allocateTaskManagersAccordingTo(result.getPendingTaskManagersToAllocate());
 
