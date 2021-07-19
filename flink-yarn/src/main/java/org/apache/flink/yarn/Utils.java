@@ -20,21 +20,23 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
+import org.apache.flink.yarn.security.HadoopDelegationTokenManager;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -54,10 +56,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -196,21 +196,24 @@ public final class Utils {
     }
 
     public static void setTokensFor(
+            org.apache.flink.configuration.Configuration flinkConf,
             ContainerLaunchContext amContainer,
-            List<Path> paths,
-            Configuration conf,
-            boolean obtainingDelegationTokens)
+            Configuration hadoopConf)
             throws IOException {
         Credentials credentials = new Credentials();
 
-        if (obtainingDelegationTokens) {
-            LOG.info("Obtaining delegation tokens for HDFS and HBase.");
-            // for HDFS
-            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-            // for HBase
-            obtainTokenForHBase(credentials, conf);
+        final boolean fetchToken =
+                flinkConf.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+        if (fetchToken) {
+            // obtain tokens from HadoopDelegationTokenProviders
+            LOG.info("Obtaining delegation tokens...");
+            HadoopDelegationTokenConfiguration conf =
+                    new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
+            HadoopDelegationTokenManager delegationTokenManager =
+                    new HadoopDelegationTokenManager(conf);
+            delegationTokenManager.obtainDelegationTokens(credentials);
         } else {
-            LOG.info("Delegation token retrieval for HDFS and HBase is disabled.");
+            LOG.info("Delegation token retrieval is disabled.");
         }
 
         // for user
@@ -230,88 +233,6 @@ public final class Utils {
 
             ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
             amContainer.setTokens(securityTokens);
-        }
-    }
-
-    /** Obtain Kerberos security token for HBase. */
-    private static void obtainTokenForHBase(Credentials credentials, Configuration conf)
-            throws IOException {
-        if (UserGroupInformation.isSecurityEnabled()) {
-            LOG.info("Attempting to obtain Kerberos security token for HBase");
-            try {
-                // ----
-                // Intended call: HBaseConfiguration.addHbaseResources(conf);
-                Class.forName("org.apache.hadoop.hbase.HBaseConfiguration")
-                        .getMethod("addHbaseResources", Configuration.class)
-                        .invoke(null, conf);
-                // ----
-
-                LOG.info("HBase security setting: {}", conf.get("hbase.security.authentication"));
-
-                if (!"kerberos".equals(conf.get("hbase.security.authentication"))) {
-                    LOG.info("HBase has not been configured to use Kerberos.");
-                    return;
-                }
-
-                Token<?> token;
-                try {
-                    LOG.info("Obtaining Kerberos security token for HBase");
-                    // ----
-                    // Intended call: Token<AuthenticationTokenIdentifier> token =
-                    // TokenUtil.obtainToken(conf);
-                    token =
-                            (Token<?>)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.security.token.TokenUtil")
-                                            .getMethod("obtainToken", Configuration.class)
-                                            .invoke(null, conf);
-                    // ----
-                } catch (NoSuchMethodException e) {
-                    // for HBase 2
-
-                    // ----
-                    // Intended call: ConnectionFactory connectionFactory =
-                    // ConnectionFactory.createConnection(conf);
-                    Closeable connectionFactory =
-                            (Closeable)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.client.ConnectionFactory")
-                                            .getMethod("createConnection", Configuration.class)
-                                            .invoke(null, conf);
-                    // ----
-                    Class<?> connectionClass =
-                            Class.forName("org.apache.hadoop.hbase.client.Connection");
-                    // ----
-                    // Intended call: Token<AuthenticationTokenIdentifier> token =
-                    // TokenUtil.obtainToken(connectionFactory);
-                    token =
-                            (Token<?>)
-                                    Class.forName(
-                                                    "org.apache.hadoop.hbase.security.token.TokenUtil")
-                                            .getMethod("obtainToken", connectionClass)
-                                            .invoke(null, connectionFactory);
-                    // ----
-                    if (null != connectionFactory) {
-                        connectionFactory.close();
-                    }
-                }
-
-                if (token == null) {
-                    LOG.error("No Kerberos security token for HBase available");
-                    return;
-                }
-
-                credentials.addToken(token.getService(), token);
-                LOG.info("Added HBase Kerberos security token to credentials.");
-            } catch (ClassNotFoundException
-                    | NoSuchMethodException
-                    | IllegalAccessException
-                    | InvocationTargetException e) {
-                LOG.info(
-                        "HBase is not available (not packaged with this application): {} : \"{}\".",
-                        e.getClass().getSimpleName(),
-                        e.getMessage());
-            }
         }
     }
 
