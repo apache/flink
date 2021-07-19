@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.api;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
@@ -391,6 +394,21 @@ public class StreamExecutionEnvironmentTest {
         DataStreamSource<Row> source2 = env.addSource(new RowSourceFunction());
         // the source type information should be derived from RowSourceFunction#getProducedType
         assertEquals(new GenericTypeInfo<>(Row.class), source2.getType());
+    }
+
+    @Test
+    public void testTransformationAddedForLegacySource() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.addSource(new RowSourceFunction());
+        assertEquals(1, env.getStreamGraph().getStreamNodes().size());
+    }
+
+    @Test
+    public void testTransformationAddedForNewSource() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.fromSource(
+                new MockSource(Boundedness.BOUNDED, 5), WatermarkStrategy.noWatermarks(), "mock");
+        assertEquals(1, env.getStreamGraph().getStreamNodes().size());
     }
 
     /////////////////////////////////////////////////////////////

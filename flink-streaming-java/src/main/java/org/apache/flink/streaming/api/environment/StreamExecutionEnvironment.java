@@ -1831,8 +1831,16 @@ public class StreamExecutionEnvironment {
         clean(function);
 
         final StreamSource<OUT, ?> sourceOperator = new StreamSource<>(function);
-        return new DataStreamSource<>(
-                this, resolvedTypeInfo, sourceOperator, isParallel, sourceName, boundedness);
+        DataStreamSource<OUT> dataStreamSource =
+                new DataStreamSource<>(
+                        this,
+                        resolvedTypeInfo,
+                        sourceOperator,
+                        isParallel,
+                        sourceName,
+                        boundedness);
+        addOperator(dataStreamSource.getTransformation());
+        return dataStreamSource;
     }
 
     /**
@@ -1889,12 +1897,15 @@ public class StreamExecutionEnvironment {
         final TypeInformation<OUT> resolvedTypeInfo =
                 getTypeInfo(source, sourceName, Source.class, typeInfo);
 
-        return new DataStreamSource<>(
-                this,
-                checkNotNull(source, "source"),
-                checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
-                checkNotNull(resolvedTypeInfo),
-                checkNotNull(sourceName));
+        DataStreamSource<OUT> dataStreamSource =
+                new DataStreamSource<>(
+                        this,
+                        checkNotNull(source, "source"),
+                        checkNotNull(timestampsAndWatermarks, "timestampsAndWatermarks"),
+                        checkNotNull(resolvedTypeInfo),
+                        checkNotNull(sourceName));
+        addOperator(dataStreamSource.getTransformation());
+        return dataStreamSource;
     }
 
     /**
