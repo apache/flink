@@ -838,7 +838,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private ResultPartitionType determineResultPartitionType(StreamPartitioner<?> partitioner) {
-        switch (streamGraph.getGlobalDataExchangeMode()) {
+        switch (streamGraph.getGlobalStreamExchangeMode()) {
             case ALL_EDGES_BLOCKING:
                 return ResultPartitionType.BLOCKING;
             case FORWARD_EDGES_PIPELINED:
@@ -860,7 +860,7 @@ public class StreamingJobGraphGenerator {
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "
-                                + streamGraph.getGlobalDataExchangeMode());
+                                + streamGraph.getGlobalStreamExchangeMode());
         }
     }
 

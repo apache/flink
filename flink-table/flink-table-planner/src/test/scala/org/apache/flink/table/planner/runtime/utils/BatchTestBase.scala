@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -521,6 +521,6 @@ object BatchTestBase {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
     conf.getConfiguration.setString(
       TABLE_EXEC_SHUFFLE_MODE,
-      GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
+      GlobalStreamExchangeMode.ALL_EDGES_PIPELINED.toString)
   }
 }

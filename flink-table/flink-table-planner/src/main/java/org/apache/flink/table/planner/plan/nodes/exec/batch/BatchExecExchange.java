@@ -22,7 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -156,7 +156,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
             return StreamExchangeMode.BATCH;
         }
         if (config.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-                .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString())) {
+                .equalsIgnoreCase(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString())) {
             return StreamExchangeMode.BATCH;
         } else {
             return StreamExchangeMode.UNDEFINED;

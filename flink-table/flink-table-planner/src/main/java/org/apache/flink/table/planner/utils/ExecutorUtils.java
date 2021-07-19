@@ -23,7 +23,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.table.api.TableConfig;
@@ -80,11 +80,11 @@ public class ExecutorUtils {
         if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
         }
-        streamGraph.setGlobalDataExchangeMode(getGlobalDataExchangeMode(tableConfig));
+        streamGraph.setGlobalStreamExchangeMode(getGlobalStreamExchangeMode(tableConfig));
     }
 
-    private static GlobalDataExchangeMode getGlobalDataExchangeMode(TableConfig tableConfig) {
-        return StreamExchangeModeUtils.getShuffleModeAsGlobalDataExchangeMode(
+    private static GlobalStreamExchangeMode getGlobalStreamExchangeMode(TableConfig tableConfig) {
+        return StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(
                 tableConfig.getConfiguration());
     }
 }
