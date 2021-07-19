@@ -26,6 +26,8 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Objects;
+
 /**
  * A tuple with 4 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
@@ -179,16 +181,16 @@ public class Tuple4<T0, T1, T2, T3> extends Tuple {
         }
         @SuppressWarnings("rawtypes")
         Tuple4 tuple = (Tuple4) o;
-        if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+        if (!Objects.equals(f0, tuple.f0)) {
             return false;
         }
-        if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+        if (!Objects.equals(f1, tuple.f1)) {
             return false;
         }
-        if (f2 != null ? !f2.equals(tuple.f2) : tuple.f2 != null) {
+        if (!Objects.equals(f2, tuple.f2)) {
             return false;
         }
-        if (f3 != null ? !f3.equals(tuple.f3) : tuple.f3 != null) {
+        if (!Objects.equals(f3, tuple.f3)) {
             return false;
         }
         return true;

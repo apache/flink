@@ -26,6 +26,8 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Objects;
+
 /**
  * A tuple with 2 fields. Tuples are strongly typed; each field may be of a separate type. The
  * fields of the tuple can be accessed directly as public fields (f0, f1, ...) or via their position
@@ -160,10 +162,10 @@ public class Tuple2<T0, T1> extends Tuple {
         }
         @SuppressWarnings("rawtypes")
         Tuple2 tuple = (Tuple2) o;
-        if (f0 != null ? !f0.equals(tuple.f0) : tuple.f0 != null) {
+        if (!Objects.equals(f0, tuple.f0)) {
             return false;
         }
-        if (f1 != null ? !f1.equals(tuple.f1) : tuple.f1 != null) {
+        if (!Objects.equals(f1, tuple.f1)) {
             return false;
         }
         return true;
