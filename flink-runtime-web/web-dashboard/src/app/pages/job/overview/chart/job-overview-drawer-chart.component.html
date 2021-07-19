@@ -21,7 +21,9 @@
   <ng-template #elseTemplate>
     Add Metric:
     <nz-select nzSize="small" [ngModel]="null" nzShowSearch [nzPlaceHolder]="'Select Metric Name'" (ngModelChange)="updateMetric($event)">
-      <nz-option *ngFor="let name of listOfUnselectedMetric" [nzLabel]="name" [nzValue]="name"></nz-option>
+		<nz-option nzCustomContent *ngFor="let name of listOfUnselectedMetric" [nzLabel]="name" [nzValue]="name">
+			<span nz-tooltip nzTitle="{{name}}">{{name}}</span>
+		</nz-option>
     </nz-select>
   </ng-template>
 </div>
