@@ -47,6 +47,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
+import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledHeapByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -65,6 +66,7 @@ import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.EventExecutor;
 import org.apache.flink.shaded.netty4.io.netty.util.concurrent.ImmediateEventExecutor;
 
+import org.apache.commons.compress.utils.IOUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -74,6 +76,7 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -309,12 +312,16 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
     }
 
     /** Testing implementation of {@link ChannelHandlerContext}. */
-    private static final class TestingChannelHandlerContext implements ChannelHandlerContext {
+    public static class TestingChannelHandlerContext implements ChannelHandlerContext {
 
         final File outputFile;
 
-        private TestingChannelHandlerContext(File outputFile) {
+        public TestingChannelHandlerContext(File outputFile) {
             this.outputFile = Preconditions.checkNotNull(outputFile);
+        }
+
+        public File getOutputFile() {
+            return outputFile;
         }
 
         @Override
@@ -326,6 +333,15 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
                     fileOutputStream.getChannel();
 
                     defaultFileRegion.transferTo(fileOutputStream.getChannel(), 0L);
+                } catch (IOException ioe) {
+                    throw new RuntimeException(ioe);
+                }
+            }
+            if (msg instanceof UnpooledHeapByteBuf) {
+                try (final FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
+                        final ByteArrayInputStream byteArrayInputStream =
+                                new ByteArrayInputStream(((UnpooledHeapByteBuf) msg).array())) {
+                    IOUtils.copy(byteArrayInputStream, fileOutputStream);
                 } catch (IOException ioe) {
                     throw new RuntimeException(ioe);
                 }
@@ -543,11 +559,11 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
     }
 
     /** Testing {@link UntypedResponseMessageHeaders}. */
-    private static final class TestUntypedMessageHeaders
+    public static final class TestUntypedMessageHeaders
             implements UntypedResponseMessageHeaders<
                     EmptyRequestBody, TaskManagerMessageParameters> {
 
-        private static final String URL = "/foobar";
+        public static final String URL = "/foobar";
 
         @Override
         public Class<EmptyRequestBody> getRequestClass() {

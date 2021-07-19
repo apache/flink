@@ -131,6 +131,11 @@ under the License.
 			<artifactId>commons-cli</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-compress</artifactId>
+		</dependency>
+
 		<!-- See: https://groups.google.com/forum/#!msg/netty/-aAPDBNUnDg/SkGOXL2Ma2QJ -->
 		<dependency>
 			<groupId>org.javassist</groupId>

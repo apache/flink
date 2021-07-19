@@ -528,9 +528,9 @@ public class TestBaseUtils extends TestLogger {
         return getFromHTTP(url, DEFAULT_HTTP_TIMEOUT);
     }
 
-    public static String getFromHTTP(String url, Time timeout) throws Exception {
+    public static InputStream getInputStreamFromHTTP(String url, Time timeout) throws Exception {
         final URL u = new URL(url);
-        LOG.info("Accessing URL " + url + " as URL: " + u);
+        LOG.info("Accessing URL {}", u);
 
         final long deadline = timeout.toMilliseconds() + System.currentTimeMillis();
 
@@ -549,7 +549,6 @@ public class TestBaseUtils extends TestLogger {
                 InputStream is;
 
                 if (connection.getResponseCode() >= 400) {
-                    // error!
                     LOG.warn(
                             "HTTP Response code when connecting to {} was {}",
                             url,
@@ -558,13 +557,17 @@ public class TestBaseUtils extends TestLogger {
                 } else {
                     is = connection.getInputStream();
                 }
-
-                return IOUtils.toString(is, ConfigConstants.DEFAULT_CHARSET);
+                return is;
             }
         }
 
         throw new TimeoutException(
                 "Could not get HTTP response in time since the service is still unavailable.");
+    }
+
+    public static String getFromHTTP(String url, Time timeout) throws Exception {
+        return IOUtils.toString(
+                getInputStreamFromHTTP(url, timeout), ConfigConstants.DEFAULT_CHARSET);
     }
 
     /**

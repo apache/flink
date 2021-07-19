@@ -49,6 +49,9 @@
         <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
       </li>
     </ul>
+    <nz-affix *ngIf="!collapsed" id="logs-bundler-affix">
+      <flink-logs-bundler></flink-logs-bundler>
+    </nz-affix>
   </nz-sider>
   <nz-layout>
     <nz-header>

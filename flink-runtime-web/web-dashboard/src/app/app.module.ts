@@ -69,6 +69,7 @@ import {
 import { StatusService } from 'services';
 import { ConfigurationInterface } from 'interfaces';
 import { AppInterceptor } from './app.interceptor';
+import {ShareModule} from "share/share.module";
 
 registerLocaleData(en);
 
@@ -83,7 +84,7 @@ export function AppInitServiceFactory(
 
 @NgModule({
   declarations: [AppComponent],
-  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule],
+  imports: [BrowserModule, AppRoutingModule, NgZorroAntdModule, FormsModule, HttpClientModule, BrowserAnimationsModule, ShareModule],
   providers: [
     {
       provide: NZ_I18N,
