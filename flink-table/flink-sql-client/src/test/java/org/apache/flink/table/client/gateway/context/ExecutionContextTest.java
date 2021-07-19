@@ -35,10 +35,8 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
-import org.apache.flink.table.client.gateway.local.DependencyTest;
 import org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.factories.CatalogFactory;
@@ -46,11 +44,8 @@ import org.apache.flink.table.functions.python.PythonScalarFunction;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.testutils.junit.FailsOnJava11;
-import org.apache.flink.util.StringUtils;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -70,8 +65,6 @@ import java.util.Set;
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -95,7 +88,6 @@ public class ExecutionContextTest {
 
     private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
     public static final String MODULES_ENVIRONMENT_FILE = "test-sql-client-modules.yaml";
-    public static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
     private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
     private static final String CONFIGURATION_ENVIRONMENT_FILE =
             "test-sql-client-configuration.yaml";
@@ -175,84 +167,6 @@ public class ExecutionContextTest {
         assertEquals(4, allModules.size());
         assertEquals(
                 new HashSet<>(Arrays.asList("core", "mymodule", "myhive", "myhive2")), allModules);
-    }
-
-    @Test
-    @Category(FailsOnJava11.class)
-    public void testCatalogs() throws Exception {
-        final String inmemoryCatalog = "inmemorycatalog";
-        final String hiveCatalog = "hivecatalog";
-        final String hiveDefaultVersionCatalog = "hivedefaultversion";
-
-        final ExecutionContext context = createCatalogExecutionContext();
-        final TableEnvironment tableEnv = context.getTableEnvironment();
-
-        assertEquals(inmemoryCatalog, tableEnv.getCurrentCatalog());
-        assertEquals("mydatabase", tableEnv.getCurrentDatabase());
-
-        Catalog catalog = tableEnv.getCatalog(hiveCatalog).orElse(null);
-        assertNotNull(catalog);
-        assertTrue(catalog instanceof HiveCatalog);
-        assertEquals("2.3.4", ((HiveCatalog) catalog).getHiveVersion());
-
-        catalog = tableEnv.getCatalog(hiveDefaultVersionCatalog).orElse(null);
-        assertNotNull(catalog);
-        assertTrue(catalog instanceof HiveCatalog);
-        // make sure we have assigned a default hive version
-        assertFalse(StringUtils.isNullOrWhitespaceOnly(((HiveCatalog) catalog).getHiveVersion()));
-
-        tableEnv.useCatalog(hiveCatalog);
-
-        assertEquals(hiveCatalog, tableEnv.getCurrentCatalog());
-
-        Set<String> allCatalogs = new HashSet<>(Arrays.asList(tableEnv.listCatalogs()));
-        assertEquals(6, allCatalogs.size());
-        assertEquals(
-                new HashSet<>(
-                        Arrays.asList(
-                                "default_catalog",
-                                inmemoryCatalog,
-                                hiveCatalog,
-                                hiveDefaultVersionCatalog,
-                                "catalog1",
-                                "catalog2")),
-                allCatalogs);
-
-        sessionContext.close();
-    }
-
-    @Test
-    @Category(FailsOnJava11.class)
-    public void testDatabases() throws Exception {
-        final String hiveCatalog = "hivecatalog";
-
-        final ExecutionContext context = createCatalogExecutionContext();
-        final TableEnvironment tableEnv = context.getTableEnvironment();
-
-        assertEquals(1, tableEnv.listDatabases().length);
-        assertEquals("mydatabase", tableEnv.listDatabases()[0]);
-
-        tableEnv.useCatalog(hiveCatalog);
-
-        assertEquals(2, tableEnv.listDatabases().length);
-        assertEquals(
-                new HashSet<>(
-                        Arrays.asList(
-                                HiveCatalog.DEFAULT_DB,
-                                DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE)),
-                new HashSet<>(Arrays.asList(tableEnv.listDatabases())));
-
-        tableEnv.useCatalog(hiveCatalog);
-
-        assertEquals(HiveCatalog.DEFAULT_DB, tableEnv.getCurrentDatabase());
-
-        tableEnv.useDatabase(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
-
-        assertEquals(
-                DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE,
-                tableEnv.getCurrentDatabase());
-
-        sessionContext.close();
     }
 
     @Test
@@ -414,15 +328,6 @@ public class ExecutionContextTest {
 
     private ExecutionContext createModuleExecutionContext() throws Exception {
         return createExecutionContext(MODULES_ENVIRONMENT_FILE, createModuleReplaceVars());
-    }
-
-    private ExecutionContext createCatalogExecutionContext() throws Exception {
-        final Map<String, String> replaceVars = new HashMap<>();
-        replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-        replaceVars.put("$VAR_RESULT_MODE", "changelog");
-        replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-        replaceVars.put("$VAR_MAX_ROWS", "100");
-        return createExecutionContext(CATALOGS_ENVIRONMENT_FILE, replaceVars);
     }
 
     private ExecutionContext createStreamingExecutionContext() throws Exception {
