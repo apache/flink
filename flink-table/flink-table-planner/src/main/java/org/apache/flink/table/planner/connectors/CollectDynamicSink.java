@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.connectors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
@@ -39,21 +40,30 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import java.time.Duration;
+
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
 final class CollectDynamicSink implements DynamicTableSink {
 
     private final ObjectIdentifier tableIdentifier;
-
     private final DataType consumedDataType;
+    private final MemorySize maxBatchSize;
+    private final Duration socketTimeout;
 
     // mutable attributes
 
     private CollectResultIterator<RowData> iterator;
 
-    CollectDynamicSink(ObjectIdentifier tableIdentifier, DataType consumedDataType) {
+    CollectDynamicSink(
+            ObjectIdentifier tableIdentifier,
+            DataType consumedDataType,
+            MemorySize maxBatchSize,
+            Duration socketTimeout) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
+        this.maxBatchSize = maxBatchSize;
+        this.socketTimeout = socketTimeout;
     }
 
     public CollectResultProvider getSelectResultProvider() {
@@ -91,7 +101,11 @@ final class CollectDynamicSink implements DynamicTableSink {
                     final String accumulatorName = tableIdentifier.getObjectName();
 
                     final CollectSinkOperatorFactory<RowData> factory =
-                            new CollectSinkOperatorFactory<>(externalSerializer, accumulatorName);
+                            new CollectSinkOperatorFactory<>(
+                                    externalSerializer,
+                                    accumulatorName,
+                                    maxBatchSize,
+                                    socketTimeout);
                     final CollectSinkOperator<RowData> operator =
                             (CollectSinkOperator<RowData>) factory.getOperator();
 
@@ -110,7 +124,9 @@ final class CollectDynamicSink implements DynamicTableSink {
 
     @Override
     public DynamicTableSink copy() {
-        final CollectDynamicSink copy = new CollectDynamicSink(tableIdentifier, consumedDataType);
+        final CollectDynamicSink copy =
+                new CollectDynamicSink(
+                        tableIdentifier, consumedDataType, maxBatchSize, socketTimeout);
         // kind of violates the contract of copy() but should not harm
         // as it is null during optimization anyway until physical translation
         copy.iterator = iterator;
