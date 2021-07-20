@@ -318,7 +318,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT()])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1, $SUM0(count1$1) AS $f2], changelogMode=[I,UA,D])
+GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(count$0) AS $f1, $SUM0_RETRACT(count1$1) AS $f2], indexOfCountStar=[1], changelogMode=[I,UA,D])
 +- Exchange(distribution=[hash[a]], changelogMode=[I])
    +- IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT_RETRACT(distinct$0 count$0) AS count$0, COUNT_RETRACT(count1$1) AS count1$1], changelogMode=[I])
       +- Exchange(distribution=[hash[a, $f2]], changelogMode=[I])
@@ -432,6 +432,45 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
                   +- Calc(select=[a, b, c, MOD(HASH_CODE(b), 1024) AS $f3, MOD(HASH_CODE(c), 1024) AS $f4])
                      +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSumCountWithSingleDistinctAndRetraction[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+  b, SUM(b1), COUNT(DISTINCT b1), COUNT(1)
+FROM(
+   SELECT
+     a, COUNT(b) as b, MAX(b) as b1
+   FROM MyTable
+   GROUP BY a
+) GROUP BY b
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
++- LogicalProject(b=[$1], b1=[$2])
+   +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I])
+   +- IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3], changelogMode=[I])
+      +- Exchange(distribution=[hash[b, $f2]], changelogMode=[I])
+         +- LocalGroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, SUM_RETRACT(b1) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 b1) AS count$2, COUNT_RETRACT(*) AS count1$3, DISTINCT(b1) AS distinct$0], changelogMode=[I])
+            +- Calc(select=[b, b1, MOD(HASH_CODE(b1), 1024) AS $f2], changelogMode=[I,UB,UA])
+               +- GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count$0) AS b, MAX(max$1) AS b1], changelogMode=[I,UB,UA])
+                  +- Exchange(distribution=[hash[a]], changelogMode=[I])
+                     +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT(b) AS count$0, MAX(b) AS max$1], changelogMode=[I])
+                        +- Calc(select=[a, b], changelogMode=[I])
+                           +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
