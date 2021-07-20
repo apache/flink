@@ -39,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nullable;
@@ -53,8 +53,9 @@ import java.util.concurrent.Executor;
 
 /** Request handler for the job vertex details. */
 public class JobVertexDetailsHandler
-        extends AbstractExecutionGraphHandler<JobVertexDetailsInfo, JobVertexMessageParameters>
-        implements JsonArchivist {
+        extends AbstractAccessExecutionGraphHandler<
+                JobVertexDetailsInfo, JobVertexMessageParameters>
+        implements OnlyExecutionGraphJsonArchivist {
     private final MetricFetcher metricFetcher;
 
     public JobVertexDetailsHandler(
@@ -129,6 +130,7 @@ public class JobVertexDetailsHandler
                 jobVertex.getJobVertexId(),
                 jobVertex.getName(),
                 jobVertex.getParallelism(),
+                jobVertex.getMaxParallelism(),
                 now,
                 subtasks);
     }

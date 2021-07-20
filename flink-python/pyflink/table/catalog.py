@@ -15,12 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import warnings
 from typing import Dict, List, Optional
 
 from py4j.java_gateway import java_import
 
 from pyflink.java_gateway import get_gateway
+from pyflink.table.schema import Schema
 from pyflink.table.table_schema import TableSchema
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
@@ -729,26 +729,26 @@ class CatalogBaseTable(object):
         """
         return dict(self._j_catalog_base_table.getOptions())
 
-    def get_properties(self) -> Dict[str, str]:
-        """
-        Get the properties of the table.
-
-        :return: Property map of the table/view.
-
-        .. note:: This method is deprecated. Use :func:`~pyflink.table.CatalogBaseTable.get_options`
-                  instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use CatalogBaseTable#get_options instead.",
-                      DeprecationWarning)
-        return dict(self._j_catalog_base_table.getProperties())
-
     def get_schema(self) -> TableSchema:
         """
         Get the schema of the table.
 
         :return: Schema of the table/view.
+
+        . note:: Deprecated in 1.14. This method returns the deprecated TableSchema class. The old
+        class was a hybrid of resolved and unresolved schema information. It has been replaced by
+        the new Schema which is always unresolved and will be resolved by the framework later.
         """
         return TableSchema(j_table_schema=self._j_catalog_base_table.getSchema())
+
+    def get_unresolved_schema(self) -> Schema:
+        """
+        Returns the schema of the table or view.
+
+        The schema can reference objects from other catalogs and will be resolved and validated by
+        the framework when accessing the table or view.
+        """
+        return Schema(self._j_catalog_base_table.getUnresolvedSchema())
 
     def get_comment(self) -> str:
         """

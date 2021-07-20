@@ -24,6 +24,7 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -34,13 +35,12 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Base class for {@link State} implementations that store state in a RocksDB database.
  *
  * <p>State is not stored in this class but in the {@link org.rocksdb.RocksDB} instance that the
- * {@link RocksDBStateBackend} manages and checkpoints.
+ * {@link EmbeddedRocksDBStateBackend} manages and checkpoints.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -71,7 +71,7 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
 
     protected final DataInputDeserializer dataInputView;
 
-    private final RocksDBSerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
+    private final SerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
 
     /**
      * Creates a new RocksDB backed state.
@@ -139,8 +139,8 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-        RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
-                new RocksDBSerializedCompositeKeyBuilder<>(
+        SerializedCompositeKeyBuilder<K> keyBuilder =
+                new SerializedCompositeKeyBuilder<>(
                         safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
         keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
         byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
@@ -178,27 +178,6 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     <T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
         dataOutputView.clear();
         return serializeValueInternal(value, serializer);
-    }
-
-    <T> byte[] serializeValueList(
-            List<T> valueList, TypeSerializer<T> elementSerializer, byte delimiter)
-            throws IOException {
-
-        dataOutputView.clear();
-        boolean first = true;
-
-        for (T value : valueList) {
-            Preconditions.checkNotNull(value, "You cannot add null to a value list.");
-
-            if (first) {
-                first = false;
-            } else {
-                dataOutputView.write(delimiter);
-            }
-            elementSerializer.serialize(value, dataOutputView);
-        }
-
-        return dataOutputView.getCopyOfBuffer();
     }
 
     public void migrateSerializedValue(

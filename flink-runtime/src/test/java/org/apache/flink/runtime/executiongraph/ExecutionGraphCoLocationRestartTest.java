@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -27,9 +26,8 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartB
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestBase;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
@@ -49,14 +47,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests that co-location constraints work as expected in the case of task restarts. */
-public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
+public class ExecutionGraphCoLocationRestartTest {
 
     private static final int NUM_TASKS = 31;
-
-    @Override
-    protected ComponentMainThreadExecutor getComponentMainThreadExecutor() {
-        return ComponentMainThreadExecutorServiceAdapter.forMainThread();
-    }
 
     @Test
     public void testConstraintsAfterRestart() throws Exception {
@@ -74,13 +67,13 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
         groupVertex.setStrictlyCoLocatedWith(groupVertex2);
 
         // initiate and schedule job
-        final JobGraph jobGraph = new JobGraph(groupVertex, groupVertex2);
-        jobGraph.setScheduleMode(ScheduleMode.EAGER);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(groupVertex, groupVertex2);
 
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider.create(
@@ -98,8 +91,6 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         // enable the queued scheduling for the slot pool
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         assertEquals(JobStatus.CREATED, eg.getState());
 
         scheduler.startScheduling();

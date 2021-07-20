@@ -106,6 +106,10 @@ public class SubtaskCheckpointStatistics {
 
         public static final String FIELD_NAME_START_DELAY = "start_delay";
 
+        public static final String FIELD_NAME_UNALIGNED_CHECKPOINT = "unaligned_checkpoint";
+
+        public static final String FIELD_NAME_ABORTED = "aborted";
+
         @JsonProperty(FIELD_NAME_ACK_TIMESTAMP)
         private final long ackTimestamp;
 
@@ -124,6 +128,12 @@ public class SubtaskCheckpointStatistics {
         @JsonProperty(FIELD_NAME_START_DELAY)
         private final long startDelay;
 
+        @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINT)
+        private boolean unalignedCheckpoint;
+
+        @JsonProperty(FIELD_NAME_ABORTED)
+        private final boolean aborted;
+
         @JsonCreator
         public CompletedSubtaskCheckpointStatistics(
                 @JsonProperty(FIELD_NAME_INDEX) int index,
@@ -132,7 +142,9 @@ public class SubtaskCheckpointStatistics {
                 @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
                 @JsonProperty(FIELD_NAME_CHECKPOINT_DURATION) CheckpointDuration checkpointDuration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT) CheckpointAlignment alignment,
-                @JsonProperty(FIELD_NAME_START_DELAY) long startDelay) {
+                @JsonProperty(FIELD_NAME_START_DELAY) long startDelay,
+                @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINT) boolean unalignedCheckpoint,
+                @JsonProperty(FIELD_NAME_ABORTED) boolean aborted) {
             super(index, "completed");
             this.ackTimestamp = ackTimestamp;
             this.duration = duration;
@@ -140,6 +152,8 @@ public class SubtaskCheckpointStatistics {
             this.checkpointDuration = checkpointDuration;
             this.alignment = alignment;
             this.startDelay = startDelay;
+            this.unalignedCheckpoint = unalignedCheckpoint;
+            this.aborted = aborted;
         }
 
         public long getAckTimestamp() {
@@ -166,6 +180,14 @@ public class SubtaskCheckpointStatistics {
             return startDelay;
         }
 
+        public boolean getUnalignedCheckpoint() {
+            return unalignedCheckpoint;
+        }
+
+        public boolean isAborted() {
+            return aborted;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -180,13 +202,22 @@ public class SubtaskCheckpointStatistics {
                     && stateSize == that.stateSize
                     && Objects.equals(checkpointDuration, that.checkpointDuration)
                     && Objects.equals(alignment, that.alignment)
-                    && startDelay == that.startDelay;
+                    && startDelay == that.startDelay
+                    && unalignedCheckpoint == that.unalignedCheckpoint
+                    && aborted == that.aborted;
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(
-                    ackTimestamp, duration, stateSize, checkpointDuration, alignment, startDelay);
+                    ackTimestamp,
+                    duration,
+                    stateSize,
+                    checkpointDuration,
+                    alignment,
+                    startDelay,
+                    unalignedCheckpoint,
+                    aborted);
         }
 
         /** Duration of the checkpoint. */

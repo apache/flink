@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -39,8 +38,6 @@ public class TestingLogicalSlot implements LogicalSlot {
 
     private final AtomicReference<Payload> payloadReference;
 
-    private final int slotNumber;
-
     private final CompletableFuture<?> releaseFuture;
 
     private final boolean automaticallyCompleteReleaseFuture;
@@ -51,27 +48,21 @@ public class TestingLogicalSlot implements LogicalSlot {
 
     private final SlotRequestId slotRequestId;
 
-    @Nullable private final SlotSharingGroupId slotSharingGroupId;
-
     private boolean released;
 
     TestingLogicalSlot(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            int slotNumber,
             AllocationID allocationId,
             SlotRequestId slotRequestId,
-            @Nullable SlotSharingGroupId slotSharingGroupId,
             boolean automaticallyCompleteReleaseFuture,
             SlotOwner slotOwner) {
 
         this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
         this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
         this.payloadReference = new AtomicReference<>();
-        this.slotNumber = slotNumber;
         this.allocationId = Preconditions.checkNotNull(allocationId);
         this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
-        this.slotSharingGroupId = slotSharingGroupId;
         this.releaseFuture = new CompletableFuture<>();
         this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
         this.slotOwner = Preconditions.checkNotNull(slotOwner);
@@ -127,11 +118,6 @@ public class TestingLogicalSlot implements LogicalSlot {
     }
 
     @Override
-    public int getPhysicalSlotNumber() {
-        return slotNumber;
-    }
-
-    @Override
     public AllocationID getAllocationId() {
         return allocationId;
     }
@@ -139,12 +125,6 @@ public class TestingLogicalSlot implements LogicalSlot {
     @Override
     public SlotRequestId getSlotRequestId() {
         return slotRequestId;
-    }
-
-    @Nullable
-    @Override
-    public SlotSharingGroupId getSlotSharingGroupId() {
-        return slotSharingGroupId;
     }
 
     public CompletableFuture<?> getReleaseFuture() {

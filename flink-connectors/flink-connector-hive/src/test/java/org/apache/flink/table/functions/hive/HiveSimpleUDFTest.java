@@ -309,5 +309,10 @@ public class HiveSimpleUDFTest {
         public Optional<DataType> getOutputDataType() {
             return Optional.empty();
         }
+
+        @Override
+        public boolean isGroupedAggregation() {
+            return false;
+        }
     }
 }

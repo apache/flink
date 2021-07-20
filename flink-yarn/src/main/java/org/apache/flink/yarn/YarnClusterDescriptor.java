@@ -50,6 +50,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
 import org.apache.flink.runtime.util.HadoopUtils;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
@@ -62,7 +63,6 @@ import org.apache.flink.yarn.entrypoint.YarnApplicationClusterEntryPoint;
 import org.apache.flink.yarn.entrypoint.YarnJobClusterEntrypoint;
 import org.apache.flink.yarn.entrypoint.YarnSessionClusterEntrypoint;
 
-import org.apache.commons.collections.ListUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -105,6 +105,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -153,8 +154,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     private final String applicationType;
 
-    private String zookeeperNamespace;
-
     private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
     public YarnClusterDescriptor(
@@ -183,10 +182,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
         this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
         this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
-
-        // we want to ignore the default value at this point.
-        this.zookeeperNamespace =
-                flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
     }
 
     private Optional<List<File>> decodeFilesToShipToCluster(
@@ -356,14 +351,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             + "The Flink YARN Client needs one of these to be set to properly load the Hadoop "
                             + "configuration for accessing YARN.");
         }
-    }
-
-    public String getZookeeperNamespace() {
-        return zookeeperNamespace;
-    }
-
-    private void setZookeeperNamespace(String zookeeperNamespace) {
-        this.zookeeperNamespace = zookeeperNamespace;
     }
 
     public String getNodeLabel() {
@@ -543,6 +530,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         "Hadoop security with Kerberos is enabled but the login user "
                                 + "does not have Kerberos credentials or delegation tokens!");
             }
+
+            final boolean fetchToken =
+                    flinkConfiguration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+            final boolean yarnAccessFSEnabled =
+                    !CollectionUtil.isNullOrEmpty(
+                            flinkConfiguration.get(YarnConfigOptions.YARN_ACCESS));
+            if (!fetchToken && yarnAccessFSEnabled) {
+                throw new IllegalConfigurationException(
+                        String.format(
+                                "When %s is disabled, %s must be disabled as well.",
+                                SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN.key(),
+                                YarnConfigOptions.YARN_ACCESS.key()));
+            }
         }
 
         isReadyForDeployment(clusterSpecification);
@@ -600,7 +600,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         ? ClusterEntrypoint.ExecutionMode.DETACHED
                         : ClusterEntrypoint.ExecutionMode.NORMAL;
 
-        flinkConfiguration.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+        flinkConfiguration.setString(
+                ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
         ApplicationReport report =
                 startAppMaster(
@@ -824,17 +825,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ApplicationId appId = appContext.getApplicationId();
 
         // ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
-        String zkNamespace = getZookeeperNamespace();
-        // no user specified cli argument for namespace?
-        if (zkNamespace == null || zkNamespace.isEmpty()) {
-            // namespace defined in config? else use applicationId as default.
-            zkNamespace =
-                    configuration.getString(
-                            HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
-            setZookeeperNamespace(zkNamespace);
-        }
-
-        configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+        setHAClusterIdIfNotSet(configuration, appId);
 
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
             // activate re-execution of failed applications
@@ -1104,13 +1095,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (UserGroupInformation.isSecurityEnabled()) {
             // set HDFS delegation tokens when security is enabled
             LOG.info("Adding delegation token to the AM container.");
-            List<Path> yarnAccessList =
-                    ConfigUtils.decodeListFromConfig(
-                            configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
-            Utils.setTokensFor(
-                    amContainer,
-                    ListUtils.union(yarnAccessList, fileUploader.getRemotePaths()),
-                    yarnConfiguration);
+            final List<Path> pathsToObtainToken = new ArrayList<>();
+            boolean fetchToken =
+                    configuration.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
+            if (fetchToken) {
+                List<Path> yarnAccessList =
+                        ConfigUtils.decodeListFromConfig(
+                                configuration, YarnConfigOptions.YARN_ACCESS, Path::new);
+                pathsToObtainToken.addAll(yarnAccessList);
+                pathsToObtainToken.addAll(fileUploader.getRemotePaths());
+            }
+            Utils.setTokensFor(amContainer, pathsToObtainToken, yarnConfiguration, fetchToken);
         }
 
         amContainer.setLocalResources(fileUploader.getRegisteredLocalResources());
@@ -1133,7 +1128,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 YarnConfigKeys.ENV_CLIENT_SHIP_FILES,
                 encodeYarnLocalResourceDescriptorListToString(
                         fileUploader.getEnvShipResourceList()));
-        appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
         appMasterEnv.put(
                 YarnConfigKeys.FLINK_YARN_FILES,
                 fileUploader.getApplicationDir().toUri().toString());
@@ -1752,9 +1746,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     private static YarnConfigOptions.UserJarInclusion getUserJarInclusionMode(
             org.apache.flink.configuration.Configuration config) {
-        return config.getEnum(
-                YarnConfigOptions.UserJarInclusion.class,
-                YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+        return config.get(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
     }
 
     private static boolean isUsrLibDirIncludedInShipFiles(List<File> shipFiles) {
@@ -1767,11 +1759,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {
         checkNotNull(report);
 
-        final ApplicationId clusterId = report.getApplicationId();
+        final ApplicationId appId = report.getApplicationId();
         final String host = report.getHost();
         final int port = report.getRpcPort();
 
-        LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, clusterId);
+        LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, appId);
 
         flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
         flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
@@ -1779,8 +1771,17 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(RestOptions.ADDRESS, host);
         flinkConfiguration.setInteger(RestOptions.PORT, port);
 
-        flinkConfiguration.set(
-                YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(appId));
+
+        setHAClusterIdIfNotSet(flinkConfiguration, appId);
+    }
+
+    private void setHAClusterIdIfNotSet(Configuration configuration, ApplicationId appId) {
+        // set cluster-id to app id if not specified
+        if (!configuration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
+            configuration.set(
+                    HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(appId));
+        }
     }
 
     public static void logDetachedClusterInformation(

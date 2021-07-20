@@ -109,7 +109,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
         final FlinkPod resultFlinkPod =
                 initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-        this.resultPod = resultFlinkPod.getPod();
+        this.resultPod = resultFlinkPod.getPodWithoutMainContainer();
         this.resultMainContainer = resultFlinkPod.getMainContainer();
     }
 
@@ -120,9 +120,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
 
     @Test
     public void testMainContainerName() {
-        assertEquals(
-                kubernetesTaskManagerParameters.getTaskManagerMainContainerName(),
-                this.resultMainContainer.getName());
+        assertEquals(Constants.MAIN_CONTAINER_NAME, this.resultMainContainer.getName());
     }
 
     @Test

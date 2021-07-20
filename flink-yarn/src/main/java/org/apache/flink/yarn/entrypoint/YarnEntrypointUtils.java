@@ -21,7 +21,6 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -58,8 +57,6 @@ public class YarnEntrypointUtils {
 
         final String keytabPrincipal = env.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
 
-        final String zooKeeperNamespace = env.get(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE);
-
         final String hostname = env.get(ApplicationConstants.Environment.NM_HOST.key());
         Preconditions.checkState(
                 hostname != null,
@@ -68,10 +65,6 @@ public class YarnEntrypointUtils {
 
         configuration.setString(JobManagerOptions.ADDRESS, hostname);
         configuration.setString(RestOptions.ADDRESS, hostname);
-
-        if (zooKeeperNamespace != null) {
-            configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zooKeeperNamespace);
-        }
 
         // if a web monitor shall be started, set the port to random binding
         if (configuration.getInteger(WebOptions.PORT, 0) >= 0) {
@@ -130,9 +123,7 @@ public class YarnEntrypointUtils {
 
     public static Optional<File> getUsrLibDir(final Configuration configuration) {
         final YarnConfigOptions.UserJarInclusion userJarInclusion =
-                configuration.getEnum(
-                        YarnConfigOptions.UserJarInclusion.class,
-                        YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+                configuration.get(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
         final Optional<File> userLibDir = tryFindUserLibDirectory();
 
         checkState(

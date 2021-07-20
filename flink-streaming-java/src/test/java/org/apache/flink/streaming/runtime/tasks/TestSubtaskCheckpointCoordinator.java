@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -52,7 +53,10 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
     }
 
     @Override
-    public void initCheckpoint(long id, CheckpointOptions checkpointOptions) {
+    public void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished) {}
+
+    @Override
+    public void initInputsCheckpoint(long id, CheckpointOptions checkpointOptions) {
         channelStateWriter.start(id, checkpointOptions);
     }
 
@@ -68,7 +72,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
 
     @Override
     public void abortCheckpointOnBarrier(
-            long checkpointId, Throwable cause, OperatorChain<?, ?> operatorChain) {
+            long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain) {
         channelStateWriter.abort(checkpointId, cause, true);
     }
 
@@ -78,7 +82,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
-            Supplier<Boolean> isCanceled) {}
+            Supplier<Boolean> isRunning) {}
 
     @Override
     public void notifyCheckpointComplete(
@@ -87,6 +91,9 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
     @Override
     public void notifyCheckpointAborted(
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning) {}
+
+    @Override
+    public void waitForPendingCheckpoints() throws Exception {}
 
     @Override
     public void close() {}

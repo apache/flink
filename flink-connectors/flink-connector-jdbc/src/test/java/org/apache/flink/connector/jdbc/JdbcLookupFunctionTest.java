@@ -20,8 +20,8 @@ package org.apache.flink.connector.jdbc;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.table.JdbcLookupFunction;
 import org.apache.flink.connector.jdbc.table.JdbcLookupTestBase;
 import org.apache.flink.types.Row;
@@ -75,17 +75,17 @@ public class JdbcLookupFunctionTest extends JdbcLookupTestBase {
                         .stream().map(Row::toString).sorted().collect(Collectors.toList());
 
         List<String> expected = new ArrayList<>();
-        expected.add("1,1,11-c1-v1,11-c2-v1");
-        expected.add("1,1,11-c1-v2,11-c2-v2");
-        expected.add("2,3,null,23-c2");
+        expected.add("+I[1, 1, 11-c1-v1, 11-c2-v1]");
+        expected.add("+I[1, 1, 11-c1-v2, 11-c2-v2]");
+        expected.add("+I[2, 3, null, 23-c2]");
         Collections.sort(expected);
 
         assertEquals(expected, result);
     }
 
     private JdbcLookupFunction buildLookupFunction() {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DB_DRIVER)
                         .setDBUrl(DB_URL)
                         .setTableName(LOOKUP_TABLE)

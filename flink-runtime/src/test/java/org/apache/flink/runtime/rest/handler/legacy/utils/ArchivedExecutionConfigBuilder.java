@@ -28,6 +28,7 @@ import java.util.Map;
 public class ArchivedExecutionConfigBuilder {
     private String executionMode;
     private String restartStrategyDescription;
+    private int maxParallelism;
     private int parallelism;
     private boolean objectReuseEnabled;
     private Map<String, String> globalJobParameters;
@@ -48,6 +49,11 @@ public class ArchivedExecutionConfigBuilder {
         return this;
     }
 
+    public ArchivedExecutionConfigBuilder setMaxParallelism(int parallelism) {
+        this.maxParallelism = maxParallelism;
+        return this;
+    }
+
     public ArchivedExecutionConfigBuilder setObjectReuseEnabled(boolean objectReuseEnabled) {
         this.objectReuseEnabled = objectReuseEnabled;
         return this;
@@ -63,6 +69,7 @@ public class ArchivedExecutionConfigBuilder {
         return new ArchivedExecutionConfig(
                 executionMode != null ? executionMode : ExecutionMode.PIPELINED.name(),
                 restartStrategyDescription != null ? restartStrategyDescription : "default",
+                maxParallelism,
                 parallelism,
                 objectReuseEnabled,
                 globalJobParameters != null

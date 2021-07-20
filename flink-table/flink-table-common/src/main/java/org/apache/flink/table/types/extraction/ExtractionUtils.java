@@ -35,6 +35,7 @@ import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -55,6 +56,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -92,7 +95,8 @@ public final class ExtractionUtils {
         final int paramCount = executable.getParameterCount();
         final int classCount = classes.length;
         // check for enough classes for each parameter
-        if (classCount < paramCount || (executable.isVarArgs() && classCount < paramCount - 1)) {
+        if ((!executable.isVarArgs() && classCount != paramCount)
+                || (executable.isVarArgs() && classCount < paramCount - 1)) {
             return false;
         }
         int currentClass = 0;
@@ -109,8 +113,9 @@ public final class ExtractionUtils {
                                     classes[currentClass], paramComponent, true)) {
                         currentClass++;
                     }
-                } else if (parameterMatches(classes[currentClass], param)
-                        || parameterMatches(classes[currentClass], paramComponent)) {
+                } else if (currentClass < classCount
+                        && (parameterMatches(classes[currentClass], param)
+                                || parameterMatches(classes[currentClass], paramComponent))) {
                     currentClass++;
                 }
             }
@@ -183,7 +188,7 @@ public final class ExtractionUtils {
             }
         }
         throw extractionError(
-                "Could not to find a field named '%s' in class '%s' for structured type.",
+                "Could not find a field named '%s' in class '%s' for structured type.",
                 fieldName, clazz.getName());
     }
 
@@ -192,7 +197,7 @@ public final class ExtractionUtils {
      * both Java and Scala in different flavors.
      */
     public static Optional<Method> getStructuredFieldGetter(Class<?> clazz, Field field) {
-        final String normalizedFieldName = field.getName().toUpperCase();
+        final String normalizedFieldName = normalizeAccessorName(field.getName());
 
         final List<Method> methods = collectStructuredMethods(clazz);
         for (Method method : methods) {
@@ -200,7 +205,7 @@ public final class ExtractionUtils {
             // get<Name>()
             // is<Name>()
             // <Name>() for Scala
-            final String normalizedMethodName = method.getName().toUpperCase();
+            final String normalizedMethodName = normalizeAccessorName(method.getName());
             final boolean hasName =
                     normalizedMethodName.equals("GET" + normalizedFieldName)
                             || normalizedMethodName.equals("IS" + normalizedFieldName)
@@ -237,7 +242,7 @@ public final class ExtractionUtils {
      * both Java and Scala in different flavors.
      */
     public static Optional<Method> getStructuredFieldSetter(Class<?> clazz, Field field) {
-        final String normalizedFieldName = field.getName().toUpperCase();
+        final String normalizedFieldName = normalizeAccessorName(field.getName());
 
         final List<Method> methods = collectStructuredMethods(clazz);
         for (Method method : methods) {
@@ -246,11 +251,11 @@ public final class ExtractionUtils {
             // set<Name>(type)
             // <Name>(type)
             // <Name>_$eq(type) for Scala
-            final String normalizedMethodName = method.getName().toUpperCase();
+            final String normalizedMethodName = normalizeAccessorName(method.getName());
             final boolean hasName =
                     normalizedMethodName.equals("SET" + normalizedFieldName)
                             || normalizedMethodName.equals(normalizedFieldName)
-                            || normalizedMethodName.equals(normalizedFieldName + "_$EQ");
+                            || normalizedMethodName.equals(normalizedFieldName + "$EQ");
             if (!hasName) {
                 continue;
             }
@@ -280,6 +285,10 @@ public final class ExtractionUtils {
 
         // no setter found
         return Optional.empty();
+    }
+
+    private static String normalizeAccessorName(String name) {
+        return name.toUpperCase().replaceAll(Pattern.quote("_"), "");
     }
 
     /**
@@ -604,7 +613,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Result of the extraction in {@link #extractAssigningConstructor(Class, List)}. */
-    static class AssigningConstructor {
+    public static class AssigningConstructor {
         public final Constructor<?> constructor;
         public final List<String> parameterNames;
 
@@ -618,7 +627,7 @@ public final class ExtractionUtils {
      * Checks whether the given constructor takes all of the given fields with matching (possibly
      * primitive) type and name. An assigning constructor can define the order of fields.
      */
-    static @Nullable AssigningConstructor extractAssigningConstructor(
+    public static @Nullable AssigningConstructor extractAssigningConstructor(
             Class<?> clazz, List<Field> fields) {
         AssigningConstructor foundConstructor = null;
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
@@ -649,7 +658,7 @@ public final class ExtractionUtils {
 
     /**
      * Extracts ordered parameter names from a constructor that takes all of the given fields with
-     * matching (possibly primitive) type and name.
+     * matching (possibly primitive and lenient) type and name.
      */
     private static @Nullable List<String> extractConstructorParameterNames(
             Constructor<?> constructor, List<Field> fields) {
@@ -660,22 +669,32 @@ public final class ExtractionUtils {
             return null;
         }
 
-        final Map<String, Type> fieldMap =
-                fields.stream().collect(Collectors.toMap(Field::getName, Field::getGenericType));
+        final Map<String, Field> fieldMap =
+                fields.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        f -> normalizeAccessorName(f.getName()),
+                                        Function.identity()));
 
         // check that all fields are represented in the parameters of the constructor
+        final List<String> fieldNames = new ArrayList<>();
         for (int i = 0; i < parameterNames.size(); i++) {
-            final String parameterName = parameterNames.get(i);
-            final Type fieldType = fieldMap.get(parameterName); // might be null
+            final String parameterName = normalizeAccessorName(parameterNames.get(i));
+            final Field field = fieldMap.get(parameterName);
+            if (field == null) {
+                return null;
+            }
+            final Type fieldType = field.getGenericType();
             final Type parameterType = parameterTypes[i];
             // we are tolerant here because frameworks such as Avro accept a boxed type even though
             // the field is primitive
             if (!primitiveToWrapper(parameterType).equals(primitiveToWrapper(fieldType))) {
                 return null;
             }
+            fieldNames.add(field.getName());
         }
 
-        return parameterNames;
+        return fieldNames;
     }
 
     private static @Nullable List<String> extractExecutableNames(Executable executable) {
@@ -724,8 +743,8 @@ public final class ExtractionUtils {
 
     private static ClassReader getClassReader(Class<?> cls) {
         final String className = cls.getName().replaceFirst("^.*\\.", "") + ".class";
-        try {
-            return new ClassReader(cls.getResourceAsStream(className));
+        try (InputStream i = cls.getResourceAsStream(className)) {
+            return new ClassReader(i);
         } catch (IOException e) {
             throw new IllegalStateException("Could not instantiate ClassReader.", e);
         }

@@ -30,6 +30,7 @@ import py4j.GatewayServer;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -74,6 +75,8 @@ public final class PythonDriver {
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
         PythonEnvUtils.setGatewayServer(gatewayServer);
 
+        PythonEnvUtils.PythonProcessShutdownHook shutdownHook = null;
+
         // commands which will be exec in python progress.
         final List<String> commands = constructPythonCommands(pythonDriverOptions);
         try {
@@ -93,8 +96,15 @@ public final class PythonDriver {
                             pythonDriverOptions.getEntryPointScript().orElse(null),
                             tmpDir,
                             true);
+            shutdownHook =
+                    new PythonEnvUtils.PythonProcessShutdownHook(
+                            pythonProcess, gatewayServer, tmpDir);
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+
             BufferedReader in =
-                    new BufferedReader(new InputStreamReader(pythonProcess.getInputStream()));
+                    new BufferedReader(
+                            new InputStreamReader(
+                                    pythonProcess.getInputStream(), StandardCharsets.UTF_8));
             LOG.info(
                     "--------------------------- Python Process Started --------------------------");
             // print the python process output to stdout and log file
@@ -121,11 +131,13 @@ public final class PythonDriver {
             } else {
                 // throw ProgramAbortException if the caller is interested in the program plan,
                 // there is no harm to throw ProgramAbortException even if it is not the case.
-                throw new ProgramAbortException();
+                throw new ProgramAbortException(e);
             }
         } finally {
             PythonEnvUtils.setGatewayServer(null);
-            gatewayServer.shutdown();
+            if (shutdownHook != null && Runtime.getRuntime().removeShutdownHook(shutdownHook)) {
+                shutdownHook.run();
+            }
         }
     }
 

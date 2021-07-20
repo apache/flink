@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.entrypoint.component;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkException;
@@ -39,6 +39,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -67,9 +68,11 @@ public class FileJobGraphRetrieverTest {
 
         final JobVertex source = new JobVertex("source");
         final JobVertex target = new JobVertex("target");
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test", source, target);
-
-        jobGraph.setClasspaths(Collections.singletonList(jarFileInJobGraph.toUri().toURL()));
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertices(Arrays.asList(source, target))
+                        .addClasspaths(Collections.singletonList(jarFileInJobGraph.toUri().toURL()))
+                        .build();
 
         try (ObjectOutputStream objectOutputStream =
                 new ObjectOutputStream(Files.newOutputStream(jobGraphPath, CREATE))) {

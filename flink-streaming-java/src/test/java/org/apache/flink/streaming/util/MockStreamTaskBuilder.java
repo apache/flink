@@ -23,14 +23,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.MockStreamStatusMaintainer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TimerService;
@@ -47,7 +44,6 @@ public class MockStreamTaskBuilder {
     private Object checkpointLock = new Object();
     private StreamConfig config;
     private ExecutionConfig executionConfig = new ExecutionConfig();
-    private StreamStatusMaintainer streamStatusMaintainer = new MockStreamStatusMaintainer();
     private CheckpointStorageWorkerView checkpointStorage;
     private TimerService timerService = new TestProcessingTimeService();
     private StreamTaskStateInitializer streamTaskStateInitializer;
@@ -61,7 +57,7 @@ public class MockStreamTaskBuilder {
         this.environment = environment;
         this.config = new StreamConfig(environment.getTaskConfiguration());
 
-        StateBackend stateBackend = new MemoryStateBackend();
+        MemoryStateBackend stateBackend = new MemoryStateBackend();
         this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
         this.streamTaskStateInitializer =
                 new StreamTaskStateInitializerImpl(environment, stateBackend);
@@ -85,12 +81,6 @@ public class MockStreamTaskBuilder {
     public MockStreamTaskBuilder setStreamTaskStateInitializer(
             StreamTaskStateInitializer streamTaskStateInitializer) {
         this.streamTaskStateInitializer = streamTaskStateInitializer;
-        return this;
-    }
-
-    public MockStreamTaskBuilder setStreamStatusMaintainer(
-            StreamStatusMaintainer streamStatusMaintainer) {
-        this.streamStatusMaintainer = streamStatusMaintainer;
         return this;
     }
 
@@ -134,7 +124,6 @@ public class MockStreamTaskBuilder {
                 config,
                 executionConfig,
                 streamTaskStateInitializer,
-                streamStatusMaintainer,
                 checkpointStorage,
                 timerService,
                 handleAsyncException,

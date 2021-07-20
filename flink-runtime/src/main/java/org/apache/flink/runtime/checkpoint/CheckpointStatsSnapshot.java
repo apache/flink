@@ -41,6 +41,14 @@ public class CheckpointStatsSnapshot implements Serializable {
     /** The latest restored checkpoint operation. */
     @Nullable private final RestoredCheckpointStats latestRestoredCheckpoint;
 
+    public static CheckpointStatsSnapshot empty() {
+        return new CheckpointStatsSnapshot(
+                new CheckpointStatsCounts(),
+                new CompletedCheckpointStatsSummary(),
+                new CheckpointStatsHistory(0),
+                null);
+    }
+
     /**
      * Creates a stats snapshot.
      *

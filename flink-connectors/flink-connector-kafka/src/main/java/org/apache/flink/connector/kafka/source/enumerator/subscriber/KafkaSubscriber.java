@@ -41,36 +41,12 @@ import java.util.regex.Pattern;
 public interface KafkaSubscriber extends Serializable {
 
     /**
-     * Get the partitions changes compared to the current partition assignment.
+     * Get a set of subscribed {@link TopicPartition}s.
      *
-     * <p>Although Kafka partitions can only expand and will not shrink, the partitions may still
-     * disappear when the topic is deleted.
-     *
-     * @param adminClient The admin client used to retrieve partition information.
-     * @param currentAssignment the partitions that are currently assigned to the source readers.
-     * @return The partition changes compared with the currently assigned partitions.
+     * @param adminClient The admin client used to retrieve subscribed topic partitions.
+     * @return A set of subscribed {@link TopicPartition}s
      */
-    PartitionChange getPartitionChanges(
-            AdminClient adminClient, Set<TopicPartition> currentAssignment);
-
-    /** A container class to hold the newly added partitions and removed partitions. */
-    class PartitionChange {
-        private final Set<TopicPartition> newPartitions;
-        private final Set<TopicPartition> removedPartitions;
-
-        PartitionChange(Set<TopicPartition> newPartitions, Set<TopicPartition> removedPartitions) {
-            this.newPartitions = newPartitions;
-            this.removedPartitions = removedPartitions;
-        }
-
-        public Set<TopicPartition> getNewPartitions() {
-            return newPartitions;
-        }
-
-        public Set<TopicPartition> getRemovedPartitions() {
-            return removedPartitions;
-        }
-    }
+    Set<TopicPartition> getSubscribedTopicPartitions(AdminClient adminClient);
 
     // ----------------- factory methods --------------
 

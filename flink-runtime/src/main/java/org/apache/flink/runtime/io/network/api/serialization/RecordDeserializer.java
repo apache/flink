@@ -55,11 +55,7 @@ public interface RecordDeserializer<T extends IOReadableWritable> {
 
     void setNextBuffer(Buffer buffer) throws IOException;
 
-    Buffer getCurrentBuffer();
-
     void clear();
-
-    boolean hasUnfinishedData();
 
     /**
      * Gets the unconsumed buffer which needs to be persisted in unaligned checkpoint scenario.

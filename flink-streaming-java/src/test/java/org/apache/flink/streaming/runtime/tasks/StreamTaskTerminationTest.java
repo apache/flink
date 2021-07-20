@@ -28,7 +28,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
@@ -52,6 +51,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -72,7 +72,7 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -81,6 +81,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -167,7 +168,6 @@ public class StreamTaskTerminationTest extends TestLogger {
                         0,
                         Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                         Collections.<InputGateDeploymentDescriptor>emptyList(),
-                        0,
                         MemoryManagerBuilder.newBuilder().setMemorySize(32L * 1024L).build(),
                         new IOManagerAsync(),
                         shuffleEnvironment,
@@ -199,8 +199,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         task.triggerCheckpointBarrier(
                 checkpointId,
                 checkpointTimestamp,
-                CheckpointOptions.forCheckpointWithDefaultLocation(),
-                false);
+                CheckpointOptions.forCheckpointWithDefaultLocation());
 
         // wait until the task has completed execution
         taskRun.get();
@@ -238,7 +237,8 @@ public class StreamTaskTerminationTest extends TestLogger {
             }
             // wait until we have started an asynchronous checkpoint
             if (isCanceled() || SNAPSHOT_HAS_STARTED.get()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 
@@ -260,7 +260,7 @@ public class StreamTaskTerminationTest extends TestLogger {
         private static final long serialVersionUID = 4517845269225218312L;
     }
 
-    static class BlockingStateBackend implements StateBackend {
+    static class BlockingStateBackend implements StateBackend, CheckpointStorage {
 
         private static final long serialVersionUID = -5053068148933314100L;
 

@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
@@ -100,9 +99,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
     @Test
     public void testJdbcSource() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(
                 "CREATE TABLE "
@@ -132,16 +129,14 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
         assertThat(
                 results,
                 containsInAnyOrder(
-                        "1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-                        "2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234"));
+                        "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]",
+                        "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]"));
     }
 
     @Test
     public void testProjectableJdbcSource() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         tEnv.executeSql(
                 "CREATE TABLE "
@@ -171,16 +166,14 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
         assertThat(
                 results,
                 containsInAnyOrder(
-                        "2020-01-01T15:35:00.123456,100.1234",
-                        "2020-01-01T15:36:01.123456,101.1234"));
+                        "+I[2020-01-01T15:35:00.123456, 100.1234]",
+                        "+I[2020-01-01T15:36:01.123456, 101.1234]"));
     }
 
     @Test
     public void testScanQueryJDBCSource() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, envSettings);
+        StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
         final String testQuery = "SELECT id FROM " + INPUT_TABLE;
         tEnv.executeSql(
@@ -201,7 +194,7 @@ public class JdbcTableSourceITCase extends AbstractTestBase {
 
         List<String> results = manifestResults(tableResult);
 
-        assertThat(results, containsInAnyOrder("1", "2"));
+        assertThat(results, containsInAnyOrder("+I[1]", "+I[2]"));
     }
 
     private static List<String> manifestResults(TableResult result) {

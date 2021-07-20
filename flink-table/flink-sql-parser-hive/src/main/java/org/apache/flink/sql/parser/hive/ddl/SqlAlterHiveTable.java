@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.hive.ddl;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableProperties;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
@@ -29,7 +29,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  * Abstract class for ALTER DDL of a Hive table. Any ALTER TABLE operations that need to be encoded
  * as table properties should extend this class.
  */
-public abstract class SqlAlterHiveTable extends SqlAlterTableProperties {
+public abstract class SqlAlterHiveTable extends SqlAlterTableOptions {
 
     public static final String ALTER_TABLE_OP = "alter.table.op";
     public static final String ALTER_COL_CASCADE = "alter.column.cascade";

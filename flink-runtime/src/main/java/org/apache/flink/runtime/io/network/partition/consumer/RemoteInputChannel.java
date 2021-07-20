@@ -35,11 +35,15 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -54,11 +58,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** An input channel, which requests a remote partition queue. */
 public class RemoteInputChannel extends InputChannel {
+    private static final Logger LOG = LoggerFactory.getLogger(RemoteInputChannel.class);
 
     private static final int NONE = -1;
 
@@ -126,6 +132,7 @@ public class RemoteInputChannel extends InputChannel {
                 maxBackoff,
                 numBytesIn,
                 numBuffersIn);
+        checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
@@ -162,6 +169,12 @@ public class RemoteInputChannel extends InputChannel {
     public void requestSubpartition(int subpartitionIndex)
             throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
+            LOG.debug(
+                    "{}: Requesting REMOTE subpartition {} of partition {}. {}",
+                    this,
+                    subpartitionIndex,
+                    partitionId,
+                    channelStatePersister);
             // Create a client and request the partition
             try {
                 partitionRequestClient =
@@ -211,6 +224,13 @@ public class RemoteInputChannel extends InputChannel {
             return Optional.empty();
         }
 
+        NetworkActionsLogger.traceInput(
+                "RemoteInputChannel#getNextBuffer",
+                next.buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.sequenceNumber);
         numBytesIn.inc(next.buffer.getSize());
         numBuffersIn.inc();
         return Optional.of(
@@ -339,9 +359,37 @@ public class RemoteInputChannel extends InputChannel {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
+        if (initialCredit == 0) {
+            // this unannounced credit can be a positive value because credit assignment and the
+            // increase of this value is not an atomic operation and as a result, this unannounced
+            // credit value can be get increased even after this channel has been blocked and all
+            // floating credits are released, it is important to clear this unannounced credit and
+            // at the same time reset the sender's available credits to keep consistency
+            unannouncedCredit.set(0);
+        }
+
         // notifies the producer that this channel is ready to
         // unblock from checkpoint and resume data consumption
         partitionRequestClient.resumeConsumption(this);
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased.get(), "Channel released.");
+        checkPartitionRequestQueueInitialized();
+
+        partitionRequestClient.acknowledgeAllRecordsProcessed(this);
+    }
+
+    private void onBlockingUpstream() {
+        if (initialCredit == 0) {
+            // release the allocated floating buffers so that they can be used by other channels if
+            // no exclusive buffer is configured, it is important because a blocked channel can not
+            // transmit any data so the allocated floating buffers can not be recycled, as a result,
+            // other channels may can't allocate new buffers for data transmission (an extreme case
+            // is that we only have 1 floating buffer and 0 exclusive buffer)
+            bufferManager.releaseFloatingBuffers();
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -425,13 +473,14 @@ public class RemoteInputChannel extends InputChannel {
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
-    void onSenderBacklog(int backlog) throws IOException {
-        int numRequestedBuffers = bufferManager.requestFloatingBuffers(backlog + initialCredit);
-        if (numRequestedBuffers > 0 && unannouncedCredit.getAndAdd(numRequestedBuffers) == 0) {
-            notifyCreditAvailable();
-        }
+    public void onSenderBacklog(int backlog) throws IOException {
+        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
     }
 
+    /**
+     * Handles the input buffer. This method is taking over the ownership of the buffer and is fully
+     * responsible for cleaning it up both on the happy path and in case of an error.
+     */
     public void onBuffer(Buffer buffer, int sequenceNumber, int backlog) throws IOException {
         boolean recycleBuffer = true;
 
@@ -441,9 +490,21 @@ public class RemoteInputChannel extends InputChannel {
                 return;
             }
 
+            if (buffer.getDataType().isBlockingUpstream()) {
+                onBlockingUpstream();
+                checkArgument(backlog == 0, "Illegal number of backlog: %s, should be 0.", backlog);
+            }
+
             final boolean wasEmpty;
             boolean firstPriorityEvent = false;
             synchronized (receivedBuffers) {
+                NetworkActionsLogger.traceInput(
+                        "RemoteInputChannel#onBuffer",
+                        buffer,
+                        inputGate.getOwningTaskName(),
+                        channelInfo,
+                        channelStatePersister,
+                        sequenceNumber);
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after releaseAllResources() released all buffers from receivedBuffers
                 // (see above for details).
@@ -457,8 +518,10 @@ public class RemoteInputChannel extends InputChannel {
                 DataType dataType = buffer.getDataType();
                 if (dataType.hasPriority()) {
                     firstPriorityEvent = addPriorityBuffer(sequenceBuffer);
+                    recycleBuffer = false;
                 } else {
                     receivedBuffers.add(sequenceBuffer);
+                    recycleBuffer = false;
                     if (dataType.requiresAnnouncement()) {
                         firstPriorityEvent = addPriorityBuffer(announce(sequenceBuffer));
                     }
@@ -477,7 +540,6 @@ public class RemoteInputChannel extends InputChannel {
                 channelStatePersister.maybePersist(buffer);
                 ++expectedSequenceNumber;
             }
-            recycleBuffer = false;
 
             if (firstPriorityEvent) {
                 notifyPriorityEvent(sequenceNumber);
@@ -541,6 +603,22 @@ public class RemoteInputChannel extends InputChannel {
      */
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         synchronized (receivedBuffers) {
+            if (barrier.getId() < lastBarrierId) {
+                throw new CheckpointException(
+                        String.format(
+                                "Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)",
+                                barrier.getId(), lastBarrierId),
+                        CheckpointFailureReason
+                                .CHECKPOINT_SUBSUMED); // currently, at most one active unaligned
+                // checkpoint is possible
+            } else if (barrier.getId() > lastBarrierId) {
+                // This channel has received some obsolete barrier, older compared to the
+                // checkpointId
+                // which we are processing right now, and we should ignore that obsoleted checkpoint
+                // barrier sequence number.
+                resetLastBarrier();
+            }
+
             channelStatePersister.startPersisting(
                     barrier.getId(), getInflightBuffersUnsafe(barrier.getId()));
         }
@@ -550,14 +628,13 @@ public class RemoteInputChannel extends InputChannel {
         synchronized (receivedBuffers) {
             channelStatePersister.stopPersisting(checkpointId);
             if (lastBarrierId == checkpointId) {
-                lastBarrierId = NONE;
-                lastBarrierSequenceNumber = NONE;
+                resetLastBarrier();
             }
         }
     }
 
     @VisibleForTesting
-    List<Buffer> getInflightBuffers(long checkpointId) throws CheckpointException {
+    List<Buffer> getInflightBuffers(long checkpointId) {
         synchronized (receivedBuffers) {
             return getInflightBuffersUnsafe(checkpointId);
         }
@@ -609,18 +686,10 @@ public class RemoteInputChannel extends InputChannel {
      * Returns a list of buffers, checking the first n non-priority buffers, and skipping all
      * events.
      */
-    private List<Buffer> getInflightBuffersUnsafe(long checkpointId) throws CheckpointException {
+    private List<Buffer> getInflightBuffersUnsafe(long checkpointId) {
         assert Thread.holdsLock(receivedBuffers);
 
-        if (checkpointId < lastBarrierId) {
-            throw new CheckpointException(
-                    String.format(
-                            "Sequence number for checkpoint %d is not known (it was likely been overwritten by a newer checkpoint %d)",
-                            checkpointId, lastBarrierId),
-                    CheckpointFailureReason
-                            .CHECKPOINT_SUBSUMED); // currently, at most one active unaligned
-            // checkpoint is possible
-        }
+        checkState(checkpointId == lastBarrierId || lastBarrierId == NONE);
 
         final List<Buffer> inflightBuffers = new ArrayList<>();
         Iterator<SequenceBuffer> iterator = receivedBuffers.iterator();
@@ -639,6 +708,11 @@ public class RemoteInputChannel extends InputChannel {
         }
 
         return inflightBuffers;
+    }
+
+    private void resetLastBarrier() {
+        lastBarrierId = NONE;
+        lastBarrierSequenceNumber = NONE;
     }
 
     /**

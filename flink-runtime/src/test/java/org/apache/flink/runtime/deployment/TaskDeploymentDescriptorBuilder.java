@@ -48,7 +48,6 @@ public class TaskDeploymentDescriptorBuilder {
     private int attemptNumber;
     private List<ResultPartitionDeploymentDescriptor> producedPartitions;
     private List<InputGateDeploymentDescriptor> inputGates;
-    private int targetSlotNumber;
 
     @Nullable private JobManagerTaskRestore taskRestore;
 
@@ -74,7 +73,6 @@ public class TaskDeploymentDescriptorBuilder {
         this.attemptNumber = 0;
         this.producedPartitions = Collections.emptyList();
         this.inputGates = Collections.emptyList();
-        this.targetSlotNumber = 0;
         this.taskRestore = null;
     }
 
@@ -127,11 +125,6 @@ public class TaskDeploymentDescriptorBuilder {
         return this;
     }
 
-    public TaskDeploymentDescriptorBuilder setTargetSlotNumber(int targetSlotNumber) {
-        this.targetSlotNumber = targetSlotNumber;
-        return this;
-    }
-
     public TaskDeploymentDescriptorBuilder setTaskRestore(
             @Nullable JobManagerTaskRestore taskRestore) {
         this.taskRestore = taskRestore;
@@ -147,7 +140,6 @@ public class TaskDeploymentDescriptorBuilder {
                 allocationId,
                 subtaskIndex,
                 attemptNumber,
-                targetSlotNumber,
                 taskRestore,
                 producedPartitions,
                 inputGates);

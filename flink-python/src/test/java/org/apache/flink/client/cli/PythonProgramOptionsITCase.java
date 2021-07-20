@@ -19,7 +19,6 @@
 package org.apache.flink.client.cli;
 
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 
@@ -48,9 +47,7 @@ public class PythonProgramOptionsITCase {
      * ITCase.
      */
     @Test
-    public void testConfigurePythonExecution()
-            throws IllegalAccessException, NoSuchFieldException, CliArgsException,
-                    ProgramInvocationException, IOException {
+    public void testConfigurePythonExecution() throws Exception {
         final String[] args = {
             "--python", "xxx.py",
             "--pyModule", "xxx",
@@ -63,13 +60,13 @@ public class PythonProgramOptionsITCase {
 
         final File[] dummyJobJar = {null};
         Files.walkFileTree(
-                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/dummy-job-jar"),
+                FileSystems.getDefault().getPath(System.getProperty("user.dir") + "/artifacts"),
                 new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                             throws IOException {
                         FileVisitResult result = super.visitFile(file, attrs);
-                        if (file.getFileName().toString().startsWith("flink-python")) {
+                        if (file.getFileName().toString().startsWith("dummy")) {
                             dummyJobJar[0] = file.toFile();
                         }
                         return result;

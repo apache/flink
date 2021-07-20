@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
@@ -38,7 +39,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Map;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedDataStreamFunctionProto;
+import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
 /**
  * {@link OneInputPythonFunctionOperator} is responsible for launching beam runner which will start
@@ -52,9 +56,6 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         extends AbstractOneInputPythonFunctionOperator<IN, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    protected static final String DATA_STREAM_STATELESS_FUNCTION_URN =
-            "flink:transform:datastream_stateless_function:v1";
 
     /** The options used to configure the Python worker process. */
     protected final Map<String, String> jobOptions;
@@ -126,14 +127,15 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
         return new BeamDataStreamPythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                runnerInputTypeInfo,
-                runnerOutputTypeInfo,
                 getFunctionUrn(),
                 getUserDefinedDataStreamFunctionProto(
-                        pythonFunctionInfo, getRuntimeContext(), getInternalParameters()),
-                getCoderUrn(),
+                        pythonFunctionInfo,
+                        getRuntimeContext(),
+                        getInternalParameters(),
+                        inBatchExecutionMode(getKeyedStateBackend())),
                 jobOptions,
                 getFlinkMetricContainer(),
+                null,
                 null,
                 null,
                 getContainingTask().getEnvironment().getMemoryManager(),
@@ -147,7 +149,9 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(runnerInputTypeInfo),
+                createOutputCoderInfoDescriptor(runnerOutputTypeInfo));
     }
 
     @Override
@@ -167,12 +171,22 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
     }
 
     public String getFunctionUrn() {
-        return DATA_STREAM_STATELESS_FUNCTION_URN;
+        return STATELESS_FUNCTION_URN;
     }
 
     public Map<String, String> getInternalParameters() {
         return Collections.EMPTY_MAP;
     }
 
-    public abstract String getCoderUrn();
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
+    }
+
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.SINGLE, false);
+    }
 }

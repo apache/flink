@@ -120,7 +120,7 @@ public class ConfigOptionsDocGeneratorTest {
     @Test
     public void testCreatingTypes() {
         final String expectedTable =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -179,7 +179,7 @@ public class ConfigOptionsDocGeneratorTest {
     @Test
     public void testCreatingDescription() {
         final String expectedTable =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -307,7 +307,7 @@ public class ConfigOptionsDocGeneratorTest {
         }
 
         assertEquals(
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -327,7 +327,7 @@ public class ConfigOptionsDocGeneratorTest {
                         + "</table>\n",
                 tablesConverted.get("firstGroup"));
         assertEquals(
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -347,7 +347,7 @@ public class ConfigOptionsDocGeneratorTest {
                         + "</table>\n",
                 tablesConverted.get("secondGroup"));
         assertEquals(
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -393,7 +393,7 @@ public class ConfigOptionsDocGeneratorTest {
     @Test
     public void testOverrideDefault() {
         final String expectedTable =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -442,7 +442,7 @@ public class ConfigOptionsDocGeneratorTest {
         Formatter formatter = new HtmlFormatter();
 
         String expected1 =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -480,7 +480,7 @@ public class ConfigOptionsDocGeneratorTest {
                         + "</table>\n";
 
         String expected2 =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"
@@ -543,7 +543,7 @@ public class ConfigOptionsDocGeneratorTest {
     @Test
     public void testConfigOptionExclusion() {
         final String expectedTable =
-                "<table class=\"table table-bordered\">\n"
+                "<table class=\"configuration table table-bordered\">\n"
                         + "    <thead>\n"
                         + "        <tr>\n"
                         + "            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n"

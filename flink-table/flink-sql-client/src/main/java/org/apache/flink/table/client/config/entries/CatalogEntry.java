@@ -18,16 +18,21 @@
 
 package org.apache.flink.table.client.config.entries;
 
+import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.factories.FactoryUtil;
 
 import java.util.Collections;
 import java.util.Map;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
-
-/** Describes a catalog configuration entry. */
+/**
+ * Describes a catalog configuration entry.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
+ */
+@Deprecated
 public class CatalogEntry extends ConfigEntry {
 
     public static final String CATALOG_NAME = "name";
@@ -45,8 +50,8 @@ public class CatalogEntry extends ConfigEntry {
 
     @Override
     protected void validate(DescriptorProperties properties) {
-        properties.validateString(CATALOG_TYPE, false, 1);
-        properties.validateInt(CATALOG_PROPERTY_VERSION, true, 0);
+        properties.validateString(CommonCatalogOptions.CATALOG_TYPE.key(), false, 1);
+        properties.validateInt(FactoryUtil.PROPERTY_VERSION.key(), true, 0);
 
         // further validation is performed by the discovered factory
     }

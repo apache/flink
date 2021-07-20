@@ -5,7 +5,7 @@ distributed coordination of Apache Flink®.
 
 ## Test Coverage
 Jepsen is a framework built to test the behavior of distributed systems
-under faults. The tests in this particular project deploy Flink on YARN, Mesos, or as a standalone cluster,
+under faults. The tests in this particular project deploy Flink on YARN, or as a standalone cluster,
 submit one or multiple jobs, and examine the availability of the job(s) after injecting faults.
 Optionally, we can cancel the job(s) during the test.
 The faults that can be currently introduced to the Flink cluster include:
@@ -192,7 +192,7 @@ The test spec is a Clojure map; its set of allowed keys is described by the tabl
 
 | Key           | Description |
 | :------------ | :---------- |
-| :dbs          | A vector specifying which software to install on the DB nodes before running the test. Possible values: `:hadoop`, `:kafka`, `:mesos`, `:zookeeper`, `:flink-standalone-session`, `:flink-mesos-session`, `:flink-yarn-job`, `:flink-yarn-session`. |
+| :dbs          | A vector specifying which software to install on the DB nodes before running the test. Possible values: `:hadoop`, `:kafka`, `:zookeeper`, `:flink-standalone-session`, `:flink-yarn-job`, `:flink-yarn-session`. |
 | :jobs         | A vector of maps specifying which jobs to submit to the Flink cluster. Multiple jobs can be submitted. The `:main-class` key is optional; if omitted, the main class will be looked up in the manifest file. |
 | :flink-config | A map with additional Flink configuration; has precedence over the default configuration. |
 
@@ -203,9 +203,7 @@ we refer to the _first_, _second_, _nth_ item in the nodes file in lexicographic
 | :-------------------------| :---------- |
 | :hadoop                   | Installs HDFS and YARN. The first node and the second node will run the HDFS NameNode and the YARN ResourceManager, respectively. The remaining nodes will take the role of the HDFS DataNodes and YARN NodeManagers. |
 | :kafka                    | Installs Kafka on all nodes. |
-| :mesos                    | Installs Mesos and Marathon. The first node will run the Mesos master and Marathon. The remaining nodes will run the Mesos agent. |
 | :zookeeper                | Installs ZooKeeper on all nodes. |
-| :flink-mesos-session      | Starts a session cluster on Mesos via Marathon. |
 | :flink-standalone-session | Starts JobManagers on the first two nodes and TaskManagers on the remaining nodes. |
 | :flink-yarn-job           | Starts a per-job cluster on YARN. |
 | :flink-yarn-session       | Starts a session cluster on YARN. |

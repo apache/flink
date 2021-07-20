@@ -112,13 +112,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(
-                                        groupingSet.length,
-                                        outputType.getFieldCount() - namedProperties.length));
+        super.open();
         inputKeyAndWindow = new LinkedList<>();
         windowProperty = new GenericRowData(namedProperties.length);
         windowAggResult = new JoinedRowData();
@@ -126,7 +120,6 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
                 new HeapWindowsGrouping(
                         maxLimitSize, windowSize, slideSize, inputTimeFieldIndex, false);
         forwardedInputSerializer = new RowDataSerializer(inputType);
-        super.open();
     }
 
     @Override
@@ -145,6 +138,16 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
             lastGroupKey = currentKey;
             lastGroupSet = groupSetProjection.apply(input).copy();
         }
+    }
+
+    @Override
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(
+                                groupingSet.length,
+                                outputType.getFieldCount() - namedProperties.length));
     }
 
     @Override
@@ -175,6 +178,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
             windowAggResult.replace(key, arrowSerializer.read(i));
             rowDataWrapper.collect(reuseJoinedRow.replace(windowAggResult, windowProperty));
         }
+        arrowSerializer.resetReader();
     }
 
     private void triggerWindowProcess() throws Exception {
@@ -195,6 +199,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
                 checkInvokeFinishBundleByCount();
                 currentBatchCount = 0;
                 baos.reset();
+                arrowSerializer.resetWriter();
             }
         }
     }

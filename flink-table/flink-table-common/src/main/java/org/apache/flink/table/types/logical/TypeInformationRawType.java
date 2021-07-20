@@ -52,6 +52,7 @@ import java.util.Set;
 @PublicEvolving
 @Deprecated
 public final class TypeInformationRawType<T> extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     private static final String FORMAT = "RAW('%s', ?)";
 

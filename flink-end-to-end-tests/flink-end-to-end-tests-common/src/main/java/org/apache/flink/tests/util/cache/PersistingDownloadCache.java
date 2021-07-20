@@ -51,6 +51,7 @@ public final class PersistingDownloadCache extends AbstractDownloadCache {
     public PersistingDownloadCache(final Path path, final Period ttl) {
         super(path);
         this.ttl = ttl;
+        log.info("Using PersistingDownloadCache with path {} and ttl {}", path, ttl);
     }
 
     @Override

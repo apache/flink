@@ -21,7 +21,7 @@
  * for the master and worker resource manager actors, as well as for starting JobManager and
  * TaskManager processes.
  *
- * <p>The classes in this package are extended by the YARN and Mesos implementations to realize
- * cluster bootstrapping and resource management with those frameworks.
+ * <p>The classes in this package are extended by the YARN implementation to realize cluster
+ * bootstrapping and resource management with those frameworks.
  */
 package org.apache.flink.runtime.clusterframework;

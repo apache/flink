@@ -32,8 +32,8 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -48,6 +48,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -143,15 +144,14 @@ public class SchedulingITCase extends TestLogger {
 
         sink.connectNewDataSetAsInput(
                 source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        JobGraph jobGraph = new JobGraph(source, sink);
-
-        jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, delay));
-        jobGraph.setExecutionConfig(executionConfig);
 
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .addJobVertices(Arrays.asList(source, sink))
+                .setExecutionConfig(executionConfig)
+                .build();
     }
 
     /** Invokable which fails exactly once (one sub task of it). */

@@ -17,15 +17,18 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -48,7 +51,10 @@ public class StreamTaskExecutionDecorationTest {
 
     @Test
     public void testAbortCheckpointOnBarrierIsDecorated() throws Exception {
-        task.abortCheckpointOnBarrier(1, null);
+        task.abortCheckpointOnBarrier(
+                1,
+                new CheckpointException(
+                        CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER));
         Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
     }
 
@@ -69,8 +75,7 @@ public class StreamTaskExecutionDecorationTest {
                 new CheckpointMetaData(1, 2),
                 new CheckpointOptions(
                         CheckpointType.CHECKPOINT,
-                        new CheckpointStorageLocationReference(new byte[] {1})),
-                false);
+                        new CheckpointStorageLocationReference(new byte[] {1})));
         Assert.assertTrue("mailbox is empty", mailbox.hasMail());
         Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
         mailbox.drain()
@@ -100,7 +105,7 @@ public class StreamTaskExecutionDecorationTest {
         decorator = new CountingStreamTaskActionExecutor();
         task =
                 new StreamTask<Object, StreamOperator<Object>>(
-                        new StreamTaskTest.DeclineDummyEnvironment(),
+                        new DeclineDummyEnvironment(),
                         null,
                         FatalExitExceptionHandler.INSTANCE,
                         decorator,
@@ -111,7 +116,7 @@ public class StreamTaskExecutionDecorationTest {
                     @Override
                     protected void processInput(MailboxDefaultAction.Controller controller) {}
                 };
-        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>());
+        task.operatorChain = new OperatorChain<>(task, new NonRecordWriter<>(), false);
     }
 
     @After
@@ -153,5 +158,15 @@ public class StreamTaskExecutionDecorationTest {
             calls.incrementAndGet();
             return callable.call();
         }
+    }
+
+    private static final class DeclineDummyEnvironment extends DummyEnvironment {
+
+        DeclineDummyEnvironment() {
+            super("test", 1, 0);
+        }
+
+        @Override
+        public void declineCheckpoint(long checkpointId, CheckpointException cause) {}
     }
 }

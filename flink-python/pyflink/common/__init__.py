@@ -23,6 +23,7 @@ Important classes used by both Flink Streaming and Batch API:
       A config to define the behavior of the program execution.
 """
 from pyflink.common.completable_future import CompletableFuture
+from pyflink.common.config_options import ConfigOption, ConfigOptions
 from pyflink.common.configuration import Configuration
 from pyflink.common.execution_config import ExecutionConfig
 from pyflink.common.execution_mode import ExecutionMode
@@ -32,6 +33,7 @@ from pyflink.common.job_execution_result import JobExecutionResult
 from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
+from pyflink.common.typeinfo import Types, TypeInformation
 from pyflink.common.types import Row, RowKind
 from pyflink.common.time import Duration
 from pyflink.common.watermark_strategy import WatermarkStrategy
@@ -39,6 +41,8 @@ from pyflink.common.watermark_strategy import WatermarkStrategy
 __all__ = [
     'CompletableFuture',
     'Configuration',
+    'ConfigOption',
+    'ConfigOptions',
     'ExecutionConfig',
     'ExecutionMode',
     'InputDependencyConstraint',
@@ -51,5 +55,7 @@ __all__ = [
     "Row",
     "RowKind",
     "Duration",
-    "WatermarkStrategy"
+    "WatermarkStrategy",
+    "Types",
+    "TypeInformation"
 ]

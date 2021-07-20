@@ -29,10 +29,10 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.runtime.util.Runnables;
+import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -119,7 +119,8 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize) {
+            int maxHistorySize)
+            throws IOException {
         this.refreshIntervalMillis = refreshIntervalMillis;
         this.fetcherTask =
                 new JobArchiveFetcherTask(
@@ -184,7 +185,8 @@ class HistoryServerArchiveFetcher {
                 File webDir,
                 Consumer<ArchiveEvent> jobArchiveEventListener,
                 boolean processExpiredArchiveDeletion,
-                int maxHistorySize) {
+                int maxHistorySize)
+                throws IOException {
             this.refreshDirs = checkNotNull(refreshDirs);
             this.jobArchiveEventListener = jobArchiveEventListener;
             this.processExpiredArchiveDeletion = processExpiredArchiveDeletion;
@@ -193,9 +195,9 @@ class HistoryServerArchiveFetcher {
             this.cachedArchives = new HashSet<>();
             this.webDir = checkNotNull(webDir);
             this.webJobDir = new File(webDir, "jobs");
-            webJobDir.mkdir();
+            Files.createDirectories(webJobDir.toPath());
             this.webOverviewDir = new File(webDir, "overviews");
-            webOverviewDir.mkdir();
+            Files.createDirectories(webOverviewDir.toPath());
             updateJobOverview(webOverviewDir, webDir);
         }
 

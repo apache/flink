@@ -46,6 +46,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.internal.stubbing.answers.CallsRealMethods;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -53,13 +54,16 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -155,6 +159,25 @@ public class RMQSourceTest {
     }
 
     @Test
+    public void testResourceCleanupOnOpenFailure() throws Exception {
+        RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+        ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+        Connection connection = Mockito.mock(Connection.class);
+        Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+        Mockito.when(connectionConfig.getHost()).thenReturn("hostDummy");
+        Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+        Mockito.when(connection.createChannel()).thenThrow(new IOException());
+
+        RMQSource<String> rmqSource =
+                new RMQSource<>(
+                        connectionConfig, "queueDummy", true, new StringDeserializationScheme());
+        RuntimeException ex =
+                assertThrows(RuntimeException.class, () -> rmqSource.open(new Configuration()));
+        assertEquals("Cannot create RMQ connection with queueDummy at hostDummy", ex.getMessage());
+        Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
+    }
+
+    @Test
     public void testOpenCallDeclaresQueueInStandardMode() throws Exception {
         FunctionInitializationContext mockContext = getMockContext();
 
@@ -172,6 +195,39 @@ public class RMQSourceTest {
         rmqSource.open(new Configuration());
 
         Mockito.verify(channel).queueDeclare(RMQTestSource.QUEUE_NAME, true, false, false, null);
+    }
+
+    @Test
+    public void testResourceCleanupOnClose() throws Exception {
+        FunctionInitializationContext mockContext = getMockContext();
+
+        RMQConnectionConfig connectionConfig = Mockito.mock(RMQConnectionConfig.class);
+        ConnectionFactory connectionFactory = Mockito.mock(ConnectionFactory.class);
+        Connection connection = Mockito.mock(Connection.class);
+        Channel channel = Mockito.mock(Channel.class);
+
+        Mockito.when(connectionConfig.getConnectionFactory()).thenReturn(connectionFactory);
+        Mockito.when(connectionFactory.newConnection()).thenReturn(connection);
+        Mockito.when(connectionConfig.getHost()).thenReturn("hostDummy");
+        Mockito.when(connection.createChannel()).thenReturn(channel);
+        Mockito.doThrow(new IOException("Consumer cancel error")).when(channel).basicCancel(any());
+        Mockito.doThrow(new IOException("Channel error")).when(channel).close();
+        Mockito.doThrow(new IOException("Connection error")).when(connection).close();
+
+        RMQSource<String> rmqSource = new RMQMockedRuntimeTestSource(connectionConfig);
+        rmqSource.initializeState(mockContext);
+        rmqSource.open(new Configuration());
+
+        Exception ex = assertThrows(RuntimeException.class, rmqSource::close);
+        assertEquals(
+                "Error while cancelling RMQ consumer on queueDummy at hostDummy", ex.getMessage());
+        assertEquals(1, ex.getSuppressed().length);
+        assertEquals(
+                "Error while closing RMQ source with queueDummy at hostDummy",
+                ex.getSuppressed()[0].getMessage());
+        Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).basicCancel(any());
+        Mockito.verify(rmqSource.channel, Mockito.atLeastOnce()).close();
+        Mockito.verify(rmqSource.connection, Mockito.atLeastOnce()).close();
     }
 
     @Test
@@ -419,6 +475,38 @@ public class RMQSourceTest {
         Mockito.verify(channel, Mockito.times(0)).basicQos(anyInt());
     }
 
+    @Test
+    public void testDeliveryTimeout() throws Exception {
+        source.autoAck = false;
+        // mock not delivering messages
+        CallsRealMethodsWithLatch delivery = new CallsRealMethodsWithLatch();
+        Mockito.when(source.consumer.nextDelivery(any(Long.class))).then(delivery);
+
+        sourceThread.start();
+        // wait until message delivery starts
+        delivery.awaitInvoke();
+
+        source.cancel();
+        sourceThread.join();
+        Mockito.verify(source.consumer, Mockito.never()).nextDelivery();
+        Mockito.verify(source.consumer, Mockito.atLeastOnce()).nextDelivery(any(Long.class));
+        assertNull(exception);
+    }
+
+    private static class CallsRealMethodsWithLatch extends CallsRealMethods {
+
+        private final CountDownLatch latch = new CountDownLatch(1);
+
+        public void awaitInvoke() throws InterruptedException {
+            latch.await();
+        }
+
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+            latch.countDown();
+            return super.answer(invocation);
+        }
+    }
+
     private static class ConstructorTestClass extends RMQSource<String> {
 
         private ConnectionFactory factory;
@@ -526,6 +614,7 @@ public class RMQSourceTest {
                         .setUserName("userTest")
                         .setPassword("passTest")
                         .setVirtualHost("/")
+                        .setDeliveryTimeout(100)
                         .build();
 
         protected RuntimeContext runtimeContext = Mockito.mock(StreamingRuntimeContext.class);
@@ -602,7 +691,7 @@ public class RMQSourceTest {
                     .thenReturn("test".getBytes(ConfigConstants.DEFAULT_CHARSET));
 
             try {
-                Mockito.when(consumer.nextDelivery()).thenReturn(mockedDelivery);
+                Mockito.when(consumer.nextDelivery(any(Long.class))).thenReturn(mockedDelivery);
             } catch (InterruptedException e) {
                 fail("Couldn't setup up deliveryMock");
             }

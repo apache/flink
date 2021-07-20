@@ -22,14 +22,14 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 
+import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP;
+import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
-import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.HEAP;
-import static org.apache.flink.contrib.streaming.state.RocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 
 /** Configuration options for the RocksDB backend. */
 public class RocksDBOptions {
@@ -38,6 +38,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> LOCAL_DIRECTORIES =
             ConfigOptions.key("state.backend.rocksdb.localdir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
                     .withDescription(
@@ -61,7 +62,8 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<Integer> CHECKPOINT_TRANSFER_THREAD_NUM =
             ConfigOptions.key("state.backend.rocksdb.checkpoint.transfer.thread.num")
-                    .defaultValue(1)
+                    .intType()
+                    .defaultValue(4)
                     .withDescription(
                             "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
@@ -69,6 +71,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> PREDEFINED_OPTIONS =
             ConfigOptions.key("state.backend.rocksdb.predefined-options")
+                    .stringType()
                     .defaultValue(DEFAULT.name())
                     .withDescription(
                             String.format(
@@ -84,6 +87,7 @@ public class RocksDBOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.rocksdb.options-factory")
+                    .stringType()
                     .defaultValue(DefaultConfigurableOptionsFactory.class.getName())
                     .withDescription(
                             String.format(
@@ -134,5 +138,19 @@ public class RocksDBOptions {
                             String.format(
                                     "The fraction of cache memory that is reserved for high-priority data like index, filter, and "
                                             + "compression dictionary blocks. This option only has an effect when '%s' or '%s' are configured.",
+                                    USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Boolean> USE_PARTITIONED_INDEX_FILTERS =
+            ConfigOptions.key("state.backend.rocksdb.memory.partitioned-index-filters")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            String.format(
+                                    "With partitioning, the index/filter block of an SST file is partitioned into smaller blocks with "
+                                            + "an additional top-level index on them. When reading an index/filter, only top-level index is loaded into memory. "
+                                            + "The partitioned index/filter then uses the top-level index to load on demand into the block cache "
+                                            + "the partitions that are required to perform the index/filter query. "
+                                            + "This option only has an effect when '%s' or '%s' are configured.",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 }

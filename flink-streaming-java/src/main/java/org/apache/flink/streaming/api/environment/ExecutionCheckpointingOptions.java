@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -167,10 +166,11 @@ public class ExecutionCheckpointingOptions {
                                             TextElement.code(MAX_CONCURRENT_CHECKPOINTS.key()))
                                     .build());
 
-    public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
-            ConfigOptions.key("execution.checkpointing.alignment-timeout")
+    public static final ConfigOption<Duration> ALIGNED_CHECKPOINT_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.aligned-checkpoint-timeout")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(0L))
+                    .withDeprecatedKeys("execution.checkpointing.alignment-timeout")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -188,15 +188,54 @@ public class ExecutionCheckpointingOptions {
                                                     + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
                                     .build());
 
-    @Documentation.ExcludeFromDocumentation(
-            "Do not advertise this option until rescaling of unaligned checkpoint is completed.")
+    /** @deprecated Use {@link #ALIGNED_CHECKPOINT_TIMEOUT} instead. */
+    @Deprecated
+    public static final ConfigOption<Duration> ALIGNMENT_TIMEOUT =
+            ConfigOptions.key("execution.checkpointing.alignment-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(0L))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Deprecated. %s should be used instead. Only relevant if %s is enabled.",
+                                            TextElement.code(ALIGNED_CHECKPOINT_TIMEOUT.key()),
+                                            TextElement.code(ENABLE_UNALIGNED.key()))
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout is 0, checkpoints will always start unaligned.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "If timeout has a positive value, checkpoints will start aligned. "
+                                                    + "If during checkpointing, checkpoint start delay exceeds this timeout, alignment "
+                                                    + "will timeout and checkpoint barrier will start working as unaligned checkpoint.")
+                                    .build());
+
     public static final ConfigOption<Boolean> FORCE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.forced")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
+                                    .build());
+
+    public static final ConfigOption<Long> CHECKPOINT_ID_OF_IGNORED_IN_FLIGHT_DATA =
+            ConfigOptions.key("execution.checkpointing.recover-without-channel-state.checkpoint-id")
+                    .longType()
+                    .defaultValue(-1L)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Checkpoint id for which in-flight data should be ignored in case of the recovery from this checkpoint.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "It is better to keep this value empty until "
+                                                    + "there is explicit needs to restore from "
+                                                    + "the specific checkpoint without in-flight data.")
+                                    .linebreak()
                                     .build());
 }

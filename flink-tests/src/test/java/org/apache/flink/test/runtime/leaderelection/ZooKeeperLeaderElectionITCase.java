@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -175,8 +176,6 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         vertex.setParallelism(parallelism);
         vertex.setInvokableClass(BlockingOperator.class);
 
-        JobGraph jobGraph = new JobGraph("Blocking test job", vertex);
-
         // explicitly allow restarts; this is necessary since the shutdown may result in the job
         // failing and hence being
         // removed from ZooKeeper. What happens to running jobs if the Dispatcher shuts down in an
@@ -187,9 +186,11 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.setRestartStrategy(
                 RestartStrategies.fixedDelayRestart(10, Duration.ofSeconds(10).toMillis()));
-        jobGraph.setExecutionConfig(executionConfig);
 
-        return jobGraph;
+        return JobGraphBuilder.newStreamingJobGraphBuilder()
+                .addJobVertex(vertex)
+                .setExecutionConfig(executionConfig)
+                .build();
     }
 
     /** Blocking invokable which is controlled by a static field. */

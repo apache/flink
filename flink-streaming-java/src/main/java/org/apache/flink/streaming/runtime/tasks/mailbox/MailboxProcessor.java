@@ -19,10 +19,7 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.MeterView;
-import org.apache.flink.metrics.SimpleCounter;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
@@ -34,11 +31,14 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_PRIORITY;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This class encapsulates the logic of the mailbox-based execution model. At the core of this model
@@ -79,19 +79,26 @@ public class MailboxProcessor implements Closeable {
      */
     protected final MailboxDefaultAction mailboxDefaultAction;
 
-    /** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
+    /**
+     * Control flag to terminate the mailbox processor. Once it was terminated could not be
+     * restarted again. Must only be accessed from mailbox thread.
+     */
     private boolean mailboxLoopRunning;
+
+    /**
+     * Control flag to temporary suspend the mailbox loop/processor. After suspending the mailbox
+     * processor can be still later resumed. Must only be accessed from mailbox thread.
+     */
+    private boolean suspended;
 
     /**
      * Remembers a currently active suspension of the default action. Serves as flag to indicate a
      * suspended default action (suspended if not-null) and to reuse the object as return value in
      * consecutive suspend attempts. Must only be accessed from mailbox thread.
      */
-    private MailboxDefaultAction.Suspension suspendedDefaultAction;
+    private DefaultActionSuspension suspendedDefaultAction;
 
     private final StreamTaskActionExecutor actionExecutor;
-
-    private Meter idleTime = new MeterView(new SimpleCounter());
 
     @VisibleForTesting
     public MailboxProcessor() {
@@ -129,10 +136,6 @@ public class MailboxProcessor implements Closeable {
      */
     public MailboxExecutor getMailboxExecutor(int priority) {
         return new MailboxExecutorImpl(mailbox, priority, actionExecutor, this);
-    }
-
-    public void initMetric(TaskMetricGroup metricGroup) {
-        idleTime = metricGroup.getIOMetricGroup().getIdleTimeMsPerSecond();
     }
 
     /** Lifecycle method to close the mailbox for action submission. */
@@ -176,12 +179,17 @@ public class MailboxProcessor implements Closeable {
         }
     }
 
-    /** Runs the mailbox processing loop. This is where the main work is done. */
+    /**
+     * Runs the mailbox processing loop. This is where the main work is done. This loop can be
+     * suspended at any time by calling {@link #suspend()}. For resuming the loop this method should
+     * be called again.
+     */
     public void runMailboxLoop() throws Exception {
+        suspended = !mailboxLoopRunning;
 
         final TaskMailbox localMailbox = mailbox;
 
-        Preconditions.checkState(
+        checkState(
                 localMailbox.isMailboxThread(),
                 "Method must be executed by declared mailbox thread!");
 
@@ -189,14 +197,19 @@ public class MailboxProcessor implements Closeable {
 
         final MailboxController defaultActionContext = new MailboxController(this);
 
-        while (isMailboxLoopRunning()) {
+        while (isNextLoopPossible()) {
             // The blocking `processMail` call will not return until default action is available.
             processMail(localMailbox, false);
-            if (isMailboxLoopRunning()) {
+            if (isNextLoopPossible()) {
                 mailboxDefaultAction.runDefaultAction(
                         defaultActionContext); // lock is acquired inside default action as needed
             }
         }
+    }
+
+    /** Suspend the running of the loop which was started by {@link #runMailboxLoop()}}. */
+    public void suspend() {
+        sendPoisonMail(() -> suspended = true);
     }
 
     /**
@@ -206,10 +219,12 @@ public class MailboxProcessor implements Closeable {
      */
     @VisibleForTesting
     public boolean runMailboxStep() throws Exception {
+        suspended = !mailboxLoopRunning;
+
         if (processMail(mailbox, true)) {
             return true;
         }
-        if (!isDefaultActionUnavailable() && isMailboxLoopRunning()) {
+        if (!isDefaultActionUnavailable() && isNextLoopPossible()) {
             mailboxDefaultAction.runDefaultAction(new MailboxController(this));
             return true;
         }
@@ -251,13 +266,22 @@ public class MailboxProcessor implements Closeable {
      * performed.
      */
     public void allActionsCompleted() {
+        sendPoisonMail(
+                () -> {
+                    mailboxLoopRunning = false;
+                    suspended = true;
+                });
+    }
+
+    /** Send mail in first priority for internal needs. */
+    private void sendPoisonMail(RunnableWithException mail) {
         mailbox.runExclusively(
                 () -> {
                     // keep state check and poison mail enqueuing atomic, such that no intermediate
                     // #close may cause a
                     // MailboxStateException in #sendPriorityMail.
                     if (mailbox.getState() == TaskMailbox.State.OPEN) {
-                        sendControlMail(() -> mailboxLoopRunning = false, "poison mail");
+                        sendControlMail(mail, "poison mail");
                     }
                 });
     }
@@ -288,57 +312,84 @@ public class MailboxProcessor implements Closeable {
         // Doing this check is an optimization to only have a volatile read in the expected hot
         // path, locks are only
         // acquired after this point.
-        if (!mailbox.createBatch()) {
-            // We can also directly return true because all changes to #isMailboxLoopRunning must be
-            // connected to
-            // mailbox.hasMail() == true.
-            return false;
-        }
+        boolean isBatchAvailable = mailbox.createBatch();
 
-        boolean processed = false;
         // Take mails in a non-blockingly and execute them.
-        Optional<Mail> maybeMail;
-        while (isMailboxLoopRunning() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
-            maybeMail.get().run();
-            processed = true;
-            if (singleStep) {
-                break;
-            }
-        }
+        boolean processed = isBatchAvailable && processMailsNonBlocking(singleStep);
         if (singleStep) {
             return processed;
         }
 
         // If the default action is currently not available, we can run a blocking mailbox execution
-        // until the default
-        // action becomes available again.
-        while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-            maybeMail = mailbox.tryTake(MIN_PRIORITY);
-            if (!maybeMail.isPresent()) {
-                long start = System.currentTimeMillis();
-                maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
-                idleTime.markEvent(System.currentTimeMillis() - start);
-            }
-            maybeMail.get().run();
-            processed = true;
-        }
+        // until the default action becomes available again.
+        processed |= processMailsWhenDefaultActionUnavailable();
 
         return processed;
+    }
+
+    private boolean processMailsWhenDefaultActionUnavailable() throws Exception {
+        boolean processedSomething = false;
+        Optional<Mail> maybeMail;
+        while (isDefaultActionUnavailable() && isNextLoopPossible()) {
+            maybeMail = mailbox.tryTake(MIN_PRIORITY);
+            if (!maybeMail.isPresent()) {
+                maybeMail = Optional.of(mailbox.take(MIN_PRIORITY));
+            }
+            maybePauseIdleTimer();
+            maybeMail.get().run();
+            maybeRestartIdleTimer();
+            processedSomething = true;
+        }
+        return processedSomething;
+    }
+
+    private boolean processMailsNonBlocking(boolean singleStep) throws Exception {
+        long processedMails = 0;
+        Optional<Mail> maybeMail;
+
+        while (isNextLoopPossible() && (maybeMail = mailbox.tryTakeFromBatch()).isPresent()) {
+            if (processedMails++ == 0) {
+                maybePauseIdleTimer();
+            }
+            maybeMail.get().run();
+            if (singleStep) {
+                break;
+            }
+        }
+        if (processedMails > 0) {
+            maybeRestartIdleTimer();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void maybePauseIdleTimer() {
+        if (suspendedDefaultAction != null && suspendedDefaultAction.suspensionTimer != null) {
+            suspendedDefaultAction.suspensionTimer.markEnd();
+        }
+    }
+
+    private void maybeRestartIdleTimer() {
+        if (suspendedDefaultAction != null && suspendedDefaultAction.suspensionTimer != null) {
+            suspendedDefaultAction.suspensionTimer.markStart();
+        }
     }
 
     /**
      * Calling this method signals that the mailbox-thread should (temporarily) stop invoking the
      * default action, e.g. because there is currently no input available.
      */
-    private MailboxDefaultAction.Suspension suspendDefaultAction() {
+    private MailboxDefaultAction.Suspension suspendDefaultAction(
+            @Nullable TimerGauge suspensionTimer) {
 
-        Preconditions.checkState(
+        checkState(
                 mailbox.isMailboxThread(),
                 "Suspending must only be called from the mailbox thread!");
 
+        checkState(suspendedDefaultAction == null, "Default action has already been suspended");
         if (suspendedDefaultAction == null) {
-            suspendedDefaultAction = new DefaultActionSuspension();
-            ensureControlFlowSignalCheck();
+            suspendedDefaultAction = new DefaultActionSuspension(suspensionTimer);
         }
 
         return suspendedDefaultAction;
@@ -349,31 +400,19 @@ public class MailboxProcessor implements Closeable {
         return suspendedDefaultAction != null;
     }
 
+    private boolean isNextLoopPossible() {
+        // 'Suspended' can be false only when 'mailboxLoopRunning' is true.
+        return !suspended;
+    }
+
     @VisibleForTesting
     public boolean isMailboxLoopRunning() {
         return mailboxLoopRunning;
     }
 
     @VisibleForTesting
-    public Meter getIdleTime() {
-        return idleTime;
-    }
-
-    @VisibleForTesting
     public boolean hasMail() {
         return mailbox.hasMail();
-    }
-
-    /**
-     * Helper method to make sure that the mailbox loop will check the control flow flags in the
-     * next iteration.
-     */
-    private void ensureControlFlowSignalCheck() {
-        // Make sure that mailbox#hasMail is true via a dummy mail so that the flag change is
-        // noticed.
-        if (!mailbox.hasMail()) {
-            sendControlMail(() -> {}, "signal check");
-        }
     }
 
     /**
@@ -394,8 +433,14 @@ public class MailboxProcessor implements Closeable {
         }
 
         @Override
+        public MailboxDefaultAction.Suspension suspendDefaultAction(
+                TimerGauge suspensionIdleTimer) {
+            return mailboxProcessor.suspendDefaultAction(suspensionIdleTimer);
+        }
+
+        @Override
         public MailboxDefaultAction.Suspension suspendDefaultAction() {
-            return mailboxProcessor.suspendDefaultAction();
+            return mailboxProcessor.suspendDefaultAction(null);
         }
     }
 
@@ -404,6 +449,11 @@ public class MailboxProcessor implements Closeable {
      * resume execution.
      */
     private final class DefaultActionSuspension implements MailboxDefaultAction.Suspension {
+        @Nullable private final TimerGauge suspensionTimer;
+
+        public DefaultActionSuspension(@Nullable TimerGauge suspensionTimer) {
+            this.suspensionTimer = suspensionTimer;
+        }
 
         @Override
         public void resume() {

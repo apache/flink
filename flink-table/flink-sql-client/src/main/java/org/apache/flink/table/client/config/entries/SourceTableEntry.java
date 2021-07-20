@@ -20,7 +20,13 @@ package org.apache.flink.table.client.config.entries;
 
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
-/** Configuration of a table source. */
+/**
+ * Configuration of a table source.
+ *
+ * @deprecated This will be removed in Flink 1.14 with dropping support of {@code sql-client.yaml}
+ *     configuration file.
+ */
+@Deprecated
 public class SourceTableEntry extends TableEntry {
 
     SourceTableEntry(String name, DescriptorProperties properties) {

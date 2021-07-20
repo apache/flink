@@ -40,6 +40,12 @@ public class JoinedRowData implements RowData {
 
     public JoinedRowData() {}
 
+    public JoinedRowData(RowKind rowKind, RowData row1, RowData row2) {
+        this.rowKind = rowKind;
+        this.row1 = row1;
+        this.row2 = row2;
+    }
+
     public JoinedRowData(RowData row1, RowData row2) {
         this.row1 = row1;
         this.row2 = row2;

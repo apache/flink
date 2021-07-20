@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.RedirectingSslHandler;
 import org.apache.flink.runtime.rest.handler.PipelineErrorHandler;
@@ -30,11 +29,12 @@ import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.rest.handler.router.RouterHandler;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrapConfig;
@@ -221,10 +221,10 @@ public abstract class RestServerEndpoint implements AutoCloseableAsync {
                     serverChannel = channel.syncUninterruptibly().channel();
                     break;
                 } catch (final Exception e) {
+                    // syncUninterruptibly() throws checked exceptions via Unsafe
                     // continue if the exception is due to the port being in use, fail early
                     // otherwise
-                    if (!(e instanceof org.jboss.netty.channel.ChannelException
-                            || e instanceof java.net.BindException)) {
+                    if (!(e instanceof java.net.BindException)) {
                         throw e;
                     }
                 }

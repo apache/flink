@@ -28,7 +28,7 @@ import org.apache.flink.connector.jdbc.internal.AbstractJdbcOutputFormat;
 import org.apache.flink.connector.jdbc.internal.GenericJdbcSinkFunction;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.utils.JdbcTypeUtil;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -49,7 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
 
     private final TableSchema schema;
-    private final JdbcOptions options;
+    private final JdbcConnectorOptions options;
     private final int flushMaxSize;
     private final long flushIntervalMills;
     private final int maxRetryTime;
@@ -59,7 +59,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
 
     private JdbcUpsertTableSink(
             TableSchema schema,
-            JdbcOptions options,
+            JdbcConnectorOptions options,
             int flushMaxSize,
             long flushIntervalMills,
             int maxRetryTime) {
@@ -181,7 +181,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
     /** Builder for a {@link JdbcUpsertTableSink}. */
     public static class Builder {
         protected TableSchema schema;
-        private JdbcOptions options;
+        private JdbcConnectorOptions options;
         protected int flushMaxSize = AbstractJdbcOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
         protected long flushIntervalMills = AbstractJdbcOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
         protected int maxRetryTimes = JdbcExecutionOptions.DEFAULT_MAX_RETRY_TIMES;
@@ -193,7 +193,7 @@ public class JdbcUpsertTableSink implements UpsertStreamTableSink<Row> {
         }
 
         /** required, jdbc options. */
-        public Builder setOptions(JdbcOptions options) {
+        public Builder setOptions(JdbcConnectorOptions options) {
             this.options = options;
             return this;
         }

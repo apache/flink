@@ -24,8 +24,8 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
@@ -50,7 +50,7 @@ public class OperatorGroupTest extends TestLogger {
     public void setup() {
         registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
     }
 
     @After
@@ -96,7 +96,7 @@ public class OperatorGroupTest extends TestLogger {
                 MetricOptions.SCOPE_NAMING_OPERATOR,
                 "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(cfg));
         try {
             String tmID = "test-tm-id";
             JobID jid = new JobID();

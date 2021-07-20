@@ -57,14 +57,18 @@ public class MetricNames {
     public static final String MEMORY_COMMITTED = "Committed";
     public static final String MEMORY_MAX = "Max";
 
-    public static final String IS_BACKPRESSURED = "isBackPressured";
+    public static final String IS_BACK_PRESSURED = "isBackPressured";
 
     public static final String CHECKPOINT_ALIGNMENT_TIME = "checkpointAlignmentTime";
     public static final String CHECKPOINT_START_DELAY_TIME = "checkpointStartDelayNanos";
+
+    public static final String START_WORKER_FAILURE_RATE = "startWorkFailure" + SUFFIX_RATE;
 
     public static String currentInputWatermarkName(int index) {
         return String.format(IO_CURRENT_INPUT_WATERMARK_PATERN, index);
     }
 
     public static final String TASK_IDLE_TIME = "idleTimeMs" + SUFFIX_RATE;
+    public static final String TASK_BUSY_TIME = "busyTimeMs" + SUFFIX_RATE;
+    public static final String TASK_BACK_PRESSURED_TIME = "backPressuredTimeMs" + SUFFIX_RATE;
 }

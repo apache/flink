@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
@@ -64,8 +63,6 @@ public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuild
 
     private String comment;
 
-    private final boolean isGeneric;
-
     private List<String> partitionKeys = new ArrayList<>();
 
     private Map<String, String> properties = Collections.emptyMap();
@@ -73,9 +70,6 @@ public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuild
     public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
         super(connectorDescriptor);
         this.tableSchema = Preconditions.checkNotNull(tableSchema);
-
-        // We don't support non-generic table currently
-        this.isGeneric = true;
     }
 
     public CatalogTableBuilder withComment(String comment) {
@@ -102,8 +96,6 @@ public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuild
     @Override
     protected Map<String, String> additionalProperties() {
         DescriptorProperties descriptorProperties = new DescriptorProperties();
-
-        descriptorProperties.putBoolean(CatalogConfig.IS_GENERIC, isGeneric);
 
         descriptorProperties.putProperties(this.properties);
 

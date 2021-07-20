@@ -32,11 +32,12 @@ import java.util.Map;
 @Internal
 public class ArchivedExecutionConfig implements Serializable {
 
-    private static final long serialVersionUID = 2126156250920316528L;
+    private static final long serialVersionUID = 2907040336948181163L;
 
     private final String executionMode;
     private final String restartStrategyDescription;
     private final int parallelism;
+    private final int maxParallelism;
     private final boolean objectReuseEnabled;
     private final Map<String, String> globalJobParameters;
 
@@ -47,6 +48,7 @@ public class ArchivedExecutionConfig implements Serializable {
         } else {
             restartStrategyDescription = "default";
         }
+        maxParallelism = ec.getMaxParallelism();
         parallelism = ec.getParallelism();
         objectReuseEnabled = ec.isObjectReuseEnabled();
         if (ec.getGlobalJobParameters() != null && ec.getGlobalJobParameters().toMap() != null) {
@@ -59,11 +61,13 @@ public class ArchivedExecutionConfig implements Serializable {
     public ArchivedExecutionConfig(
             String executionMode,
             String restartStrategyDescription,
+            int maxParallelism,
             int parallelism,
             boolean objectReuseEnabled,
             Map<String, String> globalJobParameters) {
         this.executionMode = executionMode;
         this.restartStrategyDescription = restartStrategyDescription;
+        this.maxParallelism = maxParallelism;
         this.parallelism = parallelism;
         this.objectReuseEnabled = objectReuseEnabled;
         this.globalJobParameters = globalJobParameters;
@@ -75,6 +79,10 @@ public class ArchivedExecutionConfig implements Serializable {
 
     public String getRestartStrategyDescription() {
         return restartStrategyDescription;
+    }
+
+    public int getMaxParallelism() {
+        return maxParallelism;
     }
 
     public int getParallelism() {

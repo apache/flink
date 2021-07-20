@@ -292,7 +292,7 @@ public final class ExceptionUtils {
     public static <T extends Throwable> T firstOrSuppressed(T newException, @Nullable T previous) {
         checkNotNull(newException, "newException");
 
-        if (previous == null) {
+        if (previous == null || previous == newException) {
             return newException;
         } else {
             previous.addSuppressed(newException);

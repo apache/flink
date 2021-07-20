@@ -53,6 +53,15 @@ public class SlotReport implements Serializable, Iterable<SlotStatus> {
         return slotsStatus.size();
     }
 
+    public boolean hasAllocatedSlot() {
+        for (SlotStatus status : slotsStatus) {
+            if (status.getAllocationID() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public Iterator<SlotStatus> iterator() {
         return slotsStatus.iterator();

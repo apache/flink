@@ -24,9 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -41,16 +39,6 @@ import java.util.Collection;
 
 /** A simple {@link StateBackend} which is used in a BATCH style execution. */
 public class BatchExecutionStateBackend implements StateBackend {
-    @Override
-    public CompletedCheckpointStorageLocation resolveCheckpoint(String externalPointer) {
-        throw new UnsupportedOperationException(
-                "Checkpoints are not supported in a single key state backend");
-    }
-
-    @Override
-    public CheckpointStorageAccess createCheckpointStorage(JobID jobId) {
-        return new NonCheckpointingStorageAccess();
-    }
 
     @Override
     public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(

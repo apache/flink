@@ -40,7 +40,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskAttemptPathParameter;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
@@ -55,7 +55,7 @@ import java.util.concurrent.Executor;
 public class SubtaskExecutionAttemptDetailsHandler
         extends AbstractSubtaskAttemptHandler<
                 SubtaskExecutionAttemptDetailsInfo, SubtaskAttemptMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     private final MetricFetcher metricFetcher;
 

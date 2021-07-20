@@ -58,7 +58,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
             throws Exception {
         this(operator, 1, 1, 0);
 
-        config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -75,7 +75,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
                 parallelism,
                 subtaskIndex,
                 operatorID);
-        config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -85,7 +85,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
             throws Exception {
         this(operator, environment);
 
-        config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     public OneInputStreamOperatorTestHarness(OneInputStreamOperator<IN, OUT> operator)
@@ -139,7 +139,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
             throws Exception {
         this(factory, environment);
 
-        config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -153,7 +153,7 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
             throws Exception {
         this(factory, 1, 1, 0);
 
-        config.setTypeSerializersIn(Preconditions.checkNotNull(typeSerializerIn));
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     public OneInputStreamOperatorTestHarness(
@@ -173,6 +173,17 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
             OperatorID operatorID)
             throws Exception {
         super(factory, maxParallelism, parallelism, subtaskIndex, operatorID);
+    }
+
+    public OneInputStreamOperatorTestHarness(
+            OneInputStreamOperator<IN, OUT> operator,
+            TypeSerializer<IN> typeSerializerIn,
+            String taskName,
+            OperatorID operatorID)
+            throws Exception {
+        super(operator, taskName, operatorID);
+
+        config.setupNetworkInputs(Preconditions.checkNotNull(typeSerializerIn));
     }
 
     @Override

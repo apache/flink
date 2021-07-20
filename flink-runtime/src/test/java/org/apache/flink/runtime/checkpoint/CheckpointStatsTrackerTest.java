@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
@@ -31,33 +32,25 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import static java.util.Collections.singletonMap;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class CheckpointStatsTrackerTest {
 
     /** Tests access to the snapshotting settings. */
     @Test
     public void testGetSnapshottingSettings() throws Exception {
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(1);
-
         JobCheckpointingSettings snapshottingSettings =
                 new JobCheckpointingSettings(
-                        Collections.singletonList(new JobVertexID()),
-                        Collections.singletonList(new JobVertexID()),
-                        Collections.singletonList(new JobVertexID()),
                         new CheckpointCoordinatorConfiguration(
                                 181238123L,
                                 19191992L,
@@ -67,13 +60,13 @@ public class CheckpointStatsTrackerTest {
                                 false,
                                 false,
                                 false,
+                                0,
                                 0),
                         null);
 
         CheckpointStatsTracker tracker =
                 new CheckpointStatsTracker(
                         0,
-                        Collections.singletonList(jobVertex),
                         snapshottingSettings.getCheckpointCoordinatorConfiguration(),
                         new UnregisteredMetricsGroup());
 
@@ -85,16 +78,16 @@ public class CheckpointStatsTrackerTest {
     /** Tests that the number of remembered checkpoints configuration is respected. */
     @Test
     public void testTrackerWithoutHistory() throws Exception {
-        int numberOfSubtasks = 3;
-
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(numberOfSubtasks);
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 3, 256)
+                        .build();
+        ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker tracker =
                 new CheckpointStatsTracker(
                         0,
-                        Collections.singletonList(jobVertex),
                         mock(CheckpointCoordinatorConfiguration.class),
                         new UnregisteredMetricsGroup());
 
@@ -103,11 +96,12 @@ public class CheckpointStatsTrackerTest {
                         0,
                         1,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, jobVertex.getParallelism()));
 
-        pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
-        pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
-        pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(2));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
         pending.reportCompletedCheckpoint(null);
 
@@ -133,16 +127,18 @@ public class CheckpointStatsTrackerTest {
     /** Tests tracking of checkpoints. */
     @Test
     public void testCheckpointTracking() throws Exception {
-        int numberOfSubtasks = 3;
-
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(numberOfSubtasks);
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID, 3, 256)
+                        .build();
+        ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
+        Map<JobVertexID, Integer> vertexToDop =
+                singletonMap(jobVertexID, jobVertex.getParallelism());
 
         CheckpointStatsTracker tracker =
                 new CheckpointStatsTracker(
                         10,
-                        Collections.singletonList(jobVertex),
                         mock(CheckpointCoordinatorConfiguration.class),
                         new UnregisteredMetricsGroup());
 
@@ -152,11 +148,12 @@ public class CheckpointStatsTrackerTest {
                         0,
                         1,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        vertexToDop);
 
-        completed1.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
-        completed1.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
-        completed1.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(2));
+        completed1.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+        completed1.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
+        completed1.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
         completed1.reportCompletedCheckpoint(null);
 
@@ -166,17 +163,19 @@ public class CheckpointStatsTrackerTest {
                         1,
                         1,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        vertexToDop);
 
         failed.reportFailedCheckpoint(12, null);
 
         // Completed savepoint
         PendingCheckpointStats savepoint =
-                tracker.reportPendingCheckpoint(2, 1, CheckpointProperties.forSavepoint(true));
+                tracker.reportPendingCheckpoint(
+                        2, 1, CheckpointProperties.forSavepoint(true), vertexToDop);
 
-        savepoint.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
-        savepoint.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(1));
-        savepoint.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(2));
+        savepoint.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+        savepoint.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
+        savepoint.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
         savepoint.reportCompletedCheckpoint(null);
 
@@ -186,7 +185,8 @@ public class CheckpointStatsTrackerTest {
                         3,
                         1,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        vertexToDop);
 
         RestoredCheckpointStats restored =
                 new RestoredCheckpointStats(
@@ -253,14 +253,10 @@ public class CheckpointStatsTrackerTest {
     /** Tests that snapshots are only created if a new snapshot has been reported or updated. */
     @Test
     public void testCreateSnapshot() throws Exception {
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(1);
-
+        JobVertexID jobVertexID = new JobVertexID();
         CheckpointStatsTracker tracker =
                 new CheckpointStatsTracker(
                         10,
-                        Collections.singletonList(jobVertex),
                         mock(CheckpointCoordinatorConfiguration.class),
                         new UnregisteredMetricsGroup());
 
@@ -272,9 +268,10 @@ public class CheckpointStatsTrackerTest {
                         0,
                         1,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
 
-        pending.reportSubtaskStats(jobVertex.getJobVertexId(), createSubtaskStats(0));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
 
         CheckpointStatsSnapshot snapshot2 = tracker.createSnapshot();
         assertNotEquals(snapshot1, snapshot2);
@@ -317,15 +314,7 @@ public class CheckpointStatsTrackerTest {
                     }
                 };
 
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(1);
-
-        new CheckpointStatsTracker(
-                0,
-                Collections.singletonList(jobVertex),
-                mock(CheckpointCoordinatorConfiguration.class),
-                metricGroup);
+        new CheckpointStatsTracker(0, mock(CheckpointCoordinatorConfiguration.class), metricGroup);
 
         // Make sure this test is adjusted when further metrics are added
         assertTrue(
@@ -365,16 +354,16 @@ public class CheckpointStatsTrackerTest {
                     }
                 };
 
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(1);
+        JobVertexID jobVertexID = new JobVertexID();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build();
+        ExecutionJobVertex jobVertex = graph.getJobVertex(jobVertexID);
 
         CheckpointStatsTracker stats =
                 new CheckpointStatsTracker(
-                        0,
-                        Collections.singletonList(jobVertex),
-                        mock(CheckpointCoordinatorConfiguration.class),
-                        metricGroup);
+                        0, mock(CheckpointCoordinatorConfiguration.class), metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
         assertEquals(10, registeredGauges.size());
@@ -439,7 +428,8 @@ public class CheckpointStatsTrackerTest {
                         0,
                         0,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
 
         // Check counts
         assertEquals(Long.valueOf(1), numCheckpoints.getValue());
@@ -464,9 +454,11 @@ public class CheckpointStatsTrackerTest {
                         processedData,
                         persistedData,
                         ignored,
-                        ignored);
+                        ignored,
+                        false,
+                        true);
 
-        assertTrue(pending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats));
+        assertTrue(pending.reportSubtaskStats(jobVertexID, subtaskStats));
 
         pending.reportCompletedCheckpoint(externalPath);
 
@@ -488,7 +480,8 @@ public class CheckpointStatsTrackerTest {
                         1,
                         11,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
 
         long failureTimestamp = 1230123L;
         nextPending.reportFailedCheckpoint(failureTimestamp, null);
@@ -523,9 +516,10 @@ public class CheckpointStatsTrackerTest {
                         2,
                         5000,
                         CheckpointProperties.forCheckpoint(
-                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION));
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
 
-        thirdPending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats);
+        thirdPending.reportSubtaskStats(jobVertexID, subtaskStats);
         thirdPending.reportCompletedCheckpoint(null);
 
         // Verify external path is "n/a", because internal checkpoint won't generate external path.
@@ -534,20 +528,7 @@ public class CheckpointStatsTrackerTest {
 
     // ------------------------------------------------------------------------
 
-    /** Creates a "disabled" checkpoint tracker for tests. */
-    static CheckpointStatsTracker createTestTracker() {
-        ExecutionJobVertex jobVertex = mock(ExecutionJobVertex.class);
-        when(jobVertex.getJobVertexId()).thenReturn(new JobVertexID());
-        when(jobVertex.getParallelism()).thenReturn(1);
-
-        return new CheckpointStatsTracker(
-                0,
-                Collections.singletonList(jobVertex),
-                mock(CheckpointCoordinatorConfiguration.class),
-                new UnregisteredMetricsGroup());
-    }
-
     private SubtaskStateStats createSubtaskStats(int index) {
-        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0);
+        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, false, true);
     }
 }

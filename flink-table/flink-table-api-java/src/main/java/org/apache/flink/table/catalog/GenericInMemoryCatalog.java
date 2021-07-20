@@ -240,11 +240,11 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         CatalogBaseTable existingTable = tables.get(tablePath);
 
         if (existingTable != null) {
-            if (existingTable.getClass() != newTable.getClass()) {
+            if (existingTable.getTableKind() != newTable.getTableKind()) {
                 throw new CatalogException(
                         String.format(
                                 "Table types don't match. Existing table is '%s' and new table is '%s'.",
-                                existingTable.getClass().getName(), newTable.getClass().getName()));
+                                existingTable.getTableKind(), newTable.getTableKind()));
             }
 
             tables.put(tablePath, newTable.copy());

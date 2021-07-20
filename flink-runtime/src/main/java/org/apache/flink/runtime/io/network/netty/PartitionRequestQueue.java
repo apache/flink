@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
@@ -44,6 +45,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A nonEmptyReader of partition queues, which listens for channel writability changed events before
@@ -97,9 +99,20 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
      * availability, so there is no race condition here.
      */
     private void enqueueAvailableReader(final NetworkSequenceViewReader reader) throws Exception {
-        if (reader.isRegisteredAsAvailable() || !reader.isAvailable()) {
+        if (reader.isRegisteredAsAvailable()) {
             return;
         }
+
+        ResultSubpartitionView.AvailabilityWithBacklog availabilityWithBacklog =
+                reader.getAvailabilityAndBacklog();
+        if (!availabilityWithBacklog.isAvailable()) {
+            int backlog = availabilityWithBacklog.getBacklog();
+            if (backlog > 0 && reader.needAnnounceBacklog()) {
+                announceBacklog(reader, backlog);
+            }
+            return;
+        }
+
         // Queue an available reader for consumption. If the queue is empty,
         // we try trigger the actual write. Otherwise this will be handled by
         // the writeAndFlushNextMessageIfPossible calls.
@@ -162,6 +175,40 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             throw new IllegalStateException(
                     "No reader for receiverId = " + receiverId + " exists.");
         }
+    }
+
+    void acknowledgeAllRecordsProcessed(InputChannelID receiverId) {
+        if (fatalError) {
+            return;
+        }
+
+        NetworkSequenceViewReader reader = allReaders.get(receiverId);
+        if (reader != null) {
+            reader.acknowledgeAllRecordsProcessed();
+        } else {
+            throw new IllegalStateException(
+                    "No reader for receiverId = " + receiverId + " exists.");
+        }
+    }
+
+    /**
+     * Announces remaining backlog to the consumer after the available data notification or data
+     * consumption resumption.
+     */
+    private void announceBacklog(NetworkSequenceViewReader reader, int backlog) {
+        checkArgument(backlog > 0, "Backlog must be positive.");
+
+        NettyMessage.BacklogAnnouncement announcement =
+                new NettyMessage.BacklogAnnouncement(backlog, reader.getReceiverId());
+        ctx.channel()
+                .writeAndFlush(announcement)
+                .addListener(
+                        (ChannelFutureListener)
+                                future -> {
+                                    if (!future.isSuccess()) {
+                                        onChannelFutureFailure(future);
+                                    }
+                                });
     }
 
     @Override
@@ -310,6 +357,15 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
         reader.releaseAllResources();
     }
 
+    private void onChannelFutureFailure(ChannelFuture future) throws Exception {
+        if (future.cause() != null) {
+            handleException(future.channel(), future.cause());
+        } else {
+            handleException(
+                    future.channel(), new IllegalStateException("Sending cancelled by user."));
+        }
+    }
+
     // This listener is called after an element of the current nonEmptyReader has been
     // flushed. If successful, the listener triggers further processing of the
     // queues.
@@ -320,12 +376,8 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
             try {
                 if (future.isSuccess()) {
                     writeAndFlushNextMessageIfPossible(future.channel());
-                } else if (future.cause() != null) {
-                    handleException(future.channel(), future.cause());
                 } else {
-                    handleException(
-                            future.channel(),
-                            new IllegalStateException("Sending cancelled by user."));
+                    onChannelFutureFailure(future);
                 }
             } catch (Throwable t) {
                 handleException(future.channel(), t);

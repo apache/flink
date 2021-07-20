@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -253,7 +254,11 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
         for (int i = 0; i < len; i++) {
             fieldSerializers[i] = types[i].createSerializer(config);
         }
-        return new RowSerializer(fieldSerializers);
+        final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
+        for (int i = 0; i < fieldNames.length; i++) {
+            positionByName.put(fieldNames[i], i);
+        }
+        return new RowSerializer(fieldSerializers, positionByName);
     }
 
     @Override
@@ -308,7 +313,7 @@ public class RowTypeInfo extends TupleTypeInfoBase<Row> {
         for (int i = 0; i < len; i++) {
             fieldSerializers[i] = types[i].createSerializer(config);
         }
-        return new RowSerializer(fieldSerializers, true);
+        return new RowSerializer(fieldSerializers, null, true);
     }
 
     /** Tests whether an other object describes the same, schema-equivalent row information. */

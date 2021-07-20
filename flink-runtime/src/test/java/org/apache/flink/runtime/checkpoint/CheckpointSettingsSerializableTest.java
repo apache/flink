@@ -19,26 +19,20 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -47,9 +41,9 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -59,7 +53,6 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -85,9 +78,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
         final JobCheckpointingSettings checkpointingSettings =
                 new JobCheckpointingSettings(
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
-                        Collections.<JobVertexID>emptyList(),
                         new CheckpointCoordinatorConfiguration(
                                 1000L,
                                 10000L,
@@ -97,36 +87,28 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
                         new SerializedValue<StateBackend>(new CustomStateBackend(outOfClassPath)),
+                        TernaryBoolean.UNDEFINED,
+                        new SerializedValue<CheckpointStorage>(
+                                new CustomCheckpointStorage(outOfClassPath)),
                         serHooks);
 
-        final JobGraph jobGraph = new JobGraph(new JobID(), "test job");
-        jobGraph.setSnapshotSettings(checkpointingSettings);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .setJobCheckpointingSettings(checkpointingSettings)
+                        .build();
 
         // to serialize/deserialize the job graph to see if the behavior is correct under
         // distributed execution
         final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
-        final Time timeout = Time.seconds(10L);
         final ExecutionGraph eg =
-                ExecutionGraphBuilder.buildGraph(
-                        null,
-                        copy,
-                        new Configuration(),
-                        TestingUtils.defaultExecutor(),
-                        TestingUtils.defaultExecutor(),
-                        mock(SlotProvider.class),
-                        classLoader,
-                        new StandaloneCheckpointRecoveryFactory(),
-                        timeout,
-                        new UnregisteredMetricsGroup(),
-                        VoidBlobWriter.getInstance(),
-                        timeout,
-                        log,
-                        NettyShuffleMaster.INSTANCE,
-                        NoOpJobMasterPartitionTracker.INSTANCE,
-                        System.currentTimeMillis());
+                TestingDefaultExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(copy)
+                        .setUserClassLoader(classLoader)
+                        .build();
 
         assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
         assertTrue(
@@ -169,17 +151,6 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
         }
 
         @Override
-        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
-                throws IOException {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
-            return mock(CheckpointStorageAccess.class);
-        }
-
-        @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
                 Environment env,
                 JobID jobID,
@@ -204,6 +175,29 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class CustomCheckpointStorage implements CheckpointStorage {
+
+        private static final long serialVersionUID = -6107964383429395816L;
+        /** Simulate a custom option that is not in the normal classpath. */
+        @SuppressWarnings("unused")
+        private Serializable customOption;
+
+        public CustomCheckpointStorage(Serializable customOption) {
+            this.customOption = customOption;
+        }
+
+        @Override
+        public CompletedCheckpointStorageLocation resolveCheckpoint(String pointer)
+                throws IOException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public CheckpointStorageAccess createCheckpointStorage(JobID jobId) throws IOException {
+            return mock(CheckpointStorageAccess.class);
         }
     }
 }

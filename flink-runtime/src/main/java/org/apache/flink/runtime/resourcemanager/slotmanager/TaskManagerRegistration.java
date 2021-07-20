@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
@@ -30,6 +31,10 @@ public class TaskManagerRegistration {
 
     private final TaskExecutorConnection taskManagerConnection;
 
+    private final ResourceProfile defaultSlotResourceProfile;
+
+    private final ResourceProfile totalResource;
+
     private final HashSet<SlotID> slots;
 
     private int numberFreeSlots;
@@ -38,11 +43,17 @@ public class TaskManagerRegistration {
     private long idleSince;
 
     public TaskManagerRegistration(
-            TaskExecutorConnection taskManagerConnection, Collection<SlotID> slots) {
+            TaskExecutorConnection taskManagerConnection,
+            Collection<SlotID> slots,
+            ResourceProfile totalResourceProfile,
+            ResourceProfile defaultSlotResourceProfile) {
 
         this.taskManagerConnection =
                 Preconditions.checkNotNull(taskManagerConnection, "taskManagerConnection");
         Preconditions.checkNotNull(slots, "slots");
+
+        this.totalResource = Preconditions.checkNotNull(totalResourceProfile);
+        this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
 
         this.slots = new HashSet<>(slots);
 
@@ -65,6 +76,14 @@ public class TaskManagerRegistration {
 
     public int getNumberFreeSlots() {
         return numberFreeSlots;
+    }
+
+    public ResourceProfile getDefaultSlotResourceProfile() {
+        return defaultSlotResourceProfile;
+    }
+
+    public ResourceProfile getTotalResource() {
+        return totalResource;
     }
 
     public void freeSlot() {

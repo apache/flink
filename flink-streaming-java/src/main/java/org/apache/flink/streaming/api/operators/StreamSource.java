@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -26,7 +27,6 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -45,30 +45,39 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
 
     private static final long serialVersionUID = 1L;
 
+    /** Whether to emit intermediate watermarks or only one final watermark at the end of input. */
+    private final boolean emitProgressiveWatermarks;
+
     private transient SourceFunction.SourceContext<OUT> ctx;
 
     private transient volatile boolean canceledOrStopped = false;
 
     private transient volatile boolean hasSentMaxWatermark = false;
 
-    public StreamSource(SRC sourceFunction) {
+    public StreamSource(SRC sourceFunction, boolean emitProgressiveWatermarks) {
         super(sourceFunction);
 
         this.chainingStrategy = ChainingStrategy.HEAD;
+        this.emitProgressiveWatermarks = emitProgressiveWatermarks;
     }
 
-    public void run(
-            final Object lockingObject,
-            final StreamStatusMaintainer streamStatusMaintainer,
-            final OperatorChain<?, ?> operatorChain)
+    public StreamSource(SRC sourceFunction) {
+        this(sourceFunction, true);
+    }
+
+    @VisibleForTesting
+    public boolean emitsProgressiveWatermarks() {
+        return emitProgressiveWatermarks;
+    }
+
+    public void run(final Object lockingObject, final OperatorChain<?, ?> operatorChain)
             throws Exception {
 
-        run(lockingObject, streamStatusMaintainer, output, operatorChain);
+        run(lockingObject, output, operatorChain);
     }
 
     public void run(
             final Object lockingObject,
-            final StreamStatusMaintainer streamStatusMaintainer,
             final Output<StreamRecord<OUT>> collector,
             final OperatorChain<?, ?> operatorChain)
             throws Exception {
@@ -101,10 +110,10 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                         timeCharacteristic,
                         getProcessingTimeService(),
                         lockingObject,
-                        streamStatusMaintainer,
                         collector,
                         watermarkInterval,
-                        -1);
+                        -1,
+                        emitProgressiveWatermarks);
 
         try {
             userFunction.run(ctx);
@@ -119,6 +128,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                 // interface,
                 // so we still need the following call to end the input
                 synchronized (lockingObject) {
+                    operatorChain.setIgnoreEndOfInput(false);
                     operatorChain.endInput(1);
                 }
             }
@@ -137,18 +147,20 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     }
 
     @Override
-    public void close() throws Exception {
-        try {
-            super.close();
-            if (!isCanceledOrStopped() && ctx != null) {
-                advanceToEndOfEventTime();
-            }
-        } finally {
-            // make sure that the context is closed in any case
-            if (ctx != null) {
-                ctx.close();
-            }
+    public void finish() throws Exception {
+        super.finish();
+        if (!isCanceledOrStopped() && ctx != null) {
+            advanceToEndOfEventTime();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        // make sure that the context is closed in any case
+        if (ctx != null) {
+            ctx.close();
+        }
+        super.close();
     }
 
     public void cancel() {
@@ -167,8 +179,8 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
     /**
      * Marks this source as canceled or stopped.
      *
-     * <p>This indicates that any exit of the {@link #run(Object, StreamStatusMaintainer, Output)}
-     * method cannot be interpreted as the result of a finite source.
+     * <p>This indicates that any exit of the {@link #run(Object, Output, OperatorChain)} method
+     * cannot be interpreted as the result of a finite source.
      */
     protected void markCanceledOrStopped() {
         this.canceledOrStopped = true;

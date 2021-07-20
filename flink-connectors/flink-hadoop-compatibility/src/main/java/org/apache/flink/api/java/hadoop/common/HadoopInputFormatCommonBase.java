@@ -28,8 +28,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 
 /** A common base for both "mapred" and "mapreduce" Hadoop input formats. */
 @Internal
@@ -51,31 +49,10 @@ public abstract class HadoopInputFormatCommonBase<T, SPITTYPE extends InputSplit
     }
 
     /**
-     * This method only exists because there is no UserGroupInformation.getCredentials() method in
-     * Hadoop 1.x
-     *
-     * <p>Note that this method returns "null" in Hadoop 1.x environments.
-     *
      * @param ugi The user information
-     * @return new credentials object from the user information. MAY RETURN NULL!
+     * @return new credentials object from the user information.
      */
     public static Credentials getCredentialsFromUGI(UserGroupInformation ugi) {
-        Method getCredentialsMethod = null;
-        for (Method m : ugi.getClass().getMethods()) {
-            if (m.getName().equals("getCredentials")) {
-                getCredentialsMethod = m;
-                break;
-            }
-        }
-        if (getCredentialsMethod == null) {
-            return null;
-        } else {
-            try {
-                return (Credentials) getCredentialsMethod.invoke(ugi);
-            } catch (InvocationTargetException | IllegalAccessException e) {
-                throw new RuntimeException(
-                        "Unable to get credentials from UserGroupInformation. This is only supported by Hadoop 2.2.0+");
-            }
-        }
+        return ugi.getCredentials();
     }
 }

@@ -18,7 +18,11 @@
 
 package org.apache.flink.testutils.migration;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -39,9 +43,10 @@ public enum MigrationVersion {
     v1_8("1.8"),
     v1_9("1.9"),
     v1_10("1.10"),
-    v1_11("1.11");
+    v1_11("1.11"),
+    v1_12("1.12");
 
-    private String versionStr;
+    private final String versionStr;
 
     MigrationVersion(String versionStr) {
         this.versionStr = versionStr;
@@ -61,5 +66,13 @@ public enum MigrationVersion {
         return Stream.of(MigrationVersion.values())
                 .filter(v -> this.ordinal() <= v.ordinal())
                 .collect(Collectors.toList());
+    }
+
+    private static final Map<String, MigrationVersion> CODE_MAP =
+            Arrays.stream(values())
+                    .collect(Collectors.toMap(v -> v.versionStr, Function.identity()));
+
+    public static Optional<MigrationVersion> byCode(String code) {
+        return Optional.ofNullable(CODE_MAP.get(code));
     }
 }

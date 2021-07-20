@@ -43,6 +43,7 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -50,16 +51,23 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FIELDS_PREFIX;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.KEY_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PROPS_BOOTSTRAP_SERVERS;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createKeyFormatProjection;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createValueFormatProjection;
-import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS_PREFIX;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.PROPS_BOOTSTRAP_SERVERS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.SINK_PARALLELISM;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.TOPIC;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FIELDS_INCLUDE;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.VALUE_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.PROPERTIES_PREFIX;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.autoCompleteSchemaRegistrySubject;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createKeyFormatProjection;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.createValueFormatProjection;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getKafkaProperties;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopicPattern;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptionsUtil.getSourceTopics;
 
 /** Upsert-Kafka factory. */
 public class UpsertKafkaDynamicTableFactory
@@ -87,7 +95,9 @@ public class UpsertKafkaDynamicTableFactory
         final Set<ConfigOption<?>> options = new HashSet<>();
         options.add(KEY_FIELDS_PREFIX);
         options.add(VALUE_FIELDS_INCLUDE);
-        options.add(FactoryUtil.SINK_PARALLELISM);
+        options.add(SINK_PARALLELISM);
+        options.add(SINK_BUFFER_FLUSH_INTERVAL);
+        options.add(SINK_BUFFER_FLUSH_MAX_ROWS);
         return options;
     }
 
@@ -102,9 +112,9 @@ public class UpsertKafkaDynamicTableFactory
                 helper.discoverDecodingFormat(DeserializationFormatFactory.class, VALUE_FORMAT);
 
         // Validate the option data type.
-        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        helper.validateExcept(PROPERTIES_PREFIX);
         TableSchema schema = context.getCatalogTable().getSchema();
-        validateTableOptions(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
+        validateSource(tableOptions, keyDecodingFormat, valueDecodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
@@ -120,8 +130,8 @@ public class UpsertKafkaDynamicTableFactory
                 keyValueProjections.f0,
                 keyValueProjections.f1,
                 keyPrefix,
-                KafkaOptions.getSourceTopics(tableOptions),
-                KafkaOptions.getSourceTopicPattern(tableOptions),
+                getSourceTopics(tableOptions),
+                getSourceTopicPattern(tableOptions),
                 properties,
                 earliest,
                 Collections.emptyMap(),
@@ -131,9 +141,11 @@ public class UpsertKafkaDynamicTableFactory
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        this, autoCompleteSchemaRegistrySubject(context));
 
-        ReadableConfig tableOptions = helper.getOptions();
+        final ReadableConfig tableOptions = helper.getOptions();
 
         EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT);
@@ -141,20 +153,26 @@ public class UpsertKafkaDynamicTableFactory
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, VALUE_FORMAT);
 
         // Validate the option data type.
-        helper.validateExcept(KafkaOptions.PROPERTIES_PREFIX);
+        helper.validateExcept(PROPERTIES_PREFIX);
         TableSchema schema = context.getCatalogTable().getSchema();
-        validateTableOptions(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
+        validateSink(tableOptions, keyEncodingFormat, valueEncodingFormat, schema);
 
         Tuple2<int[], int[]> keyValueProjections =
                 createKeyValueProjections(context.getCatalogTable());
         final String keyPrefix = tableOptions.getOptional(KEY_FIELDS_PREFIX).orElse(null);
         final Properties properties = getKafkaProperties(context.getCatalogTable().getOptions());
 
-        Integer parallelism = tableOptions.get(FactoryUtil.SINK_PARALLELISM);
+        Integer parallelism = tableOptions.get(SINK_PARALLELISM);
+
+        int batchSize = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        Duration batchInterval = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL);
+        SinkBufferFlushMode flushMode =
+                new SinkBufferFlushMode(batchSize, batchInterval.toMillis());
 
         // use {@link org.apache.kafka.clients.producer.internals.DefaultPartitioner}.
         // it will use hash partition if key is set else in round-robin behaviour.
         return new KafkaDynamicSink(
+                schema.toPhysicalRowDataType(),
                 schema.toPhysicalRowDataType(),
                 keyEncodingFormat,
                 new EncodingFormatWrapper(valueEncodingFormat),
@@ -166,6 +184,7 @@ public class UpsertKafkaDynamicTableFactory
                 null,
                 KafkaSinkSemantic.AT_LEAST_ONCE,
                 true,
+                flushMode,
                 parallelism);
     }
 
@@ -189,11 +208,19 @@ public class UpsertKafkaDynamicTableFactory
     // Validation
     // --------------------------------------------------------------------------------------------
 
-    private static void validateTableOptions(
+    private static void validateSource(
             ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
         validateTopic(tableOptions);
         validateFormat(keyFormat, valueFormat, tableOptions);
         validatePKConstraints(schema);
+    }
+
+    private static void validateSink(
+            ReadableConfig tableOptions, Format keyFormat, Format valueFormat, TableSchema schema) {
+        validateTopic(tableOptions);
+        validateFormat(keyFormat, valueFormat, tableOptions);
+        validatePKConstraints(schema);
+        validateSinkBufferFlush(tableOptions);
     }
 
     private static void validateTopic(ReadableConfig tableOptions) {
@@ -232,6 +259,24 @@ public class UpsertKafkaDynamicTableFactory
                             + "The PRIMARY KEY specifies which columns should be read from or write to the Kafka message key. "
                             + "The PRIMARY KEY also defines records in the 'upsert-kafka' table should update or delete on which keys.");
         }
+    }
+
+    private static void validateSinkBufferFlush(ReadableConfig tableOptions) {
+        int flushMaxRows = tableOptions.get(SINK_BUFFER_FLUSH_MAX_ROWS);
+        long flushIntervalMs = tableOptions.get(SINK_BUFFER_FLUSH_INTERVAL).toMillis();
+        if (flushMaxRows > 0 && flushIntervalMs > 0) {
+            // flush is enabled
+            return;
+        }
+        if (flushMaxRows <= 0 && flushIntervalMs <= 0) {
+            // flush is disabled
+            return;
+        }
+        // one of them is set which is not allowed
+        throw new ValidationException(
+                String.format(
+                        "'%s' and '%s' must be set to be greater than zero together to enable sink buffer flushing.",
+                        SINK_BUFFER_FLUSH_MAX_ROWS.key(), SINK_BUFFER_FLUSH_INTERVAL.key()));
     }
 
     // --------------------------------------------------------------------------------------------

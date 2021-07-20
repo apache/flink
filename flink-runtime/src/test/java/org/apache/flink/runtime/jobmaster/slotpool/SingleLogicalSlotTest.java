@@ -20,7 +20,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
@@ -34,6 +33,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Test;
 
@@ -71,7 +71,7 @@ public class SingleLogicalSlotTest extends TestLogger {
 
     private SingleLogicalSlot createSingleLogicalSlot(SlotOwner slotOwner) {
         return new SingleLogicalSlot(
-                new SlotRequestId(), createSlotContext(), null, Locality.LOCAL, slotOwner);
+                new SlotRequestId(), createSlotContext(), Locality.LOCAL, slotOwner);
     }
 
     private static SlotContext createSlotContext() {

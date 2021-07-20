@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.ConnectionID;
@@ -31,11 +35,16 @@ import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
 import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
+import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
 import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
@@ -44,9 +53,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -169,6 +180,62 @@ public class RemoteInputChannelTest {
             inputChannel.releaseAllResources();
             assertTrue(buffer.isRecycled());
         }
+    }
+
+    @Test
+    public void testExceptionOnPersisting() throws Exception {
+        // Setup
+        final SingleInputGate inputGate = createSingleInputGate(1);
+        final RemoteInputChannel inputChannel =
+                InputChannelBuilder.newBuilder()
+                        .setStateWriter(
+                                new ChannelStateWriter.NoOpChannelStateWriter() {
+                                    @Override
+                                    public void addInputData(
+                                            long checkpointId,
+                                            InputChannelInfo info,
+                                            int startSeqNum,
+                                            CloseableIterator<Buffer> data) {
+                                        try {
+                                            data.close();
+                                        } catch (Exception e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                        throw new ExpectedTestException();
+                                    }
+                                })
+                        .buildRemoteChannel(inputGate);
+
+        inputChannel.checkpointStarted(
+                new CheckpointBarrier(
+                        42, System.currentTimeMillis(), CheckpointOptions.unaligned(getDefault())));
+
+        final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
+
+        assertFalse(buffer.isRecycled());
+        try {
+            inputChannel.onBuffer(buffer, 0, -1);
+            fail("This should have failed");
+        } catch (ExpectedTestException ex) {
+            // ignore
+        }
+        // This check is not strictly speaking necessary. Generally speaking if exception happens
+        // during persisting, there are two potentially correct outcomes:
+        // 1. buffer is recycled only once, in #onBuffer call when handling exception
+        // 2. buffer is stored inside RemoteInputChannel and recycled on releaseAllResources.
+        // What's not acceptable is that it would be released twice, in both places. Without this
+        // check below, we would be just relaying on Buffer throwing IllegalReferenceCountException.
+        // I've added this check just to be sure. It's freezing the current implementation that's
+        // unlikely to change, on the other hand, thanks to it we don't need to relay on
+        // IllegalReferenceCountException being thrown from the Buffer.
+        //
+        // In other words, if you end up reading this after refactoring RemoteInputChannel, it might
+        // be safe to remove this assertion. Just make sure double recycling of the same buffer is
+        // still throwing IllegalReferenceCountException.
+        assertFalse(buffer.isRecycled());
+
+        inputChannel.releaseAllResources();
+        assertTrue(buffer.isRecycled());
     }
 
     @Test
@@ -1177,9 +1244,11 @@ public class RemoteInputChannelTest {
             final Callable<Void> bufferPoolInteractionsTask =
                     () -> {
                         for (int i = 0; i < retries; ++i) {
-                            Buffer buffer =
-                                    buildSingleBuffer(bufferPool.requestBufferBuilderBlocking());
-                            buffer.recycleBuffer();
+                            try (BufferBuilder bufferBuilder =
+                                    bufferPool.requestBufferBuilderBlocking()) {
+                                Buffer buffer = buildSingleBuffer(bufferBuilder);
+                                buffer.recycleBuffer();
+                            }
                         }
                         return null;
                     };
@@ -1341,6 +1410,75 @@ public class RemoteInputChannelTest {
 
         remoteChannel.releaseAllResources();
         remoteChannel.resumeConsumption();
+    }
+
+    @Test
+    public void testOnUpstreamBlockedAndResumed() throws Exception {
+        BufferPool bufferPool = new TestBufferPool();
+        SingleInputGate inputGate = createSingleInputGate(bufferPool);
+
+        RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 2);
+        RemoteInputChannel remoteChannel2 = createRemoteInputChannel(inputGate, 0);
+        inputGate.setup();
+        remoteChannel1.requestSubpartition(0);
+        remoteChannel2.requestSubpartition(1);
+
+        remoteChannel1.onSenderBacklog(2);
+        remoteChannel2.onSenderBacklog(2);
+
+        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(2, remoteChannel2.getNumberOfAvailableBuffers());
+
+        Buffer barrier =
+                EventSerializer.toBuffer(
+                        new CheckpointBarrier(
+                                1L, 123L, alignedWithTimeout(getDefault(), Integer.MAX_VALUE)),
+                        false);
+        remoteChannel1.onBuffer(barrier, 0, 0);
+        remoteChannel2.onBuffer(barrier, 0, 0);
+
+        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(0, remoteChannel2.getNumberOfAvailableBuffers());
+
+        remoteChannel1.resumeConsumption();
+        remoteChannel2.resumeConsumption();
+
+        assertEquals(4, remoteChannel1.getUnannouncedCredit());
+        assertEquals(0, remoteChannel2.getUnannouncedCredit());
+
+        remoteChannel1.onSenderBacklog(4);
+        remoteChannel2.onSenderBacklog(4);
+
+        assertEquals(6, remoteChannel1.getNumberOfAvailableBuffers());
+        assertEquals(4, remoteChannel2.getNumberOfAvailableBuffers());
+
+        assertEquals(6, remoteChannel1.getUnannouncedCredit());
+        assertEquals(4, remoteChannel2.getUnannouncedCredit());
+    }
+
+    @Test
+    public void testRequestBuffer() throws Exception {
+        BufferPool bufferPool = new TestBufferPool();
+        SingleInputGate inputGate = createSingleInputGate(bufferPool);
+
+        RemoteInputChannel remoteChannel1 = createRemoteInputChannel(inputGate, 2);
+        RemoteInputChannel remoteChannel2 = createRemoteInputChannel(inputGate, 0);
+        inputGate.setup();
+        remoteChannel1.requestSubpartition(0);
+        remoteChannel2.requestSubpartition(1);
+
+        remoteChannel1.onSenderBacklog(2);
+        remoteChannel2.onSenderBacklog(2);
+
+        for (int i = 4; i >= 0; --i) {
+            assertEquals(i, remoteChannel1.getNumberOfRequiredBuffers());
+            remoteChannel1.requestBuffer();
+        }
+
+        for (int i = 2; i >= 0; --i) {
+            assertEquals(i, remoteChannel2.getNumberOfRequiredBuffers());
+            remoteChannel2.requestBuffer();
+        }
     }
 
     @Test
@@ -1534,6 +1672,13 @@ public class RemoteInputChannelTest {
 
     private RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) {
         return createRemoteInputChannel(inputGate, 0, 0);
+    }
+
+    private RemoteInputChannel createRemoteInputChannel(
+            SingleInputGate inputGate, int initialCredits) {
+        return InputChannelBuilder.newBuilder()
+                .setNetworkBuffersPerChannel(initialCredits)
+                .buildRemoteChannel(inputGate);
     }
 
     private RemoteInputChannel createRemoteInputChannel(
@@ -1889,6 +2034,15 @@ public class RemoteInputChannelTest {
             assertEquals(expectedId, partitionId);
             assertEquals(expectedSubpartitionIndex, subpartitionIndex);
             assertEquals(expectedDelayMs, delayMs);
+        }
+    }
+
+    private static final class TestBufferPool extends NoOpBufferPool {
+
+        @Override
+        public Buffer requestBuffer() {
+            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+            return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
         }
     }
 }

@@ -29,10 +29,10 @@ public interface ExecutionSlotAllocator {
     /**
      * Allocate slots for the given executions.
      *
-     * @param executionVertexSchedulingRequirements The requirements for scheduling the executions.
+     * @param executionVertexIds Execution vertices to allocate slots for
      */
     List<SlotExecutionVertexAssignment> allocateSlotsFor(
-            List<ExecutionVertexSchedulingRequirements> executionVertexSchedulingRequirements);
+            List<ExecutionVertexID> executionVertexIds);
 
     /**
      * Cancel an ongoing slot request.

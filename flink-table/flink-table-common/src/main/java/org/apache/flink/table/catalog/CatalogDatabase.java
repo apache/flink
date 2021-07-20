@@ -41,6 +41,13 @@ public interface CatalogDatabase {
     CatalogDatabase copy();
 
     /**
+     * Returns a copy of this {@code CatalogDatabase} with the given properties.
+     *
+     * @return a new copy of this database with replaced properties
+     */
+    CatalogDatabase copy(Map<String, String> properties);
+
+    /**
      * Get a brief description of the database.
      *
      * @return an optional short description of the database

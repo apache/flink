@@ -40,13 +40,18 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
     @Parameterized.Parameter public boolean useAsyncmode;
 
     @Override
-    protected MemoryStateBackend getStateBackend() {
+    protected ConfigurableStateBackend getStateBackend() {
         return new MemoryStateBackend(useAsyncmode);
     }
 
     @Override
     protected boolean isSerializerPresenceRequiredOnRestore() {
         return true;
+    }
+
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return useAsyncmode;
     }
 
     // disable these because the verification does not work for this state backend

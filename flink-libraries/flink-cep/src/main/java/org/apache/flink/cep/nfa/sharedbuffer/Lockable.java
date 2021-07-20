@@ -69,6 +69,10 @@ public final class Lockable<T> {
         return element;
     }
 
+    int getRefCounter() {
+        return refCounter;
+    }
+
     @Override
     public String toString() {
         return "Lock{" + "refCounter=" + refCounter + '}';

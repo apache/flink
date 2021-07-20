@@ -20,7 +20,6 @@ package org.apache.flink.runtime.metrics.groups;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
@@ -105,7 +104,7 @@ public class UnregisteredMetricGroups {
         }
 
         @Override
-        public JobManagerJobMetricGroup addJob(JobGraph job) {
+        public JobManagerJobMetricGroup addJob(JobID jobId, String jobName) {
             return createUnregisteredJobManagerJobMetricGroup();
         }
     }

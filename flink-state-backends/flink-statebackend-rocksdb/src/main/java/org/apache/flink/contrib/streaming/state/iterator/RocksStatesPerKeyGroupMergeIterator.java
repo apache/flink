@@ -20,9 +20,14 @@ package org.apache.flink.contrib.streaming.state.iterator;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.contrib.streaming.state.RocksIteratorWrapper;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.runtime.state.KeyValueStateIterator;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.rocksdb.ReadOptions;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -32,16 +37,17 @@ import java.util.PriorityQueue;
  * Iterator that merges multiple RocksDB iterators to partition all states into contiguous
  * key-groups. The resulting iteration sequence is ordered by (key-group, kv-state).
  */
-public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
+public class RocksStatesPerKeyGroupMergeIterator implements KeyValueStateIterator {
 
-    private final PriorityQueue<RocksSingleStateIterator> heap;
+    private final CloseableRegistry closeableRegistry;
+    private final PriorityQueue<SingleStateIterator> heap;
     private final int keyGroupPrefixByteCount;
     private boolean newKeyGroup;
     private boolean newKVState;
     private boolean valid;
-    private RocksSingleStateIterator currentSubIterator;
+    private SingleStateIterator currentSubIterator;
 
-    private static final List<Comparator<RocksSingleStateIterator>> COMPARATORS;
+    private static final List<Comparator<SingleStateIterator>> COMPARATORS;
 
     static {
         int maxBytes = 2;
@@ -51,8 +57,7 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
             COMPARATORS.add(
                     (o1, o2) -> {
                         int arrayCmpRes =
-                                compareKeyGroupsForByteArrays(
-                                        o1.getCurrentKey(), o2.getCurrentKey(), currentBytes);
+                                compareKeyGroupsForByteArrays(o1.key(), o2.key(), currentBytes);
                         return arrayCmpRes == 0
                                 ? o1.getKvStateId() - o2.getKvStateId()
                                 : arrayCmpRes;
@@ -60,16 +65,26 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         }
     }
 
+    /**
+     * Creates a new {@link RocksStatesPerKeyGroupMergeIterator}. The iterator takes ownership of
+     * passed in resources, such as the {@link ReadOptions}, and becomes responsible for closing
+     * them.
+     */
     public RocksStatesPerKeyGroupMergeIterator(
+            final CloseableRegistry closeableRegistry,
             List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-            final int keyGroupPrefixByteCount) {
+            List<SingleStateIterator> heapPriorityQueueIterators,
+            final int keyGroupPrefixByteCount)
+            throws IOException {
+        Preconditions.checkNotNull(closeableRegistry);
         Preconditions.checkNotNull(kvStateIterators);
         Preconditions.checkArgument(keyGroupPrefixByteCount >= 1);
 
+        this.closeableRegistry = closeableRegistry;
         this.keyGroupPrefixByteCount = keyGroupPrefixByteCount;
 
-        if (kvStateIterators.size() > 0) {
-            this.heap = buildIteratorHeap(kvStateIterators);
+        if (kvStateIterators.size() > 0 || heapPriorityQueueIterators.size() > 0) {
+            this.heap = buildIteratorHeap(kvStateIterators, heapPriorityQueueIterators);
             this.valid = !heap.isEmpty();
             this.currentSubIterator = heap.poll();
             kvStateIterators.clear();
@@ -83,30 +98,25 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         this.newKVState = true;
     }
 
-    /**
-     * Advances the iterator. Should only be called if {@link #isValid()} returned true. Valid flag
-     * can only change after calling {@link #next()}.
-     */
+    @Override
     public void next() {
         newKeyGroup = false;
         newKVState = false;
 
-        final RocksIteratorWrapper rocksIterator = currentSubIterator.getIterator();
-        rocksIterator.next();
-
-        byte[] oldKey = currentSubIterator.getCurrentKey();
-        if (rocksIterator.isValid()) {
-
-            currentSubIterator.setCurrentKey(rocksIterator.key());
-
-            if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
+        byte[] oldKey = currentSubIterator.key();
+        currentSubIterator.next();
+        if (currentSubIterator.isValid()) {
+            if (isDifferentKeyGroup(oldKey, currentSubIterator.key())) {
+                SingleStateIterator oldIterator = currentSubIterator;
                 heap.offer(currentSubIterator);
                 currentSubIterator = heap.remove();
-                newKVState = currentSubIterator.getIterator() != rocksIterator;
+                newKVState = currentSubIterator != oldIterator;
                 detectNewKeyGroup(oldKey);
             }
         } else {
-            IOUtils.closeQuietly(rocksIterator);
+            if (closeableRegistry.unregisterCloseable(currentSubIterator)) {
+                IOUtils.closeQuietly(currentSubIterator);
+            }
 
             if (heap.isEmpty()) {
                 currentSubIterator = null;
@@ -119,25 +129,44 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         }
     }
 
-    private PriorityQueue<RocksSingleStateIterator> buildIteratorHeap(
-            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators) {
+    private PriorityQueue<SingleStateIterator> buildIteratorHeap(
+            List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+            List<SingleStateIterator> heapPriorityQueueIterators)
+            throws IOException {
 
-        Comparator<RocksSingleStateIterator> iteratorComparator =
+        Comparator<SingleStateIterator> iteratorComparator =
                 COMPARATORS.get(keyGroupPrefixByteCount - 1);
 
-        PriorityQueue<RocksSingleStateIterator> iteratorPriorityQueue =
-                new PriorityQueue<>(kvStateIterators.size(), iteratorComparator);
+        PriorityQueue<SingleStateIterator> iteratorPriorityQueue =
+                new PriorityQueue<>(
+                        kvStateIterators.size() + heapPriorityQueueIterators.size(),
+                        iteratorComparator);
 
         for (Tuple2<RocksIteratorWrapper, Integer> rocksIteratorWithKVStateId : kvStateIterators) {
             final RocksIteratorWrapper rocksIterator = rocksIteratorWithKVStateId.f0;
             rocksIterator.seekToFirst();
             if (rocksIterator.isValid()) {
-                iteratorPriorityQueue.offer(
-                        new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1));
+                RocksSingleStateIterator wrappingIterator =
+                        new RocksSingleStateIterator(rocksIterator, rocksIteratorWithKVStateId.f1);
+                iteratorPriorityQueue.offer(wrappingIterator);
+                closeableRegistry.registerCloseable(wrappingIterator);
+                closeableRegistry.unregisterCloseable(rocksIterator);
             } else {
-                IOUtils.closeQuietly(rocksIterator);
+                if (closeableRegistry.unregisterCloseable(rocksIterator)) {
+                    IOUtils.closeQuietly(rocksIterator);
+                }
             }
         }
+
+        for (SingleStateIterator heapQueueIterator : heapPriorityQueueIterators) {
+            if (heapQueueIterator.isValid()) {
+                iteratorPriorityQueue.offer(heapQueueIterator);
+                closeableRegistry.registerCloseable(heapQueueIterator);
+            } else {
+                IOUtils.closeQuietly(heapQueueIterator);
+            }
+        }
+
         return iteratorPriorityQueue;
     }
 
@@ -146,14 +175,14 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
     }
 
     private void detectNewKeyGroup(byte[] oldKey) {
-        if (isDifferentKeyGroup(oldKey, currentSubIterator.getCurrentKey())) {
+        if (isDifferentKeyGroup(oldKey, currentSubIterator.key())) {
             newKeyGroup = true;
         }
     }
 
-    /** @return key-group for the current key */
+    @Override
     public int keyGroup() {
-        final byte[] currentKey = currentSubIterator.getCurrentKey();
+        final byte[] currentKey = currentSubIterator.key();
         int result = 0;
         // big endian decode
         for (int i = 0; i < keyGroupPrefixByteCount; ++i) {
@@ -163,46 +192,32 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
         return result;
     }
 
+    @Override
     public byte[] key() {
-        return currentSubIterator.getCurrentKey();
+        return currentSubIterator.key();
     }
 
+    @Override
     public byte[] value() {
-        return currentSubIterator.getIterator().value();
+        return currentSubIterator.value();
     }
 
-    /** @return Id of K/V state to which the current key belongs. */
+    @Override
     public int kvStateId() {
         return currentSubIterator.getKvStateId();
     }
 
-    /**
-     * Indicates if current key starts a new k/v-state, i.e. belong to a different k/v-state than
-     * it's predecessor.
-     *
-     * @return true iff the current key belong to a different k/v-state than it's predecessor.
-     */
+    @Override
     public boolean isNewKeyValueState() {
         return newKVState;
     }
 
-    /**
-     * Indicates if current key starts a new key-group, i.e. belong to a different key-group than
-     * it's predecessor.
-     *
-     * @return true iff the current key belong to a different key-group than it's predecessor.
-     */
+    @Override
     public boolean isNewKeyGroup() {
         return newKeyGroup;
     }
 
-    /**
-     * Check if the iterator is still valid. Getters like {@link #key()}, {@link #value()}, etc. as
-     * well as {@link #next()} should only be called if valid returned true. Should be checked after
-     * each call to {@link #next()} before accessing iterator state.
-     *
-     * @return True iff this iterator is valid.
-     */
+    @Override
     public boolean isValid() {
         return valid;
     }
@@ -219,10 +234,10 @@ public class RocksStatesPerKeyGroupMergeIterator implements AutoCloseable {
 
     @Override
     public void close() {
-        IOUtils.closeQuietly(currentSubIterator);
-        currentSubIterator = null;
+        IOUtils.closeQuietly(closeableRegistry);
 
-        IOUtils.closeAllQuietly(heap);
-        heap.clear();
+        if (heap != null) {
+            heap.clear();
+        }
     }
 }

@@ -40,6 +40,7 @@ import org.apache.flink.kubernetes.entrypoint.KubernetesApplicationClusterEntryp
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.Endpoint;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
+import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -112,17 +114,27 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                 return new RestClusterClient<>(
                         configuration,
                         clusterId,
-                        new StandaloneClientHAServices(
-                                HighAvailabilityServicesUtils.getWebMonitorAddress(
-                                        configuration,
-                                        HighAvailabilityServicesUtils.AddressResolution
-                                                .TRY_ADDRESS_RESOLUTION)));
+                        new StandaloneClientHAServices(getWebMonitorAddress(configuration)));
             } catch (Exception e) {
-                client.handleException(e);
                 throw new RuntimeException(
                         new ClusterRetrieveException("Could not create the RestClusterClient.", e));
             }
         };
+    }
+
+    private String getWebMonitorAddress(Configuration configuration) throws Exception {
+        AddressResolution resolution = AddressResolution.TRY_ADDRESS_RESOLUTION;
+        if (configuration.get(KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE)
+                == KubernetesConfigOptions.ServiceExposedType.ClusterIP) {
+            resolution = AddressResolution.NO_ADDRESS_RESOLUTION;
+            LOG.warn(
+                    "Please note that Flink client operations(e.g. cancel, list, stop,"
+                            + " savepoint, etc.) won't work from outside the Kubernetes cluster"
+                            + " since '{}' has been set to {}.",
+                    KubernetesConfigOptions.REST_SERVICE_EXPOSED_TYPE.key(),
+                    KubernetesConfigOptions.ServiceExposedType.ClusterIP);
+        }
+        return HighAvailabilityServicesUtils.getWebMonitorAddress(configuration, resolution);
     }
 
     @Override
@@ -222,7 +234,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                 detached
                         ? ClusterEntrypoint.ExecutionMode.DETACHED
                         : ClusterEntrypoint.ExecutionMode.NORMAL;
-        flinkConfig.setString(ClusterEntrypoint.EXECUTION_MODE, executionMode.toString());
+        flinkConfig.setString(
+                ClusterEntrypoint.INTERNAL_CLUSTER_EXECUTION_MODE, executionMode.toString());
 
         flinkConfig.setString(KubernetesConfigOptionsInternal.ENTRY_POINT_CLASS, entryPoint);
 
@@ -246,9 +259,17 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
             final KubernetesJobManagerParameters kubernetesJobManagerParameters =
                     new KubernetesJobManagerParameters(flinkConfig, clusterSpecification);
 
+            final FlinkPod podTemplate =
+                    kubernetesJobManagerParameters
+                            .getPodTemplateFilePath()
+                            .map(
+                                    file ->
+                                            KubernetesUtils.loadPodFromTemplateFile(
+                                                    client, file, Constants.MAIN_CONTAINER_NAME))
+                            .orElse(new FlinkPod.Builder().build());
             final KubernetesJobManagerSpecification kubernetesJobManagerSpec =
                     KubernetesJobManagerFactory.buildKubernetesJobManagerSpecification(
-                            kubernetesJobManagerParameters);
+                            podTemplate, kubernetesJobManagerParameters);
 
             client.createJobManagerComponent(kubernetesJobManagerSpec);
 
@@ -275,7 +296,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
         try {
             client.stopAndCleanupCluster(clusterId);
         } catch (Exception e) {
-            client.handleException(e);
             throw new FlinkException("Could not kill Kubernetes cluster " + clusterId);
         }
     }
@@ -285,7 +305,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
         try {
             client.close();
         } catch (Exception e) {
-            client.handleException(e);
             LOG.error("failed to close client, exception {}", e.toString());
         }
     }

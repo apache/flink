@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -92,17 +93,12 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
         clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
 
-        jobGraph = new JobGraph();
-
         final JobVertex vertex = new JobVertex("testVertex");
         vertex.setInvokableClass(NoOpBlockingInvokable.class);
-        jobGraph.addVertex(vertex);
+        vertex.setParallelism(1);
 
-        jobGraph.setSnapshotSettings(
+        final JobCheckpointingSettings jobCheckpointingSettings =
                 new JobCheckpointingSettings(
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
-                        Collections.singletonList(vertex.getID()),
                         new CheckpointCoordinatorConfiguration(
                                 checkpointInterval,
                                 60_000,
@@ -112,8 +108,15 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
                                 true,
                                 false,
                                 false,
+                                0,
                                 0),
-                        null));
+                        null);
+
+        jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder()
+                        .addJobVertex(vertex)
+                        .setJobCheckpointingSettings(jobCheckpointingSettings)
+                        .build();
 
         clusterClient.submitJob(jobGraph).get();
         assertTrue(invokeLatch.await(60, TimeUnit.SECONDS));
@@ -238,8 +241,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
         @Override
         public Future<Boolean> triggerCheckpointAsync(
                 final CheckpointMetaData checkpointMetaData,
-                final CheckpointOptions checkpointOptions,
-                final boolean advanceToEndOfEventTime) {
+                final CheckpointOptions checkpointOptions) {
             final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
             checkpointStateHandles.putSubtaskStateByOperatorID(
                     OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),

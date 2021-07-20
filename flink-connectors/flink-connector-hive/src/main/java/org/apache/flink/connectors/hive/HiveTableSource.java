@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HivePartitionFetcherContextBase;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
@@ -36,7 +37,7 @@ import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -69,11 +70,11 @@ import java.util.Optional;
 import static org.apache.flink.connectors.hive.util.HivePartitionUtils.getAllPartitions;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
 import static org.apache.flink.table.filesystem.DefaultPartTimeExtractor.toMills;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 
 /** A TableSource implementation to read data from Hive tables. */
 public class HiveTableSource
@@ -109,7 +110,7 @@ public class HiveTableSource
         this.catalogTable = Preconditions.checkNotNull(catalogTable);
         this.hiveVersion =
                 Preconditions.checkNotNull(
-                        jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
+                        jobConf.get(HiveCatalogFactoryOptions.HIVE_VERSION.key()),
                         "Hive version is not defined");
         this.hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
     }
@@ -183,8 +184,8 @@ public class HiveTableSource
                                 hiveShim,
                                 new JobConfWrapper(jobConf),
                                 catalogTable.getPartitionKeys(),
-                                getProducedTableSchema().getFieldDataTypes(),
-                                getProducedTableSchema().getFieldNames(),
+                                getTableSchema().getFieldDataTypes(),
+                                getTableSchema().getFieldNames(),
                                 configuration,
                                 defaultPartitionName);
                 sourceBuilder.setFetcherContext(fetcherContext);
@@ -320,7 +321,7 @@ public class HiveTableSource
     @SuppressWarnings("unchecked")
     public static class HiveContinuousPartitionFetcherContext<T extends Comparable<T>>
             extends HivePartitionFetcherContextBase<Partition>
-            implements ContinuousPartitionFetcher.Context<Partition, T> {
+            implements HiveContinuousPartitionContext<Partition, T> {
 
         private static final long serialVersionUID = 1L;
         private static final Long DEFAULT_MIN_TIME_OFFSET = 0L;
@@ -399,7 +400,7 @@ public class HiveTableSource
          *
          * <p>the time is the the folder/file modification time in filesystem when fetched in
          * create-time order, the time is extracted from partition name when fetched in
-         * partition-time order, the time is partion create time in metaStore when fetched in
+         * partition-time order, the time is partition create time in metaStore when fetched in
          * partition-name order.
          */
         public long getModificationTime(Partition partition, T partitionOffset) {
@@ -418,14 +419,7 @@ public class HiveTableSource
 
         /** Convert partition to HiveTablePartition. */
         public HiveTablePartition toHiveTablePartition(Partition partition) {
-            return HivePartitionUtils.toHiveTablePartition(
-                    partitionKeys,
-                    fieldNames,
-                    fieldTypes,
-                    hiveShim,
-                    tableProps,
-                    defaultPartitionName,
-                    partition);
+            return HivePartitionUtils.toHiveTablePartition(partitionKeys, tableProps, partition);
         }
 
         @Override
@@ -444,5 +438,10 @@ public class HiveTableSource
                 this.metaStoreClient.close();
             }
         }
+    }
+
+    @VisibleForTesting
+    public JobConf getJobConf() {
+        return jobConf;
     }
 }

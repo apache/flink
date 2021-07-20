@@ -456,9 +456,9 @@ public class FunctionCatalogTest {
                     e,
                     hasMessage(
                             containsString(
-                                    "A function '"
-                                            + IDENTIFIER.asSummaryString()
-                                            + "' doesn't exist.")));
+                                    "Temporary catalog function "
+                                            + IDENTIFIER.toString()
+                                            + " doesn't exist")));
         }
 
         // register invalid
@@ -524,6 +524,8 @@ public class FunctionCatalogTest {
 
         // register invalid
         try {
+            // drop it first to make sure function class gets validated
+            functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
             functionCatalog.registerTemporaryCatalogFunction(
                     PARTIAL_UNRESOLVED_IDENTIFIER,
                     new CatalogFunctionImpl(FUNCTION_INVALID.getClass().getName()),

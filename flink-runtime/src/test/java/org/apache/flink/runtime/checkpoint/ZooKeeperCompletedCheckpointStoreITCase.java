@@ -169,7 +169,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                                         + checkpointStoreUtil.checkpointIDToName(
                                                 checkpoint.getCheckpointID())));
 
-        store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
         assertEquals(0, store.getNumberOfRetainedCheckpoints());
         assertNull(
                 client.checkExists()
@@ -205,7 +205,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                                         + checkpointStoreUtil.checkpointIDToName(
                                                 checkpoint.getCheckpointID())));
 
-        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner(), () -> {});
+        store.shutdown(JobStatus.SUSPENDED, new CheckpointsCleaner());
 
         assertEquals(0, store.getNumberOfRetainedCheckpoints());
 
@@ -391,7 +391,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                 checkpointRequestDecider
                         .chooseRequestToExecute(regularCheckpoint(), false, 0)
                         .isPresent());
-        checkpointStore.shutdown(JobStatus.FINISHED, checkpointsCleaner, () -> {});
+        checkpointStore.shutdown(JobStatus.FINISHED, checkpointsCleaner);
     }
 
     static class HeapRetrievableStateHandle<T extends Serializable>

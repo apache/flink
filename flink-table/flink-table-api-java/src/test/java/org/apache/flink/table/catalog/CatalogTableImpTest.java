@@ -42,16 +42,31 @@ public class CatalogTableImpTest {
         Map<String, String> prop = createProperties();
         CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
 
-        DescriptorProperties descriptorProperties = new DescriptorProperties();
+        DescriptorProperties descriptorProperties = new DescriptorProperties(false);
         descriptorProperties.putProperties(table.toProperties());
 
         assertEquals(schema, descriptorProperties.getTableSchema(Schema.SCHEMA));
+    }
+
+    @Test
+    public void testFromProperties() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, TEST);
+
+        CatalogTableImpl tableFromProperties =
+                CatalogTableImpl.fromProperties(table.toProperties());
+
+        assertEquals(tableFromProperties.getOptions(), table.getOptions());
+        assertEquals(tableFromProperties.getPartitionKeys(), table.getPartitionKeys());
+        assertEquals(tableFromProperties.getSchema(), table.getSchema());
     }
 
     private static Map<String, String> createProperties() {
         return new HashMap<String, String>() {
             {
                 put("k", "v");
+                put("K1", "V1"); // for test case-sensitive
             }
         };
     }
@@ -61,6 +76,7 @@ public class CatalogTableImpTest {
                 .field("first", DataTypes.STRING())
                 .field("second", DataTypes.INT())
                 .field("third", DataTypes.DOUBLE())
+                .field("Fourth", DataTypes.BOOLEAN()) // for test case-sensitive
                 .build();
     }
 

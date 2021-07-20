@@ -20,11 +20,11 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -183,7 +183,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             checkpoints.addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
         }
 
-        checkpoints.shutdown(JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
+        checkpoints.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
         // Empty state
         assertNull(checkpoints.getLatestCheckpoint(false));

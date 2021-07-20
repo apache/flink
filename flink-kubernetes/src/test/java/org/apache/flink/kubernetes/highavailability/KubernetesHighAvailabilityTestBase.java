@@ -26,14 +26,14 @@ import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriver;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriver;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.After;
@@ -91,6 +91,8 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         final List<CompletableFuture<FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>>>
                 configMapCallbackFutures = new ArrayList<>();
 
+        final List<TestingFlinkKubeClient.MockKubernetesWatch> configMapWatches = new ArrayList<>();
+
         final CompletableFuture<Map<String, String>> deleteConfigMapByLabelsFuture =
                 new CompletableFuture<>();
         final CompletableFuture<Void> closeKubeClientFuture = new CompletableFuture<>();
@@ -120,6 +122,7 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
             electionEventHandler.init(leaderElectionDriver);
             testMethod.run();
 
+            electionEventHandler.close();
             leaderElectionDriver.close();
             leaderRetrievalDriver.close();
         }
@@ -200,7 +203,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
                                                         KubernetesConfigMap>>
                                         future = CompletableFuture.completedFuture(handler);
                                 configMapCallbackFutures.add(future);
-                                return new TestingFlinkKubeClient.MockKubernetesWatch();
+                                final TestingFlinkKubeClient.MockKubernetesWatch watch =
+                                        new TestingFlinkKubeClient.MockKubernetesWatch();
+                                configMapWatches.add(watch);
+                                return watch;
                             })
                     .setDeleteConfigMapFunction(
                             name -> {

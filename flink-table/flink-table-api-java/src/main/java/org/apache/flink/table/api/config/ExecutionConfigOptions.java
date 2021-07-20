@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
@@ -31,8 +32,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's table module.
- *
- * <p>This is only used for the Blink planner.
  *
  * <p>NOTE: All option keys in this class must start with "table.exec".
  */
@@ -121,6 +120,25 @@ public class ExecutionConfigOptions {
                                     + "into NOT NULL columns. Users can change the behavior to 'drop' to "
                                     + "silently drop such records without throwing exception.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
+            key("table.exec.sink.upsert-materialize")
+                    .enumType(UpsertMaterialize.class)
+                    .defaultValue(UpsertMaterialize.AUTO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Because of the disorder of ChangeLog data caused by Shuffle in distributed system, "
+                                                    + "the data received by Sink may not be the order of global upsert. "
+                                                    + "So add upsert materialize operator before upsert sink. It receives the "
+                                                    + "upstream changelog records and generate an upsert view for the downstream.")
+                                    .linebreak()
+                                    .text(
+                                            "By default, the materialize operator will be added when a distributed disorder "
+                                                    + "occurs on unique keys. You can also choose no materialization(NONE) "
+                                                    + "or force materialization(FORCE).")
+                                    .build());
+
     // ------------------------------------------------------------------------
     //  Sort Options
     // ------------------------------------------------------------------------
@@ -158,9 +176,10 @@ public class ExecutionConfigOptions {
                                     + "Currently we only support compress spilled data for sort and hash-agg and hash-join operators.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
-    public static final ConfigOption<String> TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE =
             key("table.exec.spill-compression.block-size")
-                    .defaultValue("64 kb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("64 kb"))
                     .withDescription(
                             "The memory size used to do compress when spilling data. "
                                     + "The larger the memory, the higher the compression ratio, "
@@ -185,9 +204,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
             key("table.exec.resource.external-buffer-memory")
-                    .defaultValue("10 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("10 mb"))
                     .withDescription(
                             "Sets the external buffer memory size that is used in sort merge join"
                                     + " and nested join and over window. Note: memory size is only a weight hint,"
@@ -197,9 +217,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
             key("table.exec.resource.hash-agg.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed memory size of hash aggregate operator."
                                     + " Note: memory size is only a weight hint, it will affect the weight of memory"
@@ -209,9 +230,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
             key("table.exec.resource.hash-join.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed memory for hash join operator. It defines the lower"
                                     + " limit. Note: memory size is only a weight hint, it will affect the weight of"
@@ -221,9 +243,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_SORT_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_SORT_MEMORY =
             key("table.exec.resource.sort.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed buffer memory size for sort operator. Note: memory"
                                     + " size is only a weight hint, it will affect the weight of memory that can be"
@@ -358,5 +381,18 @@ public class ExecutionConfigOptions {
         ERROR,
         /** Drop records when writing null values into NOT NULL column. */
         DROP
+    }
+
+    /** Upsert materialize strategy before sink. */
+    public enum UpsertMaterialize {
+
+        /** In no case will materialize operator be added. */
+        NONE,
+
+        /** Add materialize operator when a distributed disorder occurs on unique keys. */
+        AUTO,
+
+        /** Add materialize operator in any case. */
+        FORCE
     }
 }

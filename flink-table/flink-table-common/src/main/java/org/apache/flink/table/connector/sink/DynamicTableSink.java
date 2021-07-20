@@ -20,7 +20,7 @@ package org.apache.flink.table.connector.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
 import org.apache.flink.table.connector.RuntimeConverter;
@@ -96,8 +96,7 @@ public interface DynamicTableSink {
      * interfaces might be located in other Flink modules.
      *
      * <p>Independent of the provider interface, the table runtime expects that a sink
-     * implementation accepts internal data structures (see {@link
-     * org.apache.flink.table.data.RowData} for more information).
+     * implementation accepts internal data structures (see {@link RowData} for more information).
      *
      * <p>The given {@link Context} offers utilities by the planner for creating runtime
      * implementation with minimal dependencies to internal data structures.
@@ -146,7 +145,7 @@ public interface DynamicTableSink {
          * Creates type information describing the internal data structures of the given {@link
          * DataType}.
          *
-         * @see TableSchema#toPhysicalRowDataType()
+         * @see ResolvedSchema#toPhysicalRowDataType()
          */
         <T> TypeInformation<T> createTypeInformation(DataType consumedDataType);
 

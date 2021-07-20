@@ -41,6 +41,7 @@ import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_ARCHIVES
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.PYTHON_REQUIREMENTS_FILE;
 import static org.apache.flink.python.util.PythonDependencyUtils.configurePythonDependencies;
+import static org.apache.flink.python.util.PythonDependencyUtils.merge;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for PythonDependencyUtils. */
@@ -204,6 +205,33 @@ public class PythonDependencyUtilsTest {
         expectedConfiguration.set(PYTHON_EXECUTABLE, "venv/bin/python3");
         expectedConfiguration.set(PYTHON_CLIENT_EXECUTABLE, "python37");
         verifyConfiguration(expectedConfiguration, actual);
+    }
+
+    @Test
+    public void testPythonDependencyConfigMerge() {
+        Configuration config = new Configuration();
+        config.set(
+                PythonOptions.PYTHON_ARCHIVES,
+                "hdfs:///tmp_dir/file1.zip,hdfs:///tmp_dir/file2.zip");
+        config.set(
+                PythonOptions.PYTHON_FILES, "hdfs:///tmp_dir/file3.zip,hdfs:///tmp_dir/file4.zip");
+
+        Configuration config2 = new Configuration();
+        config2.set(
+                PythonOptions.PYTHON_ARCHIVES,
+                "hdfs:///tmp_dir/file5.zip,hdfs:///tmp_dir/file6.zip");
+        config2.set(
+                PythonOptions.PYTHON_FILES, "hdfs:///tmp_dir/file7.zip,hdfs:///tmp_dir/file8.zip");
+
+        Configuration expectedConfiguration = new Configuration();
+        expectedConfiguration.set(
+                PythonOptions.PYTHON_ARCHIVES,
+                "hdfs:///tmp_dir/file5.zip,hdfs:///tmp_dir/file6.zip,hdfs:///tmp_dir/file1.zip,hdfs:///tmp_dir/file2.zip");
+        expectedConfiguration.set(
+                PythonOptions.PYTHON_FILES,
+                "hdfs:///tmp_dir/file7.zip,hdfs:///tmp_dir/file8.zip,hdfs:///tmp_dir/file3.zip,hdfs:///tmp_dir/file4.zip");
+        merge(config, config2);
+        verifyConfiguration(expectedConfiguration, config);
     }
 
     private void verifyCachedFiles(Map<String, String> expected) {

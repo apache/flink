@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.util.Preconditions;
 
@@ -27,6 +28,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Iterator;
 
 /**
  * Base class for snapshots of a {@link StateMap}.
@@ -51,6 +53,12 @@ public abstract class StateMapSnapshot<K, N, S, T extends StateMap<K, N, S>> {
 
     /** Release the snapshot. */
     public void release() {}
+
+    public abstract Iterator<StateEntry<K, N, S>> getIterator(
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull TypeSerializer<N> namespaceSerializer,
+            @Nonnull TypeSerializer<S> stateSerializer,
+            @Nullable final StateSnapshotTransformer<S> stateSnapshotTransformer);
 
     /**
      * Writes the state in this snapshot to output. The state need to be transformed with the given

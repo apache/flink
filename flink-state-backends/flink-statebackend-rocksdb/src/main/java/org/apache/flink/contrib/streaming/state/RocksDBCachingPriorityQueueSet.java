@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
@@ -357,7 +358,7 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
         outputView.clear();
 
         try {
-            RocksDBKeySerializationUtils.writeKeyGroup(keyGroupId, numPrefixBytes, outputView);
+            CompositeKeySerializationUtils.writeKeyGroup(keyGroupId, numPrefixBytes, outputView);
         } catch (IOException e) {
             throw new FlinkRuntimeException("Could not write key-group bytes.", e);
         }

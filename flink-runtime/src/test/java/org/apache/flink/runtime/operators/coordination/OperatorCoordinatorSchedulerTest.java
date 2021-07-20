@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.operators.coordination;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -26,41 +30,53 @@ import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
+import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingCheckpointStorageAccessCoordinatorView;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.Random;
@@ -70,6 +86,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.setExecutionToState;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -102,7 +119,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     @After
     public void shutdownScheduler() throws Exception {
         if (createdScheduler != null) {
-            createdScheduler.suspend(new Exception("shutdown"));
+            createdScheduler.close();
         }
     }
 
@@ -123,7 +140,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        scheduler.suspend(new Exception("test suspend"));
+        scheduler.close();
 
         assertTrue(coordinator.isClosed());
     }
@@ -207,14 +224,21 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void taskExceptionWhenTasksNotRunning() throws Exception {
+    public void taskGatewayNotSetBeforeTasksRunning() throws Exception {
         final DefaultScheduler scheduler = createAndStartScheduler();
-        final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
 
-        final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
-        executor.triggerAll(); // process event sending
+        assertNull(gateway);
+    }
 
-        assertThat(result, futureFailedWith(TaskNotRunningException.class));
+    @Test
+    public void taskGatewayAvailableWhenTasksRunning() throws Exception {
+        final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
+
+        assertNotNull(gateway);
     }
 
     @Test
@@ -222,8 +246,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler =
                 createSchedulerAndDeployTasks(new FailingTaskExecutorOperatorEventGateway());
 
-        final OperatorCoordinator.Context context = getCoordinator(scheduler).getContext();
-        final CompletableFuture<?> result = context.sendEvent(new TestOperatorEvent(), 0);
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        final OperatorCoordinator.SubtaskGateway gateway = coordinator.getSubtaskGateway(0);
+
+        final CompletableFuture<?> result = gateway.sendEvent(new TestOperatorEvent());
         executor.triggerAll(); // process event sending
 
         assertThat(result, futureFailedWith(TestException.class));
@@ -303,6 +329,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 coordinator.getLastTriggeredCheckpoint();
 
         coordinatorStateFuture.completeExceptionally(new TestException());
+        waitForCompletionToPropagate(checkpointFuture);
 
         assertThat(checkpointFuture, futureWillCompleteWithTestException());
     }
@@ -609,7 +636,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         final Consumer<JobGraph> savepointConfigurer =
                 (jobGraph) -> {
-                    SchedulerTestingUtils.enableCheckpointing(jobGraph, storage.asStateBackend());
+                    SchedulerTestingUtils.enableCheckpointing(
+                            jobGraph, new ModernStateBackend(), storage.asCheckpointStorage());
                     jobGraph.setSavepointRestoreSettings(
                             SavepointRestoreSettings.forPath(savepointPointer));
                 };
@@ -647,27 +675,29 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         vertex.addOperatorCoordinator(new SerializedValue<>(provider));
         vertex.setParallelism(2);
 
-        final JobGraph jobGraph = new JobGraph("test job with OperatorCoordinator", vertex);
+        final JobGraph jobGraph =
+                JobGraphBuilder.newStreamingJobGraphBuilder().addJobVertex(vertex).build();
+
         SchedulerTestingUtils.enableCheckpointing(jobGraph);
         if (jobGraphPreProcessing != null) {
             jobGraphPreProcessing.accept(jobGraph);
         }
 
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                new ComponentMainThreadExecutorServiceAdapter(
+                        (ScheduledExecutorService) executor, Thread.currentThread());
+
         final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, executor)
+                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
                         : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, executor, taskExecutorOperatorEventGateway);
+                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }
 
-        final DefaultScheduler scheduler = schedulerBuilder.build();
-
-        final ComponentMainThreadExecutor mainThreadExecutor =
-                new ComponentMainThreadExecutorServiceAdapter(
-                        (ScheduledExecutorService) executor, Thread.currentThread());
-        scheduler.initialize(mainThreadExecutor);
+        final DefaultScheduler scheduler =
+                schedulerBuilder.setFutureExecutor(executor).setDelayExecutor(executor).build();
 
         this.createdScheduler = scheduler;
         return scheduler;
@@ -683,6 +713,10 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         assertEquals(
                 ExecutionState.RUNNING,
                 SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, 0));
+
+        // trigger actions depending on the switch to running, like the notifications
+        // that the task is reads and the task gateway setup
+        executor.triggerAll();
     }
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
@@ -731,7 +765,8 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private void failAndRestartTask(DefaultScheduler scheduler, int subtask) {
         failAndRedeployTask(scheduler, subtask);
-        SchedulerTestingUtils.setExecutionToRunning(scheduler, testVertexId, subtask);
+        setExecutionToState(ExecutionState.INITIALIZING, scheduler, testVertexId, subtask);
+        setExecutionToState(ExecutionState.RUNNING, scheduler, testVertexId, subtask);
 
         // guard the test assumptions: This must bring the task back to RUNNING
         assertEquals(
@@ -787,6 +822,20 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         }
 
         return future;
+    }
+
+    private void waitForCompletionToPropagate(CompletableFuture<?> checkpointFuture) {
+        // this part is necessary because the user/application-code-driven coordinator
+        // forwards the checkpoint to the scheduler thread, which in turn needs to finish
+        // work
+        while (!checkpointFuture.isDone()) {
+            executor.triggerAll();
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                throw new Error(e);
+            }
+        }
     }
 
     private void acknowledgeCurrentCheckpoint(DefaultScheduler scheduler) {
@@ -907,6 +956,36 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         public CompletableFuture<Acknowledge> sendOperatorEventToTask(
                 ExecutionAttemptID task, OperatorID operator, SerializedValue<OperatorEvent> evt) {
             return FutureUtils.completedExceptionally(new TestException());
+        }
+    }
+
+    private static class ModernStateBackend implements StateBackend {
+
+        @Override
+        public <K> CheckpointableKeyedStateBackend<K> createKeyedStateBackend(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @Nonnull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public OperatorStateBackend createOperatorStateBackend(
+                Environment env,
+                String operatorIdentifier,
+                @Nonnull Collection<OperatorStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry)
+                throws Exception {
+            throw new UnsupportedOperationException();
         }
     }
 }

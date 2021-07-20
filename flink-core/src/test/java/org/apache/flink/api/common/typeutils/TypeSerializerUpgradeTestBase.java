@@ -54,7 +54,7 @@ public abstract class TypeSerializerUpgradeTestBase<PreviousElementT, UpgradedEl
     public static final MigrationVersion[] MIGRATION_VERSIONS =
             MigrationVersion.v1_11.orHigher().toArray(new MigrationVersion[0]);
 
-    public static final MigrationVersion CURRENT_VERSION = MigrationVersion.v1_11;
+    public static final MigrationVersion CURRENT_VERSION = MigrationVersion.v1_12;
 
     private final TestSpecification<PreviousElementT, UpgradedElementT> testSpecification;
 

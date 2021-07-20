@@ -22,14 +22,13 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -63,9 +62,6 @@ public class CheckpointStatsTracker {
      */
     private final ReentrantLock statsReadWriteLock = new ReentrantLock();
 
-    /** Total number of subtasks to checkpoint. */
-    private final int totalSubtaskCount;
-
     /** Snapshotting settings created from the CheckpointConfig. */
     private final CheckpointCoordinatorConfiguration jobCheckpointingConfiguration;
 
@@ -77,9 +73,6 @@ public class CheckpointStatsTracker {
 
     /** History of checkpoints. */
     private final CheckpointStatsHistory history;
-
-    /** The job vertices taking part in the checkpoints. */
-    private final List<ExecutionJobVertex> jobVertices;
 
     /** The latest restored checkpoint. */
     @Nullable private RestoredCheckpointStats latestRestoredCheckpoint;
@@ -101,28 +94,17 @@ public class CheckpointStatsTracker {
      *
      * @param numRememberedCheckpoints Maximum number of checkpoints to remember, including in
      *     progress ones.
-     * @param jobVertices Job vertices involved in the checkpoints.
      * @param jobCheckpointingConfiguration Checkpointing configuration.
      * @param metricGroup Metric group for exposed metrics
      */
     public CheckpointStatsTracker(
             int numRememberedCheckpoints,
-            List<ExecutionJobVertex> jobVertices,
             CheckpointCoordinatorConfiguration jobCheckpointingConfiguration,
             MetricGroup metricGroup) {
 
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
-        this.jobVertices = checkNotNull(jobVertices, "JobVertices");
         this.jobCheckpointingConfiguration = checkNotNull(jobCheckpointingConfiguration);
-
-        // Compute the total subtask count. We do this here in order to only
-        // do it once.
-        int count = 0;
-        for (ExecutionJobVertex vertex : jobVertices) {
-            count += vertex.getParallelism();
-        }
-        this.totalSubtaskCount = count;
 
         // Latest snapshot is empty
         latestSnapshot =
@@ -186,22 +168,22 @@ public class CheckpointStatsTracker {
      * @param checkpointId ID of the checkpoint.
      * @param triggerTimestamp Trigger timestamp of the checkpoint.
      * @param props The checkpoint properties.
+     * @param vertexToDop mapping of {@link JobVertexID} to DOP
      * @return Tracker for statistics gathering.
      */
     PendingCheckpointStats reportPendingCheckpoint(
-            long checkpointId, long triggerTimestamp, CheckpointProperties props) {
-
-        ConcurrentHashMap<JobVertexID, TaskStateStats> taskStateStats =
-                createEmptyTaskStateStatsMap();
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            Map<JobVertexID, Integer> vertexToDop) {
 
         PendingCheckpointStats pending =
                 new PendingCheckpointStats(
                         checkpointId,
                         triggerTimestamp,
                         props,
-                        totalSubtaskCount,
-                        taskStateStats,
-                        new PendingCheckpointStatsCallback());
+                        vertexToDop,
+                        PendingCheckpointStatsCallback.proxyFor(this));
 
         statsReadWriteLock.lock();
         try {
@@ -273,43 +255,73 @@ public class CheckpointStatsTracker {
         }
     }
 
-    /**
-     * Creates an empty map with a {@link TaskStateStats} instance per task that is involved in the
-     * checkpoint.
-     *
-     * @return An empty map with an {@link TaskStateStats} entry for each task that is involved in
-     *     the checkpoint.
-     */
-    private ConcurrentHashMap<JobVertexID, TaskStateStats> createEmptyTaskStateStatsMap() {
-        ConcurrentHashMap<JobVertexID, TaskStateStats> taskStatsMap =
-                new ConcurrentHashMap<>(jobVertices.size());
-        for (ExecutionJobVertex vertex : jobVertices) {
-            TaskStateStats taskStats =
-                    new TaskStateStats(vertex.getJobVertexId(), vertex.getParallelism());
-            taskStatsMap.put(vertex.getJobVertexId(), taskStats);
+    public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
+        statsReadWriteLock.lock();
+        try {
+            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
+            return stats instanceof PendingCheckpointStats ? (PendingCheckpointStats) stats : null;
+        } finally {
+            statsReadWriteLock.unlock();
         }
-        return taskStatsMap;
+    }
+
+    public void reportIncompleteStats(
+            long checkpointId, ExecutionVertex vertex, CheckpointMetrics metrics) {
+        statsReadWriteLock.lock();
+        try {
+            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
+            if (stats instanceof PendingCheckpointStats) {
+                ((PendingCheckpointStats) stats)
+                        .reportSubtaskStats(
+                                vertex.getJobvertexId(),
+                                new SubtaskStateStats(
+                                        vertex.getParallelSubtaskIndex(),
+                                        System.currentTimeMillis(),
+                                        metrics.getTotalBytesPersisted(),
+                                        metrics.getSyncDurationMillis(),
+                                        metrics.getAsyncDurationMillis(),
+                                        metrics.getBytesProcessedDuringAlignment(),
+                                        metrics.getBytesPersistedDuringAlignment(),
+                                        metrics.getAlignmentDurationNanos() / 1_000_000,
+                                        metrics.getCheckpointStartDelayNanos() / 1_000_000,
+                                        metrics.getUnalignedCheckpoint(),
+                                        false));
+                dirty = true;
+            }
+        } finally {
+            statsReadWriteLock.unlock();
+        }
     }
 
     /** Callback for finalization of a pending checkpoint. */
-    class PendingCheckpointStatsCallback {
-
+    interface PendingCheckpointStatsCallback {
         /**
          * Report a completed checkpoint.
          *
          * @param completed The completed checkpoint.
          */
-        void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
-            CheckpointStatsTracker.this.reportCompletedCheckpoint(completed);
-        }
+        void reportCompletedCheckpoint(CompletedCheckpointStats completed);
 
         /**
          * Report a failed checkpoint.
          *
          * @param failed The failed checkpoint.
          */
-        void reportFailedCheckpoint(FailedCheckpointStats failed) {
-            CheckpointStatsTracker.this.reportFailedCheckpoint(failed);
+        void reportFailedCheckpoint(FailedCheckpointStats failed);
+
+        static PendingCheckpointStatsCallback proxyFor(
+                CheckpointStatsTracker checkpointStatsTracker) {
+            return new PendingCheckpointStatsCallback() {
+                @Override
+                public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
+                    checkpointStatsTracker.reportCompletedCheckpoint(completed);
+                }
+
+                @Override
+                public void reportFailedCheckpoint(FailedCheckpointStats failed) {
+                    checkpointStatsTracker.reportFailedCheckpoint(failed);
+                }
+            };
         }
     }
 

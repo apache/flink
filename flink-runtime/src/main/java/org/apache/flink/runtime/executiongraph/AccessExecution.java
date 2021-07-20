@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
-/**
- * Common interface for the runtime {@link Execution and {@link ArchivedExecution}.
- */
+import java.util.Optional;
+
+/** Common interface for the runtime {@link Execution} and {@link ArchivedExecution}. */
 public interface AccessExecution {
     /**
      * Returns the {@link ExecutionAttemptID} for this Execution.
@@ -64,9 +65,11 @@ public interface AccessExecution {
      * Returns the exception that caused the job to fail. This is the first root exception that was
      * not recoverable and triggered job failure.
      *
-     * @return failure exception as a string, or {@code "(null)"}
+     * @return an {@code Optional} of {@link ErrorInfo} containing the {@code Throwable} and the
+     *     time it was registered if an error occurred. If no error occurred an empty {@code
+     *     Optional} will be returned.
      */
-    String getFailureCauseAsString();
+    Optional<ErrorInfo> getFailureInfo();
 
     /**
      * Returns the timestamp for the given {@link ExecutionState}.

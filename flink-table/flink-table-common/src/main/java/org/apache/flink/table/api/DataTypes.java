@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.annotation.DataTypeHint;
@@ -58,12 +57,12 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType.YearMonthResolution;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -76,6 +75,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
@@ -139,6 +139,7 @@ public final class DataTypes {
      * by the API. At other locations, a {@link DataTypeFactory} is provided.
      */
     public static UnresolvedDataType of(Class<?> unresolvedClass) {
+        Preconditions.checkNotNull(unresolvedClass, "Unresolved class name must not be null.");
         return new UnresolvedDataType(
                 () -> String.format("'%s'", unresolvedClass.getName()),
                 (factory) -> factory.createDataType(unresolvedClass));
@@ -155,8 +156,30 @@ public final class DataTypes {
      * by the API. At other locations, a {@link DataTypeFactory} is provided.
      */
     public static UnresolvedDataType of(String unresolvedName) {
+        Preconditions.checkNotNull(unresolvedName, "Unresolved name must not be null.");
         return new UnresolvedDataType(
                 () -> unresolvedName, (factory) -> factory.createDataType(unresolvedName));
+    }
+
+    /**
+     * Creates an unresolved type that will be resolved to a {@link DataType} by converting the
+     * given {@link TypeInformation} later.
+     *
+     * <p>{@link DataType} is richer than {@link TypeInformation} as it also includes details about
+     * the {@link LogicalType}. Therefore, some details will be added implicitly during the
+     * conversion. The mapping to data type happens on a best effort basis. If no data type is
+     * suitable, the type information is interpreted as {@link DataTypes#RAW(TypeInformation)}.
+     *
+     * <p>See {@link TypeInfoDataTypeConverter} for more information.
+     *
+     * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved
+     * by the API. At other locations, a {@link DataTypeFactory} is provided.
+     */
+    public static UnresolvedDataType of(TypeInformation<?> typeInfo) {
+        Preconditions.checkNotNull(typeInfo, "Type information must not be null.");
+        return new UnresolvedDataType(
+                () -> String.format("'%s'", typeInfo.toString()),
+                (factory) -> factory.createDataType(typeInfo));
     }
 
     // we use SQL-like naming for data types and avoid Java keyword clashes
@@ -459,6 +482,14 @@ public final class DataTypes {
     }
 
     /**
+     * Data type of a timestamp WITH LOCAL time zone. This is a synonym for {@link
+     * DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE(int)}.
+     */
+    public static DataType TIMESTAMP_LTZ(int precision) {
+        return new AtomicDataType(new LocalZonedTimestampType(precision));
+    }
+
+    /**
      * Data type of a timestamp WITH LOCAL time zone {@code TIMESTAMP WITH LOCAL TIME ZONE} with 6
      * digits of fractional seconds by default.
      *
@@ -481,6 +512,14 @@ public final class DataTypes {
      * @see LocalZonedTimestampType
      */
     public static DataType TIMESTAMP_WITH_LOCAL_TIME_ZONE() {
+        return new AtomicDataType(new LocalZonedTimestampType());
+    }
+
+    /**
+     * Data type of a timestamp WITH LOCAL time zone. This is a synonym for {@link
+     * DataTypes#TIMESTAMP_WITH_LOCAL_TIME_ZONE()}.
+     */
+    public static DataType TIMESTAMP_LTZ() {
         return new AtomicDataType(new LocalZonedTimestampType());
     }
 
@@ -695,6 +734,19 @@ public final class DataTypes {
     }
 
     /**
+     * Data type of a sequence of fields.
+     *
+     * <p>This is shortcut for {@link #ROW(Field...)} where the field names will be generated using
+     * {@code f0, f1, f2, ...}.
+     */
+    public static DataType ROW(DataType... fieldDataTypes) {
+        return ROW(
+                IntStream.range(0, fieldDataTypes.length)
+                        .mapToObj(idx -> FIELD("f" + idx, fieldDataTypes[idx]))
+                        .toArray(Field[]::new));
+    }
+
+    /**
      * Data type of a row type with no fields. It only exists for completeness.
      *
      * @see #ROW(Field...)
@@ -745,6 +797,19 @@ public final class DataTypes {
                                     .toArray(Field[]::new);
                     return ROW(fieldsArray);
                 });
+    }
+
+    /**
+     * Data type of a sequence of fields.
+     *
+     * <p>This is shortcut for {@link #ROW(AbstractField...)} where the field names will be
+     * generated using {@code f0, f1, f2, ...}.
+     */
+    public static UnresolvedDataType ROW(AbstractDataType<?>... fieldDataTypes) {
+        return ROW(
+                IntStream.range(0, fieldDataTypes.length)
+                        .mapToObj(idx -> FIELD("f" + idx, fieldDataTypes[idx]))
+                        .toArray(AbstractField[]::new));
     }
 
     /**
@@ -811,15 +876,19 @@ public final class DataTypes {
      *
      * <p>The raw type is an extension to the SQL standard.
      *
-     * <p>Compared to an {@link #RAW(Class, TypeSerializer)}, this type does not contain a {@link
-     * TypeSerializer} yet. The serializer will be generated from the enclosed {@link
-     * TypeInformation} but needs access to the {@link ExecutionConfig} of the current execution
-     * environment. Thus, this type is just a placeholder.
+     * <p>Compared to {@link #RAW(Class, TypeSerializer)}, this method produces an {@link
+     * UnresolvedDataType} where the serializer will be generated from the enclosed {@link
+     * TypeInformation} later.
      *
-     * @see TypeInformationRawType
+     * <p>Note: In most of the cases, the {@link UnresolvedDataType} will be automatically resolved
+     * by the API. At other locations, a {@link DataTypeFactory} is provided.
+     *
+     * @see RawType
      */
-    public static <T> DataType RAW(TypeInformation<T> typeInformation) {
-        return new AtomicDataType(new TypeInformationRawType<>(typeInformation));
+    public static <T> UnresolvedDataType RAW(TypeInformation<T> typeInformation) {
+        return new UnresolvedDataType(
+                () -> String.format(RawType.FORMAT, typeInformation.getTypeClass().getName(), "?"),
+                factory -> factory.createRawDataType(typeInformation));
     }
 
     /**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.kubeclient.parameters;
 
+import org.apache.flink.api.common.resources.ExternalResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -38,27 +39,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KubernetesTaskManagerParameters extends AbstractKubernetesParameters {
 
-    public static final String TASK_MANAGER_MAIN_CONTAINER_NAME = "flink-task-manager";
-
     private final String podName;
 
     private final String dynamicProperties;
 
+    private final String jvmMemOptsEnv;
+
     private final ContaineredTaskManagerParameters containeredTaskManagerParameters;
 
-    private final Map<String, Long> taskManagerExternalResources;
+    private final Map<String, String> taskManagerExternalResourceConfigKeys;
 
     public KubernetesTaskManagerParameters(
             Configuration flinkConfig,
             String podName,
             String dynamicProperties,
+            String jvmMemOptsEnv,
             ContaineredTaskManagerParameters containeredTaskManagerParameters,
-            Map<String, Long> taskManagerExternalResources) {
+            Map<String, String> taskManagerExternalResourceConfigKeys) {
         super(flinkConfig);
         this.podName = checkNotNull(podName);
         this.dynamicProperties = checkNotNull(dynamicProperties);
+        this.jvmMemOptsEnv = checkNotNull(jvmMemOptsEnv);
         this.containeredTaskManagerParameters = checkNotNull(containeredTaskManagerParameters);
-        this.taskManagerExternalResources = checkNotNull(taskManagerExternalResources);
+        this.taskManagerExternalResourceConfigKeys =
+                checkNotNull(taskManagerExternalResourceConfigKeys);
     }
 
     @Override
@@ -99,10 +103,6 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
                 .orElse(Collections.emptyList());
     }
 
-    public String getTaskManagerMainContainerName() {
-        return TASK_MANAGER_MAIN_CONTAINER_NAME;
-    }
-
     public String getPodName() {
         return podName;
     }
@@ -122,14 +122,16 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
                 .doubleValue();
     }
 
-    public String getServiceAccount() {
-        return flinkConfig
-                .getOptional(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT)
-                .orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+    public Map<String, ExternalResource> getTaskManagerExternalResources() {
+        return containeredTaskManagerParameters.getTaskExecutorProcessSpec().getExtendedResources();
     }
 
-    public Map<String, Long> getTaskManagerExternalResources() {
-        return taskManagerExternalResources;
+    public String getServiceAccount() {
+        return flinkConfig.get(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT);
+    }
+
+    public Map<String, String> getTaskManagerExternalResourceConfigKeys() {
+        return Collections.unmodifiableMap(taskManagerExternalResourceConfigKeys);
     }
 
     public int getRPCPort() {
@@ -142,6 +144,10 @@ public class KubernetesTaskManagerParameters extends AbstractKubernetesParameter
 
     public String getDynamicProperties() {
         return dynamicProperties;
+    }
+
+    public String getJvmMemOptsEnv() {
+        return jvmMemOptsEnv;
     }
 
     public ContaineredTaskManagerParameters getContaineredTaskManagerParameters() {

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTr
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
@@ -39,11 +40,11 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -215,7 +216,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                 ResultPartitionType.BLOCKING,
                 partitionTracker,
                 new SimpleAckingTaskManagerGateway(),
-                NettyShuffleMaster.INSTANCE);
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER);
 
         Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall =
                 partitionStartTrackingFuture.get();
@@ -273,10 +274,10 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                                                 .withTaskManagerLocation(taskManagerLocation)
                                                 .build()));
 
-        final JobGraph jobGraph =
-                new JobGraph(new JobID(), "test job", producerVertex, consumerVertex);
+        final JobGraph jobGraph = JobGraphTestUtils.batchJobGraph(producerVertex, consumerVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
@@ -286,14 +287,13 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         final ExecutionJobVertex executionJobVertex =
                 executionGraph.getJobVertex(producerVertex.getID());
         final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
         execution = executionVertex.getCurrentExecutionAttempt();
 
         scheduler.startScheduling();
+        execution.switchToRecovering();
         execution.switchToRunning();
 
         final IntermediateResultPartitionID expectedIntermediateResultPartitionId =

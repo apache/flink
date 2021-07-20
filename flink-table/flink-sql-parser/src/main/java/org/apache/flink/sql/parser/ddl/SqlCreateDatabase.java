@@ -56,7 +56,7 @@ public class SqlCreateDatabase extends SqlCreate {
             SqlCharStringLiteral comment,
             boolean ifNotExists) {
         super(OPERATOR, pos, false, ifNotExists);
-        this.databaseName = requireNonNull(databaseName, "tableName should not be null");
+        this.databaseName = requireNonNull(databaseName, "databaseName should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
         this.comment = comment;
     }

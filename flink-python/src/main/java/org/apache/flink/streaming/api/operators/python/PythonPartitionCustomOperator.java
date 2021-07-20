@@ -43,8 +43,6 @@ public class PythonPartitionCustomOperator<IN, OUT>
 
     private static final String NUM_PARTITIONS = "NUM_PARTITIONS";
 
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
-
     private int numPartitions = CoreOptions.DEFAULT_PARALLELISM.defaultValue();
 
     public PythonPartitionCustomOperator(
@@ -69,11 +67,6 @@ public class PythonPartitionCustomOperator<IN, OUT>
         Map<String, String> internalParameters = new HashMap<>();
         internalParameters.put(NUM_PARTITIONS, String.valueOf(this.numPartitions));
         return internalParameters;
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
     }
 
     public void setNumPartitions(int numPartitions) {

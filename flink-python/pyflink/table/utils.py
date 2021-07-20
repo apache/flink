@@ -22,7 +22,7 @@ from pyflink.common.types import RowKind
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
     TimeType, DateType, ArrayType, MapType, TimestampType, FloatType
-from pyflink.util.utils import to_jarray
+from pyflink.util.java_utils import to_jarray
 import datetime
 import pickle
 

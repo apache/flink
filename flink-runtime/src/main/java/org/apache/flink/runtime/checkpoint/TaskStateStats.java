@@ -64,8 +64,10 @@ public class TaskStateStats implements Serializable {
         if (subtaskStats[subtaskIndex] == null) {
             subtaskStats[subtaskIndex] = subtask;
 
-            latestAckedSubtaskStats = subtask;
-            numAcknowledgedSubtasks++;
+            if (subtask.isCompleted()) {
+                latestAckedSubtaskStats = subtask;
+                numAcknowledgedSubtasks++;
+            }
 
             summaryStats.updateSummary(subtask);
 
@@ -175,7 +177,9 @@ public class TaskStateStats implements Serializable {
 
         void updateSummary(SubtaskStateStats subtaskStats) {
             stateSize.add(subtaskStats.getStateSize());
-            ackTimestamp.add(subtaskStats.getAckTimestamp());
+            if (subtaskStats.isCompleted()) {
+                ackTimestamp.add(subtaskStats.getAckTimestamp());
+            }
             syncCheckpointDuration.add(subtaskStats.getSyncCheckpointDuration());
             asyncCheckpointDuration.add(subtaskStats.getAsyncCheckpointDuration());
             processedData.add(subtaskStats.getProcessedData());

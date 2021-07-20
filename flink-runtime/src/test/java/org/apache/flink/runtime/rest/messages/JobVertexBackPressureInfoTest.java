@@ -34,13 +34,13 @@ public class JobVertexBackPressureInfoTest
         List<JobVertexBackPressureInfo.SubtaskBackPressureInfo> subtaskList = new ArrayList<>();
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        0, JobVertexBackPressureInfo.VertexBackPressureLevel.LOW, 0.1));
+                        0, JobVertexBackPressureInfo.VertexBackPressureLevel.LOW, 0.1, 0.5, 0.4));
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        1, JobVertexBackPressureInfo.VertexBackPressureLevel.OK, 0.4));
+                        1, JobVertexBackPressureInfo.VertexBackPressureLevel.OK, 0.4, 0.3, 0.3));
         subtaskList.add(
                 new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                        2, JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH, 0.9));
+                        2, JobVertexBackPressureInfo.VertexBackPressureLevel.HIGH, 0.9, 0.0, 0.1));
         return new JobVertexBackPressureInfo(
                 JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
                 JobVertexBackPressureInfo.VertexBackPressureLevel.LOW,

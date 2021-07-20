@@ -41,12 +41,22 @@ public class ForwardPartitioner<T> extends StreamPartitioner<T> {
     }
 
     @Override
+    public boolean isPointwise() {
+        return true;
+    }
+
+    @Override
     public String toString() {
         return "FORWARD";
     }
 
     @Override
     public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-        return SubtaskStateMapper.ROUND_ROBIN;
+        return SubtaskStateMapper.UNSUPPORTED;
+    }
+
+    @Override
+    public SubtaskStateMapper getUpstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.UNSUPPORTED;
     }
 }

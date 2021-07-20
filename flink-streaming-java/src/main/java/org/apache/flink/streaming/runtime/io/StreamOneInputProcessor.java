@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
@@ -42,7 +43,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-    private final StreamTaskInput<IN> input;
+    private StreamTaskInput<IN> input;
     private final DataOutput<IN> output;
 
     private final BoundedMultiInput endOfInputAware;
@@ -66,6 +67,11 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
         if (status == InputStatus.END_OF_INPUT) {
             endOfInputAware.endInput(input.getInputIndex() + 1);
+        } else if (status == InputStatus.END_OF_RECOVERY) {
+            if (input instanceof RecoverableStreamTaskInput) {
+                input = ((RecoverableStreamTaskInput<IN>) input).finishRecovery();
+            }
+            return InputStatus.MORE_AVAILABLE;
         }
 
         return status;
@@ -73,7 +79,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
     @Override
     public CompletableFuture<Void> prepareSnapshot(
-            ChannelStateWriter channelStateWriter, long checkpointId) throws IOException {
+            ChannelStateWriter channelStateWriter, long checkpointId) throws CheckpointException {
         return input.prepareSnapshot(channelStateWriter, checkpointId);
     }
 

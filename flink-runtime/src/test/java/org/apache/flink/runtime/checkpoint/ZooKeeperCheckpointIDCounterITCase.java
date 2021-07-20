@@ -51,34 +51,32 @@ public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestB
     /** Tests that counter node is removed from ZooKeeper after shutdown. */
     @Test
     public void testShutdownRemovesState() throws Exception {
-        CheckpointIDCounter counter = createCheckpointIdCounter();
+        ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
         CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
+        assertNotNull(client.checkExists().forPath(counter.getPath()));
 
         counter.shutdown(JobStatus.FINISHED);
-        assertNull(client.checkExists().forPath("/checkpoint-id-counter"));
+        assertNull(client.checkExists().forPath(counter.getPath()));
     }
 
     /** Tests that counter node is NOT removed from ZooKeeper after suspend. */
     @Test
     public void testSuspendKeepsState() throws Exception {
-        CheckpointIDCounter counter = createCheckpointIdCounter();
+        ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
         CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
+        assertNotNull(client.checkExists().forPath(counter.getPath()));
 
         counter.shutdown(JobStatus.SUSPENDED);
-        assertNotNull(client.checkExists().forPath("/checkpoint-id-counter"));
+        assertNotNull(client.checkExists().forPath(counter.getPath()));
     }
 
     @Override
-    protected CheckpointIDCounter createCheckpointIdCounter() throws Exception {
+    protected ZooKeeperCheckpointIDCounter createCheckpointIdCounter() throws Exception {
         return new ZooKeeperCheckpointIDCounter(
-                ZooKeeper.getClient(),
-                "/checkpoint-id-counter",
-                new DefaultLastStateConnectionStateListener());
+                ZooKeeper.getClient(), new DefaultLastStateConnectionStateListener());
     }
 }

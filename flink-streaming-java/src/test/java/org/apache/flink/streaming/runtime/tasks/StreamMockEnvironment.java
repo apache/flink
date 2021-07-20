@@ -26,6 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -209,9 +210,12 @@ public class StreamMockEnvironment implements Environment {
 
     public <T> void addOutput(
             final Collection<Object> outputList, final TypeSerializer<T> serializer) {
+        addOutput(new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+    }
+
+    public void addOutput(ResultPartitionWriter resultPartitionWriter) {
         try {
-            outputs.add(
-                    new RecordOrEventCollectingResultPartitionWriter<T>(outputList, serializer));
+            outputs.add(resultPartitionWriter);
         } catch (Throwable t) {
             t.printStackTrace();
             fail(t.getMessage());
@@ -350,8 +354,9 @@ public class StreamMockEnvironment implements Environment {
     }
 
     @Override
-    public void declineCheckpoint(long checkpointId, Throwable cause) {
-        checkpointResponder.declineCheckpoint(jobID, executionAttemptID, checkpointId, cause);
+    public void declineCheckpoint(long checkpointId, CheckpointException checkpointException) {
+        checkpointResponder.declineCheckpoint(
+                jobID, executionAttemptID, checkpointId, checkpointException);
     }
 
     @Override

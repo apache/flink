@@ -31,8 +31,12 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.ConfigurationException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 /**
@@ -42,9 +46,10 @@ import java.util.concurrent.Executor;
  */
 public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
 
-    public ResourceManager<T> createResourceManager(
+    protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    public ResourceManagerProcessContext createResourceManagerProcessContext(
             Configuration configuration,
-            ResourceID resourceId,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
@@ -54,23 +59,25 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             MetricRegistry metricRegistry,
             String hostname,
             Executor ioExecutor)
-            throws Exception {
+            throws ConfigurationException {
 
         final ResourceManagerMetricGroup resourceManagerMetricGroup =
                 ResourceManagerMetricGroup.create(metricRegistry, hostname);
         final SlotManagerMetricGroup slotManagerMetricGroup =
                 SlotManagerMetricGroup.create(metricRegistry, hostname);
 
-        final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
-                createResourceManagerRuntimeServices(
-                        configuration,
-                        rpcService,
-                        highAvailabilityServices,
-                        slotManagerMetricGroup);
+        final Configuration runtimeServicesAndRmConfig =
+                getEffectiveConfigurationForResourceManagerAndRuntimeServices(configuration);
 
-        return createResourceManager(
-                configuration,
-                resourceId,
+        final ResourceManagerRuntimeServicesConfiguration runtimeServiceConfig =
+                createResourceManagerRuntimeServicesConfiguration(runtimeServicesAndRmConfig);
+
+        final Configuration rmConfig =
+                getEffectiveConfigurationForResourceManager(runtimeServicesAndRmConfig);
+
+        return new ResourceManagerProcessContext(
+                rmConfig,
+                runtimeServiceConfig,
                 rpcService,
                 highAvailabilityServices,
                 heartbeatServices,
@@ -78,15 +85,59 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 clusterInformation,
                 webInterfaceUrl,
                 resourceManagerMetricGroup,
-                resourceManagerRuntimeServices,
+                slotManagerMetricGroup,
                 ioExecutor);
+    }
+
+    public ResourceManager<T> createResourceManager(
+            ResourceManagerProcessContext context, UUID leaderSessionId, ResourceID resourceId)
+            throws Exception {
+
+        final ResourceManagerRuntimeServices resourceManagerRuntimeServices =
+                createResourceManagerRuntimeServices(
+                        context.getRmRuntimeServicesConfig(),
+                        context.getRpcService(),
+                        context.getHighAvailabilityServices(),
+                        context.getSlotManagerMetricGroup());
+
+        return createResourceManager(
+                context.getRmConfig(),
+                resourceId,
+                context.getRpcService(),
+                leaderSessionId,
+                context.getHeartbeatServices(),
+                context.getFatalErrorHandler(),
+                context.getClusterInformation(),
+                context.getWebInterfaceUrl(),
+                context.getResourceManagerMetricGroup(),
+                resourceManagerRuntimeServices,
+                context.getIoExecutor());
+    }
+
+    /**
+     * Configuration changes in this method will be visible to both {@link ResourceManager} and
+     * {@link ResourceManagerRuntimeServices}. This can be overwritten by {@link
+     * #getEffectiveConfigurationForResourceManager}.
+     */
+    protected Configuration getEffectiveConfigurationForResourceManagerAndRuntimeServices(
+            final Configuration configuration) {
+        return configuration;
+    }
+
+    /**
+     * Configuration changes in this method will be visible to only {@link ResourceManager}. This
+     * can overwrite {@link #getEffectiveConfigurationForResourceManagerAndRuntimeServices}.
+     */
+    protected Configuration getEffectiveConfigurationForResourceManager(
+            final Configuration configuration) {
+        return configuration;
     }
 
     protected abstract ResourceManager<T> createResourceManager(
             Configuration configuration,
             ResourceID resourceId,
             RpcService rpcService,
-            HighAvailabilityServices highAvailabilityServices,
+            UUID leaderSessionId,
             HeartbeatServices heartbeatServices,
             FatalErrorHandler fatalErrorHandler,
             ClusterInformation clusterInformation,
@@ -97,14 +148,13 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
             throws Exception;
 
     private ResourceManagerRuntimeServices createResourceManagerRuntimeServices(
-            Configuration configuration,
+            ResourceManagerRuntimeServicesConfiguration rmRuntimeServicesConfig,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
-            SlotManagerMetricGroup slotManagerMetricGroup)
-            throws ConfigurationException {
+            SlotManagerMetricGroup slotManagerMetricGroup) {
 
         return ResourceManagerRuntimeServices.fromConfiguration(
-                createResourceManagerRuntimeServicesConfiguration(configuration),
+                rmRuntimeServicesConfig,
                 highAvailabilityServices,
                 rpcService.getScheduledExecutor(),
                 slotManagerMetricGroup);

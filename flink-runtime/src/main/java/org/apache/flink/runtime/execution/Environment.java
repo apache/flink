@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -203,9 +204,9 @@ public interface Environment {
      * to successfully complete a certain checkpoint.
      *
      * @param checkpointId The ID of the declined checkpoint.
-     * @param cause An optional reason why the checkpoint was declined.
+     * @param checkpointException The exception why the checkpoint was declined.
      */
-    void declineCheckpoint(long checkpointId, Throwable cause);
+    void declineCheckpoint(long checkpointId, CheckpointException checkpointException);
 
     /**
      * Marks task execution failed for an external reason (a reason other than the task code itself

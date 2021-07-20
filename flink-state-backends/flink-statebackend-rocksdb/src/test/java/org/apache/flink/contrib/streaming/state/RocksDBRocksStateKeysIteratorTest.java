@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -82,9 +83,9 @@ public class RocksDBRocksStateKeysIteratorTest {
 
             DataOutputSerializer outputStream = new DataOutputSerializer(8);
             boolean ambiguousKeyPossible =
-                    RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                    CompositeKeySerializationUtils.isAmbiguousKeyPossible(
                             keySerializer, StringSerializer.INSTANCE);
-            RocksDBKeySerializationUtils.writeNameSpace(
+            CompositeKeySerializationUtils.writeNameSpace(
                     namespace, StringSerializer.INSTANCE, outputStream, ambiguousKeyPossible);
 
             byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();

@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -380,8 +379,8 @@ public class MetricStore {
             return subtasks.get(subtaskIndex);
         }
 
-        public Collection<ComponentMetricStore> getAllSubtaskMetricStores() {
-            return subtasks.values();
+        public Map<Integer, ComponentMetricStore> getAllSubtaskMetricStores() {
+            return subtasks;
         }
 
         private static TaskMetricStore unmodifiable(TaskMetricStore source) {

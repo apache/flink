@@ -27,11 +27,8 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.operators.co.CoBroadcastWithKeyedOperator;
-import org.apache.flink.streaming.api.operators.co.CoBroadcastWithNonKeyedOperator;
 import org.apache.flink.streaming.api.transformations.BroadcastStateTransformation;
+import org.apache.flink.streaming.api.transformations.KeyedBroadcastStateTransformation;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
@@ -119,13 +116,13 @@ public class BroadcastConnectedStream<IN1, IN2> {
      *
      * @param function The {@link KeyedBroadcastProcessFunction} that is called for each element in
      *     the stream.
-     * @param <KS> The type of the keys in the keyed stream.
+     * @param <KEY> The type of the keys in the keyed stream.
      * @param <OUT> The type of the output elements.
      * @return The transformed {@link DataStream}.
      */
     @PublicEvolving
-    public <KS, OUT> SingleOutputStreamOperator<OUT> process(
-            final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function) {
+    public <KEY, OUT> SingleOutputStreamOperator<OUT> process(
+            final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> function) {
 
         TypeInformation<OUT> outTypeInfo =
                 TypeExtractor.getBinaryOperatorReturnType(
@@ -150,13 +147,13 @@ public class BroadcastConnectedStream<IN1, IN2> {
      * @param function The {@link KeyedBroadcastProcessFunction} that is called for each element in
      *     the stream.
      * @param outTypeInfo The type of the output elements.
-     * @param <KS> The type of the keys in the keyed stream.
+     * @param <KEY> The type of the keys in the keyed stream.
      * @param <OUT> The type of the output elements.
      * @return The transformed {@link DataStream}.
      */
     @PublicEvolving
-    public <KS, OUT> SingleOutputStreamOperator<OUT> process(
-            final KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT> function,
+    public <KEY, OUT> SingleOutputStreamOperator<OUT> process(
+            final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> function,
             final TypeInformation<OUT> outTypeInfo) {
 
         Preconditions.checkNotNull(function);
@@ -164,9 +161,7 @@ public class BroadcastConnectedStream<IN1, IN2> {
                 nonBroadcastStream instanceof KeyedStream,
                 "A KeyedBroadcastProcessFunction can only be used on a keyed stream.");
 
-        TwoInputStreamOperator<IN1, IN2, OUT> operator =
-                new CoBroadcastWithKeyedOperator<>(clean(function), broadcastStateDescriptors);
-        return transform("Co-Process-Broadcast-Keyed", outTypeInfo, operator);
+        return transform(function, outTypeInfo);
     }
 
     /**
@@ -220,23 +215,27 @@ public class BroadcastConnectedStream<IN1, IN2> {
                 !(nonBroadcastStream instanceof KeyedStream),
                 "A BroadcastProcessFunction can only be used on a non-keyed stream.");
 
-        TwoInputStreamOperator<IN1, IN2, OUT> operator =
-                new CoBroadcastWithNonKeyedOperator<>(clean(function), broadcastStateDescriptors);
-        return transform("Co-Process-Broadcast", outTypeInfo, operator);
+        return transform(function, outTypeInfo);
     }
 
     @Internal
     private <OUT> SingleOutputStreamOperator<OUT> transform(
-            final String functionName,
-            final TypeInformation<OUT> outTypeInfo,
-            final TwoInputStreamOperator<IN1, IN2, OUT> operator) {
+            final BroadcastProcessFunction<IN1, IN2, OUT> userFunction,
+            final TypeInformation<OUT> outTypeInfo) {
 
         // read the output type of the input Transforms to coax out errors about MissingTypeInfo
         nonBroadcastStream.getType();
         broadcastStream.getType();
 
         final BroadcastStateTransformation<IN1, IN2, OUT> transformation =
-                getBroadcastStateTransformation(functionName, outTypeInfo, operator);
+                new BroadcastStateTransformation<>(
+                        "Co-Process-Broadcast",
+                        nonBroadcastStream.getTransformation(),
+                        broadcastStream.getTransformation(),
+                        clean(userFunction),
+                        broadcastStateDescriptors,
+                        outTypeInfo,
+                        environment.getParallelism());
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         final SingleOutputStreamOperator<OUT> returnStream =
@@ -246,28 +245,35 @@ public class BroadcastConnectedStream<IN1, IN2> {
         return returnStream;
     }
 
-    private <OUT> BroadcastStateTransformation<IN1, IN2, OUT> getBroadcastStateTransformation(
-            final String functionName,
-            final TypeInformation<OUT> outTypeInfo,
-            final TwoInputStreamOperator<IN1, IN2, OUT> operator) {
+    @Internal
+    private <KEY, OUT> SingleOutputStreamOperator<OUT> transform(
+            final KeyedBroadcastProcessFunction<KEY, IN1, IN2, OUT> userFunction,
+            final TypeInformation<OUT> outTypeInfo) {
 
-        if (nonBroadcastStream instanceof KeyedStream) {
-            return BroadcastStateTransformation.forKeyedStream(
-                    functionName,
-                    (KeyedStream<IN1, ?>) nonBroadcastStream,
-                    broadcastStream,
-                    SimpleOperatorFactory.of(operator),
-                    outTypeInfo,
-                    environment.getParallelism());
-        } else {
-            return BroadcastStateTransformation.forNonKeyedStream(
-                    functionName,
-                    nonBroadcastStream,
-                    broadcastStream,
-                    SimpleOperatorFactory.of(operator),
-                    outTypeInfo,
-                    environment.getParallelism());
-        }
+        // read the output type of the input Transforms to coax out errors about MissingTypeInfo
+        nonBroadcastStream.getType();
+        broadcastStream.getType();
+
+        KeyedStream<IN1, KEY> keyedInputStream = (KeyedStream<IN1, KEY>) nonBroadcastStream;
+
+        final KeyedBroadcastStateTransformation<KEY, IN1, IN2, OUT> transformation =
+                new KeyedBroadcastStateTransformation<>(
+                        "Co-Process-Broadcast-Keyed",
+                        nonBroadcastStream.getTransformation(),
+                        broadcastStream.getTransformation(),
+                        clean(userFunction),
+                        broadcastStateDescriptors,
+                        keyedInputStream.getKeyType(),
+                        keyedInputStream.getKeySelector(),
+                        outTypeInfo,
+                        environment.getParallelism());
+
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        final SingleOutputStreamOperator<OUT> returnStream =
+                new SingleOutputStreamOperator(environment, transformation);
+
+        getExecutionEnvironment().addOperator(transformation);
+        return returnStream;
     }
 
     protected <F> F clean(F f) {

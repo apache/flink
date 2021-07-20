@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.13-SNAPSHOT</version>
+	<version>1.14-SNAPSHOT</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -50,13 +50,12 @@ under the License.
 	</scm>
 
 	<modules>
-		<!-- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
-		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
 		<module>flink-filesystems</module>
+		<module>flink-rpc</module>
 		<module>flink-runtime</module>
 		<module>flink-runtime-web</module>
 		<module>flink-optimizer</module>
@@ -77,14 +76,12 @@ under the License.
 		<module>flink-quickstart</module>
 		<module>flink-contrib</module>
 		<module>flink-dist</module>
-		<module>flink-mesos</module>
 		<module>flink-metrics</module>
 		<module>flink-yarn</module>
 		<module>flink-yarn-tests</module>
 		<module>flink-fs-tests</module>
 		<module>flink-docs</module>
 		<module>flink-python</module>
-		<module>flink-ml-parent</module>
 		<module>flink-walkthroughs</module>
 		<module>flink-kubernetes</module>
 		<module>flink-external-resources</module>
@@ -103,12 +100,12 @@ under the License.
 			 to avoid process kills due to container limits on TravisCI -->
 		<flink.forkCountTestPackage>${flink.forkCount}</flink.forkCountTestPackage>
 		<flink.reuseForks>true</flink.reuseForks>
-		<flink.shaded.version>12.0</flink.shaded.version>
+		<flink.shaded.version>13.0</flink.shaded.version>
 		<guava.version>18.0</guava.version>
 		<akka.version>2.5.21</akka.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.15</slf4j.version>
-		<log4j.version>2.12.1</log4j.version>
+		<log4j.version>2.14.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
 			 Intellij is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
@@ -123,17 +120,17 @@ under the License.
 		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
 		<curator.version>2.12.0</curator.version>
-		<jackson.version>2.10.1</jackson.version>
+		<jackson.version>2.12.1</jackson.version>
 		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>4.13.2</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<py4j.version>0.10.8.1</py4j.version>
-		<beam.version>2.23.0</beam.version>
+		<beam.version>2.27.0</beam.version>
 		<protoc.version>3.11.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
 		<japicmp.skip>false</japicmp.skip>
@@ -145,7 +142,7 @@ under the License.
 			to revisit the impact at that time.
 		-->
 		<minikdc.version>3.2.0</minikdc.version>
-		<generated.docs.dir>./docs/_includes/generated</generated.docs.dir>
+		<generated.docs.dir>./docs/layouts/shortcodes/generated</generated.docs.dir>
 		<hive.version>2.3.4</hive.version>
 		<hive-2.2.0-orc-version>1.4.3</hive-2.2.0-orc-version>
 		<orc.version>1.5.6</orc.version>
@@ -154,17 +151,21 @@ under the License.
 			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5
 		-->
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
-		<japicmp.referenceVersion>1.12.0</japicmp.referenceVersion>
+		<japicmp.referenceVersion>1.13.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
 		<spotless.version>2.4.2</spotless.version>
+
+		<!-- Can be set to any value to reproduce a specific build. -->
+		<test.randomization.seed/>
+		<test.unit.pattern>**/*Test.*</test.unit.pattern>
 	</properties>
 
 	<dependencies>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>force-shading</artifactId>
-			<version>1.13-SNAPSHOT</version>
+			<artifactId>flink-shaded-force-shading</artifactId>
+			<version>${flink.shaded.version}</version>
 		</dependency>
 
 		<!-- Root dependencies for all projects -->
@@ -460,7 +461,7 @@ under the License.
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
-				<version>1.1.4</version>
+				<version>1.1.8.3</version>
 			</dependency>
 
 			<dependency>
@@ -524,7 +525,7 @@ under the License.
 				<artifactId>jackson-bom</artifactId>
 				<type>pom</type>
 				<scope>import</scope>
-				<version>${jackson.version}</version>
+				<version>2.12.1</version>
 			</dependency>
 
 			<dependency>
@@ -562,7 +563,7 @@ under the License.
 			<dependency>
 				<groupId>commons-io</groupId>
 				<artifactId>commons-io</artifactId>
-				<version>2.7</version>
+				<version>2.8.0</version>
 			</dependency>
 
 			<!-- commons collections needs to be pinned to this critical security fix version -->
@@ -928,6 +929,24 @@ under the License.
 								</configuration>
 							</execution>
 						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>enable-adaptive-scheduler</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<systemProperties>
+								<flink.tests.enable-adaptive-scheduler>true</flink.tests.enable-adaptive-scheduler>
+							</systemProperties>
+							<excludedGroups>org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler</excludedGroups>
+						</configuration>
 					</plugin>
 				</plugins>
 			</build>
@@ -1345,6 +1364,8 @@ under the License.
 				<version>2.4</version><!--$NO-MVN-MAN-VER$-->
 				<configuration>
 					<archive>
+						<!-- Globally exclude maven metadata, because it may accidentally bundle files we don't intend to -->
+						<addMavenDescriptor>false</addMavenDescriptor>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							<addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
@@ -1408,13 +1429,19 @@ under the License.
 						<!-- External web libraries. -->
 						<exclude>docs/**/jquery*</exclude>
 						<exclude>docs/**/bootstrap*</exclude>
-						<exclude>docs/Gemfile.lock</exclude>
-						<exclude>docs/ruby2/Gemfile.lock</exclude>
-						<exclude>docs/img/*.svg</exclude>
-						<exclude>**/docs/page/font-awesome/**</exclude>
+						<exclude>docs/themes/book/**</exclude>
+						<exclude>docs/**/anchor*</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
 						<exclude>**/resources/**/bootstrap*</exclude>
+						<exclude>docs/resources/**</exclude>
+						<exclude>docs/public/**</exclude>
+						<exclude>docs/assets/github.css</exclude>
+						<exclude>docs/static/flink-header-logo.svg</exclude>
+						<exclude>docs/static/figs/*.svg</exclude>
+						<exclude>docs/static/font-awesome/**</exclude>
+						<exclude>docs/static/flink-header-logo.svg</exclude>
+						<exclude>docs/static/figs/*.svg</exclude>
 						<exclude>flink-clients/src/main/resources/web-docs/js/*d3.js</exclude>
 
 						<!-- the licenses that are re-bundled -->
@@ -1444,17 +1471,19 @@ under the License.
 						<exclude>flink-runtime-web/web-dashboard/node_modules/**</exclude>
 						<exclude>flink-runtime-web/web-dashboard/node/**</exclude>
 
+						<!-- antlr grammar files -->
+						<exclude>flink-table/flink-table-code-splitter/src/main/antlr4/**</exclude>
+
 						<!-- Test Data. -->
 						<exclude>**/src/test/resources/*-data</exclude>
 						<exclude>flink-tests/src/test/resources/testdata/terainput.txt</exclude>
                         <exclude>flink-formats/flink-avro/src/test/resources/flink_11-kryo_registrations</exclude>
-						<exclude>flink-runtime/src/test/resources/flink_11-kryo_registrations</exclude>
+						<exclude>flink-scala/src/test/resources/flink_11-kryo_registrations</exclude>
 						<exclude>flink-core/src/test/resources/kryo-serializer-config-snapshot-v1</exclude>
 						<exclude>flink-formats/flink-avro/src/test/resources/avro/*.avsc</exclude>
 						<exclude>out/test/flink-avro/avro/user.avsc</exclude>
-						<exclude>flink-table/flink-table-planner/src/test/scala/resources/*.out</exclude>
-						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
-						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
+						<exclude>flink-table/flink-sql-client/src/test/resources/*.out</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
@@ -1463,6 +1492,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/answer_set/*</exclude>
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
+						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 
 						<!-- snapshots -->
 						<exclude>**/src/test/resources/serializer-snapshot-*</exclude>
@@ -1499,10 +1529,9 @@ under the License.
 						<!-- Generated content -->
 						<exclude>out/**</exclude>
 						<exclude>**/target/**</exclude>
-						<exclude>docs/content/**</exclude>
 						<exclude>**/scalastyle-output.xml</exclude>
 						<exclude>build-target/**</exclude>
-						<exclude>docs/_includes/generated/**</exclude>
+						<exclude>docs/layouts/shortcodes/generated/**</exclude>
 						<!-- Tools: watchdog -->
 						<exclude>tools/artifacts/**</exclude>
 						<exclude>tools/flink*/**</exclude>
@@ -1526,6 +1555,9 @@ under the License.
 						<exclude>flink-python/lib/**</exclude>
 						<exclude>flink-python/dev/download/**</exclude>
 						<exclude>flink-python/docs/_build/**</exclude>
+
+						<!-- AWS SDK config that does not support license headers -->
+						<exclude>**/awssdk/global/handlers/execution.interceptors</exclude>
 					</excludes>
 				</configuration>
 			</plugin>
@@ -1554,8 +1586,12 @@ under the License.
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<hadoop.version>${hadoop.version}</hadoop.version>
-						<execution.checkpointing.unaligned>true</execution.checkpointing.unaligned>
+						<checkpointing.randomization>true</checkpointing.randomization>
+						<!-- on, unset, or random -->
+						<checkpointing.changelog>unset</checkpointing.changelog>
 						<project.basedir>${project.basedir}</project.basedir>
+						<!--suppress MavenModelInspection -->
+						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>
@@ -1569,7 +1605,7 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*Test.*</include>
+								<include>${test.unit.pattern}</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -1582,8 +1618,11 @@ under the License.
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*ITCase.*</include>
+								<include>**/*.*</include>
 							</includes>
+							<excludes>
+								<exclude>${test.unit.pattern}</exclude>
+							</excludes>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
@@ -1654,7 +1693,7 @@ under the License.
 							<rules>
 								<bannedDependencies>
 									<excludes>
-										<exclude>com.fasterxml.jackson*:*:(,2.10.0]</exclude>
+										<exclude>com.fasterxml.jackson*:*:(,2.12.0]</exclude>
 									</excludes>
 								</bannedDependencies>
 							</rules>
@@ -1695,6 +1734,50 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
+				<configuration>
+					<!-- This section contains the core configuration that is applied to every jar that we create.-->
+					<filters combine.children="append">
+						<filter>
+							<artifact>*</artifact>
+							<excludes>
+								<!-- Globally exclude log4j.properties from our JAR files. -->
+								<exclude>log4j.properties</exclude>
+								<exclude>log4j2.properties</exclude>
+								<exclude>log4j-test.properties</exclude>
+								<exclude>log4j2-test.properties</exclude>
+								<!-- Do not copy the signatures in the META-INF folder.
+								Otherwise, this might cause SecurityExceptions when using the JAR. -->
+								<exclude>META-INF/*.SF</exclude>
+								<exclude>META-INF/*.DSA</exclude>
+								<exclude>META-INF/*.RSA</exclude>
+								<!-- META-INF/maven can contain 2 things:
+									- For archetypes, it contains an archetype-metadata.xml.
+									- For other jars, it contains the pom for all dependencies under the respective <groupId>/<artifactId>/ directory.
+
+								 	We want to exclude the poms because they may be under an incompatible license,
+								 	however the archetype metadata is required and we need to keep that around.
+
+								 	This pattern excludes directories under META-INF/maven.
+								 	('?*/**' does not work because '**' also matches zero directories;
+								 	everything that matches '?*' also matches '?*/**')
+
+									The initial '**' allows the pattern to also work for multi-release jars that may contain such entries under
+									'META-INF/versions/11/META-INF/maven/'.
+								 	-->
+								<exclude>**/META-INF/maven/?*/?*/**</exclude>
+							</excludes>
+						</filter>
+					</filters>
+					<transformers combine.children="append">
+						<!-- The service transformer is needed to merge META-INF/services files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+						<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
+						<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+							<projectName>Apache Flink</projectName>
+							<encoding>UTF-8</encoding>
+						</transformer>
+					</transformers>
+				</configuration>
 				<executions>
 					<execution>
 						<id>shade-flink</id>
@@ -1709,19 +1792,9 @@ under the License.
 							<dependencyReducedPomLocation>${project.basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
 							<!-- Filters MUST be appended; merging filters does not work properly, see MSHADE-305 -->
 							<filters combine.children="append">
-								<!-- Globally exclude log4j.properties from our JAR files. -->
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>log4j.properties</exclude>
-										<exclude>log4j2.properties</exclude>
-										<exclude>log4j-test.properties</exclude>
-										<exclude>log4j2-test.properties</exclude>
-									</excludes>
-								</filter>
 								<!-- drop entries into META-INF and NOTICE files for the dummy artifact -->
 								<filter>
-									<artifact>org.apache.flink:force-shading</artifact>
+									<artifact>org.apache.flink:flink-shaded-force-shading</artifact>
 									<excludes>
 										<exclude>**</exclude>
 									</excludes>
@@ -1741,19 +1814,12 @@ under the License.
 									i.e. poms which do not contain properties which are derived from this root pom.
 									In particular, the Scala version properties are defined in the root pom and without
 									shading, the root pom would have to be Scala suffixed and thereby all other modules.
+									Removing this exclusion will also cause compilation errors in at least
+									1 module (flink-connector-elasticsearch5), for unknown reasons.
 									-->
-									<include>org.apache.flink:force-shading</include>
+									<include>org.apache.flink:flink-shaded-force-shading</include>
 								</includes>
 							</artifactSet>
-							<transformers combine.children="append">
-								<!-- The service transformer is needed to merge META-INF/services files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-								<!-- The ApacheNoticeResourceTransformer collects and aggregates NOTICE files -->
-								<transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
-									<projectName>Apache Flink</projectName>
-									<encoding>UTF-8</encoding>
-								</transformer>
-							</transformers>
 						</configuration>
 					</execution>
 				</executions>
@@ -1934,24 +2000,6 @@ under the License.
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-shade-plugin</artifactId>
 					<version>3.1.1</version>
-				</plugin>
-
-				<plugin>
-					<groupId>pl.project13.maven</groupId>
-					<artifactId>git-commit-id-plugin</artifactId>
-					<version>4.0.0</version>
-					<configuration>
-						<excludeProperties>
-							<excludeProperty>git.build.user.*</excludeProperty>
-							<excludeProperty>git.commit.user.*</excludeProperty>
-							<excludeProperty>git.branch.*</excludeProperty>
-							<excludeProperty>git.remote.*</excludeProperty>
-						</excludeProperties>
-
-						<!-- This is the same as the default date time format of this plugin.      -->
-						<!-- Because we want to parse the result we are fixing it to avoid problems. -->
-						<dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
-					</configuration>
 				</plugin>
 
 				<plugin>

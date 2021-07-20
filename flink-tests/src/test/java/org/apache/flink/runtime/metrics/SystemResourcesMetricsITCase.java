@@ -20,14 +20,15 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -127,7 +128,8 @@ public class SystemResourcesMetricsITCase extends TestLogger {
 
         @Override
         public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-            final String metricIdentifier = group.getMetricIdentifier(metricName, name -> name);
+            final String metricIdentifier =
+                    group.getMetricIdentifier(metricName, CharacterFilter.NO_OP_FILTER);
             for (final String expectedPattern : patternFutures.keySet()) {
                 if (metricIdentifier.matches(expectedPattern)) {
                     patternFutures.get(expectedPattern).complete(null);

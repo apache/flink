@@ -64,12 +64,12 @@ public class Tuple2<T0, T1> extends Tuple {
     /**
      * Creates a new tuple and assigns the given values to the tuple's fields.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
      */
-    public Tuple2(T0 value0, T1 value1) {
-        this.f0 = value0;
-        this.f1 = value1;
+    public Tuple2(T0 f0, T1 f1) {
+        this.f0 = f0;
+        this.f1 = f1;
     }
 
     @Override
@@ -108,12 +108,12 @@ public class Tuple2<T0, T1> extends Tuple {
     /**
      * Sets new values to all fields of the tuple.
      *
-     * @param value0 The value for field 0
-     * @param value1 The value for field 1
+     * @param f0 The value for field 0
+     * @param f1 The value for field 1
      */
-    public void setFields(T0 value0, T1 value1) {
-        this.f0 = value0;
-        this.f1 = value1;
+    public void setFields(T0 f0, T1 f1) {
+        this.f0 = f0;
+        this.f1 = f1;
     }
 
     /**
@@ -193,7 +193,7 @@ public class Tuple2<T0, T1> extends Tuple {
      * arguments implicitly. For example: {@code Tuple3.of(n, x, s)} instead of {@code new
      * Tuple3<Integer, Double, String>(n, x, s)}
      */
-    public static <T0, T1> Tuple2<T0, T1> of(T0 value0, T1 value1) {
-        return new Tuple2<>(value0, value1);
+    public static <T0, T1> Tuple2<T0, T1> of(T0 f0, T1 f1) {
+        return new Tuple2<>(f0, f1);
     }
 }

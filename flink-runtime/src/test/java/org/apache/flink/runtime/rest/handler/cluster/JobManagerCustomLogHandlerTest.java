@@ -23,7 +23,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.cluster.FileMessageParameters;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.TestLogger;
 
@@ -71,7 +71,7 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         testInstance =
                 new JobManagerCustomLogHandler(
                         () -> CompletableFuture.completedFuture(dispatcherGateway),
-                        TestingUtils.TIMEOUT(),
+                        TestingUtils.TIMEOUT,
                         Collections.emptyMap(),
                         JobManagerCustomLogHeaders.getInstance(),
                         logRoot);
@@ -146,16 +146,6 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         File actualFile =
                 testInstance.getFile(
                         createHandlerRequest(String.format("../%s", FORBIDDEN_FILENAME)));
-        assertThat(actualFile, is(notNullValue()));
-        assertFalse(actualFile.exists());
-    }
-
-    @Test
-    public void testGetJobManagerCustomLogsExistingButForbiddenFileWithObfuscatedPath()
-            throws Exception {
-        File actualFile =
-                testInstance.getFile(
-                        createHandlerRequest(String.format("..%%252%s", FORBIDDEN_FILENAME)));
         assertThat(actualFile, is(notNullValue()));
         assertFalse(actualFile.exists());
     }

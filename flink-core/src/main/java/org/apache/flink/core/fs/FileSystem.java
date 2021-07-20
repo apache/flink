@@ -253,7 +253,6 @@ public abstract class FileSystem {
                     .put("s3", "flink-s3-fs-presto")
                     .put("s3a", "flink-s3-fs-hadoop")
                     .put("s3p", "flink-s3-fs-presto")
-                    .put("swift", "flink-swift-fs-hadoop")
                     // mapr deliberately omitted for now (no dedicated plugin)
                     .build();
 
@@ -1077,7 +1076,10 @@ public abstract class FileSystem {
             try {
                 FileSystemFactory factory = iter.next();
                 list.add(factory);
-                LOG.debug("Added file system {}:{}", factory.getScheme(), factory.toString());
+                LOG.debug(
+                        "Added file system {}:{}",
+                        factory.getScheme(),
+                        factory.getClass().getSimpleName());
             } catch (Throwable t) {
                 // catching Throwable here to handle various forms of class loading
                 // and initialization errors

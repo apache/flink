@@ -1,0 +1,25 @@
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "pact" : "Data Source",
+    "contents" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}

@@ -18,13 +18,12 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.KubernetesResourceManagerDriver;
 import org.apache.flink.kubernetes.KubernetesWorkerNode;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
-import org.apache.flink.kubernetes.kubeclient.DefaultKubeClientFactory;
+import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServicesConfiguration;
 import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManager;
 import org.apache.flink.runtime.resourcemanager.active.ActiveResourceManagerFactory;
@@ -43,8 +42,6 @@ public class KubernetesResourceManagerFactory
     private static final KubernetesResourceManagerFactory INSTANCE =
             new KubernetesResourceManagerFactory();
 
-    private static final Time POD_CREATION_RETRY_INTERVAL = Time.seconds(3L);
-
     private KubernetesResourceManagerFactory() {}
 
     public static KubernetesResourceManagerFactory getInstance() {
@@ -57,12 +54,12 @@ public class KubernetesResourceManagerFactory
         final KubernetesResourceManagerDriverConfiguration
                 kubernetesResourceManagerDriverConfiguration =
                         new KubernetesResourceManagerDriverConfiguration(
-                                configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
-                                POD_CREATION_RETRY_INTERVAL);
+                                configuration.getString(KubernetesConfigOptions.CLUSTER_ID));
 
         return new KubernetesResourceManagerDriver(
                 configuration,
-                DefaultKubeClientFactory.getInstance(),
+                FlinkKubeClientFactory.getInstance()
+                        .fromConfiguration(configuration, "resourcemanager"),
                 kubernetesResourceManagerDriverConfiguration);
     }
 

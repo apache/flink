@@ -21,6 +21,7 @@ package org.apache.flink.test.manual;
 import org.apache.flink.types.parser.FieldParserTest;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
@@ -44,6 +45,7 @@ import static org.junit.Assert.assertEquals;
  * <p>Forbidden calls include: - Byte / String conversions that do not specify an explicit charset
  * because they produce different results in different locales
  */
+@Ignore("broken test; see FLINK-21340")
 public class CheckForbiddenMethodsUsage {
 
     private static class ForbiddenCall {

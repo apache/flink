@@ -28,12 +28,12 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -70,6 +70,7 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -92,11 +93,11 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.END_OF_KEY_GROUP_MARK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.clearMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.hasMetaDataFollowsFlag;
+import static org.apache.flink.runtime.state.FullSnapshotUtil.setMetaDataFollowsFlagInKey;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.spy;
@@ -186,11 +187,18 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                     }
 
                     @Override
+                    public void reportCheckpointMetrics(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics) {}
+
+                    @Override
                     public void declineCheckpoint(
                             JobID jobID,
                             ExecutionAttemptID executionAttemptID,
                             long checkpointId,
-                            Throwable cause) {}
+                            CheckpointException checkpointException) {}
                 };
 
         JobID jobID = new JobID();
@@ -220,8 +228,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         task.triggerCheckpointAsync(
                         new CheckpointMetaData(42, 17),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         testHarness.processElement(new StreamRecord<>("Wohoo", 0));
@@ -264,18 +271,19 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         File dbDir = temporaryFolder.newFolder();
 
-        final RocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType =
+        final EmbeddedRocksDBStateBackend.PriorityQueueStateType timerServicePriorityQueueType =
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue();
 
         final int skipStreams;
 
-        if (timerServicePriorityQueueType == RocksDBStateBackend.PriorityQueueStateType.HEAP) {
+        if (timerServicePriorityQueueType
+                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             // we skip the first created stream, because it is used to checkpoint the timer service,
             // which is
             // currently not asynchronous.
             skipStreams = 1;
         } else if (timerServicePriorityQueueType
-                == RocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
+                == EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB) {
             skipStreams = 0;
         } else {
             throw new AssertionError(
@@ -342,8 +350,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         task.triggerCheckpointAsync(
                         new CheckpointMetaData(42, 17),
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         testHarness.processElement(new StreamRecord<>("Wohoo", 0));

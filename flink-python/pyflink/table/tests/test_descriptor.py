@@ -22,12 +22,10 @@ import sys
 from pyflink.java_gateway import get_gateway
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
                                        Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
-                                       CustomFormatDescriptor, HBase)
+                                       CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
-from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
-                                             PyFlinkBatchTableTestCase,
-                                             _load_specific_flink_module_jars)
+from pyflink.testing.test_case_utils import (PyFlinkTestCase, _load_specific_flink_module_jars)
 
 
 class FileSystemDescriptorTests(PyFlinkTestCase):
@@ -393,114 +391,6 @@ class CustomConnectorDescriptorTests(PyFlinkTestCase):
         self.assertEqual(expected, properties)
 
 
-class HBaseDescriptorTests(PyFlinkTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(HBaseDescriptorTests, cls).setUpClass()
-        cls._cxt_clz_loader = get_gateway().jvm.Thread.currentThread().getContextClassLoader()
-        _load_specific_flink_module_jars('/flink-connectors/flink-connector-hbase-base')
-
-    def test_version(self):
-        hbase = HBase().version("1.4.3")
-
-        properties = hbase.to_properties()
-        expected = {'connector.version': '1.4.3',
-                    'connector.type': 'hbase',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-        hbase = HBase().version(1.1)
-        properties = hbase.to_properties()
-        expected = {'connector.version': '1.1',
-                    'connector.type': 'hbase',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_table_name(self):
-        hbase = HBase().table_name('tableName1')
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.table-name': 'tableName1',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_zookeeper_quorum(self):
-        hbase = HBase().zookeeper_quorum("localhost:2181,localhost:2182")
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.zookeeper.quorum': 'localhost:2181,localhost:2182',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_zookeeper_node_parent(self):
-        hbase = HBase().zookeeper_node_parent('/hbase/example-root-znode')
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.zookeeper.znode.parent': '/hbase/example-root-znode',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_write_buffer_flush_max_size(self):
-        hbase = HBase().write_buffer_flush_max_size('1000')
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.write.buffer-flush.max-size': '1000 bytes',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-        hbase = HBase().write_buffer_flush_max_size(1000)
-        properties = hbase.to_properties()
-        self.assertEqual(expected, properties)
-
-        hbase = HBase().write_buffer_flush_max_size('10mb')
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.write.buffer-flush.max-size': '10 mb',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_write_buffer_flush_max_rows(self):
-        hbase = HBase().write_buffer_flush_max_rows(10)
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.write.buffer-flush.max-rows': '10',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    def test_write_buffer_flush_interval(self):
-        hbase = HBase().write_buffer_flush_interval('123')
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.write.buffer-flush.interval': '123',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-        hbase = HBase().write_buffer_flush_interval(123)
-
-        properties = hbase.to_properties()
-        self.assertEqual(expected, properties)
-
-        hbase = HBase().write_buffer_flush_interval('123ms')
-
-        properties = hbase.to_properties()
-        expected = {'connector.type': 'hbase',
-                    'connector.write.buffer-flush.interval': '123ms',
-                    'connector.property-version': '1'}
-        self.assertEqual(expected, properties)
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls._cxt_clz_loader is not None:
-            get_gateway().jvm.Thread.currentThread().setContextClassLoader(cls._cxt_clz_loader)
-
-
 class OldCsvDescriptorTests(PyFlinkTestCase):
 
     def test_field_delimiter(self):
@@ -854,18 +744,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_timestamps_from_extractor(self):
         rowtime = Rowtime().timestamps_from_extractor(
-            "org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor")
+            "org.apache.flink.table.legacyutils.CustomExtractor")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.timestamps.type': 'custom',
             'rowtime.timestamps.class':
-                'org.apache.flink.table.descriptors.RowtimeTest$CustomExtractor',
+                'org.apache.flink.table.legacyutils.CustomExtractor',
             'rowtime.timestamps.serialized':
-                'rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                'vbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLm'
-                'FwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1'
-                'Y6piFNsGAIAAHhwdAACdHM'}
+                'rO0ABXNyADJvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUV4dHJhY3Rvctj'
+                'ZLTGK9XvxAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cmluZzt4cgA-b3JnLmFwYWNoZS5mbGluay'
+                '50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYWN0b3Jf1Y6piFNsGAIAAHhwd'
+                'AACdHM'}
         self.assertEqual(expected, properties)
 
     def test_watermarks_periodic_ascending(self):
@@ -892,19 +782,18 @@ class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_watermarks_from_strategy(self):
         rowtime = Rowtime().watermarks_from_strategy(
-            "org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner")
+            "org.apache.flink.table.legacyutils.CustomAssigner")
 
         properties = rowtime.to_properties()
         expected = {
             'rowtime.watermarks.type': 'custom',
             'rowtime.watermarks.class':
-                'org.apache.flink.table.descriptors.RowtimeTest$CustomAssigner',
+                'org.apache.flink.table.legacyutils.CustomAssigner',
             'rowtime.watermarks.serialized':
-                'rO0ABXNyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3JzLlJvd3RpbWVUZXN0JEN1c3R'
-                'vbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3'
-                'RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY'
-                '2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OW'
-                'aT4CAAB4cA'}
+                'rO0ABXNyADFvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmxlZ2FjeXV0aWxzLkN1c3RvbUFzc2lnbmVyu_8'
+                'TLNBQBsACAAB4cgBHb3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW'
+                '5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9AIAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhY'
+                'mxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cmF0ZWd53nt-g2OWaT4CAAB4cA'}
         self.assertEqual(expected, properties)
 
 
@@ -1148,7 +1037,7 @@ class AbstractTableDescriptorTests(object):
         assert properties == expected
 
     def test_register_temporary_table(self):
-        self.env.set_parallelism(1)
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
         source_path = os.path.join(self.tempdir + '/streaming.csv')
         field_names = ["a", "b", "c"]
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
@@ -1186,58 +1075,6 @@ class AbstractTableDescriptorTests(object):
         with open(sink_path, 'r') as f:
             lines = f.read()
             assert lines == '2,Hi,Hello\n' + "3,Hello,Hello\n"
-
-
-class StreamTableDescriptorTests(PyFlinkStreamTableTestCase, AbstractTableDescriptorTests):
-
-    def test_in_append_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor\
-            .with_format(OldCsv())\
-            .in_append_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'append',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_retract_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_retract_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'retract',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-    def test_in_upsert_mode(self):
-        descriptor = self.t_env.connect(FileSystem())
-
-        descriptor = descriptor \
-            .with_format(OldCsv()) \
-            .in_upsert_mode()
-
-        properties = descriptor.to_properties()
-        expected = {'update-mode': 'upsert',
-                    'format.type': 'csv',
-                    'format.property-version': '1',
-                    'connector.property-version': '1',
-                    'connector.type': 'filesystem'}
-        assert properties == expected
-
-
-class BatchTableDescriptorTests(PyFlinkBatchTableTestCase, AbstractTableDescriptorTests):
-    pass
 
 
 if __name__ == '__main__':

@@ -22,7 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.AbstractMultipleInputTransformation;
@@ -33,6 +35,7 @@ import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,9 +54,26 @@ public class MultiInputTransformationTranslator<OUT>
     protected Collection<Integer> translateForBatchInternal(
             final AbstractMultipleInputTransformation<OUT> transformation, final Context context) {
         Collection<Integer> ids = translateInternal(transformation, context);
-        boolean isKeyed = transformation instanceof KeyedMultipleInputTransformation;
-        if (isKeyed) {
-            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+        if (transformation instanceof KeyedMultipleInputTransformation) {
+            KeyedMultipleInputTransformation<OUT> keyedTransformation =
+                    (KeyedMultipleInputTransformation<OUT>) transformation;
+            List<Transformation<?>> inputs = transformation.getInputs();
+            List<KeySelector<?, ?>> keySelectors = keyedTransformation.getStateKeySelectors();
+
+            StreamConfig.InputRequirement[] inputRequirements =
+                    IntStream.range(0, inputs.size())
+                            .mapToObj(
+                                    idx -> {
+                                        if (keySelectors.get(idx) != null) {
+                                            return StreamConfig.InputRequirement.SORTED;
+                                        } else {
+                                            return StreamConfig.InputRequirement.PASS_THROUGH;
+                                        }
+                                    })
+                            .toArray(StreamConfig.InputRequirement[]::new);
+
+            BatchExecutionUtils.applyBatchExecutionSettings(
+                    transformation.getId(), context, inputRequirements);
         }
         return ids;
     }

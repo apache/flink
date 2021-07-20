@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph.jsonplan;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -80,8 +81,7 @@ public class JsonGeneratorTest {
                     join1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
 
             JobGraph jg =
-                    new JobGraph(
-                            "my job",
+                    JobGraphTestUtils.batchJobGraph(
                             source1,
                             source2,
                             source3,
@@ -102,6 +102,7 @@ public class JsonGeneratorTest {
             // core fields
             assertEquals(new TextNode(jg.getJobID().toString()), rootNode.get("jid"));
             assertEquals(new TextNode(jg.getName()), rootNode.get("name"));
+            assertEquals(new TextNode(jg.getJobType().name()), rootNode.get("type"));
 
             assertTrue(rootNode.path("nodes").isArray());
 

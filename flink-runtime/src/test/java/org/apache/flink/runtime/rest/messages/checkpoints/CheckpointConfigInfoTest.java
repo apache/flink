@@ -41,7 +41,9 @@ public class CheckpointConfigInfoTest
                 4,
                 externalizedCheckpointInfo,
                 "stateBackendName",
+                "checkpointStorageName",
                 true,
-                3);
+                3,
+                4);
     }
 }

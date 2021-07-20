@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -30,23 +31,28 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.CheckpointBarrierHandler;
-import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
-import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
+import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
+import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
+import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 /**
  * A {@link StreamTask} for executing a {@link MultipleInputStreamOperator} and supporting the
@@ -94,11 +100,6 @@ public class MultipleInputStreamTask<OUT>
         // the number of logical network inputs is smaller compared to the number of inputs (input
         // gates)
         int numberOfNetworkInputs = configuration.getNumberOfNetworkInputs();
-        int numberOfLogicalNetworkInputs =
-                (int)
-                        Arrays.stream(inputs)
-                                .filter(input -> (input instanceof StreamConfig.NetworkInputConfig))
-                                .count();
 
         ArrayList[] inputLists = new ArrayList[inputs.length];
         for (int i = 0; i < inputLists.length; i++) {
@@ -117,7 +118,11 @@ public class MultipleInputStreamTask<OUT>
                 networkInputLists.add(inputList);
             }
         }
-        createInputProcessor(networkInputLists.toArray(new ArrayList[0]), inputs, watermarkGauges);
+        createInputProcessor(
+                networkInputLists.toArray(new ArrayList[0]),
+                inputs,
+                watermarkGauges,
+                (index) -> inEdges.get(index).getPartitioner());
 
         // wrap watermark gauge since registered metrics must be unique
         getEnvironment()
@@ -128,7 +133,8 @@ public class MultipleInputStreamTask<OUT>
     protected void createInputProcessor(
             List<IndexedInputGate>[] inputGates,
             InputConfig[] inputs,
-            WatermarkGauge[] inputWatermarkGauges) {
+            WatermarkGauge[] inputWatermarkGauges,
+            Function<Integer, StreamPartitioner<?>> gatePartitioners) {
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
@@ -136,7 +142,9 @@ public class MultipleInputStreamTask<OUT>
                         getCheckpointCoordinator(),
                         getTaskNameWithSubtaskAndId(),
                         inputGates,
-                        operatorChain.getSourceTaskInputs());
+                        operatorChain.getSourceTaskInputs(),
+                        mainMailboxExecutor,
+                        timerService);
 
         CheckpointedInputGate[] checkpointedInputGates =
                 InputProcessorUtil.createCheckpointedMultipleInputGate(
@@ -155,7 +163,6 @@ public class MultipleInputStreamTask<OUT>
                         getEnvironment().getMemoryManager(),
                         getEnvironment().getMetricGroup().getIOMetricGroup(),
                         setupNumRecordsInCounter(mainOperator),
-                        getStreamStatusMaintainer(),
                         mainOperator,
                         inputWatermarkGauges,
                         getConfiguration(),
@@ -163,15 +170,30 @@ public class MultipleInputStreamTask<OUT>
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
-                        operatorChain);
+                        operatorChain,
+                        getEnvironment().getTaskStateManager().getInputRescalingDescriptor(),
+                        gatePartitioners,
+                        getEnvironment().getTaskInfo());
+    }
+
+    protected Optional<CheckpointBarrierHandler> getCheckpointBarrierHandler() {
+        return Optional.ofNullable(checkpointBarrierHandler);
     }
 
     @Override
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData metadata,
-            CheckpointOptions options,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData metadata, CheckpointOptions options) {
 
+        if (operatorChain.getSourceTaskInputs().size() == 0) {
+            return super.triggerCheckpointAsync(metadata, options);
+        }
+
+        // If there are chained sources, we would always only trigger the
+        // chained sources for checkpoint. This means that for the checkpoints
+        // during the upstream task finished and this task receives the
+        // EndOfPartitionEvent, we would not complement barriers for the
+        // unfinished network inputs, and the checkpoint would be triggered
+        // after received all the EndOfPartitionEvent.
         CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
         mainMailboxExecutor.execute(
                 () -> {
@@ -250,12 +272,20 @@ public class MultipleInputStreamTask<OUT>
     }
 
     @Override
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
+            throws IOException {
         CompletableFuture<Boolean> resultFuture =
                 pendingCheckpointCompletedFutures.remove(checkpointId);
         if (resultFuture != null) {
             resultFuture.completeExceptionally(cause);
         }
         super.abortCheckpointOnBarrier(checkpointId, cause);
+    }
+
+    @Override
+    protected void advanceToEndOfEventTime() throws Exception {
+        for (Output<StreamRecord<?>> sourceOutput : operatorChain.getChainedSourceOutputs()) {
+            sourceOutput.emitWatermark(Watermark.MAX_WATERMARK);
+        }
     }
 }

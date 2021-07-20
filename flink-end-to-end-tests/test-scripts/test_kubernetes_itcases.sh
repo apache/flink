@@ -24,11 +24,28 @@ start_kubernetes
 # Set the ITCASE_KUBECONFIG environment since it is required to run the ITCases
 export ITCASE_KUBECONFIG=~/.kube/config
 
+if [ -z "$DEBUG_FILES_OUTPUT_DIR"] ; then
+    export DEBUG_FILES_OUTPUT_DIR="${TEST_DATA_DIR}/log"
+fi
+LOG4J_PROPERTIES=${END_TO_END_DIR}/../tools/ci/log4j.properties
+MVN_LOGGING_OPTIONS="-Dlog.dir=${DEBUG_FILES_OUTPUT_DIR} -Dlog4j.configurationFile=file://$LOG4J_PROPERTIES"
+
+function run_mvn_test {
+  local test_class=$1
+  run_mvn test $MVN_LOGGING_OPTIONS -Dtest=${test_class}
+
+  EXIT_CODE=$?
+  if [ $EXIT_CODE != 0 ]; then
+    echo "Failed to run Kubernetes ITCase $test_class"
+    exit $EXIT_CODE
+  fi
+}
+
 cd $END_TO_END_DIR/../flink-kubernetes
 
 # Run the ITCases
-run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientITCase
-run_mvn test -Dtest=org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
-run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
-run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
-run_mvn test -Dtest=org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityRecoverFromSavepointITCase
+run_mvn_test org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClientITCase
+run_mvn_test org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElectorITCase
+run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesLeaderElectionAndRetrievalITCase
+run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesStateHandleStoreITCase
+run_mvn_test org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityRecoverFromSavepointITCase

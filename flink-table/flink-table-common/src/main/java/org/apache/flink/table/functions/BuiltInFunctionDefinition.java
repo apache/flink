@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
@@ -26,7 +27,11 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.lang.reflect.Constructor;
 import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * Definition of a built-in function. It enables unique identification across different modules by
@@ -38,7 +43,7 @@ import java.util.Arrays;
  * <p>Equality is defined by reference equality.
  */
 @Internal
-public final class BuiltInFunctionDefinition implements FunctionDefinition {
+public final class BuiltInFunctionDefinition implements SpecializedFunction {
 
     private final String name;
 
@@ -48,13 +53,24 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
     private final boolean isDeterministic;
 
+    private final boolean isRuntimeProvided;
+
+    private final @Nullable String runtimeClass;
+
     private BuiltInFunctionDefinition(
-            String name, FunctionKind kind, TypeInference typeInference, boolean isDeterministic) {
+            String name,
+            FunctionKind kind,
+            TypeInference typeInference,
+            boolean isDeterministic,
+            boolean isRuntimeProvided,
+            String runtimeClass) {
         this.name = Preconditions.checkNotNull(name, "Name must not be null.");
         this.kind = Preconditions.checkNotNull(kind, "Kind must not be null.");
         this.typeInference =
                 Preconditions.checkNotNull(typeInference, "Type inference must not be null.");
         this.isDeterministic = isDeterministic;
+        this.isRuntimeProvided = isRuntimeProvided;
+        this.runtimeClass = runtimeClass;
     }
 
     /** Builder for configuring and creating instances of {@link BuiltInFunctionDefinition}. */
@@ -64,6 +80,43 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
     public String getName() {
         return name;
+    }
+
+    public Optional<String> getRuntimeClass() {
+        return Optional.ofNullable(runtimeClass);
+    }
+
+    public boolean hasRuntimeImplementation() {
+        return isRuntimeProvided || runtimeClass != null;
+    }
+
+    @Override
+    public UserDefinedFunction specialize(SpecializedContext context) {
+        if (runtimeClass == null) {
+            throw new TableException(
+                    String.format(
+                            "Could not find a runtime implementation for built-in function '%s'. "
+                                    + "The planner should have provided an implementation.",
+                            name));
+        }
+        try {
+            final Class<?> udfClass =
+                    Class.forName(runtimeClass, true, context.getBuiltInClassLoader());
+            final Constructor<?> udfConstructor = udfClass.getConstructor(SpecializedContext.class);
+            final UserDefinedFunction udf =
+                    (UserDefinedFunction) udfConstructor.newInstance(context);
+            // in case another level of specialization is required
+            if (udf instanceof SpecializedFunction) {
+                return ((SpecializedFunction) udf).specialize(context);
+            }
+            return udf;
+        } catch (Exception e) {
+            throw new TableException(
+                    String.format(
+                            "Could not instantiate a runtime implementation for built-in function '%s'.",
+                            name),
+                    e);
+        }
     }
 
     @Override
@@ -95,9 +148,13 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
         private FunctionKind kind;
 
-        private TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
+        private final TypeInference.Builder typeInferenceBuilder = TypeInference.newBuilder();
 
         private boolean isDeterministic = true;
+
+        private boolean isRuntimeProvided = false;
+
+        private String runtimeClass;
 
         public Builder() {
             // default constructor to allow a fluent definition
@@ -128,11 +185,6 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
             return this;
         }
 
-        public Builder accumulatorTypeStrategy(TypeStrategy accumulatorTypeStrategy) {
-            this.typeInferenceBuilder.accumulatorTypeStrategy(accumulatorTypeStrategy);
-            return this;
-        }
-
         public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
             this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
             return this;
@@ -143,9 +195,24 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
             return this;
         }
 
+        public Builder runtimeProvided() {
+            this.isRuntimeProvided = true;
+            return this;
+        }
+
+        public Builder runtimeClass(String runtimeClass) {
+            this.runtimeClass = runtimeClass;
+            return this;
+        }
+
         public BuiltInFunctionDefinition build() {
             return new BuiltInFunctionDefinition(
-                    name, kind, typeInferenceBuilder.build(), isDeterministic);
+                    name,
+                    kind,
+                    typeInferenceBuilder.build(),
+                    isDeterministic,
+                    isRuntimeProvided,
+                    runtimeClass);
         }
     }
 }

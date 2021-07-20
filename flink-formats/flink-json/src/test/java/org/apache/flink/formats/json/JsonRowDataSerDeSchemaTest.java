@@ -19,6 +19,8 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -71,7 +73,9 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 /**
@@ -101,10 +105,10 @@ public class JsonRowDataSerDeSchemaTest {
                         .toInstant();
 
         Map<String, Long> map = new HashMap<>();
-        map.put("flink", 123L);
+        map.put("element", 123L);
 
         Map<String, Integer> multiSet = new HashMap<>();
-        multiSet.put("blink", 2);
+        multiSet.put("element", 2);
 
         Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
         Map<String, Integer> innerMap = new HashMap<>();
@@ -131,8 +135,8 @@ public class JsonRowDataSerDeSchemaTest {
         root.put("timestamp3", "1990-10-14T12:12:43.123");
         root.put("timestamp9", "1990-10-14T12:12:43.123456789");
         root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
-        root.putObject("map").put("flink", 123);
-        root.putObject("multiSet").put("blink", 2);
+        root.putObject("map").put("element", 123);
+        root.putObject("multiSet").put("element", 2);
         root.putObject("map2map").putObject("inner_map").put("key", 234);
 
         byte[] serializedJson = objectMapper.writeValueAsBytes(root);
@@ -193,8 +197,9 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
 
         byte[] actualBytes = serializationSchema.serialize(rowData);
         assertEquals(new String(serializedJson), new String(actualBytes));
@@ -282,8 +287,9 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
 
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -366,8 +372,9 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
 
         for (int i = 0; i < jsons.length; i++) {
             String json = jsons[i];
@@ -375,6 +382,18 @@ public class JsonRowDataSerDeSchemaTest {
             String result = new String(serializationSchema.serialize(row));
             assertEquals(expected[i], result);
         }
+    }
+
+    @Test
+    public void testDeserializationNullRow() throws Exception {
+        DataType dataType = ROW(FIELD("name", STRING()));
+        RowType schema = (RowType) dataType.getLogicalType();
+
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
+
+        assertNull(deserializationSchema.deserialize(null));
     }
 
     @Test
@@ -416,13 +435,8 @@ public class JsonRowDataSerDeSchemaTest {
 
         // fail on missing field
         deserializationSchema =
-                deserializationSchema =
-                        new JsonRowDataDeserializationSchema(
-                                schema,
-                                InternalTypeInfo.of(schema),
-                                true,
-                                false,
-                                TimestampFormat.ISO_8601);
+                new JsonRowDataDeserializationSchema(
+                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
 
         String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
         try {
@@ -471,7 +485,11 @@ public class JsonRowDataSerDeSchemaTest {
                         rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
         JsonRowDataSerializationSchema serializationSchema =
                 new JsonRowDataSerializationSchema(
-                        rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.LITERAL, "null");
+                        rowType,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
 
         ObjectMapper objectMapper = new ObjectMapper();
 
@@ -510,7 +528,11 @@ public class JsonRowDataSerDeSchemaTest {
 
         JsonRowDataSerializationSchema serializationSchema1 =
                 new JsonRowDataSerializationSchema(
-                        rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.FAIL, "null");
+                        rowType,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
+                        "null",
+                        true);
         // expect message for serializationSchema1
         String errorMessage1 =
                 "JSON format doesn't support to serialize map data with null keys."
@@ -518,7 +540,11 @@ public class JsonRowDataSerDeSchemaTest {
 
         JsonRowDataSerializationSchema serializationSchema2 =
                 new JsonRowDataSerializationSchema(
-                        rowType, TimestampFormat.SQL, JsonOptions.MapNullKeyMode.DROP, "null");
+                        rowType,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.MapNullKeyMode.DROP,
+                        "null",
+                        true);
         // expect result for serializationSchema2
         String expectResult2 = "{\"nestedMap\":{\"no-null key\":{\"no-null key\":1}}}";
 
@@ -526,8 +552,9 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
-                        "nullKey");
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "nullKey",
+                        true);
         // expect result for serializationSchema3
         String expectResult3 =
                 "{\"nestedMap\":{\"no-null key\":{\"no-null key\":1,\"nullKey\":2},\"nullKey\":{\"no-null key\":1,\"nullKey\":2}}}";
@@ -537,7 +564,7 @@ public class JsonRowDataSerDeSchemaTest {
             serializationSchema1.serialize(rowData);
             Assert.fail("expecting exception message: " + errorMessage1);
         } catch (Throwable t) {
-            assertEquals(errorMessage1, t.getCause().getMessage());
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage1));
         }
 
         // mapNullKey Mode is drop
@@ -550,12 +577,95 @@ public class JsonRowDataSerDeSchemaTest {
     }
 
     @Test
+    public void testSerializationDecimalEncode() throws Exception {
+        RowType schema =
+                (RowType)
+                        ROW(
+                                        FIELD("decimal1", DECIMAL(9, 6)),
+                                        FIELD("decimal2", DECIMAL(20, 0)),
+                                        FIELD("decimal3", DECIMAL(11, 9)))
+                                .getLogicalType();
+
+        TypeInformation<RowData> resultTypeInfo = InternalTypeInfo.of(schema);
+
+        JsonRowDataDeserializationSchema deserializer =
+                new JsonRowDataDeserializationSchema(
+                        schema, resultTypeInfo, false, false, TimestampFormat.ISO_8601);
+
+        JsonRowDataSerializationSchema plainDecimalSerializer =
+                new JsonRowDataSerializationSchema(
+                        schema,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        true);
+        JsonRowDataSerializationSchema scientificDecimalSerializer =
+                new JsonRowDataSerializationSchema(
+                        schema,
+                        TimestampFormat.ISO_8601,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
+                        "null",
+                        false);
+
+        String plainDecimalJson =
+                "{\"decimal1\":123.456789,\"decimal2\":454621864049246170,\"decimal3\":0.000000027}";
+        RowData rowData = deserializer.deserialize(plainDecimalJson.getBytes());
+
+        String plainDecimalResult = new String(plainDecimalSerializer.serialize(rowData));
+        assertEquals(plainDecimalJson, plainDecimalResult);
+
+        String scientificDecimalJson =
+                "{\"decimal1\":123.456789,\"decimal2\":4.5462186404924617E+17,\"decimal3\":2.7E-8}";
+
+        String scientificDecimalResult = new String(scientificDecimalSerializer.serialize(rowData));
+        assertEquals(scientificDecimalJson, scientificDecimalResult);
+    }
+
+    @Test
     public void testJsonParse() throws Exception {
         for (TestSpec spec : testData) {
             testIgnoreParseErrors(spec);
             if (spec.errorMessage != null) {
                 testParseErrors(spec);
             }
+        }
+    }
+
+    @Test
+    public void testSerializationWithTypesMismatch() {
+        RowType rowType = (RowType) ROW(FIELD("f0", INT()), FIELD("f1", STRING())).getLogicalType();
+        GenericRowData genericRowData = new GenericRowData(2);
+        genericRowData.setField(0, 1);
+        genericRowData.setField(1, 1);
+        JsonRowDataSerializationSchema serializationSchema =
+                new JsonRowDataSerializationSchema(
+                        rowType,
+                        TimestampFormat.SQL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
+                        "null",
+                        true);
+        String errorMessage = "Fail to serialize at field: f1.";
+        try {
+            serializationSchema.serialize(genericRowData);
+            fail("expecting exception message: " + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
+        }
+    }
+
+    @Test
+    public void testDeserializationWithTypesMismatch() {
+        RowType rowType = (RowType) ROW(FIELD("f0", STRING()), FIELD("f1", INT())).getLogicalType();
+        String json = "{\"f0\":\"abc\", \"f1\": \"abc\"}";
+        JsonRowDataDeserializationSchema deserializationSchema =
+                new JsonRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), false, false, TimestampFormat.SQL);
+        String errorMessage = "Fail to deserialize at field: f1.";
+        try {
+            deserializationSchema.deserialize(json.getBytes());
+            fail("expecting exception message: " + errorMessage);
+        } catch (Throwable t) {
+            assertThat(t, FlinkMatchers.containsMessage(errorMessage));
         }
     }
 
@@ -700,7 +810,10 @@ public class JsonRowDataSerDeSchemaTest {
                                     "Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'."),
                     TestSpec.json("{\"id\":1,\"factor\":799.929496989092949698}")
                             .rowType(ROW(FIELD("id", INT()), FIELD("factor", DECIMAL(38, 18))))
-                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))));
+                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))),
+                    TestSpec.json("{\"id\":\"\tstring field\"}") // test to parse control chars
+                            .rowType(ROW(FIELD("id", STRING())))
+                            .expect(Row.of("\tstring field")));
 
     private static Map<String, Integer> createHashMap(
             String k1, Integer v1, String k2, Integer v2) {

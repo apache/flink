@@ -35,19 +35,12 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 public class PythonMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
     private static final long serialVersionUID = 1L;
 
-    private static final String MAP_CODER_URN = "flink:coder:map:v1";
-
     public PythonMapOperator(
             Configuration config,
             TypeInformation<IN> inputTypeInfo,
             TypeInformation<OUT> outputTypeInfo,
             DataStreamPythonFunctionInfo pythonFunctionInfo) {
         super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-    }
-
-    @Override
-    public String getCoderUrn() {
-        return MAP_CODER_URN;
     }
 
     @Override

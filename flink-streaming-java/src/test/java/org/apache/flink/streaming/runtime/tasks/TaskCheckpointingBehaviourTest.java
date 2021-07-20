@@ -27,13 +27,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
@@ -55,7 +55,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
-import org.apache.flink.runtime.state.AbstractSnapshotStrategy;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
@@ -63,7 +62,11 @@ import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SnapshotExecutionType;
+import org.apache.flink.runtime.state.SnapshotResources;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.SnapshotStrategy;
+import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -85,6 +88,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -96,7 +100,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -220,7 +223,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                 0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                0,
                 mock(MemoryManager.class),
                 mock(IOManager.class),
                 shuffleEnvironment,
@@ -264,11 +266,18 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         }
 
         @Override
+        public void reportCheckpointMetrics(
+                JobID jobID,
+                ExecutionAttemptID executionAttemptID,
+                long checkpointId,
+                CheckpointMetrics checkpointMetrics) {}
+
+        @Override
         public void declineCheckpoint(
                 JobID jobID,
                 ExecutionAttemptID executionAttemptID,
                 long checkpointId,
-                Throwable cause) {
+                CheckpointException checkpointException) {
 
             declinedLatch.trigger();
         }
@@ -309,7 +318,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(AbstractSnapshotStrategy.class)) {
+                            mock(SnapshotStrategyRunner.class)) {
                         @Nonnull
                         @Override
                         public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
@@ -335,7 +344,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     }
 
     private static class AsyncFailureInducingStateBackend extends MemoryStateBackend {
-
         private static final long serialVersionUID = -7613628662587098470L;
 
         @Override
@@ -352,34 +360,45 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                     stateHandles,
                     cancelStreamRegistry) {
                 @Override
-                @SuppressWarnings("unchecked")
                 public DefaultOperatorStateBackend build() {
+                    CloseableRegistry registryForStateBackend = new CloseableRegistry();
                     return new DefaultOperatorStateBackend(
                             executionConfig,
-                            cancelStreamRegistry,
+                            registryForStateBackend,
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
                             new HashMap<>(),
-                            mock(AbstractSnapshotStrategy.class)) {
-                        @Nonnull
-                        @Override
-                        public RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot(
-                                long checkpointId,
-                                long timestamp,
-                                @Nonnull CheckpointStreamFactory streamFactory,
-                                @Nonnull CheckpointOptions checkpointOptions)
-                                throws Exception {
-
-                            return new FutureTask<>(
-                                    () -> {
-                                        throw new Exception("Async part snapshot exception.");
-                                    });
-                        }
-                    };
+                            new SnapshotStrategyRunner<>(
+                                    "Failing strategy",
+                                    FAILING_STRATEGY,
+                                    registryForStateBackend,
+                                    SnapshotExecutionType.ASYNCHRONOUS));
                 }
             }.build();
         }
+
+        public static final SnapshotStrategy<OperatorStateHandle, SnapshotResources>
+                FAILING_STRATEGY =
+                        new SnapshotStrategy<OperatorStateHandle, SnapshotResources>() {
+                            @Override
+                            public SnapshotResources syncPrepareResources(long checkpointId)
+                                    throws Exception {
+                                return null;
+                            }
+
+                            @Override
+                            public SnapshotResultSupplier<OperatorStateHandle> asyncSnapshot(
+                                    SnapshotResources syncPartResource,
+                                    long checkpointId,
+                                    long timestamp,
+                                    @Nonnull CheckpointStreamFactory streamFactory,
+                                    @Nonnull CheckpointOptions checkpointOptions) {
+                                return (snapshotCloseableRegistry) -> {
+                                    throw new Exception("Async part snapshot exception.");
+                                };
+                            }
+                        };
 
         @Override
         public AsyncFailureInducingStateBackend configure(
@@ -501,7 +520,8 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
             while (isRunning()) {
                 Thread.sleep(1L);
             }
-            controller.allActionsCompleted();
+            controller.suspendDefaultAction();
+            mailboxProcessor.suspend();
         }
 
         @Override

@@ -22,12 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.util.Preconditions;
@@ -66,10 +69,6 @@ public class TestTaskStateManager implements TaskStateManager {
                 new ExecutionAttemptID(),
                 new TestCheckpointResponder(),
                 localRecoveryConfig);
-    }
-
-    public TestTaskStateManager(JobID jobId, ExecutionAttemptID executionAttemptID) {
-        this(jobId, executionAttemptID, null, TestLocalRecoveryConfig.disabled());
     }
 
     public TestTaskStateManager(
@@ -115,6 +114,32 @@ public class TestTaskStateManager implements TaskStateManager {
         if (waitForReportLatch != null) {
             waitForReportLatch.trigger();
         }
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+        return InflightDataRescalingDescriptor.NO_RESCALE;
+    }
+
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+        reportedCheckpointId = checkpointMetaData.getCheckpointId();
+    }
+
+    @Override
+    public boolean isFinishedOnRestore() {
+        TaskStateSnapshot jmTaskStateSnapshot = getLastJobManagerTaskStateSnapshot();
+        if (jmTaskStateSnapshot != null) {
+            return jmTaskStateSnapshot.isFinished();
+        }
+
+        return false;
     }
 
     @Nonnull
@@ -163,6 +188,12 @@ public class TestTaskStateManager implements TaskStateManager {
     @Override
     public SequentialChannelStateReader getSequentialChannelStateReader() {
         return SequentialChannelStateReader.NO_OP;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        return new InMemoryStateChangelogStorage();
     }
 
     public void setLocalRecoveryConfig(LocalRecoveryConfig recoveryDirectoryProvider) {

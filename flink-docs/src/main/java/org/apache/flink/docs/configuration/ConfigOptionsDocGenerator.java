@@ -70,9 +70,6 @@ public class ConfigOptionsDocGenerator {
                 new OptionsClassLocation(
                         "flink-streaming-java", "org.apache.flink.streaming.api.environment"),
                 new OptionsClassLocation("flink-yarn", "org.apache.flink.yarn.configuration"),
-                new OptionsClassLocation("flink-mesos", "org.apache.flink.mesos.configuration"),
-                new OptionsClassLocation(
-                        "flink-mesos", "org.apache.flink.mesos.runtime.clusterframework"),
                 new OptionsClassLocation(
                         "flink-metrics/flink-metrics-prometheus",
                         "org.apache.flink.metrics.prometheus"),
@@ -87,7 +84,9 @@ public class ConfigOptionsDocGenerator {
                 new OptionsClassLocation("flink-python", "org.apache.flink.python"),
                 new OptionsClassLocation(
                         "flink-kubernetes", "org.apache.flink.kubernetes.configuration"),
-                new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli")
+                new OptionsClassLocation("flink-clients", "org.apache.flink.client.cli"),
+                new OptionsClassLocation(
+                        "flink-table/flink-sql-client", "org.apache.flink.table.client.config")
             };
 
     static final Set<String> EXCLUSIONS =
@@ -389,7 +388,7 @@ public class ConfigOptionsDocGenerator {
      */
     private static String toHtmlTable(final List<OptionWithMetaInfo> options) {
         StringBuilder htmlTable = new StringBuilder();
-        htmlTable.append("<table class=\"table table-bordered\">\n");
+        htmlTable.append("<table class=\"configuration table table-bordered\">\n");
         htmlTable.append("    <thead>\n");
         htmlTable.append("        <tr>\n");
         htmlTable.append("            <th class=\"text-left\" style=\"width: 20%\">Key</th>\n");

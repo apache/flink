@@ -31,6 +31,9 @@ import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
+import org.apache.flink.api.common.operators.util.SlotSharingGroupUtils;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -48,10 +51,14 @@ import org.apache.flink.api.java.typeutils.MissingTypeInfo;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestOptions;
@@ -63,6 +70,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -85,6 +93,7 @@ import org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
@@ -96,6 +105,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -104,11 +114,14 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -166,6 +179,12 @@ public class StreamExecutionEnvironment {
     /** The state backend used for storing k/v state and state snapshots. */
     private StateBackend defaultStateBackend;
 
+    /** Whether to enable ChangelogStateBackend, default value is unset. */
+    private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
+
+    /** The default savepoint directory used by the job. */
+    private Path defaultSavepointDirectory;
+
     /** The time characteristic used by the data streams. */
     private TimeCharacteristic timeCharacteristic = DEFAULT_TIME_CHARACTERISTIC;
 
@@ -179,6 +198,9 @@ public class StreamExecutionEnvironment {
     private final ClassLoader userClassloader;
 
     private final List<JobListener> jobListeners = new ArrayList<>();
+
+    // Records the slot sharing groups and their corresponding fine-grained ResourceProfile
+    private final Map<String, ResourceProfile> slotSharingGroupResources = new HashMap<>();
 
     // --------------------------------------------------------------------------------------------
     // Constructor and Properties
@@ -324,6 +346,30 @@ public class StreamExecutionEnvironment {
                         + maxParallelism);
 
         config.setMaxParallelism(maxParallelism);
+        return this;
+    }
+
+    /**
+     * Register a slot sharing group with its resource spec.
+     *
+     * <p>Note that a slot sharing group hints the scheduler that the grouped operators CAN be
+     * deployed into a shared slot. There's no guarantee that the scheduler always deploy the
+     * grouped operators together. In cases grouped operators are deployed into separate slots, the
+     * slot resources will be derived from the specified group requirements.
+     *
+     * @param slotSharingGroup which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment registerSlotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        final ResourceSpec resourceSpec =
+                SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup);
+        if (!resourceSpec.equals(ResourceSpec.UNKNOWN)) {
+            this.slotSharingGroupResources.put(
+                    slotSharingGroup.getName(),
+                    ResourceProfile.fromResourceSpec(
+                            SlotSharingGroupUtils.extractResourceSpec(slotSharingGroup),
+                            MemorySize.ZERO));
+        }
         return this;
     }
 
@@ -538,13 +584,13 @@ public class StreamExecutionEnvironment {
         return checkpointCfg.isForceCheckpointing();
     }
 
-    /** Returns whether Unaligned Checkpoints are enabled. */
+    /** Returns whether unaligned checkpoints are enabled. */
     @PublicEvolving
     public boolean isUnalignedCheckpointsEnabled() {
         return checkpointCfg.isUnalignedCheckpointsEnabled();
     }
 
-    /** Returns whether Unaligned Checkpoints are force-enabled. */
+    /** Returns whether unaligned checkpoints are force-enabled. */
     @PublicEvolving
     public boolean isForceUnalignedCheckpoints() {
         return checkpointCfg.isForceUnalignedCheckpoints();
@@ -562,27 +608,30 @@ public class StreamExecutionEnvironment {
     }
 
     /**
-     * Sets the state backend that describes how to store and checkpoint operator state. It defines
-     * both which data structures hold state during execution (for example hash tables, RockDB, or
-     * other data stores) as well as where checkpointed data will be persisted.
+     * Sets the state backend that describes how to store operator. It defines the data structures
+     * that hold state during execution (for example hash tables, RocksDB, or other data stores).
      *
      * <p>State managed by the state backend includes both keyed state that is accessible on {@link
      * org.apache.flink.streaming.api.datastream.KeyedStream keyed streams}, as well as state
      * maintained directly by the user code that implements {@link
      * org.apache.flink.streaming.api.checkpoint.CheckpointedFunction CheckpointedFunction}.
      *
-     * <p>The {@link org.apache.flink.runtime.state.memory.MemoryStateBackend} for example maintains
-     * the state in heap memory, as objects. It is lightweight without extra dependencies, but can
-     * checkpoint only small states (some counters).
+     * <p>The {@link org.apache.flink.runtime.state.hashmap.HashMapStateBackend} maintains state in
+     * heap memory, as objects. It is lightweight without extra dependencies, but is limited to JVM
+     * heap memory.
      *
-     * <p>In contrast, the {@link org.apache.flink.runtime.state.filesystem.FsStateBackend} stores
-     * checkpoints of the state (also maintained as heap objects) in files. When using a replicated
-     * file system (like HDFS, S3, MapR FS, Alluxio, etc) this will guarantee that state is not lost
-     * upon failures of individual nodes and that streaming program can be executed highly available
-     * and strongly consistent (assuming that Flink is run in high-availability mode).
+     * <p>In contrast, the {@code EmbeddedRocksDBStateBackend} stores its state in an embedded
+     * {@code RocksDB} instance. This state backend can store very large state that exceeds memory
+     * and spills to local disk. All key/value state (including windows) is stored in the key/value
+     * index of RocksDB.
+     *
+     * <p>In both cases, fault tolerance is managed via the jobs {@link
+     * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
+     * backends persist during a checkpoint.
      *
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
+     * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
@@ -598,6 +647,105 @@ public class StreamExecutionEnvironment {
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
+    }
+
+    /**
+     * Enable the change log for current state backend. This change log allows operators to persist
+     * state changes in a very fine-grained manner. Currently, the change log only applies to keyed
+     * state, so non-keyed operator state and channel state are persisted as usual. The 'state' here
+     * refers to 'keyed state'. Details are as follows:
+     *
+     * <p>Stateful operators write the state changes to that log (logging the state), in addition to
+     * applying them to the state tables in RocksDB or the in-mem Hashtable.
+     *
+     * <p>An operator can acknowledge a checkpoint as soon as the changes in the log have reached
+     * the durable checkpoint storage.
+     *
+     * <p>The state tables are persisted periodically, independent of the checkpoints. We call this
+     * the materialization of the state on the checkpoint storage.
+     *
+     * <p>Once the state is materialized on checkpoint storage, the state changelog can be truncated
+     * to the corresponding point.
+     *
+     * <p>It establish a way to drastically reduce the checkpoint interval for streaming
+     * applications across state backends. For more details please check the FLIP-158.
+     *
+     * <p>If this method is not called explicitly, it means no preference for enabling the change
+     * log. Configs for change log enabling will override in different config levels
+     * (job/local/cluster).
+     *
+     * @param enabled true if enable the change log for state backend explicitly, otherwise disable
+     *     the change log.
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #isChangelogStateBackendEnabled()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment enableChangelogStateBackend(boolean enabled) {
+        this.changelogStateBackendEnabled = TernaryBoolean.fromBoolean(enabled);
+        return this;
+    }
+
+    /**
+     * Gets the enable status of change log for state backend.
+     *
+     * @return a {@link TernaryBoolean} for the enable status of change log for state backend. Could
+     *     be {@link TernaryBoolean#UNDEFINED} if user never specify this by calling {@link
+     *     #enableChangelogStateBackend(boolean)}.
+     * @see #enableChangelogStateBackend(boolean)
+     */
+    @PublicEvolving
+    public TernaryBoolean isChangelogStateBackendEnabled() {
+        return changelogStateBackendEnabled;
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(String savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(URI savepointDirectory) {
+        Preconditions.checkNotNull(savepointDirectory);
+        return setDefaultSavepointDirectory(new Path(savepointDirectory));
+    }
+
+    /**
+     * Sets the default savepoint directory, where savepoints will be written to if no is explicitly
+     * provided when triggered.
+     *
+     * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
+     * @see #getDefaultSavepointDirectory()
+     */
+    @PublicEvolving
+    public StreamExecutionEnvironment setDefaultSavepointDirectory(Path savepointDirectory) {
+        this.defaultSavepointDirectory = Preconditions.checkNotNull(savepointDirectory);
+        return this;
+    }
+
+    /**
+     * Gets the default savepoint directory for this Job.
+     *
+     * @see #setDefaultSavepointDirectory(Path)
+     */
+    @Nullable
+    @PublicEvolving
+    public Path getDefaultSavepointDirectory() {
+        return defaultSavepointDirectory;
     }
 
     /**
@@ -794,6 +942,9 @@ public class StreamExecutionEnvironment {
         configuration
                 .getOptional(StreamPipelineOptions.TIME_CHARACTERISTIC)
                 .ifPresent(this::setStreamTimeCharacteristic);
+        configuration
+                .getOptional(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG)
+                .ifPresent(this::enableChangelogStateBackend);
         Optional.ofNullable(loadStateBackend(configuration, classLoader))
                 .ifPresent(this::setStateBackend);
         configuration
@@ -1039,12 +1190,7 @@ public class StreamExecutionEnvironment {
         // must not have null elements and mixed elements
         FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
 
-        SourceFunction<OUT> function;
-        try {
-            function = new FromElementsFunction<>(typeInfo.createSerializer(getConfig()), data);
-        } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        SourceFunction<OUT> function = new FromElementsFunction<>(data);
         return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
                 .setParallelism(1);
     }
@@ -1956,6 +2102,24 @@ public class StreamExecutionEnvironment {
     @Internal
     public StreamGraph getStreamGraph(String jobName, boolean clearTransformations) {
         StreamGraph streamGraph = getStreamGraphGenerator().setJobName(jobName).generate();
+
+        // There might be a resource deadlock when applying fine-grained resource management in
+        // batch jobs with PIPELINE edges. Users need to trigger the
+        // fine-grained.shuffle-mode.all-blocking to convert all edges to BLOCKING before we fix
+        // that issue.
+        if (configuration.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH
+                && streamGraph.hasFineGrainedResource()) {
+            if (configuration.get(ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING)) {
+                streamGraph.setGlobalDataExchangeMode(GlobalDataExchangeMode.ALL_EDGES_BLOCKING);
+            } else {
+                throw new IllegalConfigurationException(
+                        "At the moment, fine-grained resource management requires batch workloads to "
+                                + "be executed with types of all edges being BLOCKING. To do that, you need to configure '"
+                                + ClusterOptions.FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING.key()
+                                + "' to 'true'. Notice that this may affect the performance. See FLINK-20865 for more details.");
+            }
+        }
+
         if (clearTransformations) {
             this.transformations.clear();
         }
@@ -1973,10 +2137,13 @@ public class StreamExecutionEnvironment {
         return new StreamGraphGenerator(transformations, config, checkpointCfg, getConfiguration())
                 .setRuntimeExecutionMode(executionMode)
                 .setStateBackend(defaultStateBackend)
+                .setChangelogStateBackendEnabled(changelogStateBackendEnabled)
+                .setSavepointDir(defaultSavepointDirectory)
                 .setChaining(isChainingEnabled)
                 .setUserArtifacts(cacheFile)
                 .setTimeCharacteristic(timeCharacteristic)
-                .setDefaultBufferTimeout(bufferTimeout);
+                .setDefaultBufferTimeout(bufferTimeout)
+                .setSlotSharingGroupResource(slotSharingGroupResources);
     }
 
     /**

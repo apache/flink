@@ -151,9 +151,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * This flag defines if we use compression for the state snapshot data or not. Default: false
      */
     private boolean useSnapshotCompression = false;
-    /** The default input dependency constraint to schedule tasks. */
-    private InputDependencyConstraint defaultInputDependencyConstraint =
-            InputDependencyConstraint.ANY;
 
     // ------------------------------- User code values --------------------------------------------
 
@@ -528,36 +525,29 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     /**
-     * Sets the default input dependency constraint for vertex scheduling. It indicates when a task
-     * should be scheduled considering its inputs status.
+     * This method is deprecated. It was used to set the {@link InputDependencyConstraint} utilized
+     * by the old scheduler implementations which got removed as part of FLINK-20589. The current
+     * implementation has no effect.
      *
-     * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
-     *
-     * @param inputDependencyConstraint The input dependency constraint.
+     * @param ignored Ignored parameter.
+     * @deprecated due to the deprecation of {@code InputDependencyConstraint}.
      */
     @PublicEvolving
-    public void setDefaultInputDependencyConstraint(
-            InputDependencyConstraint inputDependencyConstraint) {
-        if (inputDependencyConstraint != null) {
-            this.defaultInputDependencyConstraint = inputDependencyConstraint;
-        } else {
-            // defaultInputDependencyConstraint is not allowed to be null
-            // setting it to ANY to not break existing jobs
-            this.defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
-        }
-    }
+    @Deprecated
+    public void setDefaultInputDependencyConstraint(InputDependencyConstraint ignored) {}
 
     /**
-     * Gets the default input dependency constraint for vertex scheduling. It indicates when a task
-     * should be scheduled considering its inputs status.
+     * This method is deprecated. It was used to return the {@link InputDependencyConstraint}
+     * utilized by the old scheduler implementations. These implementations were removed as part of
+     * FLINK-20589.
      *
-     * <p>The default constraint is {@link InputDependencyConstraint#ANY}.
-     *
-     * @return The input dependency constraint of this job.
+     * @return The previous default constraint {@link InputDependencyConstraint#ANY}.
+     * @deprecated due to the deprecation of {@code InputDependencyConstraint}.
      */
     @PublicEvolving
+    @Deprecated
     public InputDependencyConstraint getDefaultInputDependencyConstraint() {
-        return defaultInputDependencyConstraint;
+        return InputDependencyConstraint.ANY;
     }
 
     /**
@@ -913,8 +903,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                     && registeredKryoTypes.equals(other.registeredKryoTypes)
                     && registeredPojoTypes.equals(other.registeredPojoTypes)
                     && taskCancellationIntervalMillis == other.taskCancellationIntervalMillis
-                    && useSnapshotCompression == other.useSnapshotCompression
-                    && defaultInputDependencyConstraint == other.defaultInputDependencyConstraint;
+                    && useSnapshotCompression == other.useSnapshotCompression;
 
         } else {
             return false;
@@ -940,8 +929,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 registeredKryoTypes,
                 registeredPojoTypes,
                 taskCancellationIntervalMillis,
-                useSnapshotCompression,
-                defaultInputDependencyConstraint);
+                useSnapshotCompression);
     }
 
     @Override
@@ -985,8 +973,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + taskCancellationTimeoutMillis
                 + ", useSnapshotCompression="
                 + useSnapshotCompression
-                + ", defaultInputDependencyConstraint="
-                + defaultInputDependencyConstraint
                 + ", globalJobParameters="
                 + globalJobParameters
                 + ", registeredTypesWithKryoSerializers="

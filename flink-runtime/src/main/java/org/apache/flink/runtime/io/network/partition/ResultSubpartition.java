@@ -97,14 +97,8 @@ public abstract class ResultSubpartition {
 
     public abstract boolean isReleased();
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @VisibleForTesting
-    abstract int getBuffersInBacklog();
+    /** Gets the number of non-event buffers in this subpartition. */
+    abstract int getBuffersInBacklogUnsafe();
 
     /**
      * Makes a best effort to get the current size of the queue. This method must not acquire locks

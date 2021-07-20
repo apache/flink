@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAn
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.testutils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
@@ -109,10 +109,10 @@ public class CancelPartitionRequestTest {
                     .await();
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
                 fail(
                         "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + TestingUtils.TESTING_DURATION.toMillis()
                                 + " ms to be notified about cancelled partition.");
             }
 
@@ -168,10 +168,10 @@ public class CancelPartitionRequestTest {
                     .await();
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
                 fail(
                         "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + TestingUtils.TESTING_DURATION.toMillis()
                                 + " ms to be notified about cancelled partition.");
             }
 
@@ -229,8 +229,11 @@ public class CancelPartitionRequestTest {
         public void resumeConsumption() {}
 
         @Override
-        public boolean isAvailable(int numCreditsAvailable) {
-            return true;
+        public void acknowledgeAllRecordsProcessed() {}
+
+        @Override
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+            return new AvailabilityWithBacklog(true, 0);
         }
 
         @Override

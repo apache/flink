@@ -29,7 +29,7 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -109,6 +109,7 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                         Arrays.stream(userDefinedFunctionInputOffsets)
                                 .mapToObj(i -> inputType.getFields().get(i))
                                 .collect(Collectors.toList()));
+        userDefinedFunctionOutputType = createUserDefinedFunctionOutputType();
         bais = new ByteArrayInputStreamWithPos();
         baisWrapper = new DataInputViewStreamWrapper(bais);
         baos = new ByteArrayOutputStreamWithPos();
@@ -128,16 +129,16 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
 
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws IOException {
-        return new BeamTableStatelessPythonFunctionRunner(
+        return new BeamTablePythonFunctionRunner(
                 getRuntimeContext().getTaskName(),
                 createPythonEnvironmentManager(),
-                userDefinedFunctionInputType,
-                userDefinedFunctionOutputType,
                 getFunctionUrn(),
                 getUserDefinedFunctionsProto(),
-                getInputOutputCoderUrn(),
                 jobOptions,
                 getFlinkMetricContainer(),
+                null,
+                null,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -149,7 +150,9 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
                                 getContainingTask()
                                         .getEnvironment()
                                         .getUserCodeClassLoader()
-                                        .asClassLoader()));
+                                        .asClassLoader()),
+                createInputCoderInfoDescriptor(userDefinedFunctionInputType),
+                createOutputCoderInfoDescriptor(userDefinedFunctionOutputType));
     }
 
     /**
@@ -163,9 +166,15 @@ public abstract class AbstractStatelessFunctionOperator<IN, OUT, UDFIN>
     /** Gets the proto representation of the Python user-defined functions to be executed. */
     public abstract FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto();
 
-    public abstract String getInputOutputCoderUrn();
-
     public abstract String getFunctionUrn();
+
+    public abstract RowType createUserDefinedFunctionOutputType();
+
+    public abstract FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            RowType runnerInputType);
+
+    public abstract FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            RowType runnerOutType);
 
     public abstract void processElementInternal(IN value) throws Exception;
 

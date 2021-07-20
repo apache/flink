@@ -52,9 +52,10 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
         KubernetesLeaderElectionDriver leaderElectionDriver = null;
         KubernetesLeaderRetrievalDriver leaderRetrievalDriver = null;
 
+        final TestingLeaderElectionEventHandler electionEventHandler =
+                new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
+
         try {
-            final TestingLeaderElectionEventHandler electionEventHandler =
-                    new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
             leaderElectionDriver =
                     new KubernetesLeaderElectionDriver(
                             kubernetesResource.getFlinkKubeClient(),
@@ -88,6 +89,7 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
             assertThat(
                     retrievalEventHandler.getAddress(), is(LEADER_INFORMATION.getLeaderAddress()));
         } finally {
+            electionEventHandler.close();
             if (leaderElectionDriver != null) {
                 leaderElectionDriver.close();
             }

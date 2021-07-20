@@ -94,4 +94,27 @@ public class HiveReflectionUtils {
         }
         return method.invoke(obj, args);
     }
+
+    public static Class tryGetClass(String name) {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(name);
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    public static Method tryGetMethod(Class clz, String name, Class[] argTypes) {
+        Method res;
+        try {
+            res = clz.getDeclaredMethod(name, argTypes);
+        } catch (NoSuchMethodException e) {
+            try {
+                res = clz.getMethod(name, argTypes);
+            } catch (NoSuchMethodException ex) {
+                return null;
+            }
+        }
+        res.setAccessible(true);
+        return res;
+    }
 }

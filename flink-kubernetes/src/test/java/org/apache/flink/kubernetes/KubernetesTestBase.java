@@ -28,10 +28,15 @@ import org.apache.flink.kubernetes.kubeclient.Fabric8FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.api.model.Config;
+import io.fabric8.kubernetes.api.model.ConfigBuilder;
+import io.fabric8.kubernetes.api.model.NamedClusterBuilder;
+import io.fabric8.kubernetes.api.model.NamedContextBuilder;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -66,7 +71,7 @@ public class KubernetesTestBase extends TestLogger {
 
     protected final Configuration flinkConfig = new Configuration();
 
-    protected KubernetesClient kubeClient;
+    protected NamespacedKubernetesClient kubeClient;
 
     protected FlinkKubeClient flinkKubeClient;
 
@@ -95,7 +100,7 @@ public class KubernetesTestBase extends TestLogger {
         kubeClient = server.getClient().inNamespace(NAMESPACE);
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
-                        flinkConfig, kubeClient, Executors::newDirectExecutorService);
+                        flinkConfig, kubeClient, Executors.newDirectExecutorService());
 
         onSetup();
     }
@@ -131,5 +136,33 @@ public class KubernetesTestBase extends TestLogger {
     protected void generateKerberosFileItems() throws IOException {
         KubernetesTestUtils.createTemporyFile("some keytab", kerberosDir, KEYTAB_FILE);
         KubernetesTestUtils.createTemporyFile("some conf", kerberosDir, KRB5_CONF_FILE);
+    }
+
+    protected String writeKubeConfigForMockKubernetesServer() throws Exception {
+        final Config kubeConfig =
+                new ConfigBuilder()
+                        .withApiVersion(server.getClient().getApiVersion())
+                        .withClusters(
+                                new NamedClusterBuilder()
+                                        .withName(CLUSTER_ID)
+                                        .withNewCluster()
+                                        .withNewServer(server.getClient().getMasterUrl().toString())
+                                        .withInsecureSkipTlsVerify(true)
+                                        .endCluster()
+                                        .build())
+                        .withContexts(
+                                new NamedContextBuilder()
+                                        .withName(CLUSTER_ID)
+                                        .withNewContext()
+                                        .withCluster(CLUSTER_ID)
+                                        .withUser(
+                                                server.getClient().getConfiguration().getUsername())
+                                        .endContext()
+                                        .build())
+                        .withNewCurrentContext(CLUSTER_ID)
+                        .build();
+        final File kubeConfigFile = new File(temporaryFolder.newFolder(".kube"), "config");
+        Serialization.yamlMapper().writeValue(kubeConfigFile, kubeConfig);
+        return kubeConfigFile.getAbsolutePath();
     }
 }

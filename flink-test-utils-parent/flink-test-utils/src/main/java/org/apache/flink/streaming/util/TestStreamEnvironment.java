@@ -18,18 +18,30 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
+    private static final String STATE_CHANGE_LOG_CONFIG_ON = "on";
+    private static final String STATE_CHANGE_LOG_CONFIG_UNSET = "unset";
+    private static final String STATE_CHANGE_LOG_CONFIG_RAND = "random";
+    private static final boolean RANDOMIZE_CHECKPOINTING_CONFIG =
+            Boolean.parseBoolean(System.getProperty("checkpointing.randomization", "false"));
+    private static final String STATE_CHANGE_LOG_CONFIG =
+            System.getProperty("checkpointing.changelog", STATE_CHANGE_LOG_CONFIG_UNSET).trim();
 
     public TestStreamEnvironment(
             MiniCluster miniCluster,
@@ -69,6 +81,22 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                     TestStreamEnvironment env =
                             new TestStreamEnvironment(
                                     miniCluster, parallelism, jarFiles, classpaths);
+                    if (RANDOMIZE_CHECKPOINTING_CONFIG) {
+                        randomize(
+                                conf, ExecutionCheckpointingOptions.ENABLE_UNALIGNED, true, false);
+                        randomize(
+                                conf,
+                                ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT,
+                                Duration.ofSeconds(0),
+                                Duration.ofMillis(100),
+                                Duration.ofSeconds(2));
+                    }
+                    if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
+                        conf.set(CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true);
+                    } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(
+                            STATE_CHANGE_LOG_CONFIG_RAND)) {
+                        randomize(conf, CheckpointingOptions.ENABLE_STATE_CHANGE_LOG, true, false);
+                    }
                     env.configure(conf, env.getUserClassloader());
                     return env;
                 };

@@ -28,7 +28,6 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -36,8 +35,8 @@ import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriFunction;
 
@@ -88,6 +87,8 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
             String hostname,
             Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
             Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
+            Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                    requestExecutionGraphInfoFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
             Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
             Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -96,8 +97,6 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     requestMetricQueryServiceAddressesSupplier,
             Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
                     requestTaskManagerMetricQueryServiceGatewaysSupplier,
-            BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                    requestOperatorBackPressureStatsFunction,
             BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
             BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction,
             Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction,
@@ -119,13 +118,13 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                 hostname,
                 cancelJobFunction,
                 requestJobFunction,
+                requestExecutionGraphInfoFunction,
                 requestJobResultFunction,
                 requestJobStatusFunction,
                 requestMultipleJobDetailsSupplier,
                 requestClusterOverviewSupplier,
                 requestMetricQueryServiceAddressesSupplier,
                 requestTaskManagerMetricQueryServiceGatewaysSupplier,
-                requestOperatorBackPressureStatsFunction,
                 triggerSavepointFunction,
                 stopWithSavepointFunction,
                 clusterShutdownSupplier,
@@ -233,13 +232,13 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway
                     hostname,
                     cancelJobFunction,
                     requestJobFunction,
+                    requestExecutionGraphInfoFunction,
                     requestJobResultFunction,
                     requestJobStatusFunction,
                     requestMultipleJobDetailsSupplier,
                     requestClusterOverviewSupplier,
                     requestMetricQueryServiceGatewaysSupplier,
                     requestTaskManagerMetricQueryServiceGatewaysSupplier,
-                    requestOperatorBackPressureStatsFunction,
                     triggerSavepointFunction,
                     stopWithSavepointFunction,
                     submitFunction,

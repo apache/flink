@@ -80,7 +80,7 @@ function buildBaseJobCmd {
 function find_max_block_cache_usage() {
   OPERATOR=$1
   JOB_NAME="${2:-General purpose test job}"
-  N=$(grep ".${JOB_NAME}.$OPERATOR.rocksdb.block-cache-usage:" $FLINK_DIR/log/*taskexecutor*.log | sed 's/.* //g' | sort -rn | head -n 1)
+  N=$(grep ".${JOB_NAME}.$OPERATOR.rocksdb.block-cache-usage:" $FLINK_LOG_DIR/*taskexecutor*.log | sed 's/.* //g' | sort -rn | head -n 1)
   if [ -z $N ]; then
     N=0
   fi

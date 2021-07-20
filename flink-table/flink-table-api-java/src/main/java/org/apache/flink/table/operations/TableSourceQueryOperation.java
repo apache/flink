@@ -20,6 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.sources.TableSource;
 
 import java.util.Collections;
@@ -36,7 +37,6 @@ import java.util.Map;
 public class TableSourceQueryOperation<T> implements QueryOperation {
 
     private final TableSource<T> tableSource;
-    // Flag that tells if the tableSource is BatchTableSource.
     private final boolean isBatch;
 
     public TableSourceQueryOperation(TableSource<T> tableSource, boolean isBatch) {
@@ -45,8 +45,10 @@ public class TableSourceQueryOperation<T> implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSource.getTableSchema();
+    public ResolvedSchema getResolvedSchema() {
+        final TableSchema legacySchema = tableSource.getTableSchema();
+        return ResolvedSchema.physical(
+                legacySchema.getFieldNames(), legacySchema.getFieldDataTypes());
     }
 
     @Override

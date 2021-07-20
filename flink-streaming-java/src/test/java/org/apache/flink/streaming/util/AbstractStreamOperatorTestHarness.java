@@ -26,6 +26,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
@@ -37,6 +38,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
+import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -128,7 +130,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     protected StateBackend stateBackend = new MemoryStateBackend();
 
     private CheckpointStorageAccess checkpointStorageAccess =
-            stateBackend.createCheckpointStorage(new JobID());
+            new MemoryStateBackend().createCheckpointStorage(new JobID());
 
     private final Object checkpointLock;
 
@@ -236,6 +238,24 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this(operator, SimpleOperatorFactory.of(operator), env, false, new OperatorID());
     }
 
+    public AbstractStreamOperatorTestHarness(
+            StreamOperator<OUT> operator, String taskName, OperatorID operatorID) throws Exception {
+        this(
+                operator,
+                SimpleOperatorFactory.of(operator),
+                new MockEnvironmentBuilder()
+                        .setTaskName(taskName)
+                        .setManagedMemorySize(3 * 1024 * 1024)
+                        .setInputSplitProvider(new MockInputSplitProvider())
+                        .setBufferSize(1024)
+                        .setMaxParallelism(1)
+                        .setParallelism(1)
+                        .setSubtaskIndex(0)
+                        .build(),
+                false,
+                operatorID);
+    }
+
     private AbstractStreamOperatorTestHarness(
             StreamOperator<OUT> operator,
             StreamOperatorFactory<OUT> factory,
@@ -255,6 +275,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         this.config.setStateBackendUsesManagedMemory(true);
         this.config.setManagedMemoryFractionOperatorOfUseCase(
                 ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        this.config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, 1.0);
         this.executionConfig = env.getExecutionConfig();
         this.checkpointLock = new Object();
 
@@ -306,8 +327,18 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     public void setStateBackend(StateBackend stateBackend) {
         this.stateBackend = stateBackend;
 
+        if (stateBackend instanceof CheckpointStorage) {
+            setCheckpointStorage((CheckpointStorage) stateBackend);
+        }
+    }
+
+    public void setCheckpointStorage(CheckpointStorage storage) {
+        if (stateBackend instanceof CheckpointStorage) {
+            return;
+        }
+
         try {
-            this.checkpointStorageAccess = stateBackend.createCheckpointStorage(new JobID());
+            this.checkpointStorageAccess = storage.createCheckpointStorage(new JobID());
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
@@ -642,14 +673,25 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      */
     public OperatorSnapshotFinalizer snapshotWithLocalState(long checkpointId, long timestamp)
             throws Exception {
+        return snapshotWithLocalState(checkpointId, timestamp, CheckpointType.CHECKPOINT);
+    }
 
+    /**
+     * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions,
+     * org.apache.flink.runtime.state.CheckpointStreamFactory)}.
+     */
+    public OperatorSnapshotFinalizer snapshotWithLocalState(
+            long checkpointId, long timestamp, CheckpointType checkpointType) throws Exception {
+
+        CheckpointStorageLocationReference locationReference =
+                CheckpointStorageLocationReference.getDefault();
         OperatorSnapshotFutures operatorStateResult =
                 operator.snapshotState(
                         checkpointId,
                         timestamp,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
+                        new CheckpointOptions(checkpointType, locationReference),
                         checkpointStorageAccess.resolveCheckpointStorageLocation(
-                                checkpointId, CheckpointStorageLocationReference.getDefault()));
+                                checkpointId, locationReference));
 
         return new OperatorSnapshotFinalizer(operatorStateResult);
     }
@@ -662,14 +704,14 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         operator.notifyCheckpointComplete(checkpointId);
     }
 
-    /** Calls close and dispose on the operator. */
+    /** Calls finish and close on the operator. */
     public void close() throws Exception {
-        operator.close();
-        operator.dispose();
         if (processingTimeService != null) {
             processingTimeService.shutdownService();
         }
         setupCalled = false;
+        operator.finish();
+        operator.close();
 
         if (internalEnvironment.isPresent()) {
             internalEnvironment.get().close();
@@ -733,11 +775,6 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     }
 
     @VisibleForTesting
-    public StreamStatus getStreamStatus() {
-        return mockTask.getStreamStatusMaintainer().getStreamStatus();
-    }
-
-    @VisibleForTesting
     public TaskMailbox getTaskMailbox() {
         return taskMailbox;
     }
@@ -764,6 +801,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         @Override
         public void emitWatermark(Watermark mark) {
             outputList.add(mark);
+        }
+
+        @Override
+        public void emitStreamStatus(StreamStatus streamStatus) {
+            outputList.add(streamStatus);
         }
 
         @Override

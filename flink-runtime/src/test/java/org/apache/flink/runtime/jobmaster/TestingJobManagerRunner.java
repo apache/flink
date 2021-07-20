@@ -19,8 +19,13 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +45,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
     private final OneShotLatch closeAsyncCalledLatch = new OneShotLatch();
 
+    private JobStatus jobStatus = JobStatus.INITIALIZING;
+
     private TestingJobManagerRunner(
             JobID jobId,
             boolean blockingTermination,
@@ -51,9 +58,15 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         this.resultFuture = resultFuture;
         this.terminationFuture = new CompletableFuture<>();
 
+        final ExecutionGraphInfo suspendedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        ArchivedExecutionGraph.createFromInitializingJob(
+                                jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
+                        null);
         terminationFuture.whenComplete(
                 (ignored, ignoredThrowable) ->
-                        resultFuture.completeExceptionally(new JobNotFinishedException(jobId)));
+                        resultFuture.complete(
+                                JobManagerRunnerResult.forSuccess(suspendedExecutionGraphInfo)));
     }
 
     @Override
@@ -75,6 +88,31 @@ public class TestingJobManagerRunner implements JobManagerRunner {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> cancel(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<JobStatus> requestJobStatus(Time timeout) {
+        return CompletableFuture.completedFuture(jobStatus);
+    }
+
+    @Override
+    public CompletableFuture<JobDetails> requestJobDetails(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> requestJob(Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isInitialized() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         if (!blockingTermination) {
             terminationFuture.complete(null);
@@ -84,12 +122,20 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         return terminationFuture;
     }
 
+    public void setJobStatus(JobStatus newStatus) {
+        this.jobStatus = newStatus;
+    }
+
     public OneShotLatch getCloseAsyncCalledLatch() {
         return closeAsyncCalledLatch;
     }
 
-    public void completeResultFuture(ArchivedExecutionGraph archivedExecutionGraph) {
-        resultFuture.complete(JobManagerRunnerResult.forSuccess(archivedExecutionGraph));
+    public void completeResultFuture(ExecutionGraphInfo executionGraphInfo) {
+        resultFuture.complete(JobManagerRunnerResult.forSuccess(executionGraphInfo));
+    }
+
+    public void completeResultFuture(JobManagerRunnerResult jobManagerRunnerResult) {
+        resultFuture.complete(jobManagerRunnerResult);
     }
 
     public void completeResultFutureExceptionally(Exception e) {
@@ -108,6 +154,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
         this.jobMasterGatewayFuture.complete(testingJobMasterGateway);
     }
 
+    /** {@code Builder} for instantiating {@link TestingJobManagerRunner} instances. */
     public static class Builder {
         private JobID jobId = null;
         private boolean blockingTermination = false;

@@ -20,16 +20,19 @@ package org.apache.flink.runtime.jobgraph.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -102,9 +105,12 @@ public abstract class AbstractInvokable {
      * execution failure. It can be overwritten to respond to shut down the user code properly.
      *
      * @throws Exception thrown if any exception occurs during the execution of the user code
+     * @return a future that is completed when this {@link AbstractInvokable} is fully terminated.
+     *     Note that it may never complete if the invokable is stuck.
      */
-    public void cancel() throws Exception {
+    public Future<Void> cancel() throws Exception {
         // The default implementation does nothing.
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -209,15 +215,11 @@ public abstract class AbstractInvokable {
      *
      * @param checkpointMetaData Meta data for about this checkpoint
      * @param checkpointOptions Options for performing this checkpoint
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
      * @return future with value of {@code false} if the checkpoint was not carried out, {@code
      *     true} otherwise
      */
     public Future<Boolean> triggerCheckpointAsync(
-            CheckpointMetaData checkpointMetaData,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException(
                 String.format(
                         "triggerCheckpointAsync not supported by %s", this.getClass().getName()));
@@ -253,7 +255,8 @@ public abstract class AbstractInvokable {
      * @param checkpointId The ID of the checkpoint to be aborted.
      * @param cause The reason why the checkpoint was aborted during alignment
      */
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) throws IOException {
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause)
+            throws IOException {
         throw new UnsupportedOperationException(
                 String.format(
                         "abortCheckpointOnBarrier not supported by %s", this.getClass().getName()));
@@ -292,5 +295,25 @@ public abstract class AbstractInvokable {
             throws FlinkException {
         throw new UnsupportedOperationException(
                 "dispatchOperatorEvent not supported by " + getClass().getName());
+    }
+
+    /**
+     * This method can be called before {@link #invoke()} to restore an invokable object for the
+     * last valid state, if it has it.
+     *
+     * <p>Every implementation determinate what should be restored by itself. (nothing happens by
+     * default).
+     *
+     * @throws Exception Tasks may forward their exceptions for the TaskManager to handle through
+     *     failure/recovery.
+     */
+    public void restore() throws Exception {}
+
+    /**
+     * @return true if blocking input such as {@link InputGate#getNext()} is used (as opposed to
+     *     {@link InputGate#pollNext()}. To be removed together with the DataSet API.
+     */
+    public boolean isUsingNonBlockingInput() {
+        return false;
     }
 }

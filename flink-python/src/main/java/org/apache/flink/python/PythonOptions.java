@@ -65,16 +65,26 @@ public class PythonOptions {
                             "When it is false, metric for Python will be disabled. You can "
                                     + "disable the metric to achieve better performance at some circumstance.");
 
+    /** The configuration to enable or disable profile for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_PROFILE_ENABLED =
+            ConfigOptions.key("python.profile.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies whether to enable Python worker profiling. The profile result "
+                                    + "will be displayed in the log file of the TaskManager periodically. "
+                                    + "The interval between each profiling is determined by the config options "
+                                    + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "Attach custom python files for job. These files will "
-                                    + "be added to the PYTHONPATH of both the local client and the remote python UDF "
-                                    + "worker. The standard python resource file suffixes such as .py/.egg/.zip or "
-                                    + "directory are all supported. Comma (',') could be used as the separator to specify "
-                                    + "multiple files. The option is equivalent to the command line option \"-pyfs\". ");
+                            "Attach custom files for job. The standard resource file suffixes such as .py/.egg/.zip/.whl or "
+                                    + "directory are all supported. These files will be added to the PYTHONPATH of both the local "
+                                    + "client and the remote python UDF worker. Files suffixed with .zip will be extracted and added to PYTHONPATH. "
+                                    + "Comma (',') could be used as the separator to specify multiple files. The option is equivalent to the command line option \"-pyfs\". ");
 
     public static final ConfigOption<String> PYTHON_REQUIREMENTS =
             ConfigOptions.key("python.requirements")
@@ -96,7 +106,7 @@ public class PythonOptions {
                             "Add python archive files for job. The archive files will be extracted "
                                     + "to the working directory of python UDF worker. Currently only zip-format is "
                                     + "supported. For each archive file, a target directory is specified. If the target "
-                                    + "directory name is specified, the archive file will be extracted to a name can "
+                                    + "directory name is specified, the archive file will be extracted to a "
                                     + "directory with the specified name. Otherwise, the archive file will be extracted to "
                                     + "a directory with the same name of the archive file. The files uploaded via this "
                                     + "option are accessible via relative path. '#' could be used as the separator of the "
@@ -112,8 +122,8 @@ public class PythonOptions {
                     .defaultValue("python")
                     .withDescription(
                             "Specify the path of the python interpreter used to execute the python "
-                                    + "UDF worker. The python UDF worker depends on Python 3.5+, Apache Beam "
-                                    + "(version == 2.23.0), Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
+                                    + "UDF worker. The python UDF worker depends on Python 3.6+, Apache Beam "
+                                    + "(version == 2.27.0), Pip (version >= 7.1.0) and SetupTools (version >= 37.0.0). "
                                     + "Please ensure that the specified environment meets the above requirements. The "
                                     + "option is equivalent to the command line option \"-pyexec\".");
 

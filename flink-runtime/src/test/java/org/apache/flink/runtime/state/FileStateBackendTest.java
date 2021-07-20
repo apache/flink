@@ -48,7 +48,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Override
-    protected FsStateBackend getStateBackend() throws Exception {
+    protected ConfigurableStateBackend getStateBackend() throws Exception {
         File checkpointPath = tempFolder.newFolder();
         return new FsStateBackend(checkpointPath.toURI(), useAsyncMode);
     }
@@ -56,6 +56,11 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     @Override
     protected boolean isSerializerPresenceRequiredOnRestore() {
         return true;
+    }
+
+    @Override
+    protected boolean supportsAsynchronousSnapshots() {
+        return useAsyncMode;
     }
 
     // disable these because the verification does not work for this state backend

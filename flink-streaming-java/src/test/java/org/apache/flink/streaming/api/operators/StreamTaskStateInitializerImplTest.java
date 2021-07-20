@@ -34,9 +34,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -49,6 +47,7 @@ import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImplTest;
 import org.apache.flink.runtime.state.TestTaskLocalStateStore;
+import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
@@ -62,7 +61,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
@@ -140,17 +138,6 @@ public class StreamTaskStateInitializerImplTest {
         StateBackend mockingBackend =
                 spy(
                         new StateBackend() {
-                            @Override
-                            public CompletedCheckpointStorageLocation resolveCheckpoint(
-                                    String pointer) throws IOException {
-                                throw new UnsupportedOperationException();
-                            }
-
-                            @Override
-                            public CheckpointStorageAccess createCheckpointStorage(JobID jobId)
-                                    throws IOException {
-                                throw new UnsupportedOperationException();
-                            }
 
                             @Override
                             public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
@@ -295,6 +282,7 @@ public class StreamTaskStateInitializerImplTest {
         TestCheckpointResponder checkpointResponderMock = new TestCheckpointResponder();
 
         TaskLocalStateStore taskLocalStateStore = new TestTaskLocalStateStore();
+        InMemoryStateChangelogStorage changelogStorage = new InMemoryStateChangelogStorage();
 
         TaskStateManager taskStateManager =
                 TaskStateManagerImplTest.taskStateManager(
@@ -302,7 +290,8 @@ public class StreamTaskStateInitializerImplTest {
                         executionAttemptID,
                         checkpointResponderMock,
                         jobManagerTaskRestore,
-                        taskLocalStateStore);
+                        taskLocalStateStore,
+                        changelogStorage);
 
         DummyEnvironment dummyEnvironment = new DummyEnvironment("test-task", 1, 0);
         dummyEnvironment.setTaskStateManager(taskStateManager);

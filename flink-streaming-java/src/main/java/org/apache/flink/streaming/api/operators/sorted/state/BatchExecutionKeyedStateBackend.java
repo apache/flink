@@ -19,13 +19,8 @@
 package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -38,11 +33,15 @@ import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.PriorityComparator;
+import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -64,24 +63,26 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p><b>IMPORTANT:</b> Requires the incoming records to be sorted/grouped by the key. Used in a
  * BATCH style execution.
  */
-class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBackend<K> {
-    @SuppressWarnings("rawtypes")
-    private static final Map<Class<? extends StateDescriptor>, StateFactory> STATE_FACTORIES =
+public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBackend<K> {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BatchExecutionKeyedStateBackend.class);
+
+    private static final Map<StateDescriptor.Type, StateFactory> STATE_FACTORIES =
             Stream.of(
                             Tuple2.of(
-                                    ValueStateDescriptor.class,
+                                    StateDescriptor.Type.VALUE,
                                     (StateFactory) BatchExecutionKeyValueState::create),
                             Tuple2.of(
-                                    ListStateDescriptor.class,
+                                    StateDescriptor.Type.LIST,
                                     (StateFactory) BatchExecutionKeyListState::create),
                             Tuple2.of(
-                                    MapStateDescriptor.class,
+                                    StateDescriptor.Type.MAP,
                                     (StateFactory) BatchExecutionKeyMapState::create),
                             Tuple2.of(
-                                    AggregatingStateDescriptor.class,
+                                    StateDescriptor.Type.AGGREGATING,
                                     (StateFactory) BatchExecutionKeyAggregatingState::create),
                             Tuple2.of(
-                                    ReducingStateDescriptor.class,
+                                    StateDescriptor.Type.REDUCING,
                                     (StateFactory) BatchExecutionKeyReducingState::create))
                     .collect(Collectors.toMap(t -> t.f0, t -> t.f1));
 
@@ -130,20 +131,28 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<S, T> stateDescriptor,
             KeyedStateFunction<K, S> function) {
-        throw new UnsupportedOperationException(
-                "applyToAllKeys() is not supported in BATCH execution mode.");
+        // we don't do anything here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        LOG.debug("Not iterating over all keyed in BATCH execution mode in applyToAllKeys().");
     }
 
     @Override
     public <N> Stream<K> getKeys(String state, N namespace) {
-        throw new UnsupportedOperationException(
-                "getKeys() is not supported in BATCH execution mode.");
+        LOG.debug("Returning an empty stream in BATCH execution mode in getKeys().");
+        // We return an empty Stream here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        return Stream.empty();
     }
 
     @Override
     public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
-        throw new UnsupportedOperationException(
-                "getKeysAndNamespaces() is not supported in BATCH execution mode.");
+        LOG.debug("Returning an empty stream in BATCH execution mode in getKeysAndNamespaces().");
+        // We return an empty Stream here. This is correct because the BATCH broadcast operators
+        // process the broadcast side first, meaning we know that the keyed side will always be
+        // empty when this is called
+        return Stream.empty();
     }
 
     @Override
@@ -217,7 +226,7 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
             @Nonnull TypeSerializer<N> namespaceSerializer,
             @Nonnull StateDescriptor<S, SV> stateDesc)
             throws Exception {
-        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getClass());
+        StateFactory stateFactory = STATE_FACTORIES.get(stateDesc.getType());
         if (stateFactory == null) {
             String message =
                     String.format(
@@ -230,8 +239,8 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
 
     @Nonnull
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public <T extends HeapPriorityQueueElement & PriorityComparable & Keyed>
+    @SuppressWarnings({"unchecked"})
+    public <T extends HeapPriorityQueueElement & PriorityComparable<? super T> & Keyed<?>>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
@@ -262,6 +271,13 @@ class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedStateBack
             @Nonnull CheckpointOptions checkpointOptions) {
         throw new UnsupportedOperationException(
                 "Snapshotting is not supported in BATCH runtime mode.");
+    }
+
+    @Nonnull
+    @Override
+    public SavepointResources<K> savepoint() throws Exception {
+        throw new UnsupportedOperationException(
+                "Savepoints are not supported in BATCH runtime mode.");
     }
 
     @FunctionalInterface

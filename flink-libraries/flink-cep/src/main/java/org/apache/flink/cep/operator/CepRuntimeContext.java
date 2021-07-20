@@ -20,6 +20,7 @@ package org.apache.flink.cep.operator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -61,6 +62,11 @@ class CepRuntimeContext implements RuntimeContext {
 
     CepRuntimeContext(final RuntimeContext runtimeContext) {
         this.runtimeContext = checkNotNull(runtimeContext);
+    }
+
+    @Override
+    public JobID getJobId() {
+        return runtimeContext.getJobId();
     }
 
     @Override

@@ -25,7 +25,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -35,9 +34,9 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
@@ -69,7 +68,24 @@ public interface RestfulGateway extends RpcGateway {
      * @return Future containing the {@link ArchivedExecutionGraph} for the given jobId, otherwise
      *     {@link FlinkJobNotFoundException}
      */
-    CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, @RpcTimeout Time timeout);
+    default CompletableFuture<ArchivedExecutionGraph> requestJob(
+            JobID jobId, @RpcTimeout Time timeout) {
+        return requestExecutionGraphInfo(jobId, timeout)
+                .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph);
+    }
+
+    /**
+     * Requests the {@link ExecutionGraphInfo} containing additional information besides the {@link
+     * ArchivedExecutionGraph}. If there is no such graph, then the future is completed with a
+     * {@link FlinkJobNotFoundException}.
+     *
+     * @param jobId identifying the job whose {@link ExecutionGraphInfo} is requested
+     * @param timeout for the asynchronous operation
+     * @return Future containing the {@link ExecutionGraphInfo} for the given jobId, otherwise
+     *     {@link FlinkJobNotFoundException}
+     */
+    CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+            JobID jobId, @RpcTimeout Time timeout);
 
     /**
      * Requests the {@link JobResult} of a job specified by the given jobId.
@@ -135,15 +151,14 @@ public interface RestfulGateway extends RpcGateway {
      * @param jobId ID of the job for which the savepoint should be triggered.
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
-     * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code
-     *     MAX_WATERMARK} in the pipeline to fire any registered event-time timers
+     * @param terminate flag indicating if the job should terminate or just suspend
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     default CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final String targetDirectory,
-            final boolean advanceToEndOfEventTime,
+            final boolean terminate,
             @RpcTimeout final Time timeout) {
         throw new UnsupportedOperationException();
     }
@@ -168,18 +183,6 @@ public interface RestfulGateway extends RpcGateway {
      * @return A future to the {@link JobStatus} of the given job
      */
     default CompletableFuture<JobStatus> requestJobStatus(JobID jobId, @RpcTimeout Time timeout) {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Requests the statistics on operator back pressure.
-     *
-     * @param jobId Job for which the stats are requested.
-     * @param jobVertexId JobVertex for which the stats are requested.
-     * @return A Future to the {@link OperatorBackPressureStatsResponse}.
-     */
-    default CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            JobID jobId, JobVertexID jobVertexId) {
         throw new UnsupportedOperationException();
     }
 

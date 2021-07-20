@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.topology.Vertex;
+
+import java.util.List;
 
 /** Scheduling representation of {@link ExecutionVertex}. */
 public interface SchedulingExecutionVertex
@@ -40,9 +41,9 @@ public interface SchedulingExecutionVertex
     ExecutionState getState();
 
     /**
-     * Get {@link InputDependencyConstraint}.
+     * Gets the {@link ConsumedPartitionGroup}s.
      *
-     * @return input dependency constraint
+     * @return list of {@link ConsumedPartitionGroup}s
      */
-    InputDependencyConstraint getInputDependencyConstraint();
+    List<ConsumedPartitionGroup> getConsumedPartitionGroups();
 }

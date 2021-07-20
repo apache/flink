@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -84,7 +85,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
     /**
      * Triggered when {@link CheckpointsInOrderInvokable#triggerCheckpointAsync(CheckpointMetaData,
-     * CheckpointOptions, boolean)} was called {@link #numCalls} times.
+     * CheckpointOptions)} was called {@link #numCalls} times.
      */
     private static OneShotLatch triggerLatch;
 
@@ -122,10 +123,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
             for (int i = 1; i <= numCalls; i++) {
                 task.triggerCheckpointBarrier(
-                        i,
-                        156865867234L,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false);
+                        i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
             }
 
             triggerLatch.await();
@@ -148,10 +146,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
             for (int i = 1; i <= numCalls; i++) {
                 task.triggerCheckpointBarrier(
-                        i,
-                        156865867234L,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false);
+                        i, 156865867234L, CheckpointOptions.forCheckpointWithDefaultLocation());
                 task.notifyCheckpointComplete(i);
             }
 
@@ -209,7 +204,6 @@ public class TaskAsyncCallTest extends TestLogger {
                 0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                0,
                 mock(MemoryManager.class),
                 mock(IOManager.class),
                 shuffleEnvironment,
@@ -264,9 +258,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             lastCheckpointId++;
             if (checkpointMetaData.getCheckpointId() == lastCheckpointId) {
                 if (lastCheckpointId == numCalls) {
@@ -290,7 +282,7 @@ public class TaskAsyncCallTest extends TestLogger {
         }
 
         @Override
-        public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+        public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {
             throw new UnsupportedOperationException("Should not be called");
         }
 

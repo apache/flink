@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
@@ -117,7 +118,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
         readLongs(
                 reader,
                 numLongs,
-                subpartition.getBuffersInBacklog(),
+                subpartition.getBuffersInBacklogUnsafe(),
                 compressionEnabled,
                 decompressor);
 
@@ -139,7 +140,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
             readLongs(
                     reader,
                     numLongs,
-                    subpartition.getBuffersInBacklog(),
+                    subpartition.getBuffersInBacklogUnsafe(),
                     compressionEnabled,
                     decompressor);
             reader.releaseAllResources();
@@ -162,7 +163,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
                         subpartition,
                         10,
                         numLongs,
-                        subpartition.getBuffersInBacklog(),
+                        subpartition.getBuffersInBacklogUnsafe(),
                         compressionEnabled);
         for (CheckedThread t : readerThreads) {
             t.start();
@@ -232,7 +233,9 @@ public class BoundedBlockingSubpartitionWriteReadTest {
             }
 
             partition.add(
-                    new BufferConsumer(memory, (ignored) -> {}, pos, Buffer.DataType.DATA_BUFFER));
+                    new BufferConsumer(
+                            new NetworkBuffer(memory, (ignored) -> {}, Buffer.DataType.DATA_BUFFER),
+                            pos));
 
             // we need to flush after every buffer as long as the add() contract is that
             // buffer are immediately added and can be filled further after that (for low latency

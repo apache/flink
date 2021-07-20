@@ -29,8 +29,8 @@ import java.util.List;
  * this interface is able to filter records before returning.
  *
  * @deprecated This interface will not be supported in the new source design around {@link
- *     DynamicTableSource} which only works with the Blink planner. Use {@link
- *     SupportsFilterPushDown} instead. See FLIP-95 for more information.
+ *     DynamicTableSource}. Use {@link SupportsFilterPushDown} instead. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 public interface FilterableTableSource<T> {
@@ -39,11 +39,6 @@ public interface FilterableTableSource<T> {
      * Check and pick all predicates this table source can support. The passed in predicates have
      * been translated in conjunctive form, and table source can only pick those predicates that it
      * supports.
-     *
-     * <p><strong>WARNING:</strong> Flink planner will push down PlannerExpressions (which are
-     * defined in flink-table-planner module), while Blink planner will push down {@link
-     * Expression}s. So the implementation for Flink planner and Blink planner should be different
-     * and incompatible. PlannerExpression will be removed in the future.
      *
      * <p>After trying to push predicates down, we should return a new {@link TableSource} instance
      * which holds all pushed down predicates. Even if we actually pushed nothing down, it is

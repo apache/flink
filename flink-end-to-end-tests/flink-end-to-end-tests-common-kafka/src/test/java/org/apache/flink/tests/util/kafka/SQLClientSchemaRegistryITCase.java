@@ -24,6 +24,7 @@ import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.FlinkContainer;
 import org.apache.flink.tests.util.flink.SQLJobSubmission;
 import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
+import org.apache.flink.util.DockerImageVersions;
 
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
@@ -71,7 +72,7 @@ public class SQLClientSchemaRegistryITCase {
 
     @Rule
     public final KafkaContainer kafka =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:5.5.2"))
+            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
                     .withNetwork(network)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS);
 
@@ -131,11 +132,9 @@ public class SQLClientSchemaRegistryITCase {
                         " 'topic' = '" + testCategoryTopic + "',",
                         " 'scan.startup.mode' = 'earliest-offset',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
-                                + ":8082"
-                                + "',",
-                        " 'avro-confluent.schema-registry.subject' = '" + categorySubject + "'",
+                                + ":8082'",
                         ");",
                         "",
                         "CREATE TABLE results (",
@@ -167,7 +166,7 @@ public class SQLClientSchemaRegistryITCase {
         // Create topic test-avro
         kafkaClient.createTopic(1, 1, testUserBehaviorTopic);
 
-        String behaviourSubject = "user_behavior";
+        String behaviourSubject = testUserBehaviorTopic + "-value";
         List<String> sqlLines =
                 Arrays.asList(
                         "CREATE TABLE user_behavior (",
@@ -183,14 +182,13 @@ public class SQLClientSchemaRegistryITCase {
                                 + ":9092',",
                         " 'topic' = '" + testUserBehaviorTopic + "',",
                         " 'format' = 'avro-confluent',",
-                        " 'avro-confluent.schema-registry.url' = 'http://"
+                        " 'avro-confluent.url' = 'http://"
                                 + INTER_CONTAINER_REGISTRY_ALIAS
                                 + ":8082"
-                                + "',",
-                        " 'avro-confluent.schema-registry.subject' = '" + behaviourSubject + "'",
+                                + "'",
                         ");",
                         "",
-                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', CAST (1234 AS TIMESTAMP(3)));");
+                        "INSERT INTO user_behavior VALUES (1, 1, 1, 'buy', TO_TIMESTAMP(FROM_UNIXTIME(1234)));");
 
         executeSqlStatements(sqlLines);
 

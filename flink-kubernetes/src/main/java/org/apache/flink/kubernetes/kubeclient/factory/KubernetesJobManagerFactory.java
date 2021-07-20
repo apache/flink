@@ -20,19 +20,22 @@ package org.apache.flink.kubernetes.kubeclient.factory;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerSpecification;
+import org.apache.flink.kubernetes.kubeclient.decorators.CmdJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
-import org.apache.flink.kubernetes.kubeclient.decorators.JavaCmdJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KubernetesStepDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.MountSecretsDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.PodTemplateMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesOwnerReference;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -45,6 +48,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for constructing all the Kubernetes components on the client-side. This can include
@@ -53,8 +57,9 @@ import java.util.Map;
 public class KubernetesJobManagerFactory {
 
     public static KubernetesJobManagerSpecification buildKubernetesJobManagerSpecification(
-            KubernetesJobManagerParameters kubernetesJobManagerParameters) throws IOException {
-        FlinkPod flinkPod = new FlinkPod.Builder().build();
+            FlinkPod podTemplate, KubernetesJobManagerParameters kubernetesJobManagerParameters)
+            throws IOException {
+        FlinkPod flinkPod = Preconditions.checkNotNull(podTemplate).copy();
         List<HasMetadata> accompanyingResources = new ArrayList<>();
 
         final KubernetesStepDecorator[] stepDecorators =
@@ -62,12 +67,13 @@ public class KubernetesJobManagerFactory {
                     new InitJobManagerDecorator(kubernetesJobManagerParameters),
                     new EnvSecretsDecorator(kubernetesJobManagerParameters),
                     new MountSecretsDecorator(kubernetesJobManagerParameters),
-                    new JavaCmdJobManagerDecorator(kubernetesJobManagerParameters),
+                    new CmdJobManagerDecorator(kubernetesJobManagerParameters),
                     new InternalServiceDecorator(kubernetesJobManagerParameters),
                     new ExternalServiceDecorator(kubernetesJobManagerParameters),
                     new HadoopConfMountDecorator(kubernetesJobManagerParameters),
                     new KerberosMountDecorator(kubernetesJobManagerParameters),
-                    new FlinkConfMountDecorator(kubernetesJobManagerParameters)
+                    new FlinkConfMountDecorator(kubernetesJobManagerParameters),
+                    new PodTemplateMountDecorator(kubernetesJobManagerParameters)
                 };
 
         for (KubernetesStepDecorator stepDecorator : stepDecorators) {
@@ -86,7 +92,7 @@ public class KubernetesJobManagerFactory {
         final Container resolvedMainContainer = flinkPod.getMainContainer();
 
         final Pod resolvedPod =
-                new PodBuilder(flinkPod.getPod())
+                new PodBuilder(flinkPod.getPodWithoutMainContainer())
                         .editOrNewSpec()
                         .addToContainers(resolvedMainContainer)
                         .endSpec()
@@ -101,9 +107,13 @@ public class KubernetesJobManagerFactory {
                         KubernetesUtils.getDeploymentName(
                                 kubernetesJobManagerParameters.getClusterId()))
                 .withLabels(kubernetesJobManagerParameters.getLabels())
+                .withOwnerReferences(
+                        kubernetesJobManagerParameters.getOwnerReference().stream()
+                                .map(e -> KubernetesOwnerReference.fromMap(e).getInternalResource())
+                                .collect(Collectors.toList()))
                 .endMetadata()
                 .editOrNewSpec()
-                .withReplicas(1)
+                .withReplicas(kubernetesJobManagerParameters.getReplicas())
                 .editOrNewTemplate()
                 .withMetadata(resolvedPod.getMetadata())
                 .withSpec(resolvedPod.getSpec())

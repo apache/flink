@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 
 import javax.annotation.Nullable;
 
@@ -54,6 +55,13 @@ public interface DeclarativeSlotPool {
      * @param decrement decrement by which to decrease the resource requirements
      */
     void decreaseResourceRequirementsBy(ResourceCounter decrement);
+
+    /**
+     * Sets the resource requirements to the given resourceRequirements.
+     *
+     * @param resourceRequirements new resource requirements
+     */
+    void setResourceRequirements(ResourceCounter resourceRequirements);
 
     /**
      * Returns the current resource requirements.
@@ -92,6 +100,16 @@ public interface DeclarativeSlotPool {
      * @return collection of slot information
      */
     Collection<? extends SlotInfo> getAllSlotsInformation();
+
+    /**
+     * Checks whether the slot pool contains a slot with the given {@link AllocationID} and if it is
+     * free.
+     *
+     * @param allocationId allocationId specifies the slot to check for
+     * @return {@code true} if the slot pool contains a free slot registered under the given
+     *     allocation id; otherwise {@code false}
+     */
+    boolean containsFreeSlot(AllocationID allocationId);
 
     /**
      * Reserves the free slot identified by the given allocationId and maps it to the given

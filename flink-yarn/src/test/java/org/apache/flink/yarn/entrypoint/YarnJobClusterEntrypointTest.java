@@ -36,9 +36,9 @@ public class YarnJobClusterEntrypointTest {
     public void testCreateDispatcherResourceManagerComponentFactoryFailIfUsrLibDirDoesNotExist()
             throws IOException {
         final Configuration configuration = new Configuration();
-        configuration.setString(
+        configuration.set(
                 YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR,
-                YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+                YarnConfigOptions.UserJarInclusion.DISABLED);
         final YarnJobClusterEntrypoint yarnJobClusterEntrypoint =
                 new YarnJobClusterEntrypoint(configuration);
         try {

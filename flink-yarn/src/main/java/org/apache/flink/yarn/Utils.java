@@ -34,7 +34,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.security.TokenCache;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -82,6 +81,9 @@ public final class Utils {
 
     /** Yarn site xml file name populated in YARN container for secure IT run. */
     public static final String YARN_SITE_FILE_NAME = "yarn-site.xml";
+
+    /** The prefixes that Flink adds to the YARN config. */
+    private static final String[] FLINK_CONFIG_PREFIXES = {"flink.yarn."};
 
     @VisibleForTesting
     static final String YARN_RM_FAIR_SCHEDULER_CLAZZ =
@@ -194,21 +196,30 @@ public final class Utils {
     }
 
     public static void setTokensFor(
-            ContainerLaunchContext amContainer, List<Path> paths, Configuration conf)
+            ContainerLaunchContext amContainer,
+            List<Path> paths,
+            Configuration conf,
+            boolean obtainingDelegationTokens)
             throws IOException {
         Credentials credentials = new Credentials();
-        // for HDFS
-        TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
-        // for HBase
-        obtainTokenForHBase(credentials, conf);
+
+        if (obtainingDelegationTokens) {
+            LOG.info("Obtaining delegation tokens for HDFS and HBase.");
+            // for HDFS
+            TokenCache.obtainTokensForNamenodes(credentials, paths.toArray(new Path[0]), conf);
+            // for HBase
+            obtainTokenForHBase(credentials, conf);
+        } else {
+            LOG.info("Delegation token retrieval for HDFS and HBase is disabled.");
+        }
+
         // for user
         UserGroupInformation currUsr = UserGroupInformation.getCurrentUser();
 
         Collection<Token<? extends TokenIdentifier>> usrTok = currUsr.getTokens();
         for (Token<? extends TokenIdentifier> token : usrTok) {
-            final Text id = new Text(token.getIdentifier());
-            LOG.info("Adding user token " + id + " with " + token);
-            credentials.addToken(id, token);
+            LOG.info("Adding user token " + token.getService() + " with " + token);
+            credentials.addToken(token.getService(), token);
         }
         try (DataOutputBuffer dob = new DataOutputBuffer()) {
             credentials.writeTokenStorageToStream(dob);
@@ -426,7 +437,7 @@ public final class Utils {
         LocalResource keytabResource = null;
         if (remoteKeytabPath != null) {
             log.info(
-                    "Adding keytab {} to the AM container local resource bucket", remoteKeytabPath);
+                    "TM:Adding keytab {} to the container local resource bucket", remoteKeytabPath);
             Path keytabPath = new Path(remoteKeytabPath);
             FileSystem fs = keytabPath.getFileSystem(yarnConfig);
             keytabResource = registerLocalResource(fs, keytabPath, LocalResourceType.FILE);
@@ -557,8 +568,7 @@ public final class Utils {
                 Collection<Token<? extends TokenIdentifier>> userTokens = cred.getAllTokens();
                 for (Token<? extends TokenIdentifier> token : userTokens) {
                     if (!token.getKind().equals(AMRMTokenIdentifier.KIND_NAME)) {
-                        final Text id = new Text(token.getIdentifier());
-                        taskManagerCred.addToken(id, token);
+                        taskManagerCred.addToken(token.getService(), token);
                     }
                 }
 
@@ -663,5 +673,41 @@ public final class Utils {
             }
         }
         return providedLibDirs;
+    }
+
+    public static YarnConfiguration getYarnAndHadoopConfiguration(
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        final YarnConfiguration yarnConfig = getYarnConfiguration(flinkConfig);
+        yarnConfig.addResource(HadoopUtils.getHadoopConfiguration(flinkConfig));
+
+        return yarnConfig;
+    }
+
+    /**
+     * Add additional config entries from the flink config to the yarn config.
+     *
+     * @param flinkConfig The Flink configuration object.
+     * @return The yarn configuration.
+     */
+    public static YarnConfiguration getYarnConfiguration(
+            org.apache.flink.configuration.Configuration flinkConfig) {
+        final YarnConfiguration yarnConfig = new YarnConfiguration();
+
+        for (String key : flinkConfig.keySet()) {
+            for (String prefix : FLINK_CONFIG_PREFIXES) {
+                if (key.startsWith(prefix)) {
+                    String newKey = key.substring("flink.".length());
+                    String value = flinkConfig.getString(key, null);
+                    yarnConfig.set(newKey, value);
+                    LOG.debug(
+                            "Adding Flink config entry for {} as {}={} to Yarn config",
+                            key,
+                            newKey,
+                            value);
+                }
+            }
+        }
+
+        return yarnConfig;
     }
 }

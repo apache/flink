@@ -105,6 +105,9 @@ public class AsyncWaitOperator<IN, OUT>
 
     private transient TimestampedCollector<OUT> timestampedCollector;
 
+    /** Whether object reuse has been enabled or disabled. */
+    private transient boolean isObjectReuseEnabled;
+
     public AsyncWaitOperator(
             @Nonnull AsyncFunction<IN, OUT> asyncFunction,
             long timeout,
@@ -151,12 +154,14 @@ public class AsyncWaitOperator<IN, OUT>
                 throw new IllegalStateException("Unknown async mode: " + outputMode + '.');
         }
 
-        this.timestampedCollector = new TimestampedCollector<>(output);
+        this.timestampedCollector = new TimestampedCollector<>(super.output);
     }
 
     @Override
     public void open() throws Exception {
         super.open();
+
+        this.isObjectReuseEnabled = getExecutionConfig().isObjectReuseEnabled();
 
         if (recoveredStreamElements != null) {
             for (StreamElement element : recoveredStreamElements.get()) {
@@ -178,7 +183,16 @@ public class AsyncWaitOperator<IN, OUT>
     }
 
     @Override
-    public void processElement(StreamRecord<IN> element) throws Exception {
+    public void processElement(StreamRecord<IN> record) throws Exception {
+        StreamRecord<IN> element;
+        // copy the element avoid the element is reused
+        if (isObjectReuseEnabled) {
+            //noinspection unchecked
+            element = (StreamRecord<IN>) inStreamElementSerializer.copy(record);
+        } else {
+            element = record;
+        }
+
         // add element first to the queue
         final ResultFuture<OUT> entry = addToWorkQueue(element);
 
@@ -186,18 +200,7 @@ public class AsyncWaitOperator<IN, OUT>
 
         // register a timeout for the entry if timeout is configured
         if (timeout > 0L) {
-            final long timeoutTimestamp =
-                    timeout + getProcessingTimeService().getCurrentProcessingTime();
-
-            final ScheduledFuture<?> timeoutTimer =
-                    getProcessingTimeService()
-                            .registerTimer(
-                                    timeoutTimestamp,
-                                    timestamp ->
-                                            userFunction.timeout(
-                                                    element.getValue(), resultHandler));
-
-            resultHandler.setTimeoutTimer(timeoutTimer);
+            resultHandler.registerTimeout(getProcessingTimeService(), timeout);
         }
 
         userFunction.asyncInvoke(element.getValue(), resultHandler);
@@ -327,10 +330,6 @@ public class AsyncWaitOperator<IN, OUT>
             this.resultFuture = resultFuture;
         }
 
-        void setTimeoutTimer(ScheduledFuture<?> timeoutTimer) {
-            this.timeoutTimer = timeoutTimer;
-        }
-
         @Override
         public void complete(Collection<OUT> results) {
             Preconditions.checkNotNull(
@@ -390,6 +389,21 @@ public class AsyncWaitOperator<IN, OUT>
             // leave potentially
             // blocking section in #addToWorkQueue or #waitInFlightInputsFinished)
             processInMailbox(Collections.emptyList());
+        }
+
+        public void registerTimeout(ProcessingTimeService processingTimeService, long timeout) {
+            final long timeoutTimestamp =
+                    timeout + processingTimeService.getCurrentProcessingTime();
+
+            timeoutTimer =
+                    processingTimeService.registerTimer(
+                            timeoutTimestamp, timestamp -> timerTriggered());
+        }
+
+        private void timerTriggered() throws Exception {
+            if (!completed.get()) {
+                userFunction.timeout(inputRecord.getValue(), this);
+            }
         }
     }
 }

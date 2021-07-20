@@ -28,7 +28,22 @@ public interface DbMetadata extends Serializable {
 
     String getUrl();
 
+    default String getUser() {
+        return "";
+    }
+
+    default String getPassword() {
+        return "";
+    }
+
     XADataSource buildXaDataSource();
 
     String getDriverClass();
+
+    default JdbcConnectionOptions toConnectionOptions() {
+        return new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                .withDriverName(getDriverClass())
+                .withUrl(getUrl())
+                .build();
+    }
 }

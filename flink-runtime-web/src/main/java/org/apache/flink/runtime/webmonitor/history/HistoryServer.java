@@ -35,7 +35,6 @@ import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -202,8 +201,7 @@ public class HistoryServer {
         List<RefreshLocation> refreshDirs = new ArrayList<>();
         for (String refreshDirectory : refreshDirectories.split(",")) {
             try {
-                Path refreshPath =
-                        WebMonitorUtils.validateAndNormalizeUri(new Path(refreshDirectory).toUri());
+                Path refreshPath = new Path(refreshDirectory);
                 FileSystem refreshFS = refreshPath.getFileSystem();
                 refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
             } catch (Exception e) {
@@ -273,11 +271,6 @@ public class HistoryServer {
             Router router = new Router();
             router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
 
-            if (!webDir.exists() && !webDir.mkdirs()) {
-                throw new IOException(
-                        "Failed to create local directory " + webDir.getAbsoluteFile() + ".");
-            }
-
             createDashboardConfigFile();
 
             archiveFetcher.start();
@@ -334,7 +327,7 @@ public class HistoryServer {
             fw.write(
                     createConfigJson(
                             DashboardConfiguration.from(
-                                    webRefreshIntervalMillis, ZonedDateTime.now(), false)));
+                                    webRefreshIntervalMillis, ZonedDateTime.now(), false, false)));
             fw.flush();
         } catch (IOException ioe) {
             LOG.error("Failed to write config file.");

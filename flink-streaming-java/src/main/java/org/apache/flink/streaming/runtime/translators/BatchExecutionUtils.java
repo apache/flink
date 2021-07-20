@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.translators;
 
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -40,7 +41,10 @@ import static org.apache.flink.util.Preconditions.checkState;
 class BatchExecutionUtils {
     private static final Logger LOG = LoggerFactory.getLogger(BatchExecutionUtils.class);
 
-    static void applySortingInputs(int transformationId, TransformationTranslator.Context context) {
+    static void applyBatchExecutionSettings(
+            int transformationId,
+            TransformationTranslator.Context context,
+            StreamConfig.InputRequirement... inputRequirements) {
         StreamNode node = context.getStreamGraph().getStreamNode(transformationId);
         boolean sortInputs = context.getGraphGeneratorConfig().get(ExecutionOptions.SORT_INPUTS);
         boolean isInputSelectable = isInputSelectable(node);
@@ -52,10 +56,12 @@ class BatchExecutionUtils {
                 "Batch state backend and sorting inputs are not supported in graphs with an InputSelectable operator.");
 
         if (sortInputs) {
-            LOG.debug("Enabling sorting inputs for an operator {}.", node);
-            node.setSortedInputs(true);
+            LOG.debug("Applying sorting/pass-through input requirements for operator {}.", node);
+            for (int i = 0; i < inputRequirements.length; i++) {
+                node.addInputRequirement(i, inputRequirements[i]);
+            }
             Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights = new HashMap<>();
-            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.BATCH_OP, 1);
+            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.OPERATOR, 1);
             node.setManagedMemoryUseCaseWeights(
                     operatorScopeUseCaseWeights, Collections.emptySet());
         }

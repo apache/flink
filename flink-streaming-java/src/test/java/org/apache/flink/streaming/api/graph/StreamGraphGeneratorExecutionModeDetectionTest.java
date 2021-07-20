@@ -28,7 +28,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -76,7 +76,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 environment.getStreamGraph(),
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, true));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, JobType.STREAMING, true, true));
     }
 
     @Test
@@ -94,7 +94,10 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 environment.getStreamGraph(),
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+                        JobType.STREAMING,
+                        false,
+                        true));
     }
 
     @Test
@@ -122,7 +125,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                 streamGraph,
                 hasProperties(
                         GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        JobType.BATCH,
+                        false,
                         false));
     }
 
@@ -173,7 +177,10 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+                        JobType.STREAMING,
+                        false,
+                        true));
     }
 
     @Test
@@ -187,7 +194,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                 graph,
                 hasProperties(
                         GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        JobType.BATCH,
+                        false,
                         false));
     }
 
@@ -201,7 +209,10 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+                        JobType.STREAMING,
+                        false,
+                        true));
     }
 
     @Test
@@ -218,7 +229,10 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+                        JobType.STREAMING,
+                        false,
+                        true));
     }
 
     @Test
@@ -232,7 +246,8 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                 graph,
                 hasProperties(
                         GlobalDataExchangeMode.FORWARD_EDGES_PIPELINED,
-                        ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST,
+                        JobType.BATCH,
+                        false,
                         false));
 
         final StreamGraph streamingGraph =
@@ -240,7 +255,10 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 streamingGraph,
                 hasProperties(
-                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED, ScheduleMode.EAGER, false));
+                        GlobalDataExchangeMode.ALL_EDGES_PIPELINED,
+                        JobType.STREAMING,
+                        false,
+                        true));
     }
 
     private StreamGraph generateStreamGraph(
@@ -268,26 +286,32 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
 
     private static TypeSafeMatcher<StreamGraph> hasProperties(
             final GlobalDataExchangeMode exchangeMode,
-            final ScheduleMode scheduleMode,
-            final boolean isCheckpointingEnable) {
+            final JobType jobType,
+            final boolean isCheckpointingEnabled,
+            final boolean isAllVerticesInSameSlotSharingGroupByDefault) {
 
         return new TypeSafeMatcher<StreamGraph>() {
             @Override
             protected boolean matchesSafely(StreamGraph actualStreamGraph) {
                 return exchangeMode == actualStreamGraph.getGlobalDataExchangeMode()
-                        && scheduleMode == actualStreamGraph.getScheduleMode()
+                        && jobType == actualStreamGraph.getJobType()
                         && actualStreamGraph.getCheckpointConfig().isCheckpointingEnabled()
-                                == isCheckpointingEnable;
+                                == isCheckpointingEnabled
+                        && actualStreamGraph.isAllVerticesInSameSlotSharingGroupByDefault()
+                                == isAllVerticesInSameSlotSharingGroupByDefault;
             }
 
             @Override
             public void describeTo(Description description) {
                 description
-                        .appendText("a StreamGraph with exchangeMode='")
+                        .appendText("a StreamGraph with exchangeMode=")
                         .appendValue(exchangeMode)
-                        .appendText("' and scheduleMode='")
-                        .appendValue(scheduleMode)
-                        .appendText("'");
+                        .appendText(", jobType=")
+                        .appendValue(jobType)
+                        .appendText(", isCheckpointingEnabled=")
+                        .appendValue(isCheckpointingEnabled)
+                        .appendText(", isAllVerticesInSameSlotSharingGroupByDefault=")
+                        .appendValue(isAllVerticesInSameSlotSharingGroupByDefault);
             }
 
             @Override
@@ -295,11 +319,14 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
                     StreamGraph item, Description mismatchDescription) {
                 mismatchDescription
                         .appendText("was ")
-                        .appendText("a StreamGraph with exchangeMode='")
-                        .appendValue(item.getGlobalDataExchangeMode())
-                        .appendText("' and scheduleMode='")
-                        .appendValue(item.getScheduleMode())
-                        .appendText("'");
+                        .appendText("a StreamGraph with exchangeMode=")
+                        .appendValue(exchangeMode)
+                        .appendText(", jobType=")
+                        .appendValue(jobType)
+                        .appendText(", isCheckpointingEnabled=")
+                        .appendValue(isCheckpointingEnabled)
+                        .appendText(", isAllVerticesInSameSlotSharingGroupByDefault=")
+                        .appendValue(isAllVerticesInSameSlotSharingGroupByDefault);
             }
         };
     }

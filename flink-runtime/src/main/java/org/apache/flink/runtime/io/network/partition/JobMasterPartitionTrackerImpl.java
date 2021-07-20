@@ -21,7 +21,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
-import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
@@ -29,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -40,6 +40,12 @@ import static java.util.stream.Collectors.toList;
 public class JobMasterPartitionTrackerImpl
         extends AbstractPartitionTracker<ResourceID, ResultPartitionDeploymentDescriptor>
         implements JobMasterPartitionTracker {
+
+    // Besides below fields, JobMasterPartitionTrackerImpl inherits 'partitionTable' and
+    // 'partitionInfos' from parent and tracks partitions from different dimensions:
+    // 'partitionTable' tracks partitions which occupie local resource on TM;
+    // 'partitionInfos' tracks all available partitions no matter they are accommodated
+    // externally on remote or internally on TM;
 
     private final JobID jobId;
 
@@ -79,10 +85,46 @@ public class JobMasterPartitionTrackerImpl
     }
 
     @Override
+    void startTrackingPartition(
+            ResourceID key,
+            ResultPartitionID resultPartitionId,
+            ResultPartitionDeploymentDescriptor metaInfo) {
+        // A partition is registered into 'partitionTable' only when it occupies
+        // resource on the corresponding TM;
+        if (metaInfo.getShuffleDescriptor().storesLocalResourcesOn().isPresent()) {
+            partitionTable.startTrackingPartitions(
+                    key, Collections.singletonList(resultPartitionId));
+        }
+        partitionInfos.put(resultPartitionId, new PartitionInfo<>(key, metaInfo));
+    }
+
+    @Override
     public void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndHandlePartitions(
+                resultPartitionIds,
+                (tmID, partitionDescs) -> internalReleasePartitions(tmID, partitionDescs));
+    }
+
+    @Override
+    public void stopTrackingAndReleaseOrPromotePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {
+        stopTrackingAndHandlePartitions(
+                resultPartitionIds,
+                (tmID, partitionDescs) -> internalReleaseOrPromotePartitions(tmID, partitionDescs));
+    }
+
+    @Override
+    public Collection<ResultPartitionDeploymentDescriptor> getAllTrackedPartitions() {
+        return partitionInfos.values().stream().map(PartitionInfo::getMetaInfo).collect(toList());
+    }
+
+    private void stopTrackingAndHandlePartitions(
+            Collection<ResultPartitionID> resultPartitionIds,
+            BiConsumer<ResourceID, Collection<ResultPartitionDeploymentDescriptor>>
+                    partitionHandler) {
         Preconditions.checkNotNull(resultPartitionIds);
 
-        // stop tracking partitions to be released and group them by task executor ID
+        // stop tracking partitions to handle and group them by task executor ID
         Map<ResourceID, List<ResultPartitionDeploymentDescriptor>> partitionsToReleaseByResourceId =
                 stopTrackingPartitions(resultPartitionIds).stream()
                         .collect(
@@ -91,31 +133,7 @@ public class JobMasterPartitionTrackerImpl
                                         Collectors.mapping(
                                                 PartitionTrackerEntry::getMetaInfo, toList())));
 
-        partitionsToReleaseByResourceId.forEach(this::internalReleasePartitions);
-    }
-
-    @Override
-    public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
-        Preconditions.checkNotNull(producingTaskExecutorId);
-
-        Collection<ResultPartitionDeploymentDescriptor> resultPartitionIds =
-                CollectionUtil.project(
-                        stopTrackingPartitionsFor(producingTaskExecutorId),
-                        PartitionTrackerEntry::getMetaInfo);
-
-        internalReleasePartitions(producingTaskExecutorId, resultPartitionIds);
-    }
-
-    @Override
-    public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {
-        Preconditions.checkNotNull(producingTaskExecutorId);
-
-        Collection<ResultPartitionDeploymentDescriptor> resultPartitionIds =
-                CollectionUtil.project(
-                        stopTrackingPartitionsFor(producingTaskExecutorId),
-                        PartitionTrackerEntry::getMetaInfo);
-
-        internalReleaseOrPromotePartitions(producingTaskExecutorId, resultPartitionIds);
+        partitionsToReleaseByResourceId.forEach(partitionHandler);
     }
 
     private void internalReleasePartitions(

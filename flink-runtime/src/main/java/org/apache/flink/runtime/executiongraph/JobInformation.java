@@ -34,22 +34,22 @@ public class JobInformation implements Serializable {
 
     private static final long serialVersionUID = 8367087049937822140L;
 
-    /** Id of the job */
+    /** Id of the job. */
     private final JobID jobId;
 
-    /** Job name */
+    /** Job name. */
     private final String jobName;
 
-    /** Serialized execution config because it can contain user code classes */
+    /** Serialized execution config because it can contain user code classes. */
     private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-    /** Configuration of the job */
+    /** Configuration of the job. */
     private final Configuration jobConfiguration;
 
-    /** Blob keys for the required jar files */
+    /** Blob keys for the required jar files. */
     private final Collection<PermanentBlobKey> requiredJarFileBlobKeys;
 
-    /** URLs specifying the classpath to add to the class loader */
+    /** URLs specifying the classpath to add to the class loader. */
     private final Collection<URL> requiredClasspathURLs;
 
     public JobInformation(

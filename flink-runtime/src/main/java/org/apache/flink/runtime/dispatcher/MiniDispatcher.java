@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.FlinkException;
 
 import java.util.Collections;
@@ -118,10 +119,10 @@ public class MiniDispatcher extends Dispatcher {
     }
 
     @Override
-    protected CleanupJobState jobReachedGloballyTerminalState(
-            ArchivedExecutionGraph archivedExecutionGraph) {
-        final CleanupJobState cleanupHAState =
-                super.jobReachedGloballyTerminalState(archivedExecutionGraph);
+    protected CleanupJobState jobReachedTerminalState(ExecutionGraphInfo executionGraphInfo) {
+        final ArchivedExecutionGraph archivedExecutionGraph =
+                executionGraphInfo.getArchivedExecutionGraph();
+        final CleanupJobState cleanupHAState = super.jobReachedTerminalState(executionGraphInfo);
 
         if (jobCancelled || executionMode == ClusterEntrypoint.ExecutionMode.DETACHED) {
             // shut down if job is cancelled or we don't have to wait for the execution result
@@ -136,13 +137,5 @@ public class MiniDispatcher extends Dispatcher {
         }
 
         return cleanupHAState;
-    }
-
-    @Override
-    protected void jobNotFinished(JobID jobId) {
-        super.jobNotFinished(jobId);
-        // shut down since we have done our job
-        log.info("Shutting down cluster because job not finished");
-        shutDownFuture.complete(ApplicationStatus.UNKNOWN);
     }
 }

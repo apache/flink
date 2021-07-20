@@ -24,6 +24,8 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -31,6 +33,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -76,10 +79,16 @@ public class PythonEnvUtilsTest {
         File relativeFile =
                 new File(tmpDirPath + File.separator + "subdir" + File.separator + "b.py");
         File schemeFile =
-                new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.zip");
+                new File(tmpDirPath + File.separator + "subdir" + File.separator + "c.egg");
 
         // The files must actually exist
-        zipFile.createNewFile();
+        try (ZipArchiveOutputStream zipOut =
+                new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
+            ZipArchiveEntry entry = new ZipArchiveEntry("zipDir" + "/zipfile0");
+            zipOut.putArchiveEntry(entry);
+            zipOut.write(new byte[] {1, 1, 1, 1, 1});
+            zipOut.closeArchiveEntry();
+        }
         dirFile.mkdir();
         subdirFile.mkdir();
         relativeFile.createNewFile();
@@ -112,10 +121,10 @@ public class PythonEnvUtilsTest {
 
         String base = replaceUUID(env.tempDirectory);
         Set<String> expectedPythonPaths = new HashSet<>();
-        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a.zip"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "a"));
         expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "module_dir"));
         expectedPythonPaths.add(String.join(File.separator, base, "{uuid}"));
-        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.zip"));
+        expectedPythonPaths.add(String.join(File.separator, base, "{uuid}", "c.egg"));
 
         Set<String> actualPaths =
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))

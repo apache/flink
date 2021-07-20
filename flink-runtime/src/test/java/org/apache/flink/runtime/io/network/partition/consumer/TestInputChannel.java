@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.fail;
 
 /** A mocked input channel. */
@@ -149,6 +151,8 @@ public class TestInputChannel extends InputChannel {
 
     @Override
     Optional<BufferAndAvailability> getNextBuffer() throws IOException, InterruptedException {
+        checkState(!isReleased);
+
         BufferAndAvailabilityProvider provider = buffers.poll();
 
         if (provider != null) {
@@ -178,11 +182,18 @@ public class TestInputChannel extends InputChannel {
     }
 
     @Override
-    void releaseAllResources() throws IOException {}
+    void releaseAllResources() throws IOException {
+        isReleased = true;
+    }
 
     @Override
     public void resumeConsumption() {
         isBlocked = false;
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        throw new UnsupportedEncodingException();
     }
 
     @Override

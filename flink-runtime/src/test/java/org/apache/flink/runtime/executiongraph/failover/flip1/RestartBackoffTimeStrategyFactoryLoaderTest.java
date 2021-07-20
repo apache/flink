@@ -68,6 +68,29 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
     }
 
     @Test
+    public void testExponentialDelayRestartStrategySpecifiedInJobConfig() {
+        final Configuration conf = new Configuration();
+        conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+
+        final RestartBackoffTimeStrategy.Factory factory =
+                RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
+                        RestartStrategies.exponentialDelayRestart(
+                                Time.milliseconds(1),
+                                Time.milliseconds(1000),
+                                1.1,
+                                Time.milliseconds(2000),
+                                0),
+                        conf,
+                        false);
+
+        assertThat(
+                factory,
+                instanceOf(
+                        ExponentialDelayRestartBackoffTimeStrategy
+                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class));
+    }
+
+    @Test
     public void testFailureRateRestartStrategySpecifiedInJobConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
@@ -113,6 +136,22 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 instanceOf(
                         FixedDelayRestartBackoffTimeStrategy
                                 .FixedDelayRestartBackoffTimeStrategyFactory.class));
+    }
+
+    @Test
+    public void testExponentialDelayStrategySpecifiedInClusterConfig() {
+        final Configuration conf = new Configuration();
+        conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
+
+        final RestartBackoffTimeStrategy.Factory factory =
+                RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
+                        DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
+
+        assertThat(
+                factory,
+                instanceOf(
+                        ExponentialDelayRestartBackoffTimeStrategy
+                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class));
     }
 
     @Test

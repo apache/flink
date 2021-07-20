@@ -48,6 +48,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -134,7 +136,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
         @Override
         public int hashCode() {
-            return Objects.hash(dumm1, dumm2, dumm3, dumm4, nestedClass);
+            return Objects.hash(dumm1, dumm2, dumm3, dumm4, dumm5, nestedClass);
         }
 
         @Override
@@ -166,6 +168,10 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
                         return false;
                     }
                 }
+            }
+            if ((dumm5 == null && otherTUC.dumm5 != null)
+                    || (dumm5 != null && !dumm5.equals(otherTUC.dumm5))) {
+                return false;
             }
 
             if ((nestedClass == null && otherTUC.nestedClass != null)
@@ -413,7 +419,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         // reconfigure - check reconfiguration result and that registration ids remains the same
         // assertEquals(ReconfigureResult.COMPATIBLE,
@@ -483,7 +489,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         PojoSerializer<TestUserClass> reconfiguredPojoSerializer =
                 (PojoSerializer<TestUserClass>) compatResult.getReconfiguredSerializer();
@@ -567,7 +573,7 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
         TypeSerializerSchemaCompatibility<TestUserClass> compatResult =
                 pojoSerializerConfigSnapshot.resolveSchemaCompatibility(pojoSerializer);
         assertTrue(compatResult.isCompatibleWithReconfiguredSerializer());
-        assertTrue(compatResult.getReconfiguredSerializer() instanceof PojoSerializer);
+        assertThat(compatResult.getReconfiguredSerializer(), instanceOf(PojoSerializer.class));
 
         PojoSerializer<TestUserClass> reconfiguredPojoSerializer =
                 (PojoSerializer<TestUserClass>) compatResult.getReconfiguredSerializer();

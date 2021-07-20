@@ -48,9 +48,25 @@ public class ChannelStateChunkReaderTest {
 
         try (FSDataInputStream stream = getStream(serializer, 10)) {
             new ChannelStateChunkReader(serializer)
-                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
         } finally {
             checkState(serializer.failed);
+            checkState(!handler.requestedBuffers.isEmpty());
+            assertTrue(
+                    handler.requestedBuffers.stream()
+                            .allMatch(TestChannelStateByteBuffer::isRecycled));
+        }
+    }
+
+    @Test
+    public void testBufferRecycledOnSuccess() throws IOException, InterruptedException {
+        ChannelStateSerializer serializer = new ChannelStateSerializerImpl();
+        TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
+
+        try (FSDataInputStream stream = getStream(serializer, 10)) {
+            new ChannelStateChunkReader(serializer)
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
+        } finally {
             checkState(!handler.requestedBuffers.isEmpty());
             assertTrue(
                     handler.requestedBuffers.stream()
@@ -65,7 +81,7 @@ public class ChannelStateChunkReaderTest {
 
         try (FSDataInputStream stream = getStream(serializer, 0)) {
             new ChannelStateChunkReader(serializer)
-                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
+                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo", 0);
         } finally {
             assertTrue(handler.requestedBuffers.isEmpty());
         }
@@ -93,7 +109,8 @@ public class ChannelStateChunkReaderTest {
                 };
 
         new ChannelStateChunkReader(new ChannelStateSerializerImpl())
-                .readChunk(stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo");
+                .readChunk(
+                        stream, offset, new TestRecoveredChannelStateHandler(), "channelInfo", 0);
     }
 
     private static class TestRecoveredChannelStateHandler
@@ -108,7 +125,10 @@ public class ChannelStateChunkReaderTest {
         }
 
         @Override
-        public void recover(Object o, Object o2) {}
+        public void recover(
+                Object o, int oldSubtaskIndex, BufferWithContext<Object> bufferWithContext) {
+            bufferWithContext.close();
+        }
 
         @Override
         public void close() throws Exception {}
@@ -150,7 +170,7 @@ public class ChannelStateChunkReaderTest {
         }
 
         @Override
-        public void recycle() {
+        public void close() {
             checkArgument(!recycled);
             recycled = true;
         }

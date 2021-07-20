@@ -56,6 +56,7 @@ import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -228,10 +229,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                 null,
                 new BlobCacheService(configuration, new VoidBlobStore(), null),
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                new TestingTaskExecutorPartitionTracker(),
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration,
-                        RPC_SERVICE_RESOURCE.getTestingRpcService().getScheduledExecutor()));
+                new TestingTaskExecutorPartitionTracker());
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(JobID jobId)
@@ -246,7 +244,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
             ResourceID jobManagerResourceId) {
         return new TestingJobMasterGatewayBuilder()
                 .setRegisterTaskManagerFunction(
-                        (s, location) ->
+                        (s, location, ignored) ->
                                 CompletableFuture.completedFuture(
                                         new JMTMRegistrationSuccess(jobManagerResourceId)))
                 .setOfferSlotsFunction(
@@ -254,12 +252,13 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                             slotOfferLatch.trigger();
                             return CompletableFuture.completedFuture(slotOffers);
                         })
-                .setTaskManagerHeartbeatConsumer(
+                .setTaskManagerHeartbeatFunction(
                         (resourceID, taskExecutorToJobManagerHeartbeatPayload) -> {
                             ExecutionDeploymentReport executionDeploymentReport =
                                     taskExecutorToJobManagerHeartbeatPayload
                                             .getExecutionDeploymentReport();
                             deployedExecutionsFuture.add(executionDeploymentReport.getExecutions());
+                            return FutureUtils.completedVoidFuture();
                         })
                 .setUpdateTaskExecutionStateFunction(
                         taskExecutionState -> {

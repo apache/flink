@@ -30,6 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -268,7 +269,7 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
      */
     @Override
     public String getMetricIdentifier(String metricName) {
-        return getMetricIdentifier(metricName, null);
+        return getMetricIdentifier(metricName, CharacterFilter.NO_OP_FILTER);
     }
 
     /**
@@ -297,27 +298,16 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
      */
     public String getMetricIdentifier(
             String metricName, CharacterFilter filter, int reporterIndex, char delimiter) {
+        Preconditions.checkNotNull(filter);
+
+        metricName = filter.filterCharacters(metricName);
         if (scopeStrings.length == 0
                 || (reporterIndex < 0 || reporterIndex >= scopeStrings.length)) {
-            String newScopeString;
-            if (filter != null) {
-                newScopeString = ScopeFormat.concat(filter, delimiter, scopeComponents);
-                metricName = filter.filterCharacters(metricName);
-            } else {
-                newScopeString = ScopeFormat.concat(delimiter, scopeComponents);
-            }
-            return newScopeString + delimiter + metricName;
+            return ScopeFormat.concat(filter, delimiter, scopeComponents) + delimiter + metricName;
         } else {
             if (scopeStrings[reporterIndex] == null) {
-                if (filter != null) {
-                    scopeStrings[reporterIndex] =
-                            ScopeFormat.concat(filter, delimiter, scopeComponents);
-                } else {
-                    scopeStrings[reporterIndex] = ScopeFormat.concat(delimiter, scopeComponents);
-                }
-            }
-            if (filter != null) {
-                metricName = filter.filterCharacters(metricName);
+                scopeStrings[reporterIndex] =
+                        ScopeFormat.concat(filter, delimiter, scopeComponents);
             }
             return scopeStrings[reporterIndex] + delimiter + metricName;
         }
@@ -356,18 +346,8 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     // -----------------------------------------------------------------------------------------------------------------
 
     @Override
-    public Counter counter(int name) {
-        return counter(String.valueOf(name));
-    }
-
-    @Override
     public Counter counter(String name) {
         return counter(name, new SimpleCounter());
-    }
-
-    @Override
-    public <C extends Counter> C counter(int name, C counter) {
-        return counter(String.valueOf(name), counter);
     }
 
     @Override
@@ -377,30 +357,15 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     }
 
     @Override
-    public <T, G extends Gauge<T>> G gauge(int name, G gauge) {
-        return gauge(String.valueOf(name), gauge);
-    }
-
-    @Override
     public <T, G extends Gauge<T>> G gauge(String name, G gauge) {
         addMetric(name, gauge);
         return gauge;
     }
 
     @Override
-    public <H extends Histogram> H histogram(int name, H histogram) {
-        return histogram(String.valueOf(name), histogram);
-    }
-
-    @Override
     public <H extends Histogram> H histogram(String name, H histogram) {
         addMetric(name, histogram);
         return histogram;
-    }
-
-    @Override
-    public <M extends Meter> M meter(int name, M meter) {
-        return meter(String.valueOf(name), meter);
     }
 
     @Override
@@ -467,11 +432,6 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
     // ------------------------------------------------------------------------
     //  Groups
     // ------------------------------------------------------------------------
-
-    @Override
-    public MetricGroup addGroup(int name) {
-        return addGroup(String.valueOf(name), ChildType.GENERIC);
-    }
 
     @Override
     public MetricGroup addGroup(String name) {

@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -37,6 +39,7 @@ import java.lang.management.RuntimeMXBean;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /** This class contains auxiliary methods for unit tests. */
@@ -150,6 +153,11 @@ public class CommonTestUtils {
         if (!timeout.hasTimeLeft()) {
             throw new TimeoutException(errorMsg);
         }
+    }
+
+    public static void waitForAllTaskRunning(MiniCluster miniCluster, JobID jobId)
+            throws Exception {
+        waitForAllTaskRunning(() -> miniCluster.getExecutionGraph(jobId).get(60, TimeUnit.SECONDS));
     }
 
     public static void waitForAllTaskRunning(

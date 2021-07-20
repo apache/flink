@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,8 +41,11 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.Assume;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,6 +71,50 @@ public class TableEnvHiveConnectorITCase {
                         hiveCatalog.getHiveConf(), HiveShimLoader.getHiveVersion());
     }
 
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @Test
+    public void testMultiInputBroadcast() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        tableEnv.executeSql("create database db1");
+        try {
+            tableEnv.useDatabase("db1");
+            tableEnv.executeSql("create table src1(key string, val string)");
+            tableEnv.executeSql("create table src2(key string, val string)");
+            tableEnv.executeSql("create table dest(key string, val string)");
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "src1")
+                    .addRow(new Object[] {"1", "val1"})
+                    .addRow(new Object[] {"2", "val2"})
+                    .addRow(new Object[] {"3", "val3"})
+                    .commit();
+            HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "src2")
+                    .addRow(new Object[] {"3", "val4"})
+                    .addRow(new Object[] {"4", "val4"})
+                    .commit();
+            tableEnv.executeSql(
+                            "INSERT OVERWRITE dest\n"
+                                    + "SELECT j.*\n"
+                                    + "FROM (SELECT t1.key, p1.val\n"
+                                    + "      FROM src2 t1\n"
+                                    + "      LEFT OUTER JOIN src1 p1\n"
+                                    + "      ON (t1.key = p1.key)\n"
+                                    + "      UNION ALL\n"
+                                    + "      SELECT t2.key, p2.val\n"
+                                    + "      FROM src2 t2\n"
+                                    + "      LEFT OUTER JOIN src1 p2\n"
+                                    + "      ON (t2.key = p2.key)) j")
+                    .await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from dest order by key").collect());
+            assertEquals(
+                    "[+I[3, val3], +I[3, val3], +I[4, null], +I[4, null]]", results.toString());
+        } finally {
+            tableEnv.useDatabase("default");
+            tableEnv.executeSql("drop database db1 cascade");
+        }
+    }
+
     @Test
     public void testDefaultPartitionName() throws Exception {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
@@ -90,7 +138,7 @@ public class TableEnvHiveConnectorITCase {
         TableImpl flinkTable =
                 (TableImpl) tableEnv.sqlQuery("select y, x from db1.part order by x");
         List<Row> rows = CollectionUtil.iteratorToList(flinkTable.execute().collect());
-        assertEquals(Arrays.toString(new String[] {"1,1", "null,2"}), rows.toString());
+        assertEquals("[+I[1, 1], +I[null, 2]]", rows.toString());
 
         tableEnv.executeSql("drop database db1 cascade");
     }
@@ -128,7 +176,7 @@ public class TableEnvHiveConnectorITCase {
                                     .execute()
                                     .collect());
             assertEquals(
-                    "[1,2019-12-23,2019-12-23T00:00, 2,2019-12-23,2019-12-23T00:00, 3,2019-12-25,2019-12-25T16:23:43.012]",
+                    "[+I[1, 2019-12-23, 2019-12-23T00:00], +I[2, 2019-12-23, 2019-12-23T00:00], +I[3, 2019-12-25, 2019-12-25T16:23:43.012]]",
                     results.toString());
 
             results =
@@ -137,7 +185,7 @@ public class TableEnvHiveConnectorITCase {
                                             "select x from db1.part where dt=cast('2019-12-25' as date)")
                                     .execute()
                                     .collect());
-            assertEquals("[3]", results.toString());
+            assertEquals("[+I[3]]", results.toString());
 
             tableEnv.executeSql(
                             "insert into db1.part select 4,cast('2019-12-31' as date),cast('2019-12-31 12:00:00.0' as timestamp)")
@@ -145,7 +193,7 @@ public class TableEnvHiveConnectorITCase {
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select max(dt) from db1.part").execute().collect());
-            assertEquals("[2019-12-31]", results.toString());
+            assertEquals("[+I[2019-12-31]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -189,14 +237,14 @@ public class TableEnvHiveConnectorITCase {
                                             "select x from db1.simple, lateral table(hiveudtf(a)) as T(x)")
                                     .execute()
                                     .collect());
-            assertEquals("[1, 2, 3]", results.toString());
+            assertEquals("[+I[1], +I[2], +I[3]]", results.toString());
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery(
                                             "select x from db1.nested, lateral table(hiveudtf(a)) as T(x)")
                                     .execute()
                                     .collect());
-            assertEquals("[{1=a, 2=b}, {3=c}]", results.toString());
+            assertEquals("[+I[{1=a, 2=b}], +I[{3=c}]]", results.toString());
 
             tableEnv.executeSql("create table db1.ts (a array<timestamp>)");
             HiveTestUtils.createTextTableInserter(hiveCatalog, "db1", "ts")
@@ -214,7 +262,7 @@ public class TableEnvHiveConnectorITCase {
                                             "select x from db1.ts, lateral table(hiveudtf(a)) as T(x)")
                                     .execute()
                                     .collect());
-            assertEquals("[2015-04-28T15:23, 2016-06-03T17:05:52]", results.toString());
+            assertEquals("[+I[2015-04-28T15:23], +I[2016-06-03T17:05:52]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
             tableEnv.executeSql("drop function hiveudtf");
@@ -295,7 +343,7 @@ public class TableEnvHiveConnectorITCase {
                     .addRow(new Object[] {2, "ab"})
                     .commit();
             assertEquals(
-                    "[1,a, 2,ab]",
+                    "[+I[1, a], +I[2, ab]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.src order by x")
                                             .execute()
@@ -317,7 +365,7 @@ public class TableEnvHiveConnectorITCase {
             tableEnv.executeSql("alter table db1.dest set fileformat sequencefile");
             tableEnv.executeSql("insert overwrite db1.dest partition (p='1') select 1").await();
             assertEquals(
-                    "[1,1]",
+                    "[+I[1, 1]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.dest").execute().collect())
                             .toString());
@@ -343,12 +391,12 @@ public class TableEnvHiveConnectorITCase {
                     .getConfiguration()
                     .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
             assertEquals(
-                    "[1, 2]",
+                    "[+I[1], +I[2]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select x from db1.t1").execute().collect())
                             .toString());
             assertEquals(
-                    "[1, 2]",
+                    "[+I[1], +I[2]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select x from db1.t2").execute().collect())
                             .toString());
@@ -384,7 +432,7 @@ public class TableEnvHiveConnectorITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.part").execute().collect());
-            assertEquals("[1,1]", results.toString());
+            assertEquals("[+I[1, 1]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -398,11 +446,11 @@ public class TableEnvHiveConnectorITCase {
                 .addRow(new Object[] {1, "a"})
                 .commit();
         tableEnv.executeSql("create table dest (x int) partitioned by (p1 int,p2 string)");
-        tableEnv.executeSql("insert into dest partition (p1=1) select * from src").await();
+        tableEnv.executeSql("insert into dest partition (p1=1,p2) select * from src").await();
         List<Row> results =
                 CollectionUtil.iteratorToList(
                         tableEnv.sqlQuery("select * from dest").execute().collect());
-        assertEquals("[1,1,a]", results.toString());
+        assertEquals("[+I[1, 1, a]]", results.toString());
         tableEnv.executeSql("drop table if exists src");
         tableEnv.executeSql("drop table if exists dest");
     }
@@ -411,11 +459,11 @@ public class TableEnvHiveConnectorITCase {
     public void testInsertPartitionWithValuesSource() throws Exception {
         TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
         tableEnv.executeSql("create table dest (x int) partitioned by (p1 int,p2 string)");
-        tableEnv.executeSql("insert into dest partition (p1=1) values(1, 'a')").await();
+        tableEnv.executeSql("insert into dest partition (p1=1,p2) values(1, 'a')").await();
         List<Row> results =
                 CollectionUtil.iteratorToList(
                         tableEnv.sqlQuery("select * from dest").execute().collect());
-        assertEquals("[1,1,a]", results.toString());
+        assertEquals("[+I[1, 1, a]]", results.toString());
         tableEnv.executeSql("drop table if exists dest");
     }
 
@@ -435,16 +483,82 @@ public class TableEnvHiveConnectorITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.executeSql("select * from dest").collect());
-            assertEquals("[1,0, 2,0]", results.toString());
+            assertEquals("[+I[1, 0], +I[2, 0]]", results.toString());
         } finally {
             tableEnv.executeSql("drop table src");
             tableEnv.executeSql("drop table dest");
         }
     }
 
+    @Test
+    public void testLocationWithComma() throws Exception {
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        File location = tempFolder.newFolder(",tbl1,location,");
+        try {
+            // test table location
+            tableEnv.executeSql(
+                    String.format(
+                            "create table tbl1 (x int) location '%s'", location.getAbsolutePath()));
+            tableEnv.executeSql("insert into tbl1 values (1),(2)").await();
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl1").collect());
+            assertEquals("[+I[1], +I[2]]", results.toString());
+            // test partition location
+            tableEnv.executeSql("create table tbl2 (x int) partitioned by (p string)");
+            location = tempFolder.newFolder(",");
+            tableEnv.executeSql(
+                    String.format(
+                            "alter table tbl2 add partition (p='a') location '%s'",
+                            location.getAbsolutePath()));
+            tableEnv.executeSql("insert into tbl2 partition (p='a') values (1),(2)").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl2").collect());
+            assertEquals("[+I[1, a], +I[2, a]]", results.toString());
+
+            tableEnv.executeSql("insert into tbl2 partition (p) values (3,'b ,')").await();
+            results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql("select * from tbl2 where p='b ,'").collect());
+            assertEquals("[+I[3, b ,]]", results.toString());
+        } finally {
+            if (location != null) {
+                IOUtils.deleteFileQuietly(location.toPath());
+            }
+            tableEnv.executeSql("drop table if exists tbl1");
+            tableEnv.executeSql("drop table if exists tbl2");
+        }
+    }
+
+    @Test
+    public void testReadEmptyCollectionFromParquet() throws Exception {
+        Assume.assumeTrue(HiveShimLoader.getHiveVersion().equals("2.0.0"));
+        TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+        try {
+            String format = "parquet";
+            // test.parquet data: hehuiyuan	{}	[]
+            String folderURI = this.getClass().getResource("/parquet").getPath();
+
+            tableEnv.getConfig()
+                    .getConfiguration()
+                    .set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.executeSql(
+                    String.format(
+                            "create external table src_t (a string, b map<string, string>, c array<string>) stored as %s location 'file://%s'",
+                            format, folderURI));
+
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.sqlQuery("select * from src_t").execute().collect());
+            assertEquals("[+I[hehuiyuan, null, null]]", results.toString());
+        } finally {
+            tableEnv.executeSql("drop table if exists src_t");
+        }
+    }
+
     private TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -66,6 +67,8 @@ public class TestingDeclarativeSlotPoolBuilder {
             (ignoredA, ignoredB, ignoredC) -> ResourceCounter.empty();
     private Function<ResourceID, Boolean> containsSlotsFunction = ignored -> false;
     private LongConsumer returnIdleSlotsConsumer = ignored -> {};
+    private Consumer<ResourceCounter> setResourceRequirementsConsumer = ignored -> {};
+    private Function<AllocationID, Boolean> containsFreeSlotFunction = ignored -> false;
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -76,6 +79,12 @@ public class TestingDeclarativeSlotPoolBuilder {
     public TestingDeclarativeSlotPoolBuilder setDecreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer) {
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
+        return this;
+    }
+
+    public TestingDeclarativeSlotPoolBuilder setSetResourceRequirementsConsumer(
+            Consumer<ResourceCounter> setResourceRequirementsConsumer) {
+        this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
         return this;
     }
 
@@ -140,6 +149,12 @@ public class TestingDeclarativeSlotPoolBuilder {
         return this;
     }
 
+    public TestingDeclarativeSlotPoolBuilder setContainsFreeSlotFunction(
+            Function<AllocationID, Boolean> containsFreeSlotFunction) {
+        this.containsFreeSlotFunction = containsFreeSlotFunction;
+        return this;
+    }
+
     public TestingDeclarativeSlotPoolBuilder setReturnIdleSlotsConsumer(
             LongConsumer returnIdleSlotsConsumer) {
         this.returnIdleSlotsConsumer = returnIdleSlotsConsumer;
@@ -159,6 +174,8 @@ public class TestingDeclarativeSlotPoolBuilder {
                 reserveFreeSlotFunction,
                 freeReservedSlotFunction,
                 containsSlotsFunction,
-                returnIdleSlotsConsumer);
+                containsFreeSlotFunction,
+                returnIdleSlotsConsumer,
+                setResourceRequirementsConsumer);
     }
 }

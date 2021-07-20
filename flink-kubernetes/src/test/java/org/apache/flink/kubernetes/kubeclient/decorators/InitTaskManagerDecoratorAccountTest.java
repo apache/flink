@@ -56,7 +56,7 @@ public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTe
 
         final FlinkPod resultFlinkPod =
                 initTaskManagerDecorator.decorateFlinkPod(this.baseFlinkPod);
-        this.resultPod = resultFlinkPod.getPod();
+        this.resultPod = resultFlinkPod.getPodWithoutMainContainer();
     }
 
     @Test

@@ -62,6 +62,8 @@ public class StreamEdge implements Serializable {
 
     private long bufferTimeout;
 
+    private boolean supportsUnalignedCheckpoints = true;
+
     public StreamEdge(
             StreamNode sourceVertex,
             StreamNode targetVertex,
@@ -154,6 +156,14 @@ public class StreamEdge implements Serializable {
 
     public long getBufferTimeout() {
         return bufferTimeout;
+    }
+
+    public void setSupportsUnalignedCheckpoints(boolean supportsUnalignedCheckpoints) {
+        this.supportsUnalignedCheckpoints = supportsUnalignedCheckpoints;
+    }
+
+    public boolean supportsUnalignedCheckpoints() {
+        return supportsUnalignedCheckpoints;
     }
 
     @Override

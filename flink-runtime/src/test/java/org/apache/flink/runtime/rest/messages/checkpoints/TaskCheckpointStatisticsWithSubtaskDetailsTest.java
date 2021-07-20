@@ -64,7 +64,9 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                                 .CheckpointDuration(1L, 2L),
                         new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                 .CheckpointAlignment(2L, 4L, 5L, 3L),
-                        42L));
+                        42L,
+                        true,
+                        false));
 
         return new TaskCheckpointStatisticsWithSubtaskDetails(
                 4L,

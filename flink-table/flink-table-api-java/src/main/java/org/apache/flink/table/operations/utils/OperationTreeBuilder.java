@@ -25,10 +25,10 @@ import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -86,6 +87,7 @@ public final class OperationTreeBuilder {
     private final DataTypeFactory typeFactory;
     private final TableReferenceLookup tableReferenceLookup;
     private final LookupCallResolver lookupResolver;
+    private final SqlExpressionResolver sqlExpressionResolver;
 
     /** Utility classes for constructing a validated operation of certain type. */
     private final ProjectionOperationFactory projectionOperationFactory;
@@ -102,6 +104,7 @@ public final class OperationTreeBuilder {
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
+            SqlExpressionResolver sqlExpressionResolver,
             ProjectionOperationFactory projectionOperationFactory,
             SortOperationFactory sortOperationFactory,
             CalculatedTableFactory calculatedTableFactory,
@@ -113,6 +116,7 @@ public final class OperationTreeBuilder {
         this.functionCatalog = functionLookup;
         this.typeFactory = typeFactory;
         this.tableReferenceLookup = tableReferenceLookup;
+        this.sqlExpressionResolver = sqlExpressionResolver;
         this.projectionOperationFactory = projectionOperationFactory;
         this.sortOperationFactory = sortOperationFactory;
         this.calculatedTableFactory = calculatedTableFactory;
@@ -128,12 +132,14 @@ public final class OperationTreeBuilder {
             FunctionLookup functionCatalog,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
+            SqlExpressionResolver sqlExpressionResolver,
             boolean isStreamingMode) {
         return new OperationTreeBuilder(
                 config,
                 functionCatalog,
                 typeFactory,
                 tableReferenceLookup,
+                sqlExpressionResolver,
                 new ProjectionOperationFactory(),
                 new SortOperationFactory(),
                 new CalculatedTableFactory(),
@@ -184,10 +190,7 @@ public final class OperationTreeBuilder {
             List<OverWindow> overWindows) {
 
         ExpressionResolver resolver =
-                ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
-                        .withOverWindows(overWindows)
-                        .build();
+                getResolverBuilder(child).withOverWindows(overWindows).build();
         List<ResolvedExpression> projections = resolver.resolve(projectList);
         return projectionOperationFactory.create(
                 projections, child, explicitAlias, resolver.postResolverFactory());
@@ -198,9 +201,8 @@ public final class OperationTreeBuilder {
             boolean replaceIfExist, List<Expression> fieldLists, QueryOperation child) {
         final List<Expression> newColumns;
         if (replaceIfExist) {
-            String[] fieldNames = child.getTableSchema().getFieldNames();
-            newColumns =
-                    ColumnOperationUtils.addOrReplaceColumns(Arrays.asList(fieldNames), fieldLists);
+            final List<String> fieldNames = child.getResolvedSchema().getColumnNames();
+            newColumns = ColumnOperationUtils.addOrReplaceColumns(fieldNames, fieldLists);
         } else {
             newColumns = new ArrayList<>(fieldLists);
             newColumns.add(0, unresolvedRef("*"));
@@ -211,10 +213,10 @@ public final class OperationTreeBuilder {
     public QueryOperation renameColumns(List<Expression> aliases, QueryOperation child) {
 
         ExpressionResolver resolver = getResolver(child);
-        String[] inputFieldNames = child.getTableSchema().getFieldNames();
+        final List<String> inputFieldNames = child.getResolvedSchema().getColumnNames();
         List<Expression> validateAliases =
                 ColumnOperationUtils.renameColumns(
-                        Arrays.asList(inputFieldNames), resolver.resolveExpanding(aliases));
+                        inputFieldNames, resolver.resolveExpanding(aliases));
 
         return project(validateAliases, child, false);
     }
@@ -222,10 +224,10 @@ public final class OperationTreeBuilder {
     public QueryOperation dropColumns(List<Expression> fieldLists, QueryOperation child) {
 
         ExpressionResolver resolver = getResolver(child);
-        String[] inputFieldNames = child.getTableSchema().getFieldNames();
+        List<String> inputFieldNames = child.getResolvedSchema().getColumnNames();
         List<Expression> finalFields =
                 ColumnOperationUtils.dropFields(
-                        Arrays.asList(inputFieldNames), resolver.resolveExpanding(fieldLists));
+                        inputFieldNames, resolver.resolveExpanding(fieldLists));
 
         return project(finalFields, child, false);
     }
@@ -235,8 +237,7 @@ public final class OperationTreeBuilder {
             List<Expression> aggregates,
             QueryOperation child) {
 
-        ExpressionResolver resolver = getResolver(child);
-
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         List<ResolvedExpression> resolvedGroupings = resolver.resolve(groupingExpressions);
         List<ResolvedExpression> resolvedAggregates = resolver.resolve(aggregates);
 
@@ -251,13 +252,12 @@ public final class OperationTreeBuilder {
             List<Expression> aggregates,
             QueryOperation child) {
 
-        ExpressionResolver resolver = getResolver(child);
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         ResolvedGroupWindow resolvedWindow =
                 aggregateOperationFactory.createResolvedWindow(window, resolver);
 
         ExpressionResolver resolverWithWindowReferences =
-                ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                getResolverBuilder(child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -286,7 +286,7 @@ public final class OperationTreeBuilder {
             Expression aggregateFunction,
             QueryOperation child) {
 
-        ExpressionResolver resolver = getResolver(child);
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         Expression resolvedAggregate = aggregateFunction.accept(lookupResolver);
         AggregateWithAlias aggregateWithAlias =
                 resolvedAggregate.accept(new ExtractAliasAndAggregate(true, resolver));
@@ -295,7 +295,7 @@ public final class OperationTreeBuilder {
         groupsAndAggregate.add(aggregateWithAlias.aggregate);
         List<Expression> namedGroupsAndAggregate =
                 addAliasToTheCallInAggregate(
-                        Arrays.asList(child.getTableSchema().getFieldNames()), groupsAndAggregate);
+                        child.getResolvedSchema().getColumnNames(), groupsAndAggregate);
 
         // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5)
         // to
@@ -311,8 +311,7 @@ public final class OperationTreeBuilder {
         ResolvedGroupWindow resolvedWindow =
                 aggregateOperationFactory.createResolvedWindow(window, resolver);
         ExpressionResolver resolverWithWindowReferences =
-                ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                getResolverBuilder(child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -336,16 +335,16 @@ public final class OperationTreeBuilder {
                         child);
 
         // Step5: flatten the aggregate function
-        String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
+        List<String> aggNames = aggregateOperation.getResolvedSchema().getColumnNames();
         List<Expression> flattenedExpressions =
-                Arrays.stream(aggNames)
+                aggNames.stream()
                         .map(ApiExpressionUtils::unresolvedRef)
                         .collect(Collectors.toCollection(ArrayList::new));
         flattenedExpressions.set(
                 groupingExpressions.size(),
                 unresolvedCall(
                         BuiltInFunctionDefinitions.FLATTEN,
-                        unresolvedRef(aggNames[groupingExpressions.size()])));
+                        unresolvedRef(aggNames.get(groupingExpressions.size()))));
         QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
 
         // Step6: add a top project to alias the output fields of the aggregate. Also, project the
@@ -360,15 +359,7 @@ public final class OperationTreeBuilder {
             JoinType joinType,
             Optional<Expression> condition,
             boolean correlated) {
-        ExpressionResolver resolver =
-                ExpressionResolver.resolverFor(
-                                config,
-                                tableReferenceLookup,
-                                functionCatalog,
-                                typeFactory,
-                                left,
-                                right)
-                        .build();
+        ExpressionResolver resolver = getResolver(left, right);
         Optional<ResolvedExpression> resolvedCondition =
                 condition.map(expr -> resolveSingleExpression(expr, resolver));
 
@@ -386,22 +377,25 @@ public final class OperationTreeBuilder {
 
         QueryOperation temporalTable =
                 calculatedTableFactory.create(
-                        resolvedFunction, left.getTableSchema().getFieldNames());
+                        resolvedFunction, left.getResolvedSchema().getColumnNames());
 
         return join(left, temporalTable, joinType, condition, true);
     }
 
     public Expression resolveExpression(Expression expression, QueryOperation... tableOperation) {
-        ExpressionResolver resolver =
-                ExpressionResolver.resolverFor(
-                                config,
-                                tableReferenceLookup,
-                                functionCatalog,
-                                typeFactory,
-                                tableOperation)
-                        .build();
-
+        final ExpressionResolver resolver = getResolver(tableOperation);
         return resolveSingleExpression(expression, resolver);
+    }
+
+    public ExpressionResolver.ExpressionResolverBuilder getResolverBuilder(
+            QueryOperation... tableOperation) {
+        return ExpressionResolver.resolverFor(
+                config,
+                tableReferenceLookup,
+                functionCatalog,
+                typeFactory,
+                sqlExpressionResolver,
+                tableOperation);
     }
 
     private ResolvedExpression resolveSingleExpression(
@@ -506,7 +500,7 @@ public final class OperationTreeBuilder {
                 ((TableFunctionDefinition) functionDefinition).getResultType();
         List<String> originFieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultType));
 
-        List<String> childFields = Arrays.asList(child.getTableSchema().getFieldNames());
+        List<String> childFields = child.getResolvedSchema().getColumnNames();
         Set<String> usedFieldNames = new HashSet<>(childFields);
 
         List<Expression> args = new ArrayList<>();
@@ -537,14 +531,15 @@ public final class OperationTreeBuilder {
     public QueryOperation aggregate(
             List<Expression> groupingExpressions, Expression aggregate, QueryOperation child) {
         Expression resolvedAggregate = aggregate.accept(lookupResolver);
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         AggregateWithAlias aggregateWithAlias =
-                resolvedAggregate.accept(new ExtractAliasAndAggregate(true, getResolver(child)));
+                resolvedAggregate.accept(new ExtractAliasAndAggregate(true, resolver));
 
         List<Expression> groupsAndAggregate = new ArrayList<>(groupingExpressions);
         groupsAndAggregate.add(aggregateWithAlias.aggregate);
         List<Expression> namedGroupsAndAggregate =
                 addAliasToTheCallInAggregate(
-                        Arrays.asList(child.getTableSchema().getFieldNames()), groupsAndAggregate);
+                        child.getResolvedSchema().getColumnNames(), groupsAndAggregate);
 
         // Step1: add a default name to the call in the grouping expressions, e.g., groupBy(a % 5)
         // to
@@ -562,16 +557,16 @@ public final class OperationTreeBuilder {
                         newGroupingExpressions, Collections.singletonList(aggregateRenamed), child);
 
         // Step4: flatten the aggregate function
-        String[] aggNames = aggregateOperation.getTableSchema().getFieldNames();
+        List<String> aggNames = aggregateOperation.getResolvedSchema().getColumnNames();
         List<Expression> flattenedExpressions =
-                Arrays.asList(aggNames).subList(0, groupingExpressions.size()).stream()
+                aggNames.subList(0, groupingExpressions.size()).stream()
                         .map(ApiExpressionUtils::unresolvedRef)
                         .collect(Collectors.toCollection(ArrayList::new));
 
         flattenedExpressions.add(
                 unresolvedCall(
                         BuiltInFunctionDefinitions.FLATTEN,
-                        unresolvedRef(aggNames[aggNames.length - 1])));
+                        unresolvedRef(aggNames.get(aggNames.size() - 1))));
 
         QueryOperation flattenedProjection = this.project(flattenedExpressions, aggregateOperation);
 
@@ -581,11 +576,13 @@ public final class OperationTreeBuilder {
     }
 
     public QueryOperation values(DataType rowType, Expression... expressions) {
-        final TableSchema valuesSchema;
+        final ResolvedSchema valuesSchema;
         if (LogicalTypeChecks.hasRoot(rowType.getLogicalType(), LogicalTypeRoot.ROW)) {
             valuesSchema = DataTypeUtils.expandCompositeTypeToSchema(rowType);
         } else {
-            valuesSchema = TableSchema.builder().field("f0", rowType).build();
+            valuesSchema =
+                    ResolvedSchema.physical(
+                            Collections.singletonList("f0"), Collections.singletonList(rowType));
         }
 
         return valuesInternal(valuesSchema, expressions);
@@ -596,18 +593,19 @@ public final class OperationTreeBuilder {
     }
 
     private QueryOperation valuesInternal(
-            @Nullable TableSchema valuesSchema, Expression... expressions) {
+            @Nullable ResolvedSchema valuesSchema, Expression... expressions) {
         if (expressions.length == 0) {
             return new ValuesQueryOperation(
                     Collections.emptyList(),
                     Optional.ofNullable(valuesSchema)
-                            .orElseGet(() -> TableSchema.builder().build()));
+                            .orElseGet(
+                                    () ->
+                                            ResolvedSchema.physical(
+                                                    Collections.emptyList(),
+                                                    Collections.emptyList())));
         }
 
-        ExpressionResolver resolver =
-                ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory)
-                        .build();
+        ExpressionResolver resolver = getResolver();
 
         return valuesOperationFactory.create(
                 valuesSchema,
@@ -733,10 +731,10 @@ public final class OperationTreeBuilder {
         // table aggregate function in Step4.
         List<Expression> newGroupingExpressions =
                 addAliasToTheCallInAggregate(
-                        Arrays.asList(child.getTableSchema().getFieldNames()), groupingExpressions);
+                        child.getResolvedSchema().getColumnNames(), groupingExpressions);
 
         // Step2: resolve expressions
-        ExpressionResolver resolver = getResolver(child);
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         List<ResolvedExpression> resolvedGroupings = resolver.resolve(newGroupingExpressions);
         Tuple2<ResolvedExpression, List<String>> resolvedFunctionAndAlias =
                 aggregateOperationFactory.extractTableAggFunctionAndAliases(
@@ -767,16 +765,15 @@ public final class OperationTreeBuilder {
         // table aggregate function in Step4.
         List<Expression> newGroupingExpressions =
                 addAliasToTheCallInAggregate(
-                        Arrays.asList(child.getTableSchema().getFieldNames()), groupingExpressions);
+                        child.getResolvedSchema().getColumnNames(), groupingExpressions);
 
         // Step2: resolve expressions, including grouping, aggregates and window properties.
-        ExpressionResolver resolver = getResolver(child);
+        ExpressionResolver resolver = getAggResolver(child, groupingExpressions);
         ResolvedGroupWindow resolvedWindow =
                 aggregateOperationFactory.createResolvedWindow(window, resolver);
 
         ExpressionResolver resolverWithWindowReferences =
-                ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                getResolverBuilder(child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -814,8 +811,8 @@ public final class OperationTreeBuilder {
             QueryOperation inputOperation, List<String> alias, int aliasStartIndex) {
 
         if (!alias.isEmpty()) {
-            String[] namesBeforeAlias = inputOperation.getTableSchema().getFieldNames();
-            List<String> namesAfterAlias = new ArrayList<>(Arrays.asList(namesBeforeAlias));
+            List<String> namesBeforeAlias = inputOperation.getResolvedSchema().getColumnNames();
+            List<String> namesAfterAlias = new ArrayList<>(namesBeforeAlias);
             for (int i = 0; i < alias.size(); i++) {
                 int withOffset = aliasStartIndex + i;
                 namesAfterAlias.remove(withOffset);
@@ -874,9 +871,14 @@ public final class OperationTreeBuilder {
         return resultName;
     }
 
-    private ExpressionResolver getResolver(QueryOperation child) {
-        return ExpressionResolver.resolverFor(
-                        config, tableReferenceLookup, functionCatalog, typeFactory, child)
+    private ExpressionResolver getResolver(QueryOperation... children) {
+        return getResolverBuilder(children).build();
+    }
+
+    private ExpressionResolver getAggResolver(
+            QueryOperation child, List<Expression> groupingExpressions) {
+        return getResolverBuilder(child)
+                .withGroupedAggregation(groupingExpressions.size() > 0)
                 .build();
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka.testutils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.test.util.SuccessException;
@@ -32,7 +33,7 @@ import java.util.List;
 
 /** A {@link RichSinkFunction} that verifies that no duplicate records are generated. */
 public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer>
-        implements ListCheckpointed<Tuple2<Integer, BitSet>> {
+        implements ListCheckpointed<Tuple2<Integer, BitSet>>, Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(ValidatingExactlyOnceSink.class);
 
@@ -44,8 +45,18 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer>
 
     private int numElements; // this is checkpointed
 
+    private Thread printer;
+    private volatile boolean printerRunning = true;
+
     public ValidatingExactlyOnceSink(int numElementsTotal) {
         this.numElementsTotal = numElementsTotal;
+    }
+
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        printer = new Thread(this, "Validating Sink Status Printer");
+        printer.start();
     }
 
     @Override
@@ -86,5 +97,32 @@ public class ValidatingExactlyOnceSink extends RichSinkFunction<Integer>
         LOG.info("restoring num elements to {}", s.f0);
         this.numElements = s.f0;
         this.duplicateChecker = s.f1;
+    }
+
+    @Override
+    public void close() throws Exception {
+        super.close();
+
+        printerRunning = false;
+        if (printer != null) {
+            printer.interrupt();
+            printer = null;
+        }
+    }
+
+    @Override
+    public void run() {
+        while (printerRunning) {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            LOG.info(
+                    "============================> Sink  {}: numElements={}, numElementsTotal={}",
+                    getRuntimeContext().getIndexOfThisSubtask(),
+                    numElements,
+                    numElementsTotal);
+        }
     }
 }

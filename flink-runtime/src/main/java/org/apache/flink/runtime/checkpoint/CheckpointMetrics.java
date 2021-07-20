@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -27,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class CheckpointMetrics implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    public static final long UNSET = -1L;
 
     private final long bytesProcessedDuringAlignment;
 
@@ -43,8 +46,14 @@ public class CheckpointMetrics implements Serializable {
 
     private final long checkpointStartDelayNanos;
 
+    /** Is the checkpoint completed as an unaligned checkpoint. */
+    private final boolean unalignedCheckpoint;
+
+    private final long totalBytesPersisted;
+
+    @VisibleForTesting
     public CheckpointMetrics() {
-        this(-1L, -1L, -1L, -1L, -1L, -1L);
+        this(UNSET, UNSET, UNSET, UNSET, UNSET, UNSET, false, 0L);
     }
 
     public CheckpointMetrics(
@@ -53,7 +62,9 @@ public class CheckpointMetrics implements Serializable {
             long alignmentDurationNanos,
             long syncDurationMillis,
             long asyncDurationMillis,
-            long checkpointStartDelayNanos) {
+            long checkpointStartDelayNanos,
+            boolean unalignedCheckpoint,
+            long totalBytesPersisted) {
 
         // these may be "-1", in case the values are unknown or not set
         checkArgument(bytesProcessedDuringAlignment >= -1);
@@ -62,6 +73,7 @@ public class CheckpointMetrics implements Serializable {
         checkArgument(asyncDurationMillis >= -1);
         checkArgument(alignmentDurationNanos >= -1);
         checkArgument(checkpointStartDelayNanos >= -1);
+        checkArgument(totalBytesPersisted >= 0);
 
         this.bytesProcessedDuringAlignment = bytesProcessedDuringAlignment;
         this.bytesPersistedDuringAlignment = bytesPersistedDuringAlignment;
@@ -69,6 +81,8 @@ public class CheckpointMetrics implements Serializable {
         this.syncDurationMillis = syncDurationMillis;
         this.asyncDurationMillis = asyncDurationMillis;
         this.checkpointStartDelayNanos = checkpointStartDelayNanos;
+        this.unalignedCheckpoint = unalignedCheckpoint;
+        this.totalBytesPersisted = totalBytesPersisted;
     }
 
     public long getBytesProcessedDuringAlignment() {
@@ -95,6 +109,14 @@ public class CheckpointMetrics implements Serializable {
         return checkpointStartDelayNanos;
     }
 
+    public boolean getUnalignedCheckpoint() {
+        return unalignedCheckpoint;
+    }
+
+    public long getTotalBytesPersisted() {
+        return totalBytesPersisted;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -111,7 +133,9 @@ public class CheckpointMetrics implements Serializable {
                 && alignmentDurationNanos == that.alignmentDurationNanos
                 && syncDurationMillis == that.syncDurationMillis
                 && asyncDurationMillis == that.asyncDurationMillis
-                && checkpointStartDelayNanos == that.checkpointStartDelayNanos;
+                && checkpointStartDelayNanos == that.checkpointStartDelayNanos
+                && unalignedCheckpoint == that.unalignedCheckpoint
+                && totalBytesPersisted == that.totalBytesPersisted;
     }
 
     @Override
@@ -122,7 +146,9 @@ public class CheckpointMetrics implements Serializable {
                 alignmentDurationNanos,
                 syncDurationMillis,
                 asyncDurationMillis,
-                checkpointStartDelayNanos);
+                checkpointStartDelayNanos,
+                unalignedCheckpoint,
+                totalBytesPersisted);
     }
 
     @Override
@@ -140,6 +166,10 @@ public class CheckpointMetrics implements Serializable {
                 + asyncDurationMillis
                 + ", checkpointStartDelayNanos="
                 + checkpointStartDelayNanos
+                + ", unalignedCheckpoint="
+                + unalignedCheckpoint
+                + ", totalBytesPersisted="
+                + totalBytesPersisted
                 + '}';
     }
 }

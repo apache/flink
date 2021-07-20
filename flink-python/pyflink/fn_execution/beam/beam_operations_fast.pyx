@@ -22,9 +22,11 @@
 from libc.stdint cimport *
 from apache_beam.utils.windowed_value cimport WindowedValue
 
-from pyflink.fn_execution.coder_impl_fast cimport BaseCoderImpl
-from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream, BeamOutputStream
-from pyflink.fn_execution.beam.beam_coder_impl_fast cimport InputStreamWrapper
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamOutputStream
+from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
+from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
+from pyflink.fn_execution.table.operations import BundleOperation
+from pyflink.fn_execution.profiler import Profiler
 
 cdef class FunctionOperation(Operation):
     """
@@ -36,28 +38,34 @@ cdef class FunctionOperation(Operation):
         super(FunctionOperation, self).__init__(name, spec, counter_factory, sampler)
         self.consumer = consumers['output'][0]
         self._value_coder_impl = self.consumer.windowed_coder.wrapped_value_coder.get_impl()._value_coder
-        from pyflink.fn_execution.beam.beam_coder_impl_slow import ArrowCoderImpl, \
-            OverWindowArrowCoderImpl
 
-        if isinstance(self._value_coder_impl, (ArrowCoderImpl, OverWindowArrowCoderImpl)):
-            self._is_python_coder = True
-        else:
+        if isinstance(self._value_coder_impl, FlinkLengthPrefixCoderBeamWrapper):
             self._is_python_coder = False
             self._output_coder = self._value_coder_impl._value_coder
+        else:
+            self._is_python_coder = True
 
         self.operation_cls = operation_cls
         self.operation = self.generate_operation()
-        self.func = self.operation.func
+        self.process_element = self.operation.process_element
         self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     cpdef start(self):
         with self.scoped_start_state:
             super(FunctionOperation, self).start()
+            if self._profiler:
+                self._profiler.start()
 
     cpdef finish(self):
         with self.scoped_finish_state:
             super(FunctionOperation, self).finish()
             self.operation.finish()
+            if self._profiler:
+                self._profiler.close()
 
     cpdef teardown(self):
         with self.scoped_finish_state:
@@ -65,24 +73,25 @@ cdef class FunctionOperation(Operation):
 
     cpdef process(self, WindowedValue o):
         cdef InputStreamWrapper input_stream_wrapper
-        cdef BeamInputStream input_stream
-        cdef BaseCoderImpl input_coder
         cdef BeamOutputStream output_stream
         with self.scoped_process_state:
             if self._is_python_coder:
                 for value in o.value:
                     self._value_coder_impl.encode_to_stream(
-                        self.func(value), self.consumer.output_stream, True)
+                        self.process_element(value), self.consumer.output_stream, True)
                     self.consumer.output_stream.maybe_flush()
             else:
                 input_stream_wrapper = o.value
-                input_stream = input_stream_wrapper._input_stream
-                input_coder = input_stream_wrapper._value_coder
                 output_stream = BeamOutputStream(self.consumer.output_stream)
-                while input_stream.available():
-                    input_data = input_coder.decode_from_stream(input_stream)
-                    result = self.func(input_data)
+                if isinstance(self.operation, BundleOperation):
+                    while input_stream_wrapper.has_next():
+                        self.process_element(input_stream_wrapper.next())
+                    result = self.operation.finish_bundle()
                     self._output_coder.encode_to_stream(result, output_stream)
+                else:
+                    while input_stream_wrapper.has_next():
+                        result = self.process_element(input_stream_wrapper.next())
+                        self._output_coder.encode_to_stream(result, output_stream)
                 output_stream.flush()
 
     def progress_metrics(self):

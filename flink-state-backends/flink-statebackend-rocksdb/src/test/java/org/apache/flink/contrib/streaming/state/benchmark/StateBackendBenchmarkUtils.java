@@ -29,10 +29,10 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
 import org.apache.flink.util.IOUtils;
@@ -120,8 +121,9 @@ public class StateBackendBenchmarkUtils {
                                 false,
                                 new LocalRecoveryDirectoryProviderImpl(
                                         recoveryBaseDir, new JobID(), new JobVertexID(), 0)),
-                        RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                         TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
                         new UnregisteredMetricsGroup(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
@@ -151,6 +153,7 @@ public class StateBackendBenchmarkUtils {
                         keyGroupRange,
                         executionConfig,
                         TtlTimeProvider.DEFAULT,
+                        LatencyTrackingStateConfig.disabled(),
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         new LocalRecoveryConfig(

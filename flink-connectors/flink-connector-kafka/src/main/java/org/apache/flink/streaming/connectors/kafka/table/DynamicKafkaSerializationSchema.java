@@ -187,7 +187,7 @@ class DynamicKafkaSerializationSchema
         return null;
     }
 
-    private static RowData createProjectedRow(
+    static RowData createProjectedRow(
             RowData consumedRow, RowKind kind, RowData.FieldGetter[] fieldGetters) {
         final int arity = fieldGetters.length;
         final GenericRowData genericRowData = new GenericRowData(kind, arity);

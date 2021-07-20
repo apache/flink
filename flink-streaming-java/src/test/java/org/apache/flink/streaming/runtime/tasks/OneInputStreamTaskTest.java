@@ -607,9 +607,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         streamTask
                 .triggerCheckpointAsync(
-                        checkpointMetaData,
-                        CheckpointOptions.forCheckpointWithDefaultLocation(),
-                        false)
+                        checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation())
                 .get();
 
         // since no state was set, there shouldn't be restore calls
@@ -716,9 +714,11 @@ public class OneInputStreamTaskTest extends TestLogger {
                 expected,
                 new StreamRecord<>("Hello"),
                 new StreamRecord<>("[Operator0]: End of input"),
-                new StreamRecord<>("[Operator0]: Bye"),
+                new StreamRecord<>("[Operator0]: Finish"),
                 new StreamRecord<>("[Operator1]: End of input"),
-                new StreamRecord<>("[Operator1]: Bye"));
+                new StreamRecord<>("[Operator1]: Finish"),
+                new StreamRecord<>("[Operator1]: Bye"),
+                new StreamRecord<>("[Operator0]: Bye"));
 
         final Object[] output = testHarness.getOutput().toArray();
         assertArrayEquals("Output was not correct.", expected.toArray(), output);
@@ -735,7 +735,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() throws Exception {
 
             // verify that the timer service is still running
             Assert.assertTrue(
@@ -947,7 +947,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
         final Map<String, Metric> metrics = new ConcurrentHashMap<>();
         final TaskMetricGroup taskMetricGroup =
-                new StreamTaskTestHarness.TestTaskMetricGroup(metrics);
+                StreamTaskTestHarness.createTaskMetricGroup(metrics);
         final StreamMockEnvironment environment = testHarness.createEnvironment();
         environment.setTaskMetricGroup(taskMetricGroup);
 
@@ -997,7 +997,7 @@ public class OneInputStreamTaskTest extends TestLogger {
         for (int chainedIndex = 1; chainedIndex < numberChainedTasks; chainedIndex++) {
             TestingStreamOperator<Integer, Integer> chainedOperator = new TestingStreamOperator<>();
             StreamConfig chainedConfig = new StreamConfig(new Configuration());
-            chainedConfig.setTypeSerializersIn(StringSerializer.INSTANCE);
+            chainedConfig.setupNetworkInputs(StringSerializer.INSTANCE);
             chainedConfig.setStreamOperator(chainedOperator);
             chainedConfig.setOperatorID(new OperatorID(0L, chainedIndex));
             chainedTaskConfigs.put(chainedIndex, chainedConfig);

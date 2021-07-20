@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink.Committer;
 import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
@@ -45,6 +46,8 @@ import static org.junit.Assert.assertNotNull;
 
 /** A {@link Sink TestSink} for all the sink related tests. */
 public class TestSink implements Sink<Integer, String, String, String> {
+
+    public static final String END_OF_INPUT_STR = "end of input";
 
     private final DefaultSinkWriter writer;
 
@@ -199,16 +202,24 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
         protected List<String> elements;
 
+        protected List<Watermark> watermarks;
+
         protected ProcessingTimeService processingTimerService;
 
         DefaultSinkWriter() {
             this.elements = new ArrayList<>();
+            this.watermarks = new ArrayList<>();
         }
 
         @Override
         public void write(Integer element, Context context) {
             elements.add(
                     Tuple3.of(element, context.timestamp(), context.currentWatermark()).toString());
+        }
+
+        @Override
+        public void writeWatermark(Watermark watermark) throws IOException {
+            watermarks.add(watermark);
         }
 
         @Override
@@ -338,7 +349,7 @@ public class TestSink implements Sink<Integer, String, String, String> {
 
         @Override
         public void endOfInput() {
-            commit(Collections.singletonList("end of input"));
+            commit(Collections.singletonList(END_OF_INPUT_STR));
         }
     }
 

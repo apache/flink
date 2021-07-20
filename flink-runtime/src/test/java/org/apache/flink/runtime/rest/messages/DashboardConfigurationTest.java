@@ -30,6 +30,11 @@ public class DashboardConfigurationTest
     @Override
     protected DashboardConfiguration getTestResponseInstance() {
         return new DashboardConfiguration(
-                1L, "foobar", 42, "version", "revision", new DashboardConfiguration.Features(true));
+                1L,
+                "foobar",
+                42,
+                "version",
+                "revision",
+                new DashboardConfiguration.Features(true, true));
     }
 }

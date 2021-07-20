@@ -32,6 +32,7 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -95,6 +96,17 @@ public class TaskMailboxImpl implements TaskMailbox {
         return !batch.isEmpty() || hasNewMail;
     }
 
+    @VisibleForTesting
+    public int size() {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return batch.size() + queue.size();
+        } finally {
+            lock.unlock();
+        }
+    }
+
     @Override
     public Optional<Mail> tryTake(int priority) {
         checkIsMailboxThread();
@@ -133,7 +145,8 @@ public class TaskMailboxImpl implements TaskMailbox {
         try {
             Mail headMail;
             while ((headMail = takeOrNull(queue, priority)) == null) {
-                notEmpty.await();
+                // to ease debugging
+                notEmpty.await(1, TimeUnit.SECONDS);
             }
             hasNewMail = !queue.isEmpty();
             return headMail;

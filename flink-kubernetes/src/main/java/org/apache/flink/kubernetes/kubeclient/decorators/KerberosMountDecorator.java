@@ -60,7 +60,7 @@ public class KerberosMountDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-        PodBuilder podBuilder = new PodBuilder(flinkPod.getPod());
+        PodBuilder podBuilder = new PodBuilder(flinkPod.getPodWithoutMainContainer());
         ContainerBuilder containerBuilder = new ContainerBuilder(flinkPod.getMainContainer());
 
         if (!StringUtils.isNullOrWhitespaceOnly(securityConfig.getKeytab())

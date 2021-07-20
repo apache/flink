@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -32,6 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -100,11 +102,14 @@ public class LocalInputChannelTest {
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
                         1L, 0L, CheckpointOptions.alignedWithTimeout(getDefault(), 123L));
+        MemorySegment memorySegment = EventSerializer.toBuffer(barrier, false).getMemorySegment();
         BufferConsumer barrierHolder =
                 new BufferConsumer(
-                        EventSerializer.toBuffer(barrier, false).getMemorySegment(),
-                        FreeingBufferRecycler.INSTANCE,
-                        Buffer.DataType.EVENT_BUFFER);
+                        new NetworkBuffer(
+                                memorySegment,
+                                FreeingBufferRecycler.INSTANCE,
+                                Buffer.DataType.EVENT_BUFFER),
+                        memorySegment.size());
         BufferConsumer data = BufferBuilderTestUtils.createFilledFinishedBufferConsumer(1);
 
         RecordingChannelStateWriter stateWriter = new RecordingChannelStateWriter();
@@ -515,6 +520,43 @@ public class LocalInputChannelTest {
 
         localChannel.releaseAllResources();
         localChannel.resumeConsumption();
+    }
+
+    @Test
+    public void testEnqueueAvailableChannelWhenResuming() throws IOException, InterruptedException {
+        PipelinedResultPartition parent =
+                (PipelinedResultPartition)
+                        PartitionTestUtils.createPartition(
+                                ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
+        ResultSubpartition subpartition = parent.getAllPartitions()[0];
+        ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
+
+        TestingResultPartitionManager partitionManager =
+                new TestingResultPartitionManager(subpartitionView);
+        LocalInputChannel channel =
+                createLocalInputChannel(new SingleInputGateBuilder().build(), partitionManager);
+        channel.requestSubpartition(0);
+
+        // Block the subpartition
+        subpartition.add(
+                EventSerializer.toBufferConsumer(
+                        new CheckpointBarrier(
+                                1, 1, CheckpointOptions.forCheckpointWithDefaultLocation()),
+                        false));
+        assertTrue(channel.getNextBuffer().isPresent());
+
+        // Add more data
+        subpartition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(4096));
+        subpartition.flush();
+
+        // No buffer since the subpartition is blocked.
+        assertFalse(channel.inputGate.pollNext().isPresent());
+
+        // Resumption makes the subpartition available.
+        channel.resumeConsumption();
+        Optional<BufferOrEvent> nextBuffer = channel.inputGate.pollNext();
+        assertTrue(nextBuffer.isPresent());
+        assertTrue(nextBuffer.get().isBuffer());
     }
 
     @Test

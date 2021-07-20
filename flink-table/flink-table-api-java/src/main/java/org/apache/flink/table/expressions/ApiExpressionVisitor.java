@@ -35,6 +35,10 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
             return visit((LookupCallExpression) other);
         } else if (other instanceof UnresolvedCallExpression) {
             return visit((UnresolvedCallExpression) other);
+        } else if (other instanceof SqlCallExpression) {
+            return visit((SqlCallExpression) other);
+        } else if (other instanceof ResolvedExpression) {
+            return visit((ResolvedExpression) other);
         }
         return visitNonApiExpression(other);
     }
@@ -47,6 +51,9 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
 
     public abstract R visit(LocalReferenceExpression localReference);
 
+    /** For resolved expressions created by the planner. */
+    public abstract R visit(ResolvedExpression other);
+
     // --------------------------------------------------------------------------------------------
     // unresolved API expressions
     // --------------------------------------------------------------------------------------------
@@ -56,6 +63,8 @@ public abstract class ApiExpressionVisitor<R> implements ExpressionVisitor<R> {
     public abstract R visit(LookupCallExpression lookupCall);
 
     public abstract R visit(UnresolvedCallExpression unresolvedCallExpression);
+
+    public abstract R visit(SqlCallExpression sqlCall);
 
     // --------------------------------------------------------------------------------------------
     // other expressions

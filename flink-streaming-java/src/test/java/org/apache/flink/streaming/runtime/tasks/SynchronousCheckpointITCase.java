@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -108,9 +109,8 @@ public class SynchronousCheckpointITCase {
                     42,
                     156865867234L,
                     new CheckpointOptions(
-                            CheckpointType.SYNC_SAVEPOINT,
-                            CheckpointStorageLocationReference.getDefault()),
-                    true);
+                            CheckpointType.SAVEPOINT_SUSPEND,
+                            CheckpointStorageLocationReference.getDefault()));
 
             assertThat(eventQueue.take(), is(Event.PRE_TRIGGER_CHECKPOINT));
             assertThat(eventQueue.take(), is(Event.POST_TRIGGER_CHECKPOINT));
@@ -145,7 +145,8 @@ public class SynchronousCheckpointITCase {
                 eventQueue.put(Event.TASK_IS_RUNNING);
             }
             if (isCanceled()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             } else {
                 controller.suspendDefaultAction();
             }
@@ -153,14 +154,11 @@ public class SynchronousCheckpointITCase {
 
         @Override
         public Future<Boolean> triggerCheckpointAsync(
-                CheckpointMetaData checkpointMetaData,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime) {
+                CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             try {
                 eventQueue.put(Event.PRE_TRIGGER_CHECKPOINT);
                 Future<Boolean> result =
-                        super.triggerCheckpointAsync(
-                                checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+                        super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
                 eventQueue.put(Event.POST_TRIGGER_CHECKPOINT);
                 return result;
             } catch (InterruptedException e) {
@@ -199,7 +197,7 @@ public class SynchronousCheckpointITCase {
         }
 
         @Override
-        public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+        public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {
             throw new UnsupportedOperationException("Should not be called");
         }
 
@@ -261,7 +259,6 @@ public class SynchronousCheckpointITCase {
                 0,
                 Collections.<ResultPartitionDeploymentDescriptor>emptyList(),
                 Collections.<InputGateDeploymentDescriptor>emptyList(),
-                0,
                 mock(MemoryManager.class),
                 mock(IOManager.class),
                 shuffleEnvironment,

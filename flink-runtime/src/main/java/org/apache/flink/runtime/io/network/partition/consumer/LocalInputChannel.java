@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -27,6 +28,7 @@ import org.apache.flink.runtime.io.network.TaskEventPublisher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FileRegionBuffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -76,28 +78,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             ResultPartitionID partitionId,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
-            Counter numBytesIn,
-            Counter numBuffersIn) {
-
-        this(
-                inputGate,
-                channelIndex,
-                partitionId,
-                partitionManager,
-                taskEventPublisher,
-                0,
-                0,
-                numBytesIn,
-                numBuffersIn,
-                ChannelStateWriter.NO_OP);
-    }
-
-    public LocalInputChannel(
-            SingleInputGate inputGate,
-            int channelIndex,
-            ResultPartitionID partitionId,
-            ResultPartitionManager partitionManager,
-            TaskEventPublisher taskEventPublisher,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -122,7 +102,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     // Consume
     // ------------------------------------------------------------------------
 
-    public void checkpointStarted(CheckpointBarrier barrier) {
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         channelStatePersister.startPersisting(barrier.getId(), Collections.emptyList());
     }
 
@@ -142,10 +122,11 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 
             if (subpartitionView == null) {
                 LOG.debug(
-                        "{}: Requesting LOCAL subpartition {} of partition {}.",
+                        "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
                         subpartitionIndex,
-                        partitionId);
+                        partitionId,
+                        channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
@@ -235,6 +216,12 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         }
 
         BufferAndBacklog next = subpartitionView.getNextBuffer();
+        // ignore the empty buffer directly
+        while (next != null && next.buffer().readableBytes() == 0) {
+            next.buffer().recycleBuffer();
+            next = subpartitionView.getNextBuffer();
+            numBuffersIn.inc();
+        }
 
         if (next == null) {
             if (subpartitionView.isReleased()) {
@@ -255,6 +242,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         numBuffersIn.inc();
         channelStatePersister.checkForBarrier(buffer);
         channelStatePersister.maybePersist(buffer);
+        NetworkActionsLogger.traceInput(
+                "LocalInputChannel#getNextBuffer",
+                buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo,
+                channelStatePersister,
+                next.getSequenceNumber());
         return Optional.of(
                 new BufferAndAvailability(
                         buffer,
@@ -285,11 +279,19 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     public void resumeConsumption() {
         checkState(!isReleased, "Channel released.");
 
+        ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
         subpartitionView.resumeConsumption();
 
-        if (subpartitionView.isAvailable(Integer.MAX_VALUE)) {
+        if (subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
             notifyChannelNonEmpty();
         }
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        checkState(!isReleased, "Channel released.");
+
+        subpartitionView.acknowledgeAllRecordsProcessed();
     }
 
     // ------------------------------------------------------------------------

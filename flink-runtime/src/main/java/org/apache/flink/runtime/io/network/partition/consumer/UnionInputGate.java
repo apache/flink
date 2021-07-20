@@ -33,10 +33,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
 /**
  * Input gate wrapper to union the input from multiple input gates.
@@ -290,10 +290,14 @@ public class UnionInputGate extends InputGate {
 
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) throws IOException {
-        // BEWARE: consumption resumption only happens for streaming jobs in which all
-        // slots are allocated together so there should be no UnknownInputChannel. We
-        // will refactor the code to not rely on this assumption in the future.
         inputGatesByGateIndex.get(channelInfo.getGateIdx()).resumeConsumption(channelInfo);
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        inputGatesByGateIndex
+                .get(channelInfo.getGateIdx())
+                .acknowledgeAllRecordsProcessed(channelInfo);
     }
 
     @Override
@@ -367,13 +371,7 @@ public class UnionInputGate extends InputGate {
             }
         }
 
-        IndexedInputGate inputGate = inputGatesWithData.poll();
-
-        if (inputGatesWithData.isEmpty()) {
-            availabilityHelper.resetUnavailable();
-        }
-
-        return Optional.of(inputGate);
+        return Optional.of(inputGatesWithData.poll());
     }
 
     @Override

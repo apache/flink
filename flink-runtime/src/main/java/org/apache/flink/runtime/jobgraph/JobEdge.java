@@ -145,7 +145,7 @@ public class JobEdge implements java.io.Serializable {
 
     // --------------------------------------------------------------------------------------------
 
-    public void connecDataSet(IntermediateDataSet dataSet) {
+    public void connectDataSet(IntermediateDataSet dataSet) {
         if (dataSet == null) {
             throw new NullPointerException();
         }

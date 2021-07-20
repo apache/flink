@@ -48,7 +48,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRo
  * An {@link InputTypeStrategy} that checks if all input arguments can be compared with each other
  * with the minimal provided comparision.
  *
- * <p>It requires at least two arguments.
+ * <p>It requires at least one argument. In case of one argument, the argument must be comparable
+ * with itself (e.g. for aggregations).
  *
  * <p>For the rules which types are comparable with which types see {@link
  * #areComparable(LogicalType, LogicalType)}.
@@ -61,8 +62,8 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     public ComparableTypeStrategy(
             ConstantArgumentCount argumentCount, StructuredComparision requiredComparision) {
         Preconditions.checkArgument(
-                argumentCount.getMinCount().map(c -> c >= 2).orElse(false),
-                "Comparable type strategy requires no less than two arguments. Actual minimal argument count: %s",
+                argumentCount.getMinCount().map(c -> c >= 1).orElse(false),
+                "Comparable type strategy requires at least one argument. Actual minimal argument count: %s",
                 argumentCount.getMinCount().map(Objects::toString).orElse("<None>"));
         Preconditions.checkArgument(requiredComparision != StructuredComparision.NONE);
         this.requiredComparision = requiredComparision;
@@ -77,28 +78,41 @@ public final class ComparableTypeStrategy implements InputTypeStrategy {
     @Override
     public Optional<List<DataType>> inferInputTypes(
             CallContext callContext, boolean throwOnFailure) {
-        List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
-        for (int i = 0; i < argumentDataTypes.size() - 1; i++) {
-            LogicalType firstType = argumentDataTypes.get(i).getLogicalType();
-            LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
-
-            if (!areComparable(firstType, secondType)) {
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        if (argumentDataTypes.size() == 1) {
+            final LogicalType argType = argumentDataTypes.get(0).getLogicalType();
+            if (!areComparable(argType, argType)) {
                 if (throwOnFailure) {
                     throw callContext.newValidationError(
-                            "All types in a comparison should support %s comparison with each other. Can not compare"
-                                    + " %s with %s",
-                            requiredComparision == StructuredComparision.EQUALS
-                                    ? "'EQUALS'"
-                                    : "both 'EQUALS' and 'ORDER'",
-                            firstType,
-                            secondType);
+                            "Type '%s' should support %s comparison with itself.",
+                            argType, comparisonToString());
                 }
-
                 return Optional.empty();
+            }
+        } else {
+            for (int i = 0; i < argumentDataTypes.size() - 1; i++) {
+                final LogicalType firstType = argumentDataTypes.get(i).getLogicalType();
+                final LogicalType secondType = argumentDataTypes.get(i + 1).getLogicalType();
+
+                if (!areComparable(firstType, secondType)) {
+                    if (throwOnFailure) {
+                        throw callContext.newValidationError(
+                                "All types in a comparison should support %s comparison with each other. "
+                                        + "Can not compare %s with %s",
+                                comparisonToString(), firstType, secondType);
+                    }
+                    return Optional.empty();
+                }
             }
         }
 
         return Optional.of(argumentDataTypes);
+    }
+
+    private String comparisonToString() {
+        return requiredComparision == StructuredComparision.EQUALS
+                ? "'EQUALS'"
+                : "both 'EQUALS' and 'ORDER'";
     }
 
     private boolean areComparable(LogicalType firstType, LogicalType secondType) {

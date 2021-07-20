@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
@@ -40,13 +41,12 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
-import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
-import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_LITERAL;
-import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_MODE;
-import static org.apache.flink.formats.json.JsonOptions.TIMESTAMP_FORMAT;
-import static org.apache.flink.formats.json.JsonOptions.validateDecodingFormatOptions;
-import static org.apache.flink.formats.json.JsonOptions.validateEncodingFormatOptions;
+import static org.apache.flink.formats.json.JsonFormatOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
+import static org.apache.flink.formats.json.JsonFormatOptions.FAIL_ON_MISSING_FIELD;
+import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
+import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
+import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
 
 /**
  * Table format factory for providing configured instances of JSON to RowData {@link
@@ -60,11 +60,11 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        validateDecodingFormatOptions(formatOptions);
+        JsonFormatOptionsUtil.validateDecodingFormatOptions(formatOptions);
 
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
-        TimestampFormat timestampOption = JsonOptions.getTimestampFormat(formatOptions);
+        TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -92,11 +92,15 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        validateEncodingFormatOptions(formatOptions);
+        JsonFormatOptionsUtil.validateEncodingFormatOptions(formatOptions);
 
-        TimestampFormat timestampOption = JsonOptions.getTimestampFormat(formatOptions);
-        JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
+        TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
+        JsonFormatOptions.MapNullKeyMode mapNullKeyMode =
+                JsonFormatOptionsUtil.getMapNullKeyMode(formatOptions);
         String mapNullKeyLiteral = formatOptions.get(MAP_NULL_KEY_LITERAL);
+
+        final boolean encodeDecimalAsPlainNumber =
+                formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
 
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
@@ -104,7 +108,11 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new JsonRowDataSerializationSchema(
-                        rowType, timestampOption, mapNullKeyMode, mapNullKeyLiteral);
+                        rowType,
+                        timestampOption,
+                        mapNullKeyMode,
+                        mapNullKeyLiteral,
+                        encodeDecimalAsPlainNumber);
             }
 
             @Override
@@ -132,6 +140,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(TIMESTAMP_FORMAT);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
+        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         return options;
     }
 }

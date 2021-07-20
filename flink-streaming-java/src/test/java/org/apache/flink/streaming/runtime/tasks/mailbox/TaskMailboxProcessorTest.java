@@ -23,17 +23,18 @@ import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.RunnableWithException;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link MailboxProcessor}. */
 public class TaskMailboxProcessorTest {
@@ -95,7 +96,7 @@ public class TaskMailboxProcessorTest {
         Assert.assertFalse(testRunnableFuture.isDone());
 
         mailboxProcessor.close();
-        Assert.assertTrue(testRunnableFuture.isCancelled());
+        assertTrue(testRunnableFuture.isCancelled());
     }
 
     @Test
@@ -185,7 +186,7 @@ public class TaskMailboxProcessorTest {
 
                         // If this is violated, it means that the default action was invoked while
                         // we assumed suspension
-                        Assert.assertTrue(
+                        assertTrue(
                                 suspendedActionRef.compareAndSet(
                                         null, controller.suspendDefaultAction()));
 
@@ -254,71 +255,6 @@ public class TaskMailboxProcessorTest {
         mailboxProcessor.allActionsCompleted();
     }
 
-    @Test
-    public void testNoIdleTimeWhenBusy() throws InterruptedException {
-        final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef =
-                new AtomicReference<>();
-        final int totalSwitches = 10;
-
-        AtomicInteger count = new AtomicInteger();
-        MailboxThread mailboxThread =
-                new MailboxThread() {
-                    @Override
-                    public void runDefaultAction(Controller controller) {
-                        int currentCount = count.incrementAndGet();
-                        if (currentCount == totalSwitches) {
-                            controller.allActionsCompleted();
-                        }
-                    }
-                };
-        mailboxThread.start();
-        final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-
-        mailboxThread.signalStart();
-        mailboxThread.join();
-
-        Assert.assertEquals(0, mailboxProcessor.getIdleTime().getCount());
-        Assert.assertEquals(totalSwitches, count.get());
-    }
-
-    @Test
-    public void testIdleTime() throws InterruptedException {
-        final AtomicReference<MailboxDefaultAction.Suspension> suspendedActionRef =
-                new AtomicReference<>();
-        final int totalSwitches = 2;
-
-        CountDownLatch syncLock = new CountDownLatch(1);
-        MailboxThread mailboxThread =
-                new MailboxThread() {
-                    int count = 0;
-
-                    @Override
-                    public void runDefaultAction(Controller controller) {
-                        // If this is violated, it means that the default action was invoked while
-                        // we assumed suspension
-                        Assert.assertTrue(
-                                suspendedActionRef.compareAndSet(
-                                        null, controller.suspendDefaultAction()));
-                        ++count;
-                        if (count == totalSwitches) {
-                            controller.allActionsCompleted();
-                        }
-                        syncLock.countDown();
-                    }
-                };
-        mailboxThread.start();
-        final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
-        mailboxThread.signalStart();
-
-        syncLock.await();
-        Thread.sleep(10);
-        mailboxProcessor
-                .getMailboxExecutor(DEFAULT_PRIORITY)
-                .execute(suspendedActionRef.get()::resume, "resume");
-        mailboxThread.join();
-        Assert.assertThat(mailboxProcessor.getIdleTime().getCount(), Matchers.greaterThan(0L));
-    }
-
     private static MailboxProcessor start(MailboxThread mailboxThread) {
         mailboxThread.start();
         final MailboxProcessor mailboxProcessor = mailboxThread.getMailboxProcessor();
@@ -361,6 +297,105 @@ public class TaskMailboxProcessorTest {
 
         Assert.assertEquals(expectedInvocations, counter.get());
         Assert.assertEquals(expectedInvocations, index.get());
+    }
+
+    @Test
+    public void testSuspendRunningMailboxLoop() throws Exception {
+        // given: Thread for suspending the suspendable loop.
+        OneShotLatch doSomeWork = new OneShotLatch();
+        AtomicBoolean stop = new AtomicBoolean(false);
+
+        MailboxProcessor mailboxProcessor =
+                new MailboxProcessor(
+                        controller -> {
+                            doSomeWork.trigger();
+
+                            if (stop.get()) {
+                                controller.allActionsCompleted();
+                            }
+                        });
+
+        Thread suspendThread =
+                new Thread(
+                        () -> {
+                            try {
+                                // Ensure that loop was started.
+                                doSomeWork.await();
+
+                                // when: Suspend the suspendable loop.
+                                mailboxProcessor.suspend();
+
+                                // and: Execute the command for stopping the loop.
+                                mailboxProcessor
+                                        .getMailboxExecutor(DEFAULT_PRIORITY)
+                                        .execute(() -> stop.set(true), "stop");
+                            } catch (Exception ignore) {
+
+                            }
+                        });
+        suspendThread.start();
+
+        // when: Start the suspendable loop.
+        mailboxProcessor.runMailboxLoop();
+
+        suspendThread.join();
+
+        // then: Mailbox is not stopped because it was suspended before the stop command.
+        assertFalse(stop.get());
+
+        // when: Resume the suspendable loop.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Stop command successfully executed because it was in the queue.
+        assertFalse(mailboxProcessor.isMailboxLoopRunning());
+        assertTrue(stop.get());
+    }
+
+    @Test
+    public void testResumeMailboxLoopAfterAllActionsCompleted() throws Exception {
+        // given: Configured suspendable loop.
+        AtomicBoolean start = new AtomicBoolean(false);
+        MailboxProcessor mailboxProcessor = new MailboxProcessor(controller -> start.set(true));
+
+        // when: Complete mailbox loop immediately after start.
+        mailboxProcessor.allActionsCompleted();
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Mailbox is finished without execution any job.
+        assertFalse(mailboxProcessor.isMailboxLoopRunning());
+        assertFalse(start.get());
+
+        // when: Start the suspendable loop again.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Nothing happens because mailbox is already permanently finished.
+        assertFalse(start.get());
+    }
+
+    @Test
+    public void testResumeMailboxLoop() throws Exception {
+        // given: Configured suspendable loop.
+        AtomicBoolean start = new AtomicBoolean(false);
+        MailboxProcessor mailboxProcessor =
+                new MailboxProcessor(
+                        controller -> {
+                            start.set(true);
+
+                            controller.allActionsCompleted();
+                        });
+
+        // when: Suspend mailbox loop immediately after start.
+        mailboxProcessor.suspend();
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Mailbox is not finished but job didn't execute because it was suspended.
+        assertFalse(start.get());
+
+        // when: Start the suspendable loop again.
+        mailboxProcessor.runMailboxLoop();
+
+        // then: Job is done.
+        assertTrue(start.get());
     }
 
     static class MailboxThread extends Thread implements MailboxDefaultAction {

@@ -32,7 +32,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.OnlyExecutionGraphJsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
@@ -47,7 +47,7 @@ import java.util.concurrent.CompletableFuture;
 public class JobsOverviewHandler
         extends AbstractRestHandler<
                 RestfulGateway, EmptyRequestBody, MultipleJobsDetails, EmptyMessageParameters>
-        implements JsonArchivist {
+        implements OnlyExecutionGraphJsonArchivist {
 
     public JobsOverviewHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,

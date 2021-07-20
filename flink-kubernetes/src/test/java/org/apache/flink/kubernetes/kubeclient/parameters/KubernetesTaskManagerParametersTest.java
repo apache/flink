@@ -49,6 +49,7 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     private static final String POD_NAME = "task-manager-pod-1";
     private static final String DYNAMIC_PROPERTIES = "-Dkey.b='b2'";
+    private static final String JVM_MEM_OPTS_ENV = "-Xmx512m";
 
     private final Map<String, String> customizedEnvs =
             new HashMap<String, String>() {
@@ -91,6 +92,7 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
                         flinkConfig,
                         POD_NAME,
                         DYNAMIC_PROPERTIES,
+                        JVM_MEM_OPTS_ENV,
                         containeredTaskManagerParameters,
                         Collections.emptyMap());
     }
@@ -148,6 +150,11 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
     }
 
     @Test
+    public void testGetJvmMemOptsEnv() {
+        assertThat(kubernetesTaskManagerParameters.getJvmMemOptsEnv(), is(JVM_MEM_OPTS_ENV));
+    }
+
+    @Test
     public void testPrioritizeBuiltInLabels() {
         final Map<String, String> userLabels = new HashMap<>();
         userLabels.put(Constants.LABEL_TYPE_KEY, "user-label-type");
@@ -159,5 +166,22 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
         final Map<String, String> expectedLabels = new HashMap<>(getCommonLabels());
         expectedLabels.put(Constants.LABEL_COMPONENT_KEY, Constants.LABEL_COMPONENT_TASK_MANAGER);
         assertThat(kubernetesTaskManagerParameters.getLabels(), is(equalTo(expectedLabels)));
+    }
+
+    @Test
+    public void testGetServiceAccount() {
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_SERVICE_ACCOUNT, "flink");
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink"));
+    }
+
+    @Test
+    public void testGetServiceAccountFallback() {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT, "flink-fallback");
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("flink-fallback"));
+    }
+
+    @Test
+    public void testGetServiceAccountShouldReturnDefaultIfNotExplicitlySet() {
+        assertThat(kubernetesTaskManagerParameters.getServiceAccount(), is("default"));
     }
 }

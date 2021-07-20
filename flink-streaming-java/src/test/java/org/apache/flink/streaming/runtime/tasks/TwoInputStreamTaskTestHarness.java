@@ -179,7 +179,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
         streamConfig.setInPhysicalEdges(inPhysicalEdges);
         streamConfig.setNumberOfNetworkInputs(numInputGates);
-        streamConfig.setTypeSerializersIn(inputSerializer1, inputSerializer2);
+        streamConfig.setupNetworkInputs(inputSerializer1, inputSerializer2);
     }
 
     @Override

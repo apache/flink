@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.test.checkpointing.SavepointITCase.waitUntilAllTasksAreRunning;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -201,6 +202,7 @@ public class TimestampITCase extends TestLogger {
 
                             JobID id = running.get(0);
 
+                            waitUntilAllTasksAreRunning(CLUSTER.getRestAddres(), id);
                             // send stop until the job is stopped
                             do {
                                 try {
@@ -766,8 +768,8 @@ public class TimestampITCase extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
-            super.close();
+        public void finish() throws Exception {
+            super.finish();
             finalWatermarks[getRuntimeContext().getIndexOfThisSubtask()] = watermarks;
         }
     }
@@ -893,10 +895,7 @@ public class TimestampITCase extends TestLogger {
     private static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
         Collection<JobStatusMessage> statusMessages = client.listJobs().get();
         return statusMessages.stream()
-                .filter(
-                        status ->
-                                !status.getJobState().isGloballyTerminalState()
-                                        && status.getJobState() != JobStatus.INITIALIZING)
+                .filter(status -> status.getJobState() == JobStatus.RUNNING)
                 .map(JobStatusMessage::getJobId)
                 .collect(Collectors.toList());
     }

@@ -56,6 +56,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testDescribeCatalog() {
         sql("describe catalog a").ok("DESCRIBE CATALOG `A`");
+
+        sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
     /**
@@ -151,6 +153,10 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("describe database db1").ok("DESCRIBE DATABASE `DB1`");
         sql("describe database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
         sql("describe database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
+
+        sql("desc database db1").ok("DESCRIBE DATABASE `DB1`");
+        sql("desc database catlog1.db1").ok("DESCRIBE DATABASE `CATLOG1`.`DB1`");
+        sql("desc database extended db1").ok("DESCRIBE DATABASE EXTENDED `DB1`");
     }
 
     @Test
@@ -175,10 +181,9 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
-    public void testShowFuntions() {
+    public void testShowFunctions() {
         sql("show functions").ok("SHOW FUNCTIONS");
-        sql("show functions db1").ok("SHOW FUNCTIONS `DB1`");
-        sql("show functions catalog1.db1").ok("SHOW FUNCTIONS `CATALOG1`.`DB1`");
+        sql("show user functions").ok("SHOW USER FUNCTIONS");
     }
 
     @Test
@@ -187,10 +192,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testShowCreateTable() {
+        sql("show create table tbl").ok("SHOW CREATE TABLE `TBL`");
+        sql("show create table catalog1.db1.tbl").ok("SHOW CREATE TABLE `CATALOG1`.`DB1`.`TBL`");
+    }
+
+    @Test
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
         sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
+
+        sql("desc tbl").ok("DESCRIBE `TBL`");
+        sql("desc catlog1.db1.tbl").ok("DESCRIBE `CATLOG1`.`DB1`.`TBL`");
+        sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
     }
 
     /**
@@ -218,6 +233,16 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         final String sql3 = "alter table t1 drop constraint ct1";
         final String expected3 = "ALTER TABLE `T1` DROP CONSTRAINT `CT1`";
         sql(sql3).ok(expected3);
+    }
+
+    @Test
+    public void testAlterTableReset() {
+        sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
+
+        sql("alter table t1 reset ('key1', 'key2')")
+                .ok("ALTER TABLE `T1` RESET (\n  'key1',\n  'key2'\n)");
+
+        sql("alter table t1 reset()").ok("ALTER TABLE `T1` RESET (\n)");
     }
 
     @Test
@@ -802,6 +827,35 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testCreateTableWithLikeClauseWithoutColumns() {
+        final String sql =
+                ""
+                        + "create TEMPORARY table source_table (\n"
+                        + "   WATERMARK FOR ts AS ts - INTERVAL '5' SECOND\n"
+                        + ") with (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ") like t_order_course (\n"
+                        + "   OVERWRITING  WATERMARKS\n"
+                        + "   OVERWRITING OPTIONS\n"
+                        + "   EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        final String expected =
+                "CREATE TEMPORARY TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '5' SECOND)\n"
+                        + ") WITH (\n"
+                        + "  'scan.startup.mode' = 'specific-offsets',\n"
+                        + "  'scan.startup.specific-offsets' = 'partition:0,offset:1169129'\n"
+                        + ")\n"
+                        + "LIKE `T_ORDER_COURSE` (\n"
+                        + "  OVERWRITING WATERMARKS\n"
+                        + "  OVERWRITING OPTIONS\n"
+                        + "  EXCLUDING CONSTRAINTS\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
     public void testCreateTemporaryTable() {
         final String sql =
                 "create temporary table source_table(\n"
@@ -830,6 +884,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                 "create table source_table with (\n" + "  'x' = 'y',\n" + "  'abc' = 'def'\n" + ")";
         final String expected =
                 "CREATE TABLE `SOURCE_TABLE` WITH (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testCreateTableWithOnlyWaterMark() {
+        final String sql =
+                "create table source_table (\n"
+                        + "  watermark FOR ts AS ts - interval '3' second\n"
+                        + ") with (\n"
+                        + "  'x' = 'y',\n"
+                        + "  'abc' = 'def'\n"
+                        + ")";
+        final String expected =
+                "CREATE TABLE `SOURCE_TABLE` (\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ") WITH (\n"
                         + "  'x' = 'y',\n"
                         + "  'abc' = 'def'\n"
                         + ")";
@@ -866,35 +939,40 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testInsertPartitionSpecs() {
-        final String sql1 = "insert into emps(x,y) partition (x='ab', y='bc') select * from emps";
+        final String sql1 = "insert into emps partition (x='ab', y='bc') (x,y) select * from emps";
         final String expected =
-                "INSERT INTO `EMPS` (`X`, `Y`)\n"
+                "INSERT INTO `EMPS` "
                         + "PARTITION (`X` = 'ab', `Y` = 'bc')\n"
+                        + "(`X`, `Y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
         sql(sql1).ok(expected);
         final String sql2 =
-                "insert into emp (empno, ename, job, mgr, hiredate,\n"
-                        + "  sal, comm, deptno, slacker)\n"
+                "insert into emp\n"
                         + "partition(empno='1', job='job')\n"
+                        + "(empno, ename, job, mgr, hiredate,\n"
+                        + "  sal, comm, deptno, slacker)\n"
                         + "select 'nom', 0, timestamp '1970-01-01 00:00:00',\n"
                         + "  1, 1, 1, false\n"
                         + "from (values 'a')";
         sql(sql2)
                 .ok(
-                        "INSERT INTO `EMP` (`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`,"
-                                + " `COMM`, `DEPTNO`, `SLACKER`)\n"
+                        "INSERT INTO `EMP` "
                                 + "PARTITION (`EMPNO` = '1', `JOB` = 'job')\n"
+                                + "(`EMPNO`, `ENAME`, `JOB`, `MGR`, `HIREDATE`, `SAL`,"
+                                + " `COMM`, `DEPTNO`, `SLACKER`)\n"
                                 + "(SELECT 'nom', 0, TIMESTAMP '1970-01-01 00:00:00', 1, 1, 1, FALSE\n"
                                 + "FROM (VALUES (ROW('a'))))");
         final String sql3 =
-                "insert into empnullables (empno, ename)\n"
+                "insert into empnullables\n"
                         + "partition(ename='b')\n"
+                        + "(empno, ename)\n"
                         + "select 1 from (values 'a')";
         sql(sql3)
                 .ok(
-                        "INSERT INTO `EMPNULLABLES` (`EMPNO`, `ENAME`)\n"
+                        "INSERT INTO `EMPNULLABLES` "
                                 + "PARTITION (`ENAME` = 'b')\n"
+                                + "(`EMPNO`, `ENAME`)\n"
                                 + "(SELECT 1\n"
                                 + "FROM (VALUES (ROW('a'))))");
     }
@@ -902,23 +980,25 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testInsertCaseSensitivePartitionSpecs() {
         final String expected =
-                "INSERT INTO `emps` (`x`, `y`)\n"
+                "INSERT INTO `emps` "
                         + "PARTITION (`x` = 'ab', `y` = 'bc')\n"
+                        + "(`x`, `y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
-        sql("insert into \"emps\"(\"x\",\"y\") "
-                        + "partition (\"x\"='ab', \"y\"='bc') select * from emps")
+        sql("insert into \"emps\" "
+                        + "partition (\"x\"='ab', \"y\"='bc')(\"x\",\"y\") select * from emps")
                 .ok(expected);
     }
 
     @Test
     public void testInsertExtendedColumnAsStaticPartition1() {
         final String expected =
-                "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) (`X`, `Y`)\n"
+                "INSERT INTO `EMPS` EXTEND (`Z` BOOLEAN) "
                         + "PARTITION (`Z` = 'ab')\n"
+                        + "(`X`, `Y`)\n"
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
-        sql("insert into emps(z boolean)(x,y) partition (z='ab') select * from emps").ok(expected);
+        sql("insert into emps(z boolean) partition (z='ab') (x,y) select * from emps").ok(expected);
     }
 
     @Test(expected = SqlParseException.class)
@@ -940,8 +1020,9 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         // partitioned
         final String sql1 = "INSERT OVERWRITE myTbl PARTITION (p1='v1',p2='v2') SELECT * FROM src";
         final String expected1 =
-                "INSERT OVERWRITE `MYTBL`\n"
+                "INSERT OVERWRITE `MYTBL` "
                         + "PARTITION (`P1` = 'v1', `P2` = 'v2')\n"
+                        + "\n"
                         + "(SELECT *\n"
                         + "FROM `SRC`)";
         sql(sql1).ok(expected1);
@@ -1046,6 +1127,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterView() {
+        sql("ALTER VIEW v1 RENAME TO v2").ok("ALTER VIEW `V1` RENAME TO `V2`");
+        sql("ALTER VIEW v1 AS SELECT c1, c2 FROM tbl")
+                .ok("ALTER VIEW `V1`\n" + "AS\n" + "SELECT `C1`, `C2`\n" + "FROM `TBL`");
+    }
+
+    @Test
     public void testShowViews() {
         sql("show views").ok("SHOW VIEWS");
     }
@@ -1125,9 +1213,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("create temporary system function catalog1^.^db1.function1 as 'org.apache.fink.function.function1'")
                 .fails("(?s).*Encountered \".\" at.*");
 
-        // TODO: FLINK-17957: Forbidden syntax "CREATE SYSTEM FUNCTION" for sql parser
-        sql("create system function function1 as 'org.apache.fink.function.function1'")
-                .ok("CREATE SYSTEM FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+        sql("create ^system^ function function1 as 'org.apache.fink.function.function1'")
+                .fails(
+                        "CREATE SYSTEM FUNCTION is not supported, "
+                                + "system functions can only be registered as temporary "
+                                + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
     }
 
     @Test
@@ -1143,6 +1233,142 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("drop temporary system function if exists catalog1.db1.function1")
                 .ok("DROP TEMPORARY SYSTEM FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
+    }
+
+    @Test
+    public void testLoadModule() {
+        sql("load module core").ok("LOAD MODULE `CORE`");
+
+        sql("load module dummy with ('k1' = 'v1', 'k2' = 'v2')")
+                .ok(
+                        "LOAD MODULE `DUMMY`"
+                                + " WITH (\n"
+                                + "  'k1' = 'v1',\n"
+                                + "  'k2' = 'v2'\n"
+                                + ")");
+
+        sql("load module ^'core'^")
+                .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 13.\n.*");
+    }
+
+    @Test
+    public void testUnloadModule() {
+        sql("unload module core").ok("UNLOAD MODULE `CORE`");
+
+        sql("unload module ^'core'^")
+                .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 15.\n.*");
+    }
+
+    @Test
+    public void testUseModules() {
+        sql("use modules core").ok("USE MODULES `CORE`");
+
+        sql("use modules x, y, z").ok("USE MODULES `X`, `Y`, `Z`");
+
+        sql("use modules x^,^").fails("(?s).*Encountered \"<EOF>\" at line 1, column 14.\n.*");
+
+        sql("use modules ^'core'^")
+                .fails("(?s).*Encountered \"\\\\'core\\\\'\" at line 1, column 13.\n.*");
+    }
+
+    @Test
+    public void testShowModules() {
+        sql("show modules").ok("SHOW MODULES");
+
+        sql("show full modules").ok("SHOW FULL MODULES");
+    }
+
+    @Test
+    public void testBeginStatementSet() {
+        sql("begin statement set").ok("BEGIN STATEMENT SET");
+    }
+
+    @Test
+    public void testEnd() {
+        sql("end").ok("END");
+    }
+
+    @Test
+    public void testExplain() {
+        String sql = "explain plan for select * from emps";
+        String expected = "EXPLAIN SELECT *\n" + "FROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExplainJsonFormat() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithoutImpl() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainWithType() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testExplainAsXml() {
+        // Unsupported feature. Escape the test.
+    }
+
+    @Test
+    public void testSqlOptions() {
+        // SET/RESET are overridden for Flink SQL
+    }
+
+    @Test
+    public void testExplainAsJson() {
+        // TODO: FLINK-20562
+    }
+
+    @Test
+    public void testExplainInsert() {
+        String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExplainUpsert() {
+        String sql = "explain plan for upsert into emps1 values (1, 2)";
+        String expected = "EXPLAIN UPSERT INTO `EMPS1`\n" + "VALUES (ROW(1, 2))";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testAddJar() {
+        sql("add Jar './test.sql'").ok("ADD JAR './test.sql'");
+        sql("add JAR 'file:///path/to/\nwhatever'").ok("ADD JAR 'file:///path/to/\nwhatever'");
+        sql("add JAR 'oss://path/helloworld.go'").ok("ADD JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testRemoveJar() {
+        sql("remove Jar './test.sql'").ok("REMOVE JAR './test.sql'");
+        sql("remove JAR 'file:///path/to/\nwhatever'")
+                .ok("REMOVE JAR 'file:///path/to/\nwhatever'");
+        sql("remove JAR 'oss://path/helloworld.go'").ok("REMOVE JAR 'oss://path/helloworld.go'");
+    }
+
+    @Test
+    public void testShowJars() {
+        sql("show jars").ok("SHOW JARS");
+    }
+
+    @Test
+    public void testSetReset() {
+        sql("SET").ok("SET");
+        sql("SET 'test-key' = 'test-value'").ok("SET 'test-key' = 'test-value'");
+        sql("RESET").ok("RESET");
+        sql("RESET 'test-key'").ok("RESET 'test-key'");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {

@@ -22,9 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
+
 /** The set of configuration options relating to the ResourceManager. */
 @PublicEvolving
 public class ResourceManagerOptions {
+
+    private static final String START_WORKER_RETRY_INTERVAL_KEY =
+            "resourcemanager.start-worker.retry-interval";
 
     /** Timeout for jobs which don't have a job manager as leader assigned. */
     public static final ConfigOption<String> JOB_TIMEOUT =
@@ -64,11 +69,36 @@ public class ResourceManagerOptions {
                                     + "for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take "
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
+    @Documentation.ExcludeFromDocumentation(
+            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    public static final ConfigOption<Double> MAX_TOTAL_CPU =
+            ConfigOptions.key("slotmanager.max-total-resource.cpu")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum cpu cores the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MAX_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.ExcludeFromDocumentation(
+            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    public static final ConfigOption<MemorySize> MAX_TOTAL_MEM =
+            ConfigOptions.key("slotmanager.max-total-resource.memory")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Maximum memory size the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MAX_SLOT_NUM.key()
+                                    + "'.");
+
     /**
      * The number of redundant task managers. Redundant task managers are extra task managers
      * started by Flink, in order to speed up job recovery in case of failures due to task manager
-     * lost. Note that this feature is available only to the active deployments (native K8s, Yarn
-     * and Mesos).
+     * lost. Note that this feature is available only to the active deployments (native K8s, Yarn).
      */
     public static final ConfigOption<Integer> REDUNDANT_TASK_MANAGER_NUM =
             ConfigOptions.key("slotmanager.redundant-taskmanager-num")
@@ -77,7 +107,38 @@ public class ResourceManagerOptions {
                     .withDescription(
                             "The number of redundant task managers. Redundant task managers are extra task managers "
                                     + "started by Flink, in order to speed up job recovery in case of failures due to task manager lost. "
-                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
+                                    + "Note that this feature is available only to the active deployments (native K8s, Yarn).");
+
+    /**
+     * The maximum number of start worker failures (Native Kubernetes / Yarn) per minute before
+     * pausing requesting new workers. Once the threshold is reached, subsequent worker requests
+     * will be postponed to after a configured retry interval ({@link
+     * #START_WORKER_RETRY_INTERVAL}).
+     */
+    public static final ConfigOption<Double> START_WORKER_MAX_FAILURE_RATE =
+            ConfigOptions.key("resourcemanager.start-worker.max-failure-rate")
+                    .doubleType()
+                    .defaultValue(10.0)
+                    .withDescription(
+                            "The maximum number of start worker failures (Native Kubernetes / Yarn) per minute "
+                                    + "before pausing requesting new workers. Once the threshold is reached, subsequent "
+                                    + "worker requests will be postponed to after a configured retry interval ('"
+                                    + START_WORKER_RETRY_INTERVAL_KEY
+                                    + "').");
+
+    /**
+     * The time to wait before requesting new workers (Native Kubernetes / Yarn) once the max
+     * failure rate of starting workers ({@link #START_WORKER_MAX_FAILURE_RATE}) is reached.
+     */
+    public static final ConfigOption<Duration> START_WORKER_RETRY_INTERVAL =
+            ConfigOptions.key(START_WORKER_RETRY_INTERVAL_KEY)
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(3))
+                    .withDescription(
+                            "The time to wait before requesting new workers (Native Kubernetes / Yarn) once the "
+                                    + "max failure rate of starting workers ('"
+                                    + START_WORKER_MAX_FAILURE_RATE.key()
+                                    + "') is reached.");
 
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
@@ -165,6 +226,20 @@ public class ResourceManagerOptions {
      */
     public static final String CONTAINERIZED_TASK_MANAGER_ENV_PREFIX =
             "containerized.taskmanager.env.";
+
+    /** Timeout for TaskManagers to register at the active resource managers. */
+    public static final ConfigOption<Duration> TASK_MANAGER_REGISTRATION_TIMEOUT =
+            ConfigOptions.key("resourcemanager.taskmanager-registration.timeout")
+                    .durationType()
+                    .defaultValue(TaskManagerOptions.REGISTRATION_TIMEOUT.defaultValue())
+                    .withFallbackKeys(TaskManagerOptions.REGISTRATION_TIMEOUT.key())
+                    .withDescription(
+                            "Timeout for TaskManagers to register at the active resource managers. "
+                                    + "If exceeded, active resource manager will release and try to "
+                                    + "re-request the resource for the worker. If not configured, "
+                                    + "fallback to '"
+                                    + TaskManagerOptions.REGISTRATION_TIMEOUT.key()
+                                    + "'.");
 
     // ---------------------------------------------------------------------------------------------
 

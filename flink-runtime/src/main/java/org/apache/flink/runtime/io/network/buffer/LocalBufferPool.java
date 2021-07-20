@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.util.ExceptionUtils;
@@ -33,9 +32,9 @@ import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.runtime.concurrent.FutureUtils.assertNoException;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
 
 /**
  * A buffer pool used to manage a number of {@link Buffer} instances from the {@link
@@ -282,7 +281,12 @@ class LocalBufferPool implements BufferPool {
 
     @Override
     public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
-        return toBufferBuilder(requestMemorySegmentBlocking(UNKNOWN_CHANNEL), UNKNOWN_CHANNEL);
+        return toBufferBuilder(requestMemorySegmentBlocking(), UNKNOWN_CHANNEL);
+    }
+
+    @Override
+    public MemorySegment requestMemorySegmentBlocking() throws InterruptedException {
+        return requestMemorySegmentBlocking(UNKNOWN_CHANNEL);
     }
 
     @Override
@@ -360,8 +364,8 @@ class LocalBufferPool implements BufferPool {
         return segment;
     }
 
-    @Nullable
-    private MemorySegment requestMemorySegment() {
+    @Override
+    public MemorySegment requestMemorySegment() {
         return requestMemorySegment(UNKNOWN_CHANNEL);
     }
 
@@ -424,6 +428,12 @@ class LocalBufferPool implements BufferPool {
         mayNotifyAvailable(toNotify);
     }
 
+    private boolean shouldBeAvailable() {
+        assert Thread.holdsLock(availableMemorySegments);
+
+        return !availableMemorySegments.isEmpty() && unavailableSubpartitionsCount == 0;
+    }
+
     private boolean checkAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
@@ -435,6 +445,7 @@ class LocalBufferPool implements BufferPool {
                 return unavailableSubpartitionsCount == 0;
             } else {
                 requestMemorySegmentFromGlobalWhenAvailable();
+                return shouldBeAvailable();
             }
         }
         return false;
@@ -443,8 +454,7 @@ class LocalBufferPool implements BufferPool {
     private void checkConsistentAvailability() {
         assert Thread.holdsLock(availableMemorySegments);
 
-        final boolean shouldBeAvailable =
-                availableMemorySegments.size() > 0 && unavailableSubpartitionsCount == 0;
+        final boolean shouldBeAvailable = shouldBeAvailable();
         checkState(
                 availabilityHelper.isApproximatelyAvailable() == shouldBeAvailable,
                 "Inconsistent availability: expected " + shouldBeAvailable);
@@ -651,12 +661,6 @@ class LocalBufferPool implements BufferPool {
 
     private boolean isRequestedSizeReached() {
         return numberOfRequestedMemorySegments >= currentPoolSize;
-    }
-
-    @VisibleForTesting
-    @Override
-    public BufferRecycler[] getSubpartitionBufferRecyclers() {
-        return subpartitionBufferRecyclers;
     }
 
     private static class SubpartitionBufferRecycler implements BufferRecycler {

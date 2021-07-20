@@ -22,6 +22,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics.RestAPICheckpointType;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -76,7 +77,7 @@ public class CheckpointingStatisticsTest
                         44L,
                         10,
                         10,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap(),
                         null,
                         false);
@@ -95,7 +96,7 @@ public class CheckpointingStatisticsTest
                         4244L,
                         9,
                         9,
-                        CheckpointType.SAVEPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.SAVEPOINT),
                         checkpointStatisticsPerTask,
                         "externalPath",
                         false);
@@ -114,7 +115,7 @@ public class CheckpointingStatisticsTest
                         22L,
                         11,
                         9,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap(),
                         100L,
                         "Test failure");
@@ -136,7 +137,7 @@ public class CheckpointingStatisticsTest
                         16L,
                         10,
                         10,
-                        CheckpointType.CHECKPOINT,
+                        RestAPICheckpointType.valueOf(CheckpointType.CHECKPOINT),
                         Collections.emptyMap());
 
         final CheckpointingStatistics.LatestCheckpoints latestCheckpoints =

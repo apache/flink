@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 
 import org.slf4j.Logger;
@@ -69,6 +71,9 @@ public class TaskStateManagerImpl implements TaskStateManager {
     /** The local state store to which this manager reports local state snapshots. */
     private final TaskLocalStateStore localStateStore;
 
+    /** The changelog storage where the manager reads and writes the changelog */
+    @Nullable private final StateChangelogStorage<?> stateChangelogStorage;
+
     /** The checkpoint responder through which this manager can report to the job manager. */
     private final CheckpointResponder checkpointResponder;
 
@@ -78,12 +83,14 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder) {
         this(
                 jobId,
                 executionAttemptID,
                 localStateStore,
+                stateChangelogStorage,
                 jobManagerTaskRestore,
                 checkpointResponder,
                 new SequentialChannelStateReaderImpl(
@@ -96,11 +103,13 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
             @Nonnull CheckpointResponder checkpointResponder,
             @Nonnull SequentialChannelStateReaderImpl sequentialChannelStateReader) {
         this.jobId = jobId;
         this.localStateStore = localStateStore;
+        this.stateChangelogStorage = stateChangelogStorage;
         this.jobManagerTaskRestore = jobManagerTaskRestore;
         this.executionAttemptID = executionAttemptID;
         this.checkpointResponder = checkpointResponder;
@@ -122,7 +131,38 @@ public class TaskStateManagerImpl implements TaskStateManager {
                 jobId, executionAttemptID, checkpointId, checkpointMetrics, acknowledgedState);
     }
 
-    @Nonnull
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+
+        checkpointResponder.reportCheckpointMetrics(
+                jobId, executionAttemptID, checkpointMetaData.getCheckpointId(), checkpointMetrics);
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getInputRescalingDescriptor() {
+        if (jobManagerTaskRestore == null) {
+            return InflightDataRescalingDescriptor.NO_RESCALE;
+        }
+        return jobManagerTaskRestore.getTaskStateSnapshot().getInputRescalingDescriptor();
+    }
+
+    @Override
+    public InflightDataRescalingDescriptor getOutputRescalingDescriptor() {
+        if (jobManagerTaskRestore == null) {
+            return InflightDataRescalingDescriptor.NO_RESCALE;
+        }
+        return jobManagerTaskRestore.getTaskStateSnapshot().getOutputRescalingDescriptor();
+    }
+
+    public boolean isFinishedOnRestore() {
+        if (jobManagerTaskRestore == null) {
+            return false;
+        }
+
+        return jobManagerTaskRestore.getTaskStateSnapshot().isFinished();
+    }
+
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
 
@@ -182,6 +222,12 @@ public class TaskStateManagerImpl implements TaskStateManager {
     @Override
     public SequentialChannelStateReader getSequentialChannelStateReader() {
         return sequentialChannelStateReader;
+    }
+
+    @Nullable
+    @Override
+    public StateChangelogStorage<?> getStateChangelogStorage() {
+        return stateChangelogStorage;
     }
 
     /** Tracking when local state can be confirmed and disposed. */

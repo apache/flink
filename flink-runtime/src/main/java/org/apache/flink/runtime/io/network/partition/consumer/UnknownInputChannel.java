@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -34,6 +36,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -85,6 +88,12 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     @Override
     public void resumeConsumption() {
         throw new UnsupportedOperationException("UnknownInputChannel should never be blocked.");
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        throw new UnsupportedOperationException(
+                "UnknownInputChannel should not need acknowledge all records processed.");
     }
 
     @Override
@@ -163,5 +172,10 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
         Preconditions.checkState(this.channelStateWriter == null);
         this.channelStateWriter = channelStateWriter;
+    }
+
+    @Override
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+        throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
     }
 }

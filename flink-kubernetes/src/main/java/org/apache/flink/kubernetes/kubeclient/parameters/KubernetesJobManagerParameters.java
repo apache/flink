@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -31,10 +32,12 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,8 +47,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * constructing the JobManager Pod and all accompanying resources connected to it.
  */
 public class KubernetesJobManagerParameters extends AbstractKubernetesParameters {
-
-    public static final String JOB_MANAGER_MAIN_CONTAINER_NAME = "flink-job-manager";
 
     private final ClusterSpecification clusterSpecification;
 
@@ -95,14 +96,22 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
                 .orElse(Collections.emptyList());
     }
 
+    public Optional<File> getPodTemplateFilePath() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.JOB_MANAGER_POD_TEMPLATE)
+                .map(File::new);
+    }
+
+    public List<Map<String, String>> getOwnerReference() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.JOB_MANAGER_OWNER_REFERENCE)
+                .orElse(Collections.emptyList());
+    }
+
     public Map<String, String> getRestServiceAnnotations() {
         return flinkConfig
                 .getOptional(KubernetesConfigOptions.REST_SERVICE_ANNOTATIONS)
                 .orElse(Collections.emptyMap());
-    }
-
-    public String getJobManagerMainContainerName() {
-        return JOB_MANAGER_MAIN_CONTAINER_NAME;
     }
 
     public int getJobManagerMemoryMB() {
@@ -132,9 +141,7 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
     }
 
     public String getServiceAccount() {
-        return flinkConfig
-                .getOptional(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT)
-                .orElse(flinkConfig.getString(KubernetesConfigOptions.KUBERNETES_SERVICE_ACCOUNT));
+        return flinkConfig.get(KubernetesConfigOptions.JOB_MANAGER_SERVICE_ACCOUNT);
     }
 
     public String getEntrypointClass() {
@@ -153,5 +160,21 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
 
     public boolean isInternalServiceEnabled() {
         return !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig);
+    }
+
+    public int getReplicas() {
+        final int replicas =
+                flinkConfig.get(KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS);
+        if (replicas < 1) {
+            throw new IllegalConfigurationException(
+                    String.format(
+                            "'%s' should not be configured less than one.",
+                            KubernetesConfigOptions.KUBERNETES_JOBMANAGER_REPLICAS.key()));
+        } else if (replicas > 1
+                && !HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+            throw new IllegalConfigurationException(
+                    "High availability should be enabled when starting standby JobManagers.");
+        }
+        return replicas;
     }
 }

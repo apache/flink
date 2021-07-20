@@ -133,7 +133,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
                 newNamespaceSerializer);
     }
 
-    @Nullable
+    @Nonnull
     public TypeSerializer<N> getPreviousNamespaceSerializer() {
         return namespaceSerializerProvider.previousSchemaSerializer();
     }
@@ -149,7 +149,7 @@ public class RegisteredKeyValueStateBackendMetaInfo<N, S> extends RegisteredStat
         return stateSerializerProvider.registerNewSerializerForRestoredState(newStateSerializer);
     }
 
-    @Nullable
+    @Nonnull
     public TypeSerializer<S> getPreviousStateSerializer() {
         return stateSerializerProvider.previousSchemaSerializer();
     }

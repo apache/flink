@@ -259,11 +259,12 @@ public class DefaultLeaderElectionService
     public void onLeaderInformationChange(LeaderInformation leaderInformation) {
         synchronized (lock) {
             if (running) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(
-                            "Leader node changed while {} is the leader with session ID {}.",
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace(
+                            "Leader node changed while {} is the leader with session ID {}. New leader information {}.",
                             leaderContender.getDescription(),
-                            confirmedLeaderSessionID);
+                            confirmedLeaderSessionID,
+                            leaderInformation);
                 }
                 if (confirmedLeaderSessionID != null) {
                     final LeaderInformation confirmedLeaderInfo =

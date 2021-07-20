@@ -134,9 +134,7 @@ public final class RowDataKinesisDeserializationSchema
             }
         }
 
-        JoinedRowData joinedRowData = new JoinedRowData(physicalRow, metadataRow);
-        joinedRowData.setRowKind(physicalRow.getRowKind());
-        return joinedRowData;
+        return new JoinedRowData(physicalRow.getRowKind(), physicalRow, metadataRow);
     }
 
     @Override

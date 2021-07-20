@@ -54,4 +54,11 @@ public interface NetworkClientHandler extends ChannelHandler {
      * @param inputChannel The input channel to resume data consumption.
      */
     void resumeConsumption(RemoteInputChannel inputChannel);
+
+    /**
+     * Acknowledges all user records are processed for this channel.
+     *
+     * @param inputChannel The input channel to resume data consumption.
+     */
+    void acknowledgeAllRecordsProcessed(RemoteInputChannel inputChannel);
 }

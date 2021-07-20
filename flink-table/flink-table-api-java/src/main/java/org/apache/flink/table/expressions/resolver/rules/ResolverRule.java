@@ -24,11 +24,14 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LocalOverWindow;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 
 import java.util.List;
 import java.util.Optional;
@@ -70,6 +73,9 @@ public interface ResolverRule {
         /** Access to {@link DataTypeFactory}. */
         DataTypeFactory typeFactory();
 
+        /** Translates a SQL expression to {@link ResolvedExpression}. */
+        SqlExpressionResolver sqlExpressionResolver();
+
         /**
          * Enables the creation of resolved expressions for transformations after the actual
          * resolution.
@@ -79,7 +85,16 @@ public interface ResolverRule {
         /** Access to available local references. */
         Optional<LocalReferenceExpression> getLocalReference(String alias);
 
+        /** Access to available local references. */
+        List<LocalReferenceExpression> getLocalReferences();
+
+        /** Access to the expected top-level output data type. */
+        Optional<DataType> getOutputDataType();
+
         /** Access to available local over windows. */
         Optional<LocalOverWindow> getOverWindow(Expression alias);
+
+        /** Whether the expression is evaluated for a grouped aggregation. */
+        boolean isGroupedAggregation();
     }
 }

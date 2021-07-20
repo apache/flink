@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -97,6 +98,17 @@ final class StrategyUtils {
                             }
                             return false;
                         });
+    }
+
+    static boolean isDecimalComputation(LogicalType type1, LogicalType type2) {
+        // both must be exact numeric
+        if (!hasFamily(type1, LogicalTypeFamily.EXACT_NUMERIC)
+                || !hasFamily(type2, LogicalTypeFamily.EXACT_NUMERIC)) {
+            return false;
+        }
+
+        // one decimal must be present
+        return hasRoot(type1, LogicalTypeRoot.DECIMAL) || hasRoot(type2, LogicalTypeRoot.DECIMAL);
     }
 
     /**

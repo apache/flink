@@ -79,7 +79,7 @@ SqlDescribeCatalog SqlDescribeCatalog() :
     SqlParserPos pos;
 }
 {
-    <DESCRIBE> <CATALOG> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <CATALOG> { pos = getPos();}
     catalogName = SimpleIdentifier()
     {
         return new SqlDescribeCatalog(pos, catalogName);
@@ -254,7 +254,7 @@ SqlDescribeDatabase SqlDescribeDatabase() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> <DATABASE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) <DATABASE> { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     databaseName = CompoundIdentifier()
     {
@@ -273,10 +273,17 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 }
 {
     (
-        <SYSTEM> <FUNCTION>
+        <SYSTEM>
+        {
+            if (!isTemporary){
+                throw SqlUtil.newContextException(getPos(),
+                ParserResource.RESOURCE.createSystemFunctionOnlySupportTemporary());
+            }
+        }
+        <FUNCTION>
         ifNotExists = IfNotExistsOpt()
         functionIdentifier = SimpleIdentifier()
-        {  isSystemFunction = true; }
+        { isSystemFunction = true; }
     |
         <FUNCTION>
         ifNotExists = IfNotExistsOpt()
@@ -368,16 +375,23 @@ SqlAlterFunction SqlAlterFunction() :
     }
 }
 
+/**
+* Parses a show functions statement.
+* SHOW [USER] FUNCTIONS;
+*/
 SqlShowFunctions SqlShowFunctions() :
 {
-    SqlIdentifier database = null;
     SqlParserPos pos;
+    boolean requireUser = false;
 }
 {
-    <SHOW> <FUNCTIONS> { pos = getPos();}
-    [database = CompoundIdentifier()]
+    <SHOW> { pos = getPos();}
+    [
+        <USER> { requireUser = true; }
+    ]
+    <FUNCTIONS>
     {
-        return new SqlShowFunctions(pos, database);
+        return new SqlShowFunctions(pos.plus(getPos()), requireUser);
     }
 }
 
@@ -409,7 +423,23 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
- * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+* Parse a "Show Create Table" query command.
+*/
+SqlShowCreateTable SqlShowCreateTable() :
+{
+    SqlIdentifier tableName;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <CREATE> <TABLE> { pos = getPos();}
+    tableName = CompoundIdentifier()
+    {
+        return new SqlShowCreateTable(pos, tableName);
+    }
+}
+
+/**
+ * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :
@@ -419,7 +449,7 @@ SqlRichDescribeTable SqlRichDescribeTable() :
     boolean isExtended = false;
 }
 {
-    <DESCRIBE> { pos = getPos();}
+    ( <DESCRIBE> | <DESC> ) { pos = getPos();}
     [ <EXTENDED> { isExtended = true;} ]
     tableName = CompoundIdentifier()
     {
@@ -433,6 +463,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier tableIdentifier;
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
 }
@@ -449,10 +480,19 @@ SqlAlterTable SqlAlterTable() :
                         newTableIdentifier);
         }
     |
+        <RESET>
+        propertyKeyList = TablePropertyKeys()
+        {
+            return new SqlAlterTableReset(
+                        startPos.plus(getPos()),
+                        tableIdentifier,
+                        propertyKeyList);
+        }
+    |
         <SET>
         propertyList = TableProperties()
         {
-            return new SqlAlterTableProperties(
+            return new SqlAlterTableOptions(
                         startPos.plus(getPos()),
                         tableIdentifier,
                         propertyList);
@@ -473,6 +513,31 @@ SqlAlterTable SqlAlterTable() :
                 startPos.plus(getPos()));
         }
     )
+}
+
+/** Parse a table option key list. */
+SqlNodeList TablePropertyKeys():
+{
+    SqlNode key;
+    final List<SqlNode> proKeyList = new ArrayList<SqlNode>();
+    final Span span;
+}
+{
+    <LPAREN> { span = span(); }
+    [
+        key = StringLiteral()
+        {
+            proKeyList.add(key);
+        }
+        (
+            <COMMA> key = StringLiteral()
+            {
+                proKeyList.add(key);
+            }
+        )*
+    ]
+    <RPAREN>
+    {  return new SqlNodeList(proKeyList, span.end(this)); }
 }
 
 void TableColumn(TableCreationContext context) :
@@ -972,6 +1037,9 @@ SqlNode RichSqlInsert() :
         }
     ]
     [
+        <PARTITION> PartitionSpecCommaList(partitionList)
+    ]
+    [
         LOOKAHEAD(2)
         { final Pair<SqlNodeList, SqlNodeList> p; }
         p = ParenthesizedCompoundIdentifierList() {
@@ -982,9 +1050,6 @@ SqlNode RichSqlInsert() :
                 columnList = p.left;
             }
         }
-    ]
-    [
-        <PARTITION> PartitionSpecCommaList(partitionList)
     ]
     source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
@@ -1069,12 +1134,39 @@ SqlDrop SqlDropView(Span s, boolean replace, boolean isTemporary) :
     }
 }
 
+SqlAlterView SqlAlterView() :
+{
+  SqlParserPos startPos;
+  SqlIdentifier viewName;
+  SqlIdentifier newViewName;
+  SqlNode newQuery;
+}
+{
+  <ALTER> <VIEW> { startPos = getPos(); }
+  viewName = CompoundIdentifier()
+  (
+      <RENAME> <TO>
+      newViewName = CompoundIdentifier()
+      {
+        return new SqlAlterViewRename(startPos.plus(getPos()), viewName, newViewName);
+      }
+  |
+      <AS>
+      newQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+      {
+        return new SqlAlterViewAs(startPos.plus(getPos()), viewName, newQuery);
+      }
+  )
+}
+
 /**
 * A sql type name extended basic data type, it has a counterpart basic
 * sql type name but always represents as a special alias compared with the standard name.
 *
-* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
-* and BYTES is synonym of VARBINARY(INT_MAX).
+* <p>For example:
+*  1. STRING is synonym of VARCHAR(INT_MAX),
+*  2. BYTES is synonym of VARBINARY(INT_MAX),
+*  3. TIMESTAMP_LTZ(precision) is synonym of TIMESTAMP(precision) WITH LOCAL TIME ZONE.
 */
 SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
@@ -1095,6 +1187,16 @@ SqlTypeNameSpec ExtendedSqlBasicTypeName() :
             typeAlias = token.image;
             precision = Integer.MAX_VALUE;
         }
+    |
+       <TIMESTAMP_LTZ>
+       {
+           typeAlias = token.image;
+       }
+       precision = PrecisionOpt()
+       {
+            typeName = SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+            return new SqlTimestampLtzTypeNameSpec(typeAlias, typeName, precision, getPos());
+       }
     )
     {
         return new SqlAlienSystemTypeNameSpec(typeAlias, typeName, precision, getPos());
@@ -1429,5 +1531,239 @@ SqlDrop SqlDropExtended(Span s, boolean replace) :
     )
     {
         return drop;
+    }
+}
+
+/**
+* Parses a load module statement.
+* LOAD MODULE module_name [WITH (property_name=property_value, ...)];
+*/
+SqlLoadModule SqlLoadModule() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+}
+{
+    <LOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    [
+        <WITH>
+        propertyList = TableProperties()
+    ]
+    {
+        return new SqlLoadModule(startPos.plus(getPos()),
+            moduleName,
+            propertyList);
+    }
+}
+
+/**
+* Parses an unload module statement.
+* UNLOAD MODULE module_name;
+*/
+SqlUnloadModule SqlUnloadModule() :
+{
+    SqlParserPos startPos;
+    SqlIdentifier moduleName;
+}
+{
+    <UNLOAD> <MODULE> { startPos = getPos(); }
+    moduleName = SimpleIdentifier()
+    {
+        return new SqlUnloadModule(startPos.plus(getPos()), moduleName);
+    }
+}
+
+/**
+* Parses an use modules statement.
+* USE MODULES module_name1 [, module_name2, ...];
+*/
+SqlUseModules SqlUseModules() :
+{
+    final Span s;
+    SqlIdentifier moduleName;
+    final List<SqlIdentifier> moduleNames = new ArrayList<SqlIdentifier>();
+}
+{
+    <USE> <MODULES> { s = span(); }
+    moduleName = SimpleIdentifier()
+    {
+        moduleNames.add(moduleName);
+    }
+    [
+        (
+            <COMMA>
+            moduleName = SimpleIdentifier()
+            {
+                moduleNames.add(moduleName);
+            }
+        )+
+    ]
+    {
+        return new SqlUseModules(s.end(this), moduleNames);
+    }
+}
+
+/**
+* Parses a show modules statement.
+* SHOW [FULL] MODULES;
+*/
+SqlShowModules SqlShowModules() :
+{
+    SqlParserPos startPos;
+    boolean requireFull = false;
+}
+{
+    <SHOW> { startPos = getPos(); }
+    [
+      <FULL> { requireFull = true; }
+    ]
+    <MODULES>
+    {
+        return new SqlShowModules(startPos.plus(getPos()), requireFull);
+    }
+}
+
+/**
+* Parse a start statement set statement.
+* BEGIN STATEMENT SET;
+*/
+SqlBeginStatementSet SqlBeginStatementSet() :
+{
+}
+{
+    <BEGIN> <STATEMENT> <SET>
+    {
+        return new SqlBeginStatementSet(getPos());
+    }
+}
+
+/**
+* Parse a end statement set statement.
+* END;
+*/
+SqlEndStatementSet SqlEndStatementSet() :
+{
+}
+{
+    <END>
+    {
+        return new SqlEndStatementSet(getPos());
+    }
+}
+
+/**
+* Parses a explain module statement.
+*/
+SqlNode SqlRichExplain() :
+{
+    SqlNode stmt;
+}
+{
+    <EXPLAIN> [ <PLAN> <FOR> ]
+    (
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlRichExplain(getPos(), stmt);
+    }
+}
+
+/**
+* Parses an ADD JAR statement.
+*/
+SqlAddJar SqlAddJar() :
+{
+    SqlCharStringLiteral jarPath;
+}
+{
+    <ADD> <JAR> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        jarPath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlAddJar(getPos(), jarPath);
+    }
+}
+
+/**
+* Parses a remove jar statement.
+* REMOVE JAR jar_path;
+*/
+SqlRemoveJar SqlRemoveJar() :
+{
+    SqlCharStringLiteral jarPath;
+}
+{
+    <REMOVE> <JAR> <QUOTED_STRING>
+    {
+        String path = SqlParserUtil.parseString(token.image);
+        jarPath = SqlLiteral.createCharString(path, getPos());
+    }
+    {
+        return new SqlRemoveJar(getPos(), jarPath);
+    }
+}
+
+/**
+* Parses a show jars statement.
+* SHOW JARS;
+*/
+SqlShowJars SqlShowJars() :
+{
+}
+{
+    <SHOW> <JARS>
+    {
+        return new SqlShowJars(getPos());
+    }
+}
+
+/*
+* Parses a SET statement:
+* SET ['key' = 'value'];
+*/
+SqlNode SqlSet() :
+{
+    Span s;
+    SqlNode key = null;
+    SqlNode value = null;
+}
+{
+    <SET> { s = span(); }
+    [
+        key = StringLiteral()
+        <EQ>
+        value = StringLiteral()
+    ]
+    {
+        if (key == null && value == null) {
+            return new SqlSet(s.end(this));
+        } else {
+            return new SqlSet(s.end(this), key, value);
+        }
+    }
+}
+
+/**
+* Parses a RESET statement:
+* RESET ['key'];
+*/
+SqlNode SqlReset() :
+{
+    Span span;
+    SqlNode key = null;
+}
+{
+    <RESET> { span = span(); }
+    [
+        key = StringLiteral()
+    ]
+    {
+        return new SqlReset(span.end(this), key);
     }
 }

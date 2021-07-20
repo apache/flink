@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.concurrent.FixedRetryStrategy;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -29,6 +28,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

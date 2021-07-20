@@ -22,13 +22,17 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
@@ -91,5 +95,30 @@ public class ConfigurationUtilsTest extends TestLogger {
                 ConfigurationUtils.getPrefixedKeyValuePairs(prefix, configuration);
 
         assertThat(resultKeyValuePairs, is(equalTo(expectedKeyValuePairs)));
+    }
+
+    @Test
+    public void testConvertToString() {
+        // String
+        assertEquals("Simple String", ConfigurationUtils.convertToString("Simple String"));
+
+        // Duration
+        assertEquals("0 ms", ConfigurationUtils.convertToString(Duration.ZERO));
+        assertEquals("123 ms", ConfigurationUtils.convertToString(Duration.ofMillis(123L)));
+        assertEquals("1234 s", ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L)));
+        assertEquals("25 h", ConfigurationUtils.convertToString(Duration.ofHours(25L)));
+
+        // List
+        final List<Object> listElements = new ArrayList<>();
+        listElements.add("Test;String");
+        listElements.add(Duration.ZERO);
+        listElements.add(42);
+        assertEquals("'Test;String';0 ms;42", ConfigurationUtils.convertToString(listElements));
+
+        // Map
+        final Map<Object, Object> mapElements = new HashMap<>();
+        mapElements.put("A:,B", "C:,D");
+        mapElements.put(10, 20);
+        assertEquals("'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
     }
 }

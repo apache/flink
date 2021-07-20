@@ -26,11 +26,16 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -47,6 +52,8 @@ public class MockInputGate extends IndexedInputGate {
     private final boolean finishAfterLastBuffer;
 
     private ArrayList<Integer> lastUnblockedChannels = new ArrayList<>();
+
+    private Set<Integer> blockedChannels = new HashSet<>();
 
     public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
         this(numberOfChannels, bufferOrEvents, true);
@@ -96,6 +103,12 @@ public class MockInputGate extends IndexedInputGate {
     }
 
     @Override
+    public void checkpointStopped(long cancelledCheckpointId) {
+        // ignore, we do not support getChannel method, therefore we can not use the
+        // base method
+    }
+
+    @Override
     public boolean isFinished() {
         return finishAfterLastBuffer && bufferOrEvents.isEmpty();
     }
@@ -134,12 +147,24 @@ public class MockInputGate extends IndexedInputGate {
     @Override
     public void resumeConsumption(InputChannelInfo channelInfo) {
         lastUnblockedChannels.add(channelInfo.getInputChannelIdx());
+        blockedChannels.remove(channelInfo.getInputChannelIdx());
     }
 
-    public ArrayList<Integer> getAndResetLastUnblockedChannels() {
-        ArrayList<Integer> unblockedChannels = lastUnblockedChannels;
-        lastUnblockedChannels = new ArrayList<>();
-        return unblockedChannels;
+    @Override
+    public void blockConsumption(InputChannelInfo channelInfo) {
+        super.blockConsumption(channelInfo);
+        if (!blockedChannels.add(channelInfo.getInputChannelIdx())) {
+            throw new IllegalArgumentException("Blocking the same channel multiple times");
+        }
+    }
+
+    public Set<Integer> getBlockedChannels() {
+        return blockedChannels;
+    }
+
+    @Override
+    public void acknowledgeAllRecordsProcessed(InputChannelInfo channelInfo) throws IOException {
+        throw new UnsupportedEncodingException();
     }
 
     @Override
@@ -148,5 +173,10 @@ public class MockInputGate extends IndexedInputGate {
     @Override
     public int getGateIndex() {
         return 0;
+    }
+
+    @Override
+    public List<InputChannelInfo> getUnfinishedChannels() {
+        return Collections.emptyList();
     }
 }

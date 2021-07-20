@@ -80,8 +80,13 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
-        return parent.isAvailable(numCreditsAvailable);
+    public void acknowledgeAllRecordsProcessed() {
+        parent.acknowledgeAllRecordsProcessed();
+    }
+
+    @Override
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        return parent.getAvailabilityAndBacklog(numCreditsAvailable);
     }
 
     @Override

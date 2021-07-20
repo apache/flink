@@ -26,13 +26,13 @@ import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.connection.SimpleJdbcConnectionProvider;
 import org.apache.flink.connector.jdbc.internal.executor.JdbcBatchStatementExecutor;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcDmlOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatementImpl;
 import org.apache.flink.connector.jdbc.utils.JdbcUtils;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,7 +41,6 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
@@ -191,9 +190,7 @@ public class JdbcBatchingOutputFormat<
                 }
                 try {
                     if (!connectionProvider.isConnectionValid()) {
-                        jdbcStatementExecutor.closeStatements();
-                        Connection connection = connectionProvider.reestablishConnection();
-                        jdbcStatementExecutor.prepareStatements(connection);
+                        updateExecutor(true);
                     }
                 } catch (Exception exception) {
                     LOG.error(
@@ -254,7 +251,7 @@ public class JdbcBatchingOutputFormat<
 
     /** Builder for a {@link JdbcBatchingOutputFormat}. */
     public static class Builder {
-        private JdbcOptions options;
+        private JdbcConnectorOptions options;
         private String[] fieldNames;
         private String[] keyFields;
         private int[] fieldTypes;
@@ -262,7 +259,7 @@ public class JdbcBatchingOutputFormat<
                 JdbcExecutionOptions.builder();
 
         /** required, jdbc options. */
-        public Builder setOptions(JdbcOptions options) {
+        public Builder setOptions(JdbcConnectorOptions options) {
             this.options = options;
             return this;
         }
@@ -366,5 +363,13 @@ public class JdbcBatchingOutputFormat<
      */
     static JdbcStatementBuilder<Row> createRowJdbcStatementBuilder(int[] types) {
         return (st, record) -> setRecordToStatement(st, types, record);
+    }
+
+    public void updateExecutor(boolean reconnect) throws SQLException, ClassNotFoundException {
+        jdbcStatementExecutor.closeStatements();
+        jdbcStatementExecutor.prepareStatements(
+                reconnect
+                        ? connectionProvider.reestablishConnection()
+                        : connectionProvider.getConnection());
     }
 }

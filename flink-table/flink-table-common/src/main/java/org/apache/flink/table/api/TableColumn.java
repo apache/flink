@@ -19,6 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -32,7 +34,10 @@ import java.util.Optional;
  *
  * <p>A table column is fully resolved with a name and {@link DataType}. It describes either a
  * {@link PhysicalColumn}, {@link ComputedColumn}, or {@link MetadataColumn}.
+ *
+ * @deprecated See {@link ResolvedSchema} and {@link Column}.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TableColumn {
 
@@ -99,6 +104,18 @@ public abstract class TableColumn {
         Preconditions.checkNotNull(name, "Column name can not be null.");
         Preconditions.checkNotNull(type, "Column type can not be null.");
         return new MetadataColumn(name, type, metadataAlias, isVirtual);
+    }
+
+    /** @deprecated Use {@link #physical(String, DataType)} instead. */
+    @Deprecated
+    public static TableColumn of(String name, DataType type) {
+        return physical(name, type);
+    }
+
+    /** @deprecated Use {@link #computed(String, DataType, String)} instead. */
+    @Deprecated
+    public static TableColumn of(String name, DataType type, String expression) {
+        return computed(name, type, expression);
     }
 
     /**

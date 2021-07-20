@@ -23,9 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -34,8 +32,9 @@ import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
@@ -54,6 +53,10 @@ public class TestingRestfulGateway implements RestfulGateway {
             jobId -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final Function<JobID, CompletableFuture<ArchivedExecutionGraph>>
             DEFAULT_REQUEST_JOB_FUNCTION =
+                    jobId ->
+                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
+    static final Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+            DEFAULT_REQUEST_EXECUTION_GRAPH_INFO =
                     jobId ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final Function<JobID, CompletableFuture<JobStatus>> DEFAULT_REQUEST_JOB_STATUS_FUNCTION =
@@ -76,11 +79,6 @@ public class TestingRestfulGateway implements RestfulGateway {
                     () -> CompletableFuture.completedFuture(Collections.emptyList());
     static final Supplier<CompletableFuture<Acknowledge>> DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER =
             () -> CompletableFuture.completedFuture(Acknowledge.get());
-    static final BiFunction<
-                    JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-            DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER =
-                    (jobId, jobVertexId) ->
-                            FutureUtils.completedExceptionally(new UnsupportedOperationException());
     static final BiFunction<JobID, String, CompletableFuture<String>>
             DEFAULT_TRIGGER_SAVEPOINT_FUNCTION =
                     (JobID jobId, String targetDirectory) ->
@@ -113,6 +111,9 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
 
+    protected Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+            requestExecutionGraphInfoFunction;
+
     protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
 
     protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
@@ -126,9 +127,6 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
             requestTaskManagerMetricQueryServiceAddressesSupplier;
-
-    protected BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-            requestOperatorBackPressureStatsFunction;
 
     protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
 
@@ -147,13 +145,13 @@ public class TestingRestfulGateway implements RestfulGateway {
                 LOCALHOST,
                 DEFAULT_CANCEL_JOB_FUNCTION,
                 DEFAULT_REQUEST_JOB_FUNCTION,
+                DEFAULT_REQUEST_EXECUTION_GRAPH_INFO,
                 DEFAULT_REQUEST_JOB_RESULT_FUNCTION,
                 DEFAULT_REQUEST_JOB_STATUS_FUNCTION,
                 DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER,
                 DEFAULT_REQUEST_CLUSTER_OVERVIEW_SUPPLIER,
                 DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER,
                 DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER,
-                DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER,
                 DEFAULT_TRIGGER_SAVEPOINT_FUNCTION,
                 DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION,
                 DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER,
@@ -165,6 +163,8 @@ public class TestingRestfulGateway implements RestfulGateway {
             String hostname,
             Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction,
             Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction,
+            Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                    requestExecutionGraphInfoFunction,
             Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction,
             Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction,
             Supplier<CompletableFuture<MultipleJobsDetails>> requestMultipleJobDetailsSupplier,
@@ -173,8 +173,6 @@ public class TestingRestfulGateway implements RestfulGateway {
                     requestMetricQueryServiceAddressesSupplier,
             Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
                     requestTaskManagerMetricQueryServiceAddressesSupplier,
-            BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                    requestOperatorBackPressureStatsFunction,
             BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction,
             BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction,
             Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier,
@@ -188,6 +186,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         this.hostname = hostname;
         this.cancelJobFunction = cancelJobFunction;
         this.requestJobFunction = requestJobFunction;
+        this.requestExecutionGraphInfoFunction = requestExecutionGraphInfoFunction;
         this.requestJobResultFunction = requestJobResultFunction;
         this.requestJobStatusFunction = requestJobStatusFunction;
         this.requestMultipleJobDetailsSupplier = requestMultipleJobDetailsSupplier;
@@ -196,7 +195,6 @@ public class TestingRestfulGateway implements RestfulGateway {
                 requestMetricQueryServiceAddressesSupplier;
         this.requestTaskManagerMetricQueryServiceAddressesSupplier =
                 requestTaskManagerMetricQueryServiceAddressesSupplier;
-        this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
         this.triggerSavepointFunction = triggerSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         this.clusterShutdownSupplier = clusterShutdownSupplier;
@@ -217,6 +215,12 @@ public class TestingRestfulGateway implements RestfulGateway {
     @Override
     public CompletableFuture<ArchivedExecutionGraph> requestJob(JobID jobId, Time timeout) {
         return requestJobFunction.apply(jobId);
+    }
+
+    @Override
+    public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
+            JobID jobId, Time timeout) {
+        return requestExecutionGraphInfoFunction.apply(jobId);
     }
 
     @Override
@@ -251,12 +255,6 @@ public class TestingRestfulGateway implements RestfulGateway {
     }
 
     @Override
-    public CompletableFuture<OperatorBackPressureStatsResponse> requestOperatorBackPressureStats(
-            final JobID jobId, final JobVertexID jobVertexId) {
-        return requestOperatorBackPressureStatsFunction.apply(jobId, jobVertexId);
-    }
-
-    @Override
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, String targetDirectory, boolean cancelJob, Time timeout) {
         return triggerSavepointFunction.apply(jobId, targetDirectory);
@@ -264,7 +262,7 @@ public class TestingRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, String targetDirectory, boolean advanceToEndOfTime, Time timeout) {
+            JobID jobId, String targetDirectory, boolean terminate, Time timeout) {
         return stopWithSavepointFunction.apply(jobId, targetDirectory);
     }
 
@@ -298,6 +296,8 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected String hostname = LOCALHOST;
         protected Function<JobID, CompletableFuture<Acknowledge>> cancelJobFunction;
         protected Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction;
+        protected Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                requestExecutionGraphInfoFunction;
         protected Function<JobID, CompletableFuture<JobResult>> requestJobResultFunction;
         protected Function<JobID, CompletableFuture<JobStatus>> requestJobStatusFunction;
         protected Supplier<CompletableFuture<MultipleJobsDetails>>
@@ -309,9 +309,6 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected Supplier<CompletableFuture<Collection<Tuple2<ResourceID, String>>>>
                 requestTaskManagerMetricQueryServiceGatewaysSupplier;
         protected Supplier<CompletableFuture<Acknowledge>> clusterShutdownSupplier;
-        protected BiFunction<
-                        JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                requestOperatorBackPressureStatsFunction;
         protected BiFunction<JobID, String, CompletableFuture<String>> triggerSavepointFunction;
         protected BiFunction<JobID, String, CompletableFuture<String>> stopWithSavepointFunction;
         protected TriFunction<
@@ -324,6 +321,7 @@ public class TestingRestfulGateway implements RestfulGateway {
         protected AbstractBuilder() {
             cancelJobFunction = DEFAULT_CANCEL_JOB_FUNCTION;
             requestJobFunction = DEFAULT_REQUEST_JOB_FUNCTION;
+            requestExecutionGraphInfoFunction = DEFAULT_REQUEST_EXECUTION_GRAPH_INFO;
             requestJobResultFunction = DEFAULT_REQUEST_JOB_RESULT_FUNCTION;
             requestJobStatusFunction = DEFAULT_REQUEST_JOB_STATUS_FUNCTION;
             requestMultipleJobDetailsSupplier = DEFAULT_REQUEST_MULTIPLE_JOB_DETAILS_SUPPLIER;
@@ -332,8 +330,6 @@ public class TestingRestfulGateway implements RestfulGateway {
                     DEFAULT_REQUEST_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
             requestTaskManagerMetricQueryServiceGatewaysSupplier =
                     DEFAULT_REQUEST_TASK_MANAGER_METRIC_QUERY_SERVICE_PATHS_SUPPLIER;
-            requestOperatorBackPressureStatsFunction =
-                    DEFAULT_REQUEST_OPERATOR_BACK_PRESSURE_STATS_SUPPLIER;
             triggerSavepointFunction = DEFAULT_TRIGGER_SAVEPOINT_FUNCTION;
             stopWithSavepointFunction = DEFAULT_STOP_WITH_SAVEPOINT_FUNCTION;
             clusterShutdownSupplier = DEFAULT_CLUSTER_SHUTDOWN_SUPPLIER;
@@ -360,6 +356,13 @@ public class TestingRestfulGateway implements RestfulGateway {
         public T setRequestJobFunction(
                 Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
             this.requestJobFunction = requestJobFunction;
+            return self();
+        }
+
+        public T setRequestExecutionGraphInfoFunction(
+                Function<JobID, CompletableFuture<ExecutionGraphInfo>>
+                        requestExecutionGraphInfoFunction) {
+            this.requestExecutionGraphInfoFunction = requestExecutionGraphInfoFunction;
             return self();
         }
 
@@ -401,13 +404,6 @@ public class TestingRestfulGateway implements RestfulGateway {
                         requestTaskManagerMetricQueryServiceGatewaysSupplier) {
             this.requestTaskManagerMetricQueryServiceGatewaysSupplier =
                     requestTaskManagerMetricQueryServiceGatewaysSupplier;
-            return self();
-        }
-
-        public T setRequestOperatorBackPressureStatsFunction(
-                BiFunction<JobID, JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                        requestOeratorBackPressureStatsFunction) {
-            this.requestOperatorBackPressureStatsFunction = requestOeratorBackPressureStatsFunction;
             return self();
         }
 
@@ -461,13 +457,13 @@ public class TestingRestfulGateway implements RestfulGateway {
                     hostname,
                     cancelJobFunction,
                     requestJobFunction,
+                    requestExecutionGraphInfoFunction,
                     requestJobResultFunction,
                     requestJobStatusFunction,
                     requestMultipleJobDetailsSupplier,
                     requestClusterOverviewSupplier,
                     requestMetricQueryServiceGatewaysSupplier,
                     requestTaskManagerMetricQueryServiceGatewaysSupplier,
-                    requestOperatorBackPressureStatsFunction,
                     triggerSavepointFunction,
                     stopWithSavepointFunction,
                     clusterShutdownSupplier,

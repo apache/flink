@@ -23,12 +23,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.types.Row;
+
+import static org.apache.flink.python.Constants.STATELESS_FUNCTION_URN;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createRawTypeCoderInfoDescriptorProto;
 
 /**
  * {@link PythonProcessOperator} is responsible for launching beam runner which will start a python
@@ -39,10 +43,6 @@ public class PythonProcessOperator<IN, OUT>
         extends OneInputPythonFunctionOperator<IN, OUT, Row, OUT> {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String PROCESS_FUNCTION_URN = "flink:transform:process_function:v1";
-
-    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
     /** Reusable row for normal data runner inputs. */
     private transient Row reusableInput;
@@ -100,11 +100,20 @@ public class PythonProcessOperator<IN, OUT>
 
     @Override
     public String getFunctionUrn() {
-        return PROCESS_FUNCTION_URN;
+        return STATELESS_FUNCTION_URN;
     }
 
     @Override
-    public String getCoderUrn() {
-        return FLAT_MAP_CODER_URN;
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(
+            TypeInformation runnerInputType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createOutputCoderInfoDescriptor(
+            TypeInformation runnerOutType) {
+        return createRawTypeCoderInfoDescriptorProto(
+                runnerOutType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true);
     }
 }

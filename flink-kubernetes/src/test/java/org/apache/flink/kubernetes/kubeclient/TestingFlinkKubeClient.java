@@ -24,9 +24,12 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -145,11 +148,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public void handleException(Exception e) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public KubernetesWatch watchPodsAndDoCallback(
             Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
         return watchPodsAndDoCallbackFunction.apply(labels, podCallbackHandler);
@@ -198,6 +196,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     @Override
     public void close() {
         closeConsumer.accept(null);
+    }
+
+    @Override
+    public KubernetesPod loadPodFromTemplateFile(File file) {
+        throw new UnsupportedOperationException();
     }
 
     public static Builder builder() {
@@ -359,13 +362,20 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     /** Testing implementation of {@link KubernetesWatch}. */
     public static class MockKubernetesWatch extends KubernetesWatch {
+        private boolean isClosed;
+
         public MockKubernetesWatch() {
             super(null);
+            this.isClosed = false;
         }
 
         @Override
         public void close() {
-            // noop
+            this.isClosed = true;
+        }
+
+        public boolean isClosed() {
+            return isClosed;
         }
     }
 
@@ -413,12 +423,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     /** Testing implementation of {@link KubernetesLeaderElector}. */
     public static class TestingKubernetesLeaderElector extends KubernetesLeaderElector {
-        private static final String NAMESPACE = "test";
 
         public TestingKubernetesLeaderElector(
                 KubernetesLeaderElectionConfiguration leaderConfig,
                 LeaderCallbackHandler leaderCallbackHandler) {
-            super(null, NAMESPACE, leaderConfig, leaderCallbackHandler);
+            super(new KubernetesMockServer().createClient(), leaderConfig, leaderCallbackHandler);
         }
 
         @Override

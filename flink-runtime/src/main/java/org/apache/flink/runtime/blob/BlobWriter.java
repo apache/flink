@@ -85,7 +85,7 @@ public interface BlobWriter {
         final SerializedValue<T> serializedValue = new SerializedValue<>(value);
 
         if (serializedValue.getByteArray().length < blobWriter.getMinOffloadingSize()) {
-            return Either.Left(new SerializedValue<>(value));
+            return Either.Left(serializedValue);
         } else {
             try {
                 final PermanentBlobKey permanentBlobKey =

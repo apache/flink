@@ -34,7 +34,8 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
     protected static final int RPC_PORT = 12345;
 
     protected static final String POD_NAME = "taskmanager-pod-1";
-    private static final String DYNAMIC_PROPERTIES = "";
+    protected static final String DYNAMIC_PROPERTIES = "";
+    protected static final String JVM_MEM_OPTS_ENV = "-Xmx512m";
 
     protected static final int TOTAL_PROCESS_MEMORY = 1184;
     protected static final double TASK_MANAGER_CPU = 2.0;
@@ -73,8 +74,9 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
                         flinkConfig,
                         POD_NAME,
                         DYNAMIC_PROPERTIES,
+                        JVM_MEM_OPTS_ENV,
                         containeredTaskManagerParameters,
-                        ExternalResourceUtils.getExternalResources(
+                        ExternalResourceUtils.getExternalResourceConfigurationKeys(
                                 flinkConfig,
                                 KubernetesConfigOptions
                                         .EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX));

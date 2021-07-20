@@ -24,7 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.jdbc.DbMetadata;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,7 +59,7 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
         format =
                 JdbcBatchingOutputFormat.builder()
                         .setOptions(
-                                JdbcOptions.builder()
+                                JdbcConnectorOptions.builder()
                                         .setDBUrl(getDbMetadata().getUrl())
                                         .setTableName(OUTPUT_TABLE)
                                         .build())

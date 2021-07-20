@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +43,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -146,7 +149,10 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
                 () -> miniCluster.getMiniCluster().getExecutionGraph(jobClient.getJobID()).get());
         Thread.sleep(FIRST_RUN_BACKPRESSURE_MS); // wait for some backpressure from sink
 
-        Future<Map<String, Object>> accFuture = jobClient.getAccumulators();
+        Future<Map<String, Object>> accFuture =
+                jobClient
+                        .getJobExecutionResult()
+                        .thenApply(JobExecutionResult::getAllAccumulatorResults);
         Future<String> savepointFuture =
                 jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
         return new Tuple2<>(savepointFuture.get(), accFuture.get());
@@ -155,7 +161,9 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
     private Tuple2<String, Map<String, Object>> runAndTakeExternalCheckpoint() throws Exception {
         JobClient jobClient = submitJobInitially(env(startAligned, 100));
         // structure: root/attempt/checkpoint/_metadata
-        File metadata = waitForChild(waitForChild(waitForChild(temporaryFolder.getRoot())));
+        File attemptDir = waitForChild(temporaryFolder.getRoot(), (dir, name) -> true);
+        File checkpointDir = waitForChild(attemptDir, (dir, name) -> name.startsWith("chk-"));
+        File metadata = waitForChild(checkpointDir, (dir, name) -> name.equals("_metadata"));
         cancelJob(jobClient);
         return new Tuple2<>(metadata.getParentFile().toString(), emptyMap());
     }
@@ -172,12 +180,15 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         return env.execute(streamGraph).getJobExecutionResult().getAllAccumulatorResults();
     }
 
-    @SuppressWarnings({"OptionalGetWithoutIsPresent", "ConstantConditions"})
-    private static File waitForChild(File dir) throws InterruptedException {
-        while (dir.listFiles().length == 0) {
+    @SuppressWarnings({"ConstantConditions"})
+    private static File waitForChild(File dir, FilenameFilter filenameFilter)
+            throws InterruptedException {
+        File[] files = dir.listFiles(filenameFilter);
+        while (files.length == 0) {
             Thread.sleep(50);
+            files = dir.listFiles(filenameFilter);
         }
-        return Arrays.stream(dir.listFiles()).max(Comparator.naturalOrder()).get();
+        return Arrays.stream(files).max(Comparator.naturalOrder()).get();
     }
 
     private void cancelJob(JobClient jobClient)
@@ -196,7 +207,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
         env.setRestartStrategy(new RestartStrategies.NoRestartStrategyConfiguration());
         env.getCheckpointConfig().enableUnalignedCheckpoints(!isAligned);
-        env.getCheckpointConfig().setAlignmentTimeout(0);
+        env.getCheckpointConfig().setAlignmentTimeout(Duration.ZERO);
         env.getCheckpointConfig().enableExternalizedCheckpoints(RETAIN_ON_CANCELLATION);
         if (checkpointingInterval > 0) {
             env.enableCheckpointing(checkpointingInterval);

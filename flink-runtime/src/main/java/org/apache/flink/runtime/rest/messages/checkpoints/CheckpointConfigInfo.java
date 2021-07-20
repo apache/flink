@@ -53,10 +53,14 @@ public class CheckpointConfigInfo implements ResponseBody {
 
     public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
 
+    public static final String FIELD_NAME_CHECKPOINT_STORAGE = "checkpoint_storage";
+
     public static final String FIELD_NAME_UNALIGNED_CHECKPOINTS = "unaligned_checkpoints";
 
     public static final String FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS =
             "tolerable_failed_checkpoints";
+
+    public static final String FIELD_NAME_ALIGNED_CHECKPOINT_TIMEOUT = "aligned_checkpoint_timeout";
 
     @JsonProperty(FIELD_NAME_PROCESSING_MODE)
     private final ProcessingMode processingMode;
@@ -79,11 +83,17 @@ public class CheckpointConfigInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_STATE_BACKEND)
     private final String stateBackend;
 
+    @JsonProperty(FIELD_NAME_CHECKPOINT_STORAGE)
+    private final String checkpointStorage;
+
     @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS)
     private final boolean unalignedCheckpoints;
 
     @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS)
     private final int tolerableFailedCheckpoints;
+
+    @JsonProperty(FIELD_NAME_ALIGNED_CHECKPOINT_TIMEOUT)
+    private final long alignedCheckpointTimeout;
 
     @JsonCreator
     public CheckpointConfigInfo(
@@ -95,8 +105,10 @@ public class CheckpointConfigInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
                     ExternalizedCheckpointInfo externalizedCheckpointInfo,
             @JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_STORAGE) String checkpointStorage,
             @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints,
-            @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS) int tolerableFailedCheckpoints) {
+            @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS) int tolerableFailedCheckpoints,
+            @JsonProperty(FIELD_NAME_ALIGNED_CHECKPOINT_TIMEOUT) long alignedCheckpointTimeout) {
         this.processingMode = Preconditions.checkNotNull(processingMode);
         this.checkpointInterval = checkpointInterval;
         this.checkpointTimeout = checkpointTimeout;
@@ -104,8 +116,10 @@ public class CheckpointConfigInfo implements ResponseBody {
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
         this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
         this.stateBackend = Preconditions.checkNotNull(stateBackend);
+        this.checkpointStorage = Preconditions.checkNotNull(checkpointStorage);
         this.unalignedCheckpoints = unalignedCheckpoints;
         this.tolerableFailedCheckpoints = tolerableFailedCheckpoints;
+        this.alignedCheckpointTimeout = alignedCheckpointTimeout;
     }
 
     @Override
@@ -124,8 +138,10 @@ public class CheckpointConfigInfo implements ResponseBody {
                 && processingMode == that.processingMode
                 && Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo)
                 && Objects.equals(stateBackend, that.stateBackend)
+                && Objects.equals(checkpointStorage, that.checkpointStorage)
                 && unalignedCheckpoints == that.unalignedCheckpoints
-                && tolerableFailedCheckpoints == that.tolerableFailedCheckpoints;
+                && tolerableFailedCheckpoints == that.tolerableFailedCheckpoints
+                && alignedCheckpointTimeout == that.alignedCheckpointTimeout;
     }
 
     @Override
@@ -138,8 +154,10 @@ public class CheckpointConfigInfo implements ResponseBody {
                 maxConcurrentCheckpoints,
                 externalizedCheckpointInfo,
                 stateBackend,
+                checkpointStorage,
                 unalignedCheckpoints,
-                tolerableFailedCheckpoints);
+                tolerableFailedCheckpoints,
+                alignedCheckpointTimeout);
     }
 
     /** Contains information about the externalized checkpoint configuration. */

@@ -38,7 +38,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.factories.BulkReaderFormatFactory;
 import org.apache.flink.table.factories.BulkWriterFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
-import org.apache.flink.table.filesystem.FileSystemOptions;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
 import org.apache.flink.table.filesystem.PartitionFieldExtractor;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -125,8 +125,9 @@ public class OrcFileFormatFactory implements BulkReaderFormatFactory, BulkWriter
                         context.getCatalogTable()
                                 .getOptions()
                                 .getOrDefault(
-                                        FileSystemOptions.PARTITION_DEFAULT_NAME.key(),
-                                        FileSystemOptions.PARTITION_DEFAULT_NAME.defaultValue());
+                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME.key(),
+                                        FileSystemConnectorOptions.PARTITION_DEFAULT_NAME
+                                                .defaultValue());
 
                 return OrcColumnarRowFileInputFormat.createPartitionedFormat(
                         OrcShim.defaultShim(),

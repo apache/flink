@@ -37,7 +37,14 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(groups = @ConfigGroup(name = "TaskManagerMemory", keyPrefix = "taskmanager.memory"))
 public class TaskManagerOptions {
 
-    public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
+    /**
+     * @deprecated use {@link #MANAGED_MEMORY_CONSUMER_NAME_OPERATOR} and {@link
+     *     #MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND} instead
+     */
+    @Deprecated public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
+
+    public static final String MANAGED_MEMORY_CONSUMER_NAME_OPERATOR = "OPERATOR";
+    public static final String MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND = "STATE_BACKEND";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_PYTHON = "PYTHON";
 
     // ------------------------------------------------------------------------
@@ -229,6 +236,16 @@ public class TaskManagerOptions {
                                     + " is typically proportional to the number of physical CPU cores that the TaskManager's machine has"
                                     + " (e.g., equal to the number of cores, or half the number of cores).");
 
+    /** Timeout for identifying inactive slots. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Duration> SLOT_TIMEOUT =
+            ConfigOptions.key("taskmanager.slot.timeout")
+                    .durationType()
+                    .defaultValue(TimeUtils.parseDuration("10 s"))
+                    .withDescription(
+                            "Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active "
+                                    + "within the given amount of time. Inactive slots can be caused by an out-dated slot request.");
+
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Boolean> DEBUG_MEMORY_LOG =
             key("taskmanager.debug.memory.log")
@@ -285,7 +302,7 @@ public class TaskManagerOptions {
     /**
      * The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the
      * RpcAddress:RpcPort and a 6-character random string. Notice that this option is not valid in
-     * Yarn / Mesos and Native Kubernetes mode.
+     * Yarn and Native Kubernetes mode.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<String> TASK_MANAGER_RESOURCE_ID =
@@ -294,14 +311,14 @@ public class TaskManagerOptions {
                     .noDefaultValue()
                     .withDescription(
                             "The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "
-                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn / Mesos and Native Kubernetes mode.");
+                                    + "\"RpcAddress:RpcPort\" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.");
 
     // ------------------------------------------------------------------------
     //  Resource Options
     // ------------------------------------------------------------------------
 
     /**
-     * This config option describes number of cpu cores of task executors. In case of Yarn / Mesos /
+     * This config option describes number of cpu cores of task executors. In case of Yarn /
      * Kubernetes, it is used to launch a container for the task executor.
      *
      * <p>DO NOT USE THIS CONFIG OPTION. This config option is currently only used internally, for
@@ -309,9 +326,8 @@ public class TaskManagerOptions {
      * feature is not completed at the moment, and the config option is experimental and might be
      * changed / removed in the future. Thus, we do not expose this config option to users.
      *
-     * <p>For configuring the cpu cores of container on Yarn / Mesos / Kubernetes, please use {@link
-     * YarnConfigOptions#VCORES}, {@link MesosTaskManagerParameters#MESOS_RM_TASKS_CPUS} and {@link
-     * KubernetesConfigOptions#TASK_MANAGER_CPU}.
+     * <p>For configuring the cpu cores of container on Yarn / Kubernetes, please use {@link
+     * YarnConfigOptions#VCORES} and {@link KubernetesConfigOptions#TASK_MANAGER_CPU}.
      */
     @Documentation.ExcludeFromDocumentation
     public static final ConfigOption<Double> CPU_CORES =
@@ -321,8 +337,8 @@ public class TaskManagerOptions {
                     .withDescription(
                             "CPU cores for the TaskExecutors. In case of Yarn setups, this value will be rounded to "
                                     + "the closest positive integer. If not explicitly configured, legacy config options "
-                                    + "'yarn.containers.vcores', 'mesos.resourcemanager.tasks.cpus' and 'kubernetes.taskmanager.cpu' will be "
-                                    + "used for Yarn / Mesos / Kubernetes setups, and '"
+                                    + "'yarn.containers.vcores' and 'kubernetes.taskmanager.cpu' will be "
+                                    + "used for Yarn / Kubernetes setups, and '"
                                     + NUM_TASK_SLOTS.key()
                                     + "' will be used for "
                                     + "standalone setups (approximate number of slots).");
@@ -384,7 +400,7 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
                                     + " tasks. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
-                                    + " Task Off-Heap Memory, Managed Memory and Network Memory.");
+                                    + " Framework Off-Heap Memory, Task Off-Heap Memory, Managed Memory and Network Memory.");
 
     /** Task Off-Heap Memory size for TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
@@ -433,17 +449,21 @@ public class TaskManagerOptions {
                     .defaultValue(
                             new HashMap<String, String>() {
                                 {
-                                    put(MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "70");
+                                    put(MANAGED_MEMORY_CONSUMER_NAME_OPERATOR, "70");
+                                    put(MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND, "70");
                                     put(MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "30");
                                 }
                             })
                     .withDescription(
-                            "Managed memory weights for different kinds of consumers. A slot’s managed memory is"
-                                    + " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
-                                    + " of the number of consumers from each kind. Currently supported kinds of consumers are "
-                                    + MANAGED_MEMORY_CONSUMER_NAME_DATAPROC
-                                    + " (for RocksDB state backend in streaming and built-in"
-                                    + " algorithms in batch) and "
+                            "Managed memory weights for different kinds of consumers. A slot’s"
+                                    + " managed memory is shared by all kinds of consumers it"
+                                    + " contains, proportionally to the kinds’ weights and"
+                                    + " regardless of the number of consumers from each kind."
+                                    + " Currently supported kinds of consumers are "
+                                    + MANAGED_MEMORY_CONSUMER_NAME_OPERATOR
+                                    + " (for built-in algorithms), "
+                                    + MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND
+                                    + " (for RocksDB state backend) and "
                                     + MANAGED_MEMORY_CONSUMER_NAME_PYTHON
                                     + " (for Python processes).");
 
@@ -491,6 +511,28 @@ public class TaskManagerOptions {
                                     + " make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than"
                                     + " the configured min/max size, the min/max size will be used. The exact size of Network Memory can be"
                                     + " explicitly specified by setting the min/max size to the same value.");
+
+    /**
+     * Size of direct memory used by blocking shuffle for shuffle data read (currently only used by
+     * sort-merge shuffle).
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
+    public static final ConfigOption<MemorySize> NETWORK_BATCH_SHUFFLE_READ_MEMORY =
+            key("taskmanager.memory.framework.off-heap.batch-shuffle.size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("32m"))
+                    .withDescription(
+                            String.format(
+                                    "Size of memory used by blocking shuffle for shuffle data read "
+                                            + "(currently only used by sort-merge shuffle). Notes: "
+                                            + "1) The memory is cut from '%s' so must be smaller than"
+                                            + " that, which means you may also need to increase '%s' "
+                                            + "after you increase this config value; 2) This memory"
+                                            + " size can influence the shuffle performance and you "
+                                            + "can increase this config value for large-scale batch"
+                                            + " jobs (for example, to 128M or 256M).",
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key(),
+                                    FRAMEWORK_OFF_HEAP_MEMORY.key()));
 
     /** JVM Metaspace Size for the TaskExecutors. */
     @Documentation.Section(Documentation.Sections.COMMON_MEMORY)
@@ -559,7 +601,10 @@ public class TaskManagerOptions {
 
     /**
      * Timeout in milliseconds after which a task cancellation times out and leads to a fatal
-     * TaskManager error. A value of <code>0</code> deactivates the watch dog.
+     * TaskManager error. A value of <code>0</code> deactivates the watch dog. Notice that a task
+     * cancellation is different from both a task failure and a clean shutdown. Task cancellation
+     * timeout only applies to task cancellation and does not apply to task closing/clean-up caused
+     * by a task failure or a clean shutdown.
      */
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<Long> TASK_CANCELLATION_TIMEOUT =
@@ -569,7 +614,10 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Timeout in milliseconds after which a task cancellation times out and"
                                     + " leads to a fatal TaskManager error. A value of 0 deactivates"
-                                    + " the watch dog.");
+                                    + " the watch dog. Notice that a task cancellation is different from"
+                                    + " both a task failure and a clean shutdown. "
+                                    + " Task cancellation timeout only applies to task cancellation and does not apply to"
+                                    + " task closing/clean-up caused by a task failure or a clean shutdown.");
     /**
      * This configures how long we wait for the timers in milliseconds to finish all pending timer
      * threads when the stream task is cancelled.

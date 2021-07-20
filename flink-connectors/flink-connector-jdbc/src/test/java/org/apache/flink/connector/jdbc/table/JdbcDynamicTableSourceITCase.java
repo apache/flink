@@ -20,7 +20,6 @@ package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.planner.runtime.utils.StreamTestSink;
@@ -59,9 +58,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
     @Before
     public void before() throws ClassNotFoundException, SQLException {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
-        EnvironmentSettings envSettings =
-                EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
-        tEnv = StreamTableEnvironment.create(env, envSettings);
+        tEnv = StreamTableEnvironment.create(env);
 
         System.setProperty(
                 "derby.stream.error.field", JdbcTestBase.class.getCanonicalName() + ".DEV_NULL");
@@ -139,8 +136,8 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         .collect(Collectors.toList());
         List<String> expected =
                 Stream.of(
-                                "1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234",
-                                "2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234")
+                                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]",
+                                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]")
                         .sorted()
                         .collect(Collectors.toList());
         assertEquals(expected, result);
@@ -183,8 +180,8 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         .collect(Collectors.toList());
         List<String> expected =
                 Stream.of(
-                                "1,2020-01-01T15:35:00.123456,100.1234",
-                                "2,2020-01-01T15:36:01.123456,101.1234")
+                                "+I[1, 2020-01-01T15:35:00.123456, 100.1234]",
+                                "+I[2, 2020-01-01T15:36:01.123456, 101.1234]")
                         .sorted()
                         .collect(Collectors.toList());
         assertEquals(expected, result);
@@ -227,9 +224,9 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
 
         Set<String> expected = new HashSet<>();
         expected.add(
-                "1,2020-01-01T15:35:00.123456,2020-01-01T15:35:00.123456789,15:35,1.175E-37,1.79769E308,100.1234");
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
         expected.add(
-                "2,2020-01-01T15:36:01.123456,2020-01-01T15:36:01.123456789,15:36:01,-1.175E-37,-1.79769E308,101.1234");
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
         assertEquals(1, result.size());
         assertTrue(
                 "The actual output is not a subset of the expected set.",

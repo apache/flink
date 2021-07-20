@@ -43,6 +43,7 @@ import java.util.Set;
  */
 @PublicEvolving
 public final class MultisetType extends LogicalType {
+    private static final long serialVersionUID = 1L;
 
     public static final String FORMAT = "MULTISET<%s>";
 

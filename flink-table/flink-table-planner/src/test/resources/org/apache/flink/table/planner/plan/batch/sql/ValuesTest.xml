@@ -1,0 +1,122 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testDiffTypes">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES (1, 2.0), (3, CAST(4 AS BIGINT))) AS T(a, b)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1]), rowType=[RecordType(INTEGER a, DECIMAL(20, 1) b)]
++- LogicalUnion(all=[true]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
+   :- LogicalProject(EXPR$0=[1], EXPR$1=[2.0:DECIMAL(2, 1)]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(2, 1) EXPR$1)]
+   :  +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
+   +- LogicalProject(EXPR$0=[3], EXPR$1=[4:BIGINT]), rowType=[RecordType(INTEGER EXPR$0, BIGINT EXPR$1)]
+      +- LogicalValues(tuples=[[{ 0 }]]), rowType=[RecordType(INTEGER ZERO)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
+:- Calc(select=[1 AS EXPR$0, 2.0:DECIMAL(20, 1) AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
+:  +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
++- Calc(select=[3 AS EXPR$0, 4.0:DECIMAL(20, 1) AS EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, DECIMAL(20, 1) EXPR$1)]
+   +- Values(tuples=[[{ 0 }]], values=[ZERO]), rowType=[RecordType(INTEGER ZERO)]
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testEmptyValuesWithSort">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES 1, 2, 3) AS T (a) WHERE a = 1 and a = 2 ORDER BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[AND(=($0, 1), =($0, 2))])
+      +- LogicalValues(tuples=[[{ 1 }, { 2 }, { 3 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleRow">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalValues(tuples=[[{ 1, 2, 3 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[{ 1, 2, 3 }]], values=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiRows">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalUnion(all=[true])
+   :- LogicalProject(EXPR$0=[1], EXPR$1=[2])
+   :  +- LogicalValues(tuples=[[{ 0 }]])
+   :- LogicalProject(EXPR$0=[3], EXPR$1=[null:INTEGER])
+   :  +- LogicalValues(tuples=[[{ 0 }]])
+   +- LogicalProject(EXPR$0=[4], EXPR$1=[5])
+      +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[EXPR$0, EXPR$1])
+:- Calc(select=[1 AS EXPR$0, CAST(2) AS EXPR$1])
+:  +- Values(tuples=[[{ 0 }]], values=[ZERO])(reuse_id=[1])
+:- Calc(select=[3 AS EXPR$0, null:INTEGER AS EXPR$1])
+:  +- Reused(reference_id=[1])
++- Calc(select=[4 AS EXPR$0, CAST(5) AS EXPR$1])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNullValues">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES CAST(NULL AS INT))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[null:INTEGER])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[null:INTEGER AS EXPR$0])
++- Values(tuples=[[{ 0 }]], values=[ZERO])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -34,9 +34,12 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -73,21 +76,19 @@ public class ExecutionFailureHandlerTest extends TestLogger {
                 Collections.singleton(new ExecutionVertexID(new JobVertexID(), 0));
         failoverStrategy.setTasksToRestart(tasksToRestart);
 
+        Exception cause = new Exception("test failure");
+        long timestamp = System.currentTimeMillis();
         // trigger a task failure
         final FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
-                        new ExecutionVertexID(new JobVertexID(), 0), new Exception("test failure"));
+                        new ExecutionVertexID(new JobVertexID(), 0), cause, timestamp);
 
         // verify results
         assertTrue(result.canRestart());
         assertEquals(RESTART_DELAY_MS, result.getRestartDelayMS());
         assertEquals(tasksToRestart, result.getVerticesToRestart());
-        try {
-            result.getError();
-            fail("Cannot get error when the restarting is accepted");
-        } catch (IllegalStateException ex) {
-            // expected
-        }
+        assertThat(result.getError(), is(cause));
+        assertThat(result.getTimestamp(), is(timestamp));
         assertEquals(1, executionFailureHandler.getNumberOfRestarts());
     }
 
@@ -98,13 +99,16 @@ public class ExecutionFailureHandlerTest extends TestLogger {
         backoffTimeStrategy.setCanRestart(false);
 
         // trigger a task failure
+        final Throwable error = new Exception("expected test failure");
+        final long timestamp = System.currentTimeMillis();
         final FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
-                        new ExecutionVertexID(new JobVertexID(), 0), new Exception("test failure"));
+                        new ExecutionVertexID(new JobVertexID(), 0), error, timestamp);
 
         // verify results
         assertFalse(result.canRestart());
-        assertNotNull(result.getError());
+        assertThat(result.getError(), containsCause(error));
+        assertThat(result.getTimestamp(), is(timestamp));
         assertFalse(ExecutionFailureHandler.isUnrecoverableError(result.getError()));
         try {
             result.getVerticesToRestart();
@@ -125,16 +129,18 @@ public class ExecutionFailureHandlerTest extends TestLogger {
     @Test
     public void testNonRecoverableFailureHandlingResult() {
         // trigger an unrecoverable task failure
+        final Throwable error =
+                new Exception(new SuppressRestartsException(new Exception("test failure")));
+        final long timestamp = System.currentTimeMillis();
         final FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(
-                        new ExecutionVertexID(new JobVertexID(), 0),
-                        new Exception(
-                                new SuppressRestartsException(new Exception("test failure"))));
+                        new ExecutionVertexID(new JobVertexID(), 0), error, timestamp);
 
         // verify results
         assertFalse(result.canRestart());
         assertNotNull(result.getError());
         assertTrue(ExecutionFailureHandler.isUnrecoverableError(result.getError()));
+        assertThat(result.getTimestamp(), is(timestamp));
         try {
             result.getVerticesToRestart();
             fail("get tasks to restart is not allowed when restarting is suppressed");
@@ -169,15 +175,18 @@ public class ExecutionFailureHandlerTest extends TestLogger {
 
     @Test
     public void testGlobalFailureHandling() {
+        final Throwable error = new Exception("Expected test failure");
+        final long timestamp = System.currentTimeMillis();
         final FailureHandlingResult result =
-                executionFailureHandler.getGlobalFailureHandlingResult(
-                        new Exception("test failure"));
+                executionFailureHandler.getGlobalFailureHandlingResult(error, timestamp);
 
         assertEquals(
                 IterableUtils.toStream(schedulingTopology.getVertices())
                         .map(SchedulingExecutionVertex::getId)
                         .collect(Collectors.toSet()),
                 result.getVerticesToRestart());
+        assertThat(result.getError(), is(error));
+        assertThat(result.getTimestamp(), is(timestamp));
     }
 
     // ------------------------------------------------------------------------

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
@@ -70,7 +71,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Function<ResourceID, Boolean> containsSlotsFunction;
 
+    private final Function<AllocationID, Boolean> containsFreeSlotFunction;
+
     private final LongConsumer releaseIdleSlotsConsumer;
+
+    private final Consumer<ResourceCounter> setResourceRequirementsConsumer;
 
     TestingDeclarativeSlotPool(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer,
@@ -90,7 +95,9 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
             TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction,
             Function<ResourceID, Boolean> containsSlotsFunction,
-            LongConsumer releaseIdleSlotsConsumer) {
+            Function<AllocationID, Boolean> containsFreeSlotFunction,
+            LongConsumer releaseIdleSlotsConsumer,
+            Consumer<ResourceCounter> setResourceRequirementsConsumer) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
         this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
@@ -102,7 +109,9 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.reserveFreeSlotFunction = reserveFreeSlotFunction;
         this.freeReservedSlotFunction = freeReservedSlotFunction;
         this.containsSlotsFunction = containsSlotsFunction;
+        this.containsFreeSlotFunction = containsFreeSlotFunction;
         this.releaseIdleSlotsConsumer = releaseIdleSlotsConsumer;
+        this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
     }
 
     @Override
@@ -113,6 +122,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void decreaseResourceRequirementsBy(ResourceCounter decrement) {
         decreaseResourceRequirementsByConsumer.accept(decrement);
+    }
+
+    @Override
+    public void setResourceRequirements(ResourceCounter resourceRequirements) {
+        setResourceRequirementsConsumer.accept(resourceRequirements);
     }
 
     @Override
@@ -138,6 +152,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public Collection<? extends SlotInfo> getAllSlotsInformation() {
         return getAllSlotsInformationSupplier.get();
+    }
+
+    @Override
+    public boolean containsFreeSlot(AllocationID allocationId) {
+        return containsFreeSlotFunction.apply(allocationId);
     }
 
     @Override

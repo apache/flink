@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -27,24 +26,44 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
 
-/** Response type of the {@link JobExceptionsHandler}. */
-public class JobExceptionsInfo implements ResponseBody {
+/**
+ * {@code JobExceptionInfo} holds the information for single failure which caused a (maybe partial)
+ * job restart.
+ */
+public class JobExceptionsInfo {
 
     public static final String FIELD_NAME_ROOT_EXCEPTION = "root-exception";
     public static final String FIELD_NAME_TIMESTAMP = "timestamp";
     public static final String FIELD_NAME_ALL_EXCEPTIONS = "all-exceptions";
     public static final String FIELD_NAME_TRUNCATED = "truncated";
 
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
     @JsonProperty(FIELD_NAME_ROOT_EXCEPTION)
     private final String rootException;
 
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
     @JsonProperty(FIELD_NAME_TIMESTAMP)
     private final Long rootTimestamp;
 
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
     @JsonProperty(FIELD_NAME_ALL_EXCEPTIONS)
     private final List<ExecutionExceptionInfo> allExceptions;
 
+    /**
+     * @deprecated Use {@link JobExceptionsInfoWithHistory#getExceptionHistory()}'s entries instead.
+     */
+    @Deprecated
     @JsonProperty(FIELD_NAME_TRUNCATED)
     private final boolean truncated;
 
@@ -80,6 +99,16 @@ public class JobExceptionsInfo implements ResponseBody {
         return Objects.hash(rootException, rootTimestamp, allExceptions, truncated);
     }
 
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", JobExceptionsInfo.class.getSimpleName() + "[", "]")
+                .add("rootException='" + rootException + "'")
+                .add("rootTimestamp=" + rootTimestamp)
+                .add("allExceptions=" + allExceptions)
+                .add("truncated=" + truncated)
+                .toString();
+    }
+
     @JsonIgnore
     public String getRootException() {
         return rootException;
@@ -104,7 +133,14 @@ public class JobExceptionsInfo implements ResponseBody {
     // Static helper classes
     // ---------------------------------------------------------------------------------
 
-    /** Nested class to encapsulate the task execution exception. */
+    /**
+     * Nested class to encapsulate the task execution exception.
+     *
+     * @deprecated {@code ExecutionExceptionInfo} will be replaced by {@link
+     *     JobExceptionsInfoWithHistory.ExceptionInfo} as part of the effort of deprecating {@link
+     *     JobExceptionsInfo#allExceptions}.
+     */
+    @Deprecated
     public static final class ExecutionExceptionInfo {
         public static final String FIELD_NAME_EXCEPTION = "exception";
         public static final String FIELD_NAME_TASK = "task";
@@ -154,6 +190,16 @@ public class JobExceptionsInfo implements ResponseBody {
         @Override
         public int hashCode() {
             return Objects.hash(timestamp, exception, task, location);
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", ExecutionExceptionInfo.class.getSimpleName() + "[", "]")
+                    .add("exception='" + exception + "'")
+                    .add("task='" + task + "'")
+                    .add("location='" + location + "'")
+                    .add("timestamp=" + timestamp)
+                    .toString();
         }
     }
 }

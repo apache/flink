@@ -20,11 +20,14 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.util.Preconditions;
@@ -40,6 +43,7 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -65,6 +69,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     protected final int networkBuffersPerChannel;
     private boolean exclusiveBuffersAssigned;
+
+    private long lastStoppedCheckpointId = -1;
 
     RecoveredInputChannel(
             SingleInputGate inputGate,
@@ -97,7 +103,14 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     public final InputChannel toInputChannel() throws IOException {
         Preconditions.checkState(
                 stateConsumedFuture.isDone(), "recovered state is not fully consumed");
-        return toInputChannelInternal();
+        final InputChannel inputChannel = toInputChannelInternal();
+        inputChannel.checkpointStopped(lastStoppedCheckpointId);
+        return inputChannel;
+    }
+
+    @Override
+    public void checkpointStopped(long checkpointId) {
+        this.lastStoppedCheckpointId = checkpointId;
     }
 
     protected abstract InputChannel toInputChannelInternal() throws IOException;
@@ -108,18 +121,23 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     public void onRecoveredStateBuffer(Buffer buffer) {
         boolean recycleBuffer = true;
+        NetworkActionsLogger.traceRecover(
+                "InputChannelRecoveredStateHandler#recover",
+                buffer,
+                inputGate.getOwningTaskName(),
+                channelInfo);
         try {
             final boolean wasEmpty;
             synchronized (receivedBuffers) {
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after releaseAllResources() released all buffers from receivedBuffers.
                 if (isReleased) {
-                    return;
+                    wasEmpty = false;
+                } else {
+                    wasEmpty = receivedBuffers.isEmpty();
+                    receivedBuffers.add(buffer);
+                    recycleBuffer = false;
                 }
-
-                wasEmpty = receivedBuffers.isEmpty();
-                receivedBuffers.add(buffer);
-                recycleBuffer = false;
             }
 
             if (wasEmpty) {
@@ -188,6 +206,16 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        // We should not receive the EndOfUserRecordsEvent since it would
+        // turn into real channel before requesting partition. Besides,
+        // the event would not be persist in the unaligned checkpoint
+        // case, thus this also cannot happen during restoring state.
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should not need acknowledge all records processed.");
+    }
+
+    @Override
     final void requestSubpartition(int subpartitionIndex) {
         throw new UnsupportedOperationException(
                 "RecoveredInputChannel should never request partition.");
@@ -238,5 +266,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             exclusiveBuffersAssigned = true;
         }
         return bufferManager.requestBufferBlocking();
+    }
+
+    @Override
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+        throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
     }
 }

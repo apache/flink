@@ -19,8 +19,8 @@
 package org.apache.flink.connector.jdbc.table;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
@@ -87,13 +87,13 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
                         .collect(Collectors.toList());
 
         List<String> expected = new ArrayList<>();
-        expected.add("1,1,11-c1-v1,11-c2-v1");
-        expected.add("1,1,11-c1-v1,11-c2-v1");
-        expected.add("1,1,11-c1-v2,11-c2-v2");
-        expected.add("1,1,11-c1-v2,11-c2-v2");
-        expected.add("2,3,null,23-c2");
-        expected.add("2,5,25-c1,25-c2");
-        expected.add("3,8,38-c1,38-c2");
+        expected.add("+I[1, 1, 11-c1-v1, 11-c2-v1]");
+        expected.add("+I[1, 1, 11-c1-v1, 11-c2-v1]");
+        expected.add("+I[1, 1, 11-c1-v2, 11-c2-v2]");
+        expected.add("+I[1, 1, 11-c1-v2, 11-c2-v2]");
+        expected.add("+I[2, 3, null, 23-c2]");
+        expected.add("+I[2, 5, 25-c1, 25-c2]");
+        expected.add("+I[3, 8, 38-c1, 38-c2]");
         Collections.sort(expected);
 
         assertEquals(expected, result);
@@ -118,7 +118,7 @@ public class JdbcLookupTableITCase extends JdbcLookupTestBase {
         JdbcTableSource.Builder builder =
                 JdbcTableSource.builder()
                         .setOptions(
-                                JdbcOptions.builder()
+                                JdbcConnectorOptions.builder()
                                         .setDBUrl(DB_URL)
                                         .setTableName(LOOKUP_TABLE)
                                         .build())

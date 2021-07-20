@@ -485,12 +485,6 @@ public class EvictingWindowOperator<K, IN, OUT, W extends Window>
         evictorContext = null;
     }
 
-    @Override
-    public void dispose() throws Exception {
-        super.dispose();
-        evictorContext = null;
-    }
-
     // ------------------------------------------------------------------------
     // Getters for testing
     // ------------------------------------------------------------------------

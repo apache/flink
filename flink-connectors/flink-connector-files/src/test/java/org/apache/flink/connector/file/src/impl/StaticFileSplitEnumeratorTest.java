@@ -52,7 +52,7 @@ public class StaticFileSplitEnumeratorTest {
         final FileSourceSplit split = createRandomSplit();
         final StaticFileSplitEnumerator enumerator = createEnumerator(context, split);
 
-        final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = enumerator.snapshotState();
+        final PendingSplitsCheckpoint<FileSourceSplit> checkpoint = enumerator.snapshotState(1L);
 
         assertThat(checkpoint.getSplits(), contains(split));
     }
@@ -68,7 +68,7 @@ public class StaticFileSplitEnumeratorTest {
         enumerator.addReader(3);
         enumerator.handleSplitRequest(3, "somehost");
 
-        assertThat(enumerator.snapshotState().getSplits(), empty());
+        assertThat(enumerator.snapshotState(1L).getSplits(), empty());
         assertThat(context.getSplitAssignments().get(3).getAssignedSplits(), contains(split));
     }
 
@@ -82,7 +82,7 @@ public class StaticFileSplitEnumeratorTest {
         enumerator.handleSplitRequest(3, "somehost");
 
         assertFalse(context.getSplitAssignments().containsKey(3));
-        assertThat(enumerator.snapshotState().getSplits(), contains(split));
+        assertThat(enumerator.snapshotState(1L).getSplits(), contains(split));
     }
 
     @Test

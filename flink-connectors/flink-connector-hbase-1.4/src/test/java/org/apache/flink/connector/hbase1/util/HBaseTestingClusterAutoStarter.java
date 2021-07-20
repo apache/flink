@@ -117,8 +117,8 @@ public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 
     private static void initialize(Configuration c) {
         conf = HBaseConfiguration.create(c);
-        // the default retry number is 35 in hbase-1.4, set 5 for test
-        conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 5);
+        // the default retry number is 35 in hbase-1.4, set 35 for test
+        conf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, 35);
         try {
             admin = TEST_UTIL.getHBaseAdmin();
         } catch (MasterNotRunningException e) {

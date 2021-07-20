@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.function.TriConsumer;
@@ -62,12 +60,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             (ignore1, ignore2) -> {};
 
     private CheckpointConsumer checkpointConsumer =
-            (executionAttemptID,
-                    jobId,
-                    checkpointId,
-                    timestamp,
-                    checkpointOptions,
-                    advanceToEndOfEventTime) -> {};
+            (executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions) -> {};
 
     private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
             updatePartitionsConsumer = (ignore1, ignore2, ignore3) -> {};
@@ -103,12 +96,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     @Override
     public String getAddress() {
         return address;
-    }
-
-    @Override
-    public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
-            ExecutionAttemptID executionAttemptID, int requestId, Time timeout) {
-        return FutureUtils.completedExceptionally(new UnsupportedOperationException());
     }
 
     @Override
@@ -153,21 +140,16 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
             long timestamp) {}
 
     @Override
-    public void triggerCheckpoint(
+    public CompletableFuture<Acknowledge> triggerCheckpoint(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
             long timestamp,
-            CheckpointOptions checkpointOptions,
-            boolean advanceToEndOfEventTime) {
+            CheckpointOptions checkpointOptions) {
 
         checkpointConsumer.accept(
-                executionAttemptID,
-                jobId,
-                checkpointId,
-                timestamp,
-                checkpointOptions,
-                advanceToEndOfEventTime);
+                executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions);
+        return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
@@ -198,7 +180,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
                 JobID jobId,
                 long checkpointId,
                 long timestamp,
-                CheckpointOptions checkpointOptions,
-                boolean advanceToEndOfEventTime);
+                CheckpointOptions checkpointOptions);
     }
 }

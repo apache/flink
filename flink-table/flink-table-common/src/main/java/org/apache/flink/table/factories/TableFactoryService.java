@@ -42,7 +42,6 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 
@@ -240,7 +239,7 @@ public class TableFactoryService {
             // with the version we can provide mappings in case the format changes
             plainContext.remove(CONNECTOR_PROPERTY_VERSION);
             plainContext.remove(FORMAT_PROPERTY_VERSION);
-            plainContext.remove(CATALOG_PROPERTY_VERSION);
+            plainContext.remove(FactoryUtil.PROPERTY_VERSION.key());
 
             // check if required context is met
             Map<String, Tuple2<String, String>> mismatchedProperties = new HashMap<>();

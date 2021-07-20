@@ -18,17 +18,11 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBase;
-import org.apache.flink.streaming.connectors.kafka.KafkaTestBaseWithFlink;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.test.util.SuccessException;
@@ -53,6 +47,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.collectRows;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaTableTestUtils.readLines;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT;
 import static org.apache.flink.table.utils.TableTestMatchers.deepEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -60,7 +55,7 @@ import static org.junit.Assert.fail;
 
 /** Basic IT cases for the Kafka table source and sink. */
 @RunWith(Parameterized.class)
-public class KafkaTableITCase extends KafkaTestBaseWithFlink {
+public class KafkaTableITCase extends KafkaTableTestBase {
 
     private static final String JSON_FORMAT = "json";
     private static final String AVRO_FORMAT = "avro";
@@ -84,21 +79,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         };
     }
 
-    protected StreamExecutionEnvironment env;
-    protected StreamTableEnvironment tEnv;
-
     @Before
-    public void setup() {
-        env = StreamExecutionEnvironment.getExecutionEnvironment();
-        tEnv =
-                StreamTableEnvironment.create(
-                        env,
-                        EnvironmentSettings.newInstance()
-                                // Watermark is only supported in blink planner
-                                .useBlinkPlanner()
-                                .inStreamingMode()
-                                .build());
-        env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
+    public void before() {
         // we have to use single parallelism,
         // because we will count the messages in sink to terminate the job
         env.setParallelism(1);
@@ -112,8 +94,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable;
         if (!isLegacyConnector) {
@@ -242,8 +224,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
                         + "  'scan.startup.mode' = 'earliest-offset',\n"
                         + "  %s\n"
                         + ")";
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
         List<String> currencies = Arrays.asList("Euro", "Dollar", "Yen", "Dummy");
         List<String> topics =
                 currencies.stream()
@@ -315,7 +297,7 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         assertEquals(expected, TestingSinkFunction.rows);
 
         // ------------- cleanup -------------------
-        topics.forEach(KafkaTestBase::deleteTestTopic);
+        topics.forEach(super::deleteTestTopic);
     }
 
     @Test
@@ -329,8 +311,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable =
                 String.format(
@@ -429,8 +411,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // k_user_id and user_id have different data types to verify the correct mapping,
         // fields are reordered on purpose
@@ -513,8 +495,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // compared to the partial value test we cannot support both k_user_id and user_id in a full
         // value due to duplicate names after key prefix stripping,
@@ -604,8 +586,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(productTopic, 1, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         // create order table and set initial values
         final String orderTableDDL =
@@ -688,12 +670,12 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
 
         final List<String> expected =
                 Arrays.asList(
-                        "o_001,2020-10-01T00:01,p_001,1970-01-01T00:00,11.1100,Alice,scooter,1,11.1100",
-                        "o_002,2020-10-01T00:02,p_002,1970-01-01T00:00,23.1100,Bob,basketball,1,23.1100",
-                        "o_003,2020-10-01T12:00,p_001,2020-10-01T12:00,12.9900,Tom,scooter,2,25.9800",
-                        "o_004,2020-10-01T12:00,p_002,2020-10-01T12:00,19.9900,King,basketball,2,39.9800",
-                        "o_005,2020-10-01T18:00,p_001,2020-10-01T18:00,11.9900,Leonard,scooter,10,119.9000",
-                        "o_006,2020-10-01T18:00,null,null,null,Leonard,null,10,null");
+                        "+I[o_001, 2020-10-01T00:01, p_001, 1970-01-01T00:00, 11.1100, Alice, scooter, 1, 11.1100]",
+                        "+I[o_002, 2020-10-01T00:02, p_002, 1970-01-01T00:00, 23.1100, Bob, basketball, 1, 23.1100]",
+                        "+I[o_003, 2020-10-01T12:00, p_001, 2020-10-01T12:00, 12.9900, Tom, scooter, 2, 25.9800]",
+                        "+I[o_004, 2020-10-01T12:00, p_002, 2020-10-01T12:00, 19.9900, King, basketball, 2, 39.9800]",
+                        "+I[o_005, 2020-10-01T18:00, p_001, 2020-10-01T18:00, 11.9900, Leonard, scooter, 10, 119.9000]",
+                        "+I[o_006, 2020-10-01T18:00, null, null, null, Leonard, null, 10, null]");
 
         assertEquals(expected, result);
 
@@ -740,8 +722,8 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         createTestTopic(topic, 4, 1);
 
         // ---------- Produce an event time stream into Kafka -------------------
-        String groupId = standardProps.getProperty("group.id");
-        String bootstraps = standardProps.getProperty("bootstrap.servers");
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
 
         final String createTable =
                 String.format(
@@ -800,20 +782,100 @@ public class KafkaTableITCase extends KafkaTestBaseWithFlink {
         TableResult tableResult = tEnv.executeSql("INSERT INTO MySink SELECT * FROM kafka");
         final List<String> expected =
                 Arrays.asList(
-                        "0,partition-0-name-0,2020-03-08T13:12:11.123",
-                        "0,partition-0-name-1,2020-03-08T14:12:12.223",
-                        "0,partition-0-name-2,2020-03-08T15:12:13.323",
-                        "1,partition-1-name-0,2020-03-09T13:13:11.123",
-                        "1,partition-1-name-1,2020-03-09T15:13:11.133",
-                        "1,partition-1-name-2,2020-03-09T16:13:11.143",
-                        "2,partition-2-name-0,2020-03-10T13:12:14.123",
-                        "2,partition-2-name-1,2020-03-10T14:12:14.123",
-                        "2,partition-2-name-2,2020-03-10T14:13:14.123",
-                        "2,partition-2-name-3,2020-03-10T14:14:14.123",
-                        "2,partition-2-name-4,2020-03-10T14:15:14.123",
-                        "2,partition-2-name-5,2020-03-10T14:16:14.123",
-                        "3,partition-3-name-0,2020-03-11T17:12:11.123",
-                        "3,partition-3-name-1,2020-03-11T18:12:11.123");
+                        "+I[0, partition-0-name-0, 2020-03-08T13:12:11.123]",
+                        "+I[0, partition-0-name-1, 2020-03-08T14:12:12.223]",
+                        "+I[0, partition-0-name-2, 2020-03-08T15:12:13.323]",
+                        "+I[1, partition-1-name-0, 2020-03-09T13:13:11.123]",
+                        "+I[1, partition-1-name-1, 2020-03-09T15:13:11.133]",
+                        "+I[1, partition-1-name-2, 2020-03-09T16:13:11.143]",
+                        "+I[2, partition-2-name-0, 2020-03-10T13:12:14.123]",
+                        "+I[2, partition-2-name-1, 2020-03-10T14:12:14.123]",
+                        "+I[2, partition-2-name-2, 2020-03-10T14:13:14.123]",
+                        "+I[2, partition-2-name-3, 2020-03-10T14:14:14.123]",
+                        "+I[2, partition-2-name-4, 2020-03-10T14:15:14.123]",
+                        "+I[2, partition-2-name-5, 2020-03-10T14:16:14.123]",
+                        "+I[3, partition-3-name-0, 2020-03-11T17:12:11.123]",
+                        "+I[3, partition-3-name-1, 2020-03-11T18:12:11.123]");
+        KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
+
+        // ------------- cleanup -------------------
+
+        tableResult.getJobClient().ifPresent(JobClient::cancel);
+        deleteTestTopic(topic);
+    }
+
+    @Test
+    public void testPerPartitionWatermarkWithIdleSource() throws Exception {
+        if (isLegacyConnector) {
+            return;
+        }
+        // we always use a different topic name for each parameterized topic,
+        // in order to make sure the topic can be created.
+        final String topic = "idle_partition_watermark_topic_" + format;
+        createTestTopic(topic, 4, 1);
+
+        // ---------- Produce an event time stream into Kafka -------------------
+        String groupId = getStandardProps().getProperty("group.id");
+        String bootstraps = getBootstrapServers();
+        tEnv.getConfig()
+                .getConfiguration()
+                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(100));
+
+        final String createTable =
+                String.format(
+                        "CREATE TABLE kafka (\n"
+                                + "  `partition_id` INT,\n"
+                                + "  `value` INT,\n"
+                                + "  `timestamp` TIMESTAMP(3),\n"
+                                + "  WATERMARK FOR `timestamp` AS `timestamp`\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'kafka',\n"
+                                + "  'topic' = '%s',\n"
+                                + "  'properties.bootstrap.servers' = '%s',\n"
+                                + "  'properties.group.id' = '%s',\n"
+                                + "  'scan.startup.mode' = 'earliest-offset',\n"
+                                + "  'sink.partitioner' = '%s',\n"
+                                + "  'format' = '%s'\n"
+                                + ")",
+                        topic, bootstraps, groupId, TestPartitioner.class.getName(), format);
+
+        tEnv.executeSql(createTable);
+
+        // Only two partitions have elements and others are idle.
+        // When idle timer triggers, the WatermarkOutputMultiplexer will use the minimum watermark
+        // among active partitions as the output watermark.
+        // Therefore, we need to make sure the watermark in the each partition is large enough to
+        // trigger the window.
+        String initialValues =
+                "INSERT INTO kafka\n"
+                        + "VALUES\n"
+                        + " (0, 0, TIMESTAMP '2020-03-08 13:12:11.123'),\n"
+                        + " (0, 1, TIMESTAMP '2020-03-08 13:15:12.223'),\n"
+                        + " (0, 2, TIMESTAMP '2020-03-08 16:12:13.323'),\n"
+                        + " (1, 3, TIMESTAMP '2020-03-08 13:13:11.123'),\n"
+                        + " (1, 4, TIMESTAMP '2020-03-08 13:19:11.133'),\n"
+                        + " (1, 5, TIMESTAMP '2020-03-08 16:13:11.143')\n";
+        tEnv.executeSql(initialValues).await();
+
+        // ---------- Consume stream from Kafka -------------------
+
+        env.setParallelism(1);
+        String createSink =
+                "CREATE TABLE MySink(\n"
+                        + "  `id` INT,\n"
+                        + "  `cnt` BIGINT\n"
+                        + ") WITH (\n"
+                        + "  'connector' = 'values'\n"
+                        + ")";
+        tEnv.executeSql(createSink);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        "INSERT INTO MySink\n"
+                                + "SELECT `partition_id` as `id`, COUNT(`value`) as `cnt`\n"
+                                + "FROM kafka\n"
+                                + "GROUP BY `partition_id`, TUMBLE(`timestamp`, INTERVAL '1' HOUR) ");
+
+        final List<String> expected = Arrays.asList("+I[0, 2]", "+I[1, 2]");
         KafkaTableTestUtils.waitingExpectedResults("MySink", expected, Duration.ofSeconds(5));
 
         // ------------- cleanup -------------------

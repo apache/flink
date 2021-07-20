@@ -29,7 +29,7 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
 
 /** This class is the executable entry point for running a TaskExecutor in a YARN container. */
@@ -76,23 +75,22 @@ public class YarnTaskExecutorRunner {
      * @param args The command line arguments.
      */
     private static void runTaskManagerSecurely(String[] args) {
+        Configuration configuration = null;
+
         try {
             LOG.debug("All environment variables: {}", ENV);
 
             final String currDir = ENV.get(Environment.PWD.key());
             LOG.info("Current working Directory: {}", currDir);
 
-            final Configuration configuration = TaskManagerRunner.loadConfiguration(args);
+            configuration = TaskManagerRunner.loadConfiguration(args);
             setupAndModifyConfiguration(configuration, currDir, ENV);
-
-            TaskManagerRunner.runTaskManagerSecurely(configuration);
         } catch (Throwable t) {
-            final Throwable strippedThrowable =
-                    ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
-            // make sure that everything whatever ends up in the log
-            LOG.error("YARN TaskManager initialization failed.", strippedThrowable);
+            LOG.error("YARN TaskManager initialization failed.", t);
             System.exit(INIT_ERROR_EXIT_CODE);
         }
+
+        TaskManagerRunner.runTaskManagerProcessSecurely(Preconditions.checkNotNull(configuration));
     }
 
     @VisibleForTesting

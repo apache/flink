@@ -18,21 +18,19 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalculatorContext;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
@@ -40,7 +38,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 /** Tests for actions of {@link CheckpointCoordinator} on task failures. */
 public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
@@ -56,9 +53,13 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
      * on job failover could handle the {@code currentPeriodicTrigger} null case well.
      */
     @Test
-    public void testAbortPendingCheckpointsWithTriggerValidation() {
+    public void testAbortPendingCheckpointsWithTriggerValidation() throws Exception {
         final int maxConcurrentCheckpoints = ThreadLocalRandom.current().nextInt(10) + 1;
-        ExecutionVertex executionVertex = mockExecutionVertex();
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(new JobVertexID())
+                        .setTransitToRunning(false)
+                        .build();
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 new CheckpointCoordinatorConfiguration(
                         Integer.MAX_VALUE,
@@ -69,14 +70,12 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         true,
                         false,
                         false,
+                        0,
                         0);
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinator(
-                        new JobID(),
+                        graph.getJobID(),
                         checkpointCoordinatorConfiguration,
-                        new ExecutionVertex[] {executionVertex},
-                        new ExecutionVertex[] {executionVertex},
-                        new ExecutionVertex[] {executionVertex},
                         Collections.emptyList(),
                         new StandaloneCheckpointIDCounter(),
                         new StandaloneCompletedCheckpointStore(1),
@@ -85,10 +84,20 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
                         new CheckpointsCleaner(),
                         manualThreadExecutor,
                         SharedStateRegistry.DEFAULT_FACTORY,
-                        mock(CheckpointFailureManager.class));
+                        mock(CheckpointFailureManager.class),
+                        new DefaultCheckpointPlanCalculator(
+                                graph.getJobID(),
+                                new ExecutionGraphCheckpointPlanCalculatorContext(graph),
+                                graph.getVerticesTopologically()),
+                        new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
 
         // switch current execution's state to running to allow checkpoint could be triggered.
-        mockExecutionRunning(executionVertex);
+        graph.transitionToRunning();
+        graph.getAllExecutionVertices()
+                .forEach(
+                        task ->
+                                task.getCurrentExecutionAttempt()
+                                        .transitionState(ExecutionState.RUNNING));
 
         checkpointCoordinator.startCheckpointScheduler();
         assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
@@ -118,19 +127,5 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
         // after aborting checkpoints, we ensure currentPeriodicTrigger still available.
         assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
-    }
-
-    private ExecutionVertex mockExecutionVertex() {
-        ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
-        ExecutionVertex executionVertex = mock(ExecutionVertex.class);
-        Execution execution = Mockito.mock(Execution.class);
-        when(execution.getAttemptId()).thenReturn(executionAttemptID);
-        when(executionVertex.getCurrentExecutionAttempt()).thenReturn(execution);
-        return executionVertex;
-    }
-
-    private void mockExecutionRunning(ExecutionVertex executionVertex) {
-        when(executionVertex.getCurrentExecutionAttempt().getState())
-                .thenReturn(ExecutionState.RUNNING);
     }
 }

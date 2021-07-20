@@ -91,6 +91,7 @@
         <th nzSortKey="alignment.processed" nzShowSort><strong>Processed (persisted) Data</strong></th>
         <th nzSortKey="alignment.duration" nzShowSort><strong>Alignment Duration</strong></th>
         <th nzSortKey="start_delay" nzShowSort><strong>Start Delay</strong></th>
+        <th nzSortKey="unaligned_checkpoint" nzShowSort><strong>Unaligned Checkpoint</strong></th>
       </tr>
     </thead>
     <tbody>
@@ -98,13 +99,14 @@
         <td>{{ subTask['index'] }}</td>
         <ng-container *ngIf="subTask['status'] == 'completed'">
           <td >{{ subTask['ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ subTask['end_to_end_duration'] | humanizeDuration}}</td>
+          <td>{{ subTask['end_to_end_duration'] | humanizeDuration}} <span *ngIf="subTask['aborted']">(aborted)</span></td>
           <td>{{ subTask['state_size'] | humanizeBytes }}</td>
           <td>{{ subTask['checkpoint']['sync'] | humanizeDuration}}</td>
           <td>{{ subTask['checkpoint']['async'] | humanizeDuration}}</td>
           <td>{{ subTask['alignment']['processed'] | humanizeBytes }} ({{ subTask['alignment']['persisted'] | humanizeBytes }})</td>
           <td>{{ subTask['alignment']['duration'] | humanizeDuration}}</td>
           <td>{{ subTask['start_delay'] | humanizeDuration}}</td>
+          <td>{{ subTask['unaligned_checkpoint']}}</td>
         </ng-container>
         <ng-container *ngIf="subTask['status'] == 'pending_or_failed'">
           <td colspan="7">n/a</td>

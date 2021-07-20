@@ -17,7 +17,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -25,6 +24,8 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.throwable.ThrowableClassifier;
 import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.util.IterableUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 import java.util.Set;
@@ -73,12 +74,17 @@ public class ExecutionFailureHandler {
      *
      * @param failedTask is the ID of the failed task vertex
      * @param cause of the task failure
+     * @param timestamp of the task failure
      * @return result of the failure handling
      */
     public FailureHandlingResult getFailureHandlingResult(
-            ExecutionVertexID failedTask, Throwable cause) {
+            ExecutionVertexID failedTask, Throwable cause, long timestamp) {
         return handleFailure(
-                cause, failoverStrategy.getTasksNeedingRestart(failedTask, cause), false);
+                failedTask,
+                cause,
+                timestamp,
+                failoverStrategy.getTasksNeedingRestart(failedTask, cause),
+                false);
     }
 
     /**
@@ -87,11 +93,15 @@ public class ExecutionFailureHandler {
      * for it.
      *
      * @param cause of the task failure
+     * @param timestamp of the task failure
      * @return result of the failure handling
      */
-    public FailureHandlingResult getGlobalFailureHandlingResult(final Throwable cause) {
+    public FailureHandlingResult getGlobalFailureHandlingResult(
+            final Throwable cause, long timestamp) {
         return handleFailure(
+                null,
                 cause,
+                timestamp,
                 IterableUtils.toStream(schedulingTopology.getVertices())
                         .map(SchedulingExecutionVertex::getId)
                         .collect(Collectors.toSet()),
@@ -99,13 +109,18 @@ public class ExecutionFailureHandler {
     }
 
     private FailureHandlingResult handleFailure(
+            @Nullable final ExecutionVertexID failingExecutionVertexId,
             final Throwable cause,
+            long timestamp,
             final Set<ExecutionVertexID> verticesToRestart,
             final boolean globalFailure) {
 
         if (isUnrecoverableError(cause)) {
             return FailureHandlingResult.unrecoverable(
-                    new JobException("The failure is not recoverable", cause), globalFailure);
+                    failingExecutionVertexId,
+                    new JobException("The failure is not recoverable", cause),
+                    timestamp,
+                    globalFailure);
         }
 
         restartBackoffTimeStrategy.notifyFailure(cause);
@@ -113,17 +128,23 @@ public class ExecutionFailureHandler {
             numberOfRestarts++;
 
             return FailureHandlingResult.restartable(
-                    verticesToRestart, restartBackoffTimeStrategy.getBackoffTime(), globalFailure);
+                    failingExecutionVertexId,
+                    cause,
+                    timestamp,
+                    verticesToRestart,
+                    restartBackoffTimeStrategy.getBackoffTime(),
+                    globalFailure);
         } else {
             return FailureHandlingResult.unrecoverable(
+                    failingExecutionVertexId,
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, cause),
+                    timestamp,
                     globalFailure);
         }
     }
 
-    @VisibleForTesting
-    static boolean isUnrecoverableError(Throwable cause) {
+    public static boolean isUnrecoverableError(Throwable cause) {
         Optional<Throwable> unrecoverableError =
                 ThrowableClassifier.findThrowableOfThrowableType(
                         cause, ThrowableType.NonRecoverableError);

@@ -23,7 +23,6 @@ import org.apache.flink.runtime.state.KeyExtractorFunction;
 import org.apache.flink.runtime.state.KeyGroupPartitioner;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateSnapshot;
 import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 
@@ -61,10 +60,10 @@ public class HeapPriorityQueueSnapshotRestoreWrapper<T extends HeapPriorityQueue
     @SuppressWarnings("unchecked")
     @Nonnull
     @Override
-    public StateSnapshot stateSnapshot() {
+    public HeapPriorityQueueStateSnapshot<T> stateSnapshot() {
         final T[] queueDump =
                 (T[]) priorityQueue.toArray(new HeapPriorityQueueElement[priorityQueue.size()]);
-        return new HeapPriorityQueueStateSnapshot<>(
+        return new HeapPriorityQueueStateSnapshot<T>(
                 queueDump,
                 keyExtractorFunction,
                 metaInfo.deepCopy(),

@@ -178,7 +178,6 @@ public class FlinkContainer extends GenericContainer<FlinkContainer> implements 
         copyFileToContainer(MountableFile.forHostPath(script), "/tmp/script.sql");
         commands.add("cat /tmp/script.sql | ");
         commands.add(FLINK_BIN + "/sql-client.sh");
-        commands.add("embedded");
         job.getDefaultEnvFile()
                 .ifPresent(
                         defaultEnvFile -> {

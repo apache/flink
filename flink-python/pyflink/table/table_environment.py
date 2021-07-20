@@ -19,7 +19,6 @@ import os
 import sys
 import tempfile
 import warnings
-from abc import ABCMeta, abstractmethod
 from typing import Union, List, Tuple, Iterable
 
 from py4j.java_gateway import get_java_class, get_method
@@ -31,35 +30,35 @@ from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
 from pyflink.common import JobExecutionResult
-from pyflink.dataset import ExecutionEnvironment
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
-from pyflink.table import Table, EnvironmentSettings, Module, Expression, ExplainDetail, TableSink
+from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
+    Module, ModuleEntry, TableSink
 from pyflink.table.catalog import Catalog
-from pyflink.table.descriptors import StreamTableDescriptor, BatchTableDescriptor, \
+from pyflink.table.descriptors import StreamTableDescriptor, \
     ConnectorDescriptor, ConnectTableDescriptor
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
+from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
 from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
-    UserDefinedAggregateFunctionWrapper, udtaf, TableAggregateFunction
+    udtaf, TableAggregateFunction
 from pyflink.table.utils import to_expression_jarray
-from pyflink.util import utils
-from pyflink.util.utils import get_j_env_configuration, is_local_deployment, load_java_class, \
-    to_j_explain_detail_arr
+from pyflink.util import java_utils
+from pyflink.util.java_utils import get_j_env_configuration, is_local_deployment, load_java_class, \
+    to_j_explain_detail_arr, to_jarray
 
 __all__ = [
-    'BatchTableEnvironment',
     'StreamTableEnvironment',
     'TableEnvironment'
 ]
 
 
-class TableEnvironment(object, metaclass=ABCMeta):
+class TableEnvironment(object):
     """
     A table environment is the base class, entry point, and central context for creating Table
     and SQL API programs.
@@ -93,7 +92,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
     def __init__(self, j_tenv, serializer=PickleSerializer()):
         self._j_tenv = j_tenv
-        self._is_blink_planner = TableEnvironment._judge_blink_planner(j_tenv)
         self._serializer = serializer
         # When running in MiniCluster, launch the Python UDF worker using the Python executable
         # specified by sys.executable if users have not specified it explicitly via configuration
@@ -101,14 +99,19 @@ class TableEnvironment(object, metaclass=ABCMeta):
         self._set_python_executable_for_local_executor()
 
     @staticmethod
-    def _judge_blink_planner(j_tenv):
-        if "getPlanner" not in dir(j_tenv):
-            return False
-        else:
-            j_planner_class = j_tenv.getPlanner().getClass()
-            j_blink_planner_class = get_java_class(
-                get_gateway().jvm.org.apache.flink.table.planner.delegation.PlannerBase)
-            return j_blink_planner_class.isAssignableFrom(j_planner_class)
+    def create(environment_settings: EnvironmentSettings) -> 'TableEnvironment':
+        """
+        Creates a table environment that is the entry point and central context for creating Table
+        and SQL API programs.
+
+        :param environment_settings: The environment settings used to instantiate the
+                                     :class:`~pyflink.table.TableEnvironment`.
+        :return: The :class:`~pyflink.table.TableEnvironment`.
+        """
+        gateway = get_gateway()
+        j_tenv = gateway.jvm.TableEnvironment.create(
+            environment_settings._j_environment_settings)
+        return TableEnvironment(j_tenv)
 
     def from_table_source(self, table_source: 'TableSource') -> 'Table':
         """
@@ -174,6 +177,18 @@ class TableEnvironment(object, metaclass=ABCMeta):
         .. versionadded:: 1.12.0
         """
         self._j_tenv.unloadModule(module_name)
+
+    def use_modules(self, *module_names: str):
+        """
+        Use an array of :class:`~pyflink.table.Module` with given names.
+        ValidationException is thrown when there is duplicate name or no module with the given name.
+
+        :param module_names: Names of the modules to be used.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_names = to_jarray(get_gateway().jvm.String, module_names)
+        self._j_tenv.useModules(j_module_names)
 
     def create_java_temporary_system_function(self, name: str, function_class_name: str):
         """
@@ -403,6 +418,61 @@ class TableEnvironment(object, metaclass=ABCMeta):
         """
         return self._j_tenv.dropTemporaryFunction(path)
 
+    def create_temporary_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a temporary catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
+        it will be inaccessible in the current session. To make the permanent object available again
+        one can drop the corresponding temporary object.
+
+        Examples:
+        ::
+
+            >>> table_env.create_temporary_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTemporaryTable(path, descriptor._j_table_descriptor)
+
+    def create_table(self, path: str, descriptor: TableDescriptor):
+        """
+        Registers the given :class:`~pyflink.table.TableDescriptor` as a catalog table.
+
+        The TableDescriptor is converted into a CatalogTable and stored in the catalog.
+
+        If the table should not be permanently stored in a catalog, use
+        :func:`create_temporary_table` instead.
+
+        Examples:
+        ::
+
+            >>> table_env.create_table("MyTable", TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...                   .column("f0", DataTypes.STRING())
+            ...                   .build())
+            ...     .option("rows-per-second", 10)
+            ...     .option("fields.f0.kind", "random")
+            ...     .build())
+
+        :param path: The path under which the table will be registered.
+        :param descriptor: Template for creating a CatalogTable instance.
+
+        .. versionadded:: 1.14.0
+        """
+        self._j_tenv.createTable(path, descriptor._j_table_descriptor)
+
     def register_table(self, name: str, table: Table):
         """
         Registers a :class:`~pyflink.table.Table` under a unique name in the TableEnvironment's
@@ -497,7 +567,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         """
         warnings.warn("Deprecated in 1.10. Use from_path instead.", DeprecationWarning)
         gateway = get_gateway()
-        j_table_paths = utils.to_jarray(gateway.jvm.String, table_path)
+        j_table_paths = java_utils.to_jarray(gateway.jvm.String, table_path)
         j_table = self._j_tenv.scan(j_table_paths)
         return Table(j_table, self)
 
@@ -536,6 +606,33 @@ class TableEnvironment(object, metaclass=ABCMeta):
         .. versionadded:: 1.10.0
         """
         return Table(get_method(self._j_tenv, "from")(path), self)
+
+    def from_descriptor(self, descriptor: TableDescriptor) -> Table:
+        """
+        Returns a Table backed by the given TableDescriptor.
+
+        The TableDescriptor is registered as an inline (i.e. anonymous) temporary table
+        (see :func:`create_temporary_table`) using a unique identifier and then read. Note that
+        calling this method multiple times, even with the same descriptor, results in multiple
+        temporary tables. In such cases, it is recommended to register it under a name using
+        :func:`create_temporary_table` and reference it via :func:`from_path`
+
+        Examples:
+        ::
+
+            >>> table_env.from_descriptor(TableDescriptor.for_connector("datagen")
+            ...     .schema(Schema.new_builder()
+            ...         .column("f0", DataTypes.STRING())
+            ...         .build())
+            ...     .build()
+
+        Note that the returned Table is an API object and only contains a pipeline description.
+        It actually corresponds to a <i>view</i> in SQL terms. Call :func:`execute` in Table to
+        trigger an execution.
+
+        :return: The Table object describing the pipeline for further transformations.
+        """
+        return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
     def insert_into(self, target_path: str, table: Table):
         """
@@ -576,7 +673,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
     def list_modules(self) -> List[str]:
         """
-        Gets the names of all modules registered in this environment.
+        Gets the names of all modules used in this environment.
 
         :return: List of module names.
 
@@ -584,6 +681,17 @@ class TableEnvironment(object, metaclass=ABCMeta):
         """
         j_module_name_array = self._j_tenv.listModules()
         return [item for item in j_module_name_array]
+
+    def list_full_modules(self) -> List[ModuleEntry]:
+        """
+        Gets the names and statuses of all modules loaded in this environment.
+
+        :return: List of module names and use statuses.
+
+        .. versionadded:: 1.13.0
+        """
+        j_module_entry_array = self._j_tenv.listFullModules()
+        return [ModuleEntry(entry.name(), entry.used()) for entry in j_module_entry_array]
 
     def list_databases(self) -> List[str]:
         """
@@ -985,7 +1093,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
             setattr(self, "table_config", table_config)
         return getattr(self, "table_config")
 
-    @abstractmethod
     def connect(self, connector_descriptor: ConnectorDescriptor) -> ConnectTableDescriptor:
         """
         Creates a temporary table from a descriptor.
@@ -996,8 +1103,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
         The following example shows how to read from a connector using a JSON format and
         registering a temporary table as "MyTable":
-
-        Example:
         ::
 
             >>> table_env \\
@@ -1018,7 +1123,9 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
         .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
         """
-        pass
+        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
+        return StreamTableDescriptor(
+            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     def register_java_function(self, name: str, function_class_name: str):
         """
@@ -1045,7 +1152,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
             .loadClass(function_class_name).newInstance()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+        if not isinstance(self, StreamTableEnvironment) or self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1090,7 +1197,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         java_function = function._java_user_defined_function()
         # this is a temporary solution and will be unified later when we use the new type
         # system(DataType) to replace the old type system(TypeInformation).
-        if self._is_blink_planner and isinstance(self, BatchTableEnvironment):
+        if self.__class__ == TableEnvironment:
             if self._is_table_function(java_function):
                 self._register_table_function(name, java_function)
             elif self._is_aggregate_function(java_function):
@@ -1132,7 +1239,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
         python_files = self.get_config().get_configuration().get_string(
             jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
-            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([python_files, file_path])
+            python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
         self.get_config().get_configuration().set_string(
@@ -1398,19 +1505,15 @@ class TableEnvironment(object, metaclass=ABCMeta):
         serializer = BatchedSerializer(self._serializer)
         try:
             with temp_file:
-                serializer.dump_to_stream(elements, temp_file)
+                serializer.serialize(elements, temp_file)
             row_type_info = _to_java_type(schema)
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
-            if self._is_blink_planner:
-                PythonTableUtils = gateway.jvm \
-                    .org.apache.flink.table.planner.utils.python.PythonTableUtils
-                PythonInputFormatTableSource = gateway.jvm \
-                    .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
-            else:
-                PythonTableUtils = gateway.jvm.PythonTableUtils
-                PythonInputFormatTableSource = gateway.jvm.PythonInputFormatTableSource
+            PythonTableUtils = gateway.jvm \
+                .org.apache.flink.table.planner.utils.python.PythonTableUtils
+            PythonInputFormatTableSource = gateway.jvm \
+                .org.apache.flink.table.planner.utils.python.PythonInputFormatTableSource
             j_input_format = PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
             j_table_source = PythonInputFormatTableSource(
@@ -1450,10 +1553,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
         .. versionadded:: 1.11.0
         """
 
-        if not self._is_blink_planner and isinstance(self, BatchTableEnvironment):
-            raise TypeError("It doesn't support to convert from Pandas DataFrame in the batch "
-                            "mode of old planner")
-
         import pandas as pd
         if not isinstance(pdf, pd.DataFrame):
             raise TypeError("Unsupported type, expected pandas.DataFrame, got %s" % type(pdf))
@@ -1491,14 +1590,13 @@ class TableEnvironment(object, metaclass=ABCMeta):
         data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
-                serializer.dump_to_stream(data, temp_file)
+                serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
             data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
                 .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
-            if self._is_blink_planner:
-                data_type = data_type.bridgedTo(
-                    load_java_class('org.apache.flink.table.data.RowData'))
+            data_type = data_type.bridgedTo(
+                load_java_class('org.apache.flink.table.data.RowData'))
 
             j_arrow_table_source = \
                 jvm.org.apache.flink.table.runtime.arrow.ArrowUtils.createArrowTableSource(
@@ -1509,7 +1607,7 @@ class TableEnvironment(object, metaclass=ABCMeta):
 
     def _set_python_executable_for_local_executor(self):
         jvm = get_gateway().jvm
-        j_config = get_j_env_configuration(self)
+        j_config = get_j_env_configuration(self._get_j_env())
         if not j_config.containsKey(jvm.PythonOptions.PYTHON_EXECUTABLE.key()) \
                 and is_local_deployment(j_config):
             j_config.setString(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), sys.executable)
@@ -1520,15 +1618,14 @@ class TableEnvironment(object, metaclass=ABCMeta):
         if jar_urls is not None:
             # normalize and remove duplicates
             jar_urls_set = set([jvm.java.net.URL(url).toString() for url in jar_urls.split(";")])
-            j_configuration = get_j_env_configuration(self)
+            j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):
                     jar_urls_set.add(url)
             j_configuration.setString(config_key, ";".join(jar_urls_set))
 
-    @abstractmethod
     def _get_j_env(self):
-        pass
+        return self._j_tenv.getPlanner().getExecEnv()
 
     @staticmethod
     def _is_table_function(java_function):
@@ -1574,10 +1671,6 @@ class TableEnvironment(object, metaclass=ABCMeta):
         self._add_jars_to_j_env_config(classpaths_key)
 
     def _wrap_aggregate_function_if_needed(self, function) -> UserDefinedFunctionWrapper:
-        if isinstance(function, (AggregateFunction, TableAggregateFunction,
-                                 UserDefinedAggregateFunctionWrapper)):
-            if not self._is_blink_planner:
-                raise Exception("Python UDAF and UDTAF are only supported in blink planner")
         if isinstance(function, AggregateFunction):
             function = udaf(function,
                             result_type=function.get_result_type(),
@@ -1594,51 +1687,11 @@ class TableEnvironment(object, metaclass=ABCMeta):
 class StreamTableEnvironment(TableEnvironment):
 
     def __init__(self, j_tenv):
-        self._j_tenv = j_tenv
         super(StreamTableEnvironment, self).__init__(j_tenv)
-
-    def _get_j_env(self):
-        if self._is_blink_planner:
-            return self._j_tenv.getPlanner().getExecEnv()
-        else:
-            return self._j_tenv.getPlanner().getExecutionEnvironment()
-
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> StreamTableDescriptor:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.StreamTableDescriptor` used to build the
-                 temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        return StreamTableDescriptor(
-            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+        self._j_tenv = j_tenv
 
     @staticmethod
-    def create(stream_execution_environment: StreamExecutionEnvironment = None,
+    def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
                table_config: TableConfig = None,
                environment_settings: EnvironmentSettings = None) -> 'StreamTableEnvironment':
         """
@@ -1655,8 +1708,7 @@ class StreamTableEnvironment(TableEnvironment):
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.new_instance().use_blink_planner() \\
-            ...     .build()
+            >>> environment_settings = EnvironmentSettings.in_streaming_mode()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.
@@ -1668,8 +1720,7 @@ class StreamTableEnvironment(TableEnvironment):
                                              of the TableEnvironment.
         :param table_config: The configuration of the TableEnvironment, optional.
         :param environment_settings: The environment settings used to instantiate the
-                                     TableEnvironment. It provides the interfaces about planner
-                                     selection(flink or blink), optional.
+                                     TableEnvironment.
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """
@@ -1736,6 +1787,8 @@ class StreamTableEnvironment(TableEnvironment):
         .. versionadded:: 1.12.0
         """
         j_data_stream = data_stream._j_data_stream
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
         if len(fields) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
         elif all(isinstance(f, Expression) for f in fields):
@@ -1785,139 +1838,3 @@ class StreamTableEnvironment(TableEnvironment):
         """
         j_data_stream = self._j_tenv.toRetractStream(table._j_table, type_info.get_java_type_info())
         return DataStream(j_data_stream=j_data_stream)
-
-
-class BatchTableEnvironment(TableEnvironment):
-
-    def __init__(self, j_tenv):
-        self._j_tenv = j_tenv
-        super(BatchTableEnvironment, self).__init__(j_tenv)
-
-    def _get_j_env(self):
-        if self._is_blink_planner:
-            return self._j_tenv.getPlanner().getExecEnv()
-        else:
-            return self._j_tenv.execEnv()
-
-    def connect(self, connector_descriptor: ConnectorDescriptor) -> \
-            Union[BatchTableDescriptor, StreamTableDescriptor]:
-        """
-        Creates a temporary table from a descriptor.
-
-        Descriptors allow for declaring the communication to external systems in an
-        implementation-agnostic way. The classpath is scanned for suitable table factories that
-        match the desired configuration.
-
-        The following example shows how to read from a connector using a JSON format and
-        registering a temporary table as "MyTable":
-        ::
-
-            >>> table_env \\
-            ...     .connect(ExternalSystemXYZ()
-            ...              .version("0.11")) \\
-            ...     .with_format(Json()
-            ...                  .json_schema("{...}")
-            ...                  .fail_on_missing_field(False)) \\
-            ...     .with_schema(Schema()
-            ...                  .field("user-name", "VARCHAR")
-            ...                  .from_origin_field("u_name")
-            ...                  .field("count", "DECIMAL")) \\
-            ...     .create_temporary_table("MyTable")
-
-        :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`~pyflink.table.descriptors.BatchTableDescriptor` or a
-                 :class:`~pyflink.table.descriptors.StreamTableDescriptor` (for blink planner) used
-                 to build the temporary table.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` to register a table instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql instead.", DeprecationWarning)
-        gateway = get_gateway()
-        blink_t_env_class = get_java_class(
-            gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
-        if blink_t_env_class == self._j_tenv.getClass():
-            return StreamTableDescriptor(
-                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-        else:
-            return BatchTableDescriptor(
-                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
-    @staticmethod
-    def create(execution_environment: ExecutionEnvironment = None,
-               table_config: TableConfig = None,
-               environment_settings: EnvironmentSettings = None) -> 'BatchTableEnvironment':
-        """
-        Creates a :class:`~pyflink.table.BatchTableEnvironment`.
-
-        Example:
-        ::
-
-            # create with ExecutionEnvironment.
-            >>> env = ExecutionEnvironment.get_execution_environment()
-            >>> table_env = BatchTableEnvironment.create(env)
-            # create with ExecutionEnvironment and TableConfig.
-            >>> table_config = TableConfig()
-            >>> table_config.set_null_check(False)
-            >>> table_env = BatchTableEnvironment.create(env, table_config)
-            # create with EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.new_instance().in_batch_mode() \\
-            ...     .use_blink_planner().build()
-            >>> table_env = BatchTableEnvironment.create(environment_settings=environment_settings)
-
-        :param execution_environment: The batch :class:`~pyflink.dataset.ExecutionEnvironment` of
-                                      the TableEnvironment.
-        :param table_config: The configuration of the TableEnvironment, optional.
-        :param environment_settings: The environment settings used to instantiate the
-                                     TableEnvironment. It provides the interfaces about planner
-                                     selection(flink or blink), optional.
-        :return: The BatchTableEnvironment created from given ExecutionEnvironment and
-                 configuration.
-        """
-        if execution_environment is None and \
-                table_config is None and \
-                environment_settings is None:
-            raise ValueError("No argument found, the param 'execution_environment' "
-                             "or 'environment_settings' is required.")
-        elif execution_environment is None and \
-                table_config is not None and \
-                environment_settings is None:
-            raise ValueError("Only the param 'table_config' is found, "
-                             "the param 'execution_environment' is also required.")
-        elif execution_environment is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'execution_environment' and "
-                             "'environment_settings' cannot be used at the same time")
-        elif table_config is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'table_config' and "
-                             "'environment_settings' cannot be used at the same time")
-
-        gateway = get_gateway()
-        if environment_settings is not None:
-            if environment_settings.is_streaming_mode():
-                raise ValueError("The environment settings for BatchTableEnvironment must be "
-                                 "set to batch mode.")
-            JEnvironmentSettings = get_gateway().jvm.org.apache.flink.table.api.EnvironmentSettings
-
-            old_planner_class_name = EnvironmentSettings.new_instance().in_batch_mode() \
-                .use_old_planner().build()._j_environment_settings \
-                .toPlannerProperties()[JEnvironmentSettings.CLASS_NAME]
-            planner_properties = environment_settings._j_environment_settings.toPlannerProperties()
-            if JEnvironmentSettings.CLASS_NAME in planner_properties and \
-                    planner_properties[JEnvironmentSettings.CLASS_NAME] == old_planner_class_name:
-                # The Java EnvironmentSettings API does not support creating table environment with
-                # old planner. Create it from other API.
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    ExecutionEnvironment.get_execution_environment()._j_execution_environment)
-            else:
-                j_tenv = gateway.jvm.TableEnvironment.create(
-                    environment_settings._j_environment_settings)
-        else:
-            if table_config is None:
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    execution_environment._j_execution_environment)
-            else:
-                j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                    execution_environment._j_execution_environment,
-                    table_config._j_table_config)
-        return BatchTableEnvironment(j_tenv)

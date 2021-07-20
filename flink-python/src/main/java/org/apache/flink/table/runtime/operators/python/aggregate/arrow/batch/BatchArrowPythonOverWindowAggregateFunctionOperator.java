@@ -36,7 +36,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ListIterator;
 
-import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.getUserDefinedFunctionProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createOverWindowArrowTypeCoderInfoDescriptorProto;
+import static org.apache.flink.streaming.api.utils.ProtoUtils.getUserDefinedFunctionProto;
 
 /** The Batch Arrow Python {@link AggregateFunction} Operator for Over Window Aggregation. */
 @Internal
@@ -44,9 +45,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
         extends AbstractBatchArrowPythonAggregateFunctionOperator {
 
     private static final long serialVersionUID = 1L;
-
-    private static final String SCHEMA_OVER_WINDOW_ARROW_CODER_URN =
-            "flink:coder:schema:batch_over_window:arrow:v1";
 
     private static final String PANDAS_BATCH_OVER_WINDOW_AGG_FUNCTION_URN =
             "flink:transform:batch_over_window_aggregate_function:arrow:v1";
@@ -122,11 +120,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+        super.open();
         forwardedInputSerializer = new RowDataSerializer(inputType);
         this.lastKeyDataStartPos = 0;
         windowBoundaryWithDataBaos = new ByteArrayOutputStreamWithPos();
@@ -141,7 +135,6 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
                 boundedRangeWindowBoundaries.add(new ArrayList<>());
             }
         }
-        super.open();
     }
 
     @Override
@@ -225,6 +218,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             elementCount += currentBatchCount;
             checkInvokeFinishBundleByCount();
             currentBatchCount = 0;
+            arrowSerializer.resetWriter();
         }
         lastKeyDataStartPos = forwardedInputQueue.size();
     }
@@ -248,6 +242,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             reuseJoinedRow.setRowKind(input.getRowKind());
             rowDataWrapper.collect(reuseJoinedRow.replace(input, arrowSerializer.read(i)));
         }
+        arrowSerializer.resetReader();
     }
 
     @Override
@@ -262,6 +257,7 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
             builder.addUdfs(functionBuilder);
         }
         builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setProfileEnabled(getPythonConfig().isProfileEnabled());
         // add windows
         for (int i = 0; i < lowerBoundary.length; i++) {
             FlinkFnApi.OverWindow.Builder windowBuilder = FlinkFnApi.OverWindow.newBuilder();
@@ -323,8 +319,17 @@ public class BatchArrowPythonOverWindowAggregateFunctionOperator
     }
 
     @Override
-    public String getInputOutputCoderUrn() {
-        return SCHEMA_OVER_WINDOW_ARROW_CODER_URN;
+    public RowType createUserDefinedFunctionOutputType() {
+        return new RowType(
+                outputType
+                        .getFields()
+                        .subList(inputType.getFieldCount(), outputType.getFieldCount()));
+    }
+
+    @Override
+    public FlinkFnApi.CoderInfoDescriptor createInputCoderInfoDescriptor(RowType runnerInputType) {
+        return createOverWindowArrowTypeCoderInfoDescriptorProto(
+                runnerInputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false);
     }
 
     private boolean isInCurrentOverWindow(RowData data, long time, boolean includeEqual) {

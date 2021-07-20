@@ -18,8 +18,8 @@
 package org.apache.flink.runtime.slots;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.util.ResourceCounter;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,9 +32,17 @@ public class DefaultRequirementMatcher implements RequirementMatcher {
     @Override
     public Optional<ResourceProfile> match(
             ResourceProfile resourceProfile,
-            Collection<Map.Entry<ResourceProfile, Integer>> totalRequirements,
+            ResourceCounter totalRequirements,
             Function<ResourceProfile, Integer> numAssignedResourcesLookup) {
-        for (Map.Entry<ResourceProfile, Integer> requirementCandidate : totalRequirements) {
+        // Short-cut for fine-grained resource management. If there is already exactly equal
+        // requirement, we can directly match with it.
+        if (totalRequirements.getResourceCount(resourceProfile)
+                > numAssignedResourcesLookup.apply(resourceProfile)) {
+            return Optional.of(resourceProfile);
+        }
+
+        for (Map.Entry<ResourceProfile, Integer> requirementCandidate :
+                totalRequirements.getResourcesWithCount()) {
             ResourceProfile requirementProfile = requirementCandidate.getKey();
 
             // beware the order when matching resources to requirements, because

@@ -209,8 +209,7 @@ public class HiveRunnerITCase {
 
     @Test
     public void testWriteNullValues() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create database db1");
@@ -268,8 +267,7 @@ public class HiveRunnerITCase {
 
             // populate src2 with same data from Flink
             tableEnv.executeSql(
-                            "insert into db1.src2 values (cast(1.0 as decimal(10,2))), (cast(2.12 as decimal(10,2))), "
-                                    + "(cast(5.123 as decimal(10,2))), (cast(5.456 as decimal(10,2))), (cast(123456789.12 as decimal(10,2)))")
+                            "insert into db1.src2 values (1.0),(2.12),(5.123),(5.456),(123456789.12)")
                     .await();
             // verify src1 and src2 contain same data
             verifyHiveQueryResult(
@@ -337,7 +335,7 @@ public class HiveRunnerITCase {
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p1 string, p2 double)");
             tableEnv.executeSql(
-                            "insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src")
+                            "insert into db1.dest partition (p1='1\\'1', p2=1.1) select x from db1.src")
                     .await();
             assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
             verifyHiveQueryResult(
@@ -381,7 +379,8 @@ public class HiveRunnerITCase {
                     .commit();
             tableEnv.executeSql(
                     "create table db1.dest (x int) partitioned by (p1 double, p2 string)");
-            tableEnv.executeSql("insert into db1.dest partition (p1=1.1) select x,y from db1.src")
+            tableEnv.executeSql(
+                            "insert into db1.dest partition (p1=1.1,p2) select x,y from db1.src")
                     .await();
             assertEquals(2, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
             verifyHiveQueryResult(
@@ -488,15 +487,15 @@ public class HiveRunnerITCase {
             List<Row> results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select count(v) from db1.v1").execute().collect());
-            assertEquals("[2]", results.toString());
+            assertEquals("[+I[2]]", results.toString());
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v2").execute().collect());
-            assertEquals("[1,3, 3,2]", results.toString());
+            assertEquals("[+I[1, 3], +I[3, 2]]", results.toString());
             results =
                     CollectionUtil.iteratorToList(
                             tableEnv.sqlQuery("select * from db1.v3").execute().collect());
-            assertEquals("[1,key1,3, 2,key2,1, 3,key3,2]", results.toString());
+            assertEquals("[+I[1, key1, 3], +I[2, key2, 1], +I[3, key3, 2]]", results.toString());
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }
@@ -547,14 +546,14 @@ public class HiveRunnerITCase {
 
             tableEnv.executeSql("alter table db1.src change x x int");
             assertEquals(
-                    "[1,100, 2,200]",
+                    "[+I[1, 100], +I[2, 200]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.src").execute().collect())
                             .toString());
 
             tableEnv.executeSql("alter table db1.src change y y string");
             assertEquals(
-                    "[1,100, 2,200]",
+                    "[+I[1, 100], +I[2, 200]]",
                     CollectionUtil.iteratorToList(
                                     tableEnv.sqlQuery("select * from db1.src").execute().collect())
                             .toString());
@@ -617,8 +616,7 @@ public class HiveRunnerITCase {
     }
 
     private static TableEnvironment getTableEnvWithHiveCatalog() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -627,7 +625,7 @@ public class HiveRunnerITCase {
     private TableEnvironment getStreamTableEnvWithHiveCatalog() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         return tableEnv;
@@ -711,7 +709,8 @@ public class HiveRunnerITCase {
         assertEquals(expected.size(), results.size());
         Set<String> expectedSet = new HashSet<>();
         for (int i = 0; i < results.size(); i++) {
-            expectedSet.add(expected.get(i).toString().replaceAll(",", "\t"));
+            final String rowString = expected.get(i).toString();
+            expectedSet.add(rowString.substring(3, rowString.length() - 1).replaceAll(", ", "\t"));
         }
         assertEquals(expectedSet, new HashSet<>(results));
     }

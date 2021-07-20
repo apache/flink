@@ -17,6 +17,7 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 
@@ -91,18 +92,18 @@ public class RocksDBIncrementalCheckpointUtils {
         final byte[] endKeyGroupBytes = new byte[keyGroupPrefixBytes];
 
         if (currentKeyGroupRange.getStartKeyGroup() < targetKeyGroupRange.getStartKeyGroup()) {
-            RocksDBKeySerializationUtils.serializeKeyGroup(
+            CompositeKeySerializationUtils.serializeKeyGroup(
                     currentKeyGroupRange.getStartKeyGroup(), beginKeyGroupBytes);
-            RocksDBKeySerializationUtils.serializeKeyGroup(
+            CompositeKeySerializationUtils.serializeKeyGroup(
                     targetKeyGroupRange.getStartKeyGroup(), endKeyGroupBytes);
             deleteRange(
                     db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);
         }
 
         if (currentKeyGroupRange.getEndKeyGroup() > targetKeyGroupRange.getEndKeyGroup()) {
-            RocksDBKeySerializationUtils.serializeKeyGroup(
+            CompositeKeySerializationUtils.serializeKeyGroup(
                     targetKeyGroupRange.getEndKeyGroup() + 1, beginKeyGroupBytes);
-            RocksDBKeySerializationUtils.serializeKeyGroup(
+            CompositeKeySerializationUtils.serializeKeyGroup(
                     currentKeyGroupRange.getEndKeyGroup() + 1, endKeyGroupBytes);
             deleteRange(
                     db, columnFamilyHandles, beginKeyGroupBytes, endKeyGroupBytes, writeBatchSize);

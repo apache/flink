@@ -132,8 +132,10 @@ public class LogicalTypeParserTest {
                         .expectType(new ZonedTimestampType(3)),
                 TestSpec.forString("TIMESTAMP WITH LOCAL TIME ZONE")
                         .expectType(new LocalZonedTimestampType()),
+                TestSpec.forString("TIMESTAMP_LTZ").expectType(new LocalZonedTimestampType()),
                 TestSpec.forString("TIMESTAMP(3) WITH LOCAL TIME ZONE")
                         .expectType(new LocalZonedTimestampType(3)),
+                TestSpec.forString("TIMESTAMP_LTZ(3)").expectType(new LocalZonedTimestampType(3)),
                 TestSpec.forString("INTERVAL YEAR")
                         .expectType(new YearMonthIntervalType(YearMonthResolution.YEAR)),
                 TestSpec.forString("INTERVAL YEAR(4)")

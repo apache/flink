@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import javax.annotation.Nullable;
 
@@ -52,21 +53,21 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
 
     private final DataStream<E> dataStream;
     private final int[] fieldIndices;
-    private final TableSchema tableSchema;
+    private final ResolvedSchema resolvedSchema;
 
     public ScalaDataStreamQueryOperation(
-            DataStream<E> dataStream, int[] fieldIndices, TableSchema tableSchema) {
-        this(null, dataStream, fieldIndices, tableSchema);
+            DataStream<E> dataStream, int[] fieldIndices, ResolvedSchema resolvedSchema) {
+        this(null, dataStream, fieldIndices, resolvedSchema);
     }
 
     public ScalaDataStreamQueryOperation(
             ObjectIdentifier identifier,
             DataStream<E> dataStream,
             int[] fieldIndices,
-            TableSchema tableSchema) {
+            ResolvedSchema resolvedSchema) {
         this.identifier = identifier;
         this.dataStream = dataStream;
-        this.tableSchema = tableSchema;
+        this.resolvedSchema = resolvedSchema;
         this.fieldIndices = fieldIndices;
     }
 
@@ -79,8 +80,8 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
     }
 
     @Override
-    public TableSchema getTableSchema() {
-        return tableSchema;
+    public ResolvedSchema getResolvedSchema() {
+        return resolvedSchema;
     }
 
     public Optional<ObjectIdentifier> getIdentifier() {
@@ -95,7 +96,7 @@ public class ScalaDataStreamQueryOperation<E> implements QueryOperation {
         } else {
             args.put("id", dataStream.getId());
         }
-        args.put("fields", tableSchema.getFieldNames());
+        args.put("fields", resolvedSchema.getColumnNames());
 
         return OperationUtils.formatWithChildren(
                 "DataStream", args, getChildren(), Operation::asSummaryString);

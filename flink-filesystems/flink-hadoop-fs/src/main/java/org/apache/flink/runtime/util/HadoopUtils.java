@@ -46,6 +46,9 @@ public class HadoopUtils {
 
     static final Text HDFS_DELEGATION_TOKEN_KIND = new Text("HDFS_DELEGATION_TOKEN");
 
+    /** The prefixes that Flink adds to the Hadoop config. */
+    private static final String[] FLINK_CONFIG_PREFIXES = {"flink.hadoop."};
+
     @SuppressWarnings("deprecation")
     public static Configuration getHadoopConfiguration(
             org.apache.flink.configuration.Configuration flinkConfiguration) {
@@ -112,6 +115,24 @@ public class HadoopUtils {
             LOG.debug("Searching Hadoop configuration files in HADOOP_CONF_DIR: {}", hadoopConfDir);
             foundHadoopConfiguration =
                     addHadoopConfIfFound(result, hadoopConfDir) || foundHadoopConfiguration;
+        }
+
+        // Approach 4: Flink configuration
+        // add all configuration key with prefix 'flink.hadoop.' in flink conf to hadoop conf
+        for (String key : flinkConfiguration.keySet()) {
+            for (String prefix : FLINK_CONFIG_PREFIXES) {
+                if (key.startsWith(prefix)) {
+                    String newKey = key.substring(prefix.length());
+                    String value = flinkConfiguration.getString(key, null);
+                    result.set(newKey, value);
+                    LOG.debug(
+                            "Adding Flink config entry for {} as {}={} to Hadoop config",
+                            key,
+                            newKey,
+                            value);
+                    foundHadoopConfiguration = true;
+                }
+            }
         }
 
         if (!foundHadoopConfiguration) {

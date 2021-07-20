@@ -22,30 +22,37 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.filesystem.FileSystemOptions.LOOKUP_JOIN_CACHE_TTL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_CLASS;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemOptions.STREAMING_SOURCE_PARTITION_ORDER;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.LOOKUP_JOIN_CACHE_TTL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_CLASS;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.PARTITION_TIME_EXTRACTOR_KIND;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_CONSUME_START_OFFSET;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /** Unit tests for {@link HiveDynamicTableFactory}. */
@@ -56,9 +63,7 @@ public class HiveDynamicTableFactoryTest {
 
     @BeforeClass
     public static void setup() {
-        EnvironmentSettings settings =
-                EnvironmentSettings.newInstance().inStreamingMode().useBlinkPlanner().build();
-        tableEnv = TableEnvironment.create(settings);
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
@@ -229,7 +234,45 @@ public class HiveDynamicTableFactoryTest {
         }
     }
 
+    @Test
+    public void testJobConfWithCredentials() throws Exception {
+        final Text hdfsDelegationTokenKind = new Text("HDFS_DELEGATION_TOKEN");
+        final Text hdfsDelegationTokenService = new Text("ha-hdfs:hadoop-namespace");
+        Credentials credentials = new Credentials();
+        credentials.addToken(
+                hdfsDelegationTokenService,
+                new Token<>(
+                        new byte[4],
+                        new byte[4],
+                        hdfsDelegationTokenKind,
+                        hdfsDelegationTokenService));
+        UserGroupInformation.getCurrentUser().addCredentials(credentials);
+
+        // test table source's jobConf with credentials
+        tableEnv.executeSql(
+                String.format(
+                        "create table table10 (x int, y string, z int) partitioned by ("
+                                + " pt_year int, pt_mon string, pt_day string)"));
+        DynamicTableSource tableSource1 = getTableSource("table10");
+
+        HiveTableSource tableSource = (HiveTableSource) tableSource1;
+        Token token =
+                tableSource.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertNotNull(token);
+        assertEquals(hdfsDelegationTokenKind, token.getKind());
+        assertEquals(hdfsDelegationTokenService, token.getService());
+
+        // test table sink's jobConf with credentials
+        DynamicTableSink tableSink1 = getTableSink("table10");
+        HiveTableSink tableSink = (HiveTableSink) tableSink1;
+        token = tableSink.getJobConf().getCredentials().getToken(hdfsDelegationTokenService);
+        assertNotNull(token);
+        assertEquals(hdfsDelegationTokenKind, token.getKind());
+        assertEquals(hdfsDelegationTokenService, token.getService());
+    }
+
     private DynamicTableSource getTableSource(String tableName) throws Exception {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
         ObjectIdentifier tableIdentifier =
                 ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
         CatalogTable catalogTable =
@@ -237,7 +280,22 @@ public class HiveDynamicTableFactoryTest {
         return FactoryUtil.createTableSource(
                 hiveCatalog,
                 tableIdentifier,
-                catalogTable,
+                tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
+                tableEnv.getConfig().getConfiguration(),
+                Thread.currentThread().getContextClassLoader(),
+                false);
+    }
+
+    private DynamicTableSink getTableSink(String tableName) throws Exception {
+        TableEnvironmentInternal tableEnvInternal = (TableEnvironmentInternal) tableEnv;
+        ObjectIdentifier tableIdentifier =
+                ObjectIdentifier.of(hiveCatalog.getName(), "default", tableName);
+        CatalogTable catalogTable =
+                (CatalogTable) hiveCatalog.getTable(tableIdentifier.toObjectPath());
+        return FactoryUtil.createTableSink(
+                hiveCatalog,
+                tableIdentifier,
+                tableEnvInternal.getCatalogManager().resolveCatalogTable(catalogTable),
                 tableEnv.getConfig().getConfiguration(),
                 Thread.currentThread().getContextClassLoader(),
                 false);

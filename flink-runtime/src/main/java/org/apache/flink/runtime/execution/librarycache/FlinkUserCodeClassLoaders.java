@@ -188,6 +188,11 @@ public class FlinkUserCodeClassLoaders {
             return ensureInner().getResources(name);
         }
 
+        @Override
+        public URL[] getURLs() {
+            return ensureInner().getURLs();
+        }
+
         static {
             ClassLoader.registerAsParallelCapable();
         }

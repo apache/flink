@@ -44,6 +44,7 @@ import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
@@ -62,6 +63,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -70,9 +72,18 @@ import static org.junit.Assert.assertTrue;
  * Tests for verifying that the {@link SourceOperator} as a task input can be integrated well with
  * {@link org.apache.flink.streaming.runtime.io.StreamOneInputProcessor}.
  */
-public class SourceOperatorStreamTaskTest {
+public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
     private static final OperatorID OPERATOR_ID = new OperatorID();
     private static final int NUM_RECORDS = 10;
+
+    @Test
+    public void testMetrics() throws Exception {
+        testMetrics(
+                SourceOperatorStreamTask::new,
+                new SourceOperatorFactory<>(
+                        new MockSource(Boundedness.BOUNDED, 1), WatermarkStrategy.noWatermarks()),
+                lessThanOrEqualTo(1_000_000d));
+    }
 
     /**
      * Tests that the stream operator can snapshot and restore the operator state of chained
@@ -98,7 +109,7 @@ public class SourceOperatorStreamTaskTest {
 
             final CheckpointOptions checkpointOptions =
                     new CheckpointOptions(
-                            CheckpointType.SYNC_SAVEPOINT,
+                            CheckpointType.SAVEPOINT_TERMINATE,
                             CheckpointStorageLocationReference.getDefault());
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
@@ -156,6 +167,33 @@ public class SourceOperatorStreamTaskTest {
         }
     }
 
+    @Test
+    public void testSkipExecutionIfFinishedOnRestore() throws Exception {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED;
+
+        LifeCycleMonitorSource testingSource =
+                new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(testingSource, WatermarkStrategy.noWatermarks());
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, taskStateSnapshot)
+                        .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
+                        .build()) {
+
+            testHarness.getStreamTask().invoke();
+            testHarness.waitForTaskCompletion();
+
+            LifeCycleMonitorSourceReader sourceReader =
+                    (LifeCycleMonitorSourceReader)
+                            ((SourceOperator<?, ?>) testHarness.getStreamTask().getMainOperator())
+                                    .getSourceReader();
+            sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+        }
+    }
+
     private TaskStateSnapshot executeAndWaitForCheckpoint(
             long checkpointId, TaskStateSnapshot initialSnapshot, IntStream expectedRecords)
             throws Exception {
@@ -202,7 +240,7 @@ public class SourceOperatorStreamTaskTest {
         Future<Boolean> checkpointFuture =
                 testHarness
                         .getStreamTask()
-                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions, true);
+                        .triggerCheckpointAsync(checkpointMetaData, checkpointOptions);
 
         // Wait until the checkpoint finishes.
         // We have to mark the source reader as available here, otherwise the runMailboxStep() call
@@ -370,5 +408,44 @@ public class SourceOperatorStreamTaskTest {
 
         @Override
         public void close() throws Exception {}
+    }
+
+    static class LifeCycleMonitorSource extends MockSource {
+
+        public LifeCycleMonitorSource(Boundedness boundedness, int numSplits) {
+            super(boundedness, numSplits);
+        }
+
+        @Override
+        public SourceReader<Integer, MockSourceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new LifeCycleMonitorSourceReader();
+        }
+    }
+
+    static class LifeCycleMonitorSourceReader extends MockSourceReader {
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void start() {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+            super.start();
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+            return super.pollNext(sourceOutput);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+            super.close();
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
     }
 }

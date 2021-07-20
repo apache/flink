@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -44,12 +46,14 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -493,7 +497,7 @@ public class ResultPartitionTest {
     }
 
     @Test
-    public void testIdleTime() throws IOException, InterruptedException {
+    public void testIdleAndBackPressuredTime() throws IOException, InterruptedException {
         // setup
         int bufferSize = 1024;
         NetworkBufferPool globalPool = new NetworkBufferPool(10, bufferSize);
@@ -509,8 +513,8 @@ public class ResultPartitionTest {
         Buffer buffer = readView.getNextBuffer().buffer();
         assertNotNull(buffer);
 
-        // idle time is zero when there is buffer available.
-        assertEquals(0, resultPartition.getIdleTimeMsPerSecond().getCount());
+        // back-pressured time is zero when there is buffer available.
+        assertThat(resultPartition.getBackPressuredTimeMsPerSecond().getValue(), equalTo(0L));
 
         CountDownLatch syncLock = new CountDownLatch(1);
         final Thread requestThread =
@@ -536,7 +540,8 @@ public class ResultPartitionTest {
         requestThread.join();
 
         Assert.assertThat(
-                resultPartition.getIdleTimeMsPerSecond().getCount(), Matchers.greaterThan(0L));
+                resultPartition.getBackPressuredTimeMsPerSecond().getCount(),
+                Matchers.greaterThan(0L));
         assertNotNull(readView.getNextBuffer().buffer());
     }
 
@@ -623,6 +628,38 @@ public class ResultPartitionTest {
                 assertEquals(
                         partialLength,
                         pipelinedSubpartition.getNextBuffer().getPartialRecordLength());
+            }
+        }
+    }
+
+    @Test
+    public void testWaitForAllRecordProcessed() throws IOException {
+        // Creates a result partition with 2 channels.
+        BufferWritingResultPartition bufferWritingResultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
+
+        bufferWritingResultPartition.notifyEndOfUserRecords();
+        CompletableFuture<Void> allRecordsProcessedFuture =
+                bufferWritingResultPartition.getAllRecordsProcessedFuture();
+        assertFalse(allRecordsProcessedFuture.isDone());
+        for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
+            assertEquals(1, resultSubpartition.getTotalNumberOfBuffers());
+            Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
+            assertFalse(nextBuffer.isBuffer());
+            assertEquals(
+                    EndOfUserRecordsEvent.INSTANCE,
+                    EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()));
+        }
+
+        for (int i = 0; i < bufferWritingResultPartition.subpartitions.length; ++i) {
+            ((PipelinedSubpartition) bufferWritingResultPartition.subpartitions[i])
+                    .acknowledgeAllRecordsProcessed();
+
+            if (i < bufferWritingResultPartition.subpartitions.length - 1) {
+                assertFalse(allRecordsProcessedFuture.isDone());
+            } else {
+                assertTrue(allRecordsProcessedFuture.isDone());
+                assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
             }
         }
     }

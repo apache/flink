@@ -22,9 +22,15 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.cep.nfa.DeweyNumber;
+import org.apache.flink.cep.nfa.NFAState;
+import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -32,7 +38,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * A shared buffer implementation which stores values under according state. Additionally, the
@@ -56,21 +61,22 @@ import java.util.stream.Collectors;
  */
 public class SharedBuffer<V> {
 
-    private static final String entriesStateName = "sharedBuffer-entries";
+    private static final String legacyEntriesStateName = "sharedBuffer-entries";
+    private static final String entriesStateName = "sharedBuffer-entries-with-lockable-edges";
     private static final String eventsStateName = "sharedBuffer-events";
     private static final String eventsCountStateName = "sharedBuffer-events-count";
 
-    private MapState<EventId, Lockable<V>> eventsBuffer;
+    private final MapState<EventId, Lockable<V>> eventsBuffer;
     /** The number of events seen so far in the stream per timestamp. */
-    private MapState<Long, Integer> eventsCount;
+    private final MapState<Long, Integer> eventsCount;
 
-    private MapState<NodeId, Lockable<SharedBufferNode>> entries;
+    private final MapState<NodeId, Lockable<SharedBufferNode>> entries;
 
     /** The cache of eventsBuffer State. */
-    private Map<EventId, Lockable<V>> eventsBufferCache = new HashMap<>();
+    private final Map<EventId, Lockable<V>> eventsBufferCache = new HashMap<>();
 
     /** The cache of sharedBufferNode. */
-    private Map<NodeId, Lockable<SharedBufferNode>> entryCache = new HashMap<>();
+    private final Map<NodeId, Lockable<SharedBufferNode>> entryCache = new HashMap<>();
 
     public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
         this.eventsBuffer =
@@ -86,7 +92,7 @@ public class SharedBuffer<V> {
                                 entriesStateName,
                                 new NodeId.NodeIdSerializer(),
                                 new Lockable.LockableTypeSerializer<>(
-                                        new SharedBufferNode.SharedBufferNodeSerializer())));
+                                        new SharedBufferNodeSerializer())));
 
         this.eventsCount =
                 stateStore.getMapState(
@@ -96,27 +102,79 @@ public class SharedBuffer<V> {
                                 IntSerializer.INSTANCE));
     }
 
-    /**
-     * Initializes underlying state with given map of events and entries. Should be used only in
-     * case of migration from old state.
-     *
-     * @param events map of events with assigned unique ids
-     * @param entries map of SharedBufferNodes
-     * @throws Exception Thrown if the system cannot access the state.
-     * @deprecated Only for state migration!
-     */
-    @Deprecated
-    public void init(
-            Map<EventId, Lockable<V>> events, Map<NodeId, Lockable<SharedBufferNode>> entries)
+    public void migrateOldState(
+            KeyedStateBackend<?> stateBackend, ValueState<NFAState> computationStates)
             throws Exception {
-        eventsBuffer.putAll(events);
-        this.entries.putAll(entries);
+        stateBackend.applyToAllKeys(
+                VoidNamespace.INSTANCE,
+                VoidNamespaceSerializer.INSTANCE,
+                new MapStateDescriptor<>(
+                        legacyEntriesStateName,
+                        new NodeId.NodeIdSerializer(),
+                        new Lockable.LockableTypeSerializer<>(
+                                new SharedBufferNode.SharedBufferNodeSerializer())),
+                (key, state) -> {
+                    copyEntries(state);
+                    state.entries().forEach(this::lockPredecessorEdges);
+                    state.clear();
 
-        Map<Long, Integer> maxIds =
-                events.keySet().stream()
-                        .collect(
-                                Collectors.toMap(EventId::getTimestamp, EventId::getId, Math::max));
-        eventsCount.putAll(maxIds);
+                    NFAState nfaState = computationStates.value();
+                    nfaState.getPartialMatches()
+                            .forEach(
+                                    computationState ->
+                                            lockEdges(
+                                                    computationState.getPreviousBufferEntry(),
+                                                    computationState.getVersion()));
+                    nfaState.getCompletedMatches()
+                            .forEach(
+                                    computationState ->
+                                            lockEdges(
+                                                    computationState.getPreviousBufferEntry(),
+                                                    computationState.getVersion()));
+                });
+    }
+
+    private void copyEntries(MapState<NodeId, Lockable<SharedBufferNode>> state) throws Exception {
+        state.entries()
+                .forEach(
+                        e -> {
+                            try {
+                                entries.put(e.getKey(), e.getValue());
+                            } catch (Exception exception) {
+                                throw new RuntimeException(exception);
+                            }
+                        });
+    }
+
+    private void lockPredecessorEdges(Map.Entry<NodeId, Lockable<SharedBufferNode>> e) {
+        SharedBufferNode oldNode = e.getValue().getElement();
+        oldNode.getEdges()
+                .forEach(
+                        edge -> {
+                            SharedBufferEdge oldEdge = edge.getElement();
+                            lockEdges(oldEdge.getTarget(), oldEdge.getDeweyNumber());
+                        });
+    }
+
+    private void lockEdges(NodeId nodeId, DeweyNumber version) {
+
+        if (nodeId == null) {
+            return;
+        }
+
+        try {
+            SharedBufferNode newNode = entries.get(nodeId).getElement();
+            newNode.getEdges()
+                    .forEach(
+                            newEdge -> {
+                                if (version.isCompatibleWith(
+                                        newEdge.getElement().getDeweyNumber())) {
+                                    newEdge.lock();
+                                }
+                            });
+        } catch (Exception exception) {
+            throw new RuntimeException(exception);
+        }
     }
 
     /**

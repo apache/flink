@@ -23,8 +23,11 @@ import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsChange;
 import org.apache.flink.connector.kafka.source.KafkaSourceTestEnv;
-import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
+import org.apache.flink.connector.kafka.source.metrics.KafkaSourceReaderMetrics;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
+import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -77,14 +80,14 @@ public class KafkaPartitionSplitReaderTest {
     }
 
     @Test
-    public void testHandleSplitChangesAndFetch() throws IOException {
+    public void testHandleSplitChangesAndFetch() throws Exception {
         KafkaPartitionSplitReader<Integer> reader = createReader();
         assignSplitsAndFetchUntilFinish(reader, 0);
         assignSplitsAndFetchUntilFinish(reader, 1);
     }
 
     @Test
-    public void testWakeUp() throws InterruptedException {
+    public void testWakeUp() throws Exception {
         KafkaPartitionSplitReader<Integer> reader = createReader();
         TopicPartition nonExistingTopicPartition = new TopicPartition("NotExist", 0);
         assignSplits(
@@ -170,12 +173,18 @@ public class KafkaPartitionSplitReaderTest {
 
     // ------------------
 
-    private KafkaPartitionSplitReader<Integer> createReader() {
+    private KafkaPartitionSplitReader<Integer> createReader() throws Exception {
         Properties props = new Properties();
         props.putAll(KafkaSourceTestEnv.getConsumerProperties(ByteArrayDeserializer.class));
         props.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
+        KafkaRecordDeserializationSchema<Integer> deserializationSchema =
+                KafkaRecordDeserializationSchema.valueOnly(IntegerDeserializer.class);
+        deserializationSchema.open(new TestingDeserializationContext());
+        KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
+                new KafkaSourceReaderMetrics(
+                        UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
         return new KafkaPartitionSplitReader<>(
-                props, KafkaRecordDeserializer.valueOnly(IntegerDeserializer.class), 0);
+                props, deserializationSchema, 0, kafkaSourceReaderMetrics);
     }
 
     private Map<String, KafkaPartitionSplit> assignSplits(

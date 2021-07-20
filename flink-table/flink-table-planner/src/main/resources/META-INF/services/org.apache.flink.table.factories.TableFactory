@@ -13,5 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-org.apache.flink.table.planner.StreamPlannerFactory
-org.apache.flink.table.executor.StreamExecutorFactory
+org.apache.flink.table.planner.delegation.BlinkPlannerFactory
+org.apache.flink.table.planner.delegation.BlinkExecutorFactory
+org.apache.flink.table.planner.delegation.DefaultParserFactory

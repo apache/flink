@@ -20,7 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -51,8 +51,10 @@ public class FinalizeOnMasterTest extends TestLogger {
         vertex2.setInvokableClass(NoOpInvokable.class);
         vertex2.setParallelism(2);
 
-        final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex1, vertex2));
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        final SchedulerBase scheduler =
+                createScheduler(
+                        JobGraphTestUtils.streamingJobGraph(vertex1, vertex2),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -77,8 +79,10 @@ public class FinalizeOnMasterTest extends TestLogger {
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(1);
 
-        final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex));
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        final SchedulerBase scheduler =
+                createScheduler(
+                        JobGraphTestUtils.streamingJobGraph(vertex),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();

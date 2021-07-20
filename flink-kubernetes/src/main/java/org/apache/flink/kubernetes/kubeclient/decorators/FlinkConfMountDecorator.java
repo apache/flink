@@ -73,7 +73,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
 
     @Override
     public FlinkPod decorateFlinkPod(FlinkPod flinkPod) {
-        final Pod mountedPod = decoratePod(flinkPod.getPod());
+        final Pod mountedPod = decoratePod(flinkPod.getPodWithoutMainContainer());
 
         final Container mountedMainContainer =
                 new ContainerBuilder(flinkPod.getMainContainer())

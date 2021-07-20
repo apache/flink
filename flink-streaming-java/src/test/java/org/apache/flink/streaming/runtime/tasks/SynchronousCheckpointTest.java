@@ -111,9 +111,8 @@ public class SynchronousCheckpointTest {
         streamTaskUnderTest.triggerCheckpointAsync(
                 new CheckpointMetaData(42, System.currentTimeMillis()),
                 new CheckpointOptions(
-                        CheckpointType.SYNC_SAVEPOINT,
-                        CheckpointStorageLocationReference.getDefault()),
-                false);
+                        CheckpointType.SAVEPOINT_SUSPEND,
+                        CheckpointStorageLocationReference.getDefault()));
         waitForSyncSavepointIdToBeSet(streamTaskUnderTest);
     }
 
@@ -160,7 +159,8 @@ public class SynchronousCheckpointTest {
         @Override
         protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
             if (stopped || isCanceled()) {
-                controller.allActionsCompleted();
+                controller.suspendDefaultAction();
+                mailboxProcessor.suspend();
             }
         }
 
