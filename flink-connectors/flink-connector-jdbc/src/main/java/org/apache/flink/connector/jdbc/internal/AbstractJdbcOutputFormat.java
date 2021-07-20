@@ -19,7 +19,11 @@
 package org.apache.flink.connector.jdbc.internal;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.RichOutputFormat;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.internal.connection.JdbcConnectionProvider;
 import org.apache.flink.util.Preconditions;
@@ -32,18 +36,24 @@ import java.io.IOException;
 import java.sql.Connection;
 
 /** Base jdbc outputFormat. */
-public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> implements Flushable {
+public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T>
+        implements Flushable, InputTypeConfigurable {
 
     private static final long serialVersionUID = 1L;
     public static final int DEFAULT_FLUSH_MAX_SIZE = 5000;
     public static final long DEFAULT_FLUSH_INTERVAL_MILLS = 0L;
 
     private static final Logger LOG = LoggerFactory.getLogger(AbstractJdbcOutputFormat.class);
+
     protected final JdbcConnectionProvider connectionProvider;
+    protected boolean isObjectReuseEnabled;
 
     public AbstractJdbcOutputFormat(JdbcConnectionProvider connectionProvider) {
         this.connectionProvider = Preconditions.checkNotNull(connectionProvider);
+        this.isObjectReuseEnabled = false;
     }
+
+    protected TypeSerializer<T> serializer;
 
     @Override
     public void configure(Configuration parameters) {}
@@ -68,5 +78,11 @@ public abstract class AbstractJdbcOutputFormat<T> extends RichOutputFormat<T> im
     @VisibleForTesting
     public Connection getConnection() {
         return connectionProvider.getConnection();
+    }
+
+    @Override
+    public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
+        serializer = (TypeSerializer<T>) type.createSerializer(executionConfig);
+        this.isObjectReuseEnabled = executionConfig.isObjectReuseEnabled();
     }
 }
