@@ -1396,7 +1396,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testExplainDuplicateExplainDetails() {
         String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
-        this.sql(sql).fails("EXPLAINDETAIL are duplicate.");
+        this.sql(sql).fails("EXPLAINDETAIL is duplicate.");
     }
 
     @Test

@@ -153,13 +153,11 @@ import org.apache.flink.util.StringUtils;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -949,14 +947,9 @@ public class SqlToOperationConverter {
         SqlNode sqlNode = sqlExplain.getStatement();
         Set<String> explainDetails = sqlExplain.getExplainDetails();
 
-        //  Link to FLINK-22155,EXPLAIN statement should validate insert and query.If sql is a
-        //  INSERT statement, it will parse to RichSqlInsert. If sql is a SELECT statement
-        //  it will be converted to SqlSelect, but when this SELECT statement contains UNION
-        //  it will be converted to SqlBasicCall and it's operator is union instead of converted
-        //  to SqlSelect SqlNode.
         if (sqlNode instanceof RichSqlInsert) {
             operation = convertSqlInsert((RichSqlInsert) sqlNode);
-        } else if (sqlNode instanceof SqlSelect || sqlNode instanceof SqlBasicCall) {
+        } else if (sqlNode.getKind().belongsTo(SqlKind.QUERY)) {
             operation = convertSqlQuery(sqlExplain.getStatement());
         } else {
             throw new ValidationException(

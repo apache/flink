@@ -38,6 +38,6 @@ public interface ParserResource {
             "CREATE SYSTEM FUNCTION is not supported, system functions can only be registered as temporary function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.")
     Resources.ExInst<ParseException> createSystemFunctionOnlySupportTemporary();
 
-    @Resources.BaseMessage("EXPLAINDETAIL are duplicate.")
+    @Resources.BaseMessage("EXPLAINDETAIL is duplicate.")
     Resources.ExInst<ParseException> explainDetailIsDuplicate();
 }

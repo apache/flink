@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.api
 
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
@@ -35,9 +37,6 @@ import org.apache.flink.table.planner.utils.TableTestUtil.{replaceStageId, repla
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.SqlExplainLevel
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -50,6 +49,10 @@ class TableEnvironmentTest {
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()
+
+  @Rule
+  def thrown: ExpectedException = expectedException
+
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
   val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -245,18 +248,6 @@ class TableEnvironmentTest {
       tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
         .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.MyTable")).getOptions)
     checkTableSource("MyTable", true)
-  }
-
-  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
-    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
-      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
-    val context =
-      new TableSourceFactoryContextImpl(
-        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
-        resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
-    val source = TableFactoryUtil.findAndCreateTableSource(context)
-    assertTrue(source.isInstanceOf[CollectionTableSource])
-    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 
   @Test
@@ -617,13 +608,6 @@ class TableEnvironmentTest {
       tableResult2.collect())
   }
 
-  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
-    while (expected.hasNext && actual.hasNext) {
-      assertEquals(expected.next(), actual.next())
-    }
-    assertEquals(expected.hasNext, actual.hasNext)
-  }
-
   @Test
   def testExecuteSqlWithShowFunctions(): Unit = {
     val tableResult = tableEnv.executeSql("SHOW FUNCTIONS")
@@ -769,22 +753,6 @@ class TableEnvironmentTest {
     checkListFullModules(("core", true), ("dummy", false))
   }
 
-  private def checkListModules(expected: String*): Unit = {
-    val actual = tableEnv.listModules()
-    for ((module, i) <- expected.zipWithIndex) {
-      assertEquals(module, actual.apply(i))
-    }
-  }
-
-  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
-    val actual = tableEnv.listFullModules()
-    for ((elem, i) <- expected.zipWithIndex) {
-      assertEquals(
-        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
-        actual.apply(i).asInstanceOf[Object])
-    }
-  }
-
   @Test
   def testExecuteSqlWithUseUnloadedModules(): Unit = {
     expectedException.expect(classOf[ValidationException])
@@ -819,30 +787,6 @@ class TableEnvironmentTest {
     // check result after unloading module
     tableEnv.executeSql("UNLOAD MODULE dummy")
     validateShowModules(("core", false))
-  }
-
-  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
-    val showModules = tableEnv.executeSql("SHOW MODULES")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
-    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
-      showModules.getResolvedSchema)
-
-    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
-    assertEquals(ResolvedSchema.physical(
-      Array[String]("module name", "used"),
-      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
-      showFullModules.getResolvedSchema)
-
-    // show modules only list used modules
-    checkData(
-      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
-      showModules.collect()
-    )
-
-    checkData(
-      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
-      showFullModules.collect())
   }
 
   @Test
@@ -933,9 +877,6 @@ class TableEnvironmentTest {
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(viewDDL)
   }
-
-  @Rule
-  def thrown: ExpectedException = expectedException
 
   @Test
   def testCreateViewTwice(): Unit = {
@@ -1339,21 +1280,6 @@ class TableEnvironmentTest {
     testUnsupportedExplain("explain plan as json for select * from MyTable")
   }
 
-  private def testUnsupportedExplain(explain: String): Unit = {
-    try {
-      tableEnv.executeSql(explain)
-      fail("This should not happen")
-    } catch {
-      case e: TableException =>
-        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
-      case e: SqlParserException =>
-        assertTrue(e.getMessage
-          .contains("Was expecting:\n    \"FOR\" ..."))
-      case e =>
-        fail("This should not happen, " + e.getMessage)
-    }
-  }
-
   @Test
   def testExplainSqlWithSelect(): Unit = {
     val createTableStmt =
@@ -1514,6 +1440,21 @@ class TableEnvironmentTest {
       "/explain/testExecuteSqlWithExplainDetailsInsert.out")
   }
 
+  private def testUnsupportedExplain(explain: String): Unit = {
+    try {
+      tableEnv.executeSql(explain)
+      fail("This should not happen")
+    } catch {
+      case e: TableException =>
+        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
+      case e: SqlParserException =>
+        assertTrue(e.getMessage
+          .contains("Was expecting:\n    \"FOR\" ..."))
+      case e =>
+        fail("This should not happen, " + e.getMessage)
+    }
+  }
+
   @Test
   def testDescribeTableOrView(): Unit = {
     val sourceDDL =
@@ -1640,5 +1581,64 @@ class TableEnvironmentTest {
     checkData(
       expectedResult3.iterator(),
       tableResult6.collect())
+  }
+
+  private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
+    while (expected.hasNext && actual.hasNext) {
+      assertEquals(expected.next(), actual.next())
+    }
+    assertEquals(expected.hasNext, actual.hasNext)
+  }
+
+  private def validateShowModules(expectedEntries: (String, java.lang.Boolean)*): Unit = {
+    val showModules = tableEnv.executeSql("SHOW MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showModules.getResultKind)
+    assertEquals(ResolvedSchema.of(Column.physical("module name", DataTypes.STRING())),
+      showModules.getResolvedSchema)
+
+    val showFullModules = tableEnv.executeSql("SHOW FULL MODULES")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, showFullModules.getResultKind)
+    assertEquals(ResolvedSchema.physical(
+      Array[String]("module name", "used"),
+      Array[DataType](DataTypes.STRING(), DataTypes.BOOLEAN())),
+      showFullModules.getResolvedSchema)
+
+    // show modules only list used modules
+    checkData(
+      expectedEntries.filter(entry => entry._2).map(entry => Row.of(entry._1)).iterator.asJava,
+      showModules.collect()
+    )
+
+    checkData(
+      expectedEntries.map(entry => Row.of(entry._1, entry._2)).iterator.asJava,
+      showFullModules.collect())
+  }
+
+  private def checkListModules(expected: String*): Unit = {
+    val actual = tableEnv.listModules()
+    for ((module, i) <- expected.zipWithIndex) {
+      assertEquals(module, actual.apply(i))
+    }
+  }
+
+  private def checkListFullModules(expected: (String, java.lang.Boolean)*): Unit = {
+    val actual = tableEnv.listFullModules()
+    for ((elem, i) <- expected.zipWithIndex) {
+      assertEquals(
+        new ModuleEntry(elem._1, elem._2).asInstanceOf[Object],
+        actual.apply(i).asInstanceOf[Object])
+    }
+  }
+
+  private def checkTableSource(tableName: String, expectToBeBounded: java.lang.Boolean): Unit = {
+    val resolvedCatalogTable = tableEnv.getCatalog(tableEnv.getCurrentCatalog).get()
+      .getTable(ObjectPath.fromString(s"${tableEnv.getCurrentDatabase}.$tableName"))
+    val context =
+      new TableSourceFactoryContextImpl(
+        ObjectIdentifier.of(tableEnv.getCurrentCatalog, tableEnv.getCurrentDatabase, tableName),
+      resolvedCatalogTable.asInstanceOf[CatalogTable], new Configuration(), false)
+    val source = TableFactoryUtil.findAndCreateTableSource(context)
+    assertTrue(source.isInstanceOf[CollectionTableSource])
+    assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
   }
 }
