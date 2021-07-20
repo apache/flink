@@ -24,7 +24,7 @@
             <td><h5>resourcemanager.standalone.start-up-time</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Long</td>
-            <td>Time in milliseconds of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, 'slotmanager.request-timeout' will be used by default.</td>
+            <td>Time in milliseconds of the start-up period of a standalone cluster. During this time, resource manager of the standalone cluster expects new task executors to be registered, and will not fail slot requests that can not be satisfied by any current registered slots. After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered slots. If not set, <span markdown="span">`slot.request.timeout`</span> will be used by default.</td>
         </tr>
         <tr>
             <td><h5>resourcemanager.taskmanager-timeout</h5></td>
