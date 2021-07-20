@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -159,6 +160,8 @@ public class MiniClusterITCase extends TestLogger {
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
         final Configuration configuration = getDefaultConfiguration();
         configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 100L);
+        configuration.setLong(
+                ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME, 10000L);
 
         final MiniClusterConfiguration cfg =
                 new MiniClusterConfiguration.Builder()
