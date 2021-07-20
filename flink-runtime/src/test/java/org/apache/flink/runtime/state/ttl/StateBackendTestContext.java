@@ -158,7 +158,10 @@ public abstract class StateBackendTestContext {
     RunnableFuture<SnapshotResult<KeyedStateHandle>> triggerSnapshot() throws Exception {
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshotRunnableFuture =
                 keyedStateBackend.snapshot(
-                        682375462392L, 10L, checkpointStreamFactory, checkpointOptions);
+                        682375462392L,
+                        10L,
+                        checkpointStreamFactory,
+                        checkpointOptions.getCheckpointType());
         if (!snapshotRunnableFuture.isDone()) {
             snapshotRunnableFuture.run();
         }

@@ -27,7 +27,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
@@ -225,10 +225,10 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception {
         return snapshotStrategyRunner.snapshot(
-                checkpointId, timestamp, streamFactory, checkpointOptions);
+                checkpointId, timestamp, streamFactory, checkpointType);
     }
 
     private <S> ListState<S> getListState(

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
@@ -49,10 +49,6 @@ public class BatchExecutionStateBackendVerificationTest extends TestLogger {
 
         long checkpointId = 0L;
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(10);
-        stateBackend.snapshot(
-                checkpointId,
-                0L,
-                streamFactory,
-                CheckpointOptions.forCheckpointWithDefaultLocation());
+        stateBackend.snapshot(checkpointId, 0L, streamFactory, CheckpointType.CHECKPOINT);
     }
 }

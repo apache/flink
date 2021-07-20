@@ -24,10 +24,8 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
-import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.FullSnapshotResources;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -241,9 +239,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
                         0L,
                         0L,
                         new MemCheckpointStreamFactory(4 * 1024 * 1024),
-                        new CheckpointOptions(
-                                CheckpointType.SAVEPOINT,
-                                CheckpointStorageLocationReference.getDefault()));
+                        CheckpointType.SAVEPOINT);
 
         snapshot.run();
 

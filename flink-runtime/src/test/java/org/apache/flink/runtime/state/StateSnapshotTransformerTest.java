@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.SingleThreadAccessCheckingTypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
@@ -65,14 +65,11 @@ class StateSnapshotTransformerTest {
                 state.setToRandomValue();
             }
 
-            CheckpointOptions checkpointOptions =
-                    CheckpointOptions.forCheckpointWithDefaultLocation();
-
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot1 =
-                    backend.snapshot(1L, 0L, streamFactory, checkpointOptions);
+                    backend.snapshot(1L, 0L, streamFactory, CheckpointType.CHECKPOINT);
 
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot2 =
-                    backend.snapshot(2L, 0L, streamFactory, checkpointOptions);
+                    backend.snapshot(2L, 0L, streamFactory, CheckpointType.CHECKPOINT);
 
             Thread runner1 = new Thread(snapshot1, "snapshot1");
             runner1.start();

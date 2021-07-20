@@ -24,7 +24,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -166,7 +166,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-            @Nonnull CheckpointOptions checkpointOptions) {
+            @Nonnull CheckpointType checkpointType) {
 
         if (snapshotResources.stateMetaInfoSnapshots.isEmpty()) {
             if (LOG.isDebugEnabled()) {

@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -63,7 +62,7 @@ public class SavepointSnapshotStrategy<K>
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions) {
+            @Nonnull CheckpointType checkpointType) {
 
         if (savepointResources.getMetaInfoSnapshots().isEmpty()) {
             if (LOG.isDebugEnabled()) {

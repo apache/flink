@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
@@ -151,11 +151,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
             state.update("45");
             CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4 * 1024 * 1024);
             RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
-                    stateBackend.snapshot(
-                            0L,
-                            0L,
-                            streamFactory,
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
+                    stateBackend.snapshot(0L, 0L, streamFactory, CheckpointType.CHECKPOINT);
             snapshot.run();
             SnapshotResult<KeyedStateHandle> snapshotResult = snapshot.get();
             stateHandle = snapshotResult.getJobManagerOwnedSnapshot();

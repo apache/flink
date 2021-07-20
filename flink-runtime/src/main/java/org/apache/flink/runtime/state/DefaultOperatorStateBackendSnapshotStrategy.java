@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
 import javax.annotation.Nonnull;
@@ -104,7 +104,7 @@ class DefaultOperatorStateBackendSnapshotStrategy
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions) {
+            @Nonnull CheckpointType checkpointType) {
 
         Map<String, PartitionableListState<?>> registeredOperatorStatesDeepCopies =
                 syncPartResource.getRegisteredOperatorStatesDeepCopies();

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,18 +71,14 @@ public final class SnapshotStrategyRunner<T extends StateObject, SR extends Snap
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception {
         long startTime = System.currentTimeMillis();
         SR snapshotResources = snapshotStrategy.syncPrepareResources(checkpointId);
         logCompletedInternal(LOG_SYNC_COMPLETED_TEMPLATE, streamFactory, startTime);
         SnapshotStrategy.SnapshotResultSupplier<T> asyncSnapshot =
                 snapshotStrategy.asyncSnapshot(
-                        snapshotResources,
-                        checkpointId,
-                        timestamp,
-                        streamFactory,
-                        checkpointOptions);
+                        snapshotResources, checkpointId, timestamp, streamFactory, checkpointType);
 
         FutureTask<SnapshotResult<T>> asyncSnapshotTask =
                 new AsyncSnapshotCallable<SnapshotResult<T>>() {

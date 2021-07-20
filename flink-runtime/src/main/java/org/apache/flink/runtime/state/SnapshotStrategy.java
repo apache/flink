@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nonnull;
@@ -57,7 +57,7 @@ public interface SnapshotStrategy<S extends StateObject, SR extends SnapshotReso
      * @param checkpointId The ID of the checkpoint.
      * @param timestamp The timestamp of the checkpoint.
      * @param streamFactory The factory that we can use for writing our state to streams.
-     * @param checkpointOptions Options for how to perform this checkpoint.
+     * @param checkpointType Checkpoint Type to snapshot.
      * @return A supplier that will yield a {@link StateObject}.
      */
     SnapshotResultSupplier<S> asyncSnapshot(
@@ -65,7 +65,7 @@ public interface SnapshotStrategy<S extends StateObject, SR extends SnapshotReso
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions);
+            @Nonnull CheckpointType checkpointType);
 
     /**
      * A supplier for a {@link SnapshotResult} with an access to a {@link CloseableRegistry} for io

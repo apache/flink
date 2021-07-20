@@ -35,7 +35,6 @@ import org.apache.flink.contrib.streaming.state.ttl.RocksDbTtlCompactFiltersMana
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
@@ -527,7 +526,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
      * @param checkpointId The Id of the checkpoint.
      * @param timestamp The timestamp of the checkpoint.
      * @param streamFactory The factory that we can use for writing our state to streams.
-     * @param checkpointOptions Options for how to perform this checkpoint.
+     * @param checkpointType Checkpoint type for snapshot.
      * @return Future to the state handle of the snapshot data.
      * @throws Exception indicating a problem in the synchronous part of the checkpoint.
      */
@@ -537,7 +536,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             final long checkpointId,
             final long timestamp,
             @Nonnull final CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception {
 
         // flush everything into db before taking a snapshot
@@ -548,7 +547,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         checkpointSnapshotStrategy,
                         cancelStreamRegistry,
                         ASYNCHRONOUS)
-                .snapshot(checkpointId, timestamp, streamFactory, checkpointOptions);
+                .snapshot(checkpointId, timestamp, streamFactory, checkpointType);
     }
 
     @Nonnull

@@ -34,8 +34,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
@@ -338,7 +338,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                 long checkpointId,
                 long timestamp,
                 @Nonnull CheckpointStreamFactory streamFactory,
-                @Nonnull CheckpointOptions checkpointOptions) {
+                @Nonnull CheckpointType checkpointType) {
             if (checkpointId == DECLINE_CHECKPOINT_ID) {
                 return (snapshotCloseableRegistry) -> {
                     throw new ExpectedTestException();

@@ -137,7 +137,7 @@ public interface KeyedStateBackend<K>
      */
     boolean deregisterKeySelectionListener(KeySelectionListener<K> listener);
 
-    default boolean isStateImmutableInStateBackend(CheckpointType checkpointOptions) {
+    default boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
         return false;
     }
 

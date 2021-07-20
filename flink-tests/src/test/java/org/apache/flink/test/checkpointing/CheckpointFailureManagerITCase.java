@@ -24,7 +24,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -158,7 +158,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
                                     long checkpointId,
                                     long timestamp,
                                     @Nonnull CheckpointStreamFactory streamFactory,
-                                    @Nonnull CheckpointOptions checkpointOptions) {
+                                    @Nonnull CheckpointType checkpointType) {
                                 return (closeableRegistry) -> {
                                     throw new Exception("Expected async snapshot exception.");
                                 };

@@ -28,7 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -303,7 +303,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             final long checkpointId,
             final long timestamp,
             @Nonnull final CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception {
 
         SnapshotStrategyRunner<KeyedStateHandle, ?> snapshotStrategyRunner =
@@ -313,7 +313,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                         cancelStreamRegistry,
                         snapshotExecutionType);
         return snapshotStrategyRunner.snapshot(
-                checkpointId, timestamp, streamFactory, checkpointOptions);
+                checkpointId, timestamp, streamFactory, checkpointType);
     }
 
     @Nonnull

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
@@ -122,7 +122,7 @@ public class HeapKeyedStateBackendSnapshotMigrationTest extends HeapStateBackend
                             1L,
                             1L,
                             new MemCheckpointStreamFactory(4 * 1024 * 1024),
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
+                            CheckpointType.CHECKPOINT);
 
             snapshot.run();
         }

@@ -312,7 +312,7 @@ public class ChangelogKeyedStateBackend<K>
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception {
         // The range to upload may overlap with the previous one(s). To reuse them, we could store
         // the previous results either here in the backend or in the writer. However,
@@ -387,8 +387,8 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     @Override
-    public boolean isStateImmutableInStateBackend(CheckpointType checkpointOptions) {
-        return keyedStateBackend.isStateImmutableInStateBackend(checkpointOptions);
+    public boolean isStateImmutableInStateBackend(CheckpointType checkpointType) {
+        return keyedStateBackend.isStateImmutableInStateBackend(checkpointType);
     }
 
     @Nonnull

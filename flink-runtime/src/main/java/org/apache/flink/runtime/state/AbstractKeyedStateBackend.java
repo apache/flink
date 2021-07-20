@@ -25,7 +25,6 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
@@ -46,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Base implementation of KeyedStateBackend. The state can be checkpointed to streams using {@link
- * #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions)}.
+ * #snapshot(long, long, CheckpointStreamFactory, CheckpointType)}.
  *
  * @param <K> Type of the key by which state is keyed.
  */

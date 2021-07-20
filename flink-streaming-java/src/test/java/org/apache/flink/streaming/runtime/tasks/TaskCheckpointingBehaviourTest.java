@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -325,7 +326,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                                 long checkpointId,
                                 long timestamp,
                                 @Nonnull CheckpointStreamFactory streamFactory,
-                                @Nonnull CheckpointOptions checkpointOptions)
+                                @Nonnull CheckpointType checkpointType)
                                 throws Exception {
 
                             throw new Exception("Sync part snapshot exception.");
@@ -393,7 +394,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
                                     long checkpointId,
                                     long timestamp,
                                     @Nonnull CheckpointStreamFactory streamFactory,
-                                    @Nonnull CheckpointOptions checkpointOptions) {
+                                    @Nonnull CheckpointType checkpointType) {
                                 return (snapshotCloseableRegistry) -> {
                                     throw new Exception("Async part snapshot exception.");
                                 };

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
@@ -93,10 +93,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 
             RunnableFuture<SnapshotResult<OperatorStateHandle>> snapshot =
                     originalBackend.snapshot(
-                            0L,
-                            0L,
-                            checkpointStreamFactory,
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
+                            0L, 0L, checkpointStreamFactory, CheckpointType.CHECKPOINT);
 
             snapshot.run();
             snapshotResult = snapshot.get();

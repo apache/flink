@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -432,7 +433,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                             checkpointId,
                             timestamp,
                             new TestCheckpointStreamFactory(() -> outputStream),
-                            CheckpointOptions.forCheckpointWithDefaultLocation());
+                            CheckpointType.CHECKPOINT);
 
             try {
                 FutureUtils.runIfNotDoneAndGet(snapshotFuture);

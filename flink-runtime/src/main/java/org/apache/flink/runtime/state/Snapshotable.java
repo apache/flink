@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 
 import javax.annotation.Nonnull;
 
@@ -48,7 +48,7 @@ public interface Snapshotable<S extends StateObject> {
      * @param checkpointId The ID of the checkpoint.
      * @param timestamp The timestamp of the checkpoint.
      * @param streamFactory The factory that we can use for writing our state to streams.
-     * @param checkpointOptions Options for how to perform this checkpoint.
+     * @param checkpointType checkpoint type
      * @return A runnable future that will yield a {@link StateObject}.
      */
     @Nonnull
@@ -56,6 +56,6 @@ public interface Snapshotable<S extends StateObject> {
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions)
+            @Nonnull CheckpointType checkpointType)
             throws Exception;
 }

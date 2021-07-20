@@ -20,7 +20,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -109,7 +109,7 @@ public class RocksFullSnapshotStrategy<K>
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory checkpointStreamFactory,
-            @Nonnull CheckpointOptions checkpointOptions) {
+            @Nonnull CheckpointType checkpointType) {
 
         if (fullRocksDBSnapshotResources.getMetaInfoSnapshots().isEmpty()) {
             if (LOG.isDebugEnabled()) {
@@ -123,12 +123,10 @@ public class RocksFullSnapshotStrategy<K>
         final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier =
                         createCheckpointStreamSupplier(
-                                checkpointId, checkpointStreamFactory, checkpointOptions);
+                                checkpointId, checkpointStreamFactory, checkpointType);
 
         return new FullSnapshotAsyncWriter<>(
-                checkpointOptions.getCheckpointType(),
-                checkpointStreamSupplier,
-                fullRocksDBSnapshotResources);
+                checkpointType, checkpointStreamSupplier, fullRocksDBSnapshotResources);
     }
 
     @Override
@@ -150,10 +148,9 @@ public class RocksFullSnapshotStrategy<K>
             createCheckpointStreamSupplier(
                     long checkpointId,
                     CheckpointStreamFactory primaryStreamFactory,
-                    CheckpointOptions checkpointOptions) {
+                    CheckpointType checkpointType) {
 
-        return localRecoveryConfig.isLocalRecoveryEnabled()
-                        && !checkpointOptions.getCheckpointType().isSavepoint()
+        return localRecoveryConfig.isLocalRecoveryEnabled() && !checkpointType.isSavepoint()
                 ? () ->
                         CheckpointStreamWithResultProvider.createDuplicatingStream(
                                 checkpointId,

@@ -33,7 +33,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -177,11 +177,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             backend.dispose();
 
@@ -209,11 +205,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // do another snapshot to verify the snapshot logic after migration
             snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    2L,
-                                    3L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(2L, 3L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
@@ -299,11 +291,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             backend.dispose();
 
@@ -340,11 +328,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // do another snapshot to verify the snapshot logic after migration
             snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    2L,
-                                    3L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(2L, 3L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             snapshot.discardState();
 
@@ -447,11 +431,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             backend.dispose();
 
@@ -509,11 +489,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // do another snapshot to verify the snapshot logic after migration
             snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    2L,
-                                    3L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(2L, 3L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             snapshot.discardState();
 
@@ -544,11 +520,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             backend.dispose();
 
@@ -632,11 +604,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             backend.dispose();
 
@@ -655,11 +623,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // do another snapshot to verify the snapshot logic after migration
             snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    2L,
-                                    3L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(2L, 3L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
@@ -737,11 +701,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
 
             KeyedStateHandle snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
 
             // test incompatible namespace serializer; start with a freshly restored backend
@@ -764,11 +724,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             // do another snapshot to verify the snapshot logic after migration
             snapshot =
                     runSnapshot(
-                            backend.snapshot(
-                                    2L,
-                                    3L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()),
+                            backend.snapshot(2L, 3L, streamFactory, CheckpointType.CHECKPOINT),
                             sharedStateRegistry);
             snapshot.discardState();
         } finally {
@@ -840,12 +796,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             state.add(new TestType("bar", 278));
 
             OperatorStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()));
+                    runSnapshot(backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT));
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -926,12 +877,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             state.add(new TestType("bar", 278));
 
             OperatorStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()));
+                    runSnapshot(backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT));
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -1069,12 +1015,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             state.put(5, new TestType("bar", 278));
 
             OperatorStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()));
+                    runSnapshot(backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT));
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);
@@ -1109,12 +1050,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             state.put(new TestType("bar", 278), 5);
 
             OperatorStateHandle snapshot =
-                    runSnapshot(
-                            backend.snapshot(
-                                    1L,
-                                    2L,
-                                    streamFactory,
-                                    CheckpointOptions.forCheckpointWithDefaultLocation()));
+                    runSnapshot(backend.snapshot(1L, 2L, streamFactory, CheckpointType.CHECKPOINT));
             backend.dispose();
 
             backend = restoreOperatorStateBackend(snapshot);

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
@@ -98,7 +98,7 @@ class HeapSnapshotStrategy<K>
             long checkpointId,
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
-            @Nonnull CheckpointOptions checkpointOptions) {
+            @Nonnull CheckpointType checkpointType) {
 
         List<StateMetaInfoSnapshot> metaInfoSnapshots = syncPartResource.getMetaInfoSnapshots();
         if (metaInfoSnapshots.isEmpty()) {
@@ -119,7 +119,7 @@ class HeapSnapshotStrategy<K>
         final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                 checkpointStreamSupplier =
                         localRecoveryConfig.isLocalRecoveryEnabled()
-                                        && !checkpointOptions.getCheckpointType().isSavepoint()
+                                        && !checkpointType.isSavepoint()
                                 ? () ->
                                         createDuplicatingStream(
                                                 checkpointId,
