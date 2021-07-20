@@ -83,7 +83,8 @@ class TableSinkITCase extends BatchTestBase {
 
   @Test
   def testCollectSinkConfiguration(): Unit = {
-    tEnv.getConfig.getConfiguration.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1b"))
+    tEnv.getConfig.getConfiguration.set(
+      CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1b"))
     try {
       checkResult("SELECT 1", Seq(row(1)))
       Assert.fail("Expecting exception thrown from collect sink")
@@ -94,7 +95,8 @@ class TableSinkITCase extends BatchTestBase {
           FlinkMatchers.containsMessage("Record size is too large for CollectSinkFunction"))
     }
 
-    tEnv.getConfig.getConfiguration.set(CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1kb"))
+    tEnv.getConfig.getConfiguration.set(
+      CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1kb"))
     checkResult("SELECT 1", Seq(row(1)))
   }
 }
