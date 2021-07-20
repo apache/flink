@@ -42,7 +42,6 @@ import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
-
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -210,7 +209,7 @@ class TableEnvironmentTest {
           containsMessage("Unable to create a source for reading table " +
             "'default_catalog.default_database.MyTable'.\n\n" +
             "Table options are:\n\n'connector'='datagen'\n" +
-            "'invalid-key'='invalid-value'"))
+            "'invalid-key'='invalid-value'" ))
     }
     // remove invalid key by RESET
     val alterTableResetStatement = "ALTER TABLE MyTable RESET ('invalid-key')"
@@ -1449,7 +1448,7 @@ class TableEnvironmentTest {
         assertTrue(e.getMessage.contains("Only default behavior is supported now"))
       case e: SqlParserException =>
         assertTrue(e.getMessage
-          .contains("Was expecting:\n    \"FOR\" ..."))
+            .contains("Was expecting:\n    \"FOR\" ..."))
       case e =>
         fail("This should not happen, " + e.getMessage)
     }
@@ -1508,43 +1507,43 @@ class TableEnvironmentTest {
     tableEnv.executeSql(viewDDL)
 
     val expectedResult1 = util.Arrays.asList(
-      Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
-      Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
-      Row.of("f2", "STRING", Boolean.box(true), null, null, null),
-      Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
-      Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
-      Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
-      Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
-      Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
-      Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
-      Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
-      Row.of("f10", "INT", Boolean.box(true), null, null, null),
-      Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
-      Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
-      Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
-      Row.of("f14", "DATE", Boolean.box(true), null, null, null),
-      Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
-      Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-      Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
-      Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
-      Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
-      Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
-      Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
-      Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
-      Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
-      Row.of("f24", "INT", Boolean.box(false), "PRI(f24, f26)", null, null),
-      Row.of("f25", "STRING", Boolean.box(false), null, null, null),
-      Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
-        "PRI(f24, f26)", null, null),
-      Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
-      Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
-      Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
-      Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
-        "AS CURRENT_TIMESTAMP", null),
-      Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
-        "AS CURRENT_ROW_TIMESTAMP()", null),
-      Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
-        "`ts` - INTERVAL '1' SECOND"))
+        Row.of("f0", "CHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f1", "VARCHAR(10)", Boolean.box(true), null, null, null),
+        Row.of("f2", "STRING", Boolean.box(true), null, null, null),
+        Row.of("f3", "BOOLEAN", Boolean.box(true), null, null, null),
+        Row.of("f4", "BINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f5", "VARBINARY(10)", Boolean.box(true), null, null, null),
+        Row.of("f6", "BYTES", Boolean.box(true), null, null, null),
+        Row.of("f7", "DECIMAL(10, 3)", Boolean.box(true), null, null, null),
+        Row.of("f8", "TINYINT", Boolean.box(true), null, null, null),
+        Row.of("f9", "SMALLINT", Boolean.box(true), null, null, null),
+        Row.of("f10", "INT", Boolean.box(true), null, null, null),
+        Row.of("f11", "BIGINT", Boolean.box(true), null, null, null),
+        Row.of("f12", "FLOAT", Boolean.box(true), null, null, null),
+        Row.of("f13", "DOUBLE", Boolean.box(true), null, null, null),
+        Row.of("f14", "DATE", Boolean.box(true), null, null, null),
+        Row.of("f15", "TIME(0)", Boolean.box(true), null, null, null),
+        Row.of("f16", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f17", "TIMESTAMP(3)", Boolean.box(true), null, null, null),
+        Row.of("f18", "TIMESTAMP(6)", Boolean.box(true), null, null, null),
+        Row.of("f19", "TIMESTAMP_LTZ(3)", Boolean.box(true), null, null, null),
+        Row.of("f20", "TIMESTAMP_LTZ(6)", Boolean.box(true), null, null, null),
+        Row.of("f21", "ARRAY<INT>", Boolean.box(true), null, null, null),
+        Row.of("f22", "MAP<INT, STRING>", Boolean.box(true), null, null, null),
+        Row.of("f23", "ROW<`f0` INT, `f1` STRING>", Boolean.box(true), null, null, null),
+        Row.of("f24", "INT", Boolean.box(false), "PRI(f24, f26)", null, null),
+        Row.of("f25", "STRING", Boolean.box(false), null, null, null),
+        Row.of("f26", "ROW<`f0` INT NOT NULL, `f1` INT>", Boolean.box(false),
+          "PRI(f24, f26)", null, null),
+        Row.of("f27", "TIME(0)", Boolean.box(false), null, "AS LOCALTIME", null),
+        Row.of("f28", "TIME(0)", Boolean.box(false), null, "AS CURRENT_TIME", null),
+        Row.of("f29", "TIMESTAMP(3)", Boolean.box(false), null, "AS LOCALTIMESTAMP", null),
+        Row.of("f30", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_TIMESTAMP", null),
+        Row.of("f31", "TIMESTAMP_LTZ(3)", Boolean.box(false), null,
+          "AS CURRENT_ROW_TIMESTAMP()", null),
+        Row.of("ts", "TIMESTAMP(3) *ROWTIME*", Boolean.box(true), null, "AS TO_TIMESTAMP(`f25`)",
+          "`ts` - INTERVAL '1' SECOND"))
     val tableResult1 = tableEnv.executeSql("describe T1")
     assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult1.getResultKind)
     checkData(expectedResult1.iterator(), tableResult1.collect())
