@@ -542,7 +542,7 @@ public class OperatorCoordinatorHolder
         public void failJob(final Throwable cause) {
             checkInitialized();
             if (failed) {
-                LOG.warn(
+                LOG.debug(
                         "Ignoring the request to fail job because the job is already failing. "
                                 + "The ignored failure cause is",
                         cause);
