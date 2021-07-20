@@ -1,0 +1,745 @@
+{
+  "flinkVersion" : "",
+  "nodes" : [ {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "scanTableSource" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MyTable"
+      },
+      "catalogTable" : {
+        "schema.3.data-type" : "BIGINT",
+        "schema.2.data-type" : "VARCHAR(2147483647)",
+        "schema.3.name" : "d",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "c",
+        "schema.1.name" : "b",
+        "bounded" : "false",
+        "schema.0.name" : "a",
+        "schema.1.data-type" : "INT NOT NULL"
+      },
+      "sourceAbilitySpecs" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : {
+          "type" : "ROW",
+          "nullable" : false,
+          "fields" : [ {
+            "a" : "BIGINT"
+          }, {
+            "b" : "INT NOT NULL"
+          } ]
+        }
+      } ]
+    },
+    "id" : 1,
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b]]], fields=[a, b])",
+    "inputProperties" : [ ]
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMiniBatchAssigner",
+    "miniBatchInterval" : {
+      "interval" : 10000,
+      "mode" : "ProcTime"
+    },
+    "id" : 2,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
+    "description" : "MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "b",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "b1",
+      "aggFunction" : {
+        "name" : "MAX",
+        "kind" : "MAX",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false, false ],
+    "needRetraction" : false,
+    "id" : 3,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "max$1" : "INT"
+      } ]
+    },
+    "description" : "LocalGroupAggregate(groupBy=[a], select=[a, COUNT(*) AS count1$0, MAX(b) AS max$1])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 4,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "count1$0" : "BIGINT"
+      }, {
+        "max$1" : "INT"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[a]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : "b",
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : "b1",
+      "aggFunction" : {
+        "name" : "MAX",
+        "kind" : "MAX",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    } ],
+    "aggCallNeedRetractions" : [ false, false ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "INT NOT NULL"
+      } ]
+    },
+    "generateUpdateBefore" : true,
+    "needRetraction" : false,
+    "id" : 5,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "a" : "BIGINT"
+      }, {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "b1" : "INT NOT NULL"
+      } ]
+    },
+    "description" : "GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(count1$0) AS b, MAX(max$1) AS b1])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "REX_CALL",
+      "operator" : {
+        "name" : "MOD",
+        "kind" : "MOD",
+        "syntax" : "FUNCTION"
+      },
+      "operands" : [ {
+        "kind" : "REX_CALL",
+        "operator" : {
+          "name" : "HASH_CODE",
+          "kind" : "OTHER_FUNCTION",
+          "syntax" : "FUNCTION"
+        },
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : {
+            "typeName" : "INTEGER",
+            "nullable" : false
+          }
+        } ],
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      }, {
+        "kind" : "LITERAL",
+        "value" : "1024",
+        "type" : {
+          "typeName" : "INTEGER",
+          "nullable" : false
+        }
+      } ],
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    } ],
+    "condition" : null,
+    "id" : 6,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "b1" : "INT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      } ]
+    },
+    "description" : "Calc(select=[b, b1, MOD(HASH_CODE(b1), 1024) AS $f2])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate",
+    "grouping" : [ 0, 2 ],
+    "aggCalls" : [ {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "SUM",
+        "kind" : "SUM",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "aggCallNeedRetractions" : [ true, true, true ],
+    "needRetraction" : true,
+    "id" : 7,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      }, {
+        "sum$0" : "INT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count$2" : "BIGINT"
+      }, {
+        "count1$3" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5JbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAHSU5URUdFUnNyAC9vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuQmlnSW50VHlwZQAAAAAAAAABAgAAeHEAfgAOAH5xAH4AEXQABkJJR0lOVHhxAH4AGn5yAElvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uAAAAAAAAAAASAAB4cQB+ABJ0AAROT05FcQB+AAdwc3EAfgAZAAAAAXcEAAAAAXNyAC1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLktleVZhbHVlRGF0YVR5cGWOJMm4zTygngIAAkwAC2tleURhdGFUeXBldAAnTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvRGF0YVR5cGU7TAANdmFsdWVEYXRhVHlwZXEAfgAveHEAfgACdnIADWphdmEudXRpbC5NYXAAAAAAAAAAAAAAAHhwcQB+AB9zcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5BdG9taWNEYXRhVHlwZRqIUyn6eiMyAgAAeHEAfgACdnIAEWphdmEubGFuZy5JbnRlZ2VyEuKgpPeBhzgCAAFJAAV2YWx1ZXhyABBqYXZhLmxhbmcuTnVtYmVyhqyVHQuU4IsCAAB4cHEAfgAjc3EAfgAzdnIADmphdmEubGFuZy5Mb25nO4vkkMyPI98CAAFKAAV2YWx1ZXhxAH4ANnEAfgAneAAAFFf9AAAAAQAAAAEAVG9yZy5hcGFjaGUuZmxpbmsudGFibGUucnVudGltZS50eXBldXRpbHMuUm93RGF0YVNlcmlhbGl6ZXIkUm93RGF0YVNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMAAAABrO0ABXNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXQAMkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGU7TAAJdmFsdWVUeXBlcQB+AAF4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAF+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQAA01BUHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuSW50VHlwZQAAAAAAAAABAgAAeHEAfgACAH5xAH4ABXQAB0lOVEVHRVJzcgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkJpZ0ludFR5cGUAAAAAAAAAAQIAAHhxAH4AAgB+cQB+AAV0AAZCSUdJTlQAFFf9AAAAAQAAAAEAVG9yZy5hcGFjaGUuZmxpbmsudGFibGUucnVudGltZS50eXBldXRpbHMuTWFwRGF0YVNlcmlhbGl6ZXIkTWFwRGF0YVNlcmlhbGl6ZXJTbmFwc2hvdAAAAAOs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5JbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQAB0lOVEVHRVKs7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA4b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLkludFNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cKztAAVzcgA5b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLkxvbmdTZXJpYWxpemVyAAAAAAAAAAECAAB4cgBCb3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLlR5cGVTZXJpYWxpemVyU2luZ2xldG9ueamHqscud0UCAAB4cgA0b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5UeXBlU2VyaWFsaXplcgAAAAAAAAABAgAAeHA=')"
+      } ]
+    },
+    "description" : "LocalGroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, SUM_RETRACT(b1) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 b1) AS count$2, COUNT_RETRACT(*) AS count1$3, DISTINCT(b1) AS distinct$0])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 8,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0, 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      }, {
+        "sum$0" : "INT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count$2" : "BIGINT"
+      }, {
+        "count1$3" : "BIGINT"
+      }, {
+        "distinct$0" : "RAW('org.apache.flink.table.api.dataview.MapView', 'AFZvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnJ1bnRpbWUudHlwZXV0aWxzLkV4dGVybmFsU2VyaWFsaXplciRFeHRlcm5hbFNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMADecEAAAAAaztAAVzcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5GaWVsZHNEYXRhVHlwZfSwrBytgZ9fAgABTAAOZmllbGREYXRhVHlwZXN0ABBMamF2YS91dGlsL0xpc3Q7eHIAJW9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuRGF0YVR5cGV5y2rIj5/EeAIAAkwAD2NvbnZlcnNpb25DbGFzc3QAEUxqYXZhL2xhbmcvQ2xhc3M7TAALbG9naWNhbFR5cGV0ADJMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlO3hwdnIAK29yZy5hcGFjaGUuZmxpbmsudGFibGUuYXBpLmRhdGF2aWV3Lk1hcFZpZXcAAAAAAAAAAAAAAHhwc3IAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5TdHJ1Y3R1cmVkVHlwZQAAAAAAAAABAgAFWgAOaXNJbnN0YW50aWFibGVMAAphdHRyaWJ1dGVzcQB+AAFMAAtjb21wYXJpc2lvbnQAS0xvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uO0wAE2ltcGxlbWVudGF0aW9uQ2xhc3NxAH4AA0wACXN1cGVyVHlwZXQANUxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvU3RydWN0dXJlZFR5cGU7eHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Vc2VyRGVmaW5lZFR5cGUAAAAAAAAAAQIAA1oAB2lzRmluYWxMAAtkZXNjcmlwdGlvbnQAEkxqYXZhL2xhbmcvU3RyaW5nO0wAEG9iamVjdElkZW50aWZpZXJ0ADFMb3JnL2FwYWNoZS9mbGluay90YWJsZS9jYXRhbG9nL09iamVjdElkZW50aWZpZXI7eHIAMG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZQAAAAAAAAABAgACWgAKaXNOdWxsYWJsZUwACHR5cGVSb290dAA2TG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvbG9naWNhbC9Mb2dpY2FsVHlwZVJvb3Q7eHABfnIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5Mb2dpY2FsVHlwZVJvb3QAAAAAAAAAABIAAHhyAA5qYXZhLmxhbmcuRW51bQAAAAAAAAAAEgAAeHB0AA9TVFJVQ1RVUkVEX1RZUEUBcHABc3IAJmphdmEudXRpbC5Db2xsZWN0aW9ucyRVbm1vZGlmaWFibGVMaXN0/A8lMbXsjhACAAFMAARsaXN0cQB+AAF4cgAsamF2YS51dGlsLkNvbGxlY3Rpb25zJFVubW9kaWZpYWJsZUNvbGxlY3Rpb24ZQgCAy173HgIAAUwAAWN0ABZMamF2YS91dGlsL0NvbGxlY3Rpb247eHBzcgATamF2YS51dGlsLkFycmF5TGlzdHiB0h2Zx2GdAwABSQAEc2l6ZXhwAAAAAXcEAAAAAXNyAEdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZEF0dHJpYnV0ZQAAAAAAAAABAgADTAALZGVzY3JpcHRpb25xAH4ADEwABG5hbWVxAH4ADEwABHR5cGVxAH4ABHhwcHQAA21hcHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXEAfgAETAAJdmFsdWVUeXBlcQB+AAR4cQB+AA4BfnEAfgARdAADTUFQc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5JbnRUeXBlAAAAAAAAAAECAAB4cQB+AA4AfnEAfgARdAAHSU5URUdFUnNyAC9vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuQmlnSW50VHlwZQAAAAAAAAABAgAAeHEAfgAOAH5xAH4AEXQABkJJR0lOVHhxAH4AGn5yAElvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuU3RydWN0dXJlZFR5cGUkU3RydWN0dXJlZENvbXBhcmlzaW9uAAAAAAAAAAASAAB4cQB+ABJ0AAROT05FcQB+AAdwc3EAfgAZAAAAAXcEAAAAAXNyAC1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLktleVZhbHVlRGF0YVR5cGWOJMm4zTygngIAAkwAC2tleURhdGFUeXBldAAnTG9yZy9hcGFjaGUvZmxpbmsvdGFibGUvdHlwZXMvRGF0YVR5cGU7TAANdmFsdWVEYXRhVHlwZXEAfgAveHEAfgACdnIADWphdmEudXRpbC5NYXAAAAAAAAAAAAAAAHhwcQB+AB9zcgArb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5BdG9taWNEYXRhVHlwZRqIUyn6eiMyAgAAeHEAfgACdnIAEWphdmEubGFuZy5JbnRlZ2VyEuKgpPeBhzgCAAFJAAV2YWx1ZXhyABBqYXZhLmxhbmcuTnVtYmVyhqyVHQuU4IsCAAB4cHEAfgAjc3EAfgAzdnIADmphdmEubGFuZy5Mb25nO4vkkMyPI98CAAFKAAV2YWx1ZXhxAH4ANnEAfgAneAAAFFf9AAAAAQAAAAEAVG9yZy5hcGFjaGUuZmxpbmsudGFibGUucnVudGltZS50eXBldXRpbHMuUm93RGF0YVNlcmlhbGl6ZXIkUm93RGF0YVNlcmlhbGl6ZXJTbmFwc2hvdAAAAAMAAAABrO0ABXNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuTWFwVHlwZQAAAAAAAAABAgACTAAHa2V5VHlwZXQAMkxvcmcvYXBhY2hlL2ZsaW5rL3RhYmxlL3R5cGVzL2xvZ2ljYWwvTG9naWNhbFR5cGU7TAAJdmFsdWVUeXBlcQB+AAF4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAF+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQAA01BUHNyACxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLmxvZ2ljYWwuSW50VHlwZQAAAAAAAAABAgAAeHEAfgACAH5xAH4ABXQAB0lOVEVHRVJzcgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkJpZ0ludFR5cGUAAAAAAAAAAQIAAHhxAH4AAgB+cQB+AAV0AAZCSUdJTlQAFFf9AAAAAQAAAAEAVG9yZy5hcGFjaGUuZmxpbmsudGFibGUucnVudGltZS50eXBldXRpbHMuTWFwRGF0YVNlcmlhbGl6ZXIkTWFwRGF0YVNlcmlhbGl6ZXJTbmFwc2hvdAAAAAOs7QAFc3IALG9yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5JbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQAB0lOVEVHRVKs7QAFc3IAL29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMubG9naWNhbC5CaWdJbnRUeXBlAAAAAAAAAAECAAB4cgAwb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlAAAAAAAAAAECAAJaAAppc051bGxhYmxlTAAIdHlwZVJvb3R0ADZMb3JnL2FwYWNoZS9mbGluay90YWJsZS90eXBlcy9sb2dpY2FsL0xvZ2ljYWxUeXBlUm9vdDt4cAB+cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5sb2dpY2FsLkxvZ2ljYWxUeXBlUm9vdAAAAAAAAAAAEgAAeHIADmphdmEubGFuZy5FbnVtAAAAAAAAAAASAAB4cHQABkJJR0lOVKztAAVzcgA4b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLkludFNlcmlhbGl6ZXIAAAAAAAAAAQIAAHhyAEJvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLmJhc2UuVHlwZVNlcmlhbGl6ZXJTaW5nbGV0b255qYeqxy53RQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLmFwaS5jb21tb24udHlwZXV0aWxzLlR5cGVTZXJpYWxpemVyAAAAAAAAAAECAAB4cKztAAVzcgA5b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLkxvbmdTZXJpYWxpemVyAAAAAAAAAAECAAB4cgBCb3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5iYXNlLlR5cGVTZXJpYWxpemVyU2luZ2xldG9ueamHqscud0UCAAB4cgA0b3JnLmFwYWNoZS5mbGluay5hcGkuY29tbW9uLnR5cGV1dGlscy5UeXBlU2VyaWFsaXplcgAAAAAAAAABAgAAeHA=')"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b, $f2]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIncrementalGroupAggregate",
+    "partialAggGrouping" : [ 0, 1 ],
+    "finalAggGrouping" : [ 0 ],
+    "partialOriginalAggCalls" : [ {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "SUM",
+        "kind" : "SUM",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ 1 ],
+      "filterArg" : -1,
+      "distinct" : true,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "COUNT",
+        "kind" : "COUNT",
+        "syntax" : "FUNCTION_STAR"
+      },
+      "argList" : [ ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "partialAggCallNeedRetractions" : [ true, true, true ],
+    "partialLocalAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "b1" : "INT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      } ]
+    },
+    "partialAggNeedRetraction" : true,
+    "id" : 9,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "sum$0" : "INT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count$2" : "BIGINT"
+      }, {
+        "count1$3" : "BIGINT"
+      } ]
+    },
+    "description" : "IncrementalGroupAggregate(partialAggGrouping=[b, $f2], finalAggGrouping=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS (sum$0, count$1), COUNT_RETRACT(distinct$0 count$2) AS count$2, COUNT_RETRACT(count1$3) AS count1$3])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
+    "id" : 10,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "sum$0" : "INT"
+      }, {
+        "count$1" : "BIGINT"
+      }, {
+        "count$2" : "BIGINT"
+      }, {
+        "count1$3" : "BIGINT"
+      } ]
+    },
+    "description" : "Exchange(distribution=[hash[b]])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGroupAggregate",
+    "grouping" : [ 0 ],
+    "aggCalls" : [ {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "SUM",
+        "kind" : "SUM",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 2 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "$SUM0",
+        "kind" : "SUM0",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 3 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    }, {
+      "name" : null,
+      "aggFunction" : {
+        "name" : "$SUM0",
+        "kind" : "SUM0",
+        "syntax" : "FUNCTION"
+      },
+      "argList" : [ 4 ],
+      "filterArg" : -1,
+      "distinct" : false,
+      "approximate" : false,
+      "ignoreNulls" : false,
+      "type" : {
+        "typeName" : "BIGINT",
+        "nullable" : false
+      }
+    } ],
+    "aggCallNeedRetractions" : [ true, true, true ],
+    "localAggInputRowType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "$f2" : "INT NOT NULL"
+      }, {
+        "$f2_0" : "INT NOT NULL"
+      }, {
+        "$f3" : "BIGINT NOT NULL"
+      }, {
+        "$f4" : "BIGINT NOT NULL"
+      } ]
+    },
+    "generateUpdateBefore" : true,
+    "needRetraction" : true,
+    "indexOfCountStar" : 2,
+    "id" : 11,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "$f1" : "INT NOT NULL"
+      }, {
+        "$f2" : "BIGINT NOT NULL"
+      }, {
+        "$f3" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])"
+  }, {
+    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "dynamicTableSink" : {
+      "identifier" : {
+        "catalogName" : "default_catalog",
+        "databaseName" : "default_database",
+        "tableName" : "MySink"
+      },
+      "catalogTable" : {
+        "schema.3.data-type" : "BIGINT",
+        "sink-insert-only" : "false",
+        "table-sink-class" : "DEFAULT",
+        "schema.2.data-type" : "BIGINT",
+        "schema.3.name" : "cnt1",
+        "connector" : "values",
+        "schema.0.data-type" : "BIGINT",
+        "schema.2.name" : "cnt_distinct_b",
+        "schema.1.name" : "sum_b",
+        "schema.0.name" : "b",
+        "schema.1.data-type" : "INT"
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "id" : 12,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : {
+      "type" : "ROW",
+      "nullable" : true,
+      "fields" : [ {
+        "b" : "BIGINT NOT NULL"
+      }, {
+        "$f1" : "INT NOT NULL"
+      }, {
+        "$f2" : "BIGINT NOT NULL"
+      }, {
+        "$f3" : "BIGINT NOT NULL"
+      } ]
+    },
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[b, $f1, $f2, $f3])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 3,
+    "target" : 4,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 4,
+    "target" : 5,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 5,
+    "target" : 6,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 6,
+    "target" : 7,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 7,
+    "target" : 8,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 8,
+    "target" : 9,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 11,
+    "target" : 12,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
