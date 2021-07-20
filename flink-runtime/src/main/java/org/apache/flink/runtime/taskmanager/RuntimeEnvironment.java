@@ -43,6 +43,7 @@ import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
@@ -92,6 +93,8 @@ public class RuntimeEnvironment implements Environment {
 
     private final Task containingTask;
 
+    private final ThroughputMeter throughputMeter;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -120,7 +123,8 @@ public class RuntimeEnvironment implements Environment {
             TaskManagerRuntimeInfo taskManagerInfo,
             TaskMetricGroup metrics,
             Task containingTask,
-            ExternalResourceInfoProvider externalResourceInfoProvider) {
+            ExternalResourceInfoProvider externalResourceInfoProvider,
+            ThroughputMeter throughputMeter) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -148,6 +152,7 @@ public class RuntimeEnvironment implements Environment {
         this.containingTask = containingTask;
         this.metrics = metrics;
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
+        this.throughputMeter = throughputMeter;
     }
 
     // ------------------------------------------------------------------------
@@ -306,5 +311,10 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public void failExternally(Throwable cause) {
         this.containingTask.failExternally(cause);
+    }
+
+    @Override
+    public ThroughputMeter getThroughputMeter() {
+        return throughputMeter;
     }
 }

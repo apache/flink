@@ -75,6 +75,8 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotPayload;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -85,6 +87,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TaskManagerExceptionUtils;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
@@ -112,6 +115,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Consumer;
 
+import static org.apache.flink.runtime.operators.util.TaskConfig.THROUGHPUT_EMA_LAST_VALUES;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -294,6 +298,9 @@ public class Task
      */
     private UserCodeClassLoader userCodeClassLoader;
 
+    /** The only one throughput meter per subtask. */
+    private ThroughputMeter throughputMeter;
+
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
      * case of a failing task deployment.
@@ -417,11 +424,18 @@ public class Task
                         .toArray(new IndexedInputGate[0]);
 
         this.inputGates = new IndexedInputGate[gates.length];
+        this.throughputMeter =
+                new ThroughputMeter(
+                        SystemClock.getInstance(),
+                        new EMAThroughputCalculator(
+                                taskConfiguration.get(THROUGHPUT_EMA_LAST_VALUES)));
         int counter = 0;
         for (IndexedInputGate gate : gates) {
             inputGates[counter++] =
                     new InputGateWithMetrics(
-                            gate, metrics.getIOMetricGroup().getNumBytesInCounter());
+                            gate,
+                            metrics.getIOMetricGroup().getNumBytesInCounter(),
+                            throughputMeter);
         }
 
         if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
@@ -714,7 +728,8 @@ public class Task
                             taskManagerConfig,
                             metrics,
                             this,
-                            externalResourceInfoProvider);
+                            externalResourceInfoProvider,
+                            throughputMeter);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable

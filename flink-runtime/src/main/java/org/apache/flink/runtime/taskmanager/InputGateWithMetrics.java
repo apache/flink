@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,9 +46,13 @@ public class InputGateWithMetrics extends IndexedInputGate {
 
     private final Counter numBytesIn;
 
-    public InputGateWithMetrics(IndexedInputGate inputGate, Counter numBytesIn) {
+    private final ThroughputMeter throughputMeter;
+
+    public InputGateWithMetrics(
+            IndexedInputGate inputGate, Counter numBytesIn, ThroughputMeter throughputMeter) {
         this.inputGate = checkNotNull(inputGate);
         this.numBytesIn = checkNotNull(numBytesIn);
+        this.throughputMeter = throughputMeter;
     }
 
     @Override
@@ -141,7 +146,11 @@ public class InputGateWithMetrics extends IndexedInputGate {
     }
 
     private BufferOrEvent updateMetrics(BufferOrEvent bufferOrEvent) {
-        numBytesIn.inc(bufferOrEvent.getSize());
+        int incomingDataSize = bufferOrEvent.getSize();
+
+        numBytesIn.inc(incomingDataSize);
+        throughputMeter.incomingDataSize(incomingDataSize);
+
         return bufferOrEvent;
     }
 }

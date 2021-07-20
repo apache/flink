@@ -19,12 +19,14 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -36,6 +38,8 @@ import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig.InputConfig;
@@ -50,6 +54,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.FunctionWithException;
 
 import javax.annotation.Nullable;
@@ -92,6 +97,9 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
     private boolean setupCalled = false;
 
+    private ThroughputMeter throughputMeter =
+            new ThroughputMeter(SystemClock.getInstance(), new EMAThroughputCalculator(10));
+
     public StreamTaskMailboxTestHarnessBuilder(
             FunctionWithException<Environment, ? extends StreamTask<OUT, ?>, Exception> taskFactory,
             TypeInformation<OUT> outputType) {
@@ -115,6 +123,12 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
     public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setCheckpointResponder(
             CheckpointResponder checkpointResponder) {
         this.checkpointResponder = checkpointResponder;
+        return this;
+    }
+
+    public <T> StreamTaskMailboxTestHarnessBuilder<OUT> setThroughputMeter(
+            ThroughputMeter throughputMeter) {
+        this.throughputMeter = throughputMeter;
         return this;
     }
 
@@ -167,13 +181,16 @@ public class StreamTaskMailboxTestHarnessBuilder<OUT> {
 
         StreamMockEnvironment streamMockEnvironment =
                 new StreamMockEnvironment(
+                        new JobID(),
+                        new ExecutionAttemptID(),
                         jobConfig,
                         streamConfig.getConfiguration(),
                         executionConfig,
                         memorySize,
                         new MockInputSplitProvider(),
                         bufferSize,
-                        taskStateManager);
+                        taskStateManager,
+                        throughputMeter);
 
         streamMockEnvironment.setCheckpointResponder(taskStateManager.getCheckpointResponder());
         initializeInputs(streamMockEnvironment);

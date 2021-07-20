@@ -56,10 +56,13 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpCheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
@@ -125,6 +128,8 @@ public class StreamMockEnvironment implements Environment {
 
     private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
 
+    private ThroughputMeter throughputMeter;
+
     public StreamMockEnvironment(
             Configuration jobConfig,
             Configuration taskConfig,
@@ -142,7 +147,8 @@ public class StreamMockEnvironment implements Environment {
                 memorySize,
                 inputSplitProvider,
                 bufferSize,
-                taskStateManager);
+                taskStateManager,
+                new ThroughputMeter(SystemClock.getInstance(), new EMAThroughputCalculator(10)));
     }
 
     public StreamMockEnvironment(
@@ -154,7 +160,8 @@ public class StreamMockEnvironment implements Environment {
             long offHeapMemorySize,
             MockInputSplitProvider inputSplitProvider,
             int bufferSize,
-            TaskStateManager taskStateManager) {
+            TaskStateManager taskStateManager,
+            ThroughputMeter throughputMeter) {
 
         this.jobID = jobID;
         this.executionAttemptID = executionAttemptID;
@@ -184,6 +191,7 @@ public class StreamMockEnvironment implements Environment {
 
         KvStateRegistry registry = new KvStateRegistry();
         this.kvStateRegistry = registry.createTaskRegistry(jobID, getJobVertexId());
+        this.throughputMeter = throughputMeter;
     }
 
     public StreamMockEnvironment(
@@ -299,6 +307,11 @@ public class StreamMockEnvironment implements Environment {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         return taskEventDispatcher;
+    }
+
+    @Override
+    public ThroughputMeter getThroughputMeter() {
+        return throughputMeter;
     }
 
     @Override

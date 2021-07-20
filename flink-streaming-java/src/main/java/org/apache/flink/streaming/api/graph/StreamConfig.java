@@ -56,6 +56,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.operators.util.TaskConfig.THROUGHPUT_CALCULATION_PERIOD;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -425,6 +426,14 @@ public class StreamConfig implements Serializable {
         } catch (Exception e) {
             throw new StreamTaskException("Could not instantiate inputs.", e);
         }
+    }
+
+    public void setThroughputCalculationPeriod(int throughputCalculationPeriod) {
+        config.set(THROUGHPUT_CALCULATION_PERIOD, throughputCalculationPeriod);
+    }
+
+    public int getThroughputCalculationPeriod() {
+        return config.get(THROUGHPUT_CALCULATION_PERIOD);
     }
 
     // --------------------- checkpointing -----------------------

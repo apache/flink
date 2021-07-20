@@ -49,9 +49,12 @@ import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.clock.SystemClock;
 
 import java.util.Collections;
 import java.util.Map;
@@ -247,6 +250,11 @@ public class DummyEnvironment implements Environment {
     @Override
     public TaskEventDispatcher getTaskEventDispatcher() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ThroughputMeter getThroughputMeter() {
+        return new ThroughputMeter(SystemClock.getInstance(), new EMAThroughputCalculator(10));
     }
 
     public void setTaskStateManager(TaskStateManager taskStateManager) {

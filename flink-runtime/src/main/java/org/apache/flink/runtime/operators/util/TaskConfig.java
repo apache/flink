@@ -29,6 +29,8 @@ import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypePairComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.operators.DeltaIteration;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
@@ -237,6 +239,19 @@ public class TaskConfig implements Serializable {
     private static final String ITERATION_WORKSET_UPDATE = "iterative.ws-update";
 
     private static final String SOLUTION_SET_OBJECTS = "itertive.ss.obj";
+
+    public static final ConfigOption<Integer> THROUGHPUT_CALCULATION_PERIOD =
+            ConfigOptions.key("io.throughput.calculationPeriod")
+                    .intType()
+                    .defaultValue(500)
+                    .withDescription("The amount of time between calculation the throughput(ms).");
+
+    public static final ConfigOption<Integer> THROUGHPUT_EMA_LAST_VALUES =
+            ConfigOptions.key("io.throughput.ema.numberOfLastValues")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "How many last values should be taken into account during the calculation of throughput average(EMA). ");
 
     // ---------------------------------- Miscellaneous -------------------------------------------
 
@@ -1316,5 +1331,21 @@ public class TaskConfig implements Serializable {
 
     public boolean isSolutionSetUnmanaged() {
         return config.getBoolean(SOLUTION_SET_OBJECTS, false);
+    }
+
+    public void setThroughputCalculationPeriod(int throughputCalculationPeriod) {
+        config.set(THROUGHPUT_CALCULATION_PERIOD, throughputCalculationPeriod);
+    }
+
+    public int getThroughputCalculationPeriod() {
+        return config.get(THROUGHPUT_CALCULATION_PERIOD);
+    }
+
+    public void setThroughputEmaLastValues(int numberOfLastValues) {
+        config.set(THROUGHPUT_EMA_LAST_VALUES, numberOfLastValues);
+    }
+
+    public int getThroughputEmaLastValues() {
+        return config.get(THROUGHPUT_EMA_LAST_VALUES);
     }
 }

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Map;
@@ -232,4 +233,11 @@ public interface Environment {
     IndexedInputGate[] getAllInputGates();
 
     TaskEventDispatcher getTaskEventDispatcher();
+
+    /**
+     * Returns the throughput meter for calculation the throughput for certain period.
+     *
+     * @return the throughput calculation service.
+     */
+    ThroughputMeter getThroughputMeter();
 }

@@ -90,6 +90,8 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -121,6 +123,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -166,10 +169,12 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INF
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
+import static org.apache.flink.runtime.operators.util.TaskConfig.THROUGHPUT_CALCULATION_PERIOD;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
@@ -1495,7 +1500,7 @@ public class StreamTaskTest extends TestLogger {
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
                     ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
-                    Matchers.greaterThanOrEqualTo(sleepTimeOutsideMail));
+                    greaterThanOrEqualTo(sleepTimeOutsideMail));
             assertThat(
                     ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
@@ -1551,7 +1556,7 @@ public class StreamTaskTest extends TestLogger {
 
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
-                    Matchers.greaterThanOrEqualTo(sleepTimeOutsideMail));
+                    greaterThanOrEqualTo(sleepTimeOutsideMail));
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
@@ -1725,6 +1730,98 @@ public class StreamTaskTest extends TestLogger {
 
         // and: The task should clean up all resources even when cancelTask fails.
         assertTrue(OpenFailingOperator.wasClosed);
+    }
+
+    @Test
+    public void testMailboxNotifyThroughputMeterAboutIdleTime() throws Exception {
+        final long sleepTimeOutsideMail = 42;
+        final long sleepTimeInsideMail = 44;
+        int incomingDataSize = 10_000;
+
+        @Nullable WaitingThread waitingThread = null;
+        try (final MockEnvironment environment = setupEnvironment(true, true)) {
+            final UnAvailableTestInputProcessor inputProcessor =
+                    new UnAvailableTestInputProcessor();
+            final StreamTask task =
+                    new MockStreamTaskBuilder(environment)
+                            .setStreamInputProcessor(inputProcessor)
+                            .build();
+            TaskIOMetricGroup ioMetricGroup =
+                    task.getEnvironment().getMetricGroup().getIOMetricGroup();
+            ThroughputMeter throughputMeter = environment.getThroughputMeter();
+
+            final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
+            final RunnableWithException completeFutureTask =
+                    () ->
+                            inputProcessor
+                                    .availabilityProvider
+                                    .getUnavailableToResetAvailable()
+                                    .complete(null);
+
+            waitingThread =
+                    new WaitingThread(
+                            executor,
+                            completeFutureTask,
+                            sleepTimeInsideMail,
+                            sleepTimeOutsideMail,
+                            ioMetricGroup.getIdleTimeMsPerSecond());
+            // Make sure WaitingThread is started after Task starts processing.
+            executor.submit(
+                    waitingThread::start,
+                    "Start WaitingThread after Task starts processing input.");
+
+            long startTs = System.currentTimeMillis();
+            throughputMeter.calculateThroughput();
+            throughputMeter.incomingDataSize(incomingDataSize);
+            task.invoke();
+            long resultThroughput = throughputMeter.calculateThroughput();
+            long totalDuration = System.currentTimeMillis() - startTs;
+
+            assertThat(
+                    resultThroughput,
+                    greaterThanOrEqualTo(
+                            incomingDataSize * 1000 / (totalDuration - sleepTimeOutsideMail)));
+        } finally {
+            if (waitingThread != null) {
+                waitingThread.join();
+            }
+        }
+    }
+
+    @Test
+    public void testThroughputSchedulerStartsOnInvoke() throws Exception {
+        // given: Throughput meter which finishes the task when calculateThroughput was called.
+        UnAvailableTestInputProcessor inputProcessor = new UnAvailableTestInputProcessor();
+        try (MockEnvironment mockEnvironment =
+                new MockEnvironmentBuilder()
+                        .setTaskConfiguration(
+                                new Configuration().set(THROUGHPUT_CALCULATION_PERIOD, 1))
+                        .setThroughputMeter(
+                                new ThroughputMeter(
+                                        SystemClock.getInstance(),
+                                        new EMAThroughputCalculator(10)) {
+                                    @Override
+                                    public long calculateThroughput() {
+                                        inputProcessor
+                                                .availabilityProvider
+                                                .getUnavailableToResetAvailable()
+                                                .complete(null);
+                                        return super.calculateThroughput();
+                                    }
+                                })
+                        .build()) {
+
+            StreamTask task =
+                    new MockStreamTaskBuilder(mockEnvironment)
+                            .setStreamInputProcessor(inputProcessor)
+                            .build();
+
+            // when: Starting the task.
+            task.invoke();
+
+            // then: The task successfully finishes because throughput calculation was called from
+            // scheduler which leads to the finish of the task
+        }
     }
 
     private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {

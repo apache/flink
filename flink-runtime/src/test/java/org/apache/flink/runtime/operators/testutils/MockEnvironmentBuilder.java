@@ -34,9 +34,12 @@ import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
+import org.apache.flink.runtime.throughput.EMAThroughputCalculator;
+import org.apache.flink.runtime.throughput.ThroughputMeter;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
+import org.apache.flink.util.clock.SystemClock;
 
 public class MockEnvironmentBuilder {
     private String taskName = "mock-task";
@@ -61,6 +64,8 @@ public class MockEnvironmentBuilder {
             buildMemoryManager(1024 * MemoryManager.DEFAULT_PAGE_SIZE);
     private ExternalResourceInfoProvider externalResourceInfoProvider =
             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES;
+    private ThroughputMeter throughputMeter =
+            new ThroughputMeter(SystemClock.getInstance(), new EMAThroughputCalculator(10));
 
     private MemoryManager buildMemoryManager(long memorySize) {
         return MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
@@ -159,6 +164,11 @@ public class MockEnvironmentBuilder {
         return this;
     }
 
+    public MockEnvironmentBuilder setThroughputMeter(ThroughputMeter throughputMeter) {
+        this.throughputMeter = throughputMeter;
+        return this;
+    }
+
     public MockEnvironment build() {
         if (ioManager == null) {
             ioManager = new IOManagerAsync();
@@ -181,6 +191,7 @@ public class MockEnvironmentBuilder {
                 taskMetricGroup,
                 taskManagerRuntimeInfo,
                 memoryManager,
-                externalResourceInfoProvider);
+                externalResourceInfoProvider,
+                throughputMeter);
     }
 }
