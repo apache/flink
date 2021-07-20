@@ -93,4 +93,25 @@ public class IncrementalAggregateJsonPlanTest extends TableTestBase {
                         + "count(distinct c) as c "
                         + "from MyTable group by a");
     }
+
+    @Test
+    public void testIncrementalAggregateWithSumCountDistinctAndRetraction() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  b bigint,\n"
+                        + "  sum_b int,\n"
+                        + "  cnt_distinct_b bigint,\n"
+                        + "  cnt1 bigint\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan(
+                "insert into MySink "
+                        + "select b, sum(b1), count(distinct b1), count(1) "
+                        + " from "
+                        + "   (select a, count(b) as b, max(b) as b1 from MyTable group by a)"
+                        + " group by b");
+    }
 }
