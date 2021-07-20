@@ -106,11 +106,9 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.SkewedInfo;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.FunctionUtils;
-import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.EximUtil;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
-import org.apache.hadoop.hive.ql.plan.AlterTableDesc;
 import org.apache.hadoop.hive.ql.plan.HiveOperation;
 import org.apache.hadoop.hive.ql.plan.PrincipalDesc;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -269,21 +267,12 @@ public class HiveParserDDLSemanticAnalyzer {
                 HiveConf.getVar(conf, HiveConf.ConfVars.METASTORE_INT_EXTRACTED));
     }
 
-    private Table getTable(String tableName) throws SemanticException {
-        return getTable(toObjectPath(tableName));
-    }
-
     private Table getTable(ObjectPath tablePath) {
         try {
             return new Table(hiveCatalog.getHiveTable(tablePath));
         } catch (TableNotExistException e) {
             throw new ValidationException("Table not found", e);
         }
-    }
-
-    private ObjectPath toObjectPath(String name) throws SemanticException {
-        String[] parts = Utilities.getDbTableName(currentDB, name);
-        return new ObjectPath(parts[0], parts[1]);
     }
 
     public Operation convertToOperation(HiveParserASTNode ast) throws SemanticException {
@@ -404,19 +393,19 @@ public class HiveParserDDLSemanticAnalyzer {
         if (partSpecNode != null) {
             partSpec = getPartSpec(partSpecNode);
         }
-        checkAlterTableLegal(tableName, false);
+        CatalogBaseTable alteredTable = getAlteredTable(tableName, false);
         switch (ast.getType()) {
             case HiveASTParser.TOK_ALTERTABLE_RENAME:
                 operation = convertAlterTableRename(tableName, ast, false);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_ADDCOLS:
-                operation = convertAlterTableModifyCols(tableName, ast, false);
+                operation = convertAlterTableModifyCols(alteredTable, tableName, ast, false);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_REPLACECOLS:
-                operation = convertAlterTableModifyCols(tableName, ast, true);
+                operation = convertAlterTableModifyCols(alteredTable, tableName, ast, true);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_RENAMECOL:
-                operation = convertAlterTableChangeCol(qualified, ast);
+                operation = convertAlterTableChangeCol(alteredTable, qualified, ast);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_ADDPARTS:
                 operation = convertAlterTableAddParts(qualified, ast);
@@ -425,25 +414,28 @@ public class HiveParserDDLSemanticAnalyzer {
                 operation = convertAlterTableDropParts(qualified, ast);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_PROPERTIES:
-                operation = convertAlterTableProps(tableName, null, ast, false, false);
+                operation =
+                        convertAlterTableProps(alteredTable, tableName, null, ast, false, false);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_DROPPROPERTIES:
-                operation = convertAlterTableProps(tableName, null, ast, false, true);
+                operation = convertAlterTableProps(alteredTable, tableName, null, ast, false, true);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_UPDATESTATS:
-                operation = convertAlterTableProps(tableName, partSpec, ast, false, false);
+                operation =
+                        convertAlterTableProps(
+                                alteredTable, tableName, partSpec, ast, false, false);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_FILEFORMAT:
-                operation = convertAlterTableFileFormat(ast, tableName, partSpec);
+                operation = convertAlterTableFileFormat(alteredTable, ast, tableName, partSpec);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_LOCATION:
-                operation = convertAlterTableLocation(ast, tableName, partSpec);
+                operation = convertAlterTableLocation(alteredTable, ast, tableName, partSpec);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_SERIALIZER:
-                operation = convertAlterTableSerde(ast, tableName, partSpec);
+                operation = convertAlterTableSerde(alteredTable, ast, tableName, partSpec);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_SERDEPROPERTIES:
-                operation = convertAlterTableSerdeProps(ast, tableName, partSpec);
+                operation = convertAlterTableSerdeProps(alteredTable, ast, tableName, partSpec);
                 break;
             case HiveASTParser.TOK_ALTERTABLE_TOUCH:
             case HiveASTParser.TOK_ALTERTABLE_ARCHIVE:
@@ -493,6 +485,8 @@ public class HiveParserDDLSemanticAnalyzer {
 
         // Temp functions are not allowed to have qualified names.
         if (isTemporaryFunction && FunctionUtils.isQualifiedFunctionName(functionName)) {
+            // hive's temporary function is more like flink's temp system function, e.g. doesn't
+            // belong to a catalog/db
             throw new ValidationException(
                     "Temporary function cannot be created with a qualified name.");
         }
@@ -517,7 +511,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 HiveParserBaseSemanticAnalyzer.getQualifiedTableName(
                         (HiveParserASTNode) ast.getChild(0));
         String tableName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
-        checkAlterTableLegal(tableName, true);
+        CatalogBaseTable alteredTable = getAlteredTable(tableName, true);
         if (ast.getChild(1).getType() == HiveASTParser.TOK_QUERY) {
             // alter view as
             operation = convertCreateView(ast);
@@ -525,17 +519,19 @@ public class HiveParserDDLSemanticAnalyzer {
             ast = (HiveParserASTNode) ast.getChild(1);
             switch (ast.getType()) {
                 case HiveASTParser.TOK_ALTERVIEW_PROPERTIES:
-                    operation = convertAlterTableProps(tableName, null, ast, true, false);
+                    operation =
+                            convertAlterTableProps(alteredTable, tableName, null, ast, true, false);
                     break;
                 case HiveASTParser.TOK_ALTERVIEW_DROPPROPERTIES:
-                    operation = convertAlterTableProps(tableName, null, ast, true, true);
+                    operation =
+                            convertAlterTableProps(alteredTable, tableName, null, ast, true, true);
                     break;
                 case HiveASTParser.TOK_ALTERVIEW_RENAME:
                     operation = convertAlterTableRename(tableName, ast, true);
                     break;
                 case HiveASTParser.TOK_ALTERVIEW_ADDPARTS:
                 case HiveASTParser.TOK_ALTERVIEW_DROPPARTS:
-                    handleUnsupportedOperation("DROP PARTITION for view is not supported");
+                    handleUnsupportedOperation("ADD/DROP PARTITION for view is not supported");
                     break;
                 default:
                     throw new ValidationException("Unknown AST node for ALTER VIEW: " + ast);
@@ -1167,7 +1163,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
     }
 
-    private void validateAlterTableType(Table tbl, AlterTableDesc.AlterTableTypes op) {
+    private void validateAlterTableType(Table tbl) {
         if (tbl.isNonNative()) {
             throw new ValidationException(
                     ErrorMsg.ALTER_TABLE_NON_NATIVE.getMsg(tbl.getTableName()));
@@ -1175,6 +1171,7 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableProps(
+            CatalogBaseTable alteredTable,
             String tableName,
             HashMap<String, String> partSpec,
             HiveParserASTNode ast,
@@ -1223,23 +1220,22 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         if (expectView) {
-            return convertAlterViewProps(tableName, mapProp);
+            return convertAlterViewProps(alteredTable, tableName, mapProp);
         } else {
             Map<String, String> newProps = new HashMap<>();
             newProps.put(ALTER_TABLE_OP, CHANGE_TBL_PROPS.name());
             newProps.putAll(mapProp);
-            return convertAlterTableProps(tableName, partSpec, newProps);
+            return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
         }
     }
 
     private Operation convertAlterTableProps(
-            String tableName, Map<String, String> partSpec, Map<String, String> newProps) {
+            CatalogBaseTable oldBaseTable,
+            String tableName,
+            Map<String, String> partSpec,
+            Map<String, String> newProps) {
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tableName);
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
-        }
-        CatalogTable oldTable = (CatalogTable) catalogBaseTable;
+        CatalogTable oldTable = (CatalogTable) oldBaseTable;
         CatalogPartitionSpec catalogPartitionSpec =
                 partSpec != null ? new CatalogPartitionSpec(partSpec) : null;
         CatalogPartition catalogPartition =
@@ -1261,7 +1257,10 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableSerdeProps(
-            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec) {
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec) {
         HashMap<String, String> mapProp =
                 getProps((HiveParserASTNode) (ast.getChild(0)).getChild(0));
         Map<String, String> newProps = new HashMap<>();
@@ -1269,11 +1268,14 @@ public class HiveParserDDLSemanticAnalyzer {
         for (String key : mapProp.keySet()) {
             newProps.put(SERDE_INFO_PROP_PREFIX + key, mapProp.get(key));
         }
-        return convertAlterTableProps(tableName, partSpec, newProps);
+        return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
     }
 
     private Operation convertAlterTableSerde(
-            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec) {
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec) {
         String serdeName =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(0).getText());
         HashMap<String, String> mapProp = null;
@@ -1288,11 +1290,14 @@ public class HiveParserDDLSemanticAnalyzer {
                 newProps.put(SERDE_INFO_PROP_PREFIX + key, mapProp.get(key));
             }
         }
-        return convertAlterTableProps(tableName, partSpec, newProps);
+        return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
     }
 
     private Operation convertAlterTableFileFormat(
-            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec)
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec)
             throws SemanticException {
 
         HiveParserStorageFormat format = new HiveParserStorageFormat(conf);
@@ -1305,18 +1310,21 @@ public class HiveParserDDLSemanticAnalyzer {
         Map<String, String> newProps = new HashMap<>();
         newProps.put(ALTER_TABLE_OP, CHANGE_FILE_FORMAT.name());
         newProps.put(STORED_AS_FILE_FORMAT, format.getGenericName());
-        return convertAlterTableProps(tableName, partSpec, newProps);
+        return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
     }
 
     private Operation convertAlterTableLocation(
-            HiveParserASTNode ast, String tableName, HashMap<String, String> partSpec) {
+            CatalogBaseTable alteredTable,
+            HiveParserASTNode ast,
+            String tableName,
+            HashMap<String, String> partSpec) {
         String newLocation =
                 HiveParserBaseSemanticAnalyzer.unescapeSQLString(ast.getChild(0).getText());
         Map<String, String> newProps = new HashMap<>();
         newProps.put(ALTER_TABLE_OP, CHANGE_LOCATION.name());
         newProps.put(TABLE_LOCATION_URI, newLocation);
 
-        return convertAlterTableProps(tableName, partSpec, newProps);
+        return convertAlterTableProps(alteredTable, tableName, partSpec, newProps);
     }
 
     public static HashMap<String, String> getProps(HiveParserASTNode prop) {
@@ -1614,7 +1622,8 @@ public class HiveParserDDLSemanticAnalyzer {
                         objectIdentifier, parseObjectIdentifier(targetName));
     }
 
-    private Operation convertAlterTableChangeCol(String[] qualified, HiveParserASTNode ast)
+    private Operation convertAlterTableChangeCol(
+            CatalogBaseTable alteredTable, String[] qualified, HiveParserASTNode ast)
             throws SemanticException {
         String newComment = null;
         boolean first = false;
@@ -1667,8 +1676,7 @@ public class HiveParserDDLSemanticAnalyzer {
         String tblName = HiveParserBaseSemanticAnalyzer.getDotName(qualified);
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        CatalogTable oldTable = (CatalogTable) catalogBaseTable;
+        CatalogTable oldTable = (CatalogTable) alteredTable;
         String oldName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(oldColName);
         String newName = HiveParserBaseSemanticAnalyzer.unescapeIdentifier(newColName);
 
@@ -1696,7 +1704,8 @@ public class HiveParserDDLSemanticAnalyzer {
     }
 
     private Operation convertAlterTableModifyCols(
-            String tblName, HiveParserASTNode ast, boolean replace) throws SemanticException {
+            CatalogBaseTable alteredTable, String tblName, HiveParserASTNode ast, boolean replace)
+            throws SemanticException {
 
         List<FieldSchema> newCols =
                 HiveParserBaseSemanticAnalyzer.getColumns((HiveParserASTNode) ast.getChild(0));
@@ -1706,8 +1715,7 @@ public class HiveParserDDLSemanticAnalyzer {
         }
 
         ObjectIdentifier tableIdentifier = parseObjectIdentifier(tblName);
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        CatalogTable oldTable = (CatalogTable) catalogBaseTable;
+        CatalogTable oldTable = (CatalogTable) alteredTable;
 
         // prepare properties
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
@@ -1785,7 +1793,7 @@ public class HiveParserDDLSemanticAnalyzer {
             }
         }
 
-        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.DROPPARTITION);
+        validateAlterTableType(tab);
 
         ObjectIdentifier tableIdentifier =
                 catalogManager.qualifyIdentifier(
@@ -1806,7 +1814,7 @@ public class HiveParserDDLSemanticAnalyzer {
 
         Table tab = getTable(new ObjectPath(qualified[0], qualified[1]));
         boolean isView = tab.isView();
-        validateAlterTableType(tab, AlterTableDesc.AlterTableTypes.ADDPARTITION);
+        validateAlterTableType(tab);
 
         int numCh = ast.getChildCount();
         int start = ifNotExists ? 1 : 0;
@@ -1862,17 +1870,13 @@ public class HiveParserDDLSemanticAnalyzer {
                         ? parseObjectIdentifier(tab.getTableName())
                         : catalogManager.qualifyIdentifier(
                                 UnresolvedIdentifier.of(tab.getDbName(), tab.getTableName()));
-        CatalogBaseTable catalogBaseTable = getCatalogBaseTable(tableIdentifier);
-        if (catalogBaseTable instanceof CatalogView) {
-            throw new ValidationException("ADD PARTITION for a view is not supported");
-        }
         return new AddPartitionsOperation(tableIdentifier, ifNotExists, specs, partitions);
     }
 
-    private Operation convertAlterViewProps(String tableName, Map<String, String> newProps) {
+    private Operation convertAlterViewProps(
+            CatalogBaseTable oldBaseTable, String tableName, Map<String, String> newProps) {
         ObjectIdentifier viewIdentifier = parseObjectIdentifier(tableName);
-        CatalogBaseTable baseTable = getCatalogBaseTable(viewIdentifier);
-        CatalogView oldView = (CatalogView) baseTable;
+        CatalogView oldView = (CatalogView) oldBaseTable;
         Map<String, String> props = new HashMap<>(oldView.getOptions());
         props.putAll(newProps);
         CatalogView newView =
@@ -1885,7 +1889,7 @@ public class HiveParserDDLSemanticAnalyzer {
         return new AlterViewPropertiesOperation(viewIdentifier, newView);
     }
 
-    private void checkAlterTableLegal(String tableName, boolean expectView) {
+    private CatalogBaseTable getAlteredTable(String tableName, boolean expectView) {
         ObjectIdentifier objectIdentifier = parseObjectIdentifier(tableName);
         CatalogBaseTable catalogBaseTable = getCatalogBaseTable(objectIdentifier);
         if (expectView) {
@@ -1897,6 +1901,7 @@ public class HiveParserDDLSemanticAnalyzer {
                 throw new ValidationException("ALTER TABLE for a view is not allowed");
             }
         }
+        return catalogBaseTable;
     }
 
     private ObjectIdentifier parseObjectIdentifier(String compoundName) {
