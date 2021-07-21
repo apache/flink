@@ -31,6 +31,8 @@ import org.apache.flink.table.types.logical.RowType;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
+
 /**
  * Subclass of the {@link InputPriorityGraphGenerator}.
  *
@@ -168,8 +170,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
     }
 
     private InputProperty.DamBehavior getDamBehavior() {
-        if (BatchExecExchange.getExchangeMode(configuration, exchangeMode)
-                == StreamExchangeMode.BATCH) {
+        if (getBatchStreamExchangeMode(configuration, exchangeMode) == StreamExchangeMode.BATCH) {
             return InputProperty.DamBehavior.BLOCKING;
         } else {
             return InputProperty.DamBehavior.PIPELINED;

@@ -23,6 +23,7 @@ import org.apache.flink.client.python.PythonFunctionFactory;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.RestartStrategyOptions;
@@ -347,8 +348,8 @@ public class ExecutionContextTest {
                 ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue(),
                 conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
         assertEquals(
-                ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.defaultValue(),
-                conf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
+                ExecutionOptions.SHUFFLE_MODE.defaultValue(),
+                conf.get(ExecutionOptions.SHUFFLE_MODE));
         assertEquals(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD
                         .defaultValue()

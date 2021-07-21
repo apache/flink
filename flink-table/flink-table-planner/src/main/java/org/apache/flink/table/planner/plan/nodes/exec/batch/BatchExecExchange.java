@@ -21,15 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
@@ -49,6 +46,8 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
+
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
 
 /**
  * This {@link ExecNode} represents a change of partitioning of the input elements for batch.
@@ -142,25 +141,13 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         }
 
         final StreamExchangeMode exchangeMode =
-                getExchangeMode(planner.getTableConfig().getConfiguration(), requiredExchangeMode);
+                getBatchStreamExchangeMode(
+                        planner.getTableConfig().getConfiguration(), requiredExchangeMode);
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner, exchangeMode);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
         return transformation;
-    }
-
-    public static StreamExchangeMode getExchangeMode(
-            Configuration config, @Nullable StreamExchangeMode requiredExchangeMode) {
-        if (requiredExchangeMode == StreamExchangeMode.BATCH) {
-            return StreamExchangeMode.BATCH;
-        }
-        if (config.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-                .equalsIgnoreCase(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString())) {
-            return StreamExchangeMode.BATCH;
-        } else {
-            return StreamExchangeMode.UNDEFINED;
-        }
     }
 
     @VisibleForTesting

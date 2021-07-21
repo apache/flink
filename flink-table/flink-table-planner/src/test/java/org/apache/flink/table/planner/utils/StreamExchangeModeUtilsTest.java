@@ -18,20 +18,54 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getGlobalStreamExchangeMode;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link StreamExchangeModeUtils}. */
-public class StreamExchangeModeUtilsTest extends TestLogger {
+public class StreamExchangeModeUtilsTest {
 
     @Test
-    public void testGetValidShuffleMode() {
+    public void testBatchStreamExchangeMode() {
+        final Configuration configuration = new Configuration();
+
+        assertEquals(StreamExchangeMode.UNDEFINED, getBatchStreamExchangeMode(configuration, null));
+
+        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_BLOCKING);
+        assertEquals(StreamExchangeMode.BATCH, getBatchStreamExchangeMode(configuration, null));
+
+        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        assertEquals(StreamExchangeMode.UNDEFINED, getBatchStreamExchangeMode(configuration, null));
+
+        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        assertEquals(
+                StreamExchangeMode.BATCH,
+                getBatchStreamExchangeMode(configuration, StreamExchangeMode.BATCH));
+    }
+
+    @Test
+    public void testBatchStreamExchangeModeLegacyPrecedence() {
+        final Configuration configuration = new Configuration();
+
+        configuration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED);
+        configuration.setString(
+                ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
+                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString());
+
+        assertEquals(StreamExchangeMode.BATCH, getBatchStreamExchangeMode(configuration, null));
+    }
+
+    @Test
+    public void testLegacyShuffleMode() {
         final Configuration configuration = new Configuration();
 
         configuration.setString(
@@ -39,77 +73,55 @@ public class StreamExchangeModeUtilsTest extends TestLogger {
                 GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString());
         assertEquals(
                 GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalStreamExchangeMode.POINTWISE_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED.toString());
         assertEquals(
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
-    }
-
-    @Test
-    public void testGetLegacyShuffleMode() {
-        final Configuration configuration = new Configuration();
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 StreamExchangeModeUtils.ALL_EDGES_BLOCKING_LEGACY);
         assertEquals(
                 GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
                 StreamExchangeModeUtils.ALL_EDGES_PIPELINED_LEGACY);
         assertEquals(
                 GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
-    }
-
-    @Test
-    public void testGetShuffleModeIgnoreCases() {
-        final Configuration configuration = new Configuration();
+                getGlobalStreamExchangeMode(configuration).orElseThrow(AssertionError::new));
 
         configuration.setString(
                 ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Forward_edges_PIPELINED");
         assertEquals(
                 GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
-
-        configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "Pipelined");
-        assertEquals(
-                GlobalStreamExchangeMode.ALL_EDGES_PIPELINED,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
-    }
-
-    @Test
-    public void testGetDefaultShuffleMode() {
-        final Configuration configuration = new Configuration();
-        assertEquals(
-                GlobalStreamExchangeMode.ALL_EDGES_BLOCKING,
-                StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration));
+                StreamExchangeModeUtils.getGlobalStreamExchangeMode(configuration)
+                        .orElseThrow(AssertionError::new));
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testGetInvalidShuffleMode() {
+    public void testInvalidLegacyShuffleMode() {
         final Configuration configuration = new Configuration();
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
-        StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(configuration);
+        StreamExchangeModeUtils.getGlobalStreamExchangeMode(configuration);
     }
 }

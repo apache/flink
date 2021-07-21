@@ -18,11 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.ShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -37,6 +38,7 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
@@ -45,8 +47,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
-import org.apache.flink.table.runtime.util.RowDataTestUtil
-
 import org.junit.Assert._
 import org.junit.{After, Assert, Before}
 
@@ -519,8 +519,6 @@ object BatchTestBase {
 
   def configForMiniCluster(conf: TableConfig): Unit = {
     conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setString(
-      TABLE_EXEC_SHUFFLE_MODE,
-      GlobalStreamExchangeMode.ALL_EDGES_PIPELINED.toString)
+    conf.getConfiguration.set(ExecutionOptions.SHUFFLE_MODE, ShuffleMode.ALL_EXCHANGES_PIPELINED)
   }
 }

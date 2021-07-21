@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.api.common.ShuffleMode
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.types.Row
 
@@ -41,7 +43,7 @@ import scala.util.Random
  * [[org.apache.flink.table.planner.plan.batch.sql.MultipleInputCreationTest]].
  */
 @RunWith(classOf[Parameterized])
-class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
+class MultipleInputITCase(shuffleMode: ShuffleMode) extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
@@ -72,8 +74,7 @@ class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
       "a, b, c, nt",
       MultipleInputITCase.nullables)
 
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, shuffleMode)
+    tEnv.getConfig.getConfiguration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode)
   }
 
   @Test
@@ -217,7 +218,8 @@ class MultipleInputITCase(shuffleMode: String) extends BatchTestBase {
 object MultipleInputITCase {
 
   @Parameters(name = "shuffleMode: {0}")
-  def parameters: Array[String] = Array("ALL_EDGES_BLOCKING", "ALL_EDGES_PIPELINED")
+  def parameters: Array[ShuffleMode] =
+    Array(ShuffleMode.ALL_EXCHANGES_BLOCKING, ShuffleMode.ALL_EXCHANGES_PIPELINED)
 
   def generateRandomData(): Seq[Row] = {
     val data = new java.util.ArrayList[Row]()

@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode
-import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
+import org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
@@ -60,7 +59,9 @@ class BatchPhysicalExchange(
       throw new UnsupportedOperationException("Range sort is not supported.")
     }
 
-    val damBehavior = if (getExchangeMode eq StreamExchangeMode.BATCH) {
+    val exchangeMode = getBatchStreamExchangeMode(unwrapConfig(this), StreamExchangeMode.UNDEFINED)
+
+    val damBehavior = if (exchangeMode eq StreamExchangeMode.BATCH) {
       InputProperty.DamBehavior.BLOCKING
     } else {
       InputProperty.DamBehavior.PIPELINED
@@ -70,15 +71,5 @@ class BatchPhysicalExchange(
       requiredDistribution(getRequiredDistribution)
       .damBehavior(damBehavior)
       .build
-  }
-
-  private def getExchangeMode: StreamExchangeMode = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    if (tableConfig.getConfiguration.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-      .equalsIgnoreCase(GlobalStreamExchangeMode.ALL_EDGES_BLOCKING.toString)) {
-      StreamExchangeMode.BATCH
-    } else {
-      StreamExchangeMode.UNDEFINED
-    }
   }
 }

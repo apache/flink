@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -85,6 +86,10 @@ public final class ShortcutUtils {
 
     public static FlinkContext unwrapContext(Context context) {
         return context.unwrap(FlinkContext.class);
+    }
+
+    public static ReadableConfig unwrapConfig(RelNode relNode) {
+        return unwrapContext(relNode).getTableConfig().getConfiguration();
     }
 
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(
