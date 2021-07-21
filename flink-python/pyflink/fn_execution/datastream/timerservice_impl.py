@@ -26,7 +26,7 @@ from apache_beam.transforms.window import GlobalWindow
 
 from pyflink.common import Row
 from pyflink.datastream import TimerService
-from pyflink.fn_execution.datastream.timerservice import N, InternalTimerService, InternalTimer, K
+from pyflink.fn_execution.datastream.timerservice import InternalTimer, K, N, InternalTimerService
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 
 

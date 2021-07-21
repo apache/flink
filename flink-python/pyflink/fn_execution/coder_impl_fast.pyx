@@ -31,7 +31,6 @@ from cloudpickle import cloudpickle
 
 from pyflink.common import Row, RowKind
 from pyflink.datastream.window import CountWindow, TimeWindow
-from pyflink.fn_execution import flink_fn_execution_pb2
 
 ROW_KIND_BIT_SIZE = 2
 

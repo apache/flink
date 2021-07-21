@@ -65,8 +65,7 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         # the length of the variable prefix length will be less than 9 bytes
         if self._output_buffer_size < self._output_pos + length + 9:
             self._output_buffer_size += length + 9
-            self._output_data = <char*> realloc(self._output_data,
-                                                self._output_buffer_size)
+            self._output_data = <char*> realloc(self._output_data, self._output_buffer_size)
             self._output_stream.buffer_size = self._output_buffer_size
             self._output_stream.data = self._output_data
         # write variable prefix length
