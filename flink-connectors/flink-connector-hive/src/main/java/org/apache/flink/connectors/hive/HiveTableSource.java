@@ -47,6 +47,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsPartitionPushDo
 import org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
+import org.apache.flink.table.filesystem.FileSystemConnectorOptions.PartitionOrder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -156,13 +157,12 @@ public class HiveTableSource
                         (RowType) getProducedDataType().getLogicalType());
         if (isStreamingSource()) {
             if (catalogTable.getPartitionKeys().isEmpty()) {
-                String consumeOrderStr = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
-                ConsumeOrder consumeOrder = ConsumeOrder.getConsumeOrder(consumeOrderStr);
-                if (consumeOrder != ConsumeOrder.CREATE_TIME_ORDER) {
+                PartitionOrder partitionOrder = configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
+                if (partitionOrder != PartitionOrder.CREATE_TIME) {
                     throw new UnsupportedOperationException(
-                            "Only "
-                                    + ConsumeOrder.CREATE_TIME_ORDER
-                                    + " is supported for non partition table.");
+                            "Only '"
+                                    + PartitionOrder.CREATE_TIME
+                                    + "' is supported for non partition table.");
                 }
             }
 
@@ -349,8 +349,8 @@ public class HiveTableSource
                     configuration,
                     defaultPartitionName);
 
-            switch (consumeOrder) {
-                case PARTITION_NAME_ORDER:
+            switch (partitionOrder) {
+                case PARTITION_NAME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
                                 configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
@@ -360,8 +360,8 @@ public class HiveTableSource
                     }
                     typeSerializer = (TypeSerializer<T>) StringSerializer.INSTANCE;
                     break;
-                case PARTITION_TIME_ORDER:
-                case CREATE_TIME_ORDER:
+                case PARTITION_TIME:
+                case CREATE_TIME:
                     if (configuration.contains(STREAMING_SOURCE_CONSUME_START_OFFSET)) {
                         String consumeOffsetStr =
                                 configuration.getString(STREAMING_SOURCE_CONSUME_START_OFFSET);
@@ -373,7 +373,7 @@ public class HiveTableSource
                     break;
                 default:
                     throw new UnsupportedOperationException(
-                            "Unsupported consumer order: " + consumeOrder);
+                            "Unsupported partition order: " + partitionOrder);
             }
         }
 
@@ -393,28 +393,6 @@ public class HiveTableSource
         @Override
         public ObjectPath getTablePath() {
             return tablePath;
-        }
-
-        /**
-         * Get the partition modified time.
-         *
-         * <p>the time is the the folder/file modification time in filesystem when fetched in
-         * create-time order, the time is extracted from partition name when fetched in
-         * partition-time order, the time is partition create time in metaStore when fetched in
-         * partition-name order.
-         */
-        public long getModificationTime(Partition partition, T partitionOffset) {
-            switch (consumeOrder) {
-                case PARTITION_NAME_ORDER:
-                    // second to millisecond
-                    return partition.getCreateTime() * 1_1000L;
-                case PARTITION_TIME_ORDER:
-                case CREATE_TIME_ORDER:
-                    return (Long) partitionOffset;
-                default:
-                    throw new UnsupportedOperationException(
-                            "Unsupported consumer order: " + consumeOrder);
-            }
         }
 
         /** Convert partition to HiveTablePartition. */
