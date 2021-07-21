@@ -68,14 +68,19 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
     public void testSeDeSchema() {
         final Map<String, String> options = getAllOptions();
 
+        final Map<String, String> registryConfigs = new HashMap<>();
+        registryConfigs.put("basic.auth.user.info", "something1");
+        registryConfigs.put("basic.auth.credentials.source", "something2");
+
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL);
+                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL, registryConfigs);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 
         DebeziumAvroSerializationSchema expectedSer =
-                new DebeziumAvroSerializationSchema(ROW_TYPE, REGISTRY_URL, SUBJECT);
+                new DebeziumAvroSerializationSchema(
+                        ROW_TYPE, REGISTRY_URL, SUBJECT, registryConfigs);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
         Assert.assertEquals(expectedSer, actualSer);
     }
@@ -89,6 +94,8 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
         options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
         options.put("debezium-avro-confluent.schema-registry.url", REGISTRY_URL);
         options.put("debezium-avro-confluent.schema-registry.subject", SUBJECT);
+        options.put("debezium-avro-confluent.basic-auth.user-info", "something1");
+        options.put("debezium-avro-confluent.basic-auth.credentials-source", "something2");
         return options;
     }
 
