@@ -46,16 +46,18 @@ function get_kafka_json_source_schema {
     tableName="$2"
     cat << EOF
     CREATE TABLE $tableName (
-      rowtime TIMESTAMP(3),
-      user STRING,
-      event ROW<type STRING, message STRING>
-      WATERMARK FOR rowtime AS rowtime + INTERVAL '2' SECOND
+      \`timestamp\` TIMESTAMP_LTZ(3),
+      \`user\` STRING,
+      \`event\` ROW<type STRING, message STRING>,
+      \`rowtime\` as \`timestamp\`,
+      WATERMARK FOR \`rowtime\` AS \`rowtime\` - INTERVAL '2' SECOND
     ) WITH (
       'connector' = 'kafka',
       'topic' = '$topicName',
       'properties.bootstrap.servers' = 'localhost:9092',
       'scan.startup.mode' = 'earliest-offset',
-      'format' = 'json'
+      'format' = 'json',
+      'json.timestamp-format.standard' = 'ISO-8601'
     );
 EOF
 }

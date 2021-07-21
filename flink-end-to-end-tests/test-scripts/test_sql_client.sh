@@ -155,35 +155,33 @@ ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH
 
 # create session environment file
 RESULT=$TEST_DATA_DIR/result
-SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
+INIT_SQL=$TEST_DATA_DIR/sql-client-init.sql
 
+get_kafka_json_source_schema test-json JsonSourceTable >> $INIT_SQL
 
-get_kafka_json_source_schema test-json JsonSourceTable >> $SQL_CONF
-
-cat >> $SQL_CONF << EOF
+cat >> $INIT_SQL << EOF
 
   CREATE TABLE ElasticsearchUpsertSinkTable (
     user_id INT,
     user_name STRING,
-    user_count BIGINT
+    user_count BIGINT,
+    PRIMARY KEY (user_id) NOT ENFORCED
   ) WITH (
-    'connector' = 'elastcisearch-$ELASTICSEARCH_VERSION',
+    'connector' = 'elasticsearch-$ELASTICSEARCH_VERSION',
     'hosts' = 'http://localhost:9200',
     'index' = '$ELASTICSEARCH_INDEX',
-    'document-type' = 'user',
     'sink.bulk-flush.max-actions' = '1',
     'format' = 'json'
   );
 
-  CREATE TABLE ElasticsearchUpsertSinkTable (
+  CREATE TABLE ElasticsearchAppendSinkTable (
     user_id INT,
     user_name STRING,
     user_count BIGINT
   ) WITH (
-    'connector' = 'elastcisearch-$ELASTICSEARCH_VERSION',
+    'connector' = 'elasticsearch-$ELASTICSEARCH_VERSION',
     'hosts' = 'http://localhost:9200',
     'index' = '$ELASTICSEARCH_INDEX',
-    'document-type' = 'user',
     'sink.bulk-flush.max-actions' = '1',
     'format' = 'json'
   );
@@ -208,7 +206,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --init $SQL_CONF \
+  --init $INIT_SQL \
   --update "$SQL_STATEMENT_1" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
@@ -236,7 +234,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --init $SQL_CONF \
+  --init $INIT_SQL \
   --update "$SQL_STATEMENT_2" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
@@ -250,16 +248,16 @@ SQL_STATEMENT_3=$(cat << EOF
 INSERT INTO ElasticsearchAppendSinkTable
   SELECT 1 as user_id, T.userName as user_name, cast(1 as BIGINT) as user_count
   FROM (
-    SELECT user, rowtime
+    SELECT \`user\`, \`rowtime\`
     FROM JsonSourceTable
-    WHERE user IS NOT NULL)
+    WHERE \`user\` IS NOT NULL)
   MATCH_RECOGNIZE (
     ORDER BY rowtime
     MEASURES
-        user as userName
+        \`user\` as userName
     PATTERN (A)
     DEFINE
-        A as user = 'Alice'
+        A as \`user\` = 'Alice'
   ) T
 EOF
 )
@@ -268,7 +266,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --init $SQL_CONF \
+  --init $INIT_SQL \
   --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
 
 # 3 upsert results and 6 append results and 3 match_recognize results
