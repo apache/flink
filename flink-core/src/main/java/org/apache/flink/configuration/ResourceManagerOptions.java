@@ -70,8 +70,7 @@ public class ResourceManagerOptions {
                                     + "for streaming workloads, which may fail if there are not enough slots. Note that this configuration option does not take "
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
-    @Documentation.ExcludeFromDocumentation(
-            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Double> MAX_TOTAL_CPU =
             ConfigOptions.key("slotmanager.max-total-resource.cpu")
                     .doubleType()
@@ -83,8 +82,7 @@ public class ResourceManagerOptions {
                                     + MAX_SLOT_NUM.key()
                                     + "'.");
 
-    @Documentation.ExcludeFromDocumentation(
-            "This is only needed by FinGrainedSlotManager, which it still in development.")
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<MemorySize> MAX_TOTAL_MEM =
             ConfigOptions.key("slotmanager.max-total-resource.memory")
                     .memoryType()
