@@ -103,11 +103,13 @@ public class SqlTimestampAddFunction extends SqlFunction {
             case SECOND:
                 if (datetimeType.getFamily() == SqlTypeFamily.TIME) {
                     type = datetimeType;
-                } else {
+                } else if (datetimeType.getFamily() == SqlTypeFamily.TIMESTAMP) {
                     type =
                             typeFactory.createSqlType(
                                     timestampOrTimestampLtz(datetimeType),
                                     datetimeType.getPrecision());
+                } else {
+                    type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
                 }
                 break;
             default:
