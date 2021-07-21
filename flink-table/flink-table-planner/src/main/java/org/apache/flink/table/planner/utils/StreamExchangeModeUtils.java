@@ -18,30 +18,66 @@
 
 package org.apache.flink.table.planner.utils;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ShuffleMode;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
+import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
+import java.util.Optional;
+
 /** Utility class to load job-wide exchange mode. */
+@Internal
 public class StreamExchangeModeUtils {
 
     static final String ALL_EDGES_BLOCKING_LEGACY = "batch";
 
     static final String ALL_EDGES_PIPELINED_LEGACY = "pipelined";
 
-    static GlobalStreamExchangeMode getShuffleModeAsGlobalStreamExchangeMode(
-            final Configuration configuration) {
-        final String value =
-                configuration.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE);
-
-        try {
-            return GlobalStreamExchangeMode.valueOf(convertLegacyShuffleMode(value).toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Unsupported value %s for config %s.",
-                            value, ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.key()));
+    public static StreamExchangeMode getBatchStreamExchangeMode(
+            ReadableConfig config, StreamExchangeMode requiredExchangeMode) {
+        if (requiredExchangeMode == StreamExchangeMode.BATCH) {
+            return StreamExchangeMode.BATCH;
         }
+
+        final GlobalStreamExchangeMode globalExchangeMode =
+                getGlobalStreamExchangeMode(config).orElse(null);
+        if (globalExchangeMode == GlobalStreamExchangeMode.ALL_EDGES_BLOCKING) {
+            return StreamExchangeMode.BATCH;
+        }
+
+        final ShuffleMode shuffleMode = config.get(ExecutionOptions.SHUFFLE_MODE);
+        if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING) {
+            return StreamExchangeMode.BATCH;
+        }
+
+        return StreamExchangeMode.UNDEFINED;
+    }
+
+    /**
+     * The {@link GlobalStreamExchangeMode} should be determined by the {@link StreamGraphGenerator}
+     * in the future.
+     */
+    @Deprecated
+    static Optional<GlobalStreamExchangeMode> getGlobalStreamExchangeMode(ReadableConfig config) {
+        return config.getOptional(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
+                .map(
+                        value -> {
+                            try {
+                                return GlobalStreamExchangeMode.valueOf(
+                                        convertLegacyShuffleMode(value).toUpperCase());
+                            } catch (IllegalArgumentException e) {
+                                throw new IllegalArgumentException(
+                                        String.format(
+                                                "Unsupported value %s for config %s.",
+                                                value,
+                                                ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE
+                                                        .key()));
+                            }
+                        });
     }
 
     private static String convertLegacyShuffleMode(final String shuffleMode) {

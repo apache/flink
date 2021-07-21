@@ -19,8 +19,10 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
@@ -30,6 +32,8 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.util.TernaryBoolean;
 
 import java.util.List;
+
+import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getGlobalStreamExchangeMode;
 
 /** Utility class to generate StreamGraph and set properties for batch. */
 public class ExecutorUtils {
@@ -80,11 +84,20 @@ public class ExecutorUtils {
         if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
         }
-        streamGraph.setGlobalStreamExchangeMode(getGlobalStreamExchangeMode(tableConfig));
-    }
-
-    private static GlobalStreamExchangeMode getGlobalStreamExchangeMode(TableConfig tableConfig) {
-        return StreamExchangeModeUtils.getShuffleModeAsGlobalStreamExchangeMode(
-                tableConfig.getConfiguration());
+        GlobalStreamExchangeMode exchangeMode =
+                getGlobalStreamExchangeMode(tableConfig.getConfiguration()).orElse(null);
+        // temporary solution until StreamGraphGenerator will take care of this setting
+        // after enabling batch runtime mode
+        if (exchangeMode == null) {
+            final ShuffleMode shuffleMode =
+                    tableConfig.getConfiguration().get(ExecutionOptions.SHUFFLE_MODE);
+            if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING
+                    || shuffleMode == ShuffleMode.AUTOMATIC) {
+                exchangeMode = GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
+            } else {
+                exchangeMode = GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
+            }
+        }
+        streamGraph.setGlobalStreamExchangeMode(exchangeMode);
     }
 }

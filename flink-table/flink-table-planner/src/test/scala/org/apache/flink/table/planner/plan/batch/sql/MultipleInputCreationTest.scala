@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
+import org.apache.flink.api.common.ShuffleMode
 import org.apache.flink.api.common.eventtime.WatermarkStrategy
 import org.apache.flink.api.connector.source.Boundedness
 import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.scala._
+import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
@@ -32,7 +34,7 @@ import org.junit.runners.Parameterized.Parameters
 import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
-class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
+class MultipleInputCreationTest(shuffleMode: ShuffleMode) extends TableTestBase {
 
   private val util = batchTestUtil()
 
@@ -42,8 +44,7 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
     util.addTableSource[(Int, Long, String, Int)]("y", 'd, 'e, 'f, 'ny)
     util.addTableSource[(Int, Long, String, Int)]("z", 'g, 'h, 'i, 'nz)
     util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
-    util.tableConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, shuffleMode)
+    util.tableConfig.getConfiguration.set(ExecutionOptions.SHUFFLE_MODE, shuffleMode)
   }
 
   @Test
@@ -352,5 +353,6 @@ class MultipleInputCreationTest(shuffleMode: String) extends TableTestBase {
 object MultipleInputCreationTest {
 
   @Parameters(name = "shuffleMode: {0}")
-  def parameters: Array[String] = Array("ALL_EDGES_BLOCKING", "ALL_EDGES_PIPELINED")
+  def parameters: Array[ShuffleMode] =
+    Array(ShuffleMode.ALL_EXCHANGES_BLOCKING, ShuffleMode.ALL_EXCHANGES_PIPELINED)
 }

@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM x
@@ -48,7 +48,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM x
@@ -80,7 +80,7 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM chainable
@@ -111,7 +111,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -167,7 +167,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -223,7 +223,7 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -256,7 +256,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -289,7 +289,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -329,7 +329,7 @@ MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], whe
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -367,7 +367,7 @@ Union(all=[true], union=[a, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -405,7 +405,7 @@ Union(all=[true], union=[a, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH T1 AS (
@@ -441,7 +441,7 @@ Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH T1 AS (
@@ -477,7 +477,7 @@ Calc(select=[a, b, a0, b0, c, nx, k, CAST(0:BIGINT) AS v])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM x
@@ -507,7 +507,7 @@ MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], s
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -547,7 +547,7 @@ MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], whe
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM chainable
@@ -578,7 +578,7 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -609,7 +609,7 @@ MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM
@@ -640,7 +640,7 @@ MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
@@ -685,7 +685,7 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
@@ -730,7 +730,7 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
     </Resource>
@@ -751,7 +751,7 @@ MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
     </Resource>
@@ -772,7 +772,7 @@ MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -811,7 +811,7 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -908,7 +908,7 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1005,7 +1005,7 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1054,7 +1054,7 @@ Calc(select=[a, b, a0, b0, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1093,7 +1093,7 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- C
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 SELECT * FROM x
@@ -1123,7 +1123,7 @@ MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], s
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRelatedInputs[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1165,7 +1165,7 @@ MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuter
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1233,7 +1233,7 @@ Union(all=[true], union=[cnt])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRelatedInputs[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1275,7 +1275,7 @@ MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuter
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EDGES_BLOCKING]">
+  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_BLOCKING]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1329,7 +1329,7 @@ Union(all=[true], union=[a, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1378,7 +1378,7 @@ Calc(select=[a, b, a0, b0, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
@@ -1446,7 +1446,7 @@ Union(all=[true], union=[cnt])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EDGES_PIPELINED]">
+  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_PIPELINED]">
     <Resource name="sql">
       <![CDATA[
 WITH
