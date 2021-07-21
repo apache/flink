@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.jobmaster;
 
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.util.AbstractID;
+
+import javax.annotation.Nullable;
+import java.util.Set;
 
 /**
  * This ID identifies the request for a slot from the Execution to the {@link SlotPool} or {@link
@@ -36,11 +40,22 @@ public final class SlotRequestId extends AbstractID {
 
     private static final long serialVersionUID = -6072105912250154283L;
 
+    @Nullable private Set<JobVertexID> jobVertexSharingGroup;
+
     public SlotRequestId(long lowerPart, long upperPart) {
         super(lowerPart, upperPart);
     }
 
     public SlotRequestId() {}
+
+    public SlotRequestId(Set<JobVertexID> jobVertexSharingGroup) {
+        this.jobVertexSharingGroup = jobVertexSharingGroup;
+    }
+
+    @Nullable
+    public Set<JobVertexID> getJobVertexSharingGroup() {
+        return jobVertexSharingGroup;
+    }
 
     @Override
     public String toString() {

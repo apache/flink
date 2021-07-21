@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -103,7 +104,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
             return Optional.empty();
         }
 
-        final Iterator<? extends SlotInfo> slotIterator = freeSlots.iterator();
+        final SlotSelector slotSelector = new SlotSelector(freeSlots);
 
         final Collection<ExecutionSlotSharingGroupAndSlot> assignments = new ArrayList<>();
         final Map<JobVertexID, Integer> allVertexParallelism = new HashMap<>();
@@ -122,10 +123,13 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
             for (ExecutionSlotSharingGroup executionSlotSharingGroup :
                     sharedSlotToVertexAssignment) {
-                final SlotInfo slotInfo = slotIterator.next();
+                final Optional<SlotInfo> slotInfo = slotSelector.poll();
+                if (!slotInfo.isPresent()) {
+                    return Optional.empty();
+                }
 
                 assignments.add(
-                        new ExecutionSlotSharingGroupAndSlot(executionSlotSharingGroup, slotInfo));
+                        new ExecutionSlotSharingGroupAndSlot(executionSlotSharingGroup, slotInfo.get()));
             }
             allVertexParallelism.putAll(vertexParallelism);
         }
@@ -245,6 +249,38 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         public Collection<ExecutionVertexID> getContainedExecutionVertices() {
             return containedExecutionVertices;
+        }
+    }
+
+    static class SlotSelector {
+        private final List<Iterator<? extends SlotInfo>> slotGroups;
+        private int index;
+
+        public SlotSelector(Collection<? extends SlotInfo> slots) {
+
+            final Map<TaskManagerLocation, List<SlotInfo>> taskManagerSlots = slots.stream().collect(
+                    Collectors.groupingBy(SlotInfo::getTaskManagerLocation, Collectors.toList()));
+
+            this.slotGroups = taskManagerSlots.values().stream()
+                    .sorted((g1, g2) -> Integer.compare(g2.size(), g1.size()))
+                    .map(Collection::iterator).collect(Collectors.toList());
+        }
+
+        private Iterator<? extends SlotInfo> next() {
+            return slotGroups.get((index++) % slotGroups.size());
+        }
+
+        public Optional<SlotInfo> poll() {
+            for (int i = 0; i < slotGroups.size(); ++i) {
+                Iterator<? extends SlotInfo> slots = next();
+                while (slots.hasNext()) {
+                    SlotInfo slot = slots.next();
+                    slots.remove();
+                    return Optional.of(slot);
+                }
+            }
+
+            return Optional.empty();
         }
     }
 

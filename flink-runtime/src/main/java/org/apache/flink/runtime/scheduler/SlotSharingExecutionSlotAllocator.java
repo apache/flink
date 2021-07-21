@@ -199,7 +199,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
         return sharedSlots.computeIfAbsent(
                 executionSlotSharingGroup,
                 group -> {
-                    SlotRequestId physicalSlotRequestId = new SlotRequestId();
+                    SlotRequestId physicalSlotRequestId = new SlotRequestId(group.getJobVertexSharingGroup());
                     ResourceProfile physicalSlotResourceProfile =
                             getPhysicalSlotResourceProfile(group);
                     SlotProfile slotProfile =

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -40,6 +41,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,9 +146,11 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     void newSlotsAreAvailable(Collection<? extends PhysicalSlot> newSlots) {
         final Collection<PendingRequestSlotMatching> matchingsToFulfill = new ArrayList<>();
 
+        final PendingRequestSelector requestSelector = new PendingRequestSelector(pendingRequests.values());
+
         for (PhysicalSlot newSlot : newSlots) {
             final Optional<PendingRequest> matchingPendingRequest =
-                    findMatchingPendingRequest(newSlot);
+                    requestSelector.poll(newSlot);
 
             matchingPendingRequest.ifPresent(
                     pendingRequest -> {
@@ -162,7 +166,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                                 PendingRequestSlotMatching.createFor(pendingRequest, newSlot));
                     });
         }
-
         // we have to first reserve all matching slots before fulfilling the requests
         // otherwise it can happen that the scheduler reserves one of the new slots
         // for a request which has been triggered by fulfilling a pending request
@@ -178,20 +181,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         log.debug("Reserve slot {} for slot request id {}", allocationId, slotRequestId);
         getDeclarativeSlotPool().reserveFreeSlot(allocationId, resourceProfile);
         fulfilledRequests.put(slotRequestId, allocationId);
-    }
-
-    private Optional<PendingRequest> findMatchingPendingRequest(PhysicalSlot slot) {
-        final ResourceProfile resourceProfile = slot.getResourceProfile();
-
-        for (PendingRequest pendingRequest : pendingRequests.values()) {
-            if (resourceProfile.isMatching(pendingRequest.getResourceProfile())) {
-                log.debug("Matched slot {} to pending request {}.", slot, pendingRequest);
-                return Optional.of(pendingRequest);
-            }
-        }
-        log.debug("Could not match slot {} to any pending request.", slot);
-
-        return Optional.empty();
     }
 
     @Override
@@ -583,6 +572,46 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                     + ", unfulfillableSince="
                     + unfulfillableSince
                     + '}';
+        }
+    }
+
+    static class PendingRequestSelector {
+        private final List<Iterator<PendingRequest>> pendingRequestGroups;
+        private int index;
+
+        public PendingRequestSelector(Collection<PendingRequest> pendingRequests) {
+            final Map<Set<JobVertexID>, List<PendingRequest>> slotSharingGroups =  pendingRequests.stream()
+                    .collect(Collectors.groupingBy(this::getJobVertexSharingGroup,
+                            Collectors.toList()));
+
+            this.pendingRequestGroups = slotSharingGroups.values().stream()
+                    .sorted((g1, g2) -> Integer.compare(g2.size(), g1.size()))
+                    .map(Collection::iterator).collect(Collectors.toList());
+        }
+
+        public Optional<PendingRequest> poll(PhysicalSlot slot) {
+            final ResourceProfile resourceProfile = slot.getResourceProfile();
+
+            for (int i = 0; i < pendingRequestGroups.size(); ++i) {
+                Iterator<PendingRequest> pendingRequests = next();
+                while (pendingRequests.hasNext()) {
+                    PendingRequest pendingRequest = pendingRequests.next();
+                    if (resourceProfile.isMatching(pendingRequest.getResourceProfile())) {
+                        pendingRequests.remove();
+                        return Optional.of(pendingRequest);
+                    }
+                }
+            }
+
+            return Optional.empty();
+        }
+
+        private Iterator<PendingRequest> next() {
+            return pendingRequestGroups.get((index++) % pendingRequestGroups.size());
+        }
+
+        private Set<JobVertexID> getJobVertexSharingGroup(PendingRequest pendingRequest) {
+            return pendingRequest.getSlotRequestId().getJobVertexSharingGroup();
         }
     }
 
