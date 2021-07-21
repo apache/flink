@@ -93,8 +93,10 @@
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
-    "java.util.List"
     "java.util.ArrayList"
+    "java.util.HashSet"
+    "java.util.List"
+    "java.util.Set"
   ]
 
   # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
@@ -103,12 +105,15 @@
   keywords: [
     "BYTES"
     "CATALOGS"
+    "CHANGELOG_MODE"
     "COMMENT"
     "DATABASES"
     "ENFORCED"
+    "ESTIMATED_COST"
     "EXTENDED"
     "FUNCTIONS"
     "IF"
+    "JSON_EXECUTION_PLAN"
     "JAR"
     "JARS"
     "LOAD"
@@ -460,8 +465,11 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
+    "CHANGELOG_MODE"
     "ENFORCED"
+    "ESTIMATED_COST"
     "IF"
+    "JSON_EXECUTION_PLAN"
     "METADATA"
     "OVERWRITE"
     "OVERWRITING"
