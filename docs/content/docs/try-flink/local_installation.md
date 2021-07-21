@@ -63,7 +63,7 @@ $ cd flink-* && ls -l
 
 You should see something like:
 
-![project directory](/fig/try-flink/projectdirectory.png)
+{{< img src="/fig/try-flink/projectdirectory.png" alt="project directory" >}}
 
 For now, you may want to note that:
 - __bin/__ directory contains the `flink` binary as well as several bash scripts that manage various jobs and tasks
@@ -81,7 +81,7 @@ $ ./bin/start-cluster.sh
 
 You should see an output like this:
 
-![output](/fig/try-flink/output.png)
+{{< img src="/fig/try-flink/output.png" alt="output" >}}
 
 Flink is now running as a background process. You can check its status with the following command:
 
@@ -137,7 +137,7 @@ Additionally, you can check Flink's [web UI](http://localhost:8081) to monitor t
 
 You can view the data flow plan for the execution:
 
-![data flow plan](/fig/try-flink/dataflowplan.png)
+{{< img src="/fig/try-flink/dataflowplan.png" alt="data flow plan" >}}
 
 Here for the job execution, Flink has two operators. The ﬁrst is the source operator which reads data from the
 collection source. The second operator is the transformation operator which aggregates counts of words. Learn
@@ -145,7 +145,7 @@ more about [DataStream operators]({{< ref "docs/dev/datastream/operators" >}}).
 
 You can also look at the timeline of the job execution:
 
-![data flow timeline](/fig/try-flink/timeline.png)
+{{< img src="/fig/try-flink/timeline.png" alt="data flow timeline" >}}
 
 You have successfully ran a [Flink application]({{< ref "docs/concepts/glossary" >}}#ﬂink-application)! Feel free to select any other JAR archive from the __examples/__
 folder or deploy your own job!
