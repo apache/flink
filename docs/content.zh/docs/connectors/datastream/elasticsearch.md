@@ -65,7 +65,7 @@ Elasticsearch 集群的设置可以参考[此处](https://www.elastic.co/guide/e
 
 ## Elasticsearch 接收器
 
-`ElasticsearchSink` 使用 `TransportClient` (6.x 之前) 或者 `RestHighLevelClient` (6.x 开始) 和 Elasticsearch 集群进行通信。
+`ElasticsearchSink` 使用 `TransportClient` （6.x 之前） 或者 `RestHighLevelClient` （6.x 开始） 和 Elasticsearch 集群进行通信。
 
 下面的示例展示了如何配置并创建一个接收器：
 
@@ -92,7 +92,7 @@ DataStream<String> input = ...;
 
 Map<String, String> config = new HashMap<>();
 config.put("cluster.name", "my-cluster-name");
-//这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
+// 这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
 config.put("bulk.flush.max.actions", "1");
 
 List<InetSocketAddress> transportAddresses = new ArrayList<>();
@@ -139,7 +139,7 @@ List<HttpHost> httpHosts = new ArrayList<>();
 httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
 httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
 
-//使用 ElasticsearchSink.Builder 创建 ElasticsearchSink
+// 使用 ElasticsearchSink.Builder 创建 ElasticsearchSink
 ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
     httpHosts,
     new ElasticsearchSinkFunction<String>() {
@@ -160,10 +160,10 @@ ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<
     }
 );
 
-//批量请求的配置；这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
+// 批量请求的配置；这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
 esSinkBuilder.setBulkFlushMaxActions(1);
 
-//为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
+// 为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
 esSinkBuilder.setRestClientFactory(
   restClientBuilder -> {
     restClientBuilder.setDefaultHeaders(...)
@@ -173,7 +173,7 @@ esSinkBuilder.setRestClientFactory(
   }
 );
 
-//最后，构建并添加接收器到作业管道中
+// 最后，构建并添加接收器到作业管道中
 input.addSink(esSinkBuilder.build());
 ```
 {{< /tab >}}
@@ -199,7 +199,7 @@ val input: DataStream[String] = ...
 
 val config = new java.util.HashMap[String, String]
 config.put("cluster.name", "my-cluster-name")
-//这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
+// 这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
 config.put("bulk.flush.max.actions", "1")
 
 val transportAddresses = new java.util.ArrayList[InetSocketAddress]
@@ -257,10 +257,10 @@ val esSinkBuilder = new ElasticsearchSink.Builder[String](
   }
 )
 
-//批量请求的配置；这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
+// 批量请求的配置；这指示接收器在接收每个元素之后立即提交，否则它们将被缓存
 esSinkBuilder.setBulkFlushMaxActions(1)
 
-//为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
+// 为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
 esSinkBuilder.setRestClientFactory(new RestClientFactory {
   override def configureRestClientBuilder(restClientBuilder: RestClientBuilder): Unit = {
        restClientBuilder.setDefaultHeaders(...)
@@ -270,7 +270,7 @@ esSinkBuilder.setRestClientFactory(new RestClientFactory {
   }
 })
 
-//最后，构建并添加接收器到作业管道中
+// 最后，构建并添加接收器到作业管道中
 input.addSink(esSinkBuilder.build)
 ```
 {{< /tab >}}
@@ -346,13 +346,13 @@ input.addSink(new ElasticsearchSink<>(
                 RequestIndexer indexer) throw Throwable {
 
             if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
-                //队列已满；重新添加文档进行索引
+                // 队列已满；重新添加文档进行索引
                 indexer.add(action);
             } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
-                //文档格式错误；简单地删除请求避免接收器失败
+                // 文档格式错误；简单地删除请求避免接收器失败
             } else {
-                //对于所有其他失败的请求，失败的接收器
-                //这里的失败只是简单的重新抛出，但用户也可以选择抛出自定义异常
+                // 对于所有其他失败的请求，失败的接收器
+                // 这里的失败只是简单的重新抛出，但用户也可以选择抛出自定义异常
                 throw failure;
             }
         }
@@ -374,13 +374,13 @@ input.addSink(new ElasticsearchSink(
                 RequestIndexer indexer) {
 
             if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
-                 //队列已满；重新添加文档进行索引
+                 // 队列已满；重新添加文档进行索引
                 indexer.add(action)
             } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
-                 //文档格式错误；简单地删除请求避免接收器失败
+                 // 文档格式错误；简单地删除请求避免接收器失败
             } else {
-                //对于所有其他失败的请求，失败的接收器
-                //这里的失败只是简单的重新抛出，但用户也可以选择抛出自定义异常
+                // 对于所有其他失败的请求，失败的接收器
+                // 这里的失败只是简单的重新抛出，但用户也可以选择抛出自定义异常
                 throw failure
             }
         }
@@ -411,7 +411,7 @@ input.addSink(new ElasticsearchSink(
 
  * **bulk.flush.max.actions**：刷新前缓存的最大操作数。
  * **bulk.flush.max.size.mb**：刷新前缓存的最大数据大小（以兆字节为单位）。
- * **bulk.flush.interval.ms**：不论缓存操作的数量或大小如何，刷新的时间间隔。
+ * **bulk.flush.interval.ms**：刷新的时间间隔（不论缓存操作的数量或大小如何）。
 
 对于 2.x 及以上版本，还支持配置如何重试临时请求错误：
 
