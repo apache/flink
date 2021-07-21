@@ -39,11 +39,22 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
+import static org.apache.flink.formats.avro.registry.confluent.RegistryAvroFormatFactory.buildOptionalPropertiesMap;
 
 /**
  * Format factory for providing configured instances of Debezium Avro to RowData {@link
@@ -60,6 +71,7 @@ public class DebeziumAvroFormatFactory
 
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
         return new DecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -69,7 +81,7 @@ public class DebeziumAvroFormatFactory
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new DebeziumAvroDeserializationSchema(
-                        rowType, producedTypeInfo, schemaRegistryURL);
+                        rowType, producedTypeInfo, schemaRegistryURL, optionalPropertiesMap);
             }
 
             @Override
@@ -91,6 +103,8 @@ public class DebeziumAvroFormatFactory
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         String schemaRegistryURL = formatOptions.get(URL);
         Optional<String> subject = formatOptions.getOptional(SUBJECT);
+        Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
+
         if (!subject.isPresent()) {
             throw new ValidationException(
                     String.format(
@@ -114,7 +128,7 @@ public class DebeziumAvroFormatFactory
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new DebeziumAvroSerializationSchema(
-                        rowType, schemaRegistryURL, subject.get());
+                        rowType, schemaRegistryURL, subject.get(), optionalPropertiesMap);
             }
         };
     }
@@ -135,6 +149,15 @@ public class DebeziumAvroFormatFactory
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(SUBJECT);
+        options.add(PROPERTIES);
+        options.add(SSL_KEYSTORE_LOCATION);
+        options.add(SSL_KEYSTORE_PASSWORD);
+        options.add(SSL_TRUSTSTORE_LOCATION);
+        options.add(SSL_TRUSTSTORE_PASSWORD);
+        options.add(BASIC_AUTH_CREDENTIALS_SOURCE);
+        options.add(BASIC_AUTH_USER_INFO);
+        options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
+        options.add(BEARER_AUTH_TOKEN);
         return options;
     }
 }

@@ -42,6 +42,8 @@ import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -85,14 +87,10 @@ public class RegistryAvroFormatFactory
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
                 return new AvroRowDataDeserializationSchema(
-                        optionalPropertiesMap.isEmpty()
-                                ? ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL)
-                                : ConfluentRegistryAvroDeserializationSchema.forGeneric(
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL,
-                                        optionalPropertiesMap),
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
                         AvroToRowDataConverters.createRowConverter(rowType),
                         rowDataTypeInfo);
             }
@@ -127,16 +125,11 @@ public class RegistryAvroFormatFactory
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new AvroRowDataSerializationSchema(
                         rowType,
-                        optionalPropertiesMap.isEmpty()
-                                ? ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                        subject.get(),
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL)
-                                : ConfluentRegistryAvroSerializationSchema.forGeneric(
-                                        subject.get(),
-                                        AvroSchemaConverter.convertToSchema(rowType),
-                                        schemaRegistryURL,
-                                        optionalPropertiesMap),
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                subject.get(),
+                                AvroSchemaConverter.convertToSchema(rowType),
+                                schemaRegistryURL,
+                                optionalPropertiesMap),
                         RowDataToAvroConverters.createConverter(rowType));
             }
 
@@ -175,7 +168,8 @@ public class RegistryAvroFormatFactory
         return options;
     }
 
-    private Map<String, String> buildOptionalPropertiesMap(ReadableConfig formatOptions) {
+    public static @Nullable Map<String, String> buildOptionalPropertiesMap(
+            ReadableConfig formatOptions) {
         final Map<String, String> properties = new HashMap<>();
 
         formatOptions.getOptional(PROPERTIES).ifPresent(properties::putAll);
@@ -205,6 +199,9 @@ public class RegistryAvroFormatFactory
                 .getOptional(BEARER_AUTH_TOKEN)
                 .ifPresent(v -> properties.put("bearer.auth.token", v));
 
+        if (properties.isEmpty()) {
+            return null;
+        }
         return properties;
     }
 }
