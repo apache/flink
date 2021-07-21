@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.avro.registry.confluent.debezium;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.formats.avro.AvroRowDataSerializationSchema;
@@ -31,6 +32,9 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 
+import javax.annotation.Nullable;
+
+import java.util.Map;
 import java.util.Objects;
 
 import static java.lang.String.format;
@@ -40,6 +44,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
  * Serialization schema from Flink Table/SQL internal data structure {@link RowData} to Debezium
  * Avro.
  */
+@Internal
 public class DebeziumAvroSerializationSchema implements SerializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
 
@@ -55,6 +60,14 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
 
     public DebeziumAvroSerializationSchema(
             RowType rowType, String schemaRegistryUrl, String schemaRegistrySubject) {
+        this(rowType, schemaRegistryUrl, schemaRegistrySubject, null);
+    }
+
+    public DebeziumAvroSerializationSchema(
+            RowType rowType,
+            String schemaRegistryUrl,
+            String schemaRegistrySubject,
+            @Nullable Map<String, ?> registryConfigs) {
         RowType debeziumAvroRowType = createDebeziumAvroRowType(fromLogicalToDataType(rowType));
 
         this.avroSerializer =
@@ -63,7 +76,8 @@ public class DebeziumAvroSerializationSchema implements SerializationSchema<RowD
                         ConfluentRegistryAvroSerializationSchema.forGeneric(
                                 schemaRegistrySubject,
                                 AvroSchemaConverter.convertToSchema(debeziumAvroRowType),
-                                schemaRegistryUrl),
+                                schemaRegistryUrl,
+                                registryConfigs),
                         RowDataToAvroConverters.createConverter(debeziumAvroRowType));
     }
 
