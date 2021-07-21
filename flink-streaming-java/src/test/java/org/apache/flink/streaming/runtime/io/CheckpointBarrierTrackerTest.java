@@ -57,7 +57,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -357,13 +356,28 @@ public class CheckpointBarrierTrackerTest {
         ValidatingCheckpointHandler validator = new ValidatingCheckpointHandler();
         inputGate = createCheckpointedInputGate(2, sequence, validator);
 
-        for (BufferOrEvent boe : sequence) {
-            assertEquals(boe, inputGate.pollNext().get());
-            Thread.sleep(10);
-        }
-        long alignmentTime = validator.lastAlignmentDurationNanos.get() / 1_000_000;
-        assertThat(alignmentTime, greaterThan(0L));
-        assertThat(alignmentTime, lessThan(30L));
+        // Checkpoint 1
+        assertEquals(sequence[0], inputGate.pollNext().get());
+
+        long beforeSecondCheckpointStartTime = System.nanoTime();
+        // Checkpoint 2
+        assertEquals(sequence[1], inputGate.pollNext().get());
+        long afterSecondCheckpointStartTime = System.nanoTime();
+        // Cancellation checkpoint 1
+        assertEquals(sequence[2], inputGate.pollNext().get());
+        long beforeSecondCheckpointEndTime = System.nanoTime();
+        // Finishing checkpoint 2
+        assertEquals(sequence[3], inputGate.pollNext().get());
+        long afterSecondCheckpointEndTime = System.nanoTime();
+
+        long alignmentTime = validator.lastAlignmentDurationNanos.get();
+        assertThat(
+                alignmentTime,
+                greaterThanOrEqualTo(
+                        beforeSecondCheckpointEndTime - afterSecondCheckpointStartTime));
+        assertThat(
+                alignmentTime,
+                lessThanOrEqualTo(afterSecondCheckpointEndTime - beforeSecondCheckpointStartTime));
     }
 
     @Test
