@@ -280,7 +280,8 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
                                 + "but max bytes per batch is only "
                                 + maxBytesPerBatch
                                 + " bytes. "
-                                + "Please consider increasing max bytes per batch value.");
+                                + "Please consider increasing max bytes per batch value by setting "
+                                + CollectSinkOperatorFactory.MAX_BATCH_SIZE.key());
             }
 
             if (currentBufferBytes + invokingRecordBytes > bufferSizeLimitBytes) {

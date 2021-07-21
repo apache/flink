@@ -92,7 +92,9 @@ class TableSinkITCase extends BatchTestBase {
       case e: Exception =>
         MatcherAssert.assertThat(
           e,
-          FlinkMatchers.containsMessage("Record size is too large for CollectSinkFunction"))
+          FlinkMatchers.containsMessage(
+            "Please consider increasing max bytes per batch value " +
+              "by setting collect-sink.batch-size.max"))
     }
 
     tEnv.getConfig.getConfiguration.set(
