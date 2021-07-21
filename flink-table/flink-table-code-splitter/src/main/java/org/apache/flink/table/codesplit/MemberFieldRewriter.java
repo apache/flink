@@ -68,7 +68,7 @@ import java.util.Stack;
  * </code></pre>
  */
 @Internal
-public class MemberFieldRewriter {
+public class MemberFieldRewriter implements CodeRewriter {
 
     private final int maxFieldCount;
 

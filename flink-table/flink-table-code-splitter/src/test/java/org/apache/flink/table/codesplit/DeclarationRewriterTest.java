@@ -17,15 +17,14 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.File;
-
 /** Tests for {@link DeclarationRewriter}. */
-public class DeclarationRewriterTest {
+public class DeclarationRewriterTest extends CodeRewriterTestBase<DeclarationRewriter> {
+
+    public DeclarationRewriterTest() {
+        super("declaration", code -> new DeclarationRewriter(code, 20));
+    }
 
     @Test
     public void testRewriteLocalVariable() {
@@ -51,32 +50,5 @@ public class DeclarationRewriterTest {
     @Test
     public void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
-    }
-
-    private void runTest(String filename) {
-        try {
-            String code =
-                    FileUtils.readFileUtf8(
-                            new File(
-                                    DeclarationRewriter.class
-                                            .getClassLoader()
-                                            .getResource("declaration/code/" + filename + ".java")
-                                            .toURI()));
-            String expected =
-                    FileUtils.readFileUtf8(
-                            new File(
-                                    DeclarationRewriter.class
-                                            .getClassLoader()
-                                            .getResource(
-                                                    "declaration/expected/" + filename + ".java")
-                                            .toURI()));
-            DeclarationRewriter rewriter = new DeclarationRewriter(code, 20);
-            Assert.assertEquals(expected, rewriter.rewrite().orElse(""));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            // we reset the counter to ensure the variable names after rewrite are as expected
-            CodeSplitUtil.getCounter().set(0L);
-        }
     }
 }
