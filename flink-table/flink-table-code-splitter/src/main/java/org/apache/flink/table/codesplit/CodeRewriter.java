@@ -17,27 +17,8 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.junit.Test;
+/** Interface for Java code rewriter. */
+public interface CodeRewriter {
 
-/** Tests for {@link IfStatementRewriter}. */
-public class IfStatementRewriterTest extends CodeRewriterTestBase<IfStatementRewriter> {
-
-    public IfStatementRewriterTest() {
-        super("if", code -> new IfStatementRewriter(code, 20));
-    }
-
-    @Test
-    public void testIfStatementRewrite() {
-        runTest("TestIfStatementRewrite");
-    }
-
-    @Test
-    public void testNotRewriteIfStatementInFunctionWithReturnValue() {
-        runTest("TestNotRewriteIfStatementInFunctionWithReturnValue");
-    }
-
-    @Test
-    public void testRewriteInnerClass() {
-        runTest("TestRewriteInnerClass");
-    }
+    String rewrite();
 }

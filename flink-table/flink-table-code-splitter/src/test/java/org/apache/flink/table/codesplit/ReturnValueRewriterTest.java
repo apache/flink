@@ -19,40 +19,30 @@ package org.apache.flink.table.codesplit;
 
 import org.junit.Test;
 
-/** Tests for {@link MemberFieldRewriter}. */
-public class MemberFieldRewriterTest extends CodeRewriterTestBase<MemberFieldRewriter> {
+/** Tests for {@link ReturnValueRewriter}. */
+public class ReturnValueRewriterTest extends CodeRewriterTestBase<ReturnValueRewriter> {
 
-    public MemberFieldRewriterTest() {
-        super("member", code -> new MemberFieldRewriter(code, 3));
+    public ReturnValueRewriterTest() {
+        super("return", code -> new ReturnValueRewriter(code, 50));
     }
 
     @Test
-    public void testRewriteMemberField() {
-        runTest("TestRewriteMemberField");
-    }
-
-    @Test
-    public void testRewriteGenericType() {
-        runTest("TestRewriteGenericType");
-    }
-
-    @Test
-    public void testNotRewriteFunctionParameter() {
-        runTest("TestNotRewriteFunctionParameter");
-    }
-
-    @Test
-    public void testNotRewriteLocalVariable() {
-        runTest("TestNotRewriteLocalVariable");
-    }
-
-    @Test
-    public void testNotRewriteStaticMember() {
-        runTest("TestNotRewriteStaticMember");
+    public void testRewriteReturnValue() {
+        runTest("TestRewriteReturnValue");
     }
 
     @Test
     public void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
+    }
+
+    @Test
+    public void testNotRewrite() {
+        runTest("TestNotRewrite");
+    }
+
+    @Test
+    public void testSkipAnonymousClassAndLambda() {
+        runTest("TestSkipAnonymousClassAndLambda");
     }
 }
