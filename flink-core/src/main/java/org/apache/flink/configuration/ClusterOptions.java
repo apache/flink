@@ -121,7 +121,7 @@ public class ClusterOptions {
                                             code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()))
                                     .build());
 
-    @Documentation.ExcludeFromDocumentation
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> ENABLE_FINE_GRAINED_RESOURCE_MANAGEMENT =
             ConfigOptions.key("cluster.fine-grained-resource-management.enabled")
                     .booleanType()
@@ -129,7 +129,7 @@ public class ClusterOptions {
                     .withDescription(
                             "Defines whether the cluster uses fine-grained resource management.");
 
-    @Documentation.ExcludeFromDocumentation
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> FINE_GRAINED_SHUFFLE_MODE_ALL_BLOCKING =
             ConfigOptions.key("fine-grained.shuffle-mode.all-blocking")
                     .booleanType()
