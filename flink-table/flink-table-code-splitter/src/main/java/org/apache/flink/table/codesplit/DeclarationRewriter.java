@@ -120,6 +120,19 @@ public class DeclarationRewriter implements CodeRewriter {
         }
 
         @Override
+        public Void visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+            // it might be the case that local variables have the same name with existing member
+            // variables, so we should also add member variable names into the map
+            if (ctx.variableDeclarators() != null) {
+                for (JavaParser.VariableDeclaratorContext dec :
+                        ctx.variableDeclarators().variableDeclarator()) {
+                    allVarNames.add(dec.variableDeclaratorId().getText());
+                }
+            }
+            return visitChildren(ctx);
+        }
+
+        @Override
         public Void visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
             if ("void".equals(ctx.typeTypeOrVoid().getText())) {
                 visitMethodBody(ctx.methodBody());
