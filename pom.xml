@@ -133,6 +133,7 @@ under the License.
 		<beam.version>2.27.0</beam.version>
 		<protoc.version>3.11.1</protoc.version>
 		<arrow.version>0.16.0</arrow.version>
+		<okhttp.version>3.14.9</okhttp.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
 		<!--
@@ -526,6 +527,17 @@ under the License.
 				<type>pom</type>
 				<scope>import</scope>
 				<version>2.12.1</version>
+			</dependency>
+			
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>okhttp</artifactId>
+				<version>${okhttp.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.squareup.okhttp3</groupId>
+				<artifactId>logging-interceptor</artifactId>
+				<version>${okhttp.version}</version>
 			</dependency>
 
 			<dependency>
