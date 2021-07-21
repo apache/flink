@@ -157,60 +157,38 @@ ELASTICSEARCH_SQL_JAR=$(find "$SQL_JARS_DIR" | grep "elasticsearch$ELASTICSEARCH
 RESULT=$TEST_DATA_DIR/result
 SQL_CONF=$TEST_DATA_DIR/sql-client-session.conf
 
-cat >> $SQL_CONF << EOF
-tables:
-EOF
 
 get_kafka_json_source_schema test-json JsonSourceTable >> $SQL_CONF
 
 cat >> $SQL_CONF << EOF
-  - name: ElasticsearchUpsertSinkTable
-    type: sink-table
-    update-mode: upsert
-    schema:
-      - name: user_id
-        data-type: INT
-      - name: user_name
-        data-type: STRING
-      - name: user_count
-        data-type: BIGINT
-    connector:
-      type: elasticsearch
-      version: "$ELASTICSEARCH_VERSION"
-      hosts: "http://localhost:9200"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
-    format:
-      type: json
-      derive-schema: true
-  - name: ElasticsearchAppendSinkTable
-    type: sink-table
-    update-mode: append
-    schema:
-      - name: user_id
-        data-type: INT
-      - name: user_name
-        data-type: STRING
-      - name: user_count
-        data-type: BIGINT
-    connector:
-      type: elasticsearch
-      version: "$ELASTICSEARCH_VERSION"
-      hosts: "http://localhost:9200"
-      index: "$ELASTICSEARCH_INDEX"
-      document-type: "user"
-      bulk-flush:
-        max-actions: 1
-    format:
-      type: json
-      derive-schema: true
 
-functions:
-  - name: RegReplace
-    from: class
-    class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
+  CREATE TABLE ElasticsearchUpsertSinkTable (
+    user_id INT,
+    user_name STRING,
+    user_count BIGINT
+  ) WITH (
+    'connector' = 'elastcisearch-$ELASTICSEARCH_VERSION',
+    'hosts' = 'http://localhost:9200',
+    'index' = '$ELASTICSEARCH_INDEX',
+    'document-type' = 'user',
+    'sink.bulk-flush.max-actions' = '1',
+    'format' = 'json'
+  );
+
+  CREATE TABLE ElasticsearchUpsertSinkTable (
+    user_id INT,
+    user_name STRING,
+    user_count BIGINT
+  ) WITH (
+    'connector' = 'elastcisearch-$ELASTICSEARCH_VERSION',
+    'hosts' = 'http://localhost:9200',
+    'index' = '$ELASTICSEARCH_INDEX',
+    'document-type' = 'user',
+    'sink.bulk-flush.max-actions' = '1',
+    'format' = 'json'
+  );
+
+  CREATE FUNCTION RegReplace AS 'org.apache.flink.table.toolbox.StringRegexReplaceFunction';
 EOF
 
 # submit SQL statements
@@ -230,7 +208,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
+  --init $SQL_CONF \
   --update "$SQL_STATEMENT_1" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
@@ -258,7 +236,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
+  --init $SQL_CONF \
   --update "$SQL_STATEMENT_2" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
@@ -290,7 +268,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   --jar $KAFKA_SQL_JAR \
   --jar $ELASTICSEARCH_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
-  --environment $SQL_CONF \
+  --init $SQL_CONF \
   --update "$SQL_STATEMENT_3" | grep "Job ID:" | sed 's/.* //g')
 
 # 3 upsert results and 6 append results and 3 match_recognize results
