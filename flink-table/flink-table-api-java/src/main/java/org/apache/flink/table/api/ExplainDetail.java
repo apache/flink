@@ -36,19 +36,5 @@ public enum ExplainDetail {
     CHANGELOG_MODE,
 
     /** The execution plan in json format of the program. */
-    JSON_EXECUTION_PLAN;
-
-    public static ExplainDetail getExplainDetailByName(String detailName) {
-        switch (detailName.toUpperCase()) {
-            case "ESTIMATED_COST":
-                return ExplainDetail.ESTIMATED_COST;
-            case "CHANGELOG_MODE":
-                return ExplainDetail.CHANGELOG_MODE;
-            case "JSON_EXECUTION_PLAN":
-                return ExplainDetail.JSON_EXECUTION_PLAN;
-            default:
-                throw new TableException(
-                        String.format("Unsupported EXPLAIN DETAIL: %s.", detailName));
-        }
-    }
+    JSON_EXECUTION_PLAN
 }

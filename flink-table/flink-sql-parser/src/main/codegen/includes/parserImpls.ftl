@@ -1695,8 +1695,9 @@ void ParseExplainDetail(Set<String> explainDetails):
     ) 
     {
         if (explainDetails.contains(token.image.toUpperCase())) {
-            throw SqlUtil.newContextException(getPos(), 
-            ParserResource.RESOURCE.explainDetailIsDuplicate());
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainDetailIsDuplicate());
         } else {
             explainDetails.add(token.image.toUpperCase());
         }

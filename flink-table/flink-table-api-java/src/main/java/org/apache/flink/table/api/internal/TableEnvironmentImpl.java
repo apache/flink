@@ -1291,7 +1291,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             ExplainOperation explainOperation = (ExplainOperation) operation;
             ExplainDetail[] explainDetails =
                     explainOperation.getExplainDetails().stream()
-                            .map(ExplainDetail::getExplainDetailByName)
+                            .map(ExplainDetail::valueOf)
                             .toArray(ExplainDetail[]::new);
             String explanation =
                     explainInternal(

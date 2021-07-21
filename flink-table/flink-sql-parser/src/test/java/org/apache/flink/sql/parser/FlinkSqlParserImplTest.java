@@ -1390,13 +1390,13 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testExplainPlanForWithExplainDetails() {
         String sql = "explain plan for ^json_execution_plan^ upsert into emps1 values (1, 2)";
-        this.sql(sql).fails("(?s).*Encountered \"json_execution_plan\" at line 1, column 18.\n.*");
+        this.sql(sql).fails("Non-query expression encountered in illegal context");
     }
 
     @Test
     public void testExplainDuplicateExplainDetails() {
         String sql = "explain changelog_mode,^changelog_mode^ select * from emps";
-        this.sql(sql).fails("EXPLAINDETAIL is duplicate.");
+        this.sql(sql).fails("Duplicate EXPLAIN DETAIL is not allowed.");
     }
 
     @Test

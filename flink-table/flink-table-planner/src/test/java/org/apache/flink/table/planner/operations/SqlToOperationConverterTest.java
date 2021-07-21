@@ -579,28 +579,28 @@ public class SqlToOperationConverterTest {
     @Test
     public void testExplainWithSelect() {
         final String sql = "explain select * from t1";
-        runExplainSql(sql);
+        checkExplainSql(sql);
     }
 
     @Test
     public void testExplainWithInsert() {
         final String sql = "explain insert into t2 select * from t1";
-        runExplainSql(sql);
+        checkExplainSql(sql);
     }
 
     @Test
     public void testExplainWithUnion() {
         final String sql = "explain select * from t1 union select * from t2";
-        runExplainSql(sql);
+        checkExplainSql(sql);
     }
 
     @Test
     public void testExplainWithExplainDetails() {
         String sql = "explain changelog_mode, estimated_cost, json_execution_plan select * from t1";
-        runExplainSql(sql);
+        checkExplainSql(sql);
     }
 
-    private void runExplainSql(String sql) {
+    private void checkExplainSql(String sql) {
         final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);

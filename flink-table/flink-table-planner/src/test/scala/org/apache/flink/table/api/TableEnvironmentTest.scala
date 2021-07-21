@@ -1217,7 +1217,7 @@ class TableEnvironmentTest {
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
-    runExplainTest("explain plan for select * from MyTable where a > 10",
+    checkExplain("explain plan for select * from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainSelect.out")
   }
 
@@ -1250,7 +1250,7 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
-    runExplainTest("explain plan for insert into MySink select a, b from MyTable where a > 10",
+    checkExplain("explain plan for insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainInsert.out")
   }
 
@@ -1352,22 +1352,10 @@ class TableEnvironmentTest {
     val tableResult1 = tableEnv.executeSql(createTableStmt)
     assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
 
-    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
-      "select * from MyTable where a > 10", "/explain/testExecuteSqlWithExplainDetailsSelect.out");
-  }
-
-  private def runExplainTest(sql: String, resultPath: String): Unit = {
-    val tableResult2 = tableEnv.executeSql(sql)
-    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
-    val it = tableResult2.collect()
-    assertTrue(it.hasNext)
-    val row = it.next()
-    assertEquals(1, row.getArity)
-    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
-    val expected = replaceStreamNodeId(TableTestUtil
-      .readFromResource(resultPath).trim)
-    assertEquals(replaceStageId(expected), replaceStageId(actual))
-    assertFalse(it.hasNext)
+    checkExplain(
+      "explain changelog_mode, estimated_cost, json_execution_plan " +
+        "select * from MyTable where a > 10",
+      "/explain/testExecuteSqlWithExplainDetailsSelect.out");
   }
 
   @Test
@@ -1400,8 +1388,9 @@ class TableEnvironmentTest {
     val tableResult3 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
 
-    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
-      "select * from MyTable union all select * from MyTable2",
+    checkExplain(
+      "explain changelog_mode, estimated_cost, json_execution_plan " +
+        "select * from MyTable union all select * from MyTable2",
       "/explain/testExecuteSqlWithExplainDetailsAndUnion.out")
   }
 
@@ -1434,8 +1423,9 @@ class TableEnvironmentTest {
     val tableResult2 = tableEnv.executeSql(createTableStmt2)
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
 
-    runExplainTest("explain changelog_mode, estimated_cost, json_execution_plan " +
-      "insert into MySink select a, b from MyTable where a > 10",
+    checkExplain(
+      "explain changelog_mode, estimated_cost, json_execution_plan " +
+        "insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainDetailsInsert.out")
   }
 
@@ -1639,5 +1629,19 @@ class TableEnvironmentTest {
     val source = TableFactoryUtil.findAndCreateTableSource(context)
     assertTrue(source.isInstanceOf[CollectionTableSource])
     assertEquals(expectToBeBounded, source.asInstanceOf[CollectionTableSource].isBounded)
+  }
+
+  private def checkExplain(sql: String, resultPath: String): Unit = {
+    val tableResult2 = tableEnv.executeSql(sql)
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult2.getResultKind)
+    val it = tableResult2.collect()
+    assertTrue(it.hasNext)
+    val row = it.next()
+    assertEquals(1, row.getArity)
+    val actual = replaceStreamNodeId(row.getField(0).toString.trim)
+    val expected = replaceStreamNodeId(TableTestUtil
+      .readFromResource(resultPath).trim)
+    assertEquals(replaceStageId(expected), replaceStageId(actual))
+    assertFalse(it.hasNext)
   }
 }

@@ -465,8 +465,11 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   nonReservedKeywordsToAdd: [
     # not in core, added in Flink
+    "CHANGELOG_MODE"
     "ENFORCED"
+    "ESTIMATED_COST"
     "IF"
+    "JSON_EXECUTION_PLAN"
     "METADATA"
     "OVERWRITE"
     "OVERWRITING"
