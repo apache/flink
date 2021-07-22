@@ -39,6 +39,7 @@ import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.function.Function;
 
@@ -103,7 +104,8 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         .withLoadBalancer(
                                 new LoadBalancerStatus(
                                         Collections.singletonList(
-                                                new LoadBalancerIngress(hostname, ip))))
+                                                new LoadBalancerIngress(
+                                                        hostname, ip, new ArrayList<>()))))
                         .build();
 
         return buildExternalService(

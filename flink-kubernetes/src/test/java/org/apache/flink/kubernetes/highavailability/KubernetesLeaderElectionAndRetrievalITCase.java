@@ -70,7 +70,6 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                 flinkKubeClient.createConfigMapSharedWatcher(
                         KubernetesUtils.getConfigMapLabels(
                                 clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-        configMapSharedWatcher.run();
         final ExecutorService watchExecutorService = Executors.newCachedThreadPool();
 
         final TestingLeaderElectionEventHandler electionEventHandler =
