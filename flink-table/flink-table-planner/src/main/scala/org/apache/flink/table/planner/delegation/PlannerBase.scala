@@ -192,7 +192,8 @@ abstract class PlannerBase(
 
       case collectModifyOperation: CollectModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
-        DynamicSinkUtils.convertCollectToRel(getRelBuilder, input, collectModifyOperation)
+        DynamicSinkUtils.convertCollectToRel(
+          getRelBuilder, input, collectModifyOperation, getTableConfig.getConfiguration)
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
