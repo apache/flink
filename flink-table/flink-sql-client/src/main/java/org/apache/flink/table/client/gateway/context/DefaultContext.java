@@ -31,7 +31,6 @@ import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -74,10 +73,8 @@ public class DefaultContext {
         FileSystem.initialize(
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
-        // add python dependencies
-        if (containsPythonFunction(defaultEnv)) {
-            addPythonDependency();
-        }
+        // add python dependencies by default
+        addPythonDependency();
 
         // put environment entry into Configuration
         // reset to flinkConfig because we have stored all the options into the flinkConfig
@@ -173,16 +170,6 @@ public class DefaultContext {
         } catch (Exception e) {
             throw new SqlExecutionException("Invalid deployment options.", e);
         }
-    }
-
-    private boolean containsPythonFunction(Environment environment) {
-        return environment.getFunctions().values().stream()
-                .anyMatch(
-                        f ->
-                                FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
-                                        f.getDescriptor()
-                                                .toProperties()
-                                                .get(FunctionDescriptorValidator.FROM)));
     }
 
     private void addPythonDependency() {
