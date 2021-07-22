@@ -31,7 +31,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
 
 import org.slf4j.Logger;
