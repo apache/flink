@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.module.ModuleManager;
@@ -155,16 +154,6 @@ public class SessionContext {
         } else {
             ConfigOption<String> keyToDelete = ConfigOptions.key(key).stringType().noDefaultValue();
             sessionConfiguration.removeConfig(keyToDelete);
-            // need to remove compatible key
-            if (YamlConfigUtils.isDeprecatedKey(key)) {
-                String optionKey = YamlConfigUtils.getOptionNameWithDeprecatedKey(key);
-                sessionConfiguration.removeConfig(
-                        ConfigOptions.key(optionKey).stringType().noDefaultValue());
-            } else if (YamlConfigUtils.isOptionHasDeprecatedKey(key)) {
-                String deprecatedKey = YamlConfigUtils.getDeprecatedNameWithOptionKey(key);
-                sessionConfiguration.removeConfig(
-                        ConfigOptions.key(deprecatedKey).stringType().noDefaultValue());
-            }
             // It's safe to build ExecutionContext directly because origin configuration is legal.
             this.executionContext = new ExecutionContext(executionContext);
         }
@@ -174,7 +163,7 @@ public class SessionContext {
     public void set(String key, String value) {
         Configuration originConfiguration = sessionConfiguration.clone();
 
-        YamlConfigUtils.setKeyToConfiguration(sessionConfiguration, key, value);
+        sessionConfiguration.setString(key, value);
         try {
             // Renew the ExecutionContext.
             // Book keep all the session states of current ExecutionContext then
@@ -256,10 +245,6 @@ public class SessionContext {
 
         ExecutionContext executionContext =
                 new ExecutionContext(configuration, classLoader, sessionState);
-        LegacyTableEnvironmentInitializer.initializeSessionState(
-                executionContext.getTableEnvironment(),
-                defaultContext.getDefaultEnv(),
-                classLoader);
 
         return new SessionContext(
                 defaultContext,

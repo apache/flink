@@ -26,9 +26,6 @@ import org.apache.flink.client.cli.ProgramOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.table.client.config.Environment;
-import org.apache.flink.table.client.config.YamlConfigUtils;
-import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.util.FlinkException;
@@ -53,16 +50,13 @@ public class DefaultContext {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultContext.class);
 
-    private final Environment defaultEnv;
     private final List<URL> dependencies;
     private final Configuration flinkConfig;
 
     public DefaultContext(
-            Environment defaultEnv,
             List<URL> dependencies,
             Configuration flinkConfig,
             List<CustomCommandLine> commandLines) {
-        this.defaultEnv = defaultEnv;
         this.dependencies = dependencies;
         this.flinkConfig = flinkConfig;
         Options commandLineOptions = collectCommandLineOptions(commandLines);
@@ -71,29 +65,19 @@ public class DefaultContext {
         FileSystem.initialize(
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
 
-        // put environment entry into Configuration
-        // reset to flinkConfig because we have stored all the options into the flinkConfig
-        defaultEnv.getConfiguration().asMap().forEach(flinkConfig::setString);
-        flinkConfig.addAll(
-                YamlConfigUtils.convertExecutionEntryToConfiguration(defaultEnv.getExecution()));
         try {
             CommandLine deploymentCommandLine =
-                    createCommandLine(defaultEnv.getDeployment(), commandLineOptions);
+                    CliFrontendParser.parse(commandLineOptions, new String[] {}, true);
             flinkConfig.addAll(
                     createExecutionConfig(
                             deploymentCommandLine, commandLineOptions, commandLines, dependencies));
         } catch (Exception e) {
-            throw new SqlExecutionException(
-                    "Could not load available CLI with Environment Deployment entry.", e);
+            throw new SqlExecutionException("Could not load available CLI.", e);
         }
     }
 
     public Configuration getFlinkConfig() {
         return flinkConfig;
-    }
-
-    public Environment getDefaultEnv() {
-        return defaultEnv;
     }
 
     public List<URL> getDependencies() {
@@ -156,14 +140,5 @@ public class DefaultContext {
             }
         }
         throw new SqlExecutionException("Could not find a matching deployment.");
-    }
-
-    private static CommandLine createCommandLine(
-            DeploymentEntry deployment, Options commandLineOptions) {
-        try {
-            return deployment.getCommandLine(commandLineOptions);
-        } catch (Exception e) {
-            throw new SqlExecutionException("Invalid deployment options.", e);
-        }
     }
 }
