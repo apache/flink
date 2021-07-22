@@ -133,7 +133,6 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
         }
 
         void runTest(RunnableWithException testMethod) throws Exception {
-            configMapSharedWatcher.run();
             electionEventHandler.init(leaderElectionDriver);
             testMethod.run();
 

@@ -19,20 +19,29 @@
 package org.apache.flink.kubernetes.kubeclient.resources;
 
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Informable;
 
 import java.util.Map;
 
 /** The shared informer for {@link ConfigMap}, it can be used as a shared watcher. */
 public class KubernetesConfigMapSharedInformer
-        extends KubernetesSharedInformer<ConfigMap, ConfigMapList, KubernetesConfigMap>
+        extends KubernetesSharedInformer<ConfigMap, KubernetesConfigMap>
         implements KubernetesConfigMapSharedWatcher {
 
     public KubernetesConfigMapSharedInformer(
             NamespacedKubernetesClient client, Map<String, String> labels) {
-        super(client, ConfigMap.class, ConfigMapList.class, labels, KubernetesConfigMap::new);
+        super(client, getInformableConfigMaps(client, labels), KubernetesConfigMap::new);
+    }
+
+    private static Informable<ConfigMap> getInformableConfigMaps(
+            NamespacedKubernetesClient client, Map<String, String> labels) {
+        Preconditions.checkArgument(
+                !CollectionUtil.isNullOrEmpty(labels), "Labels must not be null or empty");
+        return client.configMaps().withLabels(labels);
     }
 }
