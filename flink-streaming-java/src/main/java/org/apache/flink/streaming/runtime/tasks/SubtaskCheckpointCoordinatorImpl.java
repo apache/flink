@@ -340,6 +340,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     public void notifyCheckpointComplete(
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception {
+        Exception previousException = null;
         if (!isRunning.get()) {
             LOG.debug(
                     "Ignoring notification of complete checkpoint {} for not-running task {}",
@@ -356,10 +357,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
 
             for (StreamOperatorWrapper<?, ?> operatorWrapper :
                     operatorChain.getAllOperators(true)) {
-                operatorWrapper.notifyCheckpointComplete(checkpointId);
+                try {
+                    operatorWrapper.notifyCheckpointComplete(checkpointId);
+                } catch (Exception e) {
+                    previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+                }
             }
         }
         env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
+        ExceptionUtils.tryRethrowException(previousException);
     }
 
     @Override
@@ -400,7 +406,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
                 try {
                     operatorWrapper.getStreamOperator().notifyCheckpointAborted(checkpointId);
                 } catch (Exception e) {
-                    previousException = e;
+                    previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
                 }
             }
         }
