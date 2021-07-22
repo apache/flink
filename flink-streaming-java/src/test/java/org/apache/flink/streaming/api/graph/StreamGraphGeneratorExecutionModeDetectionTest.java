@@ -127,10 +127,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 streamGraph,
                 hasProperties(
-                        GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
-                        JobType.BATCH,
-                        false,
-                        false));
+                        GlobalStreamExchangeMode.ALL_EDGES_BLOCKING, JobType.BATCH, false, false));
     }
 
     @Test
@@ -196,10 +193,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
-                        JobType.BATCH,
-                        false,
-                        false));
+                        GlobalStreamExchangeMode.ALL_EDGES_BLOCKING, JobType.BATCH, false, false));
     }
 
     @Test
@@ -248,10 +242,7 @@ public class StreamGraphGeneratorExecutionModeDetectionTest extends TestLogger {
         assertThat(
                 graph,
                 hasProperties(
-                        GlobalStreamExchangeMode.FORWARD_EDGES_PIPELINED,
-                        JobType.BATCH,
-                        false,
-                        false));
+                        GlobalStreamExchangeMode.ALL_EDGES_BLOCKING, JobType.BATCH, false, false));
 
         final StreamGraph streamingGraph =
                 generateStreamGraph(RuntimeExecutionMode.STREAMING, bounded);

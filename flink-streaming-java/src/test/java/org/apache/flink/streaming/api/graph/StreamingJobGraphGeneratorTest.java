@@ -757,7 +757,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(
                 verticesSorted.get(0) /* source - forward */,
-                hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+                hasOutputPartitionType(ResultPartitionType.BLOCKING));
         assertThat(
                 verticesSorted.get(1) /* rescale */,
                 hasOutputPartitionType(ResultPartitionType.BLOCKING));
@@ -769,7 +769,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 hasOutputPartitionType(ResultPartitionType.BLOCKING));
         assertThat(
                 verticesSorted.get(4) /* forward - sink */,
-                hasOutputPartitionType(ResultPartitionType.PIPELINED_BOUNDED));
+                hasOutputPartitionType(ResultPartitionType.BLOCKING));
     }
 
     private Matcher<JobVertex> hasOutputPartitionType(ResultPartitionType partitionType) {
