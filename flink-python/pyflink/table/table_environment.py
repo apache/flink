@@ -33,7 +33,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, TableSink
+    Module, ModuleEntry, TableSink, Schema
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, \
     ConnectorDescriptor, ConnectTableDescriptor
@@ -1207,23 +1207,130 @@ class TableEnvironment(object):
         else:
             self._j_tenv.registerFunction(name, java_function)
 
-    def create_temporary_view(self, view_path: str, table: Table):
+    def create_temporary_view(self,
+                              view_path: str,
+                              table_or_data_stream: Union[Table, DataStream],
+                              *fields_or_schema: Union[str, Expression, Schema]):
         """
-        Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
-        temporary views.
+        1. When table_or_data_stream is a :class:`~pyflink.table.Table`:
 
-        Temporary objects can shadow permanent ones. If a permanent object in a given path exists,
-        it will be inaccessible in the current session. To make the permanent object available
-        again you can drop the corresponding temporary object.
+            Registers a :class:`~pyflink.table.Table` API object as a temporary view similar to SQL
+            temporary views.
+
+            Temporary objects can shadow permanent ones. If a permanent object in a given path
+            exists, it will be inaccessible in the current session. To make the permanent object
+            available again you can drop the corresponding temporary object.
+
+        2. When table_or_data_stream is a :class:`~pyflink.datastream.DataStream`:
+
+            2.1 When fields_or_schema is a str or a sequence of :class:`~pyflink.table.Expression`:
+
+                Creates a view from the given {@link DataStream} in a given path with specified
+                field names. Registered views can be referenced in SQL queries.
+
+                1. Reference input fields by name: All fields in the schema definition are
+                referenced by name (and possibly renamed using an alias (as). Moreover, we can
+                define proctime and rowtime attributes at arbitrary positions using arbitrary names
+                (except those that exist in the result schema). In this mode, fields can be
+                reordered and projected out. This mode can be used for any input type, including
+                POJOs.
+
+                Example:
+                ::
+
+                    >>> stream = ...
+                    # reorder the fields, rename the original 'f0' field to 'name' and add
+                    # event-time attribute named 'rowtime'
+
+                    # use str
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     "f1, rowtime.rowtime, f0 as 'name'")
+
+                    # or use a sequence of expression
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     col("f1"),
+                    ...     col("rowtime").rowtime,
+                    ...     col("f0").alias('name'))
+
+                2. Reference input fields by position: In this mode, fields are simply renamed.
+                Event-time attributes can replace the field on their position in the input data
+                (if it is of correct type) or be appended at the end. Proctime attributes must be
+                appended at the end. This mode can only be used if the input type has a defined
+                field order (tuple, case class, Row) and none of the {@code fields} references a
+                field of the input type.
+
+                Example:
+                ::
+
+                    >>> stream = ...
+                    # rename the original fields to 'a' and 'b' and extract the internally attached
+                    # timestamp into an event-time attribute named 'rowtime'
+
+                    # use str
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable", stream, "a, b, rowtime.rowtime")
+
+                    # or use a sequence of expressions
+                    >>> table_env.create_temporary_view(
+                    ...     "cat.db.myTable",
+                    ...     stream,
+                    ...     col("a"),
+                    ...     col("b"),
+                    ...     col("rowtime").rowtime)
+
+                Temporary objects can shadow permanent ones. If a permanent object in a given path
+                exists, it will be inaccessible in the current session. To make the permanent object
+                available again you can drop the corresponding temporary object.
+
+            2.2 When fields_or_schema is a :class:`~pyflink.table.Schema`:
+
+                Creates a view from the given {@link DataStream} in a given path. Registered views
+                can be referenced in SQL queries.
+
+                See :func:`from_data_stream` for more information on how a
+                :class:`~pyflink.datastream.DataStream` is translated into a table.
+
+                Temporary objects can shadow permanent ones. If a permanent object in a given path
+                exists, it will be inaccessible in the current session. To make the permanent object
+                available again you can drop the corresponding temporary object.
+
+                .. note:: create_temporary_view by providing a Schema (case 2.) was added from flink
+                    1.14.0.
 
         :param view_path: The path under which the view will be registered. See also the
                           :class:`~pyflink.table.TableEnvironment` class description for the format
                           of the path.
-        :param table: The view to register.
+        :param table_or_data_stream: The Table or DataStream out of which to create the view.
+        :param fields_or_schema: The fields expressions(str) to map original fields of the
+                        DataStream to the fields of the View or the customized schema for the final
+                        table.
 
         .. versionadded:: 1.10.0
         """
-        self._j_tenv.createTemporaryView(view_path, table._j_table)
+        if isinstance(table_or_data_stream, Table):
+            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_table)
+        elif len(fields_or_schema) == 0:
+            self._j_tenv.createTemporaryView(view_path, table_or_data_stream._j_data_stream)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                fields_or_schema[0])
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                fields_or_schema[0]._j_schema)
+        elif (len(fields_or_schema) > 0 and
+              all(isinstance(elem, Expression) for elem in fields_or_schema)):
+            self._j_tenv.createTemporaryView(
+                view_path,
+                table_or_data_stream._j_data_stream,
+                to_expression_jarray(fields_or_schema))
 
     def add_python_file(self, file_path: str):
         """
@@ -1761,27 +1868,115 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment)
         return StreamTableEnvironment(j_tenv)
 
-    def from_data_stream(self, data_stream: DataStream, *fields: Union[str, Expression]) -> Table:
+    def from_data_stream(self,
+                         data_stream: DataStream,
+                         *fields_or_schema: Union[str, Expression, Schema]) -> Table:
         """
-        Converts the given DataStream into a Table with specified field names.
+        1. When fields_or_schema is a str or a sequence of Expression:
 
-        There are two modes for mapping original fields to the fields of the Table:
-            1. Reference input fields by name:
-            All fields in the schema definition are referenced by name (and possibly renamed using
-            and alias (as). Moreover, we can define proctime and rowtime attributes at arbitrary
-            positions using arbitrary names (except those that exist in the result schema). In this
-            mode, fields can be reordered and projected out. This mode can be used for any input
-            type.
-            2. Reference input fields by position:
-            In this mode, fields are simply renamed. Event-time attributes can replace the field on
-            their position in the input data (if it is of correct type) or be appended at the end.
-            Proctime attributes must be appended at the end. This mode can only be used if the input
-            type has a defined field order (tuple, case class, Row) and none of the fields
-            references a field of the input type.
+            Converts the given DataStream into a Table with specified field names.
+
+            There are two modes for mapping original fields to the fields of the Table:
+
+                1. Reference input fields by name:
+
+                All fields in the schema definition are referenced by name (and possibly renamed
+                using and alias (as). Moreover, we can define proctime and rowtime attributes at
+                arbitrary positions using arbitrary names (except those that exist in the result
+                schema). In this mode, fields can be reordered and projected out. This mode can be
+                used for any input type.
+
+                2. Reference input fields by position:
+
+                In this mode, fields are simply renamed. Event-time attributes can replace the field
+                on their position in the input data (if it is of correct type) or be appended at the
+                end. Proctime attributes must be appended at the end. This mode can only be used if
+                the input type has a defined field order (tuple, case class, Row) and none of the
+                fields references a field of the input type.
+
+        2. When fields_or_schema is a Schema:
+
+            Converts the given DataStream into a Table.
+
+            Column names and types of the Table are automatically derived from the TypeInformation
+            of the DataStream. If the outermost record's TypeInformation is a CompositeType, it will
+            be flattened in the first level. Composite nested fields will not be accessible.
+
+            Since the DataStream API does not support changelog processing natively, this method
+            assumes append-only/insert-only semantics during the stream-to-table conversion. Records
+            of class Row must describe RowKind.INSERT changes.
+
+            By default, the stream record's timestamp and watermarks are not propagated unless
+            explicitly declared.
+
+            This method allows to declare a Schema for the resulting table. The declaration is
+            similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+                1. enrich or overwrite automatically derived columns with a custom DataType
+                2. reorder columns
+                3. add computed or metadata columns next to the physical columns
+                4. access a stream record's timestamp
+                5. declare a watermark strategy or propagate the DataStream watermarks
+
+            It is possible to declare a schema without physical/regular columns. In this case, those
+            columns will be automatically derived and implicitly put at the beginning of the schema
+            declaration.
+
+            The following examples illustrate common schema declarations and their semantics:
+
+            Example:
+            ::
+
+                === EXAMPLE 1 ===
+
+                no physical columns defined, they will be derived automatically,
+                e.g. BigDecimal becomes DECIMAL(38, 18)
+
+                >>> Schema.new_builder() \
+                ...     .column_by_expression("c1", "f1 + 42") \
+                ...     .column_by_expression("c2", "f1 - 1") \
+                ...     .build()
+
+                equal to: CREATE TABLE (f0 STRING, f1 DECIMAL(38, 18), c1 AS f1 + 42, c2 AS f1 - 1)
+
+                === EXAMPLE 2 ===
+
+                physical columns defined, input fields and columns will be mapped by name,
+                columns are reordered and their data type overwritten,
+                all columns must be defined to show up in the final table's schema
+
+                >>> Schema.new_builder() \
+                ...     .column("f1", "DECIMAL(10, 2)") \
+                ...     .column_by_expression("c", "f1 - 1") \
+                ...     .column("f0", "STRING") \
+                ...     .build()
+
+                equal to: CREATE TABLE (f1 DECIMAL(10, 2), c AS f1 - 1, f0 STRING)
+
+                === EXAMPLE 3 ===
+
+                timestamp and watermarks can be added from the DataStream API,
+                physical columns will be derived automatically
+
+                >>> Schema.new_builder() \
+                ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+                ...     .watermark("rowtime", "SOURCE_WATERMARK()") \
+                ...     .build()
+
+                equal to:
+                    CREATE TABLE (
+                        f0 STRING,
+                        f1 DECIMAL(38, 18),
+                        rowtime TIMESTAMP(3) METADATA,
+                        WATERMARK FOR rowtime AS SOURCE_WATERMARK()
+                    )
+
+            .. note:: create_temporary_view by providing a Schema (case 2.) was added from flink
+                    1.14.0.
 
         :param data_stream: The datastream to be converted.
-        :param fields: The fields expressions to map original fields of the DataStream to the fields
-                       of the Table
+        :param fields_or_schema: The fields expressions to map original fields of the DataStream to
+            the fields of the Table or the customized schema for the final table.
         :return: The converted Table.
 
         .. versionadded:: 1.12.0
@@ -1789,17 +1984,43 @@ class StreamTableEnvironment(TableEnvironment):
         j_data_stream = data_stream._j_data_stream
         JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
         JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
-        if len(fields) == 0:
+        if len(fields_or_schema) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
-        elif all(isinstance(f, Expression) for f in fields):
+        elif all(isinstance(f, Expression) for f in fields_or_schema):
             return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, to_expression_jarray(fields)), t_env=self)
-        elif len(fields) == 1 and isinstance(fields[0], str):
+                j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
             warnings.warn(
                 "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
                 DeprecationWarning)
-            return Table(j_table=self._j_tenv.fromDataStream(j_data_stream, fields[0]), t_env=self)
-        raise ValueError("Invalid arguments for 'fields': %r" % fields)
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, fields_or_schema[0]), t_env=self)
+        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
+            return Table(j_table=self._j_tenv.fromDataStream(
+                j_data_stream, fields_or_schema[0]._j_schema), t_env=self)
+        raise ValueError("Invalid arguments for 'fields': %r" % fields_or_schema)
+
+    def to_data_stream(self, table: Table) -> DataStream:
+        """
+        Converts the given Table into a DataStream.
+
+        Since the DataStream API does not support changelog processing natively, this method
+        assumes append-only/insert-only semantics during the table-to-stream conversion. The records
+        of class Row will always describe RowKind#INSERT changes. Updating tables are
+        not supported by this method and will produce an exception.
+
+        Note that the type system of the table ecosystem is richer than the one of the DataStream
+        API. The table runtime will make sure to properly serialize the output records to the first
+        operator of the DataStream API. Afterwards, the Types semantics of the DataStream API
+        need to be considered.
+
+        If the input table contains a single rowtime column, it will be propagated into a stream
+        record's timestamp. Watermarks will be propagated as well.
+
+        :param table: The Table to convert.
+        :return: The converted DataStream.
+        """
+        return DataStream(self._j_tenv.toDataStream(table._j_table))
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
