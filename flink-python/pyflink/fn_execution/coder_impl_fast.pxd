@@ -17,6 +17,8 @@
 ################################################################################
 # cython: language_level=3
 
+from libc.stdint cimport int32_t, int64_t
+
 from pyflink.fn_execution.stream_fast cimport LengthPrefixInputStream, LengthPrefixOutputStream, \
     InputStream, OutputStream
 
@@ -135,6 +137,10 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
 
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef object _timezone
+
+cdef class InstantCoderImpl(FieldCoderImpl):
+    cdef int64_t _null_seconds
+    cdef int32_t _null_nanos
 
 cdef class CloudPickleCoderImpl(FieldCoderImpl):
     pass

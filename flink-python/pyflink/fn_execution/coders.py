@@ -24,7 +24,8 @@ import pytz
 
 from pyflink.common.typeinfo import TypeInformation, BasicTypeInfo, BasicType, DateTypeInfo, \
     TimeTypeInfo, TimestampTypeInfo, PrimitiveArrayTypeInfo, BasicArrayTypeInfo, TupleTypeInfo, \
-    MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo
+    MapTypeInfo, ListTypeInfo, RowTypeInfo, PickledBytesTypeInfo, ObjectArrayTypeInfo, \
+    ExternalTypeInfo
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, BooleanType, \
     FloatType, DoubleType, VarCharType, VarBinaryType, DecimalType, DateType, TimeType, \
@@ -37,7 +38,7 @@ except:
 
 __all__ = ['FlattenRowCoder', 'RowCoder', 'BigIntCoder', 'TinyIntCoder', 'BooleanCoder',
            'SmallIntCoder', 'IntCoder', 'FloatCoder', 'DoubleCoder', 'BinaryCoder', 'CharCoder',
-           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder',
+           'DateCoder', 'TimeCoder', 'TimestampCoder', 'LocalZonedTimestampCoder', 'InstantCoder',
            'GenericArrayCoder', 'PrimitiveArrayCoder', 'MapCoder', 'DecimalCoder',
            'BigDecimalCoder', 'TupleCoder', 'TimeWindowCoder', 'CountWindowCoder',
            'PickleCoder', 'CloudPickleCoder', 'DataViewFilterCoder']
@@ -531,6 +532,14 @@ class LocalZonedTimestampCoder(FieldCoder):
                 self.timezone == other.timezone)
 
 
+class InstantCoder(FieldCoder):
+    """
+    Coder for Instant.
+    """
+    def get_impl(self) -> coder_impl.FieldCoderImpl:
+        return coder_impl.InstantCoderImpl()
+
+
 class CloudPickleCoder(FieldCoder):
     """
     Coder used with cloudpickle to encode python object.
@@ -665,7 +674,8 @@ _type_info_name_mappings = {
     type_info_name.SQL_DATE: DateCoder(),
     type_info_name.SQL_TIME: TimeCoder(),
     type_info_name.SQL_TIMESTAMP: TimestampCoder(3),
-    type_info_name.PICKLED_BYTES: CloudPickleCoder()
+    type_info_name.PICKLED_BYTES: CloudPickleCoder(),
+    type_info_name.INSTANT: InstantCoder()
 }
 
 
@@ -708,6 +718,7 @@ _basic_type_info_mappings = {
     BasicType.STRING: CharCoder(),
     BasicType.CHAR: CharCoder(),
     BasicType.BIG_DEC: BigDecimalCoder(),
+    BasicType.INSTANT: InstantCoder()
 }
 
 
@@ -746,5 +757,7 @@ def from_type_info(type_info: TypeInformation) -> FieldCoder:
         return RowCoder(
             [from_type_info(f) for f in type_info.get_field_types()],
             [f for f in type_info.get_field_names()])
+    elif isinstance(type_info, ExternalTypeInfo):
+        return from_type_info(type_info._type_info)
     else:
         raise ValueError("Unsupported type_info %s." % type_info)

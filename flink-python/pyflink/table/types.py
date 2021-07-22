@@ -1284,6 +1284,16 @@ class RowType(DataType):
         return _create_row(self.names, values)
 
 
+class RawType(DataType):
+    """
+    Logical type of pickled byte array type.
+    """
+
+    def from_sql_type(self, obj):
+        import pickle
+        return pickle.loads(obj)
+
+
 class UserDefinedType(DataType):
     """
     User-defined type (UDT).
@@ -1878,6 +1888,8 @@ def _from_java_type(j_data_type):
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)
+        elif is_instance_of(logical_type, gateway.jvm.RawType):
+            data_type = RawType()
         else:
             raise TypeError("Unsupported type: %s, it is not supported yet in current python type"
                             " system" % j_data_type)

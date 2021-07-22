@@ -29,6 +29,16 @@ class RowKind(Enum):
     UPDATE_AFTER = 2
     DELETE = 3
 
+    def __str__(self):
+        if self.value == RowKind.INSERT.value:
+            return '+I'
+        elif self.value == RowKind.UPDATE_BEFORE.value:
+            return '-U'
+        elif self.value == RowKind.UPDATE_AFTER.value:
+            return '+U'
+        else:
+            return '-D'
+
 
 def _create_row(fields, values, row_kind: RowKind = None):
     row = Row(*values)

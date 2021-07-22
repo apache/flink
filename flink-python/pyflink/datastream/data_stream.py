@@ -41,7 +41,7 @@ from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
 
 
-__all__ = ['CloseableIterator']
+__all__ = ['CloseableIterator', 'DataStream']
 
 
 class DataStream(object):
