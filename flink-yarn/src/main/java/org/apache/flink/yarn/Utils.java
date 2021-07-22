@@ -131,7 +131,6 @@ public final class Utils {
         for (String c : applicationClassPathEntries) {
             addToEnvironment(appMasterEnv, Environment.CLASSPATH.name(), c.trim());
         }
-
     }
 
     /**
