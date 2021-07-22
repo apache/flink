@@ -55,9 +55,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.data-artisans</groupId>
+			<groupId>com.ververica</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>5.17.2-artisans-2.0</version>
+			<version>5.17.2-ververica-2.1</version>
 		</dependency>
 
 		<!-- test dependencies -->
