@@ -102,18 +102,17 @@ class IncrementalAggregateRule
         false))
       finalGlobalAgg.copy(finalGlobalAgg.getTraitSet, Collections.singletonList(newExchange))
     } else {
-      // adapt the needRetract of final global agg to be same as that of partial agg
+      // an additional count1 is inserted, need to adapt the global agg
       val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
         // the final agg input is partial agg
         FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
         finalRealAggCalls,
-        // use partial global agg's aggCallNeedRetractions
-        partialGlobalAgg.aggCallNeedRetractions,
-        partialGlobalAgg.needRetraction,
-        partialGlobalAgg.globalAggInfoList.indexOfCountStar,
+        // all the aggs do not need retraction
+        Array.fill(finalRealAggCalls.length)(false),
+        // also do not need count*
+        needInputCount = false,
         // the local agg is not works on state
-        isStateBackendDataViews = false,
-        needDistinctInfo = true)
+        isStateBackendDataViews = false)
 
       // check whether the global agg required input row type equals the incr agg output row type
       val globalAggInputAccType = AggregateUtil.inferLocalAggRowType(
@@ -134,11 +133,11 @@ class IncrementalAggregateRule
         finalGlobalAgg.getRowType,
         finalGlobalAgg.grouping,
         finalRealAggCalls,
-        partialGlobalAgg.aggCallNeedRetractions,
+        // all the aggs do not need retraction
+        Array.fill(finalRealAggCalls.length)(false),
         finalGlobalAgg.localAggInputRowType,
-        partialGlobalAgg.needRetraction,
-        finalGlobalAgg.partialFinalType,
-        partialGlobalAgg.globalAggInfoList.indexOfCountStar)
+        needRetraction = false,
+        finalGlobalAgg.partialFinalType)
     }
 
     call.transformTo(globalAgg)
