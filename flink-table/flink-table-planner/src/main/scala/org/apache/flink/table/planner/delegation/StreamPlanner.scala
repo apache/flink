@@ -145,7 +145,7 @@ class StreamPlanner(
 
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
-    val executor = new StreamExecutor(dummyExecEnv)
+    val executor = new DefaultExecutor(dummyExecEnv)
     new StreamPlanner(executor, config, functionCatalog, catalogManager)
   }
 

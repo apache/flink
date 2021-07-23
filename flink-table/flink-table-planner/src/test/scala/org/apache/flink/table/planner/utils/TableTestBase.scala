@@ -40,7 +40,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.descriptors.{CustomConnectorDescriptor, DescriptorProperties, Schema}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{ComponentFactoryService, StreamTableSourceFactory}
+import org.apache.flink.table.factories.{ComponentFactoryService, FactoryUtil, StreamTableSourceFactory}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
@@ -1549,9 +1549,9 @@ object TestingTableEnvironment {
 
     val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
 
-    val executorProperties = settings.toExecutorProperties
-    val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
-      executorProperties).create(executorProperties)
+    val executorFactory =
+      FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], settings.getExecutor)
+    val executor = executorFactory.create(tableConfig.getConfiguration)
 
     val plannerProperties = settings.toPlannerProperties
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
