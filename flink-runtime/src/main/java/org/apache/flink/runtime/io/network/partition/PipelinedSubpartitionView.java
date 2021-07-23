@@ -80,8 +80,8 @@ public class PipelinedSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
-        parent.acknowledgeAllRecordsProcessed();
+    public void acknowledgeAllDataProcessed() {
+        parent.acknowledgeAllDataProcessed();
     }
 
     @Override

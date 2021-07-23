@@ -70,13 +70,13 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
      * Notifies the downstream tasks that this {@code ResultPartitionWriter} have emitted all the
      * user records.
      */
-    void notifyEndOfUserRecords() throws IOException;
+    void notifyEndOfData() throws IOException;
 
     /**
      * Gets the future indicating whether all the records has been processed by the downstream
      * tasks.
      */
-    CompletableFuture<Void> getAllRecordsProcessedFuture();
+    CompletableFuture<Void> getAllDataProcessedFuture();
 
     /** Sets the metric group for the {@link ResultPartitionWriter}. */
     void setMetricGroup(TaskIOMetricGroup metrics);

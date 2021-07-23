@@ -380,8 +380,8 @@ public class PipelinedSubpartition extends ResultSubpartition
         }
     }
 
-    public void acknowledgeAllRecordsProcessed() {
-        parent.onSubpartitionAllRecordsProcessed(subpartitionInfo.getSubPartitionIdx());
+    public void acknowledgeAllDataProcessed() {
+        parent.onSubpartitionAllDataProcessed(subpartitionInfo.getSubPartitionIdx());
     }
 
     @Override

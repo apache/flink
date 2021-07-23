@@ -27,21 +27,21 @@ import java.io.IOException;
 /**
  * This event indicates there will be no more data records in a subpartition. There still might be
  * other events, in particular {@link CheckpointBarrier CheckpointBarriers} traveling. The {@link
- * EndOfUserRecordsEvent} is acknowledged by the downstream task. That way we can safely assume the
- * downstream task has consumed all the produced records and therefore we can perform a final
- * checkpoint for the upstream task.
+ * EndOfData} is acknowledged by the downstream task. That way we can safely assume the downstream
+ * task has consumed all the produced records and therefore we can perform a final checkpoint for
+ * the upstream task.
  *
  * @see <a href="https://cwiki.apache.org/confluence/x/mw-ZCQ">FLIP-147</a>
  */
-public class EndOfUserRecordsEvent extends RuntimeEvent {
+public class EndOfData extends RuntimeEvent {
 
     /** The singleton instance of this event. */
-    public static final EndOfUserRecordsEvent INSTANCE = new EndOfUserRecordsEvent();
+    public static final EndOfData INSTANCE = new EndOfData();
 
     // ------------------------------------------------------------------------
 
     // not instantiable
-    private EndOfUserRecordsEvent() {}
+    private EndOfData() {}
 
     // ------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ public class EndOfUserRecordsEvent extends RuntimeEvent {
 
     @Override
     public boolean equals(Object obj) {
-        return obj != null && obj.getClass() == EndOfUserRecordsEvent.class;
+        return obj != null && obj.getClass() == EndOfData.class;
     }
 
     @Override
