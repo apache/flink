@@ -22,7 +22,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -71,6 +70,7 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
@@ -428,11 +428,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
      * @throws Exception on any problems in the action.
      */
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-        InputStatus status = inputProcessor.processInput();
-        if (status == InputStatus.MORE_AVAILABLE && recordWriter.isAvailable()) {
+        DataInputStatus status = inputProcessor.processInput();
+        if (status == DataInputStatus.MORE_AVAILABLE && recordWriter.isAvailable()) {
             return;
         }
-        if (status == InputStatus.END_OF_INPUT) {
+        if (status == DataInputStatus.END_OF_INPUT) {
             // Suspend the mailbox processor, it would be resumed in afterInvoke and finished
             // after all records processed by the downstream tasks. We also suspend the default
             // actions to avoid repeat executing the empty default operation (namely process

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
@@ -62,16 +61,16 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
-        InputStatus status = input.emitNext(output);
+    public DataInputStatus processInput() throws Exception {
+        DataInputStatus status = input.emitNext(output);
 
-        if (status == InputStatus.END_OF_INPUT) {
+        if (status == DataInputStatus.END_OF_INPUT) {
             endOfInputAware.endInput(input.getInputIndex() + 1);
-        } else if (status == InputStatus.END_OF_RECOVERY) {
+        } else if (status == DataInputStatus.END_OF_RECOVERY) {
             if (input instanceof RecoverableStreamTaskInput) {
                 input = ((RecoverableStreamTaskInput<IN>) input).finishRecovery();
             }
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         }
 
         return status;

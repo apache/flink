@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -228,11 +227,11 @@ public class StreamTaskNetworkInputTest {
                         inputGate, inSerializer, numInputChannels, deserializers);
 
         inputGate.sendElement(new StreamRecord<>(42L), 0);
-        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 0);
-        assertThat(input.emitNext(output), equalTo(InputStatus.MORE_AVAILABLE));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.MORE_AVAILABLE));
         inputGate.sendEvent(EndOfChannelStateEvent.INSTANCE, 1);
-        assertThat(input.emitNext(output), equalTo(InputStatus.END_OF_RECOVERY));
+        assertThat(input.emitNext(output), equalTo(DataInputStatus.END_OF_RECOVERY));
     }
 
     private BufferOrEvent createDataBuffer() throws IOException {
@@ -279,8 +278,8 @@ public class StreamTaskNetworkInputTest {
     private static <T> void assertHasNextElement(StreamTaskInput<T> input, DataOutput<T> output)
             throws Exception {
         assertTrue(input.getAvailableFuture().isDone());
-        InputStatus status = input.emitNext(output);
-        assertThat(status, is(InputStatus.MORE_AVAILABLE));
+        DataInputStatus status = input.emitNext(output);
+        assertThat(status, is(DataInputStatus.MORE_AVAILABLE));
     }
 
     private static class TestRecordDeserializer

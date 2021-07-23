@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 
@@ -65,11 +64,12 @@ public class MultipleInputSelectionHandler {
                 inputCount);
     }
 
-    public InputStatus updateStatus(InputStatus inputStatus, int inputIndex) throws IOException {
+    public DataInputStatus updateStatus(DataInputStatus inputStatus, int inputIndex)
+            throws IOException {
         switch (inputStatus) {
             case MORE_AVAILABLE:
                 checkState(checkBitMask(availableInputsMask, inputIndex));
-                return InputStatus.MORE_AVAILABLE;
+                return DataInputStatus.MORE_AVAILABLE;
             case NOTHING_AVAILABLE:
                 availableInputsMask = unsetBitMask(availableInputsMask, inputIndex);
                 break;
@@ -82,13 +82,13 @@ public class MultipleInputSelectionHandler {
         return calculateOverallStatus();
     }
 
-    public InputStatus calculateOverallStatus() throws IOException {
+    public DataInputStatus calculateOverallStatus() throws IOException {
         if (areAllInputsFinished()) {
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
 
         if (isAnyInputAvailable()) {
-            return InputStatus.MORE_AVAILABLE;
+            return DataInputStatus.MORE_AVAILABLE;
         } else {
             long selectedNotFinishedInputMask =
                     inputSelection.getInputMask() & notFinishedInputsMask;
@@ -96,7 +96,7 @@ public class MultipleInputSelectionHandler {
                 throw new IOException(
                         "Can not make a progress: all selected inputs are already finished");
             }
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
     }
 
