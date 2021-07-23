@@ -34,7 +34,7 @@ from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, Envir
     Module, ResultKind, ModuleEntry
 from pyflink.table.catalog import ObjectPath, CatalogBaseTable
 from pyflink.table.explain_detail import ExplainDetail
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.types import RowType, Row
 from pyflink.table.udf import udf
@@ -376,6 +376,56 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
             .add_sink(self.test_sink)
         self.env.execute()
         expected_results = ['(a,47)', '(c,1000)', '(c,1000)']
+        actual_results = self.test_sink.get_results(False)
+        expected_results.sort()
+        actual_results.sort()
+        self.assertEqual(expected_results, actual_results)
+
+    def test_from_and_to_changelog_stream_event_time(self):
+        from pyflink.table import Schema
+
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection([(1, 42, "a"), (2, 5, "a"), (3, 1000, "c"), (100, 1000, "c")],
+                                      Types.ROW([Types.LONG(), Types.INT(), Types.STRING()]))
+        ds = ds.assign_timestamps_and_watermarks(
+            WatermarkStrategy.for_monotonous_timestamps()
+            .with_timestamp_assigner(MyTimestampAssigner()))
+
+        changelog_stream = ds.map(lambda t: Row(t.f1, t.f2),
+                                  Types.ROW([Types.INT(), Types.STRING()]))
+
+        # derive physical columns and add a rowtime
+        table = self.t_env.from_changelog_stream(
+            changelog_stream,
+            Schema.new_builder()
+                  .column_by_metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+                  .column_by_expression("computed", str(col("f1").upper_case))
+                  .watermark("rowtime", str(source_watermark()))
+                  .build())
+
+        self.t_env.create_temporary_view("t", table)
+
+        # access and reorder columns
+        reordered = self.t_env.sql_query("SELECT computed, rowtime, f0 FROM t")
+
+        # write out the rowtime column with fully declared schema
+        result = self.t_env.to_changelog_stream(
+            reordered,
+            Schema.new_builder()
+            .column("f1", DataTypes.STRING())
+            .column_by_metadata("rowtime", DataTypes.TIMESTAMP_LTZ(3))
+            .column_by_expression("ignored", str(col("f1").upper_case))
+            .column("f0", DataTypes.INT())
+            .build()
+        )
+
+        # test event time window and field access
+        result.key_by(lambda k: k.f1) \
+            .window(MyTumblingEventTimeWindow()) \
+            .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+        self.env.execute()
+        expected_results = ['(A,47)', '(C,1000)', '(C,1000)']
         actual_results = self.test_sink.get_results(False)
         expected_results.sort()
         actual_results.sort()
