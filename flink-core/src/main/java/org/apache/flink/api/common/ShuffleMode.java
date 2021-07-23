@@ -32,7 +32,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
  * relevant for batch executions on bounded streams.
  *
  * <p>In streaming mode, upstream and downstream tasks run simultaneously to achieve low latency. An
- * exchange is always pipelined (i.e. a result record is immediately send to and processed by the
+ * exchange is always pipelined (i.e. a result record is immediately sent to and processed by the
  * downstream task). Thus, the receiver back-pressures the sender.
  *
  * <p>In batch mode, upstream and downstream tasks can run in stages. Blocking exchanges persist

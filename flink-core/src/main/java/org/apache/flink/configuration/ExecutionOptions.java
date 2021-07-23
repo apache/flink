@@ -55,7 +55,7 @@ public class ExecutionOptions {
                                     .linebreak()
                                     .text(
                                             "In streaming mode, upstream and downstream tasks run simultaneously to achieve low latency. "
-                                                    + "An exchange is always pipelined (i.e. a result record is immediately send to and "
+                                                    + "An exchange is always pipelined (i.e. a result record is immediately sent to and "
                                                     + "processed by the downstream task). Thus, the receiver back-pressures the sender.")
                                     .linebreak()
                                     .text(

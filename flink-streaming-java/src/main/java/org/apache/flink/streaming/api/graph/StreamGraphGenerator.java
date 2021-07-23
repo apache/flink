@@ -391,32 +391,36 @@ public class StreamGraphGenerator {
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeBatch() {
         final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
-        if (shuffleMode == ShuffleMode.ALL_EXCHANGES_PIPELINED) {
-            return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
-        } else if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING
-                || shuffleMode == ShuffleMode.AUTOMATIC) {
-            return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
+        switch (shuffleMode) {
+            case ALL_EXCHANGES_PIPELINED:
+                return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
+            case ALL_EXCHANGES_BLOCKING:
+            case AUTOMATIC:
+                return GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;
+            default:
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Unsupported shuffle mode '%s' in BATCH runtime mode.",
+                                shuffleMode.toString()));
         }
-        throw new IllegalArgumentException(
-                String.format(
-                        "Unsupported shuffle mode '%s' in BATCH runtime mode.",
-                        shuffleMode.toString()));
     }
 
     private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeStreaming() {
         final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
-        if (shuffleMode == ShuffleMode.ALL_EXCHANGES_PIPELINED
-                || shuffleMode == ShuffleMode.AUTOMATIC) {
-            if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
-                checkApproximateLocalRecoveryCompatibility();
-                return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
-            }
-            return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
+        switch (shuffleMode) {
+            case ALL_EXCHANGES_PIPELINED:
+            case AUTOMATIC:
+                if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
+                    checkApproximateLocalRecoveryCompatibility();
+                    return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
+                }
+                return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
+            default:
+                throw new IllegalArgumentException(
+                        String.format(
+                                "Unsupported shuffle mode '%s' in STREAMING runtime mode.",
+                                shuffleMode.toString()));
         }
-        throw new IllegalArgumentException(
-                String.format(
-                        "Unsupported shuffle mode '%s' in STREAMING runtime mode.",
-                        shuffleMode.toString()));
     }
 
     private void checkApproximateLocalRecoveryCompatibility() {
