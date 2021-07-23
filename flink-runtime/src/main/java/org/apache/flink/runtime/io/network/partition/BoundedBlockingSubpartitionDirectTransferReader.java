@@ -164,7 +164,7 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public void acknowledgeAllRecordsProcessed() {
+    public void acknowledgeAllDataProcessed() {
         throw new UnsupportedOperationException("Method should never be called.");
     }
 
