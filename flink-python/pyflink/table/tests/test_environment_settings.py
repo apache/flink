@@ -121,15 +121,10 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         builder = EnvironmentSettings.new_instance()
         BLINK_PLANNER_FACTORY = get_private_field(builder._j_builder, "BLINK_PLANNER_FACTORY")
-        BLINK_EXECUTOR_FACTORY = get_private_field(builder._j_builder, "BLINK_EXECUTOR_FACTORY")
 
         self.assertEqual(
             settings._j_environment_settings.toPlannerProperties()[CLASS_NAME],
             BLINK_PLANNER_FACTORY)
-
-        self.assertEqual(
-            settings._j_environment_settings.toExecutorProperties()[CLASS_NAME],
-            BLINK_EXECUTOR_FACTORY)
 
     def check_any_planner(self, settings: EnvironmentSettings):
         gateway = get_gateway()
@@ -137,6 +132,3 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         self.assertTrue(
             CLASS_NAME not in settings._j_environment_settings.toPlannerProperties())
-
-        self.assertTrue(
-            CLASS_NAME not in settings._j_environment_settings.toExecutorProperties())

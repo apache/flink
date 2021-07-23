@@ -117,7 +117,7 @@ class BatchPlanner(
     val execEnv = getExecEnv
     ExecutorUtils.setBatchProperties(execEnv)
     val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
-    ExecutorUtils.setBatchProperties(streamGraph, getTableConfig)
+    ExecutorUtils.setBatchProperties(streamGraph, getTableConfig.getConfiguration)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -155,7 +155,7 @@ class BatchPlanner(
 
   private def createDummyPlanner(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
-    val executor = new BatchExecutor(dummyExecEnv)
+    val executor = new DefaultExecutor(dummyExecEnv)
     new BatchPlanner(executor, config, functionCatalog, catalogManager)
   }
 

@@ -33,6 +33,7 @@ import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
@@ -112,8 +113,7 @@ public class ExecutionContext {
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
-        final Map<String, String> executorProperties = settings.toExecutorProperties();
-        Executor executor = lookupExecutor(executorProperties, streamExecEnv);
+        final Executor executor = lookupExecutor(settings.getExecutor(), streamExecEnv);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
@@ -158,18 +158,17 @@ public class ExecutionContext {
     }
 
     private Executor lookupExecutor(
-            Map<String, String> executorProperties,
-            StreamExecutionEnvironment executionEnvironment) {
+            String executorIdentifier, StreamExecutionEnvironment executionEnvironment) {
         try {
-            ExecutorFactory executorFactory =
-                    ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-            Method createMethod =
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            classLoader, ExecutorFactory.class, executorIdentifier);
+            final Method createMethod =
                     executorFactory
                             .getClass()
-                            .getMethod("create", Map.class, StreamExecutionEnvironment.class);
+                            .getMethod("create", StreamExecutionEnvironment.class);
 
-            return (Executor)
-                    createMethod.invoke(executorFactory, executorProperties, executionEnvironment);
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",

@@ -18,17 +18,19 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.table.delegation.Executor;
 
 import org.junit.Test;
 
@@ -36,17 +38,18 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertFalse;
 
-/** Test for {@link BatchExecutor}. */
-public class BatchExecutorTest extends TestLogger {
+/** Test for {@link DefaultExecutor}. */
+public class DefaultExecutorTest {
 
-    private final BatchExecutor batchExecutor;
+    @Test
+    public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
+        final Executor executor =
+                new DefaultExecutor(StreamExecutionEnvironment.getExecutionEnvironment());
 
-    private final StreamGraph streamGraph;
+        final Configuration configuration = new Configuration();
+        configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
 
-    public BatchExecutorTest() {
-        batchExecutor = new BatchExecutor(LocalStreamEnvironment.getExecutionEnvironment());
-
-        final Transformation testTransform =
+        final Transformation<?> testTransform =
                 new LegacySourceTransformation<>(
                         "MockTransform",
                         new StreamSource<>(
@@ -60,14 +63,11 @@ public class BatchExecutorTest extends TestLogger {
                         BasicTypeInfo.STRING_TYPE_INFO,
                         1,
                         Boundedness.BOUNDED);
-        Pipeline pipeline =
-                batchExecutor.createPipeline(
-                        Collections.singletonList(testTransform), new TableConfig(), "Test Job");
-        streamGraph = (StreamGraph) pipeline;
-    }
+        final Pipeline pipeline =
+                executor.createPipeline(
+                        Collections.singletonList(testTransform), configuration, "Test Job");
+        final StreamGraph streamGraph = (StreamGraph) pipeline;
 
-    @Test
-    public void testAllVerticesInSameSlotSharingGroupByDefaultIsDisabled() {
         assertFalse(streamGraph.isAllVerticesInSameSlotSharingGroupByDefault());
     }
 }

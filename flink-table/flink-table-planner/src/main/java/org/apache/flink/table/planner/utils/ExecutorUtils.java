@@ -22,13 +22,13 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ShuffleMode;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.util.TernaryBoolean;
 
 import java.util.List;
@@ -68,7 +68,7 @@ public class ExecutorUtils {
     }
 
     /** Sets batch properties for {@link StreamGraph}. */
-    public static void setBatchProperties(StreamGraph streamGraph, TableConfig tableConfig) {
+    public static void setBatchProperties(StreamGraph streamGraph, Configuration configuration) {
         streamGraph
                 .getStreamNodes()
                 .forEach(sn -> sn.setResources(ResourceSpec.UNKNOWN, ResourceSpec.UNKNOWN));
@@ -85,12 +85,11 @@ public class ExecutorUtils {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
         }
         GlobalStreamExchangeMode exchangeMode =
-                getGlobalStreamExchangeMode(tableConfig.getConfiguration()).orElse(null);
+                getGlobalStreamExchangeMode(configuration).orElse(null);
         // temporary solution until StreamGraphGenerator will take care of this setting
         // after enabling batch runtime mode
         if (exchangeMode == null) {
-            final ShuffleMode shuffleMode =
-                    tableConfig.getConfiguration().get(ExecutionOptions.SHUFFLE_MODE);
+            final ShuffleMode shuffleMode = configuration.get(ExecutionOptions.SHUFFLE_MODE);
             if (shuffleMode == ShuffleMode.ALL_EXCHANGES_BLOCKING
                     || shuffleMode == ShuffleMode.AUTOMATIC) {
                 exchangeMode = GlobalStreamExchangeMode.ALL_EDGES_BLOCKING;

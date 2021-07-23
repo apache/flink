@@ -134,7 +134,9 @@ abstract class PlannerBase(
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
   private[flink] def getExecEnv: StreamExecutionEnvironment = {
-    executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
+    // this is technical debt that we should fix with a proper configuration story
+    // ideally, everything should be configurable via Configuration
+    executor.asInstanceOf[DefaultExecutor].getExecutionEnvironment
   }
 
   def createNewParser: Parser = {
