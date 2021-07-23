@@ -33,7 +33,7 @@ from pyflink.common import JobExecutionResult
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
-    Module, ModuleEntry, TableSink, Schema
+    Module, ModuleEntry, TableSink, Schema, ChangelogMode
 from pyflink.table.catalog import Catalog
 from pyflink.table.descriptors import StreamTableDescriptor, \
     ConnectorDescriptor, ConnectTableDescriptor
@@ -2003,6 +2003,60 @@ class StreamTableEnvironment(TableEnvironment):
                 j_data_stream, fields_or_schema[0]._j_schema), t_env=self)
         raise ValueError("Invalid arguments for 'fields': %r" % fields_or_schema)
 
+    def from_changelog_stream(self,
+                              data_stream: DataStream,
+                              schema: Schema = None,
+                              changelog_mode: ChangelogMode = None) -> Table:
+        """
+        Converts the given DataStream of changelog entries into a Table.
+
+        Compared to :func:`from_data_stream`, this method consumes instances of Row and evaluates
+        the RowKind flag that is contained in every record during runtime. The runtime behavior is
+        similar to that of a DynamicTableSource.
+
+        If you don't specify the changelog_mode, the changelog containing all kinds of changes
+        (enumerated in RowKind) as the default ChangelogMode.
+
+        Column names and types of the Table are automatically derived from the TypeInformation of
+        the DataStream. If the outermost record's TypeInformation is a CompositeType, it will be
+        flattened in the first level. Composite nested fields will not be accessible.
+
+        By default, the stream record's timestamp and watermarks are not propagated unless
+        explicitly declared.
+
+        This method allows to declare a Schema for the resulting table. The declaration is similar
+        to a {@code CREATE TABLE} DDL in SQL and allows to:
+
+            1. enrich or overwrite automatically derived columns with a custom DataType
+            2. reorder columns
+            3. add computed or metadata columns next to the physical columns
+            4. access a stream record's timestamp
+            5. declare a watermark strategy or propagate the DataStream watermarks
+            6. declare a primary key
+
+        See :func:`from_data_stream` for more information and examples of how to declare a Schema.
+
+        :param data_stream: The changelog stream of Row.
+        :param schema: The customized schema for the final table.
+        :param changelog_mode: The expected kinds of changes in the incoming changelog.
+        :return: The converted Table.
+        """
+        j_data_stream = data_stream._j_data_stream
+        JPythonConfigUtil = get_gateway().jvm.org.apache.flink.python.util.PythonConfigUtil
+        JPythonConfigUtil.configPythonOperator(j_data_stream.getExecutionEnvironment())
+        if schema is None:
+            return Table(self._j_tenv.fromChangelogStream(j_data_stream), t_env=self)
+        elif changelog_mode is None:
+            return Table(
+                self._j_tenv.fromChangelogStream(j_data_stream, schema._j_schema), t_env=self)
+        else:
+            return Table(
+                self._j_tenv.fromChangelogStream(
+                    j_data_stream,
+                    schema._j_schema,
+                    changelog_mode._j_changelog_mode),
+                t_env=self)
+
     def to_data_stream(self, table: Table) -> DataStream:
         """
         Converts the given Table into a DataStream.
@@ -2024,6 +2078,100 @@ class StreamTableEnvironment(TableEnvironment):
         :return: The converted DataStream.
         """
         return DataStream(self._j_tenv.toDataStream(table._j_table))
+
+    def to_changelog_stream(self,
+                            table: Table,
+                            target_schema: Schema = None,
+                            changelog_mode: ChangelogMode = None) -> DataStream:
+        """
+        Converts the given Table into a DataStream of changelog entries.
+
+        Compared to :func:`to_data_stream`, this method produces instances of Row and sets the
+        RowKind flag that is contained in every record during runtime. The runtime behavior is
+        similar to that of a DynamicTableSink.
+
+        If you don't specify the changelog_mode, the changelog containing all kinds of changes
+        (enumerated in RowKind) as the default ChangelogMode.
+
+        The given Schema is used to configure the table runtime to convert columns and internal data
+        structures to the desired representation. The following example shows how to
+        convert a table column into a Row type.
+
+        Example:
+        ::
+
+            >>> table_env.to_changelog_stream(
+            ...     table,
+            ...     Schema.new_builder() \
+            ...         .column("id", DataTypes.BIGINT())
+            ...         .column("payload", DataTypes.ROW(
+            ...                                     [DataTypes.FIELD("name", DataTypes.STRING()),
+            ...                                     DataTypes.FIELD("age", DataTypes.INT())]))
+            ...         .build())
+
+        Note that the type system of the table ecosystem is richer than the one of the DataStream
+        API. The table runtime will make sure to properly serialize the output records to the first
+        operator of the DataStream API. Afterwards, the Types semantics of the DataStream API need
+        to be considered.
+
+        If the input table contains a single rowtime column, it will be propagated into a stream
+        record's timestamp. Watermarks will be propagated as well.
+
+        If the rowtime should not be a concrete field in the final Row anymore, or the schema should
+        be symmetrical for both :func:`from_changelog_stream` and :func:`to_changelog_stream`, the
+        rowtime can also be declared as a metadata column that will be propagated into a stream
+        record's timestamp. It is possible to declare a schema without physical/regular columns.
+        In this case, those columns will be automatically derived and implicitly put at the
+        beginning of the schema declaration.
+
+        The following examples illustrate common schema declarations and their semantics:
+
+        Example:
+        ::
+
+            given a Table of (id INT, name STRING, my_rowtime TIMESTAMP_LTZ(3))
+
+            === EXAMPLE 1 ===
+
+            no physical columns defined, they will be derived automatically,
+            the last derived physical column will be skipped in favor of the metadata column
+
+            >>> Schema.new_builder() \
+            ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+            ...     .build()
+
+            equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+
+            === EXAMPLE 2 ===
+
+            physical columns defined, all columns must be defined
+
+            >>> Schema.new_builder() \
+            ...     .column("id", "INT") \
+            ...     .column("name", "STRING") \
+            ...     .column_by_metadata("rowtime", "TIMESTAMP_LTZ(3)") \
+            ...     .build()
+
+            equal to: CREATE TABLE (id INT, name STRING, rowtime TIMESTAMP_LTZ(3) METADATA)
+
+        :param table: The Table to convert. It can be updating or insert-only.
+        :param target_schema: The Schema that decides about the final external representation in
+            DataStream records.
+        :param changelog_mode: The required kinds of changes in the result changelog. An exception
+            will be thrown if the given updating table cannot be represented in this changelog mode.
+        :return: The converted changelog stream of Row.
+        """
+        if target_schema is None:
+            return DataStream(self._j_tenv.toChangelogStream(table._j_table))
+        elif changelog_mode is None:
+            return DataStream(
+                self._j_tenv.toChangelogStream(table._j_table, target_schema._j_schema))
+        else:
+            return DataStream(
+                self._j_tenv.toChangelogStream(
+                    table._j_table,
+                    target_schema._j_schema,
+                    changelog_mode._j_changelog_mode))
 
     def to_append_stream(self, table: Table, type_info: TypeInformation) -> DataStream:
         """
