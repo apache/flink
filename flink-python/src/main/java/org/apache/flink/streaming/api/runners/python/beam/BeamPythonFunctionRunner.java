@@ -33,14 +33,17 @@ import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.streaming.api.operators.python.timer.TimerRegistration;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.LongFunctionWithException;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
@@ -53,6 +56,7 @@ import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -78,9 +82,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.BiConsumer;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
+import static org.apache.flink.python.Constants.TIMER_CODER_ID;
+import static org.apache.flink.python.Constants.TRANSFORM_ID;
+import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
+import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
 import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 
 /** A {@link BeamPythonFunctionRunner} used to execute Python functions. */
@@ -88,16 +100,8 @@ import static org.apache.flink.streaming.api.utils.ProtoUtils.createCoderProto;
 public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     protected static final Logger LOG = LoggerFactory.getLogger(BeamPythonFunctionRunner.class);
 
-    private static final String INPUT_ID = "input";
-    private static final String OUTPUT_ID = "output";
-    private static final String TRANSFORM_ID = "transform";
-
-    private static final String MAIN_INPUT_NAME = "input";
-    private static final String MAIN_OUTPUT_NAME = "output";
-
     private static final String INPUT_CODER_ID = "input_coder";
     private static final String OUTPUT_CODER_ID = "output_coder";
-    private static final String WINDOW_CODER_ID = "window_coder";
 
     private static final String WINDOW_STRATEGY = "windowing_strategy";
 
@@ -109,14 +113,13 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The Python execution environment manager. */
     private final PythonEnvironmentManager environmentManager;
 
-    /** The urn which represents the function kind to be executed. */
-    private final String functionUrn;
-
     /** The options used to configure the Python worker process. */
     private final Map<String, String> jobOptions;
 
     /** The flinkMetricContainer will be set to null if metric is configured to be turned off. */
     @Nullable private FlinkMetricContainer flinkMetricContainer;
+
+    @Nullable private TimerRegistration timerRegistration;
 
     private final MemoryManager memoryManager;
 
@@ -167,30 +170,33 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     /** The receiver which forwards the input elements to a remote environment for processing. */
     @VisibleForTesting protected transient FnDataReceiver<WindowedValue<byte[]>> mainInputReceiver;
 
+    /** The receiver which forwards the the timer data to a remote environment for processing. */
+    private transient FnDataReceiver<Timer> timerInputReceiver;
+
     /** The shared resource among Python operators of the same slot. */
     private transient OpaqueMemoryResource<PythonSharedResources> sharedResources;
 
     public BeamPythonFunctionRunner(
             String taskName,
             PythonEnvironmentManager environmentManager,
-            String functionUrn,
             Map<String, String> jobOptions,
             @Nullable FlinkMetricContainer flinkMetricContainer,
             @Nullable KeyedStateBackend keyedStateBackend,
             @Nullable TypeSerializer keySerializer,
             @Nullable TypeSerializer namespaceSerializer,
+            @Nullable TimerRegistration timerRegistration,
             MemoryManager memoryManager,
             double managedMemoryFraction,
             FlinkFnApi.CoderInfoDescriptor inputCoderDescriptor,
             FlinkFnApi.CoderInfoDescriptor outputCoderDescriptor) {
         this.taskName = Preconditions.checkNotNull(taskName);
         this.environmentManager = Preconditions.checkNotNull(environmentManager);
-        this.functionUrn = Preconditions.checkNotNull(functionUrn);
         this.jobOptions = Preconditions.checkNotNull(jobOptions);
         this.flinkMetricContainer = flinkMetricContainer;
         this.stateRequestHandler =
                 getStateRequestHandler(
                         keyedStateBackend, keySerializer, namespaceSerializer, jobOptions);
+        this.timerRegistration = timerRegistration;
         this.memoryManager = memoryManager;
         this.managedMemoryFraction = managedMemoryFraction;
         this.inputCoderDescriptor = Preconditions.checkNotNull(inputCoderDescriptor);
@@ -289,6 +295,20 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         mainInputReceiver.accept(WindowedValue.valueInGlobalWindow(data));
     }
 
+    @Override
+    public void processTimer(byte[] timerData) throws Exception {
+        if (timerInputReceiver == null) {
+            checkInvokeStartBundle();
+            timerInputReceiver =
+                    Preconditions.checkNotNull(
+                            Iterables.getOnlyElement(remoteBundle.getTimerReceivers().values()),
+                            "Failed to retrieve main input receiver.");
+        }
+
+        Timer<byte[]> timerValue = Timer.cleared(timerData, "", Collections.emptyList());
+        timerInputReceiver.accept(timerValue);
+    }
+
     /** Checks whether to invoke startBundle. */
     private void checkInvokeStartBundle() {
         if (!bundleStarted) {
@@ -302,7 +322,10 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         try {
             remoteBundle =
                     stageBundleFactory.getBundle(
-                            createOutputReceiverFactory(), stateRequestHandler, progressHandler);
+                            createOutputReceiverFactory(),
+                            createTimerReceiverFactory(),
+                            stateRequestHandler,
+                            progressHandler);
             mainInputReceiver =
                     Preconditions.checkNotNull(
                             Iterables.getOnlyElement(remoteBundle.getInputReceivers().values()),
@@ -342,6 +365,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             throw new RuntimeException("Failed to close remote bundle", t);
         } finally {
             remoteBundle = null;
+            mainInputReceiver = null;
+            timerInputReceiver = null;
         }
     }
 
@@ -379,35 +404,19 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
     @SuppressWarnings("unchecked")
     private ExecutableStage createExecutableStage(RunnerApi.Environment environment)
             throws Exception {
-        RunnerApi.Components components =
+        RunnerApi.Components.Builder componentsBuilder =
                 RunnerApi.Components.newBuilder()
                         .putPcollections(
-                                INPUT_ID,
+                                INPUT_COLLECTION_ID,
                                 RunnerApi.PCollection.newBuilder()
                                         .setWindowingStrategyId(WINDOW_STRATEGY)
                                         .setCoderId(INPUT_CODER_ID)
                                         .build())
                         .putPcollections(
-                                OUTPUT_ID,
+                                OUTPUT_COLLECTION_ID,
                                 RunnerApi.PCollection.newBuilder()
                                         .setWindowingStrategyId(WINDOW_STRATEGY)
                                         .setCoderId(OUTPUT_CODER_ID)
-                                        .build())
-                        .putTransforms(
-                                TRANSFORM_ID,
-                                RunnerApi.PTransform.newBuilder()
-                                        .setUniqueName(TRANSFORM_ID)
-                                        .setSpec(
-                                                RunnerApi.FunctionSpec.newBuilder()
-                                                        .setUrn(functionUrn)
-                                                        .setPayload(
-                                                                org.apache.beam.vendor.grpc.v1p26p0
-                                                                        .com.google.protobuf
-                                                                        .ByteString.copyFrom(
-                                                                        getUserDefinedFunctionsProtoBytes()))
-                                                        .build())
-                                        .putInputs(MAIN_INPUT_NAME, INPUT_ID)
-                                        .putOutputs(MAIN_OUTPUT_NAME, OUTPUT_ID)
                                         .build())
                         .putWindowingStrategies(
                                 WINDOW_STRATEGY,
@@ -416,14 +425,36 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                         .build())
                         .putCoders(INPUT_CODER_ID, createCoderProto(inputCoderDescriptor))
                         .putCoders(OUTPUT_CODER_ID, createCoderProto(outputCoderDescriptor))
-                        .putCoders(WINDOW_CODER_ID, getWindowCoderProto())
-                        .build();
+                        .putCoders(WINDOW_CODER_ID, getWindowCoderProto());
+
+        getOptionalTimerCoderProto()
+                .ifPresent(
+                        timerCoderProto -> {
+                            componentsBuilder.putCoders(TIMER_CODER_ID, timerCoderProto);
+                            RunnerApi.Coder wrapperTimerCoderProto =
+                                    RunnerApi.Coder.newBuilder()
+                                            .setSpec(
+                                                    RunnerApi.FunctionSpec.newBuilder()
+                                                            .setUrn(ModelCoders.TIMER_CODER_URN)
+                                                            .build())
+                                            .addComponentCoderIds(TIMER_CODER_ID)
+                                            .addComponentCoderIds(WINDOW_CODER_ID)
+                                            .build();
+                            componentsBuilder.putCoders(
+                                    WRAPPER_TIMER_CODER_ID, wrapperTimerCoderProto);
+                        });
+
+        getTransforms().forEach(componentsBuilder::putTransforms);
+
+        RunnerApi.Components components = componentsBuilder.build();
 
         PipelineNode.PCollectionNode input =
-                PipelineNode.pCollection(INPUT_ID, components.getPcollectionsOrThrow(INPUT_ID));
+                PipelineNode.pCollection(
+                        INPUT_COLLECTION_ID,
+                        components.getPcollectionsOrThrow(INPUT_COLLECTION_ID));
         List<SideInputReference> sideInputs = Collections.EMPTY_LIST;
         List<UserStateReference> userStates = Collections.EMPTY_LIST;
-        List<TimerReference> timers = Collections.EMPTY_LIST;
+        List<TimerReference> timers = getTimers(components);
         List<PipelineNode.PTransformNode> transforms =
                 Collections.singletonList(
                         PipelineNode.pTransform(
@@ -431,7 +462,8 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
         List<PipelineNode.PCollectionNode> outputs =
                 Collections.singletonList(
                         PipelineNode.pCollection(
-                                OUTPUT_ID, components.getPcollectionsOrThrow(OUTPUT_ID)));
+                                OUTPUT_COLLECTION_ID,
+                                components.getPcollectionsOrThrow(OUTPUT_COLLECTION_ID)));
         return ImmutableExecutableStage.of(
                 components,
                 environment,
@@ -459,14 +491,14 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                         .setPayload(
                                 org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
-                        .setInputOrOutputId(INPUT_ID)
+                        .setInputOrOutputId(INPUT_COLLECTION_ID)
                         .build(),
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
                                 org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
-                        .setInputOrOutputId(OUTPUT_ID)
+                        .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
     }
 
@@ -480,7 +512,11 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 .build();
     }
 
-    protected abstract byte[] getUserDefinedFunctionsProtoBytes();
+    protected abstract Map<String, RunnerApi.PTransform> getTransforms();
+
+    protected abstract List<TimerReference> getTimers(RunnerApi.Components components);
+
+    protected abstract Optional<RunnerApi.Coder> getOptionalTimerCoderProto();
 
     // ------------------------------------------------------------------------
     // Construct RemoteBundler
@@ -493,7 +529,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
             @SuppressWarnings("unchecked")
             @Override
             public FnDataReceiver<WindowedValue<byte[]>> create(String pCollectionId) {
-                return input -> resultBuffer.add(input.getValue());
+                return input -> {
+                    resultBuffer.add(input.getValue());
+                };
             }
         };
     }
@@ -538,6 +576,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 }
             };
         }
+    }
+
+    private TimerReceiverFactory createTimerReceiverFactory() {
+        BiConsumer<Timer<?>, TimerInternals.TimerData> timerDataConsumer =
+                (timer, timerData) -> timerRegistration.setTimer((byte[]) timer.getUserKey());
+        return new TimerReceiverFactory(stageBundleFactory, timerDataConsumer, null);
     }
 
     private static StateRequestHandler getStateRequestHandler(

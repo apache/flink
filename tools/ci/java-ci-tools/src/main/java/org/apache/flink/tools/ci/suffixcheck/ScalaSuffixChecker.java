@@ -52,6 +52,8 @@ public class ScalaSuffixChecker {
     // [INFO] +- org.scala-lang:scala-reflect:jar:2.11.12:test
     private static final Pattern scalaSuffixPattern = Pattern.compile("_2.1[0-9]");
 
+    private static final String AKKA_RPC_MODULE_NAME = "flink-rpc-akka";
+
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
             System.out.println("Usage: ScalaSuffixChecker <pathMavenBuildOutput> <pathFlinkRoot>");
@@ -93,6 +95,11 @@ public class ScalaSuffixChecker {
                 final Matcher matcher = moduleNamePattern.matcher(line);
                 if (matcher.matches()) {
                     final String moduleName = stripScalaSuffix(matcher.group(1));
+                    // we ignored flink-rpc-akka because it is loaded through a separate class
+                    // loader
+                    if (moduleName.equals(AKKA_RPC_MODULE_NAME)) {
+                        continue;
+                    }
                     LOG.trace("Parsing module '{}'.", moduleName);
 
                     // skip: [INFO] org.apache.flink:flink-annotations:jar:1.14-SNAPSHOT
@@ -103,10 +110,14 @@ public class ScalaSuffixChecker {
                     while (blockPattern.matcher(line).matches()) {
                         final boolean dependsOnScala = dependsOnScala(line);
                         final boolean isTestDependency = line.endsWith(":test");
+                        // we ignored flink-rpc-akka because it is loaded through a separate class
+                        // loader
+                        final boolean isFlinkAkkaRpc = line.contains(AKKA_RPC_MODULE_NAME);
                         LOG.trace("\tline:{}", line);
                         LOG.trace("\t\tdepends-on-scala:{}", dependsOnScala);
                         LOG.trace("\t\tis-test-dependency:{}", isTestDependency);
-                        if (dependsOnScala && !isTestDependency) {
+                        LOG.trace("\t\tis-flink-rpc-akka:{}", isFlinkAkkaRpc);
+                        if (dependsOnScala && !isTestDependency && !isFlinkAkkaRpc) {
                             LOG.trace("\t\tOutbreak detected at {}!", moduleName);
                             infected = true;
                         }

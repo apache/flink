@@ -24,8 +24,7 @@ from apache_beam.coders import Coder
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.window import TimeWindow, CountWindow
-from pyflink.fn_execution.datastream.timerservice import InternalTimerService
-from pyflink.fn_execution.datastream.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
@@ -122,7 +121,7 @@ class WindowContext(Context[K, W]):
                  trigger_context: 'TriggerContext',
                  state_backend: RemoteKeyedStateBackend,
                  state_value_coder: Coder,
-                 timer_service: InternalTimerServiceImpl,
+                 timer_service: LegacyInternalTimerServiceImpl,
                  is_event_time: bool):
         self._window_operator = window_operator
         self._trigger_context = trigger_context
@@ -183,7 +182,7 @@ class TriggerContext(object):
 
     def __init__(self,
                  trigger,
-                 timer_service: InternalTimerService[W],
+                 timer_service: LegacyInternalTimerServiceImpl[W],
                  state_backend: RemoteKeyedStateBackend):
         self._trigger = trigger
         self._timer_service = timer_service

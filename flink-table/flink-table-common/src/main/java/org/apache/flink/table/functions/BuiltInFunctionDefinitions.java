@@ -29,7 +29,7 @@ import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrate
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.StructuredType.StructuredComparision;
+import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.util.Preconditions;
 
@@ -270,7 +270,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("between")
                     .kind(SCALAR)
                     .inputTypeStrategy(
-                            comparable(ConstantArgumentCount.of(3), StructuredComparision.FULL))
+                            comparable(ConstantArgumentCount.of(3), StructuredComparison.FULL))
                     .outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
                     .build();
 
@@ -279,8 +279,28 @@ public final class BuiltInFunctionDefinitions {
                     .name("notBetween")
                     .kind(SCALAR)
                     .inputTypeStrategy(
-                            comparable(ConstantArgumentCount.of(3), StructuredComparision.FULL))
+                            comparable(ConstantArgumentCount.of(3), StructuredComparison.FULL))
                     .outputTypeStrategy(nullable(explicit(DataTypes.BOOLEAN())))
+                    .build();
+
+    public static final BuiltInFunctionDefinition GREATEST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("GREATEST")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.from(1), StructuredComparison.FULL))
+                    .outputTypeStrategy(nullable(TypeStrategies.COMMON))
+                    .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition LEAST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("LEAST")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.from(1), StructuredComparison.FULL))
+                    .outputTypeStrategy(nullable(TypeStrategies.COMMON))
+                    .runtimeProvided()
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -309,7 +329,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("max")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(
-                            comparable(ConstantArgumentCount.of(1), StructuredComparision.FULL))
+                            comparable(ConstantArgumentCount.of(1), StructuredComparison.FULL))
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 
@@ -318,7 +338,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("min")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(
-                            comparable(ConstantArgumentCount.of(1), StructuredComparision.FULL))
+                            comparable(ConstantArgumentCount.of(1), StructuredComparison.FULL))
                     .outputTypeStrategy(TypeStrategies.aggArg0(t -> t, true))
                     .build();
 

@@ -37,8 +37,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.MockInputGate;
 import org.apache.flink.util.clock.SystemClock;
 

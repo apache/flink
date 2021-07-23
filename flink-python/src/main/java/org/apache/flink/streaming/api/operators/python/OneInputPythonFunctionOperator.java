@@ -138,6 +138,7 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                 null,
                 null,
                 null,
+                null,
                 getContainingTask().getEnvironment().getMemoryManager(),
                 getOperatorConfig()
                         .getManagedMemoryFractionOperatorUseCaseOfSlot(
@@ -151,7 +152,8 @@ public abstract class OneInputPythonFunctionOperator<IN, OUT, UDFIN, UDFOUT>
                                         .getUserCodeClassLoader()
                                         .asClassLoader()),
                 createInputCoderInfoDescriptor(runnerInputTypeInfo),
-                createOutputCoderInfoDescriptor(runnerOutputTypeInfo));
+                createOutputCoderInfoDescriptor(runnerOutputTypeInfo),
+                null);
     }
 
     @Override

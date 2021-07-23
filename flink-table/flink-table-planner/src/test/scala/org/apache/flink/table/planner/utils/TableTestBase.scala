@@ -22,7 +22,7 @@ import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleType
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.graph.GlobalDataExchangeMode
+import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
@@ -997,7 +997,7 @@ abstract class TableTestUtil(
   val tableEnv: TableEnvironment = testingTableEnv
   tableEnv.getConfig.getConfiguration.setString(
     ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
-    GlobalDataExchangeMode.ALL_EDGES_PIPELINED.toString)
+    GlobalStreamExchangeMode.ALL_EDGES_PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
 

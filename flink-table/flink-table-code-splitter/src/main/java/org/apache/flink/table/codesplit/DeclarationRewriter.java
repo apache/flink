@@ -29,12 +29,14 @@ import org.antlr.v4.runtime.atn.PredictionMode;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 
 /**
  * Extract and rename local variables into member variables.
+ *
+ * <p>This rewriter only deals with functions without return values. Functions with return values
+ * should have been converted by {@link ReturnValueRewriter}.
  *
  * <p><i>Before</i>
  *
@@ -73,7 +75,7 @@ import java.util.Stack;
  * </code></pre>
  */
 @Internal
-public class DeclarationRewriter {
+public class DeclarationRewriter implements CodeRewriter {
 
     private final String code;
     private final int maxMethodLength;
@@ -91,12 +93,12 @@ public class DeclarationRewriter {
         this.rewriter = new TokenStreamRewriter(tokenStream);
     }
 
-    public Optional<String> rewrite() {
+    public String rewrite() {
         JavaParser javaParser = new JavaParser(tokenStream);
         javaParser.getInterpreter().setPredictionMode(PredictionMode.SLL);
         new OuterBlockStatementExtractor().visit(javaParser.compilationUnit());
         String text = rewriter.getText();
-        return hasRewrite ? Optional.of(text) : Optional.empty();
+        return hasRewrite ? text : null;
     }
 
     private class OuterBlockStatementExtractor extends JavaParserBaseVisitor<Void> {
@@ -115,6 +117,19 @@ public class DeclarationRewriter {
             Void ret = visitChildren(ctx);
             rewriter.insertAfter(ctx.start, "\n" + newFields.pop().toString());
             return ret;
+        }
+
+        @Override
+        public Void visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+            // it might be the case that local variables have the same name with existing member
+            // variables, so we should also add member variable names into the map
+            if (ctx.variableDeclarators() != null) {
+                for (JavaParser.VariableDeclaratorContext dec :
+                        ctx.variableDeclarators().variableDeclarator()) {
+                    allVarNames.add(dec.variableDeclaratorId().getText());
+                }
+            }
+            return visitChildren(ctx);
         }
 
         @Override

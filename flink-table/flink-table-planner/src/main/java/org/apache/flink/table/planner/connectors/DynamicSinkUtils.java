@@ -19,7 +19,9 @@
 package org.apache.flink.table.planner.connectors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -84,7 +86,8 @@ public final class DynamicSinkUtils {
     public static RelNode convertCollectToRel(
             FlinkRelBuilder relBuilder,
             RelNode input,
-            CollectModifyOperation collectModifyOperation) {
+            CollectModifyOperation collectModifyOperation,
+            Configuration configuration) {
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final ResolvedSchema childSchema = collectModifyOperation.getChild().getResolvedSchema();
@@ -98,7 +101,10 @@ public final class DynamicSinkUtils {
 
         final CollectDynamicSink tableSink =
                 new CollectDynamicSink(
-                        collectModifyOperation.getTableIdentifier(), consumedDataType);
+                        collectModifyOperation.getTableIdentifier(),
+                        consumedDataType,
+                        configuration.get(CollectSinkOperatorFactory.MAX_BATCH_SIZE),
+                        configuration.get(CollectSinkOperatorFactory.SOCKET_TIMEOUT));
         collectModifyOperation.setSelectResultProvider(tableSink.getSelectResultProvider());
         return convertSinkToRel(
                 relBuilder,

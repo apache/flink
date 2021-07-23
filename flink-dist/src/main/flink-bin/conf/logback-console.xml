@@ -60,5 +60,8 @@
     <logger name="org.apache.zookeeper" level="INFO"/>
 
     <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
-    <logger name="org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR"/>
+    <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR"/>
+
+    <!-- Suppress the verbose log in kubernetes informer -->
+    <logger name="io.fabric8.kubernetes.client.informers.cache.ReflectorWatcher" level="ERROR"/>
 </configuration>

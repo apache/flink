@@ -17,15 +17,14 @@
 
 package org.apache.flink.table.codesplit;
 
-import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.File;
-
 /** Tests for {@link FunctionSplitter}. */
-public class FunctionSplitterTest {
+public class FunctionSplitterTest extends CodeRewriterTestBase<FunctionSplitter> {
+
+    public FunctionSplitterTest() {
+        super("function", code -> new FunctionSplitter(code, 40));
+    }
 
     @Test
     public void testSplitFunction() {
@@ -45,31 +44,5 @@ public class FunctionSplitterTest {
     @Test
     public void testRewriteInnerClass() {
         runTest("TestRewriteInnerClass");
-    }
-
-    private void runTest(String filename) {
-        try {
-            String code =
-                    FileUtils.readFileUtf8(
-                            new File(
-                                    FunctionSplitterTest.class
-                                            .getClassLoader()
-                                            .getResource("function/code/" + filename + ".java")
-                                            .toURI()));
-            String expected =
-                    FileUtils.readFileUtf8(
-                            new File(
-                                    FunctionSplitterTest.class
-                                            .getClassLoader()
-                                            .getResource("function/expected/" + filename + ".java")
-                                            .toURI()));
-            FunctionSplitter splitter = new FunctionSplitter(code, 30);
-            Assert.assertEquals(expected, splitter.rewrite());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } finally {
-            // we reset the counter to ensure the variable names after rewrite are as expected
-            CodeSplitUtil.getCounter().set(0L);
-        }
     }
 }

@@ -31,7 +31,6 @@ import org.apache.flink.table.client.config.YamlConfigUtils;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.cli.CommandLine;
@@ -39,9 +38,7 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,11 +70,6 @@ public class DefaultContext {
         // initialize default file system
         FileSystem.initialize(
                 flinkConfig, PluginUtils.createPluginManagerFromRootFolder(flinkConfig));
-
-        // add python dependencies
-        if (containsPythonFunction(defaultEnv)) {
-            addPythonDependency();
-        }
 
         // put environment entry into Configuration
         // reset to flinkConfig because we have stored all the options into the flinkConfig
@@ -172,38 +164,6 @@ public class DefaultContext {
             return deployment.getCommandLine(commandLineOptions);
         } catch (Exception e) {
             throw new SqlExecutionException("Invalid deployment options.", e);
-        }
-    }
-
-    private boolean containsPythonFunction(Environment environment) {
-        return environment.getFunctions().values().stream()
-                .anyMatch(
-                        f ->
-                                FunctionDescriptorValidator.FROM_VALUE_PYTHON.equals(
-                                        f.getDescriptor()
-                                                .toProperties()
-                                                .get(FunctionDescriptorValidator.FROM)));
-    }
-
-    private void addPythonDependency() {
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                this.dependencies.add(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            throw new SqlExecutionException(
-                    "Python UDF detected but flink-python jar not found. "
-                            + "If you starts SQL-Client via `sql-client.sh`, please add the flink-python jar "
-                            + "via `-j` command option manually.",
-                    e);
         }
     }
 }

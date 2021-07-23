@@ -1288,9 +1288,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 throw new TableException(exMsg, e);
             }
         } else if (operation instanceof ExplainOperation) {
+            ExplainOperation explainOperation = (ExplainOperation) operation;
+            ExplainDetail[] explainDetails =
+                    explainOperation.getExplainDetails().stream()
+                            .map(ExplainDetail::valueOf)
+                            .toArray(ExplainDetail[]::new);
             String explanation =
                     explainInternal(
-                            Collections.singletonList(((ExplainOperation) operation).getChild()));
+                            Collections.singletonList(((ExplainOperation) operation).getChild()),
+                            explainDetails);
             return TableResultImpl.builder()
                     .resultKind(ResultKind.SUCCESS_WITH_CONTENT)
                     .schema(ResolvedSchema.of(Column.physical("result", DataTypes.STRING())))

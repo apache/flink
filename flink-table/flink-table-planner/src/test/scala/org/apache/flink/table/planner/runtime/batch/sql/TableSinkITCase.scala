@@ -18,12 +18,17 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.core.testutils.FlinkMatchers
+import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.TestData.smallData3
 import org.apache.flink.table.planner.runtime.utils.{BatchAbstractTestBase, BatchTestBase}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.TableTestUtil
 
+import org.hamcrest.MatcherAssert
 import org.junit.{Assert, Test}
 
 class TableSinkITCase extends BatchTestBase {
@@ -76,4 +81,24 @@ class TableSinkITCase extends BatchTestBase {
     Assert.assertEquals(expected.sorted, result2.sorted)
   }
 
+  @Test
+  def testCollectSinkConfiguration(): Unit = {
+    tEnv.getConfig.getConfiguration.set(
+      CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1b"))
+    try {
+      checkResult("SELECT 1", Seq(row(1)))
+      Assert.fail("Expecting exception thrown from collect sink")
+    } catch {
+      case e: Exception =>
+        MatcherAssert.assertThat(
+          e,
+          FlinkMatchers.containsMessage(
+            "Please consider increasing max bytes per batch value " +
+              "by setting collect-sink.batch-size.max"))
+    }
+
+    tEnv.getConfig.getConfiguration.set(
+      CollectSinkOperatorFactory.MAX_BATCH_SIZE, MemorySize.parse("1kb"))
+    checkResult("SELECT 1", Seq(row(1)))
+  }
 }

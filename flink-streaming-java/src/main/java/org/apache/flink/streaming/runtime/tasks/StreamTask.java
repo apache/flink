@@ -50,6 +50,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.metrics.TimerGauge;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
@@ -67,7 +68,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManagerImpl;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
@@ -337,6 +337,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
         this.asyncOperationsThreadPool =
                 Executors.newCachedThreadPool(
                         new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
+
+        environment.setMainMailboxExecutor(mainMailboxExecutor);
+        environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
 
         this.stateBackend = createStateBackend();
         this.checkpointStorage = createCheckpointStorage(stateBackend);

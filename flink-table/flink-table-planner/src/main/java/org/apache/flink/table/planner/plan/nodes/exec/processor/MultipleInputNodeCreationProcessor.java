@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
@@ -78,7 +78,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
                     new InputPriorityConflictResolver(
                             execGraph.getRootNodes(),
                             InputProperty.DamBehavior.BLOCKING,
-                            ShuffleMode.PIPELINED,
+                            StreamExchangeMode.PIPELINED,
                             context.getPlanner().getTableConfig().getConfiguration());
             resolver.detectAndResolve();
         }

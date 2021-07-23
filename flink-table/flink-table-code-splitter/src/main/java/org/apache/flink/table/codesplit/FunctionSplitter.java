@@ -27,9 +27,15 @@ import org.antlr.v4.runtime.atn.PredictionMode;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Split long functions into several smaller functions.
+ *
+ * <p>This rewriter only deals with functions without return values. Functions with return values
+ * should have been converted by {@link ReturnValueRewriter}. For functions with <code>return</code>
+ * statements, this rewriter will add a check for early returns with the help of {@link
+ * AddBoolBeforeReturnRewriter}.
  *
  * <p><i>Before</i>
  *
@@ -38,6 +44,9 @@ import java.util.List;
  *     public void myFun(int a, int b) {
  *         a += b;
  *         b += a;
+ *         if (a > 0) {
+ *             return;
+ *         }
  *         a *= 2;
  *         b *= 2;
  *         System.out.println(a);
@@ -50,26 +59,47 @@ import java.util.List;
  *
  * <pre><code>
  * public class Example {
+ *     boolean myFunHasReturned$0;
+ *
  *     public void myFun(int a, int b) {
- *         myFun_split0(a, b);
+ *         myFunHasReturned$0 = false;
  *         myFun_split1(a, b);
+ *
+ *         myFun_split2(a, b);
+ *         if (myFunHasReturned$0) {
+ *             return;
+ *         }
+ *
+ *         myFun_split3(a, b);
  *     }
- *     void myFun_split0(int a, int b) {
+ *
+ *     void myFun_split1(int a, int b) {
  *         a += b;
  *         b += a;
- *         a *= 2;
  *     }
- *     void myFun_split1(int a, int b) {
+ *
+ *     void myFun_split2(int a, int b) {
+ *         if (a > 0) {
+ *             {
+ *                 myFunHasReturned$0 = true;
+ *                 return;
+ *             }
+ *         }
+ *     }
+ *
+ *     void myFun_split3(int a, int b) {
+ *         a *= 2;
  *         b *= 2;
- *         System.out.println(a + b);
+ *         System.out.println(a);
+ *         System.out.println(b);
  *     }
  * }
  * </code></pre>
  */
 @Internal
-public class FunctionSplitter {
+public class FunctionSplitter implements CodeRewriter {
 
-    private final String code;
+    private String code;
     private final int maxMethodLength;
 
     public FunctionSplitter(String code, int maxMethodLength) {
@@ -78,7 +108,10 @@ public class FunctionSplitter {
     }
 
     public String rewrite() {
-        FunctionSplitVisitor visitor = new FunctionSplitVisitor();
+        AddBoolBeforeReturnRewriter boolRewriter =
+                new AddBoolBeforeReturnRewriter(this.code, maxMethodLength);
+        code = boolRewriter.rewrite();
+        FunctionSplitVisitor visitor = new FunctionSplitVisitor(boolRewriter.getBoolVarNames());
         JavaParser javaParser = new JavaParser(visitor.tokenStream);
         javaParser.getInterpreter().setPredictionMode(PredictionMode.SLL);
         visitor.visit(javaParser.compilationUnit());
@@ -88,12 +121,25 @@ public class FunctionSplitter {
     private class FunctionSplitVisitor extends JavaParserBaseVisitor<Void> {
 
         private final CommonTokenStream tokenStream;
-
         private final TokenStreamRewriter rewriter;
 
-        private FunctionSplitVisitor() {
+        private final List<Map<String, String>> boolVarNames;
+
+        private int classCount;
+
+        private FunctionSplitVisitor(List<Map<String, String>> boolVarNames) {
             this.tokenStream = new CommonTokenStream(new JavaLexer(CharStreams.fromString(code)));
             this.rewriter = new TokenStreamRewriter(tokenStream);
+
+            this.boolVarNames = boolVarNames;
+
+            this.classCount = -1;
+        }
+
+        @Override
+        public Void visitClassBody(JavaParser.ClassBodyContext ctx) {
+            classCount++;
+            return visitChildren(ctx);
         }
 
         @Override
@@ -148,6 +194,13 @@ public class FunctionSplitter {
                         " throws " + CodeSplitUtil.getContextString(ctx.qualifiedNameList());
             }
 
+            String hasReturnedVarName = boolVarNames.get(classCount).get(functionName + parameters);
+            if (hasReturnedVarName != null) {
+                rewriter.insertAfter(
+                        ctx.methodBody().block().start,
+                        String.format("\n%s = false;", hasReturnedVarName));
+            }
+
             for (String methodBody : mergedCodeBlocks) {
                 long counter = CodeSplitUtil.getCounter().getAndIncrement();
 
@@ -170,6 +223,10 @@ public class FunctionSplitter {
                                 + "("
                                 + String.join(", ", declarations)
                                 + ");\n";
+                if (hasReturnedVarName != null && newSplitMethod.contains(hasReturnedVarName)) {
+                    newSplitMethodCall +=
+                            String.format("if (%s) { return; }\n", hasReturnedVarName);
+                }
 
                 newSplitMethods.add(newSplitMethod);
                 newSplitMethodCalls.add(newSplitMethodCall);

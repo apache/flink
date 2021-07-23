@@ -26,7 +26,7 @@ from libc.string cimport memcpy
 cdef class BeamInputStream(LengthPrefixInputStream):
     def __cinit__(self, input_stream, size):
         self._input_buffer_size = size
-        self._input_pos = 0
+        self._input_stream = input_stream
         self._parse_input_stream(input_stream)
 
     cdef size_t read(self, char** data):
@@ -44,6 +44,7 @@ cdef class BeamInputStream(LengthPrefixInputStream):
             self._input_pos += 1
         data[0] = self._input_data + self._input_pos
         self._input_pos += length
+        self._input_stream.pos = self._input_pos
         return length
 
     cdef size_t available(self):
@@ -51,7 +52,7 @@ cdef class BeamInputStream(LengthPrefixInputStream):
 
     cdef void _parse_input_stream(self, BInputStream input_stream):
         self._input_data = input_stream.allc
-        input_stream.pos = self._input_buffer_size
+        self._input_pos = input_stream.pos
 
 cdef class BeamOutputStream(LengthPrefixOutputStream):
     def __cinit__(self, output_stream):
@@ -64,8 +65,9 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         # the length of the variable prefix length will be less than 9 bytes
         if self._output_buffer_size < self._output_pos + length + 9:
             self._output_buffer_size += length + 9
-            self._output_data = <char*> realloc(self._output_data,
-                                                self._output_buffer_size)
+            self._output_data = <char*> realloc(self._output_data, self._output_buffer_size)
+            self._output_stream.buffer_size = self._output_buffer_size
+            self._output_stream.data = self._output_data
         # write variable prefix length
         while size:
             bits = size & 0x7F
@@ -82,12 +84,12 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
         else:
             memcpy(self._output_data + self._output_pos, data, length)
         self._output_pos += length
+        self._output_stream.pos = self._output_pos
         self._maybe_flush()
 
     cpdef void flush(self):
-        cdef size_t i
-        self._map_output_data_to_output_stream()
-        self._output_stream.maybe_flush()
+        self._output_stream.flush()
+        self._output_pos = 0
 
     cdef void _parse_output_stream(self, BOutputStream output_stream):
         self._output_data = output_stream.data
@@ -96,11 +98,5 @@ cdef class BeamOutputStream(LengthPrefixOutputStream):
 
     cdef void _maybe_flush(self):
         if self._output_pos > 10_000_000:
-            self._map_output_data_to_output_stream()
             self._output_stream.flush()
             self._output_pos = 0
-
-    cdef void _map_output_data_to_output_stream(self):
-        self._output_stream.data = self._output_data
-        self._output_stream.pos = self._output_pos
-        self._output_stream.buffer_size = self._output_buffer_size

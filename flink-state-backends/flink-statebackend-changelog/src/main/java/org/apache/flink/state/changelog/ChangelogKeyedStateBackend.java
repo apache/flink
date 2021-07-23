@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.mailbox.MailboxExecutor;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -75,6 +76,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -184,12 +186,18 @@ public class ChangelogKeyedStateBackend<K>
      */
     private final SequenceNumber materializedTo;
 
+    private final MailboxExecutor mainMailboxExecutor;
+
+    private final ExecutorService asyncOperationsThreadPool;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
-            Collection<ChangelogStateBackendHandle> initialState) {
+            Collection<ChangelogStateBackendHandle> initialState,
+            MailboxExecutor mainMailboxExecutor,
+            ExecutorService asyncOperationsThreadPool) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
@@ -198,6 +206,8 @@ public class ChangelogKeyedStateBackend<K>
         this.stateChangelogWriter = stateChangelogWriter;
         this.materializedTo = stateChangelogWriter.initialSequenceNumber();
         this.changelogStates = new HashMap<>();
+        this.mainMailboxExecutor = checkNotNull(mainMailboxExecutor);
+        this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.completeRestore(initialState);
     }
 

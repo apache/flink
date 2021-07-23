@@ -302,11 +302,16 @@ public class CliClientITCase extends AbstractTestBase {
             out.append(sqlScript.comment).append(sqlScript.sql);
             if (i < results.size()) {
                 Result result = results.get(i);
-                out.append(result.content).append(result.highestTag.tag).append("\n");
+                String content = removeStreamNodeId(result.content);
+                out.append(content).append(result.highestTag.tag).append("\n");
             }
         }
 
         return out.toString();
+    }
+
+    private static String removeStreamNodeId(String s) {
+        return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 
     private static final class Result {

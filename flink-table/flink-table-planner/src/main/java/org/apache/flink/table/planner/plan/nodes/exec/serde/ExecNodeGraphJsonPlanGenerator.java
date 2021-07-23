@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -293,7 +293,7 @@ public class ExecNodeGraphJsonPlanGenerator {
                                 .source(source)
                                 .target(target)
                                 .shuffle(edge.getShuffle())
-                                .shuffleMode(edge.getShuffleMode())
+                                .exchangeMode(edge.getExchangeMode())
                                 .build();
                 idToInputEdges
                         .computeIfAbsent(target.getId(), n -> new ArrayList<>())
@@ -343,20 +343,20 @@ public class ExecNodeGraphJsonPlanGenerator {
         @JsonSerialize(using = ShuffleJsonSerializer.class)
         @JsonDeserialize(using = ShuffleJsonDeserializer.class)
         private final ExecEdge.Shuffle shuffle;
-        /** The {@link ShuffleMode} defines the data exchange mode on this edge. */
+        /** The {@link StreamExchangeMode} on this edge. */
         @JsonProperty(FIELD_NAME_SHUFFLE_MODE)
-        private final ShuffleMode shuffleMode;
+        private final StreamExchangeMode exchangeMode;
 
         @JsonCreator
         public JsonPlanEdge(
                 @JsonProperty(FIELD_NAME_SOURCE) int sourceId,
                 @JsonProperty(FIELD_NAME_TARGET) int targetId,
                 @JsonProperty(FIELD_NAME_SHUFFLE) ExecEdge.Shuffle shuffle,
-                @JsonProperty(FIELD_NAME_SHUFFLE_MODE) ShuffleMode shuffleMode) {
+                @JsonProperty(FIELD_NAME_SHUFFLE_MODE) StreamExchangeMode exchangeMode) {
             this.sourceId = sourceId;
             this.targetId = targetId;
             this.shuffle = shuffle;
-            this.shuffleMode = shuffleMode;
+            this.exchangeMode = exchangeMode;
         }
 
         @JsonIgnore
@@ -375,8 +375,8 @@ public class ExecNodeGraphJsonPlanGenerator {
         }
 
         @JsonIgnore
-        public ShuffleMode getShuffleMode() {
-            return shuffleMode;
+        public StreamExchangeMode getExchangeMode() {
+            return exchangeMode;
         }
 
         /** Build {@link JsonPlanEdge} from an {@link ExecEdge}. */
@@ -385,7 +385,7 @@ public class ExecNodeGraphJsonPlanGenerator {
                     execEdge.getSource().getId(),
                     execEdge.getTarget().getId(),
                     execEdge.getShuffle(),
-                    execEdge.getShuffleMode());
+                    execEdge.getExchangeMode());
         }
     }
 }

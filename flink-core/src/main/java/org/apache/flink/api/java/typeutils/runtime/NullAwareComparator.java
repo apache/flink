@@ -139,7 +139,7 @@ public class NullAwareComparator<T> extends TypeComparator<T> {
             throws IOException {
 
         throw new UnsupportedOperationException(
-                "Comparator does not support null-aware serialized comparision.");
+                "Comparator does not support null-aware serialized comparison.");
     }
 
     @Override
