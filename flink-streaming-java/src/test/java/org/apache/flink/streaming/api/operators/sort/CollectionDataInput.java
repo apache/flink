@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,7 +45,7 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<E> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<E> output) throws Exception {
         if (elementsIterator.hasNext()) {
             StreamElement streamElement = elementsIterator.next();
             if (streamElement instanceof StreamRecord) {
@@ -56,7 +56,9 @@ final class CollectionDataInput<E> implements StreamTaskInput<E> {
                 throw new IllegalStateException("Unsupported element type: " + streamElement);
             }
         }
-        return elementsIterator.hasNext() ? InputStatus.MORE_AVAILABLE : InputStatus.END_OF_INPUT;
+        return elementsIterator.hasNext()
+                ? DataInputStatus.MORE_AVAILABLE
+                : DataInputStatus.END_OF_INPUT;
     }
 
     @Override

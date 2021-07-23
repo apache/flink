@@ -23,7 +23,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -37,6 +36,7 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
@@ -255,13 +255,13 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<IN> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<IN> output) throws Exception {
         if (sortedInput != null) {
             return emitNextAfterSorting(output);
         }
 
-        InputStatus inputStatus = wrappedInput.emitNext(sortingPhaseDataOutput);
-        if (inputStatus == InputStatus.END_OF_INPUT) {
+        DataInputStatus inputStatus = wrappedInput.emitNext(sortingPhaseDataOutput);
+        if (inputStatus == DataInputStatus.END_OF_INPUT) {
             endSorting();
             return addNextToQueue(new HeadElement(idx), output);
         }
@@ -271,9 +271,9 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 
     @Nonnull
     @SuppressWarnings({"unchecked"})
-    private InputStatus emitNextAfterSorting(DataOutput<IN> output) throws Exception {
+    private DataInputStatus emitNextAfterSorting(DataOutput<IN> output) throws Exception {
         if (commonContext.isFinishedEmitting(idx)) {
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         } else if (commonContext.allSorted()) {
             HeadElement head = commonContext.getQueueOfHeads().peek();
             if (head != null && head.inputIndex == idx) {
@@ -281,10 +281,10 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
                 output.emitRecord((StreamRecord<IN>) headElement.streamElement.f1);
                 return addNextToQueue(headElement, output);
             } else {
-                return InputStatus.NOTHING_AVAILABLE;
+                return DataInputStatus.NOTHING_AVAILABLE;
             }
         } else {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
     }
 
@@ -298,7 +298,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     }
 
     @Nonnull
-    private InputStatus addNextToQueue(HeadElement reuse, DataOutput<IN> output) throws Exception {
+    private DataInputStatus addNextToQueue(HeadElement reuse, DataOutput<IN> output)
+            throws Exception {
         Tuple2<byte[], StreamRecord<IN>> next = sortedInput.next();
         if (next != null) {
             reuse.streamElement = getAsObject(next);
@@ -308,19 +309,19 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             if (seenWatermark > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(seenWatermark));
             }
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_INPUT;
         }
 
         if (commonContext.allSorted()) {
             HeadElement headElement = commonContext.getQueueOfHeads().peek();
             if (headElement != null) {
                 if (headElement.inputIndex == idx) {
-                    return InputStatus.MORE_AVAILABLE;
+                    return DataInputStatus.MORE_AVAILABLE;
                 }
             }
         }
 
-        return InputStatus.NOTHING_AVAILABLE;
+        return DataInputStatus.NOTHING_AVAILABLE;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

@@ -26,7 +26,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
@@ -82,11 +82,11 @@ public class LargeSortingDataInputITCase {
                                 1.0,
                                 new Configuration(),
                                 new DummyInvokable())) {
-            InputStatus inputStatus;
+            DataInputStatus inputStatus;
             VerifyingOutput<Integer> output = new VerifyingOutput<>(keySelector);
             do {
                 inputStatus = sortingDataInput.emitNext(output);
-            } while (inputStatus != InputStatus.END_OF_INPUT);
+            } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
             assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
         }
@@ -110,11 +110,11 @@ public class LargeSortingDataInputITCase {
                                 1.0,
                                 new Configuration(),
                                 new DummyInvokable())) {
-            InputStatus inputStatus;
+            DataInputStatus inputStatus;
             VerifyingOutput<String> output = new VerifyingOutput<>(keySelector);
             do {
                 inputStatus = sortingDataInput.emitNext(output);
-            } while (inputStatus != InputStatus.END_OF_INPUT);
+            } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
             assertThat(output.getSeenRecords(), equalTo(numberOfRecords));
         }
@@ -164,10 +164,10 @@ public class LargeSortingDataInputITCase {
                                     new StreamOneInputProcessor(
                                             sortedInput2, output, new DummyOperatorChain())
                                 });
-                InputStatus inputStatus;
+                DataInputStatus inputStatus;
                 do {
                     inputStatus = multiSortedProcessor.processInput();
-                } while (inputStatus != InputStatus.END_OF_INPUT);
+                } while (inputStatus != DataInputStatus.END_OF_INPUT);
 
                 assertThat(output.getSeenRecords(), equalTo(numberOfRecords * 2));
             }
@@ -250,19 +250,19 @@ public class LargeSortingDataInputITCase {
         }
 
         @Override
-        public InputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output)
+        public DataInputStatus emitNext(DataOutput<Tuple3<Integer, String, byte[]>> output)
                 throws Exception {
             if (recordsGenerated >= numberOfRecords) {
-                return InputStatus.END_OF_INPUT;
+                return DataInputStatus.END_OF_INPUT;
             }
 
             output.emitRecord(
                     new StreamRecord<>(
                             Tuple3.of(rnd.nextInt(), randomString(rnd.nextInt(256)), buffer), 1));
             if (recordsGenerated++ >= numberOfRecords) {
-                return InputStatus.END_OF_INPUT;
+                return DataInputStatus.END_OF_INPUT;
             } else {
-                return InputStatus.MORE_AVAILABLE;
+                return DataInputStatus.MORE_AVAILABLE;
             }
         }
 

@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -70,7 +69,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     }
 
     @Override
-    public InputStatus processInput() throws Exception {
+    public DataInputStatus processInput() throws Exception {
         int readingInputIndex;
         if (isPrepared) {
             readingInputIndex = selectNextReadingInputIndex();
@@ -80,11 +79,11 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             readingInputIndex = selectFirstReadingInputIndex();
         }
         if (readingInputIndex == InputSelection.NONE_AVAILABLE) {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
 
         lastReadInputIndex = readingInputIndex;
-        InputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
+        DataInputStatus inputStatus = inputProcessors[readingInputIndex].processInput();
         inputSelectionHandler.nextSelection();
         return inputSelectionHandler.updateStatus(inputStatus, readingInputIndex);
     }

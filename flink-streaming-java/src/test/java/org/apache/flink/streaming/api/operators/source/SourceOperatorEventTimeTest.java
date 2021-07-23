@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -210,7 +211,7 @@ public class SourceOperatorEventTimeTest {
                 createTestOperator(
                         reader, watermarkStrategy, timeService, emitProgressiveWatermarks);
 
-        while (sourceOperator.emitNext(out) != InputStatus.END_OF_INPUT) {
+        while (sourceOperator.emitNext(out) != DataInputStatus.END_OF_INPUT) {
             timeService.setCurrentTime(timeService.getCurrentProcessingTime() + 100);
         }
 

@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CollectionUtil;
@@ -276,20 +277,33 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<OUT> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
         // guarding an assumptions we currently make due to the fact that certain classes
         // assume a constant output
         assert lastInvokedOutput == output || lastInvokedOutput == null;
 
         // short circuit the common case (every invocation except the first)
         if (currentMainOutput != null) {
-            return sourceReader.pollNext(currentMainOutput);
+            return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
         }
 
         // this creates a batch or streaming output based on the runtime mode
         currentMainOutput = eventTimeLogic.createMainOutput(output);
         lastInvokedOutput = output;
-        return sourceReader.pollNext(currentMainOutput);
+        return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
+    }
+
+    private DataInputStatus convertToInternalStatus(InputStatus inputStatus) {
+        switch (inputStatus) {
+            case MORE_AVAILABLE:
+                return DataInputStatus.MORE_AVAILABLE;
+            case NOTHING_AVAILABLE:
+                return DataInputStatus.NOTHING_AVAILABLE;
+            case END_OF_INPUT:
+                return DataInputStatus.END_OF_INPUT;
+            default:
+                throw new IllegalArgumentException("Unknown input status: " + inputStatus);
+        }
     }
 
     @Override

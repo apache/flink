@@ -27,7 +27,6 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
@@ -110,6 +109,7 @@ import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
@@ -1868,10 +1868,10 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public InputStatus processInput() {
+        public DataInputStatus processInput() {
             return ++currentNumProcessCalls < totalProcessCalls
-                    ? InputStatus.MORE_AVAILABLE
-                    : InputStatus.END_OF_INPUT;
+                    ? DataInputStatus.MORE_AVAILABLE
+                    : DataInputStatus.END_OF_INPUT;
         }
 
         @Override
@@ -1898,10 +1898,10 @@ public class StreamTaskTest extends TestLogger {
         private final AvailabilityHelper availabilityProvider = new AvailabilityHelper();
 
         @Override
-        public InputStatus processInput() {
+        public DataInputStatus processInput() {
             return availabilityProvider.isAvailable()
-                    ? InputStatus.END_OF_INPUT
-                    : InputStatus.NOTHING_AVAILABLE;
+                    ? DataInputStatus.END_OF_INPUT
+                    : DataInputStatus.NOTHING_AVAILABLE;
         }
 
         @Override
@@ -2089,8 +2089,8 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public InputStatus processInput() throws Exception {
-            return isFinished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
+        public DataInputStatus processInput() throws Exception {
+            return isFinished ? DataInputStatus.END_OF_INPUT : DataInputStatus.NOTHING_AVAILABLE;
         }
 
         @Override
@@ -2712,8 +2712,8 @@ public class StreamTaskTest extends TestLogger {
             return new StreamInputProcessor() {
 
                 @Override
-                public InputStatus processInput() {
-                    return InputStatus.NOTHING_AVAILABLE;
+                public DataInputStatus processInput() {
+                    return DataInputStatus.NOTHING_AVAILABLE;
                 }
 
                 @Override
