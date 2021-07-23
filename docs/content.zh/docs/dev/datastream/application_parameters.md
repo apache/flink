@@ -107,7 +107,7 @@ DataStream<Tuple2<String, Integer>> counts = text.flatMap(new Tokenizer(paramete
 
 #### 全局注册参数
 
-从 JobManager web 界面和用户定义的所有函数中可以以配置值的方式访问在 `ExecutionConfig` 中注册为全局作业参数。
+从 JobManager web 界面和用户定义的所有函数中可以以配置值的方式访问在 `ExecutionConfig` 中注册的全局作业参数。
 
 在全局注册参数：
 
