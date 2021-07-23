@@ -34,7 +34,7 @@ under the License.
 
 ### `ParameterTool` 读取配置值
 
-`ParameterTool` 已经定义好了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易的与你的配置集成在一起。
+`ParameterTool` 已经定义好了一组静态方法，用于读取配置信息。该工具类内部使用了 `Map<string，string>` 类型，这样使得它可以很容易地与你的配置集成在一起。
 
 
 #### 配置值来自 `.properties` 文件
