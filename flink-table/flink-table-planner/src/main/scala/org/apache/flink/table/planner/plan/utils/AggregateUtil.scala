@@ -161,7 +161,6 @@ object AggregateUtil extends Enumeration {
       Array.fill(aggregateCalls.size)(false),
       orderKeyIndexes,
       needInputCount = false,
-      Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
       isBounded).aggInfos
@@ -273,7 +272,6 @@ object AggregateUtil extends Enumeration {
       aggCallNeedRetractions,
       orderKeyIndexes = null,
       needInputCount,
-      Option.empty[Int],
       isStateBackendDataViews,
       needDistinctInfo = true,
       isBounded = false)
@@ -291,7 +289,6 @@ object AggregateUtil extends Enumeration {
       Array.fill(aggregateCalls.size)(false),
       orderKeyIndexes,
       needInputCount = false,
-      Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
       isBounded = true).aggInfos
@@ -321,7 +318,6 @@ object AggregateUtil extends Enumeration {
       finalAggCallNeedRetractions,
       orderKeyIndexes,
       needInputCount = false,
-      Option.empty[Int],
       isStateBackedDataViews = false,
       needDistinctInfo = false,
       isBounded = true)
@@ -334,31 +330,12 @@ object AggregateUtil extends Enumeration {
       needInputCount: Boolean,
       isStateBackendDataViews: Boolean,
       needDistinctInfo: Boolean = true): AggregateInfoList = {
-    transformToStreamAggregateInfoList(
-      inputRowType,
-      aggregateCalls,
-      aggCallNeedRetractions,
-      needInputCount,
-      Option.empty[Int],
-      isStateBackendDataViews,
-      needDistinctInfo)
-  }
-
-  def transformToStreamAggregateInfoList(
-      inputRowType: RowType,
-      aggregateCalls: Seq[AggregateCall],
-      aggCallNeedRetractions: Array[Boolean],
-      needInputCount: Boolean,
-      indexOfExistingCountStar: Option[Int],
-      isStateBackendDataViews: Boolean,
-      needDistinctInfo: Boolean): AggregateInfoList = {
     transformToAggregateInfoList(
       inputRowType,
       aggregateCalls,
       aggCallNeedRetractions ++ Array(needInputCount), // for additional count(*)
       orderKeyIndexes = null,
       needInputCount,
-      indexOfExistingCountStar,
       isStateBackendDataViews,
       needDistinctInfo,
       isBounded = false)
@@ -374,7 +351,6 @@ object AggregateUtil extends Enumeration {
     * @param needInputCount   whether need to calculate the input counts, which is used in
     *                         aggregation with retraction input.If needed,
     *                         insert a count(1) aggregate into the agg list.
-    * @param indexOfExistingCountStar the index for the existing count star
     * @param isStateBackedDataViews   whether the dataview in accumulator use state or heap
     * @param needDistinctInfo  whether need to extract distinct information
     */
@@ -384,7 +360,6 @@ object AggregateUtil extends Enumeration {
       aggCallNeedRetractions: Array[Boolean],
       orderKeyIndexes: Array[Int],
       needInputCount: Boolean,
-      indexOfExistingCountStar: Option[Int],
       isStateBackedDataViews: Boolean,
       needDistinctInfo: Boolean,
       isBounded: Boolean): AggregateInfoList = {
@@ -394,7 +369,6 @@ object AggregateUtil extends Enumeration {
     // if not exist, insert a new count1 and remember the index
     val (indexOfCountStar, countStarInserted, aggCalls) = insertCountStarAggCall(
       needInputCount,
-      indexOfExistingCountStar,
       aggregateCalls)
 
     // Step-2:
@@ -662,18 +636,11 @@ object AggregateUtil extends Enumeration {
     *
     * @param needInputCount whether to insert an InputCount aggregate
     * @param aggregateCalls original aggregate calls
-    * @param indexOfExistingCountStar the index for the existing count star
     * @return (indexOfCountStar, countStarInserted, newAggCalls)
     */
   private def insertCountStarAggCall(
       needInputCount: Boolean,
-      indexOfExistingCountStar: Option[Int],
       aggregateCalls: Seq[AggregateCall]): (Option[Int], Boolean, Seq[AggregateCall]) = {
-
-    if (indexOfExistingCountStar.getOrElse(-1) >= 0) {
-      require(needInputCount)
-      return (indexOfExistingCountStar, false, aggregateCalls)
-    }
 
     var indexOfCountStar: Option[Int] = None
     var countStarInserted: Boolean = false

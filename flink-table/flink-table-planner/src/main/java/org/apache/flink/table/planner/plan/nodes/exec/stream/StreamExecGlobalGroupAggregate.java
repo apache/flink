@@ -50,7 +50,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -60,12 +59,9 @@ import org.apache.calcite.tools.RelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -75,7 +71,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
-    public static final String FIELD_NAME_INDEX_OF_COUNT_STAR = "indexOfCountStar";
 
     @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
@@ -101,11 +96,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
-    /** The position for the existing count star. */
-    @JsonProperty(FIELD_NAME_INDEX_OF_COUNT_STAR)
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    protected final Integer indexOfCountStar;
-
     public StreamExecGlobalGroupAggregate(
             int[] grouping,
             AggregateCall[] aggCalls,
@@ -113,7 +103,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             RowType localAggInputRowType,
             boolean generateUpdateBefore,
             boolean needRetraction,
-            @Nullable Integer indexOfCountStar,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
@@ -124,7 +113,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                 localAggInputRowType,
                 generateUpdateBefore,
                 needRetraction,
-                indexOfCountStar,
                 getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -139,7 +127,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE) RowType localAggInputRowType,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
-            @JsonProperty(FIELD_NAME_INDEX_OF_COUNT_STAR) @Nullable Integer indexOfCountStar,
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
@@ -152,8 +139,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         this.localAggInputRowType = checkNotNull(localAggInputRowType);
         this.generateUpdateBefore = generateUpdateBefore;
         this.needRetraction = needRetraction;
-        checkArgument(indexOfCountStar == null || indexOfCountStar >= 0 && needRetraction);
-        this.indexOfCountStar = indexOfCountStar;
     }
 
     @SuppressWarnings("unchecked")
@@ -179,7 +164,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
                         needRetraction,
-                        JavaScalaConversionUtil.toScala(Optional.ofNullable(indexOfCountStar)),
                         false, // isStateBackendDataViews
                         true); // needDistinctInfo
         final AggregateInfoList globalAggInfoList =
@@ -188,7 +172,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
                         needRetraction,
-                        JavaScalaConversionUtil.toScala(Optional.ofNullable(indexOfCountStar)),
                         true, // isStateBackendDataViews
                         true); // needDistinctInfo
 

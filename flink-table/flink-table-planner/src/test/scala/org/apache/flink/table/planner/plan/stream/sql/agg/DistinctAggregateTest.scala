@@ -170,22 +170,6 @@ class DistinctAggregateTest(
   }
 
   @Test
-  def testSumCountWithSingleDistinctAndRetraction(): Unit = {
-    val sqlQuery =
-      s"""
-         |SELECT
-         |  b, SUM(b1), COUNT(DISTINCT b1), COUNT(1)
-         |FROM(
-         |   SELECT
-         |     a, COUNT(b) as b, MAX(b) as b1
-         |   FROM MyTable
-         |   GROUP BY a
-         |) GROUP BY b
-       """.stripMargin
-    util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
-  }
-
-  @Test
   def testMinMaxWithRetraction(): Unit = {
     val sqlQuery =
       s"""

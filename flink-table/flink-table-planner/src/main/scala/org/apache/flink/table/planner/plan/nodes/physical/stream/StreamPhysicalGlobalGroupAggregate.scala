@@ -43,30 +43,22 @@ class StreamPhysicalGlobalGroupAggregate(
     val aggCallNeedRetractions: Array[Boolean],
     val localAggInputRowType: RelDataType,
     val needRetraction: Boolean,
-    val partialFinalType: PartialFinalType,
-    indexOfCountStar: Option[Int] = Option.empty)
+    val partialFinalType: PartialFinalType)
   extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
-
-  // if the indexOfCountStar is valid, the needRetraction should be true
-  require(indexOfCountStar.isEmpty || indexOfCountStar.get >= 0 && needRetraction)
 
   lazy val localAggInfoList: AggregateInfoList = AggregateUtil.transformToStreamAggregateInfoList(
     FlinkTypeFactory.toLogicalRowType(localAggInputRowType),
     aggCalls,
     aggCallNeedRetractions,
     needRetraction,
-    indexOfCountStar,
-    isStateBackendDataViews = false,
-    needDistinctInfo = true)
+    isStateBackendDataViews = false)
 
   lazy val globalAggInfoList: AggregateInfoList = AggregateUtil.transformToStreamAggregateInfoList(
     FlinkTypeFactory.toLogicalRowType(localAggInputRowType),
     aggCalls,
     aggCallNeedRetractions,
     needRetraction,
-    indexOfCountStar,
-    isStateBackendDataViews = true,
-    needDistinctInfo = true)
+    isStateBackendDataViews = true)
 
   override def requireWatermark: Boolean = false
 
@@ -83,8 +75,7 @@ class StreamPhysicalGlobalGroupAggregate(
       aggCallNeedRetractions,
       localAggInputRowType,
       needRetraction,
-      partialFinalType,
-      indexOfCountStar)
+      partialFinalType)
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
@@ -98,7 +89,6 @@ class StreamPhysicalGlobalGroupAggregate(
         globalAggInfoList,
         grouping,
         isGlobal = true))
-      .itemIf("indexOfCountStar", indexOfCountStar.getOrElse(-1), indexOfCountStar.nonEmpty)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -110,7 +100,6 @@ class StreamPhysicalGlobalGroupAggregate(
       FlinkTypeFactory.toLogicalRowType(localAggInputRowType),
       generateUpdateBefore,
       needRetraction,
-      indexOfCountStar.map(Integer.valueOf).orNull,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

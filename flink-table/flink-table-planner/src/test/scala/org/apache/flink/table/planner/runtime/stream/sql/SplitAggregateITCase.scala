@@ -297,58 +297,6 @@ class SplitAggregateITCase(
   }
 
   @Test
-  def testCountWithSingleDistinctAndRetraction(): Unit = {
-    // Test for FLINK-23434. The result is incorrect, because the global agg on incremental agg
-    // does not handle retraction message. While if binary mode is on, the result is correct
-    // event without this fix. Because mini-batch with binary mode will compact retraction message
-    // in this case.
-    val t1 = tEnv.sqlQuery(
-      s"""
-         |SELECT
-         |  b, COUNT(DISTINCT b1), COUNT(1)
-         |FROM(
-         |   SELECT
-         |     a, COUNT(b) as b, MAX(b) as b1
-         |   FROM T
-         |   GROUP BY a
-         |) GROUP BY b
-       """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("2,2,2", "4,1,1", "8,1,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testSumCountWithSingleDistinctAndRetraction(): Unit = {
-    // Test for FLINK-23434. The plan and the result is incorrect, because sum with retraction
-    // will produce two acc values, while sum without retraction will produce only one acc value,
-    // the type consistent validation will fail in the IncrementalAggregateRule because wrong
-    // retraction flag is given.
-    val t1 = tEnv.sqlQuery(
-      s"""
-         |SELECT
-         |  b, SUM(b1), COUNT(DISTINCT b1), COUNT(1)
-         |FROM(
-         |   SELECT
-         |     a, COUNT(b) as b, MAX(b) as b1
-         |   FROM T
-         |   GROUP BY a
-         |) GROUP BY b
-       """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("2,7,2,2", "4,6,1,1", "8,5,1,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
   def testAggWithJoin(): Unit = {
     val t1 = tEnv.sqlQuery(
       s"""
