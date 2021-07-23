@@ -33,8 +33,6 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<httpclient.version>4.5.9</httpclient.version>
-		<httpcore.version>4.4.11</httpcore.version>
 		<aws.sdk.version>1.11.754</aws.sdk.version>
 		<aws.sdkv2.version>2.15.32</aws.sdkv2.version>
 		<reactivestreams.version>1.0.2</reactivestreams.version>
@@ -147,17 +145,6 @@ under the License.
 				<version>${guava.version}</version>
 			</dependency>
 
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>${httpclient.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpcore</artifactId>
-				<version>${httpcore.version}</version>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

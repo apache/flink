@@ -38,8 +38,8 @@ under the License.
 		<aws.kinesis-kcl.version>1.11.2</aws.kinesis-kcl.version>
 		<aws.kinesis-kpl.version>0.14.0</aws.kinesis-kpl.version>
 		<aws.dynamodbstreams-kinesis-adapter.version>1.5.3</aws.dynamodbstreams-kinesis-adapter.version>
-		<httpclient.version>4.5.9</httpclient.version>
-		<httpcore.version>4.4.11</httpcore.version>
+		<httpclient.version>4.5.13</httpclient.version>
+		<httpcore.version>4.4.14</httpcore.version>
 		<guava.version>29.0-jre</guava.version>
 	</properties>
 
@@ -251,18 +251,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
