@@ -544,9 +544,9 @@ final class AggregateOperationFactory {
 
         @Override
         public Boolean visit(StructuredType structuredType) {
-            StructuredType.StructuredComparision comparision = structuredType.getComparision();
-            return comparision == StructuredType.StructuredComparision.FULL
-                    || comparision == StructuredType.StructuredComparision.EQUALS;
+            StructuredType.StructuredComparison comparison = structuredType.getComparison();
+            return comparison == StructuredType.StructuredComparison.FULL
+                    || comparison == StructuredType.StructuredComparison.EQUALS;
         }
 
         @Override

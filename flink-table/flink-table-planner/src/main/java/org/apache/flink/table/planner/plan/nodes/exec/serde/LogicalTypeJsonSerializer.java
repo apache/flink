@@ -71,7 +71,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
     public static final String FIELD_NAME_DESCRIPTION = "description";
     public static final String FIELD_NAME_FINAL = "final";
     public static final String FIELD_NAME_INSTANTIABLE = "instantiable";
-    public static final String FIELD_NAME_COMPARISION = "comparision";
+    public static final String FIELD_NAME_COMPARISON = "comparison";
     public static final String FIELD_NAME_SUPPER_TYPE = "supperType";
     // DistinctType's fields
     public static final String FIELD_NAME_SOURCE_TYPE = "sourceType";
@@ -310,7 +310,7 @@ public class LogicalTypeJsonSerializer extends StdSerializer<LogicalType> {
         jsonGenerator.writeBooleanField(FIELD_NAME_FINAL, structuredType.isFinal());
         jsonGenerator.writeBooleanField(FIELD_NAME_INSTANTIABLE, structuredType.isInstantiable());
         jsonGenerator.writeStringField(
-                FIELD_NAME_COMPARISION, structuredType.getComparision().name());
+                FIELD_NAME_COMPARISON, structuredType.getComparison().name());
         if (structuredType.getSuperType().isPresent()) {
             jsonGenerator.writeObjectField(
                     FIELD_NAME_SUPPER_TYPE, structuredType.getSuperType().get());

@@ -75,7 +75,7 @@ public class PartitionTimeCommitPredicate implements PartitionCommitPredicate {
      */
     private boolean watermarkHasPassedWithDelay(
             long watermark, LocalDateTime partitionTime, long commitDelay) {
-        // here we don't parse the long watermark to TIMESTAMP and then comparision,
+        // here we don't parse the long watermark to TIMESTAMP and then comparison,
         // but parse the partition timestamp to epoch mills to avoid Daylight Saving Time issue
         long epochPartTime = partitionTime.atZone(watermarkTimeZone).toInstant().toEpochMilli();
         return watermark > epochPartTime + commitDelay;
