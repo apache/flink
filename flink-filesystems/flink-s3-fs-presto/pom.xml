@@ -215,12 +215,6 @@ under the License.
 
 	<dependencyManagement>
 		<dependencies>
-			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>

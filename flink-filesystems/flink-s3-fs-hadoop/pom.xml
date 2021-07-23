@@ -42,13 +42,6 @@ under the License.
 				<version>${fs.hadoopshaded.version}</version>
 			</dependency>
 
-			<!-- aws-sdk requires httpclient >= 4.5.9 due to api compatibility breakage -->
-			<dependency>
-				<groupId>org.apache.httpcomponents</groupId>
-				<artifactId>httpclient</artifactId>
-				<version>4.5.9</version>
-			</dependency>
-
 			<dependency>
 				<!-- Bumped for security purposes -->
 				<groupId>commons-beanutils</groupId>

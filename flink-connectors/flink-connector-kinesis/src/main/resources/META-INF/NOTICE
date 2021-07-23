@@ -17,8 +17,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.amazonaws:aws-java-sdk-cloudwatch:1.12.7
 - com.amazonaws:dynamodb-streams-kinesis-adapter:1.5.3
 - com.amazonaws:jmespath-java:1.12.7
-- org.apache.httpcomponents:httpclient:4.5.9
-- org.apache.httpcomponents:httpcore:4.4.11
+- org.apache.httpcomponents:httpclient:4.5.13
+- org.apache.httpcomponents:httpcore:4.4.14
 - software.amazon.ion:ion-java:1.0.2
 - software.amazon.awssdk:kinesis:2.16.86
 - software.amazon.awssdk:aws-cbor-protocol:2.16.86
