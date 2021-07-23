@@ -41,7 +41,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-
 import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
@@ -56,6 +55,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
 
+/** Tests for code generations with code splitting. */
 public class CodeSplitTest {
 
     private final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
