@@ -24,8 +24,8 @@ import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -638,22 +638,22 @@ public class ResultPartitionTest {
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
 
-        bufferWritingResultPartition.notifyEndOfUserRecords();
+        bufferWritingResultPartition.notifyEndOfData();
         CompletableFuture<Void> allRecordsProcessedFuture =
-                bufferWritingResultPartition.getAllRecordsProcessedFuture();
+                bufferWritingResultPartition.getAllDataProcessedFuture();
         assertFalse(allRecordsProcessedFuture.isDone());
         for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
             assertEquals(1, resultSubpartition.getTotalNumberOfBuffers());
             Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
             assertFalse(nextBuffer.isBuffer());
             assertEquals(
-                    EndOfUserRecordsEvent.INSTANCE,
+                    EndOfData.INSTANCE,
                     EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()));
         }
 
         for (int i = 0; i < bufferWritingResultPartition.subpartitions.length; ++i) {
             ((PipelinedSubpartition) bufferWritingResultPartition.subpartitions[i])
-                    .acknowledgeAllRecordsProcessed();
+                    .acknowledgeAllDataProcessed();
 
             if (i < bufferWritingResultPartition.subpartitions.length - 1) {
                 assertFalse(allRecordsProcessedFuture.isDone());

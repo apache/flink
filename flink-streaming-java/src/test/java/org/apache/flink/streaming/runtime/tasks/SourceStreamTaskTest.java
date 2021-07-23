@@ -638,7 +638,7 @@ public class SourceStreamTaskTest extends SourceStreamTaskTestBase {
                         .thenAccept(
                                 (ignored) -> {
                                     for (ResultPartition resultPartition : partitionWriters) {
-                                        resultPartition.onSubpartitionAllRecordsProcessed(0);
+                                        resultPartition.onSubpartitionAllDataProcessed(0);
                                     }
                                 });
 

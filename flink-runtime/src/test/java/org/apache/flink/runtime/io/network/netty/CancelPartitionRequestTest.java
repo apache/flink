@@ -229,7 +229,7 @@ public class CancelPartitionRequestTest {
         public void resumeConsumption() {}
 
         @Override
-        public void acknowledgeAllRecordsProcessed() {}
+        public void acknowledgeAllDataProcessed() {}
 
         @Override
         public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {

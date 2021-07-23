@@ -53,7 +53,7 @@ public interface ResultSubpartitionView {
 
     void resumeConsumption();
 
-    void acknowledgeAllRecordsProcessed();
+    void acknowledgeAllDataProcessed();
 
     Throwable getFailureCause();
 

@@ -118,7 +118,7 @@ class CreditBasedSequenceNumberingViewReader
 
     @Override
     public void acknowledgeAllRecordsProcessed() {
-        subpartitionView.acknowledgeAllRecordsProcessed();
+        subpartitionView.acknowledgeAllDataProcessed();
     }
 
     @Override

@@ -24,8 +24,8 @@ import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.api.EndOfUserRecordsEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
@@ -183,7 +183,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
             barrierHandler.processCancellationBarrier(
                     (CancelCheckpointMarker) bufferOrEvent.getEvent(),
                     bufferOrEvent.getChannelInfo());
-        } else if (eventClass == EndOfUserRecordsEvent.class) {
+        } else if (eventClass == EndOfData.class) {
             inputGate.acknowledgeAllRecordsProcessed(bufferOrEvent.getChannelInfo());
         } else if (eventClass == EndOfPartitionEvent.class) {
             barrierHandler.processEndOfPartition(bufferOrEvent.getChannelInfo());

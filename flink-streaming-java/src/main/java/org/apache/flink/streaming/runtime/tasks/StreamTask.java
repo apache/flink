@@ -757,9 +757,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
 
             List<CompletableFuture<Void>> partitionRecordsProcessedFutures = new ArrayList<>();
             for (ResultPartitionWriter partitionWriter : getEnvironment().getAllWriters()) {
-                partitionWriter.notifyEndOfUserRecords();
-                partitionRecordsProcessedFutures.add(
-                        partitionWriter.getAllRecordsProcessedFuture());
+                partitionWriter.notifyEndOfData();
+                partitionRecordsProcessedFutures.add(partitionWriter.getAllDataProcessedFuture());
             }
             allRecordsProcessedFuture = FutureUtils.waitForAll(partitionRecordsProcessedFutures);
         } else {
