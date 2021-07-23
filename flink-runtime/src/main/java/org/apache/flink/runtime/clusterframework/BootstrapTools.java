@@ -287,7 +287,7 @@ public class BootstrapTools {
             Configuration configuration, @Nullable String defaultDirs) {
         if (configuration.contains(CoreOptions.TMP_DIRS)) {
             LOG.info(
-                    "Overriding Fink's temporary file directories with those "
+                    "Overriding Flink's temporary file directories with those "
                             + "specified in the Flink config: {}",
                     configuration.getValue(CoreOptions.TMP_DIRS));
         } else if (defaultDirs != null) {
