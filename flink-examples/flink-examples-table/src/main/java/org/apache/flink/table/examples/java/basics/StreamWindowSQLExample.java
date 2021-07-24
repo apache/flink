@@ -87,8 +87,8 @@ public class StreamWindowSQLExample {
         env.execute("Streaming Window SQL Job");
 
         // should output:
-        // 2019-12-12 00:00:00.000,3,10,3
-        // 2019-12-12 00:00:05.000,3,6,2
+        // +I[2019-12-12 00:00:05.000, 3, 6, 2]
+        // +I[2019-12-12 00:00:00.000, 3, 10, 3]
     }
 
     /** Creates a temporary file with the contents and returns the absolute path. */
