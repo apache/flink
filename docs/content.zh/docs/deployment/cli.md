@@ -348,7 +348,7 @@ parameter combinations:
   * `./bin/flink run --target remote`: Submission to an already running Flink cluster
 
 The `--target` will overwrite the [execution.target]({{< ref "docs/deployment/config" >}}#execution-target) 
-specified in the `config/flink-conf.yaml`.
+specified in the `conf/flink-conf.yaml`.
 
 For more details on the commands and the available options, please refer to the Resource Provider-specific 
 pages of the documentation.
