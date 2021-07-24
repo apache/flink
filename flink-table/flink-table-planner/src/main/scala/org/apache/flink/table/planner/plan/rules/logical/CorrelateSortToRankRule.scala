@@ -118,10 +118,7 @@ class CorrelateSortToRankRule extends RelOptRule(
       return false
     }
     val variable = fieldAccess.getReferenceExpr.asInstanceOf[RexCorrelVariable]
-    if (!variable.id.equals(correlate.getCorrelationId)) {
-      return false
-    }
-    true
+    variable.id.equals(correlate.getCorrelationId)
   }
 
   /**
