@@ -45,9 +45,18 @@ public abstract class Column {
 
     protected final DataType dataType;
 
+    protected final @Nullable String comment;
+
     private Column(String name, DataType dataType) {
         this.name = name;
         this.dataType = dataType;
+        this.comment = null;
+    }
+
+    private Column(String name, DataType dataType, @Nullable String comment) {
+        this.name = name;
+        this.dataType = dataType;
+        this.comment = comment;
     }
 
     /** Creates a regular table column that represents physical data. */
@@ -77,6 +86,9 @@ public abstract class Column {
         return new MetadataColumn(name, dataType, metadataKey, isVirtual);
     }
 
+    /** Add the comment to the column and return the new object. */
+    public abstract Column withComment(@Nullable String comment);
+
     /**
      * Returns whether the given column is a physical column of a table; neither computed nor
      * metadata.
@@ -96,6 +108,11 @@ public abstract class Column {
         return name;
     }
 
+    /** Returns the comment of this column. */
+    public Optional<String> getComment() {
+        return Optional.ofNullable(comment);
+    }
+
     /** Returns a string that summarizes this column for printing to a console. */
     public String asSummaryString() {
         final StringBuilder sb = new StringBuilder();
@@ -107,6 +124,13 @@ public abstract class Column {
                         e -> {
                             sb.append(" ");
                             sb.append(e);
+                        });
+        getComment()
+                .ifPresent(
+                        c -> {
+                            sb.append(" COMMENT '");
+                            sb.append(c);
+                            sb.append("'");
                         });
         return sb.toString();
     }
@@ -126,7 +150,9 @@ public abstract class Column {
             return false;
         }
         Column that = (Column) o;
-        return Objects.equals(this.name, that.name) && Objects.equals(this.dataType, that.dataType);
+        return Objects.equals(this.name, that.name)
+                && Objects.equals(this.dataType, that.dataType)
+                && Objects.equals(this.comment, that.comment);
     }
 
     @Override
@@ -150,6 +176,18 @@ public abstract class Column {
             super(name, dataType);
         }
 
+        private PhysicalColumn(String name, DataType dataType, String comment) {
+            super(name, dataType, comment);
+        }
+
+        @Override
+        public PhysicalColumn withComment(String comment) {
+            if (comment == null) {
+                return this;
+            }
+            return new PhysicalColumn(name, dataType, comment);
+        }
+
         @Override
         public boolean isPhysical() {
             return true;
@@ -167,7 +205,7 @@ public abstract class Column {
 
         @Override
         public Column copy(DataType newDataType) {
-            return new PhysicalColumn(name, newDataType);
+            return new PhysicalColumn(name, newDataType, comment);
         }
     }
 
@@ -179,6 +217,20 @@ public abstract class Column {
         private ComputedColumn(String name, DataType dataType, ResolvedExpression expression) {
             super(name, dataType);
             this.expression = expression;
+        }
+
+        private ComputedColumn(
+                String name, DataType dataType, ResolvedExpression expression, String comment) {
+            super(name, dataType, comment);
+            this.expression = expression;
+        }
+
+        @Override
+        public ComputedColumn withComment(String comment) {
+            if (comment == null) {
+                return this;
+            }
+            return new ComputedColumn(name, dataType, expression, comment);
         }
 
         @Override
@@ -202,7 +254,7 @@ public abstract class Column {
 
         @Override
         public Column copy(DataType newDataType) {
-            return new ComputedColumn(name, newDataType, expression);
+            return new ComputedColumn(name, newDataType, expression, comment);
         }
 
         @Override
@@ -240,12 +292,31 @@ public abstract class Column {
             this.isVirtual = isVirtual;
         }
 
+        private MetadataColumn(
+                String name,
+                DataType dataType,
+                @Nullable String metadataKey,
+                boolean isVirtual,
+                @Nullable String comment) {
+            super(name, dataType, comment);
+            this.metadataKey = metadataKey;
+            this.isVirtual = isVirtual;
+        }
+
         public boolean isVirtual() {
             return isVirtual;
         }
 
         public Optional<String> getMetadataKey() {
             return Optional.ofNullable(metadataKey);
+        }
+
+        @Override
+        public MetadataColumn withComment(@Nullable String comment) {
+            if (comment == null) {
+                return this;
+            }
+            return new MetadataColumn(name, dataType, metadataKey, isVirtual, comment);
         }
 
         @Override
@@ -276,7 +347,7 @@ public abstract class Column {
 
         @Override
         public Column copy(DataType newDataType) {
-            return new MetadataColumn(name, newDataType, metadataKey, isVirtual);
+            return new MetadataColumn(name, newDataType, metadataKey, isVirtual, comment);
         }
 
         @Override
