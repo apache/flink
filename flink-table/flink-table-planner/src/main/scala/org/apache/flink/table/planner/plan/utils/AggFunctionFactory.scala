@@ -368,6 +368,9 @@ class AggFunctionFactory(
         new LeadLagAggFunction.BooleanLeadLagAggFunction(argTypes.length)
       case VARCHAR =>
         new LeadLagAggFunction.StringLeadLagAggFunction(argTypes.length)
+      case CHAR =>
+        val d = argTypes(0).asInstanceOf[CharType]
+        new LeadLagAggFunction.CharLeadLagAggFunction(argTypes.length, d);
       case DATE =>
         new LeadLagAggFunction.DateLeadLagAggFunction(argTypes.length)
       case TIME_WITHOUT_TIME_ZONE =>
