@@ -33,10 +33,11 @@ public class ValuesJsonPlanITCase extends JsonPlanTestBase {
     public void testValues() throws Exception {
         createTestValuesSinkTable("MySink", "b INT", "a INT", "c VARCHAR");
         String jsonPlan =
-                tableEnv.getJsonPlan("INSERT INTO MySink SELECT * from (VALUES (1, 2, 'Hi'))");
+                tableEnv.getJsonPlan(
+                        "INSERT INTO MySink SELECT * from (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))");
         tableEnv.executeJsonPlan(jsonPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
-        assertResult(Arrays.asList("+I[1, 2, Hi]"), result);
+        assertResult(Arrays.asList("+I[1, 2, Hi]", "+I[3, 4, Hello]"), result);
     }
 }

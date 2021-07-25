@@ -24,6 +24,28 @@
         "nullable" : false,
         "precision" : 2
       }
+    } ], [ {
+      "kind" : "LITERAL",
+      "value" : "3",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "4",
+      "type" : {
+        "typeName" : "INTEGER",
+        "nullable" : false
+      }
+    }, {
+      "kind" : "LITERAL",
+      "value" : "Hello",
+      "type" : {
+        "typeName" : "CHAR",
+        "nullable" : false,
+        "precision" : 5
+      }
     } ] ],
     "id" : 1,
     "outputType" : {
@@ -34,10 +56,10 @@
       }, {
         "EXPR$1" : "INT NOT NULL"
       }, {
-        "EXPR$2" : "CHAR(2) NOT NULL"
+        "EXPR$2" : "VARCHAR(5) NOT NULL"
       } ]
     },
-    "description" : "Values(tuples=[[{ 1, 2, _UTF-16LE'Hi' }]])",
+    "description" : "Values(tuples=[[{ 1, 2, _UTF-16LE'Hi' }, { 3, 4, _UTF-16LE'Hello' }]])",
     "inputProperties" : [ ]
   }, {
     "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
@@ -90,9 +112,9 @@
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
         "type" : {
-          "typeName" : "CHAR",
+          "typeName" : "VARCHAR",
           "nullable" : false,
-          "precision" : 2
+          "precision" : 5
         }
       } ],
       "type" : {

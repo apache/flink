@@ -50,6 +50,7 @@ public class ValuesJsonPlanTest extends TableTestBase {
 
     @Test
     public void testValues() {
-        util.verifyJsonPlan("INSERT INTO MySink SELECT * FROM (VALUES (1, 2, 'Hi'))");
+        util.verifyJsonPlan(
+                "INSERT INTO MySink SELECT * FROM (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))");
     }
 }
