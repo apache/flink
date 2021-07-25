@@ -318,7 +318,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() {
+    public SavepointResources<K> savepoint(long checkpointId) {
 
         HeapSnapshotResources<K> snapshotResources =
                 HeapSnapshotResources.create(

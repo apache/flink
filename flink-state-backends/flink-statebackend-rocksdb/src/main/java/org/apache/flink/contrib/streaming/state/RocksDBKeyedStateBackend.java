@@ -553,7 +553,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() throws Exception {
+    public SavepointResources<K> savepoint(long checkpointId) throws Exception {
 
         // flush everything into db before taking a snapshot
         writeBatchWrapper.flush();

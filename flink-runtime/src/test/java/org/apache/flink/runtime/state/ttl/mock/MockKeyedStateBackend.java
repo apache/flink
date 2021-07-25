@@ -228,7 +228,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() throws Exception {
+    public SavepointResources<K> savepoint(long checkpointId) throws Exception {
         throw new UnsupportedOperationException(
                 "Unified savepoints are not supported on this testing StateBackend.");
     }

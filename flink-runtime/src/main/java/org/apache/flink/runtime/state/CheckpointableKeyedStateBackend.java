@@ -45,5 +45,5 @@ public interface CheckpointableKeyedStateBackend<K>
      * write out a savepoint in the common/unified format.
      */
     @Nonnull
-    SavepointResources<K> savepoint() throws Exception;
+    SavepointResources<K> savepoint(long checkpointId) throws Exception;
 }

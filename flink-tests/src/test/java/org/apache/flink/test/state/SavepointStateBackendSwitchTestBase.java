@@ -234,7 +234,7 @@ public abstract class SavepointStateBackendSwitchTestBase {
         SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
                 savepointRunner =
                         StreamOperatorStateHandler.prepareSavepoint(
-                                keyedBackend, new CloseableRegistry());
+                                keyedBackend, new CloseableRegistry(), 1);
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot =
                 savepointRunner.snapshot(

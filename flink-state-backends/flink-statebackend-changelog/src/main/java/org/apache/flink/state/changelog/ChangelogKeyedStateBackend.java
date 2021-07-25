@@ -403,8 +403,8 @@ public class ChangelogKeyedStateBackend<K>
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() throws Exception {
-        return keyedStateBackend.savepoint();
+    public SavepointResources<K> savepoint(long checkpointId) throws Exception {
+        return keyedStateBackend.savepoint(checkpointId);
     }
 
     // -------------------- CheckpointListener --------------------------------

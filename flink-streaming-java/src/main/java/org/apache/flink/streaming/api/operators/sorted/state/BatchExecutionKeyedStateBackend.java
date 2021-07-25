@@ -275,7 +275,7 @@ public class BatchExecutionKeyedStateBackend<K> implements CheckpointableKeyedSt
 
     @Nonnull
     @Override
-    public SavepointResources<K> savepoint() throws Exception {
+    public SavepointResources<K> savepoint(long checkpointId) throws Exception {
         throw new UnsupportedOperationException(
                 "Savepoints are not supported in BATCH runtime mode.");
     }
