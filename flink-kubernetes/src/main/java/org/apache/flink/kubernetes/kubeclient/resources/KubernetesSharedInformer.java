@@ -124,19 +124,19 @@ public abstract class KubernetesSharedInformer<
 
         @Override
         public void onAdd(T obj) {
-            executorService.submit(
+            executorService.execute(
                     () -> findHandler(obj).ifPresent(EventHandler::handleResourceEvent));
         }
 
         @Override
         public void onUpdate(T oldObj, T newObj) {
-            executorService.submit(
+            executorService.execute(
                     () -> findHandler(newObj).ifPresent(EventHandler::handleResourceEvent));
         }
 
         @Override
         public void onDelete(T obj, boolean deletedFinalStateUnknown) {
-            executorService.submit(
+            executorService.execute(
                     () -> findHandler(obj).ifPresent(EventHandler::handleResourceEvent));
         }
 
@@ -149,7 +149,7 @@ public abstract class KubernetesSharedInformer<
             final String resourceKey = getResourceKey(name);
             final String watchId = UUID.randomUUID().toString();
             final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-            executorService.submit(
+            executorService.execute(
                     () -> {
                         final EventHandler eventHandler =
                                 handlers.computeIfAbsent(
@@ -266,7 +266,7 @@ public abstract class KubernetesSharedInformer<
             if (this.executorService == null) {
                 handlerConsumer.accept(handler);
             } else {
-                this.executorService.submit(
+                this.executorService.execute(
                         () -> {
                             callbackLock.lock();
                             try {
