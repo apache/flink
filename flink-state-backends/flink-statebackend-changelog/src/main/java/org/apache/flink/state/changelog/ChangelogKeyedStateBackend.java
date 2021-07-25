@@ -55,6 +55,7 @@ import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
@@ -190,6 +191,8 @@ public class ChangelogKeyedStateBackend<K>
 
     private final ExecutorService asyncOperationsThreadPool;
 
+    private final TaskStateRegistry taskStateRegistry;
+
     public ChangelogKeyedStateBackend(
             AbstractKeyedStateBackend<K> keyedStateBackend,
             ExecutionConfig executionConfig,
@@ -197,7 +200,8 @@ public class ChangelogKeyedStateBackend<K>
             StateChangelogWriter<ChangelogStateHandle> stateChangelogWriter,
             Collection<ChangelogStateBackendHandle> initialState,
             MailboxExecutor mainMailboxExecutor,
-            ExecutorService asyncOperationsThreadPool) {
+            ExecutorService asyncOperationsThreadPool,
+            TaskStateRegistry taskStateRegistry) {
         this.keyedStateBackend = keyedStateBackend;
         this.executionConfig = executionConfig;
         this.ttlTimeProvider = ttlTimeProvider;
@@ -208,6 +212,7 @@ public class ChangelogKeyedStateBackend<K>
         this.changelogStates = new HashMap<>();
         this.mainMailboxExecutor = checkNotNull(mainMailboxExecutor);
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
+        this.taskStateRegistry = checkNotNull(taskStateRegistry);
         this.completeRestore(initialState);
     }
 

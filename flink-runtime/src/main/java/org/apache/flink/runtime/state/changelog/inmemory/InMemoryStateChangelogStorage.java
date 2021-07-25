@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog.inmemory;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 import org.apache.flink.util.CloseableIterator;
 
 /** An in-memory (non-production) implementation of {@link StateChangelogStorage}. */
@@ -35,5 +36,10 @@ public class InMemoryStateChangelogStorage
     @Override
     public StateChangelogHandleReader<InMemoryChangelogStateHandle> createReader() {
         return handle -> CloseableIterator.fromList(handle.getChanges(), change -> {});
+    }
+
+    @Override
+    public TaskStateRegistry getStateChangeUsageTracker(String operatorIdentifier) {
+        return TaskStateRegistry.NO_OP;
     }
 }

@@ -223,7 +223,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 changelogStorage.createWriter(operatorIdentifier, keyGroupRange),
                                 baseState,
                                 env.getMainMailboxExecutor(),
-                                env.getAsyncOperationsThreadPool()));
+                                env.getAsyncOperationsThreadPool(),
+                                changelogStorage.getStateChangeUsageTracker(operatorIdentifier)));
     }
 
     private Collection<ChangelogStateBackendHandle> castHandles(

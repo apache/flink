@@ -19,13 +19,14 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogHandleStreamHandleReader;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
+import org.apache.flink.runtime.state.track.SharedTaskStateRegistry;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,25 +55,29 @@ public class FsStateChangelogStorage
      */
     private final AtomicInteger logIdGenerator = new AtomicInteger(0);
 
-    public FsStateChangelogStorage(Configuration config) throws IOException {
-        this(
-                StateChangeUploader.fromConfig(config),
-                config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes());
-    }
+    private final SharedTaskStateRegistry<?> stateRegistry;
 
     @VisibleForTesting
-    public FsStateChangelogStorage(Path basePath, boolean compression, int bufferSize)
+    public FsStateChangelogStorage(
+            Path basePath,
+            boolean compression,
+            int bufferSize,
+            SharedTaskStateRegistry<?> stateRegistry)
             throws IOException {
         this(
                 new StateChangeFsUploader(
-                        basePath, basePath.getFileSystem(), compression, bufferSize),
-                PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes());
+                        basePath, basePath.getFileSystem(), compression, bufferSize, stateRegistry),
+                PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes(),
+                stateRegistry);
     }
 
-    private FsStateChangelogStorage(
-            StateChangeUploader uploader, long preEmptivePersistThresholdInBytes) {
+    FsStateChangelogStorage(
+            StateChangeUploader uploader,
+            long preEmptivePersistThresholdInBytes,
+            SharedTaskStateRegistry<?> stateRegistry) {
         this.uploader = uploader;
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
+        this.stateRegistry = stateRegistry;
     }
 
     @Override
@@ -91,5 +96,10 @@ public class FsStateChangelogStorage
     @Override
     public void close() throws Exception {
         uploader.close();
+    }
+
+    @Override
+    public TaskStateRegistry getStateChangeUsageTracker(String operatorIdentifier) {
+        return stateRegistry.forBackend(operatorIdentifier);
     }
 }

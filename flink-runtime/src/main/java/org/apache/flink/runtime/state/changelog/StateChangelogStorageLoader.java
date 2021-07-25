@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ServiceLoader;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterators.concat;
 
@@ -82,7 +83,8 @@ public class StateChangelogStorageLoader {
     }
 
     @Nullable
-    public static StateChangelogStorage<?> load(Configuration configuration) throws IOException {
+    public static StateChangelogStorage<?> load(Configuration configuration, Executor ioExecutor)
+            throws IOException {
         final String identifier =
                 configuration
                         .getString(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE)
@@ -94,7 +96,7 @@ public class StateChangelogStorageLoader {
             return null;
         } else {
             LOG.info("Creating a changelog storage with name '{}'.", identifier);
-            return factory.createStorage(configuration);
+            return factory.createStorage(configuration, ioExecutor);
         }
     }
 }

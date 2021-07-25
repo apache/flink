@@ -21,11 +21,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
+import org.apache.flink.runtime.state.track.SharedTaskStateRegistry;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
 import static org.apache.flink.configuration.CheckpointingOptions.STATE_CHANGE_LOG_STORAGE;
 
 /** {@link FsStateChangelogStorage} factory. */
@@ -40,8 +43,13 @@ public class FsStateChangelogStorageFactory implements StateChangelogStorageFact
     }
 
     @Override
-    public StateChangelogStorage<?> createStorage(Configuration configuration) throws IOException {
-        return new FsStateChangelogStorage(configuration);
+    public StateChangelogStorage<?> createStorage(Configuration configuration, Executor ioExecutor)
+            throws IOException {
+        SharedTaskStateRegistry<?> stateRegistry = SharedTaskStateRegistry.create(ioExecutor);
+        return new FsStateChangelogStorage(
+                StateChangeUploader.fromConfig(configuration, stateRegistry),
+                configuration.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes(),
+                stateRegistry);
     }
 
     public static void configure(Configuration configuration, File newFolder) {

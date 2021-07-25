@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 /**
  * This class holds the all {@link StateChangelogStorage} objects for a task executor (manager). No
@@ -68,7 +69,8 @@ public class TaskExecutorStateChangelogStoragesManager {
 
     @Nullable
     public StateChangelogStorage<?> stateChangelogStorageForJob(
-            @Nonnull JobID jobId, Configuration configuration) throws IOException {
+            @Nonnull JobID jobId, Configuration configuration, Executor ioExecutor)
+            throws IOException {
         if (closed) {
             throw new IllegalStateException(
                     "TaskExecutorStateChangelogStoragesManager is already closed and cannot "
@@ -79,7 +81,8 @@ public class TaskExecutorStateChangelogStoragesManager {
                 changelogStoragesByJobId.get(jobId);
 
         if (stateChangelogStorage == null) {
-            StateChangelogStorage<?> loaded = StateChangelogStorageLoader.load(configuration);
+            StateChangelogStorage<?> loaded =
+                    StateChangelogStorageLoader.load(configuration, ioExecutor);
             stateChangelogStorage = Optional.ofNullable(loaded);
             changelogStoragesByJobId.put(jobId, stateChangelogStorage);
 

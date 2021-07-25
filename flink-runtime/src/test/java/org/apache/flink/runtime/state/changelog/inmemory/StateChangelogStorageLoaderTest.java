@@ -27,15 +27,18 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.Executor;
 
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -46,7 +49,7 @@ public class StateChangelogStorageLoaderTest {
     @Test
     public void testLoadSpiImplementation() throws IOException {
         StateChangelogStorageLoader.initialize(getPluginManager(emptyIterator()));
-        assertNotNull(StateChangelogStorageLoader.load(new Configuration()));
+        assertNotNull(StateChangelogStorageLoader.load(new Configuration(), directExecutor()));
     }
 
     @Test
@@ -55,7 +58,8 @@ public class StateChangelogStorageLoaderTest {
         assertNull(
                 StateChangelogStorageLoader.load(
                         new Configuration()
-                                .set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "not_exist")));
+                                .set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "not_exist"),
+                        directExecutor()));
     }
 
     @Test
@@ -64,7 +68,8 @@ public class StateChangelogStorageLoaderTest {
         StateChangelogStorageFactory factory = new TestStateChangelogStorageFactory();
         PluginManager pluginManager = getPluginManager(singletonList(factory).iterator());
         StateChangelogStorageLoader.initialize(pluginManager);
-        StateChangelogStorage loaded = StateChangelogStorageLoader.load(new Configuration());
+        StateChangelogStorage loaded =
+                StateChangelogStorageLoader.load(new Configuration(), directExecutor());
         assertTrue(loaded instanceof TestStateChangelogStorage);
     }
 
@@ -93,6 +98,11 @@ public class StateChangelogStorageLoaderTest {
         public StateChangelogHandleReader<ChangelogStateHandle> createReader() {
             return null;
         }
+
+        @Override
+        public TaskStateRegistry getStateChangeUsageTracker(String operatorIdentifier) {
+            return TaskStateRegistry.NO_OP;
+        }
     }
 
     private static class TestStateChangelogStorageFactory implements StateChangelogStorageFactory {
@@ -104,7 +114,8 @@ public class StateChangelogStorageLoaderTest {
         }
 
         @Override
-        public StateChangelogStorage<?> createStorage(Configuration configuration) {
+        public StateChangelogStorage<?> createStorage(
+                Configuration configuration, Executor ioExecutor) {
             return new TestStateChangelogStorage();
         }
     }

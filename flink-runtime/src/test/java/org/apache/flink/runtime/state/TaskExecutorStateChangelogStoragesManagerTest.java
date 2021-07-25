@@ -28,15 +28,18 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageFactory;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorageLoader;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.concurrent.Executor;
 
 import static java.util.Collections.singletonList;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 
 /** Tests for {@link TaskExecutorStateChangelogStoragesManager}. */
 public class TaskExecutorStateChangelogStoragesManagerTest {
@@ -48,14 +51,14 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         Configuration configuration = new Configuration();
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         StateChangelogStorage<?> storage2 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertEquals(storage1, storage2);
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage3 =
-                manager.stateChangelogStorageForJob(jobId2, configuration);
+                manager.stateChangelogStorageForJob(jobId2, configuration, directExecutor());
         Assert.assertNotEquals(storage1, storage3);
         manager.shutdown();
     }
@@ -71,14 +74,14 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 TestStateChangelogStorageFactory.identifier);
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertTrue(storage1 instanceof TestStateChangelogStorage);
         Assert.assertFalse(((TestStateChangelogStorage) storage1).closed);
         manager.releaseStateChangelogStorageForJob(jobId1);
         Assert.assertTrue(((TestStateChangelogStorage) storage1).closed);
 
         StateChangelogStorage<?> storage2 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertNotEquals(storage1, storage2);
 
         manager.shutdown();
@@ -94,7 +97,7 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
 
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertNull(storage1);
 
         // change configuration, assert the result not change.
@@ -102,17 +105,17 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 CheckpointingOptions.STATE_CHANGE_LOG_STORAGE,
                 CheckpointingOptions.STATE_CHANGE_LOG_STORAGE.defaultValue());
         StateChangelogStorage<?> storage2 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertNull(storage2);
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage3 =
-                manager.stateChangelogStorageForJob(jobId2, configuration);
+                manager.stateChangelogStorageForJob(jobId2, configuration, directExecutor());
         Assert.assertNotNull(storage3);
 
         configuration.set(CheckpointingOptions.STATE_CHANGE_LOG_STORAGE, "invalid");
         StateChangelogStorage<?> storage4 =
-                manager.stateChangelogStorageForJob(jobId2, configuration);
+                manager.stateChangelogStorageForJob(jobId2, configuration, directExecutor());
         Assert.assertNotNull(storage4);
         Assert.assertEquals(storage3, storage4);
 
@@ -130,13 +133,13 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
                 TestStateChangelogStorageFactory.identifier);
         JobID jobId1 = new JobID(1L, 1L);
         StateChangelogStorage<?> storage1 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertTrue(storage1 instanceof TestStateChangelogStorage);
         Assert.assertFalse(((TestStateChangelogStorage) storage1).closed);
 
         JobID jobId2 = new JobID(1L, 2L);
         StateChangelogStorage<?> storage2 =
-                manager.stateChangelogStorageForJob(jobId1, configuration);
+                manager.stateChangelogStorageForJob(jobId1, configuration, directExecutor());
         Assert.assertTrue(storage2 instanceof TestStateChangelogStorage);
         Assert.assertFalse(((TestStateChangelogStorage) storage2).closed);
 
@@ -166,6 +169,11 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         public void close() {
             closed = true;
         }
+
+        @Override
+        public TaskStateRegistry getStateChangeUsageTracker(String operatorIdentifier) {
+            return TaskStateRegistry.NO_OP;
+        }
     }
 
     private static class TestStateChangelogStorageFactory implements StateChangelogStorageFactory {
@@ -191,7 +199,8 @@ public class TaskExecutorStateChangelogStoragesManagerTest {
         }
 
         @Override
-        public StateChangelogStorage<?> createStorage(Configuration configuration) {
+        public StateChangelogStorage<?> createStorage(
+                Configuration configuration, Executor ioExecutor) {
             return new TestStateChangelogStorage();
         }
     }

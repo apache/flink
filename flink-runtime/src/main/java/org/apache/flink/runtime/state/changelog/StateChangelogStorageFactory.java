@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 
 import java.io.IOException;
+import java.util.concurrent.Executor;
 
 /**
  * A factory for {@link StateChangelogStorage}. Please use {@link StateChangelogStorageLoader} to
@@ -33,5 +34,6 @@ public interface StateChangelogStorageFactory {
     String getIdentifier();
 
     /** Create the storage based on a configuration. */
-    StateChangelogStorage<?> createStorage(Configuration configuration) throws IOException;
+    StateChangelogStorage<?> createStorage(Configuration configuration, Executor ioExecutor)
+            throws IOException;
 }

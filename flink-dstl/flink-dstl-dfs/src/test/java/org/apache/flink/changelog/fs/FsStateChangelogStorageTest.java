@@ -20,11 +20,14 @@ package org.apache.flink.changelog.fs;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.inmemory.StateChangelogStorageTest;
+import org.apache.flink.runtime.state.track.SharedTaskStateRegistry;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.concurrent.Executors.directExecutor;
 
 /** {@link FsStateChangelogStorage} test. */
 @RunWith(Parameterized.class)
@@ -39,6 +42,9 @@ public class FsStateChangelogStorageTest extends StateChangelogStorageTest {
     @Override
     protected StateChangelogStorage<?> getFactory() throws IOException {
         return new FsStateChangelogStorage(
-                Path.fromLocalFile(temporaryFolder.newFolder()), compression, 1024 * 1024 * 10);
+                Path.fromLocalFile(temporaryFolder.newFolder()),
+                compression,
+                1024 * 1024 * 10,
+                SharedTaskStateRegistry.create(directExecutor()));
     }
 }

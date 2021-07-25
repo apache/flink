@@ -20,6 +20,7 @@ package org.apache.flink.runtime.state.changelog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.track.TaskStateRegistry;
 
 /**
  * A storage for changelog. Could produce {@link StateChangelogHandleReader} and {@link
@@ -35,4 +36,6 @@ public interface StateChangelogStorage<Handle extends ChangelogStateHandle> exte
 
     @Override
     default void close() throws Exception {}
+
+    TaskStateRegistry getStateChangeUsageTracker(String operatorIdentifier);
 }
